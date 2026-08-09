@@ -83,7 +83,7 @@ const verdictOf = (fixture, stdout, expected, status, name) =>
   check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
 
 export const cases = () => {
-  check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue requires a ticket reference/ })
+  check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue requires ORB-N, #N, or N/ })
   check(TOOL, "refuses a malformed issue", ["--issue", "orbit200", "--worktree", ".", "--branch", BRANCH, "--repo", "ui"], { status: 2, stderr: /ticket assertion failed: Ticket reference must be/ })
   check(TOOL, "refuses a missing branch", ["--issue", "ORB-200", "--worktree", "."], { status: 2, stderr: /--branch requires a branch name/ })
   check(TOOL, "refuses a missing repository", ["--issue", "ORB-200", "--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--repo requires a repository key/ })
@@ -107,11 +107,12 @@ export const cases = () => {
   stage(
     "staged/verify-delivery-hermetic/tools/lib/github-issues.mjs",
     `export const resolveTicket = (reference) => {
-  const identifier = String(reference).toUpperCase()
-  if (identifier !== "ORB-200") throw new Error("Unknown migrated ticket " + reference)
-  return { identifier, number: 200 }
+  const value = String(reference).toUpperCase()
+  if (value === "ORB-200") return { identifier: "ORB-200", number: 200 }
+  if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
+  throw new Error("Unknown migrated ticket " + reference)
 }
-export const readTicket = async () => ({ identifier: "ORB-200", number: 200, labels: [{ name: "repo:ui" }] })
+export const readTicket = async (number) => ({ identifier: number === 200 ? "ORB-200" : null, number, labels: [{ name: "repo:ui" }] })
 export const assertRepositoryLabel = (ticket, repoKey) => {
   if (ticket.labels.length !== 1 || ticket.labels[0].name !== "repo:" + repoKey) throw new Error("ticket repository label mismatch")
   return ticket
@@ -264,6 +265,15 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     `${TOOL}: DELIVERED carries the pull request number and url every later step needs`,
     /"number": 200/.test(delivered.stdout) && /"url": "https:\/\/github\.com\/[^"]+\/pull\/200"/.test(delivered.stdout),
     delivered.stdout || delivered.stderr,
+  )
+
+  const numericPullRequest = { ...pullRequest(pushed.head), title: "#9001 do the thing", body: "Implements #9001." }
+  check(
+    TOOL,
+    "a post-migration #N reference links and delivers without an invented ORB identifier",
+    ["--issue", "#9001", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 0, stdout: /"issue": "#9001"[\s\S]*"verdict": "DELIVERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([numericPullRequest])) },
   )
 
   const marker = stage("verify-delivery/degraded-edit-not-called", "pending")

@@ -201,6 +201,19 @@ const assertGhTicketStub = (entry) => {
   const envelopeName = ghEnvelopeName(command, entry)
   const output = envelopeName === "issueViewError" ? String(entry.stderr ?? "") : String(entry.stdout ?? "")
   /**
+   * The read-only recorder cannot create an issue to capture this write output. The exact installed
+   * GitHub CLI v2.97.0 source does provide it: pkg/cmd/issue/create/create.go ends the successful
+   * submit path with `fmt.Fprintln(opts.IO.Out, newIssue.URL)`. Keep this narrower than the generic
+   * exit-code escape so no JSON field can be invented under it.
+   */
+  if (entry.verifiedTicketOutput === "issueCreateUrl") {
+    if (!/\bissue\s+create\b/.test(command)) throw new Error(`gh fixture ${command} applies issueCreateUrl to a non-create command`)
+    if (!/^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/[1-9]\d*\/?\r?\n?$/.test(output)) {
+      throw new Error(`gh fixture ${command} asserts an invalid verified issue-create URL`)
+    }
+    return
+  }
+  /**
    * A ticket command with no recorded envelope is a hole, not a pass. The Linear guard this
    * replaced refused any `orca linear` command it had no envelope for, and only skipped commands
    * that were not Linear at all. Skipping every unrecognised `gh issue` and `gh project` command
@@ -346,6 +359,7 @@ export const stageWithConfig = (label, tool, config) => {
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(join(base, ".claude", "orchestrator.json"), `${JSON.stringify(config, null, 2)}\n`)
+  cpSync(join(REPO_ROOT, ".claude", "linear-to-github-map.json"), join(base, ".claude", "linear-to-github-map.json"))
   cpSync(join(TOOLS_DIR, tool), join(base, "tools", tool))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", tool), base, configPath: join(base, ".claude", "orchestrator.json") }

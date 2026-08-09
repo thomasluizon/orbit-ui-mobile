@@ -67,13 +67,14 @@ export const cases = () => {
   stage(
     "staged/teardown-worktree/tools/lib/github-issues.mjs",
     `export const resolveTicket = (reference) => {
-  const identifier = String(reference).toUpperCase()
-  if (identifier !== "ORB-124") throw new Error("Unknown migrated ticket " + reference)
-  return { identifier, number: 124 }
+  const value = String(reference).toUpperCase()
+  if (value === "ORB-124") return { identifier: "ORB-124", number: 124 }
+  if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
+  throw new Error("Unknown migrated ticket " + reference)
 }
-export const readTicket = async () => ({
-  identifier: "ORB-124",
-  number: 124,
+export const readTicket = async (number) => ({
+  identifier: number === 124 ? "ORB-124" : null,
+  number,
   status: process.env.ORBIT_TICKET_STATUS || "Done",
   state: process.env.ORBIT_TICKET_STATE || "CLOSED",
   labels: [{ name: "repo:ui" }],
@@ -92,6 +93,15 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "refuses a valueless base", ["--issue", "ORB-124", "--base"], { status: 2, stderr: /selector flags require a value/ })
   check(TOOL, "refuses an unknown option before reading anything", ["--issue", "ORB-124", "--force"], { status: 2, stderr: /unknown option\(s\): --force/ })
   check(TOOL, "refuses an issue with no active worktree", ["--issue", "ORB-124"], { status: 1, stderr: /no active Orca worktree is linked to ORB-124/ }, { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [] } }) }]) })
+
+  const numeric = stageTeardownWorktree("numeric-ticket", { changed: true })
+  check(
+    TOOL,
+    "a post-migration #N selector resolves the Orca worktree by issue number",
+    ["--issue", "#9001"],
+    { status: 1, stderr: /no merged pull request with merge and head commits was found/ },
+    { env: orcaEnv(teardownPlan(numeric, { pullRequests: [], worktrees: [{ ...worktreeRecord(numeric), [ORCA_TICKET_LINK_FIELD]: "#9001" }] })) },
+  )
 
   const allGood = stageTeardownWorktree("all-good", { changed: true, fastForwardMerged: true })
   if (!allGood) {

@@ -8,7 +8,7 @@ import { addComment, assertRepositoryLabel, readTicket, resolveTicket, setStatus
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
-const USAGE = `usage: sync-issue-state.mjs --issue ORB-N --repo <ui|api|landing> --pr <number> --state <working|ready|blocked> --head-sha <sha> --base-sha <sha> --message-file <path|->
+const USAGE = `usage: sync-issue-state.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --pr <number> --state <working|ready|blocked> --head-sha <sha> --base-sha <sha> --message-file <path|->
 
 working, blocked -> In Progress. ready -> In Review. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
@@ -76,7 +76,7 @@ if (current.state === "CLOSED") fail(1, `${issue} is closed; readiness synchroni
 /**
  * THE target assertion, the ticket half of the 2026-08-08 misdirected-write incident. `--issue` is
  * a caller-supplied identifier and this tool writes twice with it: a status change and a comment.
- * An invented or mistyped ORB-N is a live ticket belonging to other work, so the write lands
+ * An invented or mistyped ticket reference can name live work, so the write lands
  * somewhere real and reads as deliberate.
  *
  * `repo:*` is the mechanical link between a ticket and a repository: tools/plan-queue.mjs admits a

@@ -46,7 +46,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,listMilestones,listTickets,readTicket,resolveTicket,setStatus",
+      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,listLabels,listMilestones,listTickets,preflightTicketCompletion,readTicket,resolveTicket,setStatus",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -141,6 +141,17 @@ export const cases = async () => {
       milestones.join(",") === "Future,Harness Context and Calibration",
       JSON.stringify(milestones),
     )
+
+    applyEnvironment(
+      orcaEnv([
+        {
+          match: "label list --repo thomasluizon/orbit-tickets --limit 1000 --json name",
+          stdout: JSON.stringify([{ name: "repo:ui" }, { name: "Improvement" }]),
+        },
+      ]),
+    )
+    const labels = await githubIssues.listLabels()
+    T(`${TOOL}: listLabels returns only the names from the recorded label shape`, labels.join(",") === "repo:ui,Improvement", JSON.stringify(labels))
 
     applyEnvironment(
       orcaEnv([

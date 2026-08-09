@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a milestone, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, runs a capped cross-vendor review and clears the Codex bot's threads. --sleep works the whole queue unattended. A machine never merges unasked.
-argument-hint: <ORB-N | ORB-A ORB-B | milestone> [--sleep] [--parallel] [--auto] [--codex-only]
+argument-hint: <ORB-N | #N | ticket references | milestone> [--sleep] [--parallel] [--auto] [--codex-only]
 effort: high
 ---
 
@@ -19,7 +19,8 @@ Constants:
 
 ```
 /orchestrate ORB-N                      one ticket, exactly as before
-/orchestrate ORB-A ORB-B ORB-C          those tickets, in dependency order
+/orchestrate #N                         one post-migration GitHub ticket
+/orchestrate ORB-A #123 #456            those tickets, in dependency order
 /orchestrate "<milestone title>"        every open ticket in that milestone
 /orchestrate --auto                     the whole board, highest leverage first
 ```
@@ -56,7 +57,7 @@ run it always was.
                      the first worktree. Answers that remove a ticket remove it now.
                      THEN write .git/orbit-orchestrate-run.json: session, sleep, remaining[]
                                         ---- per ticket, in wave order ----
- 3  Worktree         orca worktree create; git switch -c feature/orb-N-<slug>
+ 3  Worktree         orca worktree create; git switch -c feature/<ticket-slug>-<slug>
                      stackParent set -> branch from ITS branch, not from main
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
                      written to the scratchpad, never inside a repo
@@ -67,7 +68,7 @@ run it always was.
                      git rev-list --count <base>..HEAD -> >= 1
                      git rev-list origin/<br>..HEAD    -> 0  (pushed)
                      gh pr list --head <br>            -> exactly 1, headRefOid matches
-                     PR title or body names ORB-N      -> the branch alone is not the link
+                     PR title or body names the actual ticket reference -> the branch alone is not the link
                      additions+deletions and changedFiles -> advisory review information only
                      compare base...head               -> behind_by = 0
                      statusCheckRollup, both node shapes -> no check red, none pending
@@ -111,17 +112,17 @@ These interfaces are fixed. Do not invent flags or variants.
 
 ```
 node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown]
-node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
-node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
-node tools/launch-worker.mjs     --issue ORB-N --review --repo <key> --prompt <f> [--codex-only]
-node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
+node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--codex-only]
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --review --repo <key> --prompt <f> [--codex-only]
+node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
-node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
-node tools/sync-issue-state.mjs  --issue ORB-N --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
+node tools/salvage-worker.mjs    --issue "<ticket-ref>" --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
+node tools/sync-issue-state.mjs  --issue "<ticket-ref>" --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --ticket <json> [--codex-only]
 node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
-node tools/teardown-worktree.mjs --issue ORB-N
+node tools/teardown-worktree.mjs --issue "<ticket-ref>"
 ```
 
 The launcher is the ONLY sanctioned way to start a model session, reviewer included. A raw `claude`
@@ -292,7 +293,7 @@ Expected state: `~/.claude/skills/` holds exactly 12 dirs (`brain`, `brain-agend
 ## Step 1. Plan the queue
 
 ```bash
-node tools/plan-queue.mjs --tickets ORB-A,ORB-B          # explicit list
+node tools/plan-queue.mjs --tickets ORB-A,#123           # explicit list
 node tools/plan-queue.mjs --board                        # --auto
 ```
 
@@ -409,9 +410,11 @@ orca worktree create --repo path:<repo> --name <slug> --base-branch main \
   --issue <ticket-number> --no-parent --comment "<one line>" --json
 ```
 
-Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. In the worktree run
-`git switch -c feature/orb-N-<slug>` (`fix/` for a bug ticket) and confirm HEAD landed on it. The
-branch is never left to the worker to remember.
+Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. Derive the ticket slug
+from its actual reference: `orb-N` for a migrated ORB identifier, or `ticket-N` for a GitHub-only
+`#N`. In the worktree run `git switch -c feature/<ticket-slug>-<slug>` (`fix/` for a bug ticket) and
+confirm HEAD landed on it. Never invent an ORB identifier. The branch is never left to the worker
+to remember.
 
 ### Stacking, when the plan says so
 
@@ -419,8 +422,8 @@ A ticket whose plan entry carries a `stackParent` **branches from that parent's 
 main**, and its pull request targets that branch:
 
 ```bash
-git switch -c feature/orb-N-<slug> feature/orb-<parent>-<slug>
-# and the worker's finishing contract opens the PR with:  --base feature/orb-<parent>-<slug>
+git switch -c feature/<ticket-slug>-<slug> feature/<parent-ticket-slug>-<slug>
+# and the worker's finishing contract opens the PR with:  --base feature/<parent-ticket-slug>-<slug>
 ```
 
 Pass the parent branch to `verify-delivery.mjs` as `--base` too, or `git rev-list --count
@@ -463,7 +466,7 @@ construction: the child's branch cannot exist until the parent's does.
 ## Step 4. Compose the prompt
 
 ```bash
-node tools/compose-prompt.mjs --issue ORB-N --repo <key> --out <scratchpad>/orb-N-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
+node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratchpad>/<ticket-slug>-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
 The file carries, in order:
@@ -472,7 +475,7 @@ The file carries, in order:
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
    the base branch, the affected-file list from step 2, and the scope boundary as a hard limit.
 3. **The finishing contract:** run lint, type-check and tests for the touched workspace; commit;
-   push; open a PR to `main` whose body links the ticket URL and names `ORB-N`. The ticket-state
+   push; open a PR to `main` whose body links the ticket URL and names its actual reference. The ticket-state
    synchronizer posts the PR URL back to the issue. Cross-platform parity and i18n key parity land
    in the same commit.
    **The worker never merges and never opens a second PR.**
@@ -482,7 +485,7 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 ## Steps 5 and 6. Spawn the worker
 
 ```bash
-node tools/launch-worker.mjs --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--codex-only]
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
@@ -499,7 +502,7 @@ running. There is nothing to poll, nothing to babysit, and no monitor to arm.
 ## Step 7. Verify delivery, out of band
 
 ```bash
-node tools/verify-delivery.mjs --issue ORB-N --worktree <p> --branch <b> --repo <key> --wait-ci <seconds> [--codex-only]
+node tools/verify-delivery.mjs --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> --wait-ci <seconds> [--codex-only]
 ```
 
 It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
@@ -663,7 +666,7 @@ because convergence was never the terminating condition.
 ## Step 8. Review round 1
 
 ```bash
-gh pr diff <n> > <scratchpad>/orb-N-r1.diff
+gh pr diff <n> > <scratchpad>/<ticket-slug>-r1.diff
 
 # MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
 # working tree, so a rubric edited by the change under review cannot become the rubric it is
@@ -672,10 +675,10 @@ gh pr diff <n> > <scratchpad>/orb-N-r1.diff
 #   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
 #   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
 RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
-git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
+git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/<ticket-slug>-rubric.md
 
 # compose the review order into the scratchpad, then launch the reviewer through the launcher
-node tools/launch-worker.mjs --issue ORB-N --review --repo <key> --prompt <scratchpad>/orb-N-review.md
+node tools/launch-worker.mjs --issue "<ticket-ref>" --review --repo <key> --prompt <scratchpad>/<ticket-slug>-review.md
 ```
 
 **The review order MUST demand the four rubric provenance fields, and it must hand the reviewer the
@@ -683,7 +686,7 @@ materialized snapshot path.** `record-readiness.mjs` requires them and proves th
 review order that omits them produces a receipt that is refused and a whole review that must be
 re-run. That happened to every review on 2026-08-08. Name in the order: `rubricRepositoryKey`
 (`$RUBRIC_REPO`), `rubricCommitOid` (`$RUBRIC_COMMIT`), `rubricBlobOid` (`$RUBRIC_BLOB`) and
-`rubricArtifactPath` (`<scratchpad>/orb-N-rubric.md`).
+`rubricArtifactPath` (`<scratchpad>/<ticket-slug>-rubric.md`).
 
 `--review` resolves the `reviewer` engine and the `review` model tier from
 `.claude/orchestrator.json`, and runs in that repository's PRIMARY MAIN checkout. It refuses a
@@ -697,7 +700,7 @@ change under review. Feed it the diff file and the frozen ruleset. It returns:
  "rubricBlobOid":"<sha>","rubricArtifactPath":"<absolute snapshot path>","findings":[]}
 ```
 
-Write it to `<scratchpad>/orb-N-findings.json`. **The list is now frozen.** File every non-blocking
+Write it to `<scratchpad>/<ticket-slug>-findings.json`. **The list is now frozen.** File every non-blocking
 finding as its own follow-up ticket immediately, then drop it from this run.
 
 **Size never exempts the review.** A 355-file codemod still gets reviewed; it gets reviewed AS a
@@ -876,7 +879,7 @@ the pre-edit green rollup. A body touch cannot clear readiness while silently dr
 
 ## Step 14. Hand over
 
-Set `ORB-N` to In Review only from a READY receipt.
+Set the actual ticket reference to In Review only from a READY receipt.
 
 **A worker never produces visual evidence.** A fresh worktree has no seeded session, so the attempt
 can only ever end at a login page. Measured 2026-08-06 on two tickets
@@ -921,7 +924,7 @@ night.
 Per worktree, only after `gh pr view <n> --json state` reads `MERGED`:
 
 ```bash
-node tools/teardown-worktree.mjs --issue ORB-N
+node tools/teardown-worktree.mjs --issue "<ticket-ref>"
 ```
 
 Never tear down an unmerged worktree. The branch and its work are the only copy. In a queue this

@@ -8,7 +8,7 @@ Something broken, stale, or wrong while you build or fix? Fix it in the same PR;
 
 ## The workflow (D1-D9)
 
-Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository (D1). Exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each ticket to its code repository. The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate ORB-N` takes exactly one ticket (D5), and the reviewer is never the session that wrote the code.
+Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository (D1). Exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each ticket to its code repository. The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate <ticket-reference>` takes exactly one migrated `ORB-N` or GitHub `#N` ticket (D5), and the reviewer is never the session that wrote the code.
 
 ## Cross-platform parity (MANDATORY)
 

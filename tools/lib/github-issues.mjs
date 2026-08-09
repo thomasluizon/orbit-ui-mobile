@@ -36,6 +36,11 @@ const positiveIssueNumber = (number) => {
 
 const ticketConfiguration = () => readOrchestratorConfig().tickets
 
+const nonEmptyString = (value, name) => {
+  if (typeof value !== "string" || value.trim().length === 0) throw new Error(`${name} must be a non-empty string`)
+  return value
+}
+
 const runGh = async (args, { input } = {}) => {
   const result = await runBounded(process.env.GH_BIN || "gh", args, {
     env: process.env,
@@ -168,10 +173,10 @@ export const readTicket = async (number) => {
   return normalizeTicket(parseGhJson(`gh ${args.join(" ")}`, issueOutput), projectItems, tickets.repository)
 }
 
-export const setStatus = async (number, status) => {
+const writeStatus = async (number, status, { allowDone = false } = {}) => {
   positiveIssueNumber(number)
   const tickets = ticketConfiguration()
-  if (status === tickets.states.done || status === "Done") throw new Error("The readiness loop never targets Done before merge")
+  if (!allowDone && (status === tickets.states.done || status === "Done")) throw new Error("The readiness loop never targets Done before merge")
   if (!Object.hasOwn(tickets.statusOptions, status)) throw new Error(`Unknown ticket status ${JSON.stringify(status)}`)
   const issueUrl = `https://github.com/${tickets.repository}/issues/${number}`
   await runGh([
@@ -188,6 +193,8 @@ export const setStatus = async (number, status) => {
     status,
   ])
 }
+
+export const setStatus = async (number, status) => writeStatus(number, status)
 
 export const addComment = async (number, body) => {
   positiveIssueNumber(number)
@@ -206,6 +213,119 @@ export const listMilestones = async () => {
   return output
     .split(/\r?\n/)
     .filter((title) => title.length > 0)
+}
+
+export const listLabels = async () => {
+  const tickets = ticketConfiguration()
+  const args = ["label", "list", "--repo", tickets.repository, "--limit", "1000", "--json", "name"]
+  const labels = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+  if (!Array.isArray(labels) || labels.some((label) => typeof label?.name !== "string" || label.name.length === 0)) {
+    throw new Error("gh label list returned no valid label array")
+  }
+  return labels.map((label) => label.name)
+}
+
+export const createMilestone = async ({ title, description }) => {
+  nonEmptyString(title, "Milestone title")
+  nonEmptyString(description, "Milestone description")
+  if ((await listMilestones()).includes(title)) throw new Error(`Milestone ${JSON.stringify(title)} already exists`)
+  const tickets = ticketConfiguration()
+  await runGh(
+    ["api", `repos/${tickets.repository}/milestones`, "--method", "POST", "--input", "-"],
+    { input: JSON.stringify({ title, description }) },
+  )
+  return { title }
+}
+
+const createdIssueFromUrl = (stdout, repository) => {
+  const escapedRepository = repository.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const match = new RegExp(`^https://github\\.com/${escapedRepository}/issues/([1-9]\\d*)/?$`).exec(stdout.trim())
+  if (!match) throw new Error(`gh issue create returned no issue URL for ${repository}`)
+  return { number: positiveIssueNumber(Number(match[1])), url: stdout.trim().replace(/\/$/, "") }
+}
+
+/**
+ * GitHub CLI v2.97.0 prints exactly the created issue URL on stdout after every deferred update
+ * succeeds. Source: pkg/cmd/issue/create/create.go at tag v2.97.0,
+ * `fmt.Fprintln(opts.IO.Out, newIssue.URL)`. No other write output is parsed here.
+ */
+export const createTicket = async ({ title, body, labels, milestone = null, status = "Todo", blockedBy = [] }) => {
+  nonEmptyString(title, "Ticket title")
+  nonEmptyString(body, "Ticket body")
+  if (!Array.isArray(labels) || labels.length === 0 || labels.some((label) => typeof label !== "string" || label.trim().length === 0)) {
+    throw new Error("Ticket labels must be a non-empty array of non-empty strings")
+  }
+  if (milestone !== null) nonEmptyString(milestone, "Ticket milestone")
+  nonEmptyString(status, "Ticket status")
+  if (!Array.isArray(blockedBy)) throw new Error("Ticket blockers must be an array")
+
+  const tickets = ticketConfiguration()
+  if (status === tickets.states.done || status === "Done") throw new Error("A new ticket cannot start at Done")
+  if (!Object.hasOwn(tickets.statusOptions, status)) throw new Error(`Unknown ticket status ${JSON.stringify(status)}`)
+
+  const [availableLabels, availableMilestones, resolvedBlockers] = await Promise.all([
+    listLabels(),
+    milestone === null ? [] : listMilestones(),
+    Promise.all(blockedBy.map(async (reference) => {
+      const resolved = resolveTicket(reference)
+      await readTicket(resolved.number)
+      return resolved.number
+    })),
+  ])
+  const missingLabels = [...new Set(labels)].filter((label) => !availableLabels.includes(label))
+  if (missingLabels.length > 0) throw new Error(`Unknown ticket label(s): ${missingLabels.join(", ")}`)
+  if (milestone !== null && !availableMilestones.includes(milestone)) {
+    throw new Error(`Unknown ticket milestone ${JSON.stringify(milestone)}; create it as a separate explicit action first`)
+  }
+
+  const createArgs = ["issue", "create", "--repo", tickets.repository, "--title", title, "--body-file", "-"]
+  for (const label of [...new Set(labels)]) createArgs.push("--label", label)
+  if (milestone !== null) createArgs.push("--milestone", milestone)
+  const created = createdIssueFromUrl(await runGh(createArgs, { input: body }), tickets.repository)
+
+  await runGh([
+    "project",
+    "item-add",
+    String(tickets.projectNumber),
+    "--owner",
+    tickets.projectOwner,
+    "--url",
+    created.url,
+  ])
+  await writeStatus(created.number, status)
+
+  const blockerNumbers = [...new Set(resolvedBlockers)]
+  if (blockerNumbers.length > 0) {
+    await runGh([
+      "issue",
+      "edit",
+      String(created.number),
+      "--repo",
+      tickets.repository,
+      "--add-blocked-by",
+      blockerNumbers.join(","),
+    ])
+  }
+
+  return { ...created, title, milestone, status }
+}
+
+export const preflightTicketCompletion = async (number) => {
+  positiveIssueNumber(number)
+  const tickets = ticketConfiguration()
+  if (!Object.hasOwn(tickets.statusOptions, tickets.states.done)) throw new Error("The configured Done status has no project option")
+  const ticket = await readTicket(number)
+  if (ticket.state !== "OPEN") throw new Error(`Ticket #${number} is ${ticket.state}; only an open ticket can complete after merge`)
+  if (!ticket.projectItemId) throw new Error(`Ticket #${number} is absent from the configured project`)
+  return ticket
+}
+
+export const completeTicket = async (number) => {
+  const ticket = await preflightTicketCompletion(number)
+  const tickets = ticketConfiguration()
+  await writeStatus(number, tickets.states.done, { allowDone: true })
+  await runGh(["issue", "close", String(number), "--repo", tickets.repository, "--reason", "completed"])
+  return { number: ticket.number, url: ticket.url, title: ticket.title }
 }
 
 export const listTickets = async ({ labels = [], state = "open", milestone = null } = {}) => {

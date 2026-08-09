@@ -54,9 +54,12 @@ fields. Then prove for every frozen PR:
 - all CI checks on that approved head are settled and green;
 - the PR is mergeable against its then-current base;
 - its ticket board Status is In Review, or is In Progress only for a handoff Thomas has now accepted;
+- `node tools/complete-ticket.mjs --issue "<actual-ticket-reference>" --preflight` succeeds for its
+  open ticket and configured project item;
 - its worktree and branch belong to this PR, not another session.
 
-Abort before merging anything if a target fails preflight. Do not turn `/merge-prs` into a fixer.
+Run the completion preflight for EVERY frozen pull request before merging ANY of them. Abort before
+merging anything if a target fails preflight. Do not turn `/merge-prs` into a fixer.
 
 ## Compute the merge order
 
@@ -109,8 +112,9 @@ Immediately after each confirmed merge:
 
 1. Set the ticket board Status to Done, close the GitHub issue as completed, and add one concise
    idempotent comment with repository, PR, and squash SHA. Never mark Done or close the ticket before
-   GitHub confirms MERGED. Use only the repository ticket tools. If they expose no post-merge Done
-   transition, stop and report that missing contract instead of issuing a raw ticket mutation.
+   GitHub confirms MERGED. Run
+   `node tools/complete-ticket.mjs --issue "<actual-ticket-reference>"` for the Done and close
+   transition. Use only repository ticket tools and never issue a raw ticket mutation.
 2. Run the repository's canonical teardown tool for that ticket.
 3. If a server-side update left the local worktree at the approved head, fetch
    `refs/pull/<pr>/head`, fast-forward that exact local branch, and rerun teardown.

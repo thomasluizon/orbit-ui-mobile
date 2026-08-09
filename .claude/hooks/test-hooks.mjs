@@ -373,6 +373,11 @@ T("tickets: GraphQL addComment fails closed on an opaque subject id", blocks(che
 T("tickets: opaque GraphQL input fails closed", blocks(checkTicketMutation("gh api graphql --input payload.json")), true)
 T("tickets: GraphQL pull request mutation allows", checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'"), null)
 T("tickets: a repository tool invocation allows", checkTicketMutation("node tools/sync-issue-state.mjs --issue ORB-215 --repo ui --state ready"), null)
+T("tickets: the ticket skill milestone read allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones?state=all&per_page=100 --paginate --jq .[].title`), null)
+T("tickets: the sanctioned milestone creator allows", checkTicketMutation("node tools/create-milestone.mjs --title Launch --description-file draft.md"), null)
+T("tickets: the sanctioned ticket creator allows", checkTicketMutation("node tools/create-ticket.mjs --title x --body-file draft.md --label repo:ui --label Improvement"), null)
+T("tickets: the post-merge completion preflight allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221" --preflight'), null)
+T("tickets: the post-merge completion write allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221"'), null)
 // A gate that fires on prose gets switched off, so its false-positive rate remains part of its contract.
 const tracked = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
 const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : [])

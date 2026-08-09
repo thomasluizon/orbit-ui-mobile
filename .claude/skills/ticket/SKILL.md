@@ -118,22 +118,21 @@ defect if violated:
    named `Backlog`.
 2. Create a milestone only when the work is genuinely a new body of work with its own completion
    boundary and progress. List again immediately before the write and match by title. Do not create
-   first and interpret an HTTP 422. Use the GitHub milestone API only after the list proves no title
-   match. Create it with `gh api repos/thomasluizon/orbit-tickets/milestones -f title="<title>"
-   -f description="<locked decisions>"`, and preserve the locked decisions in that description.
-3. Create each issue with `gh issue create --repo thomasluizon/orbit-tickets --title "<t>"
-   --body-file <draft> --label "<repo:*>" --label "<type>" [--label "<parity:*>"] --project Orbit
-   [--milestone "<existing title>"]`. Omit `--milestone` for holding-pen work. If approval changes
-   the assignment after creation, use `gh issue edit <number> --repo thomasluizon/orbit-tickets
-   --milestone "<existing title>"` only after listing and matching that title.
-4. Set the created board item to Status Todo with `gh project item-edit 2 --owner thomasluizon
-   --url <created-issue-url> --field Status --value Todo`.
-5. Add only the `blockedBy` edges approved at phase D with `gh issue edit <ticket-number>
-   --repo thomasluizon/orbit-tickets --add-blocked-by <blocker-number>`. Never encode a dependency
-   only in prose.
-6. Print the final table: issue reference, title, repo, type, milestone or `none`, and `blockedBy`.
+   first and interpret an HTTP 422. Write the locked decisions to a scratchpad file, then run
+   `node tools/create-milestone.mjs --title "<title>" --description-file <scratchpad-file>`. This is
+   a separate explicit action. `create-ticket.mjs` never creates a missing milestone.
+3. Create tickets in dependency order, blockers first. For each approved ticket run
+   `node tools/create-ticket.mjs --title "<t>" --body-file <draft> --label "<repo:*>"
+   --label "<type>" [--label "<parity:*>"] [--milestone "<existing title>"]
+   [--blocked-by "<actual-ticket-reference>"]`. Omit `--milestone` for holding-pen work. Repeat
+   `--blocked-by` for every approved edge. For a blocker created earlier in this batch, copy the
+   actual `#N` printed by the tool. Never invent an ORB identifier.
+4. The tool validates every label, the exact milestone title, and every blocker before it creates
+   the issue. It then adds the issue to the configured board, sets Status Todo, and writes all
+   relations. Any failure stops the sequence. Do not replace any part with a raw tracker mutation.
+5. Print the final table: issue reference, title, repo, type, milestone or `none`, and `blockedBy`.
    When tickets land in an existing milestone, say which rows are new.
 
 Stop there. No code, no branches, no worktrees, no fixing even for a one-liner: the output is
-tickets, and the ticket is the record that makes the work reviewable. `/orchestrate ORB-N` builds
-what this creates.
+tickets, and the ticket is the record that makes the work reviewable. `/orchestrate <issue-reference>`
+builds what this creates. A newly created ticket's reference is the actual `#N` printed by the tool.

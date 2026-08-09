@@ -11,7 +11,7 @@ import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-i
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 import { readRunState, writeRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: salvage-worker.mjs --issue ORB-N --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
+const USAGE = `usage: salvage-worker.mjs --issue <ORB-N|#N|N> --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
 
 The test-command file is {"command":"<executable>","args":["..."]}. The tool runs it in the
 worktree and persists its real exit receipt before staging. Only repeated, explicitly named --path

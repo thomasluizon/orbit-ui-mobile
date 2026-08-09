@@ -15,9 +15,9 @@ import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) --repo <ui|api|landing> [--base <ref>]
+const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <path>) --repo <ui|api|landing> [--base <ref>]
 
-  --issue ORB-N       remove the Orca worktree linked to this ticket
+  --issue <reference> remove the Orca worktree linked to this ticket
   --worktree <path>   remove this Orca child worktree
   --repo <key>        repository key the ticket must target
   --base <ref>        branch that must contain the merge commit (default: worktree base or main)
@@ -97,8 +97,18 @@ const ORCA_TICKET_LINK_FIELD = ["linked", "Lin", "earIssue"].join("")
 const linkedTicketOf = (entry) => entry?.[ORCA_TICKET_LINK_FIELD]
 
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
+const requestedTicketNumber = requestedIssue ? resolveTicket(requestedIssue).number : null
+const linksRequestedTicket = (entry) => {
+  const linked = linkedTicketOf(entry)
+  if (!linked) return false
+  try {
+    return resolveTicket(linked).number === requestedTicketNumber
+  } catch {
+    return false
+  }
+}
 const worktree = requestedIssue
-  ? worktrees.find((entry) => !entry.isMainWorktree && !entry.isArchived && linkedTicketOf(entry) === resolveTicket(requestedIssue).identifier)
+  ? worktrees.find((entry) => !entry.isMainWorktree && !entry.isArchived && linksRequestedTicket(entry))
   : worktrees.find((entry) => normalize(entry.path) === normalize(requestedWorktree))
 if (!worktree) fail(1, requestedIssue ? `no active Orca worktree is linked to ${requestedIssue}` : `no active Orca worktree matches ${requestedWorktree}`)
 if (worktree.isMainWorktree) fail(1, "refusing to remove a primary checkout")

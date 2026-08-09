@@ -37,9 +37,9 @@ import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-i
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 
-const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --branch <name> [options]
+const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
-  --issue <ORB-N>     ticket the worker was launched on (required)
+  --issue <reference> ticket the worker was launched on (required)
   --worktree <path>   worktree the worker committed in (required)
   --branch <name>     branch the worker pushed (required)
   --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
@@ -91,7 +91,7 @@ const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
 const codexOnly = process.argv.includes("--codex-only")
 const safeValue = (value) => typeof value === "string" && value.length > 0 && !value.startsWith("-")
-if (!safeValue(issueArgument)) fail(2, `${USAGE}\n\n--issue requires a ticket reference such as ORB-163`)
+if (!safeValue(issueArgument)) fail(2, `${USAGE}\n\n--issue requires ORB-N, #N, or N`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
 if (!safeValue(branch)) fail(2, `${USAGE}\n\n--branch requires a branch name`)
 if (!safeValue(base)) fail(2, `${USAGE}\n\n--base requires a ref`)
@@ -244,7 +244,8 @@ if (!checks.prCount.pass) emit("NO_PR")
  * still lands here and would read as delivered. The composed work order requires a pull request
  * that links the issue, and this file is the only thing that checks the work order was honoured.
  */
-const mentionsIssue = (text) => typeof text === "string" && new RegExp(`\\b${issue}\\b`, "i").test(text)
+const escapedIssue = issue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const mentionsIssue = (text) => typeof text === "string" && new RegExp(`(^|[^A-Za-z0-9])${escapedIssue}(?![A-Za-z0-9])`, "i").test(text)
 checks.linksTicket = {
   pass: mentionsIssue(pullRequest.title) || mentionsIssue(pullRequest.body),
   observed: mentionsIssue(pullRequest.title) ? "title" : mentionsIssue(pullRequest.body) ? "body" : "neither title nor body names the issue",

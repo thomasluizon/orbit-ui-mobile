@@ -14,9 +14,9 @@ import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const USAGE = `usage: compose-prompt.mjs --issue ORB-N --repo <ui|api|landing> --out <absolute path>
+const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
-  --issue ORB-N     ticket whose body to compose (required)
+  --issue <reference> ticket whose body to compose (required)
   --repo <key>      target repository key from .claude/orchestrator.json (required)
   --out <path>      absolute prompt path, OUTSIDE every Orbit repository (required)
   --worktree <path> worktree the worker will run in, named in the brief
