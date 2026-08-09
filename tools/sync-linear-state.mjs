@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
@@ -15,8 +16,8 @@ visible-effect, which mechanically remains In Progress. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
 --issue MUST be copied from output produced in this run. Before either write, the live ticket is
-asserted to carry exactly the repo:<key> label matching --repo, so a mistyped or invented ticket
-key cannot move a stranger's ticket or comment on it.
+asserted to carry exactly the repo:<key> label matching --repo, and the live pull request must
+reference that ticket in its branch, title, or body.
 
 exit codes: 0 synchronized, 1 Linear write failed,
             2 usage or environment error, or a ticket that is not provably this repository's`
@@ -107,6 +108,49 @@ const repoLabels = current.labels.map((label) => label.name).filter((name) => na
 if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) {
   const found = repoLabels.length === 0 ? "no repo:* label" : repoLabels.join(" and ")
   fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
+}
+
+let githubAuth
+let expectedSlug
+try {
+  expectedSlug = repositorySlug(repoRoot)
+  githubAuth = await githubEnvironment(repoRoot, { timeoutMs: commandTimeoutSeconds * 1000 })
+} catch (error) {
+  fail(2, `pull request target could not be resolved: ${redactSecrets(error.message)}`)
+}
+
+const GH = process.env.GH_BIN || "gh"
+const pullRequestRead = await runBounded(
+  GH,
+  ["pr", "view", String(prNumber), "--repo", expectedSlug, "--json", "number,headRefName,title,body"],
+  { cwd: repoRoot, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 8 * 1024 * 1024 },
+)
+if (pullRequestRead.timedOut) fail(2, `GitHub pull request read timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
+if (pullRequestRead.overflowed) fail(2, "GitHub pull request read exceeded the 8 MiB output bound; the complete child process tree was terminated")
+if (pullRequestRead.error || pullRequestRead.status !== 0) {
+  const detail = pullRequestRead.stderr || pullRequestRead.stdout || pullRequestRead.error?.message || `exit ${pullRequestRead.status}`
+  fail(2, `GitHub pull request read failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+}
+
+let pullRequest
+try {
+  pullRequest = JSON.parse(pullRequestRead.stdout)
+} catch {
+  fail(2, "GitHub pull request read returned unparseable JSON")
+}
+if (
+  !Number.isInteger(pullRequest?.number) ||
+  typeof pullRequest?.headRefName !== "string" ||
+  typeof pullRequest?.title !== "string" ||
+  typeof pullRequest?.body !== "string"
+) {
+  fail(2, `GitHub pull request ${prNumber} returned no number, headRefName, title, or body. Nothing was written`)
+}
+if (pullRequest.number !== prNumber) fail(2, `GitHub returned pull request ${pullRequest.number}, not ${prNumber}. Nothing was written`)
+
+const issueReference = new RegExp(`(?:^|[^A-Z0-9])${issue}(?:$|[^A-Z0-9])`, "i")
+if (![pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => issueReference.test(value))) {
+  fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
 }
 
 const visibleEffect = current.labels.some((label) => label.name === "visible-effect")

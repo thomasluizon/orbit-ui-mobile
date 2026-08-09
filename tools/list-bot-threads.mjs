@@ -22,7 +22,7 @@
  */
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
-import { recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
+import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
@@ -375,7 +375,12 @@ const threads = (node.reviewThreads?.nodes ?? [])
  * harness observed from one it never saw. Recorded before either output branch, so a NO_REVIEW run
  * that still returned threads records them too.
  */
-recordObservedIdentifiers(threads.map((thread) => thread.id), { repoRoot: githubCwd, tool: "list-bot-threads.mjs", repository })
+recordObservedIdentifiers(threads.map((thread) => thread.id), {
+  repoRoot: githubCwd,
+  tool: "list-bot-threads.mjs",
+  repository,
+  runIdentifier: currentRunIdentifier(),
+})
 
 if (!evidence) {
   const stale = staleReviewOf(node)
