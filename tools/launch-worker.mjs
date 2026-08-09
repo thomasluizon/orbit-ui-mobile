@@ -178,10 +178,19 @@ const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
  * everything: a measurement worker that really is hung dies at hardCeilingMinutes, same as any other.
  */
 const measurementNoProgressMinutes = config.timeouts.measurementNoProgressMinutes
-if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
-  fail(2, `--measurement requires timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
+if ((measurement || review) && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
+  fail(2, `--measurement and --review require timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
 }
-const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
+/**
+ * A REVIEWER gets the measurement window too, for the same reason with the opposite sign: its
+ * progress fingerprint is log growth, and an engine that buffers its whole answer (claude --print)
+ * writes ZERO log bytes until it finishes. Measured 2026-08-09: a 126-file review was killed
+ * NO_PROGRESS at exactly ten minutes with a 0-byte log while the reviewer was working correctly;
+ * the two smaller reviews that night survived only by finishing inside the window. A silent
+ * reviewer and a hung reviewer are indistinguishable by construction, so the only honest bound for
+ * one is the longer window, with the hard ceiling unchanged underneath.
+ */
+const noProgressMinutes = measurement || review ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
 
 const workerPointer = (worktreePath, branch) => review

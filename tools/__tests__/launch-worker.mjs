@@ -480,6 +480,19 @@ const reviewCases = () => {
   T(`${TOOL}: API review cwd is the configured API primary checkout`, JSON.parse(api.stdout).runDirectory === staged.apiPath, api.stdout)
 
   /**
+   * A reviewer's only progress signal is log growth, and an engine that buffers its whole answer
+   * (claude --print) writes zero log bytes until it finishes. Measured 2026-08-09: a 126-file
+   * review was killed NO_PROGRESS at exactly ten minutes with a 0-byte log while working
+   * correctly. Reviews therefore resolve the measurement window; the hard ceiling still binds.
+   */
+  const reviewPlan = JSON.parse(api.stdout)
+  T(
+    `${TOOL}: --review resolves the measurement no-progress window, because a buffering reviewer is silent while working`,
+    reviewPlan.noProgressMinutes === realOrchestratorConfig().timeouts.measurementNoProgressMinutes && reviewPlan.noProgressMinutes > realOrchestratorConfig().timeouts.noProgressMinutes,
+    `review window ${reviewPlan.noProgressMinutes}`,
+  )
+
+  /**
    * The parity gate is GONE, and staying gone is load-bearing: the contract is single-sourced in
    * orbit-ui-mobile and materialized into every review order from its origin/main, so there is no
    * second committed copy whose drift could be asserted. Both prior revisions of the gate halted
