@@ -9,13 +9,14 @@ import {
   isRateLimitError,
   liveSlots,
   releasePollSlot,
+  withGraphqlBudget,
 } from "../lib/github-rate-limit.mjs"
 
 import { T } from "./_harness.mjs"
 
 const UNIT = "lib/github-rate-limit.mjs"
 
-export const cases = () => {
+export const cases = async () => {
   const NOW = 1786302352
 
   /**
@@ -79,6 +80,85 @@ export const cases = () => {
   )
   T(`${UNIT}: a slot file that names no pid is ignored rather than counted`,
     liveSlots(["not-a-pid.slot", "101.slot"], (pid) => alive.has(pid)).length === 1,
+  )
+
+  /**
+   * The poller was only the loudest victim. Every tool that touches GitHub spends the same per-user
+   * budget, and `record-readiness.mjs` died on a ticket read at the exact moment the poller had been
+   * taught to survive. This wrapper is what every caller shares.
+   */
+  const budgetHarness = (budgets, results) => {
+    const slept = []
+    const waits = []
+    let call = 0
+    return {
+      slept,
+      waits,
+      calls: () => call,
+      io: {
+        readBudget: async () => budgets.shift(),
+        sleep: async (seconds) => slept.push(seconds),
+        onWait: (decision) => waits.push(decision.waitSeconds),
+      },
+      run: async () => results[call++],
+    }
+  }
+
+  const healthy = budgetHarness([{ remaining: 4000, reset: NOW + 60 }], [{ ok: true, detail: "" }])
+  T(
+    `${UNIT}: a healthy budget runs the call once and never sleeps`,
+    (await withGraphqlBudget(healthy.run, healthy.io)).ok === true && healthy.slept.length === 0 && healthy.calls() === 1,
+    JSON.stringify({ slept: healthy.slept, calls: healthy.calls() }),
+  )
+
+  const exhaustedThenOk = budgetHarness(
+    [{ remaining: 0, reset: NOW + 300 }],
+    [{ ok: true, detail: "" }],
+  )
+  await withGraphqlBudget(exhaustedThenOk.run, { ...exhaustedThenOk.io, readBudget: async () => ({ remaining: 0, reset: Math.floor(Date.now() / 1000) + 300 }) })
+  T(
+    `${UNIT}: an empty budget sleeps BEFORE spending, rather than burning the call`,
+    exhaustedThenOk.slept.length === 1 && exhaustedThenOk.calls() === 1,
+    JSON.stringify({ slept: exhaustedThenOk.slept, calls: exhaustedThenOk.calls() }),
+  )
+
+  /** The measured failure: the call goes out, GitHub refuses it, and the tool used to die there. */
+  let budgetReads = 0
+  const retried = { calls: 0 }
+  const retryResult = await withGraphqlBudget(
+    async () => {
+      retried.calls += 1
+      return retried.calls === 1
+        ? { ok: false, detail: "gh: API rate limit already exceeded for user ID 72260917." }
+        : { ok: true, detail: "" }
+    },
+    {
+      readBudget: async () => {
+        budgetReads += 1
+        return budgetReads === 1 ? { remaining: 4000, reset: Math.floor(Date.now() / 1000) + 60 } : { remaining: 0, reset: Math.floor(Date.now() / 1000) + 120 }
+      },
+      sleep: async () => {},
+    },
+  )
+  T(
+    `${UNIT}: a rate-limit refusal waits and retries ONCE instead of failing the caller`,
+    retryResult.ok === true && retried.calls === 2,
+    JSON.stringify({ ok: retryResult.ok, calls: retried.calls }),
+  )
+
+  /** An ordinary failure must surface immediately; retrying it would just double every real error. */
+  const ordinary = { calls: 0 }
+  const ordinaryResult = await withGraphqlBudget(
+    async () => {
+      ordinary.calls += 1
+      return { ok: false, detail: "gh: could not resolve to a Repository" }
+    },
+    { readBudget: async () => ({ remaining: 4000, reset: Math.floor(Date.now() / 1000) + 60 }), sleep: async () => {} },
+  )
+  T(
+    `${UNIT}: an ordinary failure is returned at once, never retried as if it were a rate limit`,
+    ordinaryResult.ok === false && ordinary.calls === 1,
+    JSON.stringify({ calls: ordinary.calls }),
   )
 
   const root = mkdtempSync(join(tmpdir(), "orbit-slot-test-"))

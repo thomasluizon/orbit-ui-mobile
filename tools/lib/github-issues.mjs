@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs"
 
 import { runBounded } from "./bounded-process.mjs"
+import { withGraphqlBudget } from "./github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 
 const ISSUE_FIELDS = "number,url,title,body,state,stateReason,labels,blockedBy,blocking"
@@ -41,19 +42,49 @@ const nonEmptyString = (value, name) => {
   return value
 }
 
-const runGh = async (args, { input } = {}) => {
-  const result = await runBounded(process.env.GH_BIN || "gh", args, {
+const ghProcess = async (args, input) =>
+  runBounded(process.env.GH_BIN || "gh", args, {
     env: process.env,
     timeoutMs: COMMAND_TIMEOUT_MS,
     maxBuffer: COMMAND_MAX_BUFFER,
     input,
   })
+
+/** Free: a REST read that never spends a GraphQL point, so asking before spending costs nothing. */
+const readGraphqlBudget = async () => {
+  const result = await ghProcess(["api", "rate_limit"], undefined)
+  if (result.timedOut || result.error || result.status !== 0) return null
+  try {
+    const graphql = JSON.parse(result.stdout)?.resources?.graphql
+    return graphql && Number.isFinite(graphql.remaining) && Number.isFinite(graphql.reset) ? graphql : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Every ticket read and write flows through here, and every one of them spends from the same
+ * per-user GraphQL budget. Measured 2026-08-09: `record-readiness.mjs` died on a ticket assertion
+ * with "API rate limit exceeded" while the poller, already taught to wait, sailed through. The
+ * budget refills on a published schedule, so this waits for it instead of failing the caller.
+ */
+const runGh = async (args, { input } = {}) => {
   const command = `gh ${args.join(" ")}`
+  const attempt = async () => {
+    const result = await ghProcess(args, input)
+    const detail = (result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim()
+    return { ok: !result.timedOut && !result.overflowed && !result.error && result.status === 0, result, detail }
+  }
+
+  const { ok, result, detail } = await withGraphqlBudget(attempt, {
+    readBudget: readGraphqlBudget,
+    sleep: (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000)),
+    onWait: (decision) => console.error(JSON.stringify({ event: "GITHUB_RATE_LIMIT_WAIT", command, waitSeconds: decision.waitSeconds, reason: decision.reason })),
+  })
+
   if (result.timedOut) throw new Error(`${command} timed out after ${COMMAND_TIMEOUT_MS}ms`)
   if (result.overflowed) throw new Error(`${command} exceeded ${COMMAND_MAX_BUFFER} bytes of output`)
-  if (result.error || result.status !== 0) {
-    throw new Error(`${command} failed: ${(result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim()}`)
-  }
+  if (!ok) throw new Error(`${command} failed: ${detail}`)
   return result.stdout
 }
 

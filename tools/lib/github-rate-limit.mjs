@@ -132,6 +132,38 @@ export const acquirePollSlot = (slotRoot, maxSlots, pid = process.pid) => {
   return { acquired: true, held: held.length + 1, maxSlots }
 }
 
+/**
+ * Run a GitHub call inside the budget, waiting for a refill rather than dying on one.
+ *
+ * The poller was only the loudest victim. EVERY tool that reads or writes GitHub spends from the
+ * same per-user budget, so `record-readiness.mjs` died on a ticket read at the exact moment the
+ * poller had been taught to survive: an instance fix where the class fix is one wrapper every caller
+ * shares. Injected `readBudget` and `sleep` keep it testable without a network or a clock.
+ *
+ * @param run the call itself, returning `{ ok, detail }`; `detail` is the error text when not ok
+ * @param io `{ readBudget, sleep, onWait }`
+ */
+export const withGraphqlBudget = async (run, io) => {
+  const { readBudget, sleep, onWait = () => {} } = io
+  const decide = async () => graphqlBudgetDecision(await readBudget(), { nowSeconds: Math.floor(Date.now() / 1000) })
+
+  const before = await decide()
+  if (before.action === "wait") {
+    onWait(before)
+    await sleep(before.waitSeconds)
+  }
+
+  const first = await run()
+  if (first.ok || !isRateLimitError(first.detail)) return first
+
+  /** Exactly one retry. A second exhaustion straight after a refill is real, not transient. */
+  const after = await decide()
+  if (after.action !== "wait") return first
+  onWait(after)
+  await sleep(after.waitSeconds)
+  return run()
+}
+
 export const releasePollSlot = (slotRoot, pid = process.pid) => {
   const slot = join(slotDirectory(slotRoot), `${pid}.slot`)
   if (existsSync(slot)) rmSync(slot, { force: true })
