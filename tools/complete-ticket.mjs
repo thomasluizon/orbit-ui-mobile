@@ -1,17 +1,24 @@
 #!/usr/bin/env node
 /** Preflight or perform the explicit post-merge ticket completion transition. */
 
-import { completeTicket, preflightTicketCompletion, resolveTicket } from "./lib/github-issues.mjs"
+import { addComment, completeTicket, preflightTicketCompletion, resolveTicket } from "./lib/github-issues.mjs"
+import { extractManualSteps, renderManualSteps } from "./lib/manual-steps.mjs"
 
 const USAGE = `usage: complete-ticket.mjs --issue <ORB-N|#N|N> [--preflight]
 
   --issue <ORB-N|#N|N>  migrated identifier or GitHub issue reference (required)
-  --preflight           prove the open ticket and configured project item can be completed;
-                        write nothing
+  --preflight           prove the open ticket and configured project item can be completed, and
+                        PRINT any manual step its body carries; write nothing
   --help, -h            print this usage and exit 0
 
-Without --preflight, sets board Status Done and closes the issue with reason completed. This is
-the post-merge path. The ordinary readiness status adapter still refuses Done.
+Without --preflight, posts the ticket's manual steps as a comment (when it has any), then sets
+board Status Done and closes the issue with reason completed. This is the post-merge path. The
+ordinary readiness status adapter still refuses Done.
+
+The comment is posted BEFORE the close on purpose. orbit-tickets#81 said "merge, deploy to Render,
+then set PostHog:ApiKey in the Render env"; the ticket closed, nobody set the key, and every
+analytics event for two days was discarded. A step that survives only in a terminal report dies
+with the scrollback. A ticket with no such step produces no comment at all.
 
 exit codes: 0 preflight or completion succeeded, 1 ticket read or write failed, 2 usage error`
 
@@ -43,11 +50,23 @@ try {
   fail(2, `complete-ticket: ${error.message}`)
 }
 
+const repoKeyOf = (ticket) => ticket.labels.map((label) => label.name).find((name) => name.startsWith("repo:"))?.slice("repo:".length) ?? null
+
 try {
-  const ticket = process.argv.includes("--preflight")
-    ? await preflightTicketCompletion(resolved.number)
-    : await completeTicket(resolved.number)
-  console.log(JSON.stringify({ number: ticket.number, url: ticket.url, title: ticket.title }, null, 2))
+  const preflighted = await preflightTicketCompletion(resolved.number)
+  const manual = renderManualSteps(extractManualSteps(preflighted.body, { repo: repoKeyOf(preflighted) }))
+
+  if (process.argv.includes("--preflight")) {
+    console.log(JSON.stringify({ number: preflighted.number, url: preflighted.url, title: preflighted.title, manualSteps: manual }, null, 2))
+  } else {
+    /**
+     * Comment first, close second. A failure here fails the whole completion rather than closing the
+     * ticket without its instruction, which is precisely the outcome this exists to prevent.
+     */
+    if (manual) await addComment(preflighted.number, manual)
+    const ticket = await completeTicket(resolved.number, preflighted)
+    console.log(JSON.stringify({ number: ticket.number, url: ticket.url, title: ticket.title, manualSteps: manual }, null, 2))
+  }
 } catch (error) {
   fail(1, `complete-ticket: ${error.message}`)
 }

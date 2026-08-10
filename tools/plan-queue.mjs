@@ -18,7 +18,7 @@
 
 import { listMilestones, listTickets, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { classifyExecutability } from "./lib/ticket-executability.mjs"
+import { classifyConversationFirst, classifyExecutability } from "./lib/ticket-executability.mjs"
 
 const USAGE = `usage: plan-queue.mjs (--tickets ORB-1,ORB-2 | --project <name> | --board) [options]
 
@@ -27,6 +27,10 @@ const USAGE = `usage: plan-queue.mjs (--tickets ORB-1,ORB-2 | --project <name> |
   --board            every open ticket on the configured GitHub project
   --limit <n>        cap the tickets read for --project/--board (default 250)
   --format <fmt>     json (default) or markdown
+  --sleep            plan for an unattended run: a ticket that has to be talked through first
+                     is deferred NEEDS_CONVERSATION with its open questions, because nobody is
+                     awake to answer them. Attended, the same ticket is admitted and its
+                     questions travel with it for step 2b to ask
   --help, -h         print this usage and exit 0
 
 Exactly one of --tickets, --project or --board is required.
@@ -34,9 +38,10 @@ Exactly one of --tickets, --project or --board is required.
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
   admitted[]  identifier, repo, title, labels, blockedBy, stackParent, branchMode,
-              wave, unlocks, warnings
-  deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, UNSTACKABLE_BLOCKERS_IN_QUEUE,
-              NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED, NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR)
+              wave, unlocks, warnings, conversation
+  deferred[]  identifier, reason, questions  (BLOCKED_OUTSIDE_QUEUE,
+              UNSTACKABLE_BLOCKERS_IN_QUEUE, NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED,
+              NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR, NEEDS_CONVERSATION)
   stacks[]    repo, branchBase, members[]   one stack per dependency chain within a repo
   waves[][]   identifiers that may run concurrently, each wave depending only on earlier ones
 
@@ -62,7 +67,7 @@ const argOf = (flag) => {
 }
 
 const VALUE_FLAGS = new Set(["--tickets", "--project", "--limit", "--format"])
-const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--board", "--help", "-h"])
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--board", "--sleep", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, so `--limit -1` complains about the
  * limit rather than about an unknown option it is not.
@@ -73,6 +78,7 @@ if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}
 const ticketsArg = argOf("--tickets")
 const projectArg = argOf("--project")
 const board = process.argv.includes("--board")
+const sleep = process.argv.includes("--sleep")
 const format = argOf("--format") ?? "json"
 const limitArg = argOf("--limit") ?? "250"
 
@@ -196,7 +202,35 @@ for (const [id, entry] of fetched) {
     deferred.push({ identifier: id, reason: first.reason, detail: also.length > 0 ? `${first.detail}. It also reads as ${also.map((entry) => entry.reason).join(" and ")}` : first.detail })
     continue
   }
-  candidates.set(id, { ...entry, repo: repos[0].slice("repo:".length), warnings })
+  /**
+   * The conversation pass, and why it is not a deferral in both modes: a ticket whose acceptance
+   * criteria carry a human grant, or whose body contradicts itself about which tool is current, can
+   * be executed by a headless worker. It just cannot be executed CORRECTLY without asking first.
+   * ORB-30 (#36) is the case: 34,709 characters naming Pencil as the prototyping tool in one section
+   * and Claude Design in another while saying Pencil is retired.
+   *
+   * Attended, that is a conversation, so the ticket stays admitted and its questions travel with it
+   * for step 2b. Under `--sleep` nobody is awake to answer, so it defers with the questions attached
+   * and Thomas wakes to a decision list rather than a confidently wrong pull request.
+   */
+  const conversation = classifyConversationFirst(issue.body, { labels: issue.labels })
+  if (conversation.conversationFirst && sleep) {
+    deferred.push({
+      identifier: id,
+      reason: "NEEDS_CONVERSATION",
+      detail: `reads as conversation-first (${conversation.signals.map((signal) => signal.kind).join(", ")}, from the ${conversation.source}) and nobody is awake to answer. Run it attended`,
+      questions: conversation.questions,
+    })
+    continue
+  }
+  candidates.set(id, {
+    ...entry,
+    repo: repos[0].slice("repo:".length),
+    warnings: conversation.conversationFirst
+      ? [...warnings, `CONVERSATION FIRST (${conversation.signals.map((signal) => signal.kind).join(", ")}): ask its ${conversation.questions.length} open question(s) at step 2b before any worker spawns`]
+      : warnings,
+    conversation: conversation.conversationFirst ? conversation : null,
+  })
 }
 
 /**
@@ -357,6 +391,7 @@ const admitted = runnable.map((id, index) => {
     position: index,
     unlocks: unlocksById.get(id),
     warnings: entry.warnings,
+    conversation: entry.conversation ?? null,
   }
 })
 
@@ -402,7 +437,10 @@ if (format === "markdown") {
   }
   if (deferred.length > 0) {
     lines.push("## Deferred")
-    for (const entry of plan.deferred) lines.push(`- ${entry.identifier} ${entry.reason}: ${entry.detail}`)
+    for (const entry of plan.deferred) {
+      lines.push(`- ${entry.identifier} ${entry.reason}: ${entry.detail}`)
+      for (const question of entry.questions ?? []) lines.push(`  - ASK ${question}`)
+    }
   }
   console.log(lines.join("\n"))
 } else {

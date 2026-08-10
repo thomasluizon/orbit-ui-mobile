@@ -115,6 +115,10 @@ Immediately after each confirmed merge:
    GitHub confirms MERGED. Run
    `node tools/complete-ticket.mjs --issue "<actual-ticket-reference>"` for the Done and close
    transition. Use only repository ticket tools and never issue a raw ticket mutation.
+
+   That tool now posts the ticket's **manual steps** as a comment before it closes the issue, and
+   returns them on its `manualSteps` field. **Collect every one of them across the merged set.** A
+   ticket with no such step returns null and is silent, which is the normal case.
 2. Run the repository's canonical teardown tool for that ticket.
 3. If a server-side update left the local worktree at the approved head, fetch
    `refs/pull/<pr>/head`, fast-forward that exact local branch, and rerun teardown.
@@ -140,3 +144,17 @@ Do not finish until the ledger proves:
 
 Return the merge order, PR/ticket/commit mapping, cleanup result, exclusions preserved, and any lane
 that required a human conflict handoff.
+
+## Still outstanding: the manual steps this merge did NOT do
+
+End the report with one explicit **"Still outstanding"** list: every manual step collected above, per
+merged ticket, expanded and numbered, or the single line `No manual steps outstanding.`
+
+This is not a courtesy summary. orbit-tickets#81 merged on 2026-08-08 with the body line "Rollout:
+merge, deploy to Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until
+the key exists." Review was clean, CI was green, the ticket closed Done, and nobody set the key, so
+`NoOpProductAnalytics` discarded every `signup_completed` and `subscription_*` event for two days. A
+merge is not a deploy and a deploy is not a rollout. Say what is left, at the moment Thomas is
+reading, or it is not said at all.
+
+**Never do the step yourself.** These land in a vendor console under Thomas's account. Print them.

@@ -1,13 +1,17 @@
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 import { T, check, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "complete-ticket.mjs"
-const issue = (state = "OPEN") => JSON.stringify({
+
+/** orbit-tickets#81's rollout line, the step that closed with the ticket and was never done. */
+const ROLLOUT_BODY = "## Rollout / kill switch\n\n* Rollout: merge, deploy to Render, then set `PostHog:ApiKey` in the Render env.\n"
+
+const issue = (state = "OPEN", body = "Ticket body", repoLabel = "repo:ui") => JSON.stringify({
   blockedBy: { nodes: [], totalCount: 0 },
   blocking: { nodes: [], totalCount: 0 },
-  body: "Ticket body",
-  labels: [{ name: "repo:ui" }],
+  body,
+  labels: [{ name: repoLabel }],
   number: 221,
   state,
   stateReason: state === "OPEN" ? null : "COMPLETED",
@@ -23,12 +27,22 @@ const project = (present = true) => JSON.stringify({
   totalCount: present ? 1 : 0,
 })
 
-const plan = ({ present = true, state = "OPEN", includeWrites = true } = {}) => {
-  const statusMarker = stage(`complete-ticket/${present}-${state}-status`, "pending")
-  const closeMarker = stage(`complete-ticket/${present}-${state}-close`, "pending")
+const plan = ({ present = true, state = "OPEN", includeWrites = true, body = "Ticket body", repoLabel = "repo:ui", label = "", commentExit = 0 } = {}) => {
+  const scope = `${present}-${state}-${label}`
+  const statusMarker = stage(`complete-ticket/${scope}-status`, "pending")
+  const closeMarker = stage(`complete-ticket/${scope}-close`, "pending")
+  const commentCapture = stage(`complete-ticket/${scope}-comment.txt`, "unwritten")
   const entries = [
-    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(state) },
+    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(state, body, repoLabel) },
     { match: "project item-list 2 --owner thomasluizon", stdout: project(present) },
+    {
+      match: "issue comment 221 --repo thomasluizon/orbit-tickets",
+      stdout: "",
+      stderr: commentExit === 0 ? "" : "comment write refused",
+      exit: commentExit,
+      ignoreTicketShape: true,
+      stdinFile: commentCapture,
+    },
   ]
   if (includeWrites) {
     entries.push(
@@ -46,7 +60,7 @@ const plan = ({ present = true, state = "OPEN", includeWrites = true } = {}) => 
       },
     )
   }
-  return { entries, statusMarker, closeMarker }
+  return { entries, statusMarker, closeMarker, commentCapture }
 }
 
 export const cases = async () => {
@@ -63,4 +77,29 @@ export const cases = async () => {
   const completion = plan()
   check(TOOL, "the post-merge path accepts a plain number and completes the ticket", ["--issue", "221"], { status: 0, stdout: /"number": 221/ }, { env: orcaEnv(completion.entries) })
   T(`${TOOL}: completion sets Done and closes with the completed reason`, !existsSync(completion.statusMarker) && !existsSync(completion.closeMarker))
+  /** Silence is the correct output for the common case: an ordinary ticket gets no comment at all. */
+  T(`${TOOL}: a ticket with no rollout section is closed without a comment`, readFileSync(completion.commentCapture, "utf8") === "unwritten")
+
+  /**
+   * The defect this whole path exists for. orbit-tickets#81 closed Done on 2026-08-08 carrying
+   * "set PostHog:ApiKey in the Render env"; nobody did it and two days of analytics were discarded.
+   * The instruction has to reach the ticket, because the ticket outlives the terminal.
+   */
+  const rollout = plan({ body: ROLLOUT_BODY, repoLabel: "repo:api", label: "rollout" })
+  check(TOOL, "a rollout step is posted to the ticket and returned", ["--issue", "221"], { status: 0, stdout: /PostHog__ApiKey/ }, { env: orcaEnv(rollout.entries) })
+  const posted = readFileSync(rollout.commentCapture, "utf8")
+  T(`${TOOL}: the comment names the env var that actually binds the key`, /Key: `PostHog__ApiKey`/.test(posted), posted)
+  T(`${TOOL}: the comment reached the ticket AND the ticket still completed`, !existsSync(rollout.statusMarker) && !existsSync(rollout.closeMarker))
+
+  const preflightRollout = plan({ body: ROLLOUT_BODY, repoLabel: "repo:api", label: "preflight-rollout" })
+  check(TOOL, "preflight PRINTS the manual step and posts nothing", ["--issue", "221", "--preflight"], { status: 0, stdout: /PostHog__ApiKey/ }, { env: orcaEnv(preflightRollout.entries) })
+  T(`${TOOL}: preflight wrote no comment and no completion`, readFileSync(preflightRollout.commentCapture, "utf8") === "unwritten" && existsSync(preflightRollout.statusMarker))
+
+  /**
+   * Comment BEFORE close, proven by the failure path: a refused comment must abort the completion.
+   * Closing first and commenting second would reintroduce the exact defect on any comment failure.
+   */
+  const refused = plan({ body: ROLLOUT_BODY, repoLabel: "repo:api", label: "refused", commentExit: 1 })
+  check(TOOL, "a refused comment aborts the completion instead of closing silently", ["--issue", "221"], { status: 1, stderr: /complete-ticket:/ }, { env: orcaEnv(refused.entries) })
+  T(`${TOOL}: the ticket was neither set Done nor closed when its step could not be recorded`, existsSync(refused.statusMarker) && existsSync(refused.closeMarker))
 }

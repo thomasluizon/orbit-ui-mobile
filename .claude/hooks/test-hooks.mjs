@@ -538,7 +538,22 @@ const WAKE_HOOK = "require-wake-source.mjs"
 const { readWakeSources, runStatePath } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
-const liveWakeSources = readWakeSources().length
+/**
+ * LIVE, not merely registered. `readWakeSources` returns every registration file; the hook then
+ * proves each pid with `process.kill(pid, 0)` before honouring it. Counting registrations made this
+ * gate take the "a live wake source allows the stop" arm whenever an old overnight run had left a
+ * file behind for a process that has since died, and then fail because the hook correctly blocked.
+ * Measured on this checkout 2026-08-10: red on main and on the branch alike, for stale state alone.
+ */
+const isAlive = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+const liveWakeSources = readWakeSources().filter((source) => isAlive(source.pid)).length
 try {
   writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
   // A live wake source is a legitimate reason NOT to block, so assert the blocking case only when
