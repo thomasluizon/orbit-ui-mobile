@@ -60,8 +60,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
   ],
   social: [
     { titleKey: 'onboarding.featureGuide.socialSection.optInTitle', descKey: 'onboarding.featureGuide.socialSection.optInDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.buddiesTitle', descKey: 'onboarding.featureGuide.socialSection.buddiesDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.challengesTitle', descKey: 'onboarding.featureGuide.socialSection.challengesDesc' },
     { titleKey: 'onboarding.featureGuide.socialSection.cheersTitle', descKey: 'onboarding.featureGuide.socialSection.cheersDesc' },
     { titleKey: 'onboarding.featureGuide.socialSection.friendsTitle', descKey: 'onboarding.featureGuide.socialSection.friendsDesc' },
     { titleKey: 'onboarding.featureGuide.socialSection.publicProfileTitle', descKey: 'onboarding.featureGuide.socialSection.publicProfileDesc' },

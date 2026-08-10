@@ -33,7 +33,7 @@ Astra is a conversational coach that can actually *act*, not just talk. Tell it 
 Orbit exposes a full **Model Context Protocol** server, so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your account and manage your habits and goals from wherever you already chat with AI. **79 MCP tools across 15 tool classes**, scoped to your account, secured by OAuth 2.0 dynamic client registration or scoped, hashed API keys. This is a rare consumer feature: Orbit is a habit tracker your favorite AI assistant can drive.
 
 ### A social layer built for support, not ranking
-Opt in and you unlock accountability buddies with mutual check-ins, co-op challenges you join by code, cheers to celebrate a friend's streak, a friends feed, public profiles, milestone sharing, and referral invite links. Deliberately **no leaderboards** — the social layer is about encouragement, not competition. It is **off by default**; your habits stay private until you choose to share.
+Opt in and you unlock cheers to celebrate a friend's streak, a friends feed, public profiles, milestone sharing, and referral invite links. Deliberately **no leaderboards** — the social layer is about encouragement, not competition. It is **off by default**; your habits stay private until you choose to share.
 
 ### A serious core tracker underneath
 Flexible scheduling (daily, weekly, monthly, yearly, flexible, one-time, general), sub-habits, checklists, bad-habit tracking with AI slip alerts, goals with velocity metrics, a color-coded calendar with Google Calendar import, XP and levels, achievement badges, streaks with streak-freeze protection, an Orbit Wrapped recap, and an Android home-screen widget.
@@ -107,9 +107,6 @@ Behind the `socialOptIn` flag (default **off**; toggle in Settings). Constants i
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
 | Social opt-in | Master switch; habits stay private until enabled | Free | Both | — |
-| Accountability buddies | Pair on specific habits, mutual check-ins and nudges | Free | Both | — |
-| Accountability pairs screen | Dedicated pair-management surface | Free | Mobile-only route; web renders it inside Social → Buddies (route-shape difference, not a feature gap) | — |
-| Co-op challenges | Create/join-by-code shared challenges with group progress | Free | Both | — |
 | Cheers | Send a short encouragement on a friend's streak/milestone | Free | Both | — |
 | Friends & feed | Add by handle, accept requests, shared milestone feed | Free | Both | Handle is brand-neutral |
 | Public profile | Claim a handle; shareable public profile of streaks/achievements | Free | Web-only SSR page (`/u/[slug]`); managed on both | — |

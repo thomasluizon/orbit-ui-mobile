@@ -31,13 +31,6 @@ vi.mock('@/components/habits/habit-calendar', () => ({
 vi.mock('@/components/habits/description-viewer', () => ({
   DescriptionViewer: () => null,
 }))
-vi.mock('@/app/social/_components/new-pair-flow', () => {
-  const ReactLib = require('react')
-  return {
-    NewPairFlow: ({ open }: { open: boolean }) =>
-      open ? ReactLib.createElement('Text', null, 'pair-flow-open') : null,
-  }
-})
 vi.mock('@/components/habits/habit-detail-drawer/habit-ask-astra-button', () => {
   const ReactLib = require('react')
   return {
@@ -116,7 +109,7 @@ function pressButton(root: TestNode, label: string) {
   if (!node) throw new Error(`Button not found: ${label}`)
   const onPress = node.props.onPress
   if (typeof onPress !== 'function') throw new Error(`Button missing onPress: ${label}`)
-  onPress()
+  void (onPress as () => Promise<void> | void)()
 }
 
 describe('HabitDetailDrawer (mobile)', () => {
@@ -195,6 +188,7 @@ describe('HabitDetailDrawer (mobile)', () => {
 
     await TestRenderer.act(async () => {
       pressButton(tree.root, 'habits.checklistCompleteConfirm')
+      await Promise.resolve()
     })
     expect(mockShowError).toHaveBeenCalledTimes(1)
   })
@@ -216,6 +210,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     })
     await TestRenderer.act(async () => {
       pressButton(tree.root, 'habits.checklistCompleteConfirm')
+      await Promise.resolve()
     })
 
     expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-9' })
@@ -292,15 +287,4 @@ describe('HabitDetailDrawer (mobile)', () => {
     )
   })
 
-  it('opens the buddy pair flow when pair-this-habit is pressed', () => {
-    const habit = createMockHabit({ id: 'h-6', checklistItems: [] })
-
-    const tree = render(<HabitDetailDrawer open onClose={vi.fn()} habit={habit} />)
-
-    expect(hasText(tree.root, 'pair-flow-open')).toBe(false)
-    TestRenderer.act(() => {
-      pressButton(tree.root, 'social.buddies.pairThisHabit')
-    })
-    expect(hasText(tree.root, 'pair-flow-open')).toBe(true)
-  })
 })

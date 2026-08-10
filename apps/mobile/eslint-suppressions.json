@@ -97,11 +97,6 @@
       "count": 1
     }
   },
-  "app/accountability-pair.tsx": {
-    "local/spacing-scale": {
-      "count": 7
-    }
-  },
   "app/achievements-sections.tsx": {
     "local/spacing-scale": {
       "count": 3
@@ -167,21 +162,6 @@
       "count": 3
     }
   },
-  "app/social/_components/buddy-invite-row.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/social/_components/buddy-row.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "app/social/_components/challenges-entry-card.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/social/_components/cheer-composer.tsx": {
     "local/spacing-scale": {
       "count": 2
@@ -199,7 +179,7 @@
   },
   "app/social/_components/friend-profile-sheet.tsx": {
     "local/spacing-scale": {
-      "count": 10
+      "count": 8
     }
   },
   "app/social/_components/friend-request-row.tsx": {
@@ -212,11 +192,6 @@
       "count": 8
     }
   },
-  "app/social/_components/habit-multi-select.tsx": {
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
   "app/social/_components/invite-confirm-sheet.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -225,11 +200,6 @@
   "app/social/_components/invite-hero.tsx": {
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "app/social/_components/new-pair-flow.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "app/social/_components/social-feed.tsx": {
@@ -243,46 +213,6 @@
     }
   },
   "app/social/_components/social-opt-in-gate.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/challenges/_components/challenge-card.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/social/challenges/_components/challenge-detail.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/social/challenges/_components/challenge-list.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/social/challenges/_components/create-challenge-form.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/challenges/_components/habit-picker.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/social/challenges/_components/invite-friends-picker.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/challenges/_components/join-by-code-form.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/social/challenges/_components/share-join-code.tsx": {
     "local/spacing-scale": {
       "count": 2
     }

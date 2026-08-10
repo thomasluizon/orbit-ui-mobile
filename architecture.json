@@ -120,24 +120,6 @@
       },
       {
         "platform": "web",
-        "routePath": "/social/challenges/[id]",
-        "sourceFile": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
-        "layouts": [
-          "apps/web/app/layout.tsx",
-          "apps/web/app/(app)/layout.tsx"
-        ]
-      },
-      {
-        "platform": "web",
-        "routePath": "/social/challenges",
-        "sourceFile": "apps/web/app/(app)/social/challenges/page.tsx",
-        "layouts": [
-          "apps/web/app/layout.tsx",
-          "apps/web/app/(app)/layout.tsx"
-        ]
-      },
-      {
-        "platform": "web",
         "routePath": "/social",
         "sourceFile": "apps/web/app/(app)/social/page.tsx",
         "layouts": [
@@ -338,14 +320,6 @@
         "platform": "mobile",
         "routePath": "/about",
         "sourceFile": "apps/mobile/app/about.tsx",
-        "layouts": [
-          "apps/mobile/app/_layout.tsx"
-        ]
-      },
-      {
-        "platform": "mobile",
-        "routePath": "/accountability-pair",
-        "sourceFile": "apps/mobile/app/accountability-pair.tsx",
         "layouts": [
           "apps/mobile/app/_layout.tsx"
         ]
@@ -592,22 +566,6 @@
       },
       {
         "platform": "mobile",
-        "routePath": "/social/challenges",
-        "sourceFile": "apps/mobile/app/social/challenges.tsx",
-        "layouts": [
-          "apps/mobile/app/_layout.tsx"
-        ]
-      },
-      {
-        "platform": "mobile",
-        "routePath": "/social/challenges/[id]",
-        "sourceFile": "apps/mobile/app/social/challenges/[id].tsx",
-        "layouts": [
-          "apps/mobile/app/_layout.tsx"
-        ]
-      },
-      {
-        "platform": "mobile",
         "routePath": "/streak-sections-freeze",
         "sourceFile": "apps/mobile/app/streak-sections-freeze.tsx",
         "layouts": [
@@ -779,16 +737,6 @@
         "mobile": "apps/mobile/app/social.tsx"
       },
       {
-        "routePath": "/social/challenges",
-        "web": "apps/web/app/(app)/social/challenges/page.tsx",
-        "mobile": "apps/mobile/app/social/challenges.tsx"
-      },
-      {
-        "routePath": "/social/challenges/[id]",
-        "web": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
-        "mobile": "apps/mobile/app/social/challenges/[id].tsx"
-      },
-      {
         "routePath": "/streak",
         "web": "apps/web/app/(app)/streak/page.tsx",
         "mobile": "apps/mobile/app/streak.tsx"
@@ -823,7 +771,6 @@
       ],
       "mobile": [
         "/+not-found",
-        "/accountability-pair",
         "/achievements-sections",
         "/advanced-sections",
         "/ai-settings-sections",
@@ -853,86 +800,6 @@
     }
   },
   "endpoints": [
-    {
-      "name": "accountability.accept",
-      "method": "POST",
-      "path": "/api/accountability/pairs/{id}/accept",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/accountability.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-accountability.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/accountability.ts"
-      ]
-    },
-    {
-      "name": "accountability.checkIns",
-      "method": "POST",
-      "path": "/api/accountability/pairs/{id}/check-ins",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/accountability.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-accountability.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/accountability.ts"
-      ]
-    },
-    {
-      "name": "accountability.end",
-      "method": "DELETE",
-      "path": "/api/accountability/pairs/{id}",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/accountability.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-accountability.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/accountability.ts"
-      ]
-    },
-    {
-      "name": "accountability.habits",
-      "method": "PUT",
-      "path": "/api/accountability/pairs/{id}/habits",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/accountability.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-accountability.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/accountability.ts"
-      ]
-    },
-    {
-      "name": "accountability.pairs",
-      "method": "POST",
-      "path": "/api/accountability/pairs",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/accountability.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-accountability.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/accountability.ts"
-      ]
-    },
     {
       "name": "ai.capabilities",
       "method": null,
@@ -1344,98 +1211,6 @@
       },
       "zodSchemas": [
         "packages/shared/src/types/calendar.ts"
-      ]
-    },
-    {
-      "name": "challenges.create",
-      "method": "POST",
-      "path": "/api/challenges",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/challenges.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-challenges.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/challenge.ts"
-      ]
-    },
-    {
-      "name": "challenges.detail",
-      "method": null,
-      "path": "/api/challenges/{id}",
-      "usedBy": {
-        "webActions": [],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-challenges.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/challenge.ts"
-      ]
-    },
-    {
-      "name": "challenges.join",
-      "method": "POST",
-      "path": "/api/challenges/join",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/challenges.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-challenges.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/challenge.ts"
-      ]
-    },
-    {
-      "name": "challenges.leave",
-      "method": "DELETE",
-      "path": "/api/challenges/{id}/leave",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/challenges.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-challenges.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/challenge.ts"
-      ]
-    },
-    {
-      "name": "challenges.list",
-      "method": null,
-      "path": "/api/challenges",
-      "usedBy": {
-        "webActions": [],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-challenges.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/challenge.ts"
-      ]
-    },
-    {
-      "name": "challenges.setHabits",
-      "method": "PUT",
-      "path": "/api/challenges/{id}/habits",
-      "usedBy": {
-        "webActions": [
-          "apps/web/app/actions/challenges.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/hooks/use-challenges.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/challenge.ts"
       ]
     },
     {
@@ -3360,10 +3135,6 @@
         "to": "packages/shared/src/utils"
       },
       {
-        "from": "apps/web/app",
-        "to": "packages/shared/src/validation"
-      },
-      {
         "from": "apps/web/components",
         "to": "apps/web/app"
       },
@@ -3644,10 +3415,6 @@
       {
         "from": "apps/mobile/app",
         "to": "packages/shared/src/utils"
-      },
-      {
-        "from": "apps/mobile/app",
-        "to": "packages/shared/src/validation"
       },
       {
         "from": "apps/mobile/components",
@@ -4447,84 +4214,13 @@
       },
       {
         "platform": "web",
-        "routePath": "/social/challenges/[id]",
-        "sourceFile": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
-        "keys": [
-          "challenges.detail.complete",
-          "challenges.detail.editHabits",
-          "challenges.detail.endsOn",
-          "challenges.detail.habitsSaved",
-          "challenges.detail.leave",
-          "challenges.detail.leaveConfirmBody",
-          "challenges.detail.leaveConfirmTitle",
-          "challenges.detail.leaveSuccess",
-          "challenges.detail.linkHabitsBody",
-          "challenges.detail.linkHabitsCta",
-          "challenges.detail.linkHabitsTitle",
-          "challenges.detail.membersTitle",
-          "challenges.detail.notFound",
-          "challenges.detail.progressLabel",
-          "challenges.detail.shareTitle",
-          "challenges.detail.sharedStreak",
-          "challenges.title",
-          "challenges.type.coopGoal",
-          "challenges.type.streakTogether",
-          "common.back",
-          "common.save"
-        ]
-      },
-      {
-        "platform": "web",
-        "routePath": "/social/challenges",
-        "sourceFile": "apps/web/app/(app)/social/challenges/page.tsx",
-        "keys": [
-          "challenges.create.endDateLabel",
-          "challenges.create.errors.endDateRequired",
-          "challenges.create.errors.targetInvalid",
-          "challenges.create.errors.titleRequired",
-          "challenges.create.habitsLabel",
-          "challenges.create.inviteLabel",
-          "challenges.create.nameLabel",
-          "challenges.create.namePlaceholder",
-          "challenges.create.submit",
-          "challenges.create.success",
-          "challenges.create.targetLabel",
-          "challenges.create.targetPlaceholder",
-          "challenges.create.title",
-          "challenges.create.typeLabel",
-          "challenges.join.codeLabel",
-          "challenges.join.codePlaceholder",
-          "challenges.join.submit",
-          "challenges.join.success",
-          "challenges.join.title",
-          "challenges.title",
-          "challenges.type.coopGoal",
-          "challenges.type.coopGoalDescription",
-          "challenges.type.streakTogether",
-          "challenges.type.streakTogetherDescription",
-          "common.back",
-          "common.close",
-          "common.expandDescription",
-          "common.loading"
-        ]
-      },
-      {
-        "platform": "web",
         "routePath": "/social",
         "sourceFile": "apps/web/app/(app)/social/page.tsx",
         "keys": [
-          "challenges.entryCard.description",
-          "challenges.entryCard.title",
           "common.back",
           "social.addFriend.sending",
           "social.addFriend.success",
           "social.addFriend.title",
-          "social.buddies.activeTitle",
-          "social.buddies.emptyBody",
-          "social.buddies.emptyTitle",
-          "social.buddies.incomingTitle",
-          "social.buddies.newPairCta",
-          "social.buddies.outgoingTitle",
           "social.cheer.notePlaceholder",
           "social.cheer.send",
           "social.cheer.subtitle",
@@ -4559,7 +4255,6 @@
           "social.optInGate.handlePlaceholder",
           "social.optInGate.success",
           "social.optInGate.title",
-          "social.tabs.buddies",
           "social.tabs.feed",
           "social.tabs.friends",
           "social.title"
@@ -4822,7 +4517,6 @@
           "habits.form.checklist",
           "habits.form.clearChecklist",
           "habits.reorderFailed",
-          "social.buddies.pairThisHabit",
           "undo.habitDeleted",
           "undo.restoreFailed",
           "undo.restored",
@@ -5337,8 +5031,7 @@
           "referral.drawer.title",
           "referral.drawer.yourLink",
           "referral.share.text",
-          "referral.share.title",
-          "social.buddies.pairThisHabit"
+          "referral.share.title"
         ]
       },
       {
@@ -5441,52 +5134,6 @@
           "privacy.title",
           "profile.support.title",
           "terms.title"
-        ]
-      },
-      {
-        "platform": "mobile",
-        "routePath": "/accountability-pair",
-        "sourceFile": "apps/mobile/app/accountability-pair.tsx",
-        "keys": [
-          "common.back",
-          "common.cancel",
-          "common.clear",
-          "common.close",
-          "common.confirm",
-          "common.goBack",
-          "common.help",
-          "common.save",
-          "common.share",
-          "social.buddies.checkInNotePlaceholder",
-          "social.buddies.checkInSubmit",
-          "social.buddies.checkInSuccess",
-          "social.buddies.checkInTitle",
-          "social.buddies.checkedInLabel",
-          "social.buddies.detail.buddyHabits",
-          "social.buddies.detail.cadenceLabel",
-          "social.buddies.detail.editHabits",
-          "social.buddies.detail.editHabitsTitle",
-          "social.buddies.detail.editSuccess",
-          "social.buddies.detail.history",
-          "social.buddies.detail.historyEmpty",
-          "social.buddies.detail.notFound",
-          "social.buddies.detail.title",
-          "social.buddies.detail.unpair",
-          "social.buddies.detail.unpairConfirmBody",
-          "social.buddies.detail.unpairConfirmTitle",
-          "social.buddies.detail.unpairSuccess",
-          "social.buddies.detail.yourHabits",
-          "social.buddies.errors.habitRequired",
-          "social.buddies.habitCount",
-          "social.buddies.habitsHint",
-          "social.buddies.moreHabits",
-          "social.buddies.noHabitMatch",
-          "social.buddies.noHabits",
-          "social.buddies.removeHabit",
-          "social.buddies.searchHabits",
-          "undo.habitDeleted",
-          "undo.restoreFailed",
-          "undo.restored"
         ]
       },
       {
@@ -5889,7 +5536,6 @@
           "habits.detail.viewDescription",
           "habits.form.checklist",
           "habits.form.clearChecklist",
-          "social.buddies.pairThisHabit",
           "speech.micDenied",
           "undo.habitDeleted",
           "undo.restoreFailed",
@@ -6281,8 +5927,6 @@
         "routePath": "/social",
         "sourceFile": "apps/mobile/app/social.tsx",
         "keys": [
-          "challenges.entryCard.description",
-          "challenges.entryCard.title",
           "common.back",
           "common.backToTop",
           "common.close",
@@ -6294,12 +5938,6 @@
           "social.addFriend.sending",
           "social.addFriend.success",
           "social.addFriend.title",
-          "social.buddies.activeTitle",
-          "social.buddies.emptyBody",
-          "social.buddies.emptyTitle",
-          "social.buddies.incomingTitle",
-          "social.buddies.newPairCta",
-          "social.buddies.outgoingTitle",
           "social.cheer.notePlaceholder",
           "social.cheer.send",
           "social.cheer.subtitle",
@@ -6335,100 +5973,9 @@
           "social.optInGate.handlePlaceholder",
           "social.optInGate.success",
           "social.optInGate.title",
-          "social.tabs.buddies",
           "social.tabs.feed",
           "social.tabs.friends",
           "social.title"
-        ]
-      },
-      {
-        "platform": "mobile",
-        "routePath": "/social/challenges",
-        "sourceFile": "apps/mobile/app/social/challenges.tsx",
-        "keys": [
-          "challenges.actions.create",
-          "challenges.actions.join",
-          "challenges.create.endDateLabel",
-          "challenges.create.endDatePlaceholder",
-          "challenges.create.errors.endDateRequired",
-          "challenges.create.errors.targetInvalid",
-          "challenges.create.errors.titleRequired",
-          "challenges.create.habitsLabel",
-          "challenges.create.inviteLabel",
-          "challenges.create.nameLabel",
-          "challenges.create.namePlaceholder",
-          "challenges.create.submit",
-          "challenges.create.success",
-          "challenges.create.targetLabel",
-          "challenges.create.targetPlaceholder",
-          "challenges.create.title",
-          "challenges.create.typeLabel",
-          "challenges.empty.body",
-          "challenges.empty.create",
-          "challenges.empty.join",
-          "challenges.empty.title",
-          "challenges.errors.loadFailed",
-          "challenges.join.codeLabel",
-          "challenges.join.codePlaceholder",
-          "challenges.join.submit",
-          "challenges.join.success",
-          "challenges.join.title",
-          "challenges.sections.active",
-          "challenges.sections.completed",
-          "challenges.title",
-          "challenges.type.coopGoal",
-          "challenges.type.coopGoalDescription",
-          "challenges.type.streakTogether",
-          "challenges.type.streakTogetherDescription",
-          "common.back",
-          "common.close",
-          "common.goBack",
-          "common.help",
-          "common.loading",
-          "common.retry",
-          "common.share",
-          "social.optInGate.body",
-          "social.optInGate.enable",
-          "social.optInGate.enabling",
-          "social.optInGate.handleHint",
-          "social.optInGate.handleLabel",
-          "social.optInGate.handlePlaceholder",
-          "social.optInGate.success",
-          "social.optInGate.title"
-        ]
-      },
-      {
-        "platform": "mobile",
-        "routePath": "/social/challenges/[id]",
-        "sourceFile": "apps/mobile/app/social/challenges/[id].tsx",
-        "keys": [
-          "challenges.detail.complete",
-          "challenges.detail.editHabits",
-          "challenges.detail.endsOn",
-          "challenges.detail.habitsSaved",
-          "challenges.detail.leave",
-          "challenges.detail.leaveConfirmBody",
-          "challenges.detail.leaveConfirmTitle",
-          "challenges.detail.leaveSuccess",
-          "challenges.detail.linkHabitsBody",
-          "challenges.detail.linkHabitsCta",
-          "challenges.detail.linkHabitsTitle",
-          "challenges.detail.membersTitle",
-          "challenges.detail.notFound",
-          "challenges.detail.progressLabel",
-          "challenges.detail.shareTitle",
-          "challenges.detail.sharedStreak",
-          "challenges.errors.loadFailed",
-          "challenges.title",
-          "challenges.type.coopGoal",
-          "challenges.type.streakTogether",
-          "common.back",
-          "common.close",
-          "common.goBack",
-          "common.help",
-          "common.retry",
-          "common.save",
-          "common.share"
         ]
       },
       {
@@ -6784,22 +6331,6 @@
       "calendar.recurrenceWeeklyDays",
       "calendar.recurrenceYearly",
       "calendarSync.notConnected",
-      "challenges.card.linkHabitsHint",
-      "challenges.card.participants",
-      "challenges.card.streakUnit",
-      "challenges.create.noHabits",
-      "challenges.detail.copied",
-      "challenges.detail.copy",
-      "challenges.detail.share",
-      "challenges.errors.alreadyJoined",
-      "challenges.errors.challengeFull",
-      "challenges.errors.closed",
-      "challenges.errors.generic",
-      "challenges.errors.invalidCode",
-      "challenges.errors.rateLimited",
-      "challenges.invite.empty",
-      "challenges.share.text",
-      "challenges.share.title",
       "chat.action.breakdown",
       "chat.action.created",
       "chat.action.createdGoal",
@@ -7578,10 +7109,6 @@
       "onboarding.featureGuide.settingsSection.weekStartDayDesc",
       "onboarding.featureGuide.settingsSection.weekStartDayTitle",
       "onboarding.featureGuide.social",
-      "onboarding.featureGuide.socialSection.buddiesDesc",
-      "onboarding.featureGuide.socialSection.buddiesTitle",
-      "onboarding.featureGuide.socialSection.challengesDesc",
-      "onboarding.featureGuide.socialSection.challengesTitle",
       "onboarding.featureGuide.socialSection.cheersDesc",
       "onboarding.featureGuide.socialSection.cheersTitle",
       "onboarding.featureGuide.socialSection.friendsDesc",
@@ -7865,37 +7392,6 @@
       "social.block.confirmBody",
       "social.block.confirmTitle",
       "social.block.success",
-      "social.buddies.accept",
-      "social.buddies.acceptSubmit",
-      "social.buddies.acceptSubtitle",
-      "social.buddies.acceptSuccess",
-      "social.buddies.acceptTitle",
-      "social.buddies.cadence.Daily",
-      "social.buddies.cadence.Weekly",
-      "social.buddies.checkInAction",
-      "social.buddies.checkInStatus",
-      "social.buddies.decline",
-      "social.buddies.detail.buddyHabitsCount",
-      "social.buddies.errors.alreadyCheckedIn",
-      "social.buddies.errors.alreadyPaired",
-      "social.buddies.errors.generic",
-      "social.buddies.errors.notFriends",
-      "social.buddies.errors.pairLimitReached",
-      "social.buddies.errors.rateLimited",
-      "social.buddies.invitedYou",
-      "social.buddies.never",
-      "social.buddies.newPair.cadenceLabel",
-      "social.buddies.newPair.friendLabel",
-      "social.buddies.newPair.habitsLabel",
-      "social.buddies.newPair.noFriendMatch",
-      "social.buddies.newPair.noFriends",
-      "social.buddies.newPair.searchFriends",
-      "social.buddies.newPair.submit",
-      "social.buddies.newPair.success",
-      "social.buddies.newPair.title",
-      "social.buddies.openPairAria",
-      "social.buddies.rescind",
-      "social.buddies.youInvited",
       "social.cheer.reactions.clap",
       "social.cheer.reactions.fire",
       "social.cheer.reactions.heart",
@@ -7919,13 +7415,11 @@
       "social.feed.cheerAction",
       "social.feed.habitCompletedMilestone",
       "social.feed.streakMilestone",
-      "social.friendProfile.accountabilityPartner",
       "social.friendProfile.activityLabel",
       "social.friendProfile.friendsSince",
       "social.friendProfile.loadError",
       "social.friendProfile.longestStreakLabel",
       "social.friendProfile.noAchievements",
-      "social.friendProfile.sharedChallengesTitle",
       "social.friendProfile.unavailable",
       "social.friendProfile.xpLabel",
       "social.friends.accept",
@@ -8223,11 +7717,8 @@
         "apps/mobile/__tests__/app/(tabs)/profile/_components/fresh-start-modal.test.tsx",
         "apps/mobile/__tests__/app/(tabs)/profile/_components/profile-subscription-display.test.ts",
         "apps/mobile/__tests__/app/advanced-api-keys.test.tsx",
-        "apps/mobile/__tests__/app/challenge-detail.test.tsx",
-        "apps/mobile/__tests__/app/challenges-page.test.tsx",
+        "apps/mobile/__tests__/app/social-page.test.tsx",
         "apps/mobile/__tests__/app/social/_components/friend-row.test.tsx",
-        "apps/mobile/__tests__/app/social/_components/habit-multi-select.test.tsx",
-        "apps/mobile/__tests__/app/social/challenges/_components/challenge-errors.test.ts",
         "apps/mobile/__tests__/app/today-model.test.ts",
         "apps/mobile/__tests__/app/upgrade-model.test.ts",
         "apps/mobile/__tests__/app/use-preference-controls.test.tsx",
@@ -8250,10 +7741,8 @@
         "apps/mobile/__tests__/components/social/friend-profile-sheet.test.tsx",
         "apps/mobile/__tests__/components/social/friend-row.test.tsx",
         "apps/mobile/__tests__/components/social/invite-confirm-sheet.test.tsx",
-        "apps/mobile/__tests__/components/social/new-pair-flow.test.tsx",
         "apps/mobile/__tests__/components/social/social-friends.test.tsx",
         "apps/mobile/__tests__/components/social/social-tab-error-states.test.tsx",
-        "apps/mobile/__tests__/hooks/use-challenges.test.ts",
         "apps/mobile/__tests__/hooks/use-login-flow.test.ts",
         "apps/mobile/__tests__/hooks/use-today-selection.test.tsx",
         "apps/mobile/__tests__/screens/account-deletion.test.tsx",
@@ -8319,7 +7808,6 @@
         "apps/mobile/__tests__/components/review-moment/review-moment-sheet.test.tsx",
         "apps/mobile/__tests__/components/share/share-card-sheet.test.tsx",
         "apps/mobile/__tests__/components/share/share-card.test.tsx",
-        "apps/mobile/__tests__/components/social/new-pair-flow.test.tsx",
         "apps/mobile/__tests__/components/status-dot-fill.test.ts",
         "apps/mobile/__tests__/components/today/dismissible-card.test.tsx",
         "apps/mobile/__tests__/components/today/setup-checklist-card.test.tsx",
@@ -8356,7 +7844,6 @@
       ],
       "apps/mobile/hooks": [
         "apps/mobile/__tests__/components/habits/habit-form-fields.test.tsx",
-        "apps/mobile/__tests__/hooks/use-accountability.test.ts",
         "apps/mobile/__tests__/hooks/use-ad-mob.test.tsx",
         "apps/mobile/__tests__/hooks/use-apply-onboarding.test.tsx",
         "apps/mobile/__tests__/hooks/use-billing.test.ts",
@@ -8365,7 +7852,6 @@
         "apps/mobile/__tests__/hooks/use-calendar-data.test.ts",
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
         "apps/mobile/__tests__/hooks/use-calendars.test.ts",
-        "apps/mobile/__tests__/hooks/use-challenges.test.ts",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-checklist-templates.test.tsx",
@@ -8520,9 +8006,7 @@
         "apps/web/__tests__/proxy.test.ts"
       ],
       "apps/web/app": [
-        "apps/web/__tests__/actions/accountability.test.ts",
         "apps/web/__tests__/actions/auth.test.ts",
-        "apps/web/__tests__/actions/challenges.test.ts",
         "apps/web/__tests__/actions/chat.test.ts",
         "apps/web/__tests__/actions/checklist-templates.test.ts",
         "apps/web/__tests__/actions/goals.test.ts",
@@ -8543,11 +8027,8 @@
         "apps/web/__tests__/app/api/subscriptions-plans-route.test.ts",
         "apps/web/__tests__/app/auto-sync-settings-card.test.tsx",
         "apps/web/__tests__/app/calendar-sync-page.test.tsx",
-        "apps/web/__tests__/app/challenge-detail.test.tsx",
-        "apps/web/__tests__/app/challenges-page.test.tsx",
         "apps/web/__tests__/app/chat-page-desktop-handoff.test.tsx",
         "apps/web/__tests__/app/insights-page.test.tsx",
-        "apps/web/__tests__/app/new-pair-flow.test.tsx",
         "apps/web/__tests__/app/onboarding-overlay-state.test.ts",
         "apps/web/__tests__/app/profile-page.test.tsx",
         "apps/web/__tests__/app/public-profile-page.test.tsx",
@@ -8589,12 +8070,9 @@
         "apps/web/__tests__/components/social/friend-row.test.tsx",
         "apps/web/__tests__/components/social/invite-confirm-sheet.test.tsx",
         "apps/web/__tests__/components/social/invite-hero.test.tsx",
-        "apps/web/__tests__/components/social/pair-detail.test.tsx",
         "apps/web/__tests__/components/ui/push-prompt.test.tsx",
         "apps/web/__tests__/components/wrapped/wrapped-cover.test.tsx",
         "apps/web/__tests__/components/wrapped/wrapped-player.test.tsx",
-        "apps/web/__tests__/hooks/use-accountability.test.ts",
-        "apps/web/__tests__/hooks/use-challenges.test.ts",
         "apps/web/__tests__/hooks/use-checklist-templates.test.ts",
         "apps/web/__tests__/hooks/use-color-scheme.test.ts",
         "apps/web/__tests__/hooks/use-friends.test.ts",
@@ -8767,14 +8245,12 @@
       ],
       "apps/web/hooks": [
         "apps/web/__tests__/components/habits/habit-form-fields.test.tsx",
-        "apps/web/__tests__/hooks/use-accountability.test.ts",
         "apps/web/__tests__/hooks/use-app-toast.test.ts",
         "apps/web/__tests__/hooks/use-billing.test.ts",
         "apps/web/__tests__/hooks/use-calendar-auto-sync.test.ts",
         "apps/web/__tests__/hooks/use-calendar-data.test.ts",
         "apps/web/__tests__/hooks/use-calendar-events.test.ts",
         "apps/web/__tests__/hooks/use-calendars.test.ts",
-        "apps/web/__tests__/hooks/use-challenges.test.ts",
         "apps/web/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/web/__tests__/hooks/use-chat-image-attachment.test.tsx",
         "apps/web/__tests__/hooks/use-chat-pending-operations.test.ts",
@@ -8889,9 +8365,7 @@
         "apps/mobile/__tests__/app/use-preference-controls.test.tsx",
         "apps/mobile/__tests__/app/use-user-facts.test.tsx",
         "apps/mobile/__tests__/components/profile/use-data-export.test.tsx",
-        "apps/mobile/__tests__/hooks/use-accountability.test.ts",
         "apps/mobile/__tests__/hooks/use-apply-onboarding.test.tsx",
-        "apps/mobile/__tests__/hooks/use-challenges.test.ts",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-checklist-templates.test.tsx",
@@ -8915,11 +8389,7 @@
         "apps/web/__tests__/actions/onboarding.test.ts",
         "apps/web/__tests__/actions/uploads.test.ts",
         "apps/web/__tests__/actions/user-facts.test.ts",
-        "apps/web/__tests__/hooks/use-accountability.test.ts",
-        "apps/web/__tests__/hooks/use-challenges.test.ts",
         "apps/web/__tests__/lib/profile-presentation.test.ts",
-        "packages/shared/src/__tests__/accountability.test.ts",
-        "packages/shared/src/__tests__/challenge.test.ts",
         "packages/shared/src/__tests__/endpoints.test.ts",
         "packages/shared/src/__tests__/social.test.ts",
         "packages/shared/src/__tests__/types.test.ts",
@@ -8951,12 +8421,10 @@
         "apps/mobile/__tests__/app/advanced-api-keys.test.tsx",
         "apps/mobile/__tests__/app/use-preference-controls.test.tsx",
         "apps/mobile/__tests__/app/use-user-facts.test.tsx",
-        "apps/mobile/__tests__/hooks/use-accountability.test.ts",
         "apps/mobile/__tests__/hooks/use-calendar-auto-sync.test.ts",
         "apps/mobile/__tests__/hooks/use-calendar-data.test.ts",
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
         "apps/mobile/__tests__/hooks/use-calendars.test.ts",
-        "apps/mobile/__tests__/hooks/use-challenges.test.ts",
         "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-checklist-templates.test.tsx",
         "apps/mobile/__tests__/hooks/use-config.test.ts",
@@ -8981,7 +8449,6 @@
         "apps/mobile/__tests__/lib/habit-mutation-helpers.test.ts",
         "apps/mobile/__tests__/lib/notification-cache-helpers.test.ts",
         "apps/web/__tests__/components/calendar/use-agenda-day.test.ts",
-        "apps/web/__tests__/hooks/use-accountability.test.ts",
         "apps/web/__tests__/hooks/use-calendar-auto-sync.test.ts",
         "apps/web/__tests__/hooks/use-calendars.test.ts",
         "apps/web/__tests__/hooks/use-checklist-templates.test.ts",
@@ -8996,8 +8463,6 @@
         "apps/web/__tests__/hooks/use-timezone-auto-sync.test.tsx",
         "apps/web/__tests__/hooks/use-tour-mock-data.test.ts",
         "apps/web/__tests__/pages/calendar-sync.test.tsx",
-        "packages/shared/src/__tests__/accountability.test.ts",
-        "packages/shared/src/__tests__/challenge.test.ts",
         "packages/shared/src/__tests__/notification-cache.test.ts",
         "packages/shared/src/__tests__/query-keys-extra.test.ts",
         "packages/shared/src/__tests__/query-options.test.ts",
@@ -9108,8 +8573,6 @@
         "apps/mobile/__tests__/screens/public-profile-screen.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/shared/habit-utils.test.ts",
-        "apps/web/__tests__/actions/accountability.test.ts",
-        "apps/web/__tests__/actions/challenges.test.ts",
         "apps/web/__tests__/actions/onboarding.test.ts",
         "apps/web/__tests__/app/today-page.test.tsx",
         "apps/web/__tests__/components/ai-settings/fact-item.test.tsx",
@@ -9147,7 +8610,6 @@
         "apps/web/__tests__/components/public-profile-settings.test.tsx",
         "apps/web/__tests__/components/social/feed-event-card.test.tsx",
         "apps/web/__tests__/components/social/friend-profile-view.test.tsx",
-        "apps/web/__tests__/components/social/pair-detail.test.tsx",
         "apps/web/__tests__/components/today/setup-checklist-card.test.tsx",
         "apps/web/__tests__/components/tour/tour-provider.test.tsx",
         "apps/web/__tests__/components/tour/tour-tooltip.test.tsx",
@@ -9183,9 +8645,7 @@
         "apps/web/__tests__/stores/auth-store.test.ts",
         "apps/web/__tests__/stores/chat-store.test.ts",
         "apps/web/__tests__/stores/onboarding-draft-store.test.ts",
-        "packages/shared/src/__tests__/accountability.test.ts",
         "packages/shared/src/__tests__/calendar-entries.test.ts",
-        "packages/shared/src/__tests__/challenge.test.ts",
         "packages/shared/src/__tests__/chat-composer-core.test.ts",
         "packages/shared/src/__tests__/chat-schemas.test.ts",
         "packages/shared/src/__tests__/config.test.ts",
@@ -9213,7 +8673,6 @@
         "packages/shared/src/__tests__/upload.test.ts"
       ],
       "packages/shared/src/utils": [
-        "apps/mobile/__tests__/app/social/_components/habit-multi-select.test.tsx",
         "apps/mobile/__tests__/app/upgrade-model.test.ts",
         "apps/mobile/__tests__/components/goals/create-goal-modal.test.tsx",
         "apps/mobile/__tests__/components/goals/edit-goal-modal.test.tsx",
@@ -9230,7 +8689,6 @@
         "apps/mobile/__tests__/components/social/friend-profile-sheet.test.tsx",
         "apps/mobile/__tests__/components/social/invite-confirm-sheet.test.tsx",
         "apps/mobile/__tests__/components/ui/app-time-picker.test.tsx",
-        "apps/mobile/__tests__/hooks/use-challenges.test.ts",
         "apps/mobile/__tests__/hooks/use-retrospective.test.ts",
         "apps/mobile/__tests__/hooks/use-summary.test.ts",
         "apps/mobile/__tests__/hooks/use-time-format.test.tsx",
@@ -9259,10 +8717,8 @@
         "apps/web/__tests__/components/social/friend-profile-view.test.tsx",
         "apps/web/__tests__/components/social/friend-row.test.tsx",
         "apps/web/__tests__/components/social/invite-confirm-sheet.test.tsx",
-        "apps/web/__tests__/components/social/pair-detail.test.tsx",
         "apps/web/__tests__/components/wrapped/wrapped-cover.test.tsx",
         "apps/web/__tests__/components/wrapped/wrapped-player.test.tsx",
-        "apps/web/__tests__/hooks/use-challenges.test.ts",
         "apps/web/__tests__/hooks/use-habit-suggestion.test.ts",
         "apps/web/__tests__/hooks/use-login-code-entry.test.ts",
         "apps/web/__tests__/hooks/use-retrospective.test.ts",
@@ -9272,7 +8728,6 @@
         "apps/web/__tests__/pages/calendar-sync.test.tsx",
         "apps/web/__tests__/pages/upgrade.test.tsx",
         "apps/web/__tests__/stores/ui-store.test.ts",
-        "packages/shared/src/__tests__/accountability-errors.test.ts",
         "packages/shared/src/__tests__/achievement-i18n.test.ts",
         "packages/shared/src/__tests__/advanced-settings.test.ts",
         "packages/shared/src/__tests__/agent-pending-operation.test.ts",
@@ -9344,6 +8799,7 @@
         "packages/shared/src/__tests__/retrospective.test.ts",
         "packages/shared/src/__tests__/share-card.test.ts",
         "packages/shared/src/__tests__/social-errors.test.ts",
+        "packages/shared/src/__tests__/social-tabs.test.ts",
         "packages/shared/src/__tests__/streak-week.property.test.ts",
         "packages/shared/src/__tests__/streak-week.test.ts",
         "packages/shared/src/__tests__/subscription-pricing.test.ts",
@@ -9364,7 +8820,6 @@
         "apps/mobile/__tests__/components/habits/create-habit-modal.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-form-fields/scheduled-reminder-section.test.tsx",
         "packages/shared/src/__tests__/api-key-form.test.ts",
-        "packages/shared/src/__tests__/challenge-form.test.ts",
         "packages/shared/src/__tests__/goal-form.test.ts",
         "packages/shared/src/__tests__/types.test.ts",
         "packages/shared/src/__tests__/validation-constants.test.ts",
