@@ -35,9 +35,10 @@ surface (Sentry across the three runtimes, Hangfire + `IHostedService` backgroun
 `BackgroundServiceHealthCheck`, and the promote/smoke deploy workflows). That URL is the
 single WHY-with-URL the comment policy allows.
 
-**Self-contained / CI-safe**: no network call, no live scanner, no marketplace dependency.
-The workflow's agents run `git` / `rg` against the project's own checkout and read repo
-config. **CI / headless fallback**: if the `Workflow` tool is unavailable, run the four
+**Code-agent isolation**: the workflow's agents run against the project's own checkout and
+read repo config. Before they start, the calling session performs the performance audit's
+read-only Supabase measurement. The production connector is never exposed to a finder.
+**CI / headless fallback**: if the `Workflow` tool is unavailable, run the four
 `/audit-*` skills' own fallbacks inline plus the ops fan-out, then consolidate; the ticket
 set and the contract still hold.
 
@@ -97,10 +98,17 @@ Parse `$ARGUMENTS` into one `{scope}` token, forwarded to every child audit:
 
 ## Phase 2 — Run the prod-readiness workflow
 
+Before invoking the workflow, execute `/audit-performance` Phase 1 exactly once and retain
+its normalized `productionMeasurement`. Do not let each child finder query production. If
+measurement cannot be read, retain the exact unavailable reason and continue; the
+performance inventory item is `CODE_ONLY`, never a pass.
+
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
 ```
-Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: { scope: '<resolved {scope}>' } })
+Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
+  scope: '<resolved {scope}>', performanceMeasurement: productionMeasurement
+} })
 ```
 
 (`scriptPath` is canonical — named workflow resolution is not available in this Claude Code build.)
@@ -114,7 +122,8 @@ finding (default-refuted), and returns:
 { scope,
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
-  opsChecksRun, opsDeferred, failedAudits, unconvergedAudits }
+  opsChecksRun, opsDeferred, failedAudits, unconvergedAudits,
+  performanceMeasurement }
 ```
 
 `opsDeferred` always includes **backups** ("verify in the DB console: PITR plus a tested
@@ -168,6 +177,9 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **Coverage (the binding 10-item inventory)**: for each of the 10 items, ran / did-not-run /
   deferred and the result. Backups is always `deferred` (verify in the DB console). Any
   `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
+- **Measured performance**: show the top ten query shapes by rows with calls, rows per call,
+  bytes per row, calls per month, and monthly egress. Headline the byte-weighted top finding.
+  If the measurement is unavailable, show `CODE_ONLY` and the exact reason in this section.
 - **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
   verify-cap overflow") plus `opsDeferred` (backups) plus enterprise-only ops.
 - **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
@@ -181,10 +193,10 @@ re-validate each with `--issue`.
 
 - **GO** only if **zero Blockers** AND all **10** inventory items produced a verdict (every
   audit ran and converged; every ops check resolved or is a legitimately Deferred
-  un-verifiable like backups and the paid-API cost caps).
+  un-verifiable like backups and the paid-API cost caps), and performance is `MEASURED`.
 - **CONDITIONAL** if no Blockers but some items are Deferred in a way that gates launch (e.g.
-  backups unverified, staging gate absent, a child audit did not converge): name the
-  conditions.
+  backups unverified, staging gate absent, a child audit did not converge, or performance
+  is `CODE_ONLY`): name the conditions.
 - **NO-GO** if any Blocker stands.
 - **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker**: a partial
   sweep can never read green. The coverage table makes any non-running or unconverged audit
@@ -208,6 +220,7 @@ re-validate each with `--issue`.
 | Low / Info | {N} | {…} |
 
 **Inventory (10)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred}
+**Measured performance**: {MEASURED with top finding and top-ten table | CODE_ONLY with reason}
 **Tickets**: {the final ORB-N table, identifier · title · repo · tier · blockedBy, or "clean: nothing to ticket"}
 **Top blocker**: {the single highest-priority ticket standing between here and launch, or "none"}
 ```

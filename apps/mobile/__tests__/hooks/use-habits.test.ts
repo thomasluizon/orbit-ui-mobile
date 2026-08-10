@@ -780,10 +780,43 @@ describe('mobile habit hooks', () => {
     expect(goal?.progressPercentage).toBe(40)
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(125)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it('does not celebrate or award XP for a bad sub-habit completion', () => {
+  it('reconciles a completion without refetching response-backed or AI summary families', () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      LogHabitResponse,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-1',
+      isFirstCompletionToday: false,
+      currentStreak: 1,
+    }
+
+    mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.summaryPrefix(),
+    })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  /**
+   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
+   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
+   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
+   * it. That gate is what dropped every reward for a habit missing from the list cache.
+   */
+  it('does not celebrate a bad sub-habit completion, and the server sends it no XP', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',
       children: [makeChild({ id: 'bad-child', isBadHabit: true })],
@@ -799,7 +832,7 @@ describe('mobile habit hooks', () => {
       logId: 'log-streak',
       isFirstCompletionToday: true,
       currentStreak: 3,
-      xpEarned: 25,
+      xpEarned: 0,
     }
 
     mutation.onSuccess?.(response, { habitId: 'bad-child' }, undefined)
@@ -809,6 +842,37 @@ describe('mobile habit hooks', () => {
     expect(profile.currentStreak).toBe(1)
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(100)
+  })
+
+  /**
+   * THE defect the connector found on #699, mirrored from web for parity. Rewards the server
+   * already granted were discarded whenever the habit was absent from the list cache, which is the
+   * ordinary state on a deep link or a cold navigation.
+   */
+  it('banks XP and refreshes achievements for a habit that is not in the list cache', () => {
+    seedHabitState([makeHabit({ id: 'cached-habit' })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-uncached',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+      newAchievementIds: ['first-week'],
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'never-listed' }, undefined)
+
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(125)
+    /** The celebration still needs a KNOWN good habit, because an unresolvable one could be a bad
+     * habit whose "streak" is abstinence. Reconciling is safe; celebrating on a guess is not. */
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 
   it.each([

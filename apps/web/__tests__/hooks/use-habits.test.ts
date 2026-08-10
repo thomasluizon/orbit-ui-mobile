@@ -306,7 +306,7 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
+  it('reconciles habit data without refetching response-backed or AI summary families', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-x',
@@ -326,10 +326,12 @@ describe('useLogHabit', () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: habitKeys.summaryPrefix(),
+    })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to logHabit action', async () => {
@@ -616,13 +618,19 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  it('does not celebrate or award XP for a bad sub-habit completion', async () => {
+  /**
+   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
+   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
+   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
+   * it. That gate is what dropped every reward for a habit missing from the list cache.
+   */
+  it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday: true,
       currentStreak: 3,
-      xpEarned: 25,
+      xpEarned: 0,
     })
 
     const queryClient = createQueryClient()
@@ -647,6 +655,45 @@ describe('useLogHabit onSuccess', () => {
     expect(
       queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
     ).toBe(100)
+  })
+
+  /**
+   * THE defect the connector found on #699. Rewards the server already granted were discarded
+   * whenever the habit was absent from the list cache, which is the ordinary state on a deep link
+   * or a cold navigation. The XP was banked server-side and never shown, and the achievement list
+   * was never refreshed, both silently.
+   */
+  it('banks XP and refreshes achievements for a habit that is not in the list cache', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({
+      logId: 'log-uncached',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+      newAchievementIds: ['first-week'],
+    })
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'never-listed' })
+    })
+
+    expect(
+      queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
+    ).toBe(125)
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: gamificationKeys.all }),
+    )
+    /** The celebration still needs a KNOWN good habit, because an unresolvable one could be a bad
+     * habit whose "streak" is abstinence. Reconciling is safe; celebrating on a guess is not. */
+    expect(mockSetStreakCelebration).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -771,7 +818,7 @@ describe('useLogHabit onSuccess', () => {
     expect(mockedLogHabit).toHaveBeenCalled()
   })
 
-  it('handles linked goal updates in response', async () => {
+  it('refreshes linked-goal, gamification, and profile caches after a completion awards XP', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
@@ -781,6 +828,8 @@ describe('useLogHabit onSuccess', () => {
       linkedGoalUpdates: [
         { goalId: 'g-1', title: 'Goal 1', newProgress: 55, targetValue: 100 },
       ],
+      xpEarned: 25,
+      newAchievementIds: ['ach-1'],
     })
 
     mockFetch.mockResolvedValue({
@@ -791,14 +840,20 @@ describe('useLogHabit onSuccess', () => {
         ),
     })
 
-    const wrapper = createWrapper()
-    const { result } = renderHook(() => useLogHabit(), { wrapper })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ id: 'h-1' })])
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
 
     await act(async () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(mockedLogHabit).toHaveBeenCalled()
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('handles gamification XP in response', async () => {

@@ -35,6 +35,7 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 | `lib/github-issues.mjs` | The one adapter for GitHub tickets. Resolves migrated ORB identifiers and raw issue numbers, normalizes issue and Projects v2 state, validates and creates tickets, preflights and completes the post-merge transition, asserts repository labels, sets pre-merge board status, posts comments, and lists tickets. | imported, not invoked |
 | `lib/github-target.mjs` | Judges whether a caller-supplied GitHub node id belongs to the repository the caller named, before any write. A node that resolves elsewhere, or does not resolve at all, is refused. Also recognises the permissions error GitHub returns for a write aimed at another owner, so that error stops reading as a transient glitch. | imported, not invoked |
 | `lib/identifier-ledger.mjs` | Records every node id the harness genuinely read back from GitHub, in `.git/orbit-observed-identifiers.json`. `list-bot-threads.mjs` writes it; `.claude/hooks/forbid-invented-identifier.mjs` reads it to tell a copied id from a typed one. | imported, not invoked |
+| `lib/performance-measurement.mjs` | Executable reference for the performance workflow's normalization contract. It ranks production query statistics, rejects empty or partial source mappings, applies request-only row limits and background-only sweep budgets from mapped execution context, and makes unavailable measurement an explicit `CODE_ONLY` verdict. | imported by the tools harness |
 
 ## Product gates
 

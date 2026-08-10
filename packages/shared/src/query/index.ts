@@ -21,6 +21,5 @@ export {
 
 export {
   QUERY_STALE_TIMES,
-  HABITS_REFETCH_INTERVAL,
   NOTIFICATIONS_REFETCH_INTERVAL,
 } from './options'

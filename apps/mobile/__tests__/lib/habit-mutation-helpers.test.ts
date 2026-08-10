@@ -85,18 +85,18 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
     instances: [],
     searchMatches: null,
     ...overrides,
-  } as HabitScheduleItem
+  }
 }
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
-    ...makeHabit(overrides as Partial<HabitScheduleItem>),
+    ...makeHabit(overrides),
     isLoggedInRange: false,
     instances: [],
     children: [],
     hasSubHabits: false,
     ...overrides,
-  } as HabitScheduleChild
+  }
 }
 
 describe('finalizeHabitMutation', () => {
@@ -110,12 +110,12 @@ describe('finalizeHabitMutation', () => {
     vi.useRealTimers()
   })
 
-  it('skips invalidation for queued mutations', async () => {
+  it('skips invalidation for queued mutations', () => {
     const queryClient = {
       invalidateQueries: vi.fn(async () => {}),
     }
 
-    await finalizeHabitMutation(
+    finalizeHabitMutation(
       queryClient as never,
       { queued: true, queuedMutationId: 'offline-mutation-1' },
       null,
@@ -131,12 +131,12 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 
-  it('invalidates habit-related caches and refreshes the widget on success', async () => {
+  it('invalidates habit-related caches and refreshes the widget on success', () => {
     const queryClient = {
       invalidateQueries: vi.fn(async () => {}),
     }
 
-    await finalizeHabitMutation(
+    finalizeHabitMutation(
       queryClient as never,
       { ok: true },
       null,
@@ -193,20 +193,20 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', async () => {
+  it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', () => {
     const withCount = { invalidateQueries: vi.fn(async () => {}) }
-    await finalizeHabitMutation(withCount as never, { ok: true }, null, { includeCount: true })
+    finalizeHabitMutation(withCount as never, { ok: true }, null, { includeCount: true })
     expect(withCount.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
 
     const withoutCount = { invalidateQueries: vi.fn(async () => {}) }
-    await finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true })
+    finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true })
     expect(withoutCount.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
-  it('still refetches on a plain (non-queued) online error so the cache reconciles', async () => {
+  it('still refetches on a plain (non-queued) online error so the cache reconciles', () => {
     const queryClient = { invalidateQueries: vi.fn(async () => {}) }
 
-    await finalizeHabitMutation(queryClient as never, { ok: true }, new Error('network'), {
+    finalizeHabitMutation(queryClient as never, { ok: true }, new Error('network'), {
       includeGoals: true,
     })
 
@@ -215,10 +215,10 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('still skips invalidation for a queued (offline) result even on error', async () => {
+  it('still skips invalidation for a queued (offline) result even on error', () => {
     const queryClient = { invalidateQueries: vi.fn(async () => {}) }
 
-    await finalizeHabitMutation(
+    finalizeHabitMutation(
       queryClient as never,
       { queued: true, queuedMutationId: 'offline-1' },
       new Error('network'),
