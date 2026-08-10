@@ -320,8 +320,13 @@ export const preflightTicketCompletion = async (number) => {
   return ticket
 }
 
-export const completeTicket = async (number) => {
-  const ticket = await preflightTicketCompletion(number)
+/**
+ * `preflighted` lets the caller pass the ticket it already read, so posting the manual-steps comment
+ * before the close costs one read instead of two. The value is verified to be the same ticket rather
+ * than trusted, because a mismatched object here would close the wrong issue.
+ */
+export const completeTicket = async (number, preflighted = null) => {
+  const ticket = preflighted?.number === positiveIssueNumber(number) ? preflighted : await preflightTicketCompletion(number)
   const tickets = ticketConfiguration()
   await writeStatus(number, tickets.states.done, { allowDone: true })
   await runGh(["issue", "close", String(number), "--repo", tickets.repository, "--reason", "completed"])

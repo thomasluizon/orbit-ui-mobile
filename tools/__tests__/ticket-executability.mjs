@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 
 import { T } from "./_harness.mjs"
 
-const { classifyExecutability } = await import("../lib/ticket-executability.mjs")
+const { classifyConversationFirst, classifyExecutability, CONVERSATION_LABEL_OFF, CONVERSATION_LABEL_ON } = await import("../lib/ticket-executability.mjs")
 
 const TOOL = "lib/ticket-executability.mjs"
 const reasons = (description) => classifyExecutability(description).deferrals.map((entry) => entry.reason)
@@ -85,5 +85,68 @@ export const cases = () => {
     `${TOOL}: a deferral quotes the line it fired on, so the evidence travels with the verdict`,
     /says "NOT REPRODUCED on a Pixel 7"/.test(classifyExecutability("## Problem\n\nNOT REPRODUCED on a Pixel 7").deferrals[0]?.detail ?? ""),
     JSON.stringify(classifyExecutability("## Problem\n\nNOT REPRODUCED on a Pixel 7")),
+  )
+
+  /**
+   * Conversation-first. A DIFFERENT question from everything above: those ask whether a headless
+   * worker can execute the ticket at all, this asks whether it can execute it CORRECTLY by guessing.
+   * ORB-30 (#36) is the worked case and every fixture below is its real shape.
+   */
+  const conversation = (description, labels = []) => classifyConversationFirst(description, { labels })
+  const kinds = (description, labels = []) => conversation(description, labels).signals.map((signal) => signal.kind)
+
+  T(`${TOOL}: an ordinary code ticket is not conversation-first`, conversation("## Scope\n\n- Inject the recorder\n- Add one migration\n\n## Acceptance criteria\n\n- A chat round writes a row").conversationFirst === false)
+  T(
+    `${TOOL}: an acceptance criterion carrying a human grant is conversation-first`,
+    kinds("## Acceptance criteria\n\n* Thomas has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.").includes("HUMAN_GRANT"),
+  )
+  T(
+    `${TOOL}: a choice left to the implementer is conversation-first`,
+    kinds("## Scope\n\n* Decide the stacked-CTA width-matching convention (open question from 2026-07-19).").includes("DELEGATED_CHOICE"),
+  )
+  T(
+    `${TOOL}: a call the repository cannot supply is conversation-first`,
+    kinds("## Technical details\n\nThis needs a brand decision before any copy is written.").includes("PRODUCT_CALL"),
+  )
+
+  /**
+   * The contradiction takes TWO lines to establish, and that is the point. "D28 is dead" matches the
+   * retirement shape too, and nothing instructs a worker to build in D28, so it stays silent.
+   */
+  const pencil = "## Scope\n\n* Then build the prototype in Pencil (`pencil.dev`, via the `pencil` MCP server).\n\n## Technical details\n\n* Claude Design is the prototyping path with `design/reference.html` (Pencil is retired).\n"
+  T(`${TOOL}: a tool named retired while still being instructed is a contradiction`, kinds(pencil).includes("TOOL_CONTRADICTION"), JSON.stringify(conversation(pencil)))
+  T(
+    `${TOOL}: a retired thing nobody is told to use is not a contradiction`,
+    !kinds("## Rescope\n\n**The design direction changed. D28 is dead.**\n\n## Scope\n\n- Rewrite the token table\n").includes("TOOL_CONTRADICTION"),
+  )
+
+  T(
+    `${TOOL}: every signal produces exactly one question, so nothing fires silently`,
+    conversation(pencil).questions.length === conversation(pencil).signals.length && conversation(pencil).questions.every((question) => question.length > 0),
+  )
+  T(`${TOOL}: a question carries the evidence line it fired on`, /Pencil is retired/.test(conversation(pencil).questions.join(" ")), JSON.stringify(conversation(pencil).questions))
+
+  /** Thomas overrides the heuristic in both directions, and the label always wins over the body. */
+  T(`${TOOL}: the label forces conversation-first onto an ordinary ticket`, conversation("## Scope\n\n- Fix the selector", [CONVERSATION_LABEL_ON]).conversationFirst === true)
+  T(`${TOOL}: the label reports itself as the source, not the body`, conversation("## Scope\n\n- Fix the selector", [CONVERSATION_LABEL_ON]).source === "label")
+  T(`${TOOL}: the off label forces it off even when the body trips every signal`, conversation(pencil, [CONVERSATION_LABEL_OFF]).conversationFirst === false)
+  T(`${TOOL}: labels are accepted as GitHub objects as well as bare names`, conversation("## Scope\n\n- Fix it", [{ name: CONVERSATION_LABEL_ON }]).conversationFirst === true)
+
+  /** Out of scope is excluded here for the same reason it is excluded above. */
+  T(
+    `${TOOL}: a human grant under Out of scope is not conversation-first`,
+    conversation("## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n- The visual approval, which is a human grant no agent may substitute for").conversationFirst === false,
+  )
+
+  /** The queue contract has to name the reason, or the deferral arrives at 03:00 with no meaning. */
+  T(
+    `${TOOL}: the orchestrate contract documents NEEDS_CONVERSATION as a sleep-only deferral`,
+    /NEEDS_CONVERSATION/.test(orchestrateContract) && /--sleep.{0,20}only/i.test(orchestrateContract),
+    "the queue contract lost the conversation-first deferral row",
+  )
+  T(
+    `${TOOL}: the orchestrate contract writes the conversation decisions back to the ticket`,
+    /comment-ticket\.mjs/.test(orchestrateContract) && /one topic at a time/i.test(orchestrateContract),
+    "the conversation-first protocol lost its durable output or its one-topic rule",
   )
 }

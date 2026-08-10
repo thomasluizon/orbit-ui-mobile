@@ -55,6 +55,9 @@ run it always was.
                      generated artifact together; split only at real behavior/deployment boundaries
  2b QUESTION GATE    BOTH MODES. Every question the queue raises, asked in ONE batch, before
                      the first worktree. Answers that remove a ticket remove it now.
+                     CONVERSATION-FIRST ticket: --sleep -> already deferred NEEDS_CONVERSATION.
+                     Attended -> converse ONE TOPIC AT A TIME, then write the decisions to the
+                     ticket with comment-ticket.mjs BEFORE compose-prompt. No worker until answered.
                      THEN write .git/orbit-orchestrate-run.json: session, sleep, remaining[]
                                         ---- per ticket, in wave order ----
  3  Worktree         orca worktree create; git switch -c feature/<ticket-slug>-<slug>
@@ -96,6 +99,7 @@ run it always was.
                      into branch when behind · rerun invalidated receipts · synchronize the ticket
                      READY only when every receipt names the same current head and base SHA
 14  Hand over        PR URL, advisory diff size, receipt and READY verdict.
+                     PRINT any manual step the ticket carries (complete-ticket.mjs --preflight)
                      READY -> In Review.
                      UPDATE remaining[] in .git/orbit-orchestrate-run.json
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
@@ -111,7 +115,9 @@ run it always was.
 These interfaces are fixed. Do not invent flags or variants.
 
 ```
-node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown]
+node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown] [--sleep]
+node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
+node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--codex-only]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --review --repo <key> --prompt <f> [--codex-only]
@@ -320,6 +326,7 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | `NOT_REPRODUCED` | the body says NOT REPRODUCED, asks for a device or emulator repro, or makes obtaining one the first Scope item. ORB-128 and ORB-208 are both Android runtime bugs whose competing hypotheses only a device can tell apart |
 | `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83 |
 | `MULTI_PR` | the body scopes itself to several pull requests, which breaks D4 before the harness sees it. ORB-25, ORB-26 |
+| `NEEDS_CONVERSATION` | **`--sleep` only.** The ticket can be executed headlessly, but not CORRECTLY without asking first: a human grant in its acceptance criteria, a body that contradicts itself about which tool is current, a choice left to the implementer, or a product/brand/copy/price call the repository cannot supply. Thomas is asleep, so it defers WITH its open questions printed. ORB-30 (#36) |
 
 The last four are the executability pass, added after the Onda 1 queue admitted 71 tickets and
 deferred none while eleven of them could not be executed by a headless agent at all. Two things it is
@@ -369,6 +376,37 @@ Anything a COMMENT raises belongs here too: split this, do it differently, this 
 Ask all of them in ONE `AskUserQuestion` batch, or one message if there are more than four. **If an
 answer removes a ticket, remove it from the queue before the run starts** rather than spawning a
 worker that will fail.
+
+### The conversation-first exception: some tickets need a talk, not a batch
+
+`plan-queue.mjs` classifies each ticket for the four signals above and returns
+`conversation: {source, signals, questions}` on the admitted entry, plus a `CONVERSATION FIRST`
+warning. Pass `--sleep` to the planner when the run has it, and those tickets defer as
+`NEEDS_CONVERSATION` with their questions printed instead.
+
+The label `needs:conversation` forces it on and `needs:no-conversation` forces it off; either
+overrides the body. Use `needs:no-conversation` once the questions are already answered in a comment,
+so the ticket runs headless the next night.
+
+**Under `--sleep`, never attempt one.** A conversation cannot happen while Thomas is asleep. The
+ticket defers before any worker spawns and its open questions go in the step 15 report, so he wakes
+to a decision list rather than a confidently wrong pull request.
+
+**Attended, converse before you compose.** The one-batch rule above is right for "should this ticket
+run at all" and wrong for "design this with me". So for a conversation-first ticket:
+
+1. Ask **one topic at a time**. Show the contradiction or the grant, state the options, recommend one,
+   and wait. Rule 7 of `.claude/rules/core.md` still holds: assert the obvious option and ask for
+   confirmation rather than presenting a menu.
+2. **Never spawn the worker until the open questions are answered.** A product, brand, copy, price or
+   design call is not something to proceed on under an assumption.
+3. **Write the decisions back to the ticket as a comment, before composing the worker prompt.** This
+   needs no new machinery and is the whole trick: a comment is already part of the work order and the
+   LATER comment already wins, and `compose-prompt.mjs` already passes comments through to the
+   worker. So the answers reach the implementer over a path that already exists, and they are durable
+   and auditable instead of living in this session's scrollback. Post it with
+   `node tools/comment-ticket.mjs --issue "<ticket-ref>" --body-file <scratchpad-file>`, never a raw
+   `gh issue comment`.
 
 **What this gate cannot do, stated plainly rather than implied.** It asks only what is derivable from
 the tickets UP FRONT. It cannot predict what a worker hits mid-run: a dependency that turns out to be
@@ -882,6 +920,18 @@ Print:
   `BOT REVIEW ABSENT`.
 - Every follow-up ticket filed, by identifier.
 - `DEGRADED: same-vendor review` when `--codex-only` was passed.
+- **Any manual step the ticket carries**, expanded. Run
+  `node tools/complete-ticket.mjs --issue "<ticket-ref>" --preflight` and print its `manualSteps`
+  field verbatim; it writes nothing. Silence is the normal answer and prints nothing at all.
+
+**Why a manual step is printed here and not only at merge.** orbit-tickets#81 said "merge, deploy to
+Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until the key exists." The
+pull request was perfect, review was clean, CI was green, the ticket closed Done on 2026-08-08, and
+nothing anywhere in that path ever mentioned the key. The key turned out to be set already (verified
+live 2026-08-10: `posthog-dotnet` events since 2026-07-25, nothing lost), so this is a near miss
+rather than an incident. The missing thing is not the key, it is any mechanism that knew. Every gate
+in this harness measures the PULL REQUEST; that step is not in one, so it has to be carried to the
+human at the moments a human is reading. 13 of the 166 open tickets carry a step of the same shape.
 
 **Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
 watches; zero tokens burn while it waits. **With `--sleep`: go straight to the next ticket.**
@@ -893,7 +943,10 @@ Once the queue is exhausted, print one summary and stop:
 - Every pull request opened, with repository, number, current base/head SHAs, advisory diff size,
   behind count and receipt verdict.
 - **The stack layout**, so the merge order is stated rather than worked out at 08:00.
-- Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker.
+- Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker. For a
+  `NEEDS_CONVERSATION` deferral, print its open questions too, so the night ends in a decision list.
+- **Every manual step across the whole queue, in one "still outstanding" list.** These are Thomas's
+  clicks, not the harness's, and they are the only work the merge does not finish.
 - **The single command that merges the lot**, ready for Thomas to approve.
 
 Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
