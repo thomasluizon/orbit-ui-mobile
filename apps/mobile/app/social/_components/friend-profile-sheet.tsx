@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { Users } from 'lucide-react-native'
 import type { FriendProfileView } from '@orbit/shared/types/social'
 import { achievementEmoji, ApiClientError, capitalizeFirstLetter, formatLocaleDate } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -46,7 +45,7 @@ function buildDayLabels(count: number, locale: string): { key: string; label: st
 }
 
 /** Bottom sheet showing an accepted friend's rich profile: identity, stat tiles, a 7-day activity
- *  strip, top habits, any shared accountability or challenge context, and achievement chips. Renders
+ *  strip, top habits, and achievement chips. Renders
  *  the permanent "unavailable" state on 403/404 or a missing view, and a retryable transient error. */
 export function FriendProfileSheet({
   userId,
@@ -117,8 +116,6 @@ function ProfileBody({
         formatLocaleDate(view.friendsSinceUtc, i18n.language, { month: 'long', year: 'numeric' }),
       )
     : null
-  const hasSharedContext = view.isAccountabilityPartner || view.sharedChallenges.length > 0
-
   return (
     <>
       <Animated.View entering={sectionEntrance(0)} style={styles.identity}>
@@ -160,28 +157,7 @@ function ProfileBody({
         </Animated.View>
       ) : null}
 
-      {hasSharedContext ? (
-        <Animated.View entering={sectionEntrance(4)} style={styles.card}>
-          {view.isAccountabilityPartner ? (
-            <View style={styles.partnerRow}>
-              <Users size={18} color={tokens.primary} />
-              <Text style={styles.partnerText}>{t('social.friendProfile.accountabilityPartner')}</Text>
-            </View>
-          ) : null}
-          {view.sharedChallenges.length > 0 ? (
-            <View style={view.isAccountabilityPartner ? styles.sharedChallengesBlock : undefined}>
-              <Text style={styles.sectionLabel}>{t('social.friendProfile.sharedChallengesTitle')}</Text>
-              {view.sharedChallenges.map((challenge) => (
-                <Text key={challenge.id} style={styles.challengeTitle}>
-                  {challenge.title}
-                </Text>
-              ))}
-            </View>
-          ) : null}
-        </Animated.View>
-      ) : null}
-
-      <Animated.View entering={sectionEntrance(5)} style={styles.card}>
+      <Animated.View entering={sectionEntrance(4)} style={styles.card}>
         <Text style={styles.sectionLabel}>{t('profile.publicProfile.view.achievementsTitle')}</Text>
         {view.achievements.length > 0 ? (
           <View style={styles.chipRow}>
@@ -283,10 +259,6 @@ function createStyles(tokens: Tokens) {
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
-    partnerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    partnerText: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: tokens.fg1 },
-    sharedChallengesBlock: { marginTop: 14, gap: 12 },
-    challengeTitle: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: tokens.fg1 },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
     chipText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg2 },

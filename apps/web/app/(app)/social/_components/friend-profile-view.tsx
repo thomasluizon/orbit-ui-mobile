@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Loader2, Users } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import type { FriendProfileView as FriendProfileViewData } from '@orbit/shared/types/social'
@@ -55,7 +55,7 @@ const errorCopyStyle = {
 } as const
 
 /** Overlay showing an accepted friend's rich profile: identity, stat tiles, a 7-day activity strip,
- *  top habits, any shared accountability or challenge context, and achievement chips. Renders the
+ *  top habits, and achievement chips. Renders the
  *  permanent "unavailable" state on 403/404 or a missing view, and a retryable transient error. */
 export function FriendProfileView({
   userId,
@@ -141,8 +141,6 @@ function ProfileBody({
     }
   }
 
-  const hasSharedContext = view.isAccountabilityPartner || view.sharedChallenges.length > 0
-
   return (
     <div className="flex flex-col" style={{ gap: 14, paddingTop: 4 }}>
       <motion.div className="flex flex-col items-center text-center" style={{ gap: 6 }} {...section(0)}>
@@ -178,35 +176,7 @@ function ProfileBody({
         </motion.section>
       ) : null}
 
-      {hasSharedContext ? (
-        <motion.section style={cardStyle} {...section(4)}>
-          {view.isAccountabilityPartner ? (
-            <div className="flex items-center" style={{ gap: 10 }}>
-              <Users className="size-[18px]" style={{ color: 'var(--primary)' }} aria-hidden="true" />
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
-                {t('social.friendProfile.accountabilityPartner')}
-              </span>
-            </div>
-          ) : null}
-          {view.sharedChallenges.length > 0 ? (
-            <div style={{ marginTop: view.isAccountabilityPartner ? 14 : 0 }}>
-              <h3 style={sectionHeadingStyle}>{t('social.friendProfile.sharedChallengesTitle')}</h3>
-              <ul className="flex flex-col" style={{ gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>
-                {view.sharedChallenges.map((challenge) => (
-                  <li
-                    key={challenge.id}
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}
-                  >
-                    {challenge.title}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </motion.section>
-      ) : null}
-
-      <motion.section style={cardStyle} {...section(5)}>
+      <motion.section style={cardStyle} {...section(4)}>
         <h2 style={sectionHeadingStyle}>{t('profile.publicProfile.view.achievementsTitle')}</h2>
         {view.achievements.length > 0 ? (
           <ul className="flex flex-wrap" style={{ gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>
@@ -219,7 +189,7 @@ function ProfileBody({
                     fontFamily: 'var(--font-sans)',
                     fontSize: 13,
                     color: 'var(--fg-2)',
-                    padding: '7px 12px',
+                    padding: '8px 12px',
                     borderRadius: 999,
                     background: 'rgba(var(--primary-rgb), 0.12)',
                   }}

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ScrollView,
   StyleSheet,
@@ -8,7 +8,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { isValidReferralCode } from '@orbit/shared/utils'
+import { isValidReferralCode, resolveSocialTab } from '@orbit/shared/utils'
+import type { SocialTab } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
@@ -21,12 +22,9 @@ import { SocialOptInGate } from './social/_components/social-opt-in-gate'
 import { SocialIdentityBar } from './social/_components/social-identity-bar'
 import { SocialFeed } from './social/_components/social-feed'
 import { SocialFriends } from './social/_components/social-friends'
-import { AccountabilitySection } from './social/_components/accountability-section'
-import { ChallengesEntryCard } from './social/_components/challenges-entry-card'
 import { CheerComposer, type CheerTarget } from './social/_components/cheer-composer'
 import { InviteConfirmSheet } from './social/_components/invite-confirm-sheet'
 
-type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialScreen() {
   const { t } = useTranslation()
@@ -36,18 +34,30 @@ export default function SocialScreen() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const { profile, isLoading } = useProfile()
-  const { tab: tabParam, newPairHabitId, invite: inviteParam } = useLocalSearchParams<{
+  const { tab: tabParam, invite: inviteParam } = useLocalSearchParams<{
     tab?: string
-    newPairHabitId?: string
     invite?: string
   }>()
   const inviteCode = isValidReferralCode(inviteParam) ? inviteParam : null
-  const [tab, setTabState] = useState<SocialTab>(
-    tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed',
-  )
+  const [tab, setTabState] = useState<SocialTab>(() => resolveSocialTab(tabParam))
+  /**
+   * A `useState` initializer runs once, but a notification can navigate here by QUERY ALONE, which
+   * does not remount the screen, so the retired-tab redirect would silently not happen. The ref
+   * keeps this a synchronization rather than a clobber: tapping a tab changes local state without
+   * touching the URL, so only a real query navigation overwrites the user's own choice. It tracks
+   * the RAW query, never the resolved tab: resolved values collapse, so an explicit `?tab=feed`
+   * opened while the user sits on Friends would otherwise read as "nothing changed" and strand them.
+   * Parity with `apps/web/app/(app)/social/page.tsx`.
+   */
+  const lastRawTabParam = useRef(tabParam)
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const scrollRef = useRef<ScrollView>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
+  useEffect(() => {
+    if (lastRawTabParam.current === tabParam) return
+    lastRawTabParam.current = tabParam
+    setTabState(resolveSocialTab(tabParam))
+  }, [tabParam])
   const setTab = useCallback((nextTab: SocialTab) => {
     setTabState(nextTab)
     setShowScrollTop(false)
@@ -66,16 +76,13 @@ export default function SocialScreen() {
   const tabs = [
     { id: 'feed' as const, label: t('social.tabs.feed') },
     { id: 'friends' as const, label: t('social.tabs.friends') },
-    { id: 'buddies' as const, label: t('social.tabs.buddies') },
   ]
 
   let tabContent: ReactNode
   if (tab === 'feed') {
     tabContent = <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
-  } else if (tab === 'friends') {
-    tabContent = <SocialFriends onCheer={setCheerTarget} />
   } else {
-    tabContent = <AccountabilitySection initialHabitId={newPairHabitId ?? null} />
+    tabContent = <SocialFriends onCheer={setCheerTarget} />
   }
 
   let socialBody: ReactNode = null
@@ -94,7 +101,6 @@ export default function SocialScreen() {
           scrollEventThrottle={16}
         >
           <SocialIdentityBar />
-          <ChallengesEntryCard />
           {tabContent}
         </ScrollView>
         <ScrollToTopButton visible={showScrollTop} onPress={scrollToTop} bottom={24} />

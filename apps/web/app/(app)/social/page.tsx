@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { isValidReferralCode } from '@orbit/shared/utils'
+import { isValidReferralCode, resolveSocialTab } from '@orbit/shared/utils'
+import type { SocialTab } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
@@ -13,12 +14,9 @@ import { SocialOptInGate } from './_components/social-opt-in-gate'
 import { SocialIdentityBar } from './_components/social-identity-bar'
 import { SocialFeed } from './_components/social-feed'
 import { SocialFriends } from './_components/social-friends'
-import { AccountabilitySection } from './_components/accountability-section'
-import { ChallengesEntryCard } from './_components/challenges-entry-card'
 import { CheerComposer, type CheerTarget } from './_components/cheer-composer'
 import { InviteConfirmSheet } from './_components/invite-confirm-sheet'
 
-type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialPage() {
   return (
@@ -34,11 +32,29 @@ function SocialPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
-  const [tab, setTab] = useState<SocialTab>(() => {
-    const tabParam = searchParams.get('tab')
-    return tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed'
-  })
-  const newPairHabitId = searchParams.get('newPairHabitId')
+  const rawTabParam = searchParams.get('tab')
+  const [tab, setTab] = useState<SocialTab>(() => resolveSocialTab(rawTabParam))
+  /**
+   * A `useState` initializer runs once, but a notification can navigate here by QUERY ALONE. The
+   * desktop topbar keeps NotificationBell mounted, so opening a stored `/social?tab=buddies` while
+   * already on `/social` changes `searchParams` without remounting: the initializer never reruns and
+   * the retired-tab redirect silently does not happen.
+   *
+   * The ref is what keeps this a synchronization rather than a clobber. Clicking a tab changes local
+   * state and not the URL, so comparing against the LAST URL value means an unchanged URL never
+   * overwrites the user's own choice; only a real query navigation does.
+   *
+   * It tracks the RAW query, not the resolved tab, and that distinction is the whole correctness of
+   * it. Resolved values collapse: a user on `/social` who switches locally to Friends and then opens
+   * a cheer notification for `/social?tab=feed` sees `feed` resolved on both sides, so a resolved
+   * comparison reads "nothing changed" and strands them on Friends against an explicit destination.
+   */
+  const lastRawTabParam = useRef(rawTabParam)
+  useEffect(() => {
+    if (lastRawTabParam.current === rawTabParam) return
+    lastRawTabParam.current = rawTabParam
+    setTab(resolveSocialTab(rawTabParam))
+  }, [rawTabParam])
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {
     // react-doctor-disable-next-line url-prefilled-privileged-action -- code is format-validated then only pre-fills InviteConfirmSheet, which server-validates (useInvitePreview) and needs explicit send (useSendFriendRequest); no action auto-fires https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -59,17 +75,13 @@ function SocialPageContent() {
   const tabs: SectionHeadTabItem<SocialTab>[] = [
     { id: 'feed', label: t('social.tabs.feed') },
     { id: 'friends', label: t('social.tabs.friends') },
-    { id: 'buddies', label: t('social.tabs.buddies') },
   ]
 
   const renderTabContent = () => {
     if (tab === 'feed') {
       return <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
     }
-    if (tab === 'friends') {
-      return <SocialFriends onCheer={setCheerTarget} />
-    }
-    return <AccountabilitySection initialHabitId={newPairHabitId} />
+    return <SocialFriends onCheer={setCheerTarget} />
   }
 
   const renderBody = () => {
@@ -78,7 +90,6 @@ function SocialPageContent() {
     return (
       <div>
         <SocialIdentityBar />
-        <ChallengesEntryCard />
         <SectionHeadTabs<SocialTab>
           tabs={tabs}
           active={tab}

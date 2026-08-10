@@ -158,23 +158,6 @@ vi.mock('@/components/habits/description-viewer', () => ({
   DescriptionViewer: () => null,
 }))
 
-vi.mock('@/app/(app)/social/_components/new-pair-flow', () => ({
-  NewPairFlow: ({
-    open,
-    initialHabitId,
-  }: {
-    open: boolean
-    initialHabitId?: string | null
-  }) =>
-    open ? (
-      <div
-        data-testid="new-pair-flow"
-        data-initial-habit-id={initialHabitId ?? ''}
-      />
-    ) : null,
-}))
-
-
 describe('HabitDetailDrawer', () => {
   const defaultHabit = createMockHabit({
     id: 'h-1',
@@ -457,23 +440,7 @@ describe('HabitDetailDrawer', () => {
     expect(screen.getByText(/habits\.detail\.endsOn/)).toBeDefined()
   })
 
-  it('opens the pair-a-buddy flow prefilled with the habit when the buddy row is clicked', () => {
-    render(
-      <HabitDetailDrawer
-        open={true}
-        onOpenChange={vi.fn()}
-        habit={defaultHabit}
-      />,
-    )
-    expect(screen.queryByTestId('new-pair-flow')).toBeNull()
-    fireEvent.click(screen.getByText('social.buddies.pairThisHabit'))
-    const flow = screen.getByTestId('new-pair-flow')
-    expect(flow).toBeDefined()
-    expect(flow.getAttribute('data-initial-habit-id')).toBe('h-1')
-    expect(mockRouterPush).not.toHaveBeenCalled()
-  })
-
-  it('renders the Ask-Astra CTA without a top-border divider below the pair row (#447 Bug 4)', () => {
+  it('renders the Ask-Astra CTA without a top-border divider', () => {
     render(
       <HabitDetailDrawer
         open={true}
@@ -485,8 +452,6 @@ describe('HabitDetailDrawer', () => {
       name: /habits\.detail\.askAstraEyebrow/,
     })
     expect(askAstra.style.borderTop).toBe('')
-    const pairRow = screen.getByText('social.buddies.pairThisHabit').closest('button')
-    expect(pairRow?.style.borderBottomWidth).toBe('1px')
   })
 
   it('renders nothing visible when habit is null', () => {

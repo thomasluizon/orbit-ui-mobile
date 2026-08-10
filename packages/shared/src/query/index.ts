@@ -10,8 +10,6 @@ export {
   referralKeys,
   friendKeys,
   cheerKeys,
-  accountabilityKeys,
-  challengeKeys,
   apiKeyKeys,
   configKeys,
   calendarKeys,

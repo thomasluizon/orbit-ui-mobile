@@ -7,7 +7,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { Expand, Users } from 'lucide-react-native'
+import { Expand } from 'lucide-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -22,7 +22,6 @@ import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
 import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
 import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { createDrawerStyles } from './habit-detail-drawer/styles'
-import { NewPairFlow } from '@/app/social/_components/new-pair-flow'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
@@ -75,7 +74,6 @@ interface HabitDetailContentProps {
   onChecklistReset: () => void
   onChecklistClear: () => void
   onAskAstra: () => void
-  onPairBuddy: () => void
 }
 
 function HabitDetailContent({
@@ -95,7 +93,6 @@ function HabitDetailContent({
   onChecklistReset,
   onChecklistClear,
   onAskAstra,
-  onPairBuddy,
 }: Readonly<HabitDetailContentProps>) {
   const { t } = useTranslation()
   return (
@@ -207,12 +204,6 @@ function HabitDetailContent({
         </View>
       </View>
 
-      <SettingsRow
-        label={t('social.buddies.pairThisHabit')}
-        icon={Users}
-        onPress={onPairBuddy}
-      />
-
       <HabitAskAstraButton
         tokens={tokens}
         styles={styles}
@@ -258,7 +249,6 @@ export function HabitDetailDrawer({
   )
 
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
-  const [pairFlowOpen, setPairFlowOpen] = useState(false)
   const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] =
     useState(false)
   const [showChecklistClearConfirm, setShowChecklistClearConfirm] =
@@ -283,10 +273,6 @@ export function HabitDetailDrawer({
     scheduleExitAction(() => router.push('/chat'))
     onClose()
   }, [habit, onClose, router, scheduleExitAction, t])
-
-  const handlePairBuddy = useCallback(() => {
-    setPairFlowOpen(true)
-  }, [])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -343,14 +329,6 @@ export function HabitDetailDrawer({
           onClose={() => setDescriptionViewerOpen(false)}
           title={habit.title}
           description={habit.description}
-        />
-      ) : null}
-
-      {habit ? (
-        <NewPairFlow
-          open={pairFlowOpen}
-          onClose={() => setPairFlowOpen(false)}
-          initialHabitId={habit.id}
         />
       ) : null}
 
@@ -425,7 +403,6 @@ export function HabitDetailDrawer({
             onChecklistReset={handleChecklistReset}
             onChecklistClear={handleChecklistClear}
             onAskAstra={handleAskAstra}
-            onPairBuddy={handlePairBuddy}
           />
         ) : null}
       </BottomSheetModal>

@@ -1,10 +1,7 @@
 {
   ".claudeignore": 1,
   ".github/dependabot.yml": 1,
-  ".github/workflows/dep-sweep-reminder.yml": 2,
   ".github/workflows/dependabot-auto-merge.yml": 1,
-  ".github/workflows/expo-sdk-watch.yml": 1,
-  ".github/workflows/prod-readiness-reminder.yml": 3,
   ".github/workflows/visual.yml": 3,
   "apps/mobile/__tests__/components/create-api-key-modal.test.tsx": 1,
   "apps/mobile/app/(tabs)/profile/_components/profile-action-button.tsx": 1,
@@ -60,7 +57,6 @@
   "apps/web/app/(app)/social/_components/social-identity-bar.tsx": 1,
   "apps/web/app/(app)/today-model.ts": 1,
   "apps/web/app/(chat)/chat/chat-composer-bar.tsx": 1,
-  "apps/web/app/actions/challenges.ts": 1,
   "apps/web/app/actions/social.ts": 1,
   "apps/web/app/globals.css": 12,
   "apps/web/CLAUDE.md": 8,

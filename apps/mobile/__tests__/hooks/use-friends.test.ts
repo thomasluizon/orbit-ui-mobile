@@ -22,11 +22,11 @@ import {
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
-  queries: [] as Array<{
+  queries: [] as {
     queryKey: readonly unknown[]
     queryFn: (context?: { pageParam?: unknown }) => unknown
-  }>,
-  mutations: [] as Array<{ mutationFn: (variables: unknown) => unknown }>,
+  }[],
+  mutations: [] as { mutationFn: (variables: unknown) => unknown }[],
   apiClient: vi.fn(),
   invalidateQueries: vi.fn(),
 }))
@@ -132,8 +132,6 @@ describe('useFriends hooks (mobile)', () => {
       friendsSinceUtc: '2026-05-01T00:00:00Z',
       weeklyActivity: [1, 0, 2, 3, 0, 1, 4],
       topHabits: [],
-      isAccountabilityPartner: false,
-      sharedChallenges: [],
     })
     await query.queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/friends/user-1/profile')
@@ -187,7 +185,7 @@ describe('useFriends hooks (mobile)', () => {
     const query = lastQuery()
 
     mocks.apiClient.mockResolvedValue({ items: [], nextCursor: 'next-2' })
-    await query.queryFn?.({ pageParam: 'a b/c' })
+    await query.queryFn({ pageParam: 'a b/c' })
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
       expect.stringContaining('&cursor=a%20b%2Fc'),
@@ -222,7 +220,7 @@ describe('useFriends hooks (mobile)', () => {
     const query = lastQuery()
 
     mocks.apiClient.mockResolvedValue({ unexpected: true })
-    await expect(query.queryFn?.()).rejects.toThrow()
+    await expect(query.queryFn()).rejects.toThrow()
   })
 
   it('posts a friend request and invalidates the friends cache on success', async () => {

@@ -1,6 +1,6 @@
 /**
  * Ordered route-prefix → i18n key map for the desktop topbar title. Order is
- * significant: more specific prefixes (e.g. `/calendar-sync`, `/social/challenges`)
+ * significant: more specific prefixes (e.g. `/calendar-sync`)
  * MUST precede their broader parents so the first match wins.
  */
 const TOPBAR_TITLE_ROUTES: readonly (readonly [string, string])[] = [
@@ -10,7 +10,6 @@ const TOPBAR_TITLE_ROUTES: readonly (readonly [string, string])[] = [
   ['/chat', 'nav.astra'],
   ['/explore', 'nav.explore'],
   ['/profile', 'nav.profile'],
-  ['/social/challenges', 'challenges.title'],
   ['/social', 'social.title'],
   ['/preferences', 'preferences.title'],
   ['/ai-settings', 'aiSettings.title'],

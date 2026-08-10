@@ -25,12 +25,7 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   cheersReturn: { data: undefined as unknown },
-  pairsReturn: {
-    data: undefined as unknown,
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  },
+  searchParams: '',
   acceptMutate: vi.fn(),
   removeMutate: vi.fn(),
   sendCheerMutate: vi.fn(),
@@ -43,7 +38,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), back: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mocks.searchParams),
 }))
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
@@ -51,16 +46,6 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/app/(app)/social/_components/invite-hero', () => ({ InviteHero: () => null }))
-vi.mock('@/app/(app)/social/_components/new-pair-flow', () => ({ NewPairFlow: () => null }))
-vi.mock('@/app/(app)/social/_components/pair-detail', () => ({ PairDetail: () => null }))
-
-vi.mock('@/hooks/use-accountability', () => ({
-  useAccountabilityPairs: () => mocks.pairsReturn,
-  useAcceptAccountabilityPair: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useEndAccountabilityPair: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useCheckInAccountability: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}))
-
 vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({
     open,
@@ -111,9 +96,7 @@ beforeEach(() => {
   mocks.feedReturn.data = { pages: [{ items: [], nextCursor: null }] }
   mocks.feedReturn.isError = false
   mocks.cheersReturn.data = { items: [] }
-  mocks.pairsReturn.data = { activePairs: [], incomingInvites: [], outgoingInvites: [] }
-  mocks.pairsReturn.isLoading = false
-  mocks.pairsReturn.isError = false
+  mocks.searchParams = ''
   mocks.acceptMutate.mockResolvedValue(null)
   mocks.removeMutate.mockResolvedValue(null)
   mocks.sendCheerMutate.mockResolvedValue({ id: 'cheer-1' })
@@ -132,11 +115,98 @@ describe('SocialPage', () => {
   it('switches from the feed tab to the friends tab', () => {
     render(<SocialPage />)
 
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('social.tabs.friends'))
 
     expect(screen.getByText('social.addFriend.title')).toBeInTheDocument()
+  })
+
+  /**
+   * Codex connector P2 on #698. This used to assert the fallback, which was the defect: a link
+   * queued before the deletion still carries `/social?tab=buddies`, so landing silently on the
+   * unrelated Feed tab reads as a bug rather than as a retired feature. Parity with
+   * `apps/mobile/__tests__/app/social-page.test.tsx`.
+   */
+  it('redirects a retired buddies deep link to the friends tab', () => {
+    mocks.searchParams = `tab=${['budd', 'ies'].join('')}`
+
+    render(<SocialPage />)
+
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('still falls back to the feed for a tab deep link that never existed', () => {
+    mocks.searchParams = 'tab=not-a-tab'
+
+    render(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
+  })
+
+  /**
+   * Codex connector P2 on #698. The desktop topbar keeps NotificationBell mounted, so opening a
+   * stored `/social?tab=buddies` while already on `/social` is a QUERY-ONLY navigation: the page
+   * never remounts, so a `useState` initializer alone left the user on Feed.
+   */
+  it('re-resolves the tab on a query-only navigation, without remounting', () => {
+    mocks.searchParams = ''
+    const { rerender } = render(<SocialPage />)
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+
+    mocks.searchParams = `tab=${['budd', 'ies'].join('')}`
+    rerender(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  /**
+   * Codex connector P2 on #698, second round. Comparing the RESOLVED tab collapsed this case: a user
+   * on `/social` who switches locally to Friends and then opens a cheer notification for
+   * `/social?tab=feed` resolves to `feed` on both sides, so a resolved comparison reads "nothing
+   * changed" and strands them on Friends against an explicit destination.
+   */
+  it('applies an explicit feed destination even when the resolved tab did not change', () => {
+    mocks.searchParams = ''
+    const { rerender } = render(<SocialPage />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'social.tabs.friends' }))
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+
+    mocks.searchParams = 'tab=feed'
+    rerender(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('does not clobber a tab the user chose when the query has not changed', () => {
+    mocks.searchParams = ''
+    const { rerender } = render(<SocialPage />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'social.tabs.friends' }))
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+
+    rerender(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('opens the friends tab from a friends deep link', () => {
+    mocks.searchParams = 'tab=friends'
+
+    render(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByText('social.addFriend.title')).toBeInTheDocument()
+    expect(screen.queryByText('social.feed.emptyTitle')).not.toBeInTheDocument()
   })
 
   it('accepts with the friendship id and declines with the user id', () => {
@@ -181,19 +251,6 @@ describe('SocialPage', () => {
 
     fireEvent.click(screen.getByText('common.retry'))
     expect(mocks.friendsReturn.refetch).toHaveBeenCalled()
-  })
-
-  it('shows a retry action when the buddies query fails', () => {
-    mocks.pairsReturn.isError = true
-
-    render(<SocialPage />)
-    fireEvent.click(screen.getByText('social.tabs.buddies'))
-
-    expect(screen.getByText('social.errors.loadFailed')).toBeInTheDocument()
-    expect(screen.queryByText('social.buddies.emptyTitle')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('common.retry'))
-    expect(mocks.pairsReturn.refetch).toHaveBeenCalled()
   })
 
   it('sends a cheer from a feed row and surfaces the success toast', async () => {

@@ -193,15 +193,6 @@ const OPENERS = {
 // resolver that gets no usable row returns null, which unreachableReason reports
 // honestly instead of silently skipping the surface (.claude/rules/visual-delivery.md rule 1).
 const DYNAMIC_ROUTE_RESOLVERS = {
-  "route-social-challenges-id": async (apiBase, token) => {
-    const response = await fetch(`${apiBase}/api/challenges`, {
-      headers: { authorization: `Bearer ${token}` },
-    })
-    if (!response.ok) return null
-    const challenges = await response.json()
-    const first = Array.isArray(challenges) ? challenges[0] : null
-    return first ? `/social/challenges/${first.id}` : null
-  },
   "route-u-slug": async (apiBase, token) => {
     const response = await fetch(`${apiBase}/api/profile`, {
       headers: { authorization: `Bearer ${token}` },

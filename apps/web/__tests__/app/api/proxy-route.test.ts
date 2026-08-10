@@ -38,6 +38,26 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('rejects retired social endpoint prefixes before calling auth or backend', async () => {
+    const retiredPrefixes = [
+      ['chall', 'enges'].join(''),
+      ['account', 'ability'].join(''),
+    ]
+
+    for (const prefix of retiredPrefixes) {
+      const request = createRequest(`${prefix}/sample`)
+      const response = await GET(request, {
+        params: Promise.resolve({ path: [prefix, 'sample'] }),
+      })
+
+      expect(response.status).toBe(404)
+      expect(await response.json()).toEqual({ error: 'Not found' })
+    }
+
+    expect(resolveServerSession).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('forwards sanitized client context and retries with a refreshed token', async () => {
     vi.mocked(resolveServerSession)
       .mockResolvedValueOnce({

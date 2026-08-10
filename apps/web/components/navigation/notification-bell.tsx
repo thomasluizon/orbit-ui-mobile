@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
-import { Bell, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
+import { Bell, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
@@ -36,7 +36,6 @@ const glyphIconMap = {
   astra: Sparkles,
   friend: UserPlus,
   cheer: Heart,
-  buddy: Users,
   reminder: Bell,
 } as const
 
@@ -46,7 +45,6 @@ const glyphColorMap: Record<NotificationGlyph, string> = {
   astra: 'var(--primary-soft)',
   friend: 'var(--primary-soft)',
   cheer: 'var(--primary-soft)',
-  buddy: 'var(--primary-soft)',
   reminder: 'var(--fg-3)',
 }
 
@@ -133,7 +131,7 @@ function NotificationRow({
               fontSize: 14,
               lineHeight: 1.4,
               color: 'var(--fg-3)',
-              marginTop: 3,
+              marginTop: 4,
             }}
           >
             {item.body}
@@ -236,8 +234,8 @@ export function NotificationBell() {
           aria-hidden="true"
           className="absolute animate-scale-in"
           style={{
-            top: 7,
-            right: 7,
+            top: 8,
+            right: 8,
             width: 8,
             height: 8,
             borderRadius: 999,
