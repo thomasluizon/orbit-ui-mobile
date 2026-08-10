@@ -22,6 +22,7 @@
  */
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -249,6 +250,35 @@ const claimOf = (body) => {
 
 const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000))
 
+/**
+ * Ask before spending. The reviewThreads document is an expensive GraphQL read and the budget is
+ * per USER, so ui, api and landing pollers all draw on the same 5,000 points; eight concurrent
+ * pollers exhausted it three times on 2026-08-09. `gh api rate_limit` is REST and costs nothing.
+ * On a spent budget this WAITS, bounded by the caller's own remaining --wait-seconds, and says so;
+ * a budget that cannot be read proceeds, because the call itself is the better probe.
+ */
+const readGraphqlBudget = async () => {
+  const result = await runBounded(GH, ["api", "rate_limit"], { cwd: githubCwd, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000 })
+  if (result.timedOut || result.error || result.status !== 0) return null
+  try {
+    const graphql = JSON.parse(result.stdout)?.resources?.graphql
+    return graphql && Number.isFinite(graphql.remaining) && Number.isFinite(graphql.reset) ? graphql : null
+  } catch {
+    return null
+  }
+}
+
+const awaitGraphqlBudget = async (deadline) => {
+  const decision = graphqlBudgetDecision(await readGraphqlBudget(), {
+    nowSeconds: Math.floor(Date.now() / 1000),
+    maxWaitSeconds: Math.max(0, Math.floor((deadline - Date.now()) / 1000)),
+  })
+  if (decision.action === "wait" && decision.waitSeconds > 0) {
+    console.error(JSON.stringify({ event: "GITHUB_RATE_LIMIT_WAIT", pr: Number(pullRequest), waitSeconds: decision.waitSeconds, reason: decision.reason }))
+    await sleep(decision.waitSeconds)
+  }
+}
+
 const progress = (event, node, startedAt, deadline) => {
   console.error(JSON.stringify({
     event,
@@ -261,6 +291,7 @@ const progress = (event, node, startedAt, deadline) => {
 
 const startedAt = Date.now()
 const deadline = Date.now() + waitSeconds * 1000
+await awaitGraphqlBudget(deadline)
 let node = await readPullRequest()
 progress("CODEX_REVIEW_STATE_READ", node, startedAt, deadline)
 
@@ -347,6 +378,8 @@ if (requestReview && !evidence && waitSeconds > 0) {
 
 while (!evidence && Date.now() < deadline) {
   await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
+  await awaitGraphqlBudget(deadline)
+  if (Date.now() >= deadline) break
   node = await readPullRequest()
   evidence = evidenceOf(node)
   progress(evidence ? "CODEX_REVIEW_ARRIVED" : "CODEX_REVIEW_WAITING", node, startedAt, deadline)

@@ -108,40 +108,14 @@ try {
 if (review && typeof config.repos?.[repoKey] !== "string") fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
 
 /**
- * The pr-review contract is single-sourced in the UI repository and mirrored into the API one, and
- * this gate refuses a review when the two disagree.
- *
- * It compares COMMITTED BLOBS, not working-tree bytes, and that is the whole point. The contract
- * lives in git, so two identical commits can never be drift. The previous revision sha256'd the
- * files on disk, and on 2026-08-08 that stood 76 tickets down over nothing: both repositories set
- * core.autocrlf=true, orbit-ui-mobile pinned `.claude/skills/**\/*.md text eol=lf` and orbit-api did
- * not, so the SAME blob materialized LF in one checkout and CRLF in the other, +230 bytes on
- * SKILL.md and +289 on rubric.md. `git status` was clean in both, which is why nothing looked wrong.
- *
- * Pinning the missing .gitattributes line fixes that machine. Comparing blobs fixes every machine,
- * including a fresh clone, which is where a checkout setting bites next.
+ * The pr-review contract is single-sourced in the UI repository and duplicated NOWHERE, so there
+ * is no parity to assert before a review can launch. The previous two revisions of this gate each
+ * halted every review in both repositories over byte differences in a duplicated markdown file
+ * (2026-08-08: CRLF materialization, 76 tickets stood down; 2026-08-09: a mirror taken six minutes
+ * before the canonical side changed, eight pull requests stalled). The reviewer never resolves the
+ * contract from a checkout at all: its review order carries a rubric snapshot materialized from
+ * orbit-ui-mobile origin/main, so a second committed copy has nothing left to protect.
  */
-if (review && ["ui", "api"].includes(repoKey)) {
-  const relativePaths = [".claude/skills/pr-review/SKILL.md", ".claude/skills/pr-review/rubric.md"]
-  const committedBlob = (repoRoot, relativePath) => {
-    const result = spawnSync("git", ["-C", repoRoot, "rev-parse", `HEAD:${relativePath}`], { encoding: "utf8", windowsHide: true })
-    if (result.error || result.status !== 0) return null
-    const oid = result.stdout.trim()
-    return /^[0-9a-f]{40}$/.test(oid) ? oid : null
-  }
-  for (const relativePath of relativePaths) {
-    const uiBlob = committedBlob(config.repos.ui, relativePath)
-    const apiBlob = committedBlob(config.repos.api, relativePath)
-    /** A path that is not committed in either repository is a missing contract, never a match. Two
-     * nulls comparing equal is exactly how a gate reports OK over an absent file. */
-    if (!uiBlob) fail(2, `pr-review parity could not read the committed blob for ${relativePath} in ${config.repos.ui}; the contract must be committed before a review can launch`)
-    if (!apiBlob) fail(2, `pr-review parity could not read the committed blob for ${relativePath} in ${config.repos.api}; the contract must be committed before a review can launch`)
-    if (uiBlob !== apiBlob) {
-      fail(2, `pr-review parity failed for ${relativePath}: UI is canonical and API must match before an API review can launch (ui ${uiBlob}, api ${apiBlob})`)
-    }
-  }
-}
-
 const runDirectory = review ? resolve(config.repos[repoKey]) : resolve(worktreeArg)
 if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
 const promptFile = resolve(promptArg)
@@ -204,10 +178,19 @@ const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
  * everything: a measurement worker that really is hung dies at hardCeilingMinutes, same as any other.
  */
 const measurementNoProgressMinutes = config.timeouts.measurementNoProgressMinutes
-if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
-  fail(2, `--measurement requires timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
+if ((measurement || review) && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
+  fail(2, `--measurement and --review require timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
 }
-const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
+/**
+ * A REVIEWER gets the measurement window too, for the same reason with the opposite sign: its
+ * progress fingerprint is log growth, and an engine that buffers its whole answer (claude --print)
+ * writes ZERO log bytes until it finishes. Measured 2026-08-09: a 126-file review was killed
+ * NO_PROGRESS at exactly ten minutes with a 0-byte log while the reviewer was working correctly;
+ * the two smaller reviews that night survived only by finishing inside the window. A silent
+ * reviewer and a hung reviewer are indistinguishable by construction, so the only honest bound for
+ * one is the longer window, with the hard ceiling unchanged underneath.
+ */
+const noProgressMinutes = measurement || review ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
 
 const workerPointer = (worktreePath, branch) => review
