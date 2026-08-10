@@ -70,7 +70,7 @@ try {
 if (body.trim().length === 0) fail(2, `${USAGE}\n\nthe comment body is empty`)
 
 try {
-  const ticket = await readTicket(resolved.number)
+  const ticket = await readTicket(resolved.number, { withProjectItem: false })
   await addComment(ticket.number, body)
   console.log(JSON.stringify({ number: ticket.number, url: ticket.url, title: ticket.title, bytes: body.length }, null, 2))
 } catch (error) {

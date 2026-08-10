@@ -89,11 +89,25 @@ const projectItemsArgs = (tickets) => [
   "1000",
 ]
 
+const projectItemsByProject = new Map()
+
 const readProjectItems = async (tickets) => {
+  const projectKey = JSON.stringify([tickets.projectOwner, tickets.projectNumber])
+  const cached = projectItemsByProject.get(projectKey)
+  if (cached) return cached
   const args = projectItemsArgs(tickets)
-  const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
-  if (!Array.isArray(response?.items)) throw new Error("gh project item-list returned no items array")
-  return response.items
+  const pending = (async () => {
+    const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+    if (!Array.isArray(response?.items)) throw new Error("gh project item-list returned no items array")
+    return response.items
+  })()
+  projectItemsByProject.set(projectKey, pending)
+  try {
+    return await pending
+  } catch (error) {
+    if (projectItemsByProject.get(projectKey) === pending) projectItemsByProject.delete(projectKey)
+    throw error
+  }
 }
 
 const projectItemFor = (ticket, projectItems, repository) => {
@@ -165,11 +179,13 @@ export const resolveTicket = (reference) => {
   return { number, identifier: identifiersByNumber.get(number) ?? null }
 }
 
-export const readTicket = async (number) => {
+export const readTicket = async (number, { withProjectItem = true } = {}) => {
   positiveIssueNumber(number)
+  if (typeof withProjectItem !== "boolean") throw new Error("readTicket withProjectItem must be a boolean")
   const tickets = ticketConfiguration()
   const args = issueViewArgs(number, tickets.repository)
-  const [issueOutput, projectItems] = await Promise.all([runGh(args), readProjectItems(tickets)])
+  const projectItemsPromise = withProjectItem ? readProjectItems(tickets) : Promise.resolve([])
+  const [issueOutput, projectItems] = await Promise.all([runGh(args), projectItemsPromise])
   return normalizeTicket(parseGhJson(`gh ${args.join(" ")}`, issueOutput), projectItems, tickets.repository)
 }
 
