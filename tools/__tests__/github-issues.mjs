@@ -42,6 +42,13 @@ const messageOf = async (call) => {
   }
 }
 
+let freshModuleIndex = 0
+const freshGithubIssues = async () => {
+  const moduleUrl = new URL("../lib/github-issues.mjs", import.meta.url)
+  moduleUrl.searchParams.set("test", String(freshModuleIndex++))
+  return import(moduleUrl.href)
+}
+
 export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
@@ -119,8 +126,79 @@ export const cases = async () => {
       JSON.stringify(read),
     )
 
+    const sequentialReadCount = stage("github-issues/sequential-project-read-count", "0")
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        {
+          match: "project item-list 2 --owner thomasluizon",
+          stdout: populatedProjectItems,
+          stdoutSequence: [populatedProjectItems, populatedProjectItems],
+          sequenceFile: sequentialReadCount,
+        },
+      ]),
+    )
+    const sequentialIssues = await freshGithubIssues()
+    await sequentialIssues.readTicket(221)
+    await sequentialIssues.readTicket(221)
+    T(
+      `${TOOL}: sequential ticket reads reuse one in-process Projects promise`,
+      readFileSync(sequentialReadCount, "utf8") === "1",
+      `project item-list calls: ${readFileSync(sequentialReadCount, "utf8")}`,
+    )
+
+    const concurrentReadCount = stage("github-issues/concurrent-project-read-count", "0")
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        {
+          match: "project item-list 2 --owner thomasluizon",
+          stdout: populatedProjectItems,
+          stdoutSequence: [populatedProjectItems, populatedProjectItems],
+          sequenceFile: concurrentReadCount,
+        },
+      ]),
+    )
+    const concurrentIssues = await freshGithubIssues()
+    await Promise.all([concurrentIssues.readTicket(221), concurrentIssues.readTicket(221)])
+    T(
+      `${TOOL}: concurrent ticket reads share the same in-flight Projects promise`,
+      readFileSync(concurrentReadCount, "utf8") === "1",
+      `project item-list calls: ${readFileSync(concurrentReadCount, "utf8")}`,
+    )
+
+    const skippedProjectRead = stage("github-issues/skipped-project-read", "must remain")
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, removePath: skippedProjectRead },
+      ]),
+    )
+    const issueOnly = await (await freshGithubIssues()).readTicket(221, { withProjectItem: false })
+    T(
+      `${TOOL}: an issue-only read skips Projects and returns null project fields`,
+      existsSync(skippedProjectRead) && issueOnly.status === null && issueOnly.projectItemId === null,
+      JSON.stringify(issueOnly),
+    )
+
+    const retryIssues = await freshGithubIssues()
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, stderr: "GraphQL: rate limited", exit: 1 },
+      ]),
+    )
+    const firstProjectFailure = await messageOf(() => retryIssues.readTicket(221))
+    applyEnvironment(environmentFor())
+    const retried = await retryIssues.readTicket(221)
+    T(
+      `${TOOL}: a failed Projects promise is evicted so a later read retries`,
+      /GraphQL: rate limited/.test(firstProjectFailure ?? "") && retried.status === "In Review",
+      firstProjectFailure ?? JSON.stringify(retried),
+    )
+
     applyEnvironment(environmentFor(JSON.stringify(issue()), emptyProjectItems))
-    const absent = await githubIssues.readTicket(221)
+    const absent = await (await freshGithubIssues()).readTicket(221)
     T(
       `${TOOL}: a ticket absent from the configured board has null project fields`,
       absent.status === null && absent.projectItemId === null,

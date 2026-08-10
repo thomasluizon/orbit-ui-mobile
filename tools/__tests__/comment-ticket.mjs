@@ -24,12 +24,14 @@ const project = () => JSON.stringify({
 const plan = (label) => {
   const bodyCapture = stage(`comment-ticket/${label}-body.txt`, "unwritten")
   const statusMarker = stage(`comment-ticket/${label}-status`, "pending")
+  const projectReadMarker = stage(`comment-ticket/${label}-project-read`, "must remain")
   return {
     bodyCapture,
     statusMarker,
+    projectReadMarker,
     entries: [
       { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue() },
-      { match: "project item-list 2 --owner thomasluizon", stdout: project() },
+      { match: "project item-list 2 --owner thomasluizon", stdout: project(), removePath: projectReadMarker },
       { match: "issue comment 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, stdinFile: bodyCapture },
       { match: "project item-edit 2 --owner thomasluizon", stdout: "", ignoreTicketShape: true, removePath: statusMarker },
     ],
@@ -49,6 +51,7 @@ export const cases = () => {
   const body = stage("comment-ticket/decisions.md", "Decisions from step 2b\n\n- Claude Design, not Pencil.\n")
   check(TOOL, "posts the comment body verbatim", ["--issue", "#221", "--body-file", body], { status: 0, stdout: /"number": 221/ }, { env: orcaEnv(posted.entries) })
   T(`${TOOL}: the comment carried the file's exact bytes`, readFileSync(posted.bodyCapture, "utf8") === readFileSync(body, "utf8"), readFileSync(posted.bodyCapture, "utf8"))
+  T(`${TOOL}: commenting reads no Projects board item`, existsSync(posted.projectReadMarker))
   /** A decisions comment is not a lifecycle transition. Moving Status here would be a second, unasked write. */
   T(`${TOOL}: commenting never touches board Status`, existsSync(posted.statusMarker))
 }
