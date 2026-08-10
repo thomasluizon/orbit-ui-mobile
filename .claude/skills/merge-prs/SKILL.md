@@ -152,9 +152,9 @@ merged ticket, expanded and numbered, or the single line `No manual steps outsta
 
 This is not a courtesy summary. orbit-tickets#81 merged on 2026-08-08 with the body line "Rollout:
 merge, deploy to Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until
-the key exists." Review was clean, CI was green, the ticket closed Done, and nobody set the key, so
-`NoOpProductAnalytics` discarded every `signup_completed` and `subscription_*` event for two days. A
-merge is not a deploy and a deploy is not a rollout. Say what is left, at the moment Thomas is
-reading, or it is not said at all.
+the key exists." Review was clean, CI was green, the ticket closed Done, and nothing in this skill
+ever mentioned the key. It happened to be set already, so nothing was lost, which is exactly why it
+is worth writing down: the merge path could not tell the difference. A merge is not a deploy and a
+deploy is not a rollout. Say what is left, at the moment Thomas is reading, or it is not said at all.
 
 **Never do the step yourself.** These land in a vendor console under Thomas's account. Print them.

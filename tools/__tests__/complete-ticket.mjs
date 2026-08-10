@@ -4,7 +4,7 @@ import { T, check, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "complete-ticket.mjs"
 
-/** orbit-tickets#81's rollout line, the step that closed with the ticket and was never done. */
+/** orbit-tickets#81's rollout line, the step that closed with the ticket and was never surfaced. */
 const ROLLOUT_BODY = "## Rollout / kill switch\n\n* Rollout: merge, deploy to Render, then set `PostHog:ApiKey` in the Render env.\n"
 
 const issue = (state = "OPEN", body = "Ticket body", repoLabel = "repo:ui") => JSON.stringify({
@@ -81,9 +81,10 @@ export const cases = async () => {
   T(`${TOOL}: a ticket with no rollout section is closed without a comment`, readFileSync(completion.commentCapture, "utf8") === "unwritten")
 
   /**
-   * The defect this whole path exists for. orbit-tickets#81 closed Done on 2026-08-08 carrying
-   * "set PostHog:ApiKey in the Render env"; nobody did it and two days of analytics were discarded.
-   * The instruction has to reach the ticket, because the ticket outlives the terminal.
+   * The gap this whole path exists for. orbit-tickets#81 closed Done on 2026-08-08 carrying "set
+   * PostHog:ApiKey in the Render env" and nothing in the merge path mentioned it. The key was in
+   * fact already set, so this is a near miss; the instruction still has to reach the ticket,
+   * because the ticket outlives the terminal.
    */
   const rollout = plan({ body: ROLLOUT_BODY, repoLabel: "repo:api", label: "rollout" })
   check(TOOL, "a rollout step is posted to the ticket and returned", ["--issue", "221"], { status: 0, stdout: /PostHog__ApiKey/ }, { env: orcaEnv(rollout.entries) })

@@ -225,23 +225,6 @@ export const listLabels = async () => {
   return labels.map((label) => label.name)
 }
 
-/**
- * The only sanctioned label write. A raw `gh label create` bypasses the duplicate check and the
- * repository resolution, and this adapter is the sole ticket-system adapter for exactly that reason.
- */
-export const createLabel = async ({ name, description, color }) => {
-  nonEmptyString(name, "Label name")
-  nonEmptyString(description, "Label description")
-  if (typeof color !== "string" || !/^[0-9a-fA-F]{6}$/.test(color)) throw new Error("Label color must be a six digit hex string with no leading hash")
-  if ((await listLabels()).includes(name)) throw new Error(`Label ${JSON.stringify(name)} already exists`)
-  const tickets = ticketConfiguration()
-  await runGh(
-    ["api", `repos/${tickets.repository}/labels`, "--method", "POST", "--input", "-"],
-    { input: JSON.stringify({ name, description, color }) },
-  )
-  return { name }
-}
-
 export const createMilestone = async ({ title, description }) => {
   nonEmptyString(title, "Milestone title")
   nonEmptyString(description, "Milestone description")

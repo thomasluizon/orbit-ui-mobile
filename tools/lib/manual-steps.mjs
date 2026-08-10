@@ -1,13 +1,20 @@
 /**
  * The step that outlives the pull request.
  *
- * Measured defect, 2026-08-08 to 2026-08-09: orbit-tickets#81 shipped the PostHog server SDK and its
- * body said, verbatim, "Rollout: merge, deploy to Render, then set `PostHog:ApiKey` in the Render
- * env. The code path is inert until the key exists." The pull request was perfect, CI was green, the
- * review was clean, `complete-ticket.mjs` set Status Done and closed the issue. Nobody set the key,
- * so `AddOrbitProductAnalytics` bound `NoOpProductAnalytics` and every `signup_completed` and
- * `subscription_*` event for two days was discarded. It surfaced only because Thomas asked a passing
- * question. Every gate in the harness measures the PULL REQUEST, and this step is not in one.
+ * The gap, measured: orbit-tickets#81 shipped the PostHog server SDK and its body said, verbatim,
+ * "Rollout: merge, deploy to Render, then set `PostHog:ApiKey` in the Render env. The code path is
+ * inert until the key exists." The pull request was perfect, CI was green, the review was clean,
+ * `complete-ticket.mjs` set Status Done and closed the issue on 2026-08-08, and at no point did
+ * anything in that path mention the key. Every gate in this harness measures the PULL REQUEST, and
+ * that step is not in one, so the instruction ended up readable only inside a closed ticket body.
+ *
+ * State it honestly, because the near-miss is the argument and the disaster is not: the key turned
+ * out to be set already. Verified live 2026-08-10 against the PostHog project: `posthog-dotnet`
+ * 2.12.1 has been delivering `signup_completed` and the four `subscription_*` events since
+ * 2026-07-25, 20 signups with `distinct_id` set to the user GUID and the `plan` person property on
+ * all 21 people. Nothing was lost. What is missing is not the key, it is any mechanism that KNEW:
+ * the harness neither surfaced the step nor checked it, and 13 of the 166 open tickets carry a step
+ * of the same shape, including price changes in Stripe and the Google Play Console.
  *
  * So the step is carried to the human at the two moments a human is reading (the /orchestrate
  * handover and the /merge-prs report) and written to the ticket as a comment BEFORE the ticket
@@ -32,6 +39,19 @@ import { inScopeSections, sectionsOf } from "./ticket-executability.mjs"
 
 /** A section heading whose body describes work done after, and outside, the merge. */
 const MANUAL_HEADING = /^(?:rollout|kill[ -]?switch|manual step|post[ -]?merge step|deployment step|operations? step)/i
+
+/**
+ * A heading whose WHOLE section undoes the change. Anchored, so "Rollout / kill switch" stays a
+ * rollout section whose individual bullets are still labelled one by one, while a standalone
+ * `## Kill switch` makes every line beneath it a reversal.
+ *
+ * Without this, a standalone kill-switch section's bullets start straight in on the action
+ * ("Remove `PostHog:ApiKey` from the Render env") with no label to strip, so they were read as
+ * outstanding steps. The renderer then expanded "Remove the key" into "Click + Add Environment
+ * Variable", instructing the exact opposite of the ticket's intent. Reported by the Codex reviewer
+ * on PR #709 and reproduced before this fix.
+ */
+const REVERSAL_HEADING = /^(?:kill[ -]?switch|revert|rollback|roll back|reversal|undo)\b/i
 
 /** A bullet label that describes UNDOING the change, which is a reversal note and never an outstanding step. */
 const REVERSAL_LABEL = /^(?:kill[ -]?switch|revert|rollback|roll back|undo)\b\s*[:.-]?\s*/i
@@ -190,6 +210,35 @@ const stepFor = (clause, { repo, sections, manualHeadings }) => {
 }
 
 /**
+ * The manual sections, each tagged `step` or `reversal`, with a heading's scope carried through its
+ * DESCENDANTS exactly as `inScopeSections` carries Out of scope through its own.
+ *
+ * A flat filter on the heading matched only the exact heading, so a body organised as `## Rollout`
+ * followed by `### Render` selected the empty parent and dropped every child: `extractManualSteps`
+ * returned nothing and completion closed the ticket without the comment this whole file exists to
+ * post. Reported by the Codex reviewer on PR #709 and reproduced before this fix.
+ *
+ * A sibling or ancestor heading ends the region, so `## Parity` after `## Rollout` is not rollout.
+ */
+const manualRegions = (sections) => {
+  const regions = []
+  let scope = null
+  for (const section of sections) {
+    if (scope !== null && section.level <= scope.level) scope = null
+    let kind = scope?.kind ?? null
+    if (REVERSAL_HEADING.test(section.heading)) {
+      scope = { level: section.level, kind: "reversal" }
+      kind = "reversal"
+    } else if (MANUAL_HEADING.test(section.heading)) {
+      scope = { level: section.level, kind: "step" }
+      kind = "step"
+    }
+    if (kind !== null) regions.push({ section, kind })
+  }
+  return regions
+}
+
+/**
  * @param description the ticket body, verbatim
  * @param options.repo the ticket's repo:* key, used only to decide whether the .NET `__` mapping applies
  * @returns `{ steps: [{action, platform, identifier, detail, evidence}], reversal: [string], headings: [string] }`,
@@ -198,16 +247,16 @@ const stepFor = (clause, { repo, sections, manualHeadings }) => {
 export const extractManualSteps = (description, { repo = null } = {}) => {
   const body = String(description ?? "").split(FOOTER)[0]
   const sections = inScopeSections(sectionsOf(body))
-  const manual = sections.filter((section) => MANUAL_HEADING.test(section.heading))
-  const manualHeadings = new Set(manual.map((section) => section.heading))
+  const manual = manualRegions(sections)
+  const manualHeadings = new Set(manual.map(({ section }) => section.heading))
   const steps = []
   const reversal = []
 
-  for (const section of manual) {
+  for (const { section, kind } of manual) {
     for (const line of section.lines) {
       const text = (BULLET.exec(line)?.[1] ?? line).trim()
       if (text.length === 0) continue
-      if (REVERSAL_LABEL.test(text)) {
+      if (kind === "reversal" || REVERSAL_LABEL.test(text)) {
         reversal.push(text.replace(REVERSAL_LABEL, "").trim())
         continue
       }

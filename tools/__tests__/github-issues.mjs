@@ -46,22 +46,8 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,completeTicket,createLabel,createMilestone,createTicket,listLabels,listMilestones,listTickets,preflightTicketCompletion,readTicket,resolveTicket,setStatus",
+      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,listLabels,listMilestones,listTickets,preflightTicketCompletion,readTicket,resolveTicket,setStatus",
     Object.keys(githubIssues).sort().join(","),
-  )
-
-  /**
-   * createLabel validates before it reaches the network, so a malformed label cannot become a
-   * half-written repository state. The colour check exists because the GitHub labels endpoint takes
-   * a bare six digit hex and a leading hash is rejected only after the request goes out.
-   */
-  T(
-    `${TOOL}: createLabel refuses an empty name`,
-    /Label name must be a non-empty string/.test((await messageOf(() => githubIssues.createLabel({ name: " ", description: "d", color: "ededed" }))) ?? ""),
-  )
-  T(
-    `${TOOL}: createLabel refuses a colour that is not bare six digit hex`,
-    /six digit hex/.test((await messageOf(() => githubIssues.createLabel({ name: "needs:conversation", description: "d", color: "#ededed" }))) ?? ""),
   )
 
   const migrated = githubIssues.resolveTicket("orb-215")

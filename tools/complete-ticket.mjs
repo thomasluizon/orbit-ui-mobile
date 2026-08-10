@@ -16,9 +16,10 @@ board Status Done and closes the issue with reason completed. This is the post-m
 ordinary readiness status adapter still refuses Done.
 
 The comment is posted BEFORE the close on purpose. orbit-tickets#81 said "merge, deploy to Render,
-then set PostHog:ApiKey in the Render env"; the ticket closed, nobody set the key, and every
-analytics event for two days was discarded. A step that survives only in a terminal report dies
-with the scrollback. A ticket with no such step produces no comment at all.
+then set PostHog:ApiKey in the Render env"; the ticket closed Done on 2026-08-08 and nothing in the
+merge path ever mentioned the key. That it was already set is luck, not a mechanism. A step that
+survives only in a terminal report dies with the scrollback. A ticket with no such step produces no
+comment at all.
 
 exit codes: 0 preflight or completion succeeded, 1 ticket read or write failed, 2 usage error`
 

@@ -88,6 +88,37 @@ export const cases = () => {
   const excluded = extractManualSteps("## Out of scope\n\n### Rollout\n\n* Set the key in the Render env.\n", { repo: "api" })
   T(`${TOOL}: a rollout heading nested under Out of scope is excluded with its parent`, excluded.steps.length === 0, JSON.stringify(excluded.steps))
 
+  /**
+   * A standalone `## Kill switch` section. Its bullets start straight in on the action with no label
+   * to strip, so they read as outstanding steps and the renderer expanded "Remove the key" into
+   * "Click + Add Environment Variable": the exact opposite of the ticket's intent. Reproduced before
+   * the fix, on PR #709.
+   */
+  const standalone = extractManualSteps(
+    "## Rollout\n\n* Set `PostHog:ApiKey` in the Render env.\n\n## Kill switch\n\n* Remove `PostHog:ApiKey` from the Render env.\n",
+    { repo: "api" },
+  )
+  T(
+    `${TOOL}: a standalone kill-switch SECTION is reversal, not an outstanding step`,
+    standalone.steps.length === 1 && standalone.reversal.length === 1 && /^Set /.test(standalone.steps[0].action),
+    JSON.stringify({ steps: standalone.steps.map((step) => step.action), reversal: standalone.reversal }),
+  )
+  T(
+    `${TOOL}: a removal is never expanded into instructions that add the value back`,
+    !/Remove/.test(renderManualSteps(standalone)?.split("**To reverse it**")[0] ?? ""),
+    renderManualSteps(standalone) ?? "",
+  )
+  /** "Rollout / kill switch" is still ONE rollout section whose bullets are labelled one by one. */
+  T(`${TOOL}: a combined rollout and kill-switch heading keeps its rollout bullets`, posthog.steps.length === 2 && posthog.reversal.length === 1)
+
+  /**
+   * A rollout organised under child headings. The flat heading filter selected the empty parent and
+   * dropped every child, so completion closed the ticket with no comment at all.
+   */
+  const nested = extractManualSteps("## Rollout\n\n### Render\n\n* Set `FeatureFlags:Provider` in the Render env.\n\n## Parity\n\n* None.\n", { repo: "api" })
+  T(`${TOOL}: a rollout subsection is carried with its parent`, nested.steps.length === 1 && /FeatureFlags/.test(nested.steps[0].action), JSON.stringify(nested.steps.map((step) => step.action)))
+  T(`${TOOL}: a sibling heading after the rollout region ends it`, !nested.headings.includes("Parity"), JSON.stringify(nested.headings))
+
   /** A vendor whose UI was never read gets named, never navigated. Inventing a screen is standard 8. */
   const stripe = renderManualSteps(extractManualSteps("## Rollout\n\n* Then enable the new price in the Stripe dashboard.\n", { repo: "api" })) ?? ""
   T(`${TOOL}: an unverified vendor is named without an invented navigation path`, /Do this in Stripe\./.test(stripe) && !/left sidebar/.test(stripe), stripe)

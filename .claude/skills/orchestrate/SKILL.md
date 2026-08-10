@@ -926,11 +926,12 @@ Print:
 
 **Why a manual step is printed here and not only at merge.** orbit-tickets#81 said "merge, deploy to
 Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until the key exists." The
-pull request was perfect, review was clean, CI was green, the ticket closed Done, nobody set the key,
-and every `signup_completed` and `subscription_*` event from 2026-08-08 onward was discarded by
-`NoOpProductAnalytics`. Two days, found only because Thomas asked a passing question. Every gate in
-this harness measures the PULL REQUEST; that step is not in one, so it has to be carried to the human
-at the moments a human is reading.
+pull request was perfect, review was clean, CI was green, the ticket closed Done on 2026-08-08, and
+nothing anywhere in that path ever mentioned the key. The key turned out to be set already (verified
+live 2026-08-10: `posthog-dotnet` events since 2026-07-25, nothing lost), so this is a near miss
+rather than an incident. The missing thing is not the key, it is any mechanism that knew. Every gate
+in this harness measures the PULL REQUEST; that step is not in one, so it has to be carried to the
+human at the moments a human is reading. 13 of the 166 open tickets carry a step of the same shape.
 
 **Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
 watches; zero tokens burn while it waits. **With `--sleep`: go straight to the next ticket.**
