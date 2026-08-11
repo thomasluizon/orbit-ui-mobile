@@ -7,6 +7,13 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./test-setup.ts'],
     include: ['__tests__/**/*.test.{ts,tsx}'],
+    /**
+     * Four workspace vitest instances run at once under `turbo run test`, and each sizes its
+     * worker pool to the whole machine, so they oversubscribe the CPU. The 5s/10s defaults
+     * expire on module-graph re-import cost alone, which passes in under 500ms run standalone.
+     */
+    testTimeout: 30000,
+    hookTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
