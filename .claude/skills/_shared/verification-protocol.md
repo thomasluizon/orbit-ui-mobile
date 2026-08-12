@@ -126,7 +126,7 @@ manufactures findings to look thorough has failed this protocol, not passed it.
 | `/audit-tests` (repo-wide) | critical paths, criticality-first | each Critical/High gap | yes, until dry | non-critical paths + policy-excluded suites |
 | `/audit-performance` (repo-wide) | hot zones, by scaling impact | each High finding | yes, until dry | enterprise-only tuning |
 | `/audit-code-quality` (repo-wide) | code slices, blast-radius x churn | each Critical/High finding | yes, until dry | dimensions deferred to other audits |
-| `/prod-readiness` (orchestrator) | the four audits + ops checks | inherits each child audit's verify | inherits each child's loop | merges every child ledger |
+| `/prod-readiness` (orchestrator) | the four audits + ops checks + static-a11y checks + the dependency sweep | inherits each child audit's verify; own skeptic per serious ops/a11y finding | inherits each child's loop | merges every child ledger + the un-verifiables (backups, cost caps, a11y runtime matrix) + dependency holdbacks |
 
 ---
 
