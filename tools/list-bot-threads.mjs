@@ -356,22 +356,30 @@ const submittedAtOf = (review) => {
 const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && COMPLETED_REVIEW_STATES.has(review.state)).at(-1)
 
 /**
- * The review this run must supersede, when --re-review asks for a fresh adjudication of the head
- * that is already reviewed. Read BEFORE the request is posted, so "newer than this" is a fact about
- * the run's starting state and not about whatever arrives while it waits.
+ * The freshness boundary for --re-review, and it is the REQUEST, never the run's opening read.
+ *
+ * Binding it to the opening read is wrong, and the race is narrow but real: a same-head review
+ * already in flight can land between that read and the "@pullfrog review" comment. It is then newer
+ * than the baseline while answering nothing, so the run returns the very finding it was sent to
+ * clear and `pullfrog-approval` stays red. Pullfrog raised this on pull request 716 against the
+ * first version of this flag.
+ *
+ * So the boundary is the createdAt GITHUB stamped on our own request comment. It stays null until
+ * that comment exists, and while it is null no review can satisfy the predicate. The local clock is
+ * never used: the review timestamp and the comment timestamp must come from the same server.
  */
-const priorReview = botReviewOf(node)
-const priorSubmittedAt = reReview ? submittedAtOf(priorReview) : null
+let requestCreatedAt = null
+const answersTheRequest = (review) => requestCreatedAt !== null && submittedAtOf(review) > requestCreatedAt
 
 /**
- * A review is superseded only by a LATER review of the same head. Comparing the timestamp is what
- * makes --re-review terminate: without it the run reads the review it was sent to replace, reports
- * the finding it just answered, and never converges.
+ * A review is superseded only by one that answers THIS request. Without that comparison the run
+ * reads back the review it was sent to replace, reports the finding it just answered, and never
+ * converges.
  */
 const currentReviewOf = (payload) => {
   const found = botReviewOf(payload)
   if (!reReview || !found) return found
-  return submittedAtOf(found) > priorSubmittedAt ? found : null
+  return answersTheRequest(found) ? found : null
 }
 
 let review = currentReviewOf(node)
@@ -397,17 +405,35 @@ let review = currentReviewOf(node)
  * manufacture a commit.
  */
 let requested = false
+let requestUrl = null
 if (requestReview && !review && waitSeconds > 0) {
-  await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@pullfrog review"], `gh pr comment ${pullRequest}`)
+  const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@pullfrog review"], `gh pr comment ${pullRequest}`)
+  requestUrl = posted.trim().split("\n").at(-1)?.trim() || null
   requested = true
   progress(reReview ? "RE_REVIEW_REQUESTED" : "REVIEW_REQUESTED", node, startedAt, deadline)
 }
+
+/**
+ * Our request comment, found by the url gh printed when it posted it, so its createdAt is GitHub's
+ * own stamp rather than this machine's clock. Until it is found the boundary stays null and no
+ * review can answer the request, so a comment this run cannot see fails closed into NO_REVIEW.
+ */
+const bindRequestBoundary = (payload) => {
+  if (!reReview || requestCreatedAt !== null || !requestUrl) return
+  const mine = (payload.comments?.nodes ?? []).find((comment) => comment.url === requestUrl)
+  if (!mine) return
+  const stamped = Date.parse(mine.createdAt ?? "")
+  if (Number.isFinite(stamped)) requestCreatedAt = stamped
+}
+
+bindRequestBoundary(node)
 
 while (!review && Date.now() < deadline) {
   await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
   node = await readPullRequest()
+  bindRequestBoundary(node)
   review = currentReviewOf(node)
   progress(review ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
 }

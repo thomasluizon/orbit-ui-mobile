@@ -206,9 +206,8 @@ export const cases = () => {
    * such a finding opens no thread to resolve and filing it pushes nothing. Raised by Pullfrog on
    * this branch's own pull request (#716) as a convergence hole, and it was right.
    *
-   * The argument guards are asserted here rather than the wait itself: the wait needs a live review
-   * to arrive, which this hermetic gate cannot produce. What IS mechanical is that the flag refuses
-   * every shape under which it could never terminate.
+   * Both the argument guards AND the freshness sequence are asserted, because the freshness
+   * predicate is a correctness signal and not informational output.
    */
   const contradiction = readPr(payload({}), 0, ["--re-review", "--no-request"])
   T(
@@ -222,6 +221,82 @@ export const cases = () => {
     noWait.status === 2 && /--wait-seconds above 0/.test(noWait.stderr),
     noWait.stdout || noWait.stderr,
   )
+  /**
+   * The race Pullfrog named on pull request 716: a same-head review already in flight lands after
+   * the run's opening read but answers nothing. Binding freshness to the REQUEST comment's own
+   * GitHub timestamp is what rejects it. Introspected 2026-08-12: `PullRequestReview.submittedAt`
+   * is a NULLABLE `DateTime` and `IssueComment.createdAt` is `NON_NULL DateTime`, so the boundary
+   * is always readable and the review timestamp may not be.
+   */
+  const REQUEST_URL = "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-2026081201"
+  const requestComment = (createdAt) => ({ author: { login: "thomasluizon" }, body: "@pullfrog review", createdAt, url: REQUEST_URL })
+  const reReviewPlan = (stdout) => ({
+    ...orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: "pr comment", stdout: REQUEST_URL },
+      { match: "api graphql", stdout },
+    ]),
+    CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
+    CODEX_THREAD_ID: "",
+  })
+  const reReviewRun = (stdout) =>
+    run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--re-review", "--wait-seconds", "3", "--poll-seconds", "1"], { path: testedToolPath, env: reReviewPlan(stdout) })
+
+  /**
+   * The state MUST change between the opening read and the poll, because that is the only shape in
+   * which the race exists. A fixed payload proves nothing here: the superseded predicate rejects it
+   * either way, so the case would pass with the bug present.
+   *
+   * Read 1 sees review A alone, which is what a baseline taken at open would pin. Read 2 adds
+   * review B, submitted after A but BEFORE our request. Bound to the opening read, B looks fresh
+   * and is wrongly accepted. Bound to the request, B is correctly refused.
+   */
+  const raceSequence = stage("list-bot-threads/re-review-race", "0")
+  const inFlight = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--re-review", "--wait-seconds", "3", "--poll-seconds", "1"], { path: testedToolPath, env: {
+    ...orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: "pr comment", stdout: REQUEST_URL },
+      { match: "api graphql", stdoutSequence: [
+        payload({ reviews: [botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY)] }),
+        payload({
+          reviews: [
+            botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY),
+            botReview("COMMENTED", "2026-08-12T20:20:00Z", HEAD, COMMENTED_BODY),
+          ],
+          comments: [requestComment("2026-08-12T20:30:00Z")],
+        }),
+      ], sequenceFile: raceSequence },
+    ]),
+    CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
+    CODEX_THREAD_ID: "",
+  } })
+  T(
+    `${TOOL}: --re-review refuses a review that landed in flight before the request, which a baseline taken at open would wrongly accept`,
+    inFlight.status === 1 && parsed(inFlight)?.verdict === "NO_REVIEW",
+    inFlight.stdout || inFlight.stderr,
+  )
+
+  const answered = reReviewRun(payload({
+    reviews: [botReview("APPROVED", "2026-08-12T20:35:00Z", HEAD, "")],
+    comments: [requestComment("2026-08-12T20:30:00Z")],
+  }))
+  T(
+    `${TOOL}: --re-review accepts the review submitted AFTER the request, which is the transition that converges`,
+    answered.status === 0 && parsed(answered)?.verdict === "REVIEWED" && parsed(answered)?.reviewState === "APPROVED",
+    answered.stdout || answered.stderr,
+  )
+
+  /** No request comment means no boundary, so nothing can be mistaken for an answer. Fails closed. */
+  const unboundable = reReviewRun(payload({
+    reviews: [botReview("APPROVED", "2026-08-12T20:35:00Z", HEAD, "")],
+    comments: [],
+  }))
+  T(
+    `${TOOL}: --re-review reports NO_REVIEW when its own request comment cannot be found, never a guessed pass`,
+    unboundable.status === 1 && parsed(unboundable)?.verdict === "NO_REVIEW",
+    unboundable.stdout || unboundable.stderr,
+  )
+
   for (const incompleteState of ["PENDING", "DISMISSED"]) {
     const incomplete = readPr(payload({ reviews: [botReview(incompleteState)] }))
     T(
