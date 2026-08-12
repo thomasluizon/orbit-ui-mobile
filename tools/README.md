@@ -58,6 +58,7 @@ These back required CI checks. They fail a merge.
 | `surface-manifest.mjs` | Derives the visual-surface inventory into `.claude/manifests/surfaces.json`, one cell per surface x theme x locale. Emits no status field on purpose. | `npm run surfaces:manifest` |
 | `capture-surfaces.mjs` | Playwright capture of one screenshot per manifest cell into `.artifacts/surfaces/`, against a running local stack. Reports every surface it cannot reach rather than skipping it. The D7 evidence mechanism. | `ORBIT_AUTH_TOKEN=... npm run surfaces:capture` |
 | `orca-web-port.mjs` | Assigns a deterministic web port in the 3100-4099 window per Orca worktree and records it in the ignored `.orca/web-port`. Root stays on 3000; the database and API stay shared on 5432 and 5000. | `node tools/orca-web-port.mjs` (`--setup`) |
+| `android-emulator.mjs` | Brings the Orbit Android emulator to a ready state and reuses one that is already booted. Creates `Orbit_Pixel_9_API_35` when absent, using only hardware values measured to boot, and always passes `-dns-server` because the inherited host resolver failed to resolve `api.useorbit.org`. Reports readiness from `sys.boot_completed`, never from the launch succeeding. | `node tools/android-emulator.mjs` (`--status`, `--avd`, `--dns`, `--timeout`, `--json`) |
 
 ## Harness self-test
 

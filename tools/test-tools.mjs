@@ -118,6 +118,7 @@ for (const [file, module] of CASE_MODULES) {
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
