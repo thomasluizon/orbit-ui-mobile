@@ -55,16 +55,29 @@ Anything in `$ARGUMENTS` overrides the derived defaults:
 
 When the user supplies a version but no code, still derive the code from the last run and say so.
 
-## Step 3 - Confirm before dispatching
+## Step 3 - Resolve the ref, then confirm
 
-Show the resolved inputs as a table and the branch the run will use, then ask for a plain yes. Do not
-dispatch on an assumed yes, and do not dispatch when the working tree has uncommitted mobile changes
-without saying so first - the workflow builds from the pushed ref, not from the local tree.
+**`gh workflow run` runs the workflow at the remote default branch when `--ref` is omitted.** A release
+dispatched from a feature checkout would therefore build `main`, not the branch just confirmed. Resolve
+the ref explicitly and pass it:
+
+```bash
+git rev-parse --abbrev-ref HEAD
+git rev-parse --abbrev-ref --symbolic-full-name @{u}   # fails when the branch is unpushed
+```
+
+An unpushed branch is a stop, not a warning: the workflow builds from the remote, so it cannot see local
+commits. Confirm the branch with the user, or have them name the ref.
+
+Show the resolved inputs and the ref as a table, then ask for a plain yes. Do not dispatch on an assumed
+yes, and say so first when the working tree has uncommitted mobile changes, because those are not in the
+build either.
 
 ## Step 4 - Dispatch and follow
 
 ```bash
 gh workflow run android-release.yml \
+  --ref <confirmed ref> \
   -f app_version=<version> \
   -f android_version_code=<code> \
   -f track=<track> \
@@ -73,12 +86,14 @@ gh workflow run android-release.yml \
   -f message=<text>
 ```
 
-`gh workflow run` prints no run id. Resolve the new run by listing again and taking the newest entry
-whose `displayTitle` matches the version just dispatched - **copy that id from this command's output**,
-never reconstruct it:
+`gh workflow run` prints no run id. Resolve the new run by listing again, **scoped to the same ref** so a
+concurrent dispatch of the same version cannot be mistaken for this one, and take the newest entry whose
+`displayTitle` matches what was just dispatched. **Copy that id from this command's output**, never
+reconstruct it:
 
 ```bash
-gh run list --workflow android-release.yml --limit 5 --json databaseId,displayTitle,status
+gh run list --workflow android-release.yml --branch <confirmed ref> --limit 5 \
+  --json databaseId,displayTitle,status,headBranch
 gh run watch <databaseId>
 ```
 

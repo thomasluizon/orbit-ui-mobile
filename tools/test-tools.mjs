@@ -70,6 +70,7 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["android-emulator.mjs", "android-emulator"],
   ["capture-surfaces.mjs", "capture-surfaces"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-push-target.mjs", "check-push-target"],

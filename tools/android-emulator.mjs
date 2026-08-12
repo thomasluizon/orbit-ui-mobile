@@ -18,6 +18,7 @@ const AVD_NAME = "Orbit_Pixel_9_API_35"
 const SYSTEM_IMAGE = "system-images;android-35;google_apis_playstore;x86_64"
 const DEVICE_PROFILE = "pixel_9"
 const DNS_SERVERS = "8.8.8.8,1.1.1.1"
+const VERIFY_HOST = "api.useorbit.org"
 const BOOT_TIMEOUT_SECONDS = 420
 
 /**
@@ -40,16 +41,20 @@ const EXIT = { OK: 0, FAILED: 1, INVALID_INPUT: 2, NO_SDK: 3, AVD_FAILED: 4, BOO
 const USAGE = `android-emulator.mjs - bring the Orbit Android emulator to a ready state
 
 Usage:
-  node tools/android-emulator.mjs [--status] [--avd <name>] [--dns <servers>] [--timeout <seconds>] [--json]
+  node tools/android-emulator.mjs [--status] [--avd <name>] [--dns <servers>]
+                                  [--verify-host <host>] [--timeout <seconds>] [--json]
 
 Creates the AVD "${AVD_NAME}" when it does not exist, boots it with explicit DNS
-servers, and waits until the guest reports sys.boot_completed=1. A already-booted
-emulator is reused rather than restarted.
+servers, and waits until the guest reports sys.boot_completed=1. Every serial is matched
+to its own AVD, so an unrelated emulator is never reported or targeted. A running AVD is
+reused only when it can still resolve --verify-host; otherwise it is restarted with --dns,
+because an emulator started elsewhere inherits the host resolver.
 
 Options:
   --status            Report the current state and exit without creating or booting anything.
   --avd <name>        AVD to use. Default: ${AVD_NAME}
   --dns <servers>     Comma-separated DNS servers passed to -dns-server. Default: ${DNS_SERVERS}
+  --verify-host <host> Host the guest must resolve before a running AVD is reused. Default: ${VERIFY_HOST}
   --timeout <seconds> Seconds to wait for boot. Default: ${BOOT_TIMEOUT_SECONDS}
   --json              Emit the result as JSON on stdout.
   --help, -h          Print this usage and exit 0.
@@ -76,6 +81,7 @@ function parseArgs(argv) {
     status: false,
     avd: AVD_NAME,
     dns: DNS_SERVERS,
+    verifyHost: VERIFY_HOST,
     timeout: BOOT_TIMEOUT_SECONDS,
     json: false,
   }
@@ -89,7 +95,7 @@ function parseArgs(argv) {
       options.status = true
     } else if (arg === "--json") {
       options.json = true
-    } else if (arg === "--avd" || arg === "--dns" || arg === "--timeout") {
+    } else if (arg === "--avd" || arg === "--dns" || arg === "--verify-host" || arg === "--timeout") {
       const value = argv[index + 1]
       if (value === undefined || value.startsWith("--")) {
         fail(EXIT.INVALID_INPUT, `${arg} requires a value`)
@@ -97,6 +103,7 @@ function parseArgs(argv) {
       index += 1
       if (arg === "--avd") options.avd = value
       else if (arg === "--dns") options.dns = value
+      else if (arg === "--verify-host") options.verifyHost = value
       else {
         const seconds = Number(value)
         if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -132,10 +139,19 @@ function executable(sdkPath, ...segments) {
   return base
 }
 
-function run(command, args, extraEnv = {}) {
-  return spawnSync(command, args, {
+/**
+ * Node cannot spawn a .bat or .cmd file without a command processor, and the SDK ships
+ * `sdkmanager.bat` and `avdmanager.bat` on Windows. Those paths run through a shell, with the
+ * command quoted because the SDK lives under a path containing spaces on a default install.
+ * https://nodejs.org/api/child_process.html#spawning-bat-and-cmd-files-on-windows
+ */
+function run(command, args, options = {}) {
+  const needsShell = process.platform === "win32" && /\.(bat|cmd)$/i.test(command)
+  return spawnSync(needsShell ? `"${command}"` : command, args, {
     encoding: "utf8",
-    env: { ...process.env, ...extraEnv },
+    env: { ...process.env, ...(options.env ?? {}) },
+    input: options.input,
+    shell: needsShell,
     windowsHide: true,
   })
 }
@@ -154,6 +170,38 @@ function bootedSerials(adb) {
 function isBootCompleted(adb, serial) {
   const property = run(adb, ["-s", serial, "shell", "getprop", "sys.boot_completed"])
   return String(property.stdout ?? "").trim() === "1"
+}
+
+/**
+ * The AVD behind one serial, or null when it cannot be established. Every caller treats null as
+ * "not the requested AVD", because a serial this tool cannot identify must never receive an install.
+ */
+function avdNameForSerial(adb, serial) {
+  const named = run(adb, ["-s", serial, "emu", "avd", "name"])
+  if (named.status !== 0) return null
+  const line = String(named.stdout ?? "")
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .find((entry) => entry && entry !== "OK" && !entry.startsWith("error"))
+  return line ?? null
+}
+
+/** The booted serial running `avd`, or null. Identity is proven per serial, never assumed from order. */
+function readySerialFor(adb, avd) {
+  return (
+    bootedSerials(adb).find((serial) => isBootCompleted(adb, serial) && avdNameForSerial(adb, serial) === avd) ?? null
+  )
+}
+
+/**
+ * Whether the guest can resolve `host`. A running emulator started without `-dns-server` inherits the
+ * host resolver, which is exactly the failure this tool exists to prevent, so reuse is gated on this
+ * rather than on the process merely being up. Observed failure text on 2026-08-12:
+ * `ping: unknown host api.useorbit.org`, against a success line beginning `PING `.
+ */
+function resolvesHost(adb, serial, host) {
+  const probe = run(adb, ["-s", serial, "shell", "ping", "-c", "1", "-W", "4", "-I", "wlan0", host])
+  return /^PING /m.test(String(probe.stdout ?? ""))
 }
 
 function listAvds(emulator) {
@@ -186,26 +234,20 @@ function createAvd(sdkPath, avd) {
     fail(EXIT.AVD_FAILED, `avdmanager not found at ${avdmanager}. Install the Android SDK command-line tools.`)
   }
 
+  const sdkEnv = { ANDROID_HOME: sdkPath, ANDROID_SDK_ROOT: sdkPath }
   const sdkmanager = executable(sdkPath, "cmdline-tools", "latest", "bin", "sdkmanager")
   const imageDir = path.join(sdkPath, "system-images", "android-35", "google_apis_playstore", "x86_64")
   if (!existsSync(path.join(imageDir, "system.img"))) {
     process.stderr.write(`android-emulator: installing ${SYSTEM_IMAGE} (large download)\n`)
-    const installed = spawnSync(sdkmanager, [SYSTEM_IMAGE], {
-      encoding: "utf8",
-      input: "y\n",
-      env: { ...process.env, ANDROID_HOME: sdkPath, ANDROID_SDK_ROOT: sdkPath },
-      windowsHide: true,
-    })
+    const installed = run(sdkmanager, [SYSTEM_IMAGE], { input: "y\n", env: sdkEnv })
     if (installed.status !== 0) {
       fail(EXIT.AVD_FAILED, `could not install ${SYSTEM_IMAGE}: ${installed.stderr ?? ""}`)
     }
   }
 
-  const created = spawnSync(avdmanager, ["create", "avd", "-n", avd, "-k", SYSTEM_IMAGE, "-d", DEVICE_PROFILE], {
-    encoding: "utf8",
+  const created = run(avdmanager, ["create", "avd", "-n", avd, "-k", SYSTEM_IMAGE, "-d", DEVICE_PROFILE], {
     input: "no\n",
-    env: { ...process.env, ANDROID_HOME: sdkPath, ANDROID_SDK_ROOT: sdkPath },
-    windowsHide: true,
+    env: sdkEnv,
   })
   if (created.status !== 0) {
     fail(EXIT.AVD_FAILED, `avdmanager create failed: ${created.stderr ?? ""}`)
@@ -236,12 +278,11 @@ function launchEmulator(sdkPath, avd, dns) {
   return path.join(logDir, `${avd}.out.log`)
 }
 
-async function waitForBoot(adb, timeoutSeconds) {
+async function waitForBoot(adb, avd, timeoutSeconds) {
   const deadline = Date.now() + timeoutSeconds * 1000
   while (Date.now() < deadline) {
-    for (const serial of bootedSerials(adb)) {
-      if (isBootCompleted(adb, serial)) return serial
-    }
+    const serial = readySerialFor(adb, avd)
+    if (serial) return serial
     await new Promise((resolve) => setTimeout(resolve, 5000))
   }
   return null
@@ -276,7 +317,7 @@ async function main() {
     fail(EXIT.NO_SDK, `adb or emulator missing under ${sdkPath}. Install platform-tools and the emulator package.`)
   }
 
-  const running = bootedSerials(adb).find((serial) => isBootCompleted(adb, serial)) ?? null
+  const running = readySerialFor(adb, options.avd)
   const exists = listAvds(emulator).includes(options.avd)
 
   if (options.status) {
@@ -292,15 +333,24 @@ async function main() {
   }
 
   if (running) {
-    report(options, {
-      avd: options.avd,
-      serial: running,
-      state: "ready",
-      sdk: sdkPath,
-      created: false,
-      booted: true,
-    })
-    process.exit(EXIT.OK)
+    // Reuse only survives the DNS check. An emulator someone else started (Android Studio, a bare
+    // `emulator -avd`) inherits the host resolver, and this tool must not report that as ready.
+    if (resolvesHost(adb, running, options.verifyHost)) {
+      report(options, {
+        avd: options.avd,
+        serial: running,
+        state: "ready",
+        sdk: sdkPath,
+        created: false,
+        booted: true,
+      })
+      process.exit(EXIT.OK)
+    }
+    process.stderr.write(
+      `android-emulator: ${running} cannot resolve ${options.verifyHost}; restarting it with -dns-server ${options.dns}\n`,
+    )
+    run(adb, ["-s", running, "emu", "kill"])
+    await new Promise((resolve) => setTimeout(resolve, 8000))
   }
 
   let created = false
@@ -312,7 +362,7 @@ async function main() {
   const logPath = launchEmulator(sdkPath, options.avd, options.dns)
   process.stderr.write(`android-emulator: booting ${options.avd}, log at ${logPath}\n`)
 
-  const serial = await waitForBoot(adb, options.timeout)
+  const serial = await waitForBoot(adb, options.avd, options.timeout)
   if (!serial) {
     fail(EXIT.BOOT_TIMEOUT, `${options.avd} did not report sys.boot_completed within ${options.timeout}s. See ${logPath}.`)
   }
