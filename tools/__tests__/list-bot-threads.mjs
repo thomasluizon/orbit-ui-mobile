@@ -228,6 +228,38 @@ export const cases = () => {
    * is a NULLABLE `DateTime` and `IssueComment.createdAt` is `NON_NULL DateTime`, so the boundary
    * is always readable and the review timestamp may not be.
    */
+  /**
+   * The fixture must never claim a field the real query does not select.
+   *
+   * Every case below builds its payload by hand, so a payload can carry a key GitHub would never
+   * return and the whole file still passes while the tool is dead in production. That happened:
+   * `bindRequestBoundary` read `comments.nodes` after an earlier change had dropped the
+   * pull-request-level `comments` selection, so `--re-review` could never bind its boundary and
+   * always expired as NO_REVIEW. Pullfrog caught it on pull request 716; this gate could not,
+   * because the fixture agreed with the mistake.
+   *
+   * So the QUERY is asserted against the fields the code reads from it, straight out of the source.
+   */
+  const toolSource = readFileSync(testedToolPath, "utf8")
+  const querySource = /const QUERY = `([\s\S]*?)`/.exec(toolSource)?.[1] ?? ""
+  const prLevelComments = /\n\s{6}comments\(last:\d+\)\{nodes\{([^}]*)\}\}/.exec(querySource)?.[1] ?? ""
+  for (const field of ["createdAt", "url"]) {
+    T(
+      `${TOOL}: the GraphQL query selects pull request comments.${field}, which --re-review reads to bind its request boundary`,
+      prLevelComments.includes(field),
+      `pull-request-level comments selection was "${prLevelComments}" in:\n${querySource}`,
+    )
+  }
+  /** Sliced by the selections that bracket it, because a nested `author{login}` defeats a [^}] scan. */
+  const reviewsSelection = querySource.slice(querySource.indexOf("reviews(last:"), querySource.indexOf("comments(last:"))
+  for (const field of ["submittedAt", "state", "commit"]) {
+    T(
+      `${TOOL}: the GraphQL query selects reviews.${field}, which the verdict reads`,
+      reviewsSelection.includes(field),
+      `reviews selection was "${reviewsSelection}"`,
+    )
+  }
+
   const REQUEST_URL = "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-2026081201"
   const requestComment = (createdAt) => ({ author: { login: "thomasluizon" }, body: "@pullfrog review", createdAt, url: REQUEST_URL })
   const reReviewPlan = (stdout) => ({

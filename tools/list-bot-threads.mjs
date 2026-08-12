@@ -179,6 +179,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
     pullRequest(number:$pr){
       number isDraft baseRefOid headRefOid
       reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
+      comments(last:100){nodes{createdAt url}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
         nodes{
