@@ -20,6 +20,7 @@ const DEVICE_PROFILE = "pixel_9"
 const DNS_SERVERS = "8.8.8.8,1.1.1.1"
 const VERIFY_HOST = "api.useorbit.org"
 const BOOT_TIMEOUT_SECONDS = 420
+const SHUTDOWN_TIMEOUT_SECONDS = 60
 
 /**
  * Hardware values proven to boot on 2026-08-12. A larger set (6 GB RAM, 6 cores,
@@ -278,6 +279,16 @@ function launchEmulator(sdkPath, avd, dns) {
   return path.join(logDir, `${avd}.out.log`)
 }
 
+/** True once `serial` has left `adb devices`. The caller must not launch before this holds. */
+async function waitForShutdown(adb, serial, timeoutSeconds) {
+  const deadline = Date.now() + timeoutSeconds * 1000
+  while (Date.now() < deadline) {
+    if (!bootedSerials(adb).includes(serial)) return true
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+  }
+  return false
+}
+
 async function waitForBoot(adb, avd, timeoutSeconds) {
   const deadline = Date.now() + timeoutSeconds * 1000
   while (Date.now() < deadline) {
@@ -349,8 +360,15 @@ async function main() {
     process.stderr.write(
       `android-emulator: ${running} cannot resolve ${options.verifyHost}; restarting it with -dns-server ${options.dns}\n`,
     )
-    run(adb, ["-s", running, "emu", "kill"])
-    await new Promise((resolve) => setTimeout(resolve, 8000))
+    const killed = run(adb, ["-s", running, "emu", "kill"])
+    if (killed.status !== 0) {
+      fail(EXIT.FAILED, `could not stop ${running}: ${(killed.stderr || killed.stdout || "").trim()}`)
+    }
+    // Confirmed shutdown, never a fixed delay: a surviving process keeps the AVD lock, and
+    // waitForBoot would then rediscover this same DNS-broken serial and call it ready.
+    if (!(await waitForShutdown(adb, running, SHUTDOWN_TIMEOUT_SECONDS))) {
+      fail(EXIT.FAILED, `${running} was still present ${SHUTDOWN_TIMEOUT_SECONDS}s after emu kill; stop it and retry.`)
+    }
   }
 
   let created = false
