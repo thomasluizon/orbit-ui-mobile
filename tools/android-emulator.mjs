@@ -228,14 +228,29 @@ function presentSerialFor(adb, avd) {
   return (listedSerials(adb) ?? []).find((serial) => avdNameForSerial(adb, serial) === avd) ?? null
 }
 
-/** Waits for one specific serial to finish booting. Returns the serial, or null on timeout. */
-async function waitForBootOf(adb, serial, timeoutSeconds) {
+/**
+ * Waits for one specific serial to finish booting, re-proving its identity on every poll. A serial is
+ * a reused TCP port, not a stable name: the adopted process can exit and another emulator can take
+ * the same port, so one identity check at adoption time is not enough. Returns the serial, or null
+ * when it times out or stops being the requested AVD.
+ */
+async function waitForBootOf(adb, serial, avd, timeoutSeconds) {
   const deadline = Date.now() + timeoutSeconds * 1000
   while (Date.now() < deadline) {
+    if (avdNameForSerial(adb, serial) !== avd) return null
     if (isBootCompleted(adb, serial)) return serial
     await new Promise((resolve) => setTimeout(resolve, 5000))
   }
   return null
+}
+
+/**
+ * Serials that `adb devices` lists but that cannot state which AVD they are, typically because they
+ * are still `offline`. One of them may be the requested AVD, so launching alongside them risks the
+ * duplicate-launch race this tool exists to avoid. The caller must refuse rather than guess.
+ */
+function unidentifiedSerials(adb) {
+  return (listedSerials(adb) ?? []).filter((serial) => avdNameForSerial(adb, serial) === null)
 }
 
 /**
@@ -404,9 +419,22 @@ async function main() {
     const booting = presentSerialFor(adb, options.avd)
     if (booting) {
       process.stderr.write(`android-emulator: ${options.avd} is already starting as ${booting}; waiting for it\n`)
-      running = await waitForBootOf(adb, booting, options.timeout)
+      running = await waitForBootOf(adb, booting, options.avd, options.timeout)
       if (!running) {
-        fail(EXIT.BOOT_TIMEOUT, `${booting} was already starting but never completed boot within ${options.timeout}s.`)
+        fail(
+          EXIT.BOOT_TIMEOUT,
+          `${booting} was already starting but never completed boot as ${options.avd} within ${options.timeout}s.`,
+        )
+      }
+    } else {
+      // An offline serial cannot answer `emu avd name`, so it could be this very AVD. Refusing is the
+      // only safe reading: launching alongside it recreates the duplicate-launch race.
+      const unknown = unidentifiedSerials(adb)
+      if (unknown.length > 0) {
+        fail(
+          EXIT.FAILED,
+          `cannot identify ${unknown.join(", ")}; one of them may be ${options.avd}. Wait for it, or stop it, then retry.`,
+        )
       }
     }
   }

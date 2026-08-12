@@ -19,7 +19,7 @@ const stageSdk = (label, behaviour) => {
   const shim = join(sdk, "adb-shim.mjs")
   writeFileSync(
     shim,
-    `import { existsSync, writeFileSync } from "node:fs"
+    `import { existsSync, readFileSync, writeFileSync } from "node:fs"
 const argv = process.argv.slice(2)
 const joined = argv.join(" ")
 const behaviour = ${JSON.stringify(behaviour)}
@@ -40,7 +40,17 @@ if (joined.includes("sys.boot_completed")) {
   process.exit(0)
 }
 if (joined.includes("avd name")) {
-  process.stdout.write((behaviour.avdName ?? "") + "\\nOK\\n")
+  let name = behaviour.avdName ?? ""
+  const swap = behaviour.avdNameAfterCalls
+  if (swap) {
+    const counterPath = ${JSON.stringify(join(sdk, "avd-name-calls"))}
+    let seen = 0
+    try { seen = Number(readFileSync(counterPath, "utf8")) || 0 } catch {}
+    seen += 1
+    writeFileSync(counterPath, String(seen))
+    if (seen > swap.after) name = swap.name
+  }
+  process.stdout.write(name + "\\nOK\\n")
   process.exit(0)
 }
 if (joined.includes("ping")) {
@@ -202,6 +212,37 @@ export const cases = () => {
   T(
     "android-emulator.mjs: adopting a starting AVD does not kill it",
     !existsSync(join(starting, "killed.marker")),
+  )
+
+  // An offline serial cannot answer `emu avd name`, so it may be the requested AVD. Launching
+  // alongside it would recreate the duplicate-launch race, so the tool must refuse.
+  const unidentifiable = stageSdk("unidentifiable", {
+    devices: ["emulator-5554\toffline"],
+    avdName: "",
+    avds: ["Orbit_Pixel_9_API_35"],
+  })
+  check(
+    "android-emulator.mjs",
+    "refuses to launch beside a serial it cannot identify",
+    ["--timeout", "3", "--shutdown-timeout", "3"],
+    { status: 1, stderr: /cannot identify emulator-5554/ },
+    { env: sdkEnv(unidentifiable) },
+  )
+
+  // A serial is a reused port. If the adopted process is replaced by a different AVD on the same
+  // port, adoption must abort rather than wait on a stranger.
+  const stolenPort = stageSdk("stolen-port", {
+    devices: ["emulator-5554\tdevice"],
+    boot: "",
+    avdName: "Orbit_Pixel_9_API_35",
+    avdNameAfterCalls: { after: 2, name: "Some_Other_AVD" },
+    avds: ["Orbit_Pixel_9_API_35"],
+  })
+  const stolen = run("android-emulator.mjs", ["--timeout", "12", "--shutdown-timeout", "3"], { env: sdkEnv(stolenPort) })
+  T(
+    "android-emulator.mjs: adoption aborts when the serial stops being the requested AVD",
+    stolen.status === 5 && /never completed boot as Orbit_Pixel_9_API_35/.test(stolen.stderr),
+    `status=${stolen.status} stderr=${stolen.stderr.trim().split("\n").slice(-1)[0]}`,
   )
 
   const killBreaks = stageSdk("kill-fails", {

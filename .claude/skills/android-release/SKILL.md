@@ -65,21 +65,22 @@ the ref explicitly and pass it:
 git rev-parse --abbrev-ref HEAD                        # <branch>
 git rev-parse --abbrev-ref --symbolic-full-name @{u}   # fails when the branch is unpushed
 git fetch origin <branch>
-git merge-base --is-ancestor HEAD origin/<branch>      # exit 0 = the remote ref contains this commit
-```
-
-**An existing upstream is not proof that the remote carries what you are about to release.** One
-successful push, then two more local commits, and the upstream still exists while the remote is behind.
-The `merge-base --is-ancestor` check is the one that matters: it must exit `0` for the exact `HEAD` being
-released. A non-zero exit, or a missing upstream, is a **stop**, not a warning. The workflow builds from
-the remote, so anything unpushed is simply not in the release.
-
-Report the exact commit alongside the branch, and confirm both:
-
-```bash
 git rev-parse HEAD
 git rev-parse origin/<branch>
 ```
+
+**The two SHAs must be equal.** Containment is not enough in either direction:
+
+- Remote *behind* local: the commits you are releasing were never pushed, so the build cannot see them.
+- Remote *ahead* of local: `--ref` names the branch, not your commit, so the run builds whatever the
+  branch points at now. Someone else's later commit ships under the version you confirmed.
+
+A mismatch either way is a **stop**, not a warning. Report both SHAs to the user and let them decide:
+push, pull, or name an exact tag instead. A tag is the safer ref when the branch is moving, because it
+cannot advance under the run.
+
+An absent upstream is the same stop: the workflow builds from the remote, so unpushed work is simply not
+in the release.
 
 Show the resolved inputs and the ref as a table, then ask for a plain yes. Do not dispatch on an assumed
 yes, and say so first when the working tree has uncommitted mobile changes, because those are not in the
