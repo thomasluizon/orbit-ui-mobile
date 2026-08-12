@@ -21,7 +21,7 @@ that have no CI equivalent.
 | `rules-git.mjs` | git workflow (protected main, no-verify, worktree junction footgun) | git-guardrails (PreToolUse Bash, PowerShell) |
 | `rules-orchestrator.mjs` | model spend routes through the launcher; no agent admin merge | orchestrator-guardrails (PreToolUse Bash, PowerShell) |
 | `rules-source.mjs` | idempotent raw index SQL in EF migrations | forbid-ef-migration-raw-index (PostToolUse Edit/Write) |
-| `repo-roots.mjs` | which repository owns a path, following a linked worktree to its main checkout | orchestrator-guardrails, forbid-raw-repo-tool-surfacing |
+| `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
 | `io.mjs` | payload normalizers | both |
 
 `rules-orchestrator.mjs` is **cost-raising defence in depth and never the control**:

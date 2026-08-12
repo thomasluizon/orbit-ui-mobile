@@ -60,7 +60,7 @@ export const cases = () => {
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
   registerWakeSource({ pid: 4242, what: "worker ORB-1" }, repoRoot)
-  registerWakeSource({ pid: 4343, what: "reviewer ORB-1" }, repoRoot)
+  registerWakeSource({ pid: 4343, what: "worker ORB-2" }, repoRoot)
   T(
     `${TOOL}: each wake source is its OWN file, so three parallel launchers cannot lose each other`,
     readWakeSources(repoRoot).map((source) => source.pid).sort().join(",") === "4242,4343" && existsSync(join(wakeSourceDirectory(repoRoot), "4242.json")),

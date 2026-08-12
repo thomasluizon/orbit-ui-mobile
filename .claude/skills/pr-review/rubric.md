@@ -1,15 +1,12 @@
-# Orbit Review Rubric
+# Orbit Code Quality Rubric
 
-**At a glance:** the frozen list of what a review checks here. `/pr-review` walks it over a diff and
-`/audit-code-quality` walks the same file over the whole repo, so it stays orchestration-free: dimensions,
-severities, and the finding template only. This file is the SINGLE source for every repository: a review
-of an orbit-api or orbit-landing-page pull request reads a snapshot of this file materialized from this
-repository's `origin/main`, and no other repository carries a copy (a mirrored twin was tried and its
-drift gate twice stood down every review over byte differences). Every finding quotes the diff line it is
-about and cites the rule it came from by section, never by line number: line numbers rot silently and then
-point at the wrong rule.
+**At a glance:** the judgement dimensions and the severity ladder that `/audit-code-quality` walks over
+the whole repository. The operative pull-request review rules live in the Pullfrog console, which is
+server-side, and this file is not that copy. Nothing here governs a pull-request review. Every finding
+quotes the line it is about and cites the rule it came from by section, never by line number: line
+numbers rot silently and then point at the wrong rule.
 
-## Severity and the blocking decision
+## Severity
 
 | Severity | Meaning |
 |---|---|
@@ -18,18 +15,13 @@ point at the wrong rule.
 | **Medium** | Pattern inconsistency, missing edge case, defense-in-depth gap. |
 | **Low / Info** | Style deviation, minor naming, observation. |
 
-Severity is descriptive. **`blocking` is the decision**, and it has one test: does the finding break
-behaviour, security, or data integrity? A High that does not is `"blocking": false` and becomes a follow-up
-ticket. Never manufacture a Blocking finding to avoid handing over a clean diff.
-
-`BREAKS-OLD-CLIENTS` is a Critical-class marker, always Blocking, for a change that makes an
-already-installed Android client misbehave, because old builds ship a frozen `@orbit/shared` snapshot.
-Detection is dimension 7.
+`BREAKS-OLD-CLIENTS` is a Critical-class marker for a change that makes an already-installed Android
+client misbehave, because old builds ship a frozen `@orbit/shared` snapshot. Detection is dimension 7.
 
 ## Gate-owned: never a hand-written finding
 
 The most-broken rule in `.claude/rules/core.md`. If a required check already fails on it, a hand-written
-finding is noise, because the PR cannot merge either way. ESLint `local/*` and Roslyn `ORBIT0001..0005`
+finding is noise. ESLint `local/*` and Roslyn `ORBIT0001..0005`
 (`Lint`) own `any` / `as any` / `as unknown as X`, `console.log`, the whole comment policy, full-bleed web
 buttons, overshoot easing, and `will-change` discipline. `Type Check`, `Unit Tests`, `Build`, `Dash Ban`
 (em and en dashes, PR title and body included), `Copy Register` (shouted strings and the cliche register in
@@ -43,9 +35,9 @@ partial and the uncovered half is yours: `local/no-decorative-glow` and `local/n
 ## Finding template
 
 ```
-[SEVERITY] <one-line title>          blocking: true|false   [BREAKS-OLD-CLIENTS if applicable]
+[SEVERITY] <one-line title>          [BREAKS-OLD-CLIENTS if applicable]
 - dimension: <number and name>
-- location: <repo>/<path>:<line>     (a line in the diff; quote it)
+- location: <repo>/<path>:<line>     (quote the line)
 - claim: <what is wrong, and what goes wrong if it ships>
 - fix: <the concrete change>
 - reference: <CLAUDE.md rule N | DESIGN.md section | orbit-api hard rule | security category>
@@ -53,8 +45,8 @@ partial and the uncovered half is yours: `local/no-decorative-glow` and `local/n
 
 ## Dimensions
 
-A diff that does not touch a dimension's surface skips it, recorded as N/A with the reason. Do not invent
-findings for files the diff never changes.
+A dimension whose surface the audited scope does not carry is N/A, recorded with the reason. Do not
+invent a finding to fill a dimension.
 
 ### 1. Correctness
 
@@ -284,7 +276,7 @@ fixture authored with the implementation are not evidence. Compare the code and 
 evidence; a fixture that invents the same interface contract proves nothing.
 
 Missing or guessed evidence for any field, flag, subcommand, exit code, enum, event argument, or response
-shape on the correctness path is **High and Blocking** because the implementation is unproven against the
+shape on the correctness path is **High** because the implementation is unproven against the
 interface it will execute. If the diff redesigns so the unknown is not read and success depends only on a
 confirmed exit code, cite the real invocation or installed source that confirms that exit signal and record
 why this dimension passes. Do not manufacture a failure from an absent unconfirmed field, and do not expose

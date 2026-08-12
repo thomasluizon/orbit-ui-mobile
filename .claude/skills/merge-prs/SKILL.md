@@ -1,6 +1,6 @@
 ---
 name: merge-prs
-description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when Thomas explicitly invokes /merge-prs after every target PR has a clean pr-review, green CI, and zero unresolved Codex threads.
+description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when Thomas explicitly invokes /merge-prs after every target PR has a passing pullfrog-approval check, green CI, and zero unresolved review threads.
 ---
 
 # /merge-prs
@@ -12,7 +12,8 @@ local/remote state. Optimize for elapsed time. This is a delivery command, not a
 
 Invoking `/merge-prs` is Thomas's explicit authorization to merge exactly the frozen target set. In
 this skill only, `gh pr merge --admin --squash` is allowed. The exception exists because every target
-must already have passed independent review, Codex-thread resolution, and CI before this skill starts.
+must already have passed the required Pullfrog review check, review-thread resolution, and CI before
+this skill starts.
 
 - Never extend the set after preflight without a new explicit instruction.
 - Never merge a draft, a PR outside the frozen set, or a PR that was not ready at its approved head.
@@ -21,7 +22,7 @@ must already have passed independent review, Codex-thread resolution, and CI bef
 - Never push to `main`, force-push, rebase an update, bypass hooks, or change a gate/baseline.
 - Do not launch tickets, implement review findings, or request another review. A non-mechanical code
   conflict is a handoff, not permission to redesign approved code.
-- `/orchestrate` and `/pr-review` still never merge. This authorization is not transferable to them.
+- `/orchestrate` still never merges. This authorization is not transferable to it.
 
 Use an owner-scoped `GH_TOKEN` per process. Never call `gh auth switch`.
 
@@ -49,8 +50,8 @@ Read the repository instructions and confirm every external response shape live 
 fields. Then prove for every frozen PR:
 
 - state is OPEN, base is `main`, and draft is false;
-- the independent `pr-review` verdict is CLEAN for the recorded approved head;
-- the Codex connector reviewed that head and every Codex review thread is resolved;
+- the required `pullfrog-approval` status check passes on the recorded approved head, and every
+  Pullfrog review thread on that head is resolved;
 - all CI checks on that approved head are settled and green;
 - the PR is mergeable against its then-current base;
 - its ticket board Status is In Review, or is In Progress only for a handoff Thomas has now accepted;
@@ -94,7 +95,7 @@ For each PR in order:
      exact files. Approval of the old diff is not approval of newly invented conflict resolution.
 5. Fetch the updated PR head. Prove it contains the approved head and current base, and that every new
    commit is only the base integration or the generated-only conflict resolution just recorded.
-6. Do **not** wait for CI or request pr-review/Codex again for that mechanical update. Those receipts
+6. Do **not** wait for CI or for a new Pullfrog review of that mechanical update. Those receipts
    were frozen at preflight; avoiding a serial full-matrix rerun is this skill's purpose.
 7. Admin-squash merge the exact head:
 

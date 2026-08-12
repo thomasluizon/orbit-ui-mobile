@@ -69,7 +69,7 @@ Present, and wait for my approval before any edit:
 - **Regression test**, the test that would have caught this, to add with the fix.
 - **Blast radius / verification**, what to run after (`/validate`, a targeted test), and what else the change touches.
 
-On approval: implement with parity + the regression test, then hand to `/validate` (or `/pr-review`).
+On approval: implement with parity + the regression test, then hand to `/validate`.
 
 ## Output: the incident dossier (rendered before the gate)
 

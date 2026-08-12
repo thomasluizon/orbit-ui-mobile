@@ -10,7 +10,7 @@
 > - orbit-api has its own xUnit suite, documented in that repo.
 > - Read the whole doc before adding a suite, a CI test job, or an e2e spec.
 
-Every feature ships behavior tests. A test that cannot fail when the behavior breaks is worse than no test. This doc is the canonical suite catalog; `/audit-tests` and `/pr-review` judge tests against the rubric it points to.
+Every feature ships behavior tests. A test that cannot fail when the behavior breaks is worse than no test. This doc is the canonical suite catalog; `/audit-tests` judges tests against the rubric it points to.
 
 ## How to write a test here
 

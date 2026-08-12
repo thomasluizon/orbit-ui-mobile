@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -48,33 +48,57 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
 })
 
 /**
- * A CheckRun reports `status` plus `conclusion` and a StatusContext reports `state` alone, so both
- * shapes appear here: a rollup fixture carrying only one kind would let a reader that ignores the
- * other pass. Confirmed against a live `gh pr view --json statusCheckRollup` response.
+ * The two app ids are live, read on 2026-08-12 from
+ * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
+ * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
  */
-const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
-  JSON.stringify({ statusCheckRollup: nodes })
+const GITHUB_ACTIONS_APP = 15368
+const PULLFROG_APP = 1768019
 
-const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null, workflowRuns = []) => {
+/**
+ * A CheckRun reports `status` plus `conclusion` and carries its producing app under
+ * `checkSuite.app.databaseId`; a StatusContext reports `state` alone and carries no app at all.
+ * Both shapes appear here: a rollup fixture carrying only one kind would let a reader that ignores
+ * the other pass. Every field NAME below was read off the live GraphQL response for pull request
+ * 716 on 2026-08-12 before being written down, per CLAUDE.md standard 8.
+ */
+const checkRun = (name, { status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-06T10:00:00Z", detailsUrl = null, workflow = null, appId = GITHUB_ACTIONS_APP } = {}) => ({
+  __typename: "CheckRun",
+  name,
+  status,
+  conclusion,
+  startedAt,
+  completedAt: startedAt,
+  detailsUrl,
+  checkSuite: { app: { databaseId: appId }, workflowRun: workflow === null ? null : { workflow: { name: workflow } } },
+})
+const statusContext = (context, state, createdAt = "2026-08-06T10:00:00Z") => ({ __typename: "StatusContext", context, state, createdAt, targetUrl: null })
+
+/**
+ * Branch protection pins each required context to the app that must provide it, so the default
+ * required list here is derived from the fixture's own producers. `checks` is what the tool reads;
+ * `contexts` is the same list with the producer erased and is present because GitHub returns both.
+ */
+const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? node.context, app_id: node.checkSuite?.app?.databaseId ?? null }))
+
+/** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
+const prState = (nodes, headRefOid, isDraft = false) => ({
+  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, statusCheckRollup: { contexts: { nodes } } } } },
+})
+
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
   } catch {
     /* the malformed-output tests fail before this state is read */
   }
-  let state = {}
-  try {
-    state = JSON.parse(checks)
-  } catch {
-    state = {}
-  }
-  const required = requiredContexts ?? (state.statusCheckRollup ?? []).map((node) => node.name ?? node.context).filter(Boolean)
+  const required = requiredChecks ?? requiredFrom(nodes)
   return orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft: false, ...state }) },
-    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required }) },
-    { match: "run list --workflow guards.yml", stdout: JSON.stringify(workflowRuns) },
+    { match: "api graphql", stdout: JSON.stringify(prState(nodes, headRefOid)) },
+    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }) },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
 }
@@ -250,7 +274,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     "base advancement with behind_by 1 is OUT_OF_DATE",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 1, stdout: /"verdict": "OUT_OF_DATE"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(), { behind_by: 1 }) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 1 }) },
   )
   T(`${TOOL}: OUT_OF_DATE reports base SHA, head SHA, and behind count`, /"baseSha": "base-sha"[\s\S]*"headSha": "[^"\s]+"[\s\S]*"behindBy": 1/.test(outOfDate.stdout), outOfDate.stdout)
 
@@ -276,41 +300,74 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: ghPlan(JSON.stringify([numericPullRequest])) },
   )
 
-  const marker = stage("verify-delivery/degraded-edit-not-called", "pending")
-  const codexBody = pullRequest(pushed.head)
-  codexBody.body = `Implements ${ISSUE}.`
-  const codexOnly = check(
+  /**
+   * Pullfrog publishes `pullfrog-approval`, which branch protection requires on `main` and pins to
+   * Pullfrog's own app 1768019, so the review verdict reaches this tool as one more required check.
+   * An approval the rollup does not carry is CI_PENDING, and a delivery that carries it under the
+   * pinned app is DELIVERED like any other green check.
+   */
+  const requiredWithApproval = [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }]
+  const approval = checkRun("pullfrog-approval", { appId: PULLFROG_APP, startedAt: "2026-08-06T10:30:00Z" })
+  check(
     TOOL,
-    "codex-only delivery restores the degraded first line and invalidates pre-edit CI",
-    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"invalidatedByBodyEdit": true/ },
+    "a required pullfrog-approval that has not registered is CI_PENDING",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval) },
+  )
+  check(
+    TOOL,
+    "a SUCCESS pullfrog-approval alongside the other required checks is DELIVERED",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), approval], { behind_by: 0 }, requiredWithApproval) },
+  )
+
+  /**
+   * THE producer case. Branch protection pins `pullfrog-approval` to app 1768019, so a SUCCESS of
+   * that exact name published by app 15368 satisfies nothing: GitHub still refuses the merge, and a
+   * reader keyed on the context alone called this pull request DELIVERED.
+   */
+  const impostorApproval = check(
+    TOOL,
+    "a SUCCESS pullfrog-approval from the WRONG app is CI_PENDING, never DELIVERED",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), checkRun("pullfrog-approval", { appId: GITHUB_ACTIONS_APP })], { behind_by: 0 }, requiredWithApproval) },
+  )
+  T(
+    `${TOOL}: the wrong-producer report names the pinned app it never saw`,
+    /"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"[\s\S]*"requiredAppId": 1768019/.test(impostorApproval.stdout),
+    impostorApproval.stdout,
+  )
+  /** `app_id: null` is GitHub's "any app may provide this check", so the same rollup delivers. */
+  check(
+    TOOL,
+    "a required check with a null app id is satisfied by any producer",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), checkRun("pullfrog-approval", { appId: GITHUB_ACTIONS_APP })], { behind_by: 0 }, [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: null }]) },
+  )
+  /** A StatusContext carries no producing app, so it can never satisfy a check pinned to one. */
+  check(
+    TOOL,
+    "a StatusContext cannot satisfy a required check pinned to an app",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), statusContext("pullfrog-approval", "SUCCESS")], { behind_by: 0 }, requiredWithApproval) },
+  )
+  /** `contexts` alone cannot decide, so a protection payload without `checks` fails closed. */
+  check(
+    TOOL,
+    "a protection payload carrying no checks array is an environment error",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 2, stderr: /returned no \{ context, app_id \} checks array/ },
     { path: testedToolPath, env: orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([codexBody]) },
-      { match: "pr edit 200 --body-file -", stdout: "", removePath: marker },
-      { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
+      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([pullRequest(pushed.head)]) },
+      { match: "api graphql", stdout: JSON.stringify(prState([checkRun("Lint")], pushed.head)) },
       { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
-      { match: "run list --workflow guards.yml", stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
-    ]) },
-  )
-  T(`${TOOL}: degraded body enforcement invoked the PR edit before delivery`, !existsSync(marker), codexOnly.stdout || codexOnly.stderr)
-  const markedBody = { ...codexBody, body: `DEGRADED: same-vendor review\n\nImplements ${ISSUE}.\n` }
-  check(
-    TOOL,
-    "the next codex-only invocation cannot reuse pre-edit checks before replacements register",
-    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only", "--wait-ci", "1"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"post-edit Guards workflow"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, null, [{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
-  )
-  check(
-    TOOL,
-    "a later codex-only invocation settles after the replacement Guards checks register",
-    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
-    { status: 0, stdout: /"verdict": "DELIVERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2099-08-08T10:00:00Z" }]), { behind_by: 0 }, null, [
-      { databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
-      { databaseId: 11, createdAt: "2099-08-08T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
     ]) },
   )
 
@@ -318,31 +375,31 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
    * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,
    * so only the CI verdict can be what moves it, which is what makes these assertions able to fail.
    */
-  const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(nodes)) })
+  const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes) })
   const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
 
-  const failedCi = check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "CheckRun", name: "React Doctor", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z", detailsUrl: "https://github.com/useorbitai/orbit-ui-mobile/actions/runs/12345/job/67890", workflowName: "React Doctor" }]))
-  T(`${TOOL}: failed CI retains exact inspectable run metadata`, /"runId": "12345"[\s\S]*"jobId": "67890"[\s\S]*"detailsUrl": "https:\/\/github\.com\/[^"\s]+"[\s\S]*"workflow": "React Doctor"[\s\S]*"name": "React Doctor"[\s\S]*"status": "COMPLETED"[\s\S]*"conclusion": "FAILURE"/.test(failedCi.stdout), failedCi.stdout)
+  const failedCi = check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("React Doctor", { conclusion: "FAILURE", detailsUrl: "https://github.com/useorbitai/orbit-ui-mobile/actions/runs/12345/job/67890", workflow: "React Doctor" })]))
+  T(`${TOOL}: failed CI retains exact inspectable run metadata`, /"runId": "12345"[\s\S]*"jobId": "67890"[\s\S]*"detailsUrl": "https:\/\/github\.com\/[^"\s]+"[\s\S]*"workflow": "React Doctor"[\s\S]*"name": "React Doctor"[\s\S]*"status": "COMPLETED"[\s\S]*"conclusion": "FAILURE"[\s\S]*"appId": 15368/.test(failedCi.stdout), failedCi.stdout)
 
-  check(TOOL, "a still-running check is CI_PENDING, so nothing is called delivered mid-flight", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"/ }, withChecks([{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }]))
+  check(TOOL, "a still-running check is CI_PENDING, so nothing is called delivered mid-flight", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"/ }, withChecks([checkRun("Build", { status: "IN_PROGRESS", conclusion: null })]))
   check(
     TOOL,
     "an empty rollup is CI_PENDING until required checks register",
     ciArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "Lint"[\s\S]*"status": "NOT_REGISTERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([]), { behind_by: 0 }, ["Lint"]) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [], { behind_by: 0 }, [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }]) },
   )
   check(
     TOOL,
     "a partial rollup is CI_PENDING until every required check registers",
     ciArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "Unit Tests"[\s\S]*"status": "NOT_REGISTERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, ["Lint", "Unit Tests"]) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "Unit Tests", app_id: GITHUB_ACTIONS_APP }]) },
   )
 
-  const stateSequenceFile = stage("verify-delivery/pr-view-sequence.txt", "0")
-  const pendingState = { baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }] }
-  const advancedState = { ...pendingState, headRefOid: "0000000000000000000000000000000000000000", statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }
+  const stateSequenceFile = stage("verify-delivery/pr-state-sequence.txt", "0")
+  const pendingState = prState([checkRun("Build", { status: "IN_PROGRESS", conclusion: null })], pushed.head)
+  const advancedState = prState([checkRun("Build")], "0000000000000000000000000000000000000000")
   const advancedDuringPoll = check(
     TOOL,
     "a branch advance during CI polling is revalidated before delivery",
@@ -351,37 +408,42 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([pullRequest(pushed.head)]) },
-      { match: "pr view", stdout: JSON.stringify(pendingState), stdoutSequence: [JSON.stringify(pendingState), JSON.stringify(advancedState)], sequenceFile: stateSequenceFile },
-      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Build"] }) },
+      { match: "api graphql", stdout: JSON.stringify(pendingState), stdoutSequence: [JSON.stringify(pendingState), JSON.stringify(advancedState)], sequenceFile: stateSequenceFile },
+      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Build"], checks: [{ context: "Build", app_id: GITHUB_ACTIONS_APP }] }) },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
     ]) },
   )
   T(`${TOOL}: the poll persisted the refreshed PR identity`, /"pullRequestState": \{[\s\S]*"headSha": "0000000000000000000000000000000000000000"/.test(advancedDuringPoll.stdout), advancedDuringPoll.stdout)
 
-  check(TOOL, "a StatusContext failure counts too, despite carrying state instead of conclusion", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "StatusContext", context: "Vercel", state: "FAILURE" }]))
+  check(TOOL, "a StatusContext failure counts too, despite carrying state instead of conclusion", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([statusContext("Vercel", "FAILURE")]))
 
   check(TOOL, "SKIPPED and NEUTRAL are not failures", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
-    { __typename: "CheckRun", name: "auto-merge", status: "COMPLETED", conclusion: "SKIPPED", startedAt: "2026-08-06T10:00:00Z" },
-    { __typename: "CheckRun", name: "Advisory", status: "COMPLETED", conclusion: "NEUTRAL", startedAt: "2026-08-06T10:00:00Z" },
+    checkRun("auto-merge", { conclusion: "SKIPPED" }),
+    checkRun("Advisory", { conclusion: "NEUTRAL" }),
   ]))
-  check(TOOL, "GitHub's completed STALE conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([
-    { __typename: "CheckRun", name: "Required gate", status: "COMPLETED", conclusion: "STALE", startedAt: "2026-08-06T10:00:00Z" },
-  ]))
-  check(TOOL, "an unknown completed conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([
-    { __typename: "CheckRun", name: "Future gate", status: "COMPLETED", conclusion: "A_FUTURE_VALUE", startedAt: "2026-08-06T10:00:00Z" },
-  ]))
+  check(TOOL, "GitHub's completed STALE conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("Required gate", { conclusion: "STALE" })]))
+  check(TOOL, "an unknown completed conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("Future gate", { conclusion: "A_FUTURE_VALUE" })]))
 
   /**
    * The trap this exists for: a re-run does NOT replace the old entry, so the rollup carries the old
-   * FAILURE and the new SUCCESS under ONE name. Reading every entry leaves the check permanently red
-   * and permanently pending at once, and no re-run could ever clear it. Measured on #685.
+   * FAILURE and the new SUCCESS under ONE name and ONE producer. Reading every entry leaves the
+   * check permanently red and permanently pending at once, and no re-run could ever clear it.
+   * Measured on #685.
    */
   check(TOOL, "a re-run supersedes its own failed entry rather than counting twice", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
-    { __typename: "CheckRun", name: "Dash Ban", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z" },
-    { __typename: "CheckRun", name: "Dash Ban", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T11:00:00Z" },
+    checkRun("Dash Ban", { conclusion: "FAILURE" }),
+    checkRun("Dash Ban", { startedAt: "2026-08-06T11:00:00Z" }),
+  ]))
+  /**
+   * A re-run supersedes ITS OWN entry and no other. A same-named check from a different app is a
+   * different producer, so it cannot bury the failing entry branch protection actually requires.
+   */
+  check(TOOL, "a later same-named check from another app cannot bury a failing required check", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"name": "Dash Ban"/ }, withChecks([
+    checkRun("Dash Ban", { conclusion: "FAILURE" }),
+    checkRun("Dash Ban", { startedAt: "2026-08-06T11:00:00Z", appId: PULLFROG_APP }),
   ]))
 
-  check(TOOL, "CI_FAILING names the checks, so the report never says merely that something is red", ciArgv, { status: 1, stdout: /"failing": \[[\s\S]*"name": "CodeQL"/ }, withChecks([{ __typename: "CheckRun", name: "CodeQL", status: "COMPLETED", conclusion: "TIMED_OUT", startedAt: "2026-08-06T10:00:00Z" }]))
+  check(TOOL, "CI_FAILING names the checks, so the report never says merely that something is red", ciArgv, { status: 1, stdout: /"failing": \[[\s\S]*"name": "CodeQL"/ }, withChecks([checkRun("CodeQL", { conclusion: "TIMED_OUT" })]))
   T(
     `${TOOL}: stdout carries ONE JSON object and nothing else`,
     (() => {

@@ -7,7 +7,7 @@ path predicts it.
 | playbook | read it when |
 |---|---|
 | `debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
-| `review-and-audit.md` | `/pr-review`, `/audit-*`, any fan-out assessment |
+| `review-and-audit.md` | `/audit-*`, a Pullfrog review to act on, any fan-out assessment |
 | `planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
 | `context-engineering.md` | authoring anything the agent reads: a rule, playbook, skill, agent, tool, ticket |
 

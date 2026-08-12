@@ -116,16 +116,13 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!isRecord(config) || !isRecord(config.workers)) {
     throw new Error(".claude/orchestrator.json must declare a workers object")
   }
-  for (const role of ["worker", "reviewer"]) {
-    if (!isRecord(config.workers[config[role]])) {
-      throw new Error(`.claude/orchestrator.json ${role} "${config[role]}" is not one of its workers`)
-    }
+  if (!isRecord(config.workers[config.worker])) {
+    throw new Error(`.claude/orchestrator.json worker "${config.worker}" is not one of its workers`)
   }
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   positive(config.timeouts?.noProgressMinutes, "timeouts.noProgressMinutes")
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
-  positive(config.caps?.reviewRounds, "caps.reviewRounds")
-  positive(config.caps?.connectorFixAttempts, "caps.connectorFixAttempts")
+  positive(config.caps?.reviewFixAttempts, "caps.reviewFixAttempts")
   validateTickets(config.tickets)
   return config
 }
@@ -133,8 +130,9 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
 /**
  * `tier` is a plain string, not a label array. The tier:cheap / tier:deep label machinery is gone
  * with the wave planner that set it: one ticket, one worker, one model. D21 fixes the implementer
- * at gpt-5.6-sol @ high in BOTH normal and codex-only mode, so "default" is the only tier a worker
- * ever resolves; "review" exists for the codex-only reviewer at xhigh.
+ * at gpt-5.6-sol @ high, so "default" is the only tier any launch resolves. The harness no longer
+ * runs a reviewer of its own: Pullfrog reviews in GitHub Actions and publishes the
+ * `pullfrog-approval` required check, so there is no second tier to declare.
  */
 export const resolveWorkerInvocation = (engineName, engine, tier = "default") => {
   if (!isRecord(engine)) {

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * The harness execution gate: every script under tools/ is EXECUTED here, never merely
- * read. A harness cannot certify itself by review, and no CI reviewer exists to try:
- * review is a local /pr-review subagent reading the DIFF, so a broken tool can be read,
- * approved and merged. tools/launch-worker.mjs once shipped reading `orca terminal wait`'s
+ * read. A harness cannot certify itself by review: Pullfrog reads the DIFF in GitHub
+ * Actions, so a broken tool can be read, approved and merged.
+ * tools/launch-worker.mjs once shipped reading `orca terminal wait`'s
  * "not yet" (exit 1 with an ok:false payload) as a fatal error, which only running it caught.
  *
  * Three layers:
@@ -81,7 +81,6 @@ const CASE_MODULES = [
   ["create-milestone.mjs", "create-milestone"],
   ["create-ticket.mjs", "create-ticket"],
   ["launch-worker.mjs", "launch-worker"],
-  ["lib/body-edit-invalidation.mjs", "body-edit-invalidation"],
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
   ["lib/performance-measurement.mjs", "performance-measurement"],
   ["lib/bounded-process.mjs", "bounded-process"],
@@ -91,7 +90,6 @@ const CASE_MODULES = [
   ["lib/github-target.mjs", "github-target"],
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
   ["lib/manual-steps.mjs", "manual-steps"],
-  ["lib/pr-body.mjs", "pr-body"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
   ["lib/run-state.mjs", "run-state"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
