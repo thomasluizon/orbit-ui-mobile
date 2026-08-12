@@ -113,11 +113,6 @@ export const cases = async () => {
     "a worker key naming no engine was accepted",
   )
   T(
-    `${NAME}: a reviewer naming no declared engine is refused`,
-    /reviewer "ghost" is not one of its workers/.test(readAndFail("bad-reviewer", { ...real, reviewer: "ghost" }) ?? ""),
-    "a reviewer key naming no engine was accepted",
-  )
-  T(
     `${NAME}: a config with no tickets object is refused`,
     /must declare a tickets object/.test(readAndFail("no-tickets", { ...real, tickets: undefined }) ?? ""),
     "a config with no tickets object was accepted",
@@ -203,9 +198,9 @@ export const cases = async () => {
     "a zero no-progress clock was accepted",
   )
   T(
-    `${NAME}: a zero connector fixer bound is refused rather than becoming unbounded`,
-    /caps\.connectorFixAttempts must be a positive number/.test(readAndFail("zero-connector-fixes", { ...real, caps: { ...real.caps, connectorFixAttempts: 0 } }) ?? ""),
-    "a zero connector fixer bound was accepted",
+    `${NAME}: a zero review fixer bound is refused rather than becoming unbounded`,
+    /caps\.reviewFixAttempts must be a positive number/.test(readAndFail("zero-review-fixes", { ...real, caps: { ...real.caps, reviewFixAttempts: 0 } }) ?? ""),
+    "a zero review fixer bound was accepted",
   )
   T(
     `${NAME}: an unreadable file is refused as unreadable, not as invalid JSON`,

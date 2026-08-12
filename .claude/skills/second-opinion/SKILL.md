@@ -1,6 +1,6 @@
 ---
 name: second-opinion
-description: Get an independent cross-model second opinion (GPT-5.6 Sol via Codex) on a specific, load-bearing technical claim or a Critical or High code-review finding. A different model reads the claim and code, then returns AGREE, DISAGREE, or UNSURE. Use to stress-test a single blocking finding, a risky assertion, or a close call before you commit to it. Auto-fired inside /pr-review on each Critical or High finding that survives the skeptic, in unattended runs exactly as in interactive ones. Not for open-ended research (use /deep-research) or multi-lens judgement (use /llm-council).
+description: Get an independent cross-model second opinion (GPT-5.6 Sol via Codex) on a specific, load-bearing technical claim or a Critical or High code-review finding. A different model reads the claim and code, then returns AGREE, DISAGREE, or UNSURE. Use to stress-test a single blocking finding, a risky assertion, or a close call before you commit to it. Nothing fires it automatically: you invoke it deliberately, one claim per call. Not for open-ended research (use /deep-research) or multi-lens judgement (use /llm-council).
 argument-hint: <a claim to test, optionally with a file:line to pull context from>
 ---
 
@@ -9,17 +9,16 @@ argument-hint: <a claim to test, optionally with a file:line to pull context fro
 **Input**: $ARGUMENTS
 
 Ask **GPT-5.6 Sol** through the local `codex` CLI to independently judge one concrete
-claim. Sol is reserved for this ambiguous, difficult, high-value decision: the helper
-runs once per surviving Critical or High finding, where the extra cost is justified by
-the consequence of getting the call wrong.
+claim. Sol is reserved for the ambiguous, difficult, high-value decision, where the extra
+cost is justified by the consequence of getting the call wrong. Run it once per claim.
 
-Moving to Sol through Codex intentionally trades guaranteed cross-vendor diversity for
-cross-model diversity. The calling reviewer or executor and this helper can now share the
-Codex/OpenAI family, so their blind spots may correlate more than the previous
-cross-vendor pairing. That cost is accepted because Codex is the harness's supported
-external model path and Sol is the strongest fit for this narrow judgement. The second
-opinion remains an independent prompt and model call, not a consensus vote or a deciding
-gate.
+Sol through Codex trades guaranteed cross-vendor diversity for cross-model diversity.
+Pullfrog reviews every pull request with GPT Sol, so a second opinion on a Pullfrog
+finding asks the same model family that raised it, and their blind spots correlate. Treat
+`AGREE` on such a finding as weak confirmation and read the code yourself. That cost is
+accepted because Codex is the harness's supported external model path and Sol is the
+strongest fit for this narrow judgement. The second opinion remains an independent prompt
+and model call, not a consensus vote or a deciding gate.
 
 ## Operating rules
 
@@ -28,7 +27,7 @@ gate.
   response. Every such path returns `UNAVAILABLE`: the skill says so in one line and
   moves on. It never blocks, invents a verdict, or treats "couldn't ask" as disagreement.
 - **Never force a decision.** A Sol verdict is input, not a gate. It never auto-merges,
-  auto-drops a finding, or overrides the reviewer's own judgement. It surfaces a second
+  auto-drops a finding, or overrides your own judgement. It surfaces a second
   view for a human to weigh.
 - **One claim per call.** Feed a single, self-contained finding and its code. Sol judges
   only from the text you send it, with no repo access, so include the cited hunk.
@@ -71,12 +70,25 @@ and `--timeout <ms>` (default 180000). The timeout is a backstop that yields
 |---|---|---|
 | `OK` and **AGREE** | An independent model confirms the defect and the severity. | State that the finding is cross-model confirmed. |
 | `OK` and **DISAGREE** | Sol argues the code is correct, the severity is inflated, or the claim is unsupported. | Mark the finding **CONTESTED**. Surface both verdicts and let the human decide. Do not silently drop it or force a merge. |
-| `OK` and **UNSURE** | The supplied context could not decide it. | Note it. The finding stands as the existing review already ruled. |
+| `OK` and **UNSURE** | The supplied context could not decide it. | Note it. The finding stands exactly as it already was. |
 | **UNAVAILABLE** | No second opinion was obtained. | Say so in one line with the `reason`. The finding stands unchanged. Never read this as agreement or disagreement. |
+
+## When to fire it
+
+Nothing fires this skill automatically. Invoke it when one claim is both blocking and
+genuinely arguable:
+
+- a **Critical** or **High** Pullfrog finding you are about to act on;
+- a load-bearing claim in your own analysis that decides the shape of a change;
+- a close call an audit skeptic left standing.
+
+Both decisive findings of the 2026-07-28/29 run were High, so a Critical-only scope would
+have skipped both. Weigh a `DISAGREE` on a Pullfrog finding harder than an `AGREE`, per
+the correlated-blind-spot note above.
 
 ## Standalone use
 
-For a `/second-opinion <claim>` invocation outside a review:
+For a `/second-opinion <claim>` invocation on its own:
 
 1. Build the dossier: the claim in one line, plus the relevant hunk when `$ARGUMENTS`
    names a `file:line` or snippet.
@@ -84,13 +96,3 @@ For a `/second-opinion <claim>` invocation outside a review:
 3. Report your read of the claim and Sol's verdict side by side. On `DISAGREE`, present
    both cases and recommend how to resolve them. On `UNAVAILABLE`, answer from your own
    analysis and note that the second opinion was not reachable.
-
-## Inside /pr-review
-
-`/pr-review` Phase 6 fires this on each **Critical** and **High** finding that survives
-the adversarial skeptic, in an unattended run exactly as in an interactive one.
-Both decisive findings of the 2026-07-28/29 run were High, so a Critical-only,
-interactive-only scope would have skipped both. The verdict contract is unchanged:
-`DISAGREE` tags the finding `CONTESTED` and shows both verdicts, `UNSURE` leaves the
-existing review in place, and `UNAVAILABLE` leaves the finding exactly as the skeptic
-left it.

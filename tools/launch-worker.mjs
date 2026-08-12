@@ -18,37 +18,20 @@ import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
-import { runBounded } from "./lib/bounded-process.mjs"
-import { bodyEditInvalidationPath, clearBodyEditInvalidation, persistBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
-       launch-worker.mjs --issue <ORB-N|#N|N> --review --repo <ui|api|landing> --prompt <file> [options]
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
-  --worktree <path>  the existing worktree the worker runs in (required, implementer only)
+  --worktree <path>  the existing worktree the worker runs in (required)
   --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
                      it. Only its path is handed to the worker, never its text (required)
-  --review           launch the REVIEWER instead of the implementer: the reviewer engine and the
-                     "review" model tier from .claude/orchestrator.json, running in the selected
-                     repository's primary main checkout. Refuses --worktree, because a reviewer inside the worktree reads the
-                     PR's own AGENTS.md, which is instructions written by the change under review
-  --repo <key>       required with --review. Selects the configured primary main checkout; a bare
-                     PR number is never resolved from the caller's cwd
   --measurement      this ticket's work IS measurement (Lighthouse, a benchmark, a profile), so it
                      legitimately writes no file for long stretches. Uses
                      timeouts.measurementNoProgressMinutes instead of noProgressMinutes. The hard
                      ceiling is unchanged, so a measurement worker that really is hung still dies
-  --codex-only       record that this is the Claude-quota-exhausted fallback run. It changes
-                     nothing about the implementer, which is the same model in both modes. With
-                     --review it DOES move the reviewer onto the worker engine's review tier,
-                     because Claude is the engine that is unavailable. That review is same-vendor
-                     and DEGRADED; the orchestrator says so, this launcher only resolves it
-  --command-timeout-seconds <s>
-                     hard bound for post-worker GitHub calls (default: 45)
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
   --help, -h         print this usage and exit 0
 
@@ -77,12 +60,8 @@ const argOf = (flag) => {
 const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
-const repoKey = argOf("--repo")
-const review = process.argv.includes("--review")
-const codexOnly = process.argv.includes("--codex-only")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
-const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 
 let issue
 try {
@@ -91,13 +70,8 @@ try {
 } catch (error) {
   fail(2, `${USAGE}\n\n--issue must be ORB-N, #N, or N: ${error.message}`)
 }
-if (review && worktreeArg) {
-  fail(2, `${USAGE}\n\n--review refuses --worktree: the reviewer runs in the main checkout, never in the worktree, so it cannot read the PR's own AGENTS.md as instructions`)
-}
-if (review && (!repoKey || repoKey.startsWith("--"))) fail(2, `${USAGE}\n\n--review requires --repo`)
-if (!review && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
+if (!worktreeArg || worktreeArg.startsWith("--")) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!promptArg || promptArg.startsWith("--")) fail(2, `${USAGE}\n\n--prompt is required`)
-if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
 
 let config
 try {
@@ -105,18 +79,14 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-if (review && typeof config.repos?.[repoKey] !== "string") fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
 
 /**
- * The pr-review contract is single-sourced in the UI repository and duplicated NOWHERE, so there
- * is no parity to assert before a review can launch. The previous two revisions of this gate each
- * halted every review in both repositories over byte differences in a duplicated markdown file
- * (2026-08-08: CRLF materialization, 76 tickets stood down; 2026-08-09: a mirror taken six minutes
- * before the canonical side changed, eight pull requests stalled). The reviewer never resolves the
- * contract from a checkout at all: its review order carries a rubric snapshot materialized from
- * orbit-ui-mobile origin/main, so a second committed copy has nothing left to protect.
+ * This launcher starts implementers only. The harness runs no reviewer of its own: Pullfrog reviews
+ * every pull request in GitHub Actions and publishes the `pullfrog-approval` required check, so the
+ * review verdict reaches readiness through branch protection rather than through a model session
+ * this process would have to launch, bound, and keep pinned to a head.
  */
-const runDirectory = review ? resolve(config.repos[repoKey]) : resolve(worktreeArg)
+const runDirectory = resolve(worktreeArg)
 if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
 const promptFile = resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
@@ -124,8 +94,7 @@ if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile
 
 const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
-  const what = review ? "review order" : "work order"
-  fail(2, `prompt file lives inside ${runDirectory}; a ${what} written into a repository gets committed. Write it to the session scratchpad instead`)
+  fail(2, `prompt file lives inside ${runDirectory}; a work order written into a repository gets committed. Write it to the session scratchpad instead`)
 }
 
 const gitIn = (args) => {
@@ -134,27 +103,14 @@ const gitIn = (args) => {
 }
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
 if (!branch) fail(2, `${runDirectory} is not a git worktree`)
-if (review && branch !== "main") fail(2, `--review --repo ${repoKey} requires the configured primary checkout on main; found ${branch} in ${runDirectory}`)
-/**
- * --codex-only is the CLAUDE-QUOTA-EXHAUSTED fallback, so its reviewer cannot be config.reviewer:
- * that names the one engine known to be unavailable whenever the flag is passed. It resolves the
- * worker engine at the review tier instead, which is Sol at xhigh against the implementer's high,
- * exactly as the skill's model-routing table specifies. Same-vendor review is DEGRADED and the
- * orchestrator must print that in its opening line and in the PR body, but a degraded review is
- * still a review, and a reviewer that cannot start is not.
- */
-const engineName = review && !codexOnly ? config.reviewer : config.worker
+const engineName = config.worker
 const engine = config.workers[engineName]
-if (!engine.command) fail(2, `.claude/orchestrator.json names ${review ? "reviewer" : "worker"} "${engineName}" but carries no command for it`)
+if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
 
-/**
- * One ticket, one worker, one model: "default" is the only tier an IMPLEMENTER ever resolves. The
- * reviewer is the other half, and it is why the "review" tier exists in the config at all: a
- * cross-vendor reviewer in a fresh session, which is the invariant step 8 of /orchestrate rests on.
- */
+/** One ticket, one worker, one model: "default" is the only tier this launcher ever resolves. */
 let invocation
 try {
-  invocation = resolveWorkerInvocation(engineName, engine, review ? "review" : "default")
+  invocation = resolveWorkerInvocation(engineName, engine, "default")
 } catch (error) {
   fail(2, error.message)
 }
@@ -178,24 +134,14 @@ const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
  * everything: a measurement worker that really is hung dies at hardCeilingMinutes, same as any other.
  */
 const measurementNoProgressMinutes = config.timeouts.measurementNoProgressMinutes
-if ((measurement || review) && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
-  fail(2, `--measurement and --review require timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
+if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
+  fail(2, `--measurement requires timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
 }
-/**
- * A REVIEWER gets the measurement window too, for the same reason with the opposite sign: its
- * progress fingerprint is log growth, and an engine that buffers its whole answer (claude --print)
- * writes ZERO log bytes until it finishes. Measured 2026-08-09: a 126-file review was killed
- * NO_PROGRESS at exactly ten minutes with a 0-byte log while the reviewer was working correctly;
- * the two smaller reviews that night survived only by finishing inside the window. A silent
- * reviewer and a hung reviewer are indistinguishable by construction, so the only honest bound for
- * one is the longer window, with the hard ceiling unchanged underneath.
- */
-const noProgressMinutes = measurement || review ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
+const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
 
-const workerPointer = (worktreePath, branch) => review
-  ? `Read ${promptFile} and execute it in full. That file is your complete review order for ${issue}. You are reviewing a diff, not the repository, and you do not fix what you find. Do not summarise the file back to me, start the review now.`
-  : `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+const workerPointer = (worktreePath, branch) =>
+  `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
 
 /**
  * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
@@ -260,11 +206,11 @@ mkdirSync(logDirectory, { recursive: true })
 const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, measurement, noProgressMinutes, review, repositoryKey: repoKey, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
-console.error(`starting the ${engineName} ${review ? "reviewer" : "worker"} for ${issue} in ${runDirectory}; log: ${logFile}`)
+console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)
 const startedAt = new Date().toISOString()
 const logFd = openSync(logFile, "a")
 /**
@@ -304,58 +250,15 @@ const child = spawn(executable, workerArgs, {
  * hook prove an unattended run has something live to wake it rather than take its word: a run that
  * ended a turn claiming "CI will wake me" with nothing scheduled ended the whole night on 2026-08-06.
  */
-registerWakeSource({ pid: process.pid, what: `${review ? "reviewer" : "worker"} ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
+registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
 
 let finishing = false
-const finish = async (outcome, exitCode) => {
+const finish = (outcome, exitCode) => {
   if (finishing) return
   finishing = true
-  if (codexOnly && !review) {
-    try {
-      const GH = process.env.GH_BIN || "gh"
-      const gh = async (args, input) => {
-        const result = await runBounded(GH, args, { cwd: runDirectory, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 16 * 1024 * 1024, input })
-        if (result.timedOut) throw new Error(`GitHub command timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
-        if (result.overflowed) throw new Error("GitHub command exceeded the 16 MiB output bound; the complete child process tree was terminated")
-        if (result.error || result.status !== 0) throw new Error((result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim())
-        return result.stdout
-      }
-      const listed = JSON.parse(await gh(["pr", "list", "--head", branch, "--json", "number,body,baseRefOid,headRefOid,statusCheckRollup"]))
-      if (Array.isArray(listed) && listed.length === 1) {
-        const body = withDegradedReviewFirst(listed[0].body)
-        if (body !== listed[0].body) {
-          const gitCommon = await runBounded("git", ["-C", runDirectory, "rev-parse", "--git-common-dir"], { cwd: runDirectory, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 1024 * 1024 })
-          if (gitCommon.timedOut || gitCommon.overflowed || gitCommon.error || gitCommon.status !== 0 || !gitCommon.stdout.trim()) {
-            throw new Error(`could not resolve the shared Git directory for PR-body invalidation: ${(gitCommon.stderr || gitCommon.stdout || gitCommon.error?.message || `exit ${gitCommon.status}`).trim()}`)
-          }
-          const markerPath = bodyEditInvalidationPath({ worktree: runDirectory, gitCommonDirectory: gitCommon.stdout.trim(), prNumber: listed[0].number })
-          const guardsWorkflowRuns = JSON.parse(await gh(["run", "list", "--workflow", "guards.yml", "--commit", listed[0].headRefOid, "--limit", "100", "--json", "databaseId,createdAt,headSha,status,conclusion"]))
-          persistBodyEditInvalidation({
-            path: markerPath,
-            prNumber: listed[0].number,
-            headSha: listed[0].headRefOid,
-            baseSha: listed[0].baseRefOid,
-            statusCheckRollup: listed[0].statusCheckRollup,
-            guardsWorkflowRuns,
-          })
-          try {
-            await gh(["pr", "edit", String(listed[0].number), "--body-file", "-"], body)
-          } catch (error) {
-            clearBodyEditInvalidation(markerPath)
-            throw error
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`could not enforce the degraded PR body marker: ${redactSecrets(error.message, githubAuth.secrets)}`)
-      outcome = "PR_BODY_ENFORCEMENT_FAILED"
-    }
-  }
-  // Body enforcement is part of the supervised launch. Keep the wake source registered until its
-  // bounded GitHub children have finished, otherwise an unattended queue can lose its only wakeup.
   clearWakeSource(process.pid)
   closeSync(logFd)
-  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, measurement, noProgressMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
+  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
   console.log(JSON.stringify(result, null, 2))
   process.exit(outcome === "EXITED" ? 0 : 1)
 }
@@ -398,24 +301,10 @@ const newestMtimeUnder = (directory) => {
 }
 
 /**
- * Both halves are needed for an implementer: one that edits without committing moves only the
- * mtime, and one that commits an already-written tree moves only HEAD.
- *
- * A REVIEWER moves neither. It writes its findings to the session scratchpad and never touches the
- * checkout it reads from, so the tree fingerprint is constant and the no-progress clock would kill
- * every review at ten minutes. Its log is the honest signal: it grows on every tool call.
+ * Both halves are needed: a worker that edits without committing moves only the mtime, and one that
+ * commits an already-written tree moves only HEAD.
  */
-const progressFingerprint = () => {
-  if (review) {
-    try {
-      const log = statSync(logFile)
-      return `${log.size}:${log.mtimeMs}`
-    } catch {
-      return "no-log-yet"
-    }
-  }
-  return `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(runDirectory)}`
-}
+const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(runDirectory)}`
 
 let outcome = "EXITED"
 const ceiling = setTimeout(() => {
@@ -475,11 +364,11 @@ child.on("error", (error) => {
   clearTimeout(ceiling)
   clearInterval(sampler)
   console.error(`could not start the ${engineName} worker: ${error.message}`)
-  void finish("SPAWN_FAILED", null)
+  finish("SPAWN_FAILED", null)
 })
 
 child.on("exit", (code) => {
   clearTimeout(ceiling)
   clearInterval(sampler)
-  void finish(outcome, code)
+  finish(outcome, code)
 })

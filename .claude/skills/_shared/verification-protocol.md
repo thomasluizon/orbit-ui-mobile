@@ -1,16 +1,15 @@
-# Orbit review/audit verification protocol
+# Orbit audit verification protocol
 
-**At a glance:** the shared reliability layer for every review and audit skill in this
-repo: `/pr-review`, `/audit-security`, `/audit-tests`, `/audit-performance`,
-`/audit-code-quality`, and `/prod-readiness`. Where `pr-review/rubric.md` defines *what*
-these skills look for, this file defines *how* they stay trustworthy: nothing in scope is
+**At a glance:** the shared reliability layer for every audit skill in this
+repo: `/audit-security`, `/audit-tests`, `/audit-performance`,
+`/audit-code-quality`, and `/prod-readiness`. Where each skill's rubric defines *what*
+it looks for, this file defines *how* they stay trustworthy: nothing in scope is
 silently skipped, no serious finding ships without surviving a challenge, and every run
 states what it did **not** do.
 
-One file, every skill reads it, so the reliability bar can never drift between them (the
-same no-drift principle as the shared rubric). Each consuming skill names, in its own
-pipeline, a **Verify** phase and a **Deferred ledger** section that apply the mechanisms
-below, and declares which it runs: a bounded diff needs less than a repo-wide sweep (see
+One file, every skill reads it, so the reliability bar can never drift between them. Each
+consuming skill names, in its own pipeline, a **Verify** phase and a **Deferred ledger**
+section that apply the mechanisms below, and declares which of them it runs (see
 **Calibration**).
 
 ---
@@ -23,10 +22,9 @@ into the inventory in §1 and where the ledger in §4 is delivered.
 **D10, the output is never a report file.** A report is a photograph that starts lying the
 day after it is written. The four `/audit-*` skills and `/prod-readiness` turn verified
 findings into **GitHub tickets behind one human approval gate**, via the shared pipeline in
-`.claude/skills/_shared/audit-to-tickets.md`. `/pr-review` delivers its findings against the
-diff, in session. None of the six persists a findings document, and none writes to
-`.claude/audits/`. Coverage, the Deferred ledger, and the convergence state are **provenance
-presented at the point of decision**, not an artifact left on disk.
+`.claude/skills/_shared/audit-to-tickets.md`. None of the five persists a findings document,
+and none writes to `.claude/audits/`. Coverage, the Deferred ledger, and the convergence
+state are **provenance presented at the point of decision**, not an artifact left on disk.
 
 **D11, only what no gate can check.** A finding a gate already fails on is noise, not
 signal. The mechanical layer therefore never enters the §1 inventory and never becomes a
@@ -49,8 +47,8 @@ at" bucket, and that bucket is the failure this whole protocol exists to kill.
   denominator entirely.
 - **Rank it worst-first** so the highest-blast-radius items are examined even if the run
   is cut short: by tier (security), critical-path (tests), scaling impact (performance),
-  blast-radius x churn (code-quality), or touched-surface severity (pr-review). A hot,
-  frequently-edited file outranks a stable leaf carrying the same smell.
+  or blast-radius x churn (code-quality). A hot, frequently-edited file outranks a stable
+  leaf carrying the same smell.
 - If the scope is too large for one pass, that is a Deferred-ledger entry naming exactly
   what was left and why, never an unstated gap.
 
@@ -91,16 +89,15 @@ sweep, it asks what it missed and goes again until a round comes back empty.
   **log the bound** so a cap never reads as completeness.
 - A critic that dies (rate-limit, API error) makes completeness **UNKNOWN**; it is never a
   dry round and never a clean pass.
-- Gated to **repo-wide** scopes. A bounded diff (`/pr-review`) is its own completeness
-  boundary: one completeness pass over the changed surface is enough, do not loop.
+- Gated to **repo-wide** scopes. A bounded scope is its own completeness boundary: one
+  completeness pass over it is enough, do not loop.
 
 ## 4. Deferred ledger, say what you did NOT do
 
 Every run carries an explicit **Deferred** ledger, presented with the findings at the point
-of decision: the approval gate for the audits and `/prod-readiness`, the review itself for
-`/pr-review`. Every item that was in scope but given no verdict, skipped for size,
-unverifiable in CI, out-of-scope by tier, past the adversarial-verify cap, is listed there
-with a one-line reason. **Silence reads as coverage**, so "not examined" is stated, never
+of decision, which is the approval gate for the audits and `/prod-readiness`. Every item
+that was in scope but given no verdict, skipped for size, unverifiable in CI, out-of-scope
+by tier, past the adversarial-verify cap, is listed there with a one-line reason. **Silence reads as coverage**, so "not examined" is stated, never
 disguised as "clean."
 
 - If the run bounded itself (top-N, sampled, no sibling repo in CI, capped findings), the
@@ -125,7 +122,6 @@ manufactures findings to look thorough has failed this protocol, not passed it.
 
 | Skill | Coverage contract | Adversarial verify | Loop-until-dry | Deferred ledger |
 |---|---|---|---|---|
-| `/pr-review` (bounded diff) | changed files, ranked by surface severity | each Critical/High before posting | one completeness pass, no loop | N/A dimensions + out-of-diff defers |
 | `/audit-security` (repo-wide) | attack surfaces, by tier | each Tier 1/2 finding | yes, until dry | Tier 3 + unswept surfaces |
 | `/audit-tests` (repo-wide) | critical paths, criticality-first | each Critical/High gap | yes, until dry | non-critical paths + policy-excluded suites |
 | `/audit-performance` (repo-wide) | hot zones, by scaling impact | each High finding | yes, until dry | enterprise-only tuning |

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression suite for the four surviving session hooks. Three layers:
+// Regression suite for the seven surviving session hooks. Three layers:
 //   1. Wiring: settings.json and the hooks directory must agree in BOTH
 //      directions. A hook deleted while settings.json still names it is exactly
 //      how this suite was broken on 2026-08-04, and nothing else catches it.
@@ -69,22 +69,6 @@ T("parity guidance: both one-sided failures name the complete narrow exception",
 T("parity guidance: obsolete platform-adapters-only help is gone", guardsWorkflow.includes("(platform adapters only)"), false)
 T("parity gate: parity:exempt remains the only label bypass", guardsWorkflow.includes("if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]'"), true)
 T("parity gate: both one-sided file-count failures remain enforced", (guardsWorkflow.match(/if \[ \"\$(?:web|mobile)\" -gt 0 \] && \[ \"\$(?:mobile|web)\" -eq 0 \]; then/g) ?? []).length, 2)
-
-const reviewSkill = readFileSync(join(repoRoot, ".claude", "skills", "pr-review", "SKILL.md"), "utf8")
-const reviewRubric = readFileSync(join(repoRoot, ".claude", "skills", "pr-review", "rubric.md"), "utf8")
-T("pr-review: contract changes permit only targeted sibling-primary consumer evidence", reviewSkill.includes("targeted read/search in the sibling repository's primary `main` checkout"), true)
-T("pr-review: every admitted round-two blocker remains OPEN in the verdict", reviewSkill.includes("no admitted round-2\n   blocker is OPEN") && reviewSkill.includes("Every newly admitted round-2 blocker is appended with `status: \"OPEN\"`"), true)
-T("pr-review: external fields require complete live shape evidence", reviewRubric.includes("### 13. External-interface evidence") && reviewRubric.includes("complete selected key/type shape") && reviewRubric.includes("High and Blocking"), true)
-T("pr-review: the rubric is materialized once from the single canonical source", reviewSkill.includes("show origin/main:.claude/skills/pr-review/rubric.md") && reviewSkill.includes("never reload the mutable working-tree copy in round 2") && reviewSkill.includes("single-sourced in orbit-ui-mobile"), true)
-T("pr-review: the downloaded diff is bracketed by exact OID reads", reviewSkill.includes("--json baseRefOid,headRefOid") && reviewSkill.includes("occurs after the diff download") && reviewSkill.includes("any change discards the diff"), true)
-T("pr-review: API repository-relative sources are classified as backend", reviewSkill.includes("**backend** is `src/` or `tests/` in\norbit-api"), true)
-T("pr-review: API review floor drops sub-P1 candidates before receipt or tickets", reviewSkill.includes("Medium/Low/Info candidates are discarded before the receipt and create no ticket"), true)
-T("pr-review: public selector never advertises ambiguous blank or bare-number scope", reviewSkill.includes("argument-hint: <ui#N | api#N | pr-url>") && reviewSkill.includes("blank scope is ambiguous"), true)
-T("pr-review: the prescribed fixer transition preserves round one and materializes both heads", reviewSkill.includes("single prescribed round-1-to-round-2 fixer head change keeps") && reviewSkill.includes("Fetch both exact reviewed head OIDs from `origin`"), true)
-T("pr-review: the snapshot frozen at launch survives a canonical rubric advance", reviewSkill.includes("a bar raised after\nthe review launched is a follow-up ticket against the rubric"), true)
-T("pr-review: the snapshot path is receipt information, never a proof obligation", reviewSkill.includes("rubricSnapshotPath") && reviewSkill.includes("not a\nproof obligation"), true)
-T("pr-review: old-client removals require shipped-fleet evidence", reviewRubric.includes("every\n  still-supported shipped client build") && reviewRubric.includes("current UI checkout alone is never fleet-safe evidence"), true)
-T("pr-review: backend timezone review includes background boundary-hour behavior", reviewRubric.includes("background schedule window, notification cutoff, or streak") && reviewRubric.includes("boundary-hour unit test"), true)
 
 // ---------------------------------------------------------------------------
 // 2. Rule units
@@ -292,14 +276,16 @@ T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wak
 // all rather than the file's existence being trusted.
 T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ state: sleeping, wakeSources: [{ pid: 1 }] })), true)
 T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isAlive: dead }), null)
-// A salvaged pull request that never re-entered step 7 is unfinished work, not a finished queue.
-// PR #690 was opened by hand and reported as done while two required checks were red and a bot
-// thread was unresolved, because opening it was treated as the end of salvage.
+// A salvaged pull request with no READY final-head receipt is unfinished work, not a finished
+// queue. PR #690 was opened by hand and reported as done while two required checks were red,
+// because opening it was treated as the end of salvage. Pullfrog now reviews every pull request in
+// GitHub Actions and `pullfrog-approval` is a required check, so the review verdict reaches the
+// receipt through the required contexts and needs no separate axis here.
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
-T("sleep-stop: an open pull request with no review verdict blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
+T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
-T("sleep-stop: a live reviewer allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
-T("sleep-stop: bare PR numbers are invalid run state and cannot clear readiness", blocks(stop({ state: { ...sleeping, remaining: [], unreviewedPullRequests: [690] } })), true)
+T("sleep-stop: a live worker allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+T("sleep-stop: bare PR numbers are invalid run state and cannot clear readiness", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [690] } })), true)
 T("sleep-stop: an append-only ledger survives a cleared pullRequests list", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests } })), true)
 T("sleep-stop: a mechanically READY ledger permits queue completion", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests }, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
 T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
