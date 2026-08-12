@@ -70,6 +70,7 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["android-emulator.mjs", "android-emulator"],
   ["capture-surfaces.mjs", "capture-surfaces"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-push-target.mjs", "check-push-target"],
@@ -116,6 +117,7 @@ for (const [file, module] of CASE_MODULES) {
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

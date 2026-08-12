@@ -22,7 +22,8 @@
     "lint": "expo lint",
     "lint:prune": "expo lint -- --prune-suppressions",
     "clean": "rm -rf .expo",
-    "android": "node scripts/run-android.js"
+    "android": "node scripts/run-android.js",
+    "android:apk:emulator": "node scripts/android-release-apk.js --emulator"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
