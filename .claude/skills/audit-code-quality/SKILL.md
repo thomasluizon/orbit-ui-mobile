@@ -1,7 +1,7 @@
 ---
 name: audit-code-quality
 description: >-
-  Repo-wide code-quality audit across both Orbit repos, opening one GitHub ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code; SOLID/clean-arch debt including branch-heavy state models, thin abstractions, giant files, cast/optionality churn, and wrong-layer logic; DRY-at-the-wrong-level; naming; and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
+  Repo-wide code-quality audit across both Orbit repos, opening one GitHub ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code; SOLID/clean-arch debt including branch-heavy state models, thin abstractions, giant files, cast/optionality churn, and wrong-layer logic; DRY-at-the-wrong-level; naming; and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff, which Pullfrog reviews in GitHub Actions.
 argument-hint: <path | workspace | repo | blank=both repos>
 ---
 
@@ -9,10 +9,10 @@ argument-hint: <path | workspace | repo | blank=both repos>
 
 **Input**: $ARGUMENTS
 
-Walk the **whole repo** (or a scoped path) against `rubric.md` — the *same* rubric
-`/pr-review` walks over a diff, and opens one GitHub ticket per verified debt (D10).
-`/pr-review` reviews what changed; this audits what *exists*. The output is executable
-tickets behind one approval gate, never a report that rots the day after it is written.
+Walk the **whole repo** (or a scoped path) against `rubric.md`, and open one GitHub ticket
+per verified debt (D10). Pullfrog reviews what one pull request changed; this audits what
+*exists*. The output is executable tickets behind one approval gate, never a report that
+rots the day after it is written.
 
 The fan-out, the adversarial verify, and the loop-until-dry run as the **`audit` dynamic
 workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
@@ -26,9 +26,8 @@ it isn't a finding.
 
 ## Phase 0 — Provenance & self-containment
 
-This skill **shares one rubric file** with `/pr-review`:
-`.claude/skills/pr-review/rubric.md` (the #228 no-drift requirement). The rubric's own
-dimensions were adapted at authoring time from
+This skill is the one consumer of `.claude/skills/pr-review/rubric.md`, and that file is the
+single place its dimensions live. Those dimensions were adapted at authoring time from
 the **code-review base on claudeskills.info** (https://claudeskills.info) and specialized
 to Orbit's ten Code Standards, the orbit-api hard rules, `eslint-rules/no-comments.cjs`,
 and `DESIGN.md` — see the rubric's Phase 0 note. That URL is the single WHY-with-URL the
@@ -66,8 +65,8 @@ Phase 4 runs).
 
 ### D11 scope: judgement only, never what a gate checks
 
-Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The shared rubric was written for
-`/pr-review` over a diff; as a standing audit this skill audits ONLY the rubric dimensions no
+Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The rubric was written for a
+review over a diff; as a standing audit this skill audits ONLY the rubric dimensions no
 gate enforces. It does NOT re-flag: comment policy (ESLint `local/no-comments` + Roslyn
 `ORBIT0001`), the enumerated spacing scale (`local/spacing-scale`), `console` / `any` bans,
 dashes, copy register, React correctness (`react-doctor.yml`), or any other `local/*` /
@@ -166,14 +165,14 @@ Code-quality-specific mapping into the 6.2 body:
 At the approval gate, present the Hotspots (the 3-5 highest-debt files) and per-area
 **coverage** (apps/web, apps/mobile, packages/shared, orbit-api) as provenance, plus the
 **Deferred ledger** (the workflow's `deferred`, dimensions deferred to `/audit-security` or
-`/pr-review`) and the convergence state.
+to a diff review) and the convergence state.
 
 ---
 
 ## Guardrails — do NOT
 
 - **Fork the rubric.** The workflow's finders read `.claude/skills/pr-review/rubric.md`;
-  never inline a copy of the dimensions here. One file, zero drift — the whole point of #228.
+  never inline a copy of the dimensions here. One file, zero drift.
 - **Re-derive security or contract findings.** Point at `/audit-security` and
   `/audit-tests`; stay in the quality lane.
 - **Re-run the workflow's analysis.** You turn its return into tickets; only re-invoke for a

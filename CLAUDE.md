@@ -4,11 +4,11 @@ Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android-o
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
-Something broken, stale, or wrong while you build or fix? Fix it in the same PR; never call it "out of scope" or "pre-existing." Exception: `/pr-review` and `/audit-*` report against their rubric, they don't remediate mid-pass. Do everything yourself (MCP servers, CLIs, APIs); involve me only when there is genuinely no way for you to do it.
+Something broken, stale, or wrong while you build or fix? Fix it in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric, it doesn't remediate mid-pass. Do everything yourself (MCP servers, CLIs, APIs); involve me only when there is genuinely no way for you to do it.
 
 ## The workflow (D1-D9)
 
-Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository (D1). Exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each ticket to its code repository. The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate <ticket-reference>` takes exactly one migrated `ORB-N` or GitHub `#N` ticket (D5), and the reviewer is never the session that wrote the code.
+Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository (D1). Exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each ticket to its code repository. The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate <ticket-reference>` takes exactly one migrated `ORB-N` or GitHub `#N` ticket (D5). The reviewer is never the session that wrote the code, because Pullfrog reviews every pull request from GitHub Actions.
 
 ## Cross-platform parity (MANDATORY)
 
@@ -42,6 +42,7 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 - Feature needs backend support? Update the sibling `orbit-api` repo in the same task; it has its own history, branches, and PRs.
 - Git: one feature/fix per PR (cross-repo work opens paired, cross-linked PRs); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push, enforced by `git-guardrails`); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch. **Admin merge is forbidden except inside the canonical `/merge-prs` skill after Thomas explicitly invokes it for an already-approved frozen PR set.** That skill may use only `gh pr merge --admin --squash --match-head-commit <sha>` under its exact-head preflight. Outside it, STOP and ask Thomas. Direct merge APIs remain forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, no direct GraphQL `mergePullRequest`.
+- Review: Pullfrog reviews every pull request in GitHub Actions and publishes `pullfrog-approval`, a required status check on `main` in both code repositories. Its review instructions live in the Pullfrog console, server-side, so no pull request can change the rules it is judged by. A red check means you fix the code.
 - Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After changing `tools/**` or `.claude/**`, RUN both harnesses: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. Review-only evidence is insufficient.
 - Testing: Vitest unit tests only, behavior tests for every feature, no new E2E against prod. `TESTING.md` is the catalog plus how to write one.
 
@@ -54,7 +55,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI spec; read before frontend work. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
-| `.claude/skills/pr-review/rubric.md` | Every review dimension; the only review authority. |
+| `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
 | `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
 | `.claude/rules/core.md` | Judgement auto-loaded on EVERY turn. |

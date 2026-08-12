@@ -1,6 +1,6 @@
 # Review & audit discipline
 
-**At a glance:** 11 standing rules for `/pr-review`, `/audit-*`, `/prod-readiness`, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
+**At a glance:** 11 standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review you must act on, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
 
 ## What a review is allowed to say
 
@@ -17,7 +17,7 @@ Label each as a judgement call. **A documented repo standard always overrides th
 ### 3. Separate the two axes; never merge or re-rank them
 Review along **Standards** (does it follow the repo's documented rules?) and **Spec** (does it do what the originating issue asked?). Report them side by side, name the worst finding *within* each axis, and never pick a single cross-axis winner.
 
-A change can pass one and fail the other. Merging them lets a clean-standards diff mask an implementation that built the wrong thing. (Recorded as a vault ADR; `/pr-review` runs five agents against one shared rubric, so the separation has to be deliberate.)
+A change can pass one and fail the other. Merging them lets a clean-standards diff mask an implementation that built the wrong thing. (Recorded as a vault ADR; a fan-out runs many agents against one shared rubric, so the separation has to be deliberate.)
 
 ## Running a fan-out
 

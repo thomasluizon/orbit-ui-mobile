@@ -186,7 +186,7 @@ export const cases = () => {
   )
 
   /**
-   * Raised by the Codex reviewer on this pull request (#682, P2): the failed-resolve branch told the
+   * Raised in review on this tool's own pull request (#682): the failed-resolve branch told the
    * caller to "retry the resolve alone" and the tool had no way to do it. --resolve-only closes that
    * gap WITHOUT weakening the rule, by asking GitHub whether a reply is really on the thread.
    */

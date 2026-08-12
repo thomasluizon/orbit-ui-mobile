@@ -30,12 +30,10 @@
 
 import { statSync } from "node:fs"
 
-import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -49,7 +47,6 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
                       reporting CI_PENDING (default: 0, report immediately)
   --command-timeout-seconds <s>
                       hard bound for each Git/GitHub child (default: 45)
-  --codex-only        reassert the exact degraded-review first line before verification
   --help, -h          print this usage and exit 0
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
@@ -75,7 +72,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--base", "--wait-ci", "--command-timeout-seconds", "--codex-only", "--help", "-h"])
+const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--base", "--wait-ci", "--command-timeout-seconds", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !knownFlags.has(value))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -89,7 +86,6 @@ const waitCiSeconds = Number(waitCiRaw)
 if (!Number.isFinite(waitCiSeconds) || waitCiSeconds < 0) fail(2, `${USAGE}\n\n--wait-ci requires a non-negative number of seconds`)
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
-const codexOnly = process.argv.includes("--codex-only")
 const safeValue = (value) => typeof value === "string" && value.length > 0 && !value.startsWith("-")
 if (!safeValue(issueArgument)) fail(2, `${USAGE}\n\n--issue requires ORB-N, #N, or N`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
@@ -340,55 +336,6 @@ const readRequiredContexts = async (state) => {
 }
 let requiredContexts = await readRequiredContexts(pullRequestState)
 
-const markerLocation = await git(["rev-parse", "--git-common-dir"])
-if (!markerLocation.ok || !markerLocation.stdout.trim()) fail(2, `git rev-parse --git-common-dir failed in ${worktree}: ${markerLocation.error ?? "empty output"}`)
-const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree, gitCommonDirectory: markerLocation.stdout.trim(), prNumber: pullRequest.number })
-const readGuardsWorkflowRuns = async () => {
-  const result = await run(GH, ["run", "list", "--workflow", "guards.yml", "--commit", pullRequestState.headRefOid, "--limit", "100", "--json", "databaseId,createdAt,headSha,status,conclusion"], githubCwd)
-  if (!result.ok) fail(2, `gh run list for Guards failed: ${result.error}`)
-  try {
-    return JSON.parse(result.stdout)
-  } catch {
-    fail(2, `gh run list for Guards returned unparseable JSON: ${result.stdout.trim().slice(0, 240) || "empty output"}`)
-  }
-}
-const readBodyEditMarker = () => {
-  let marker
-  try {
-    marker = readBodyEditInvalidation(bodyEditMarkerPath)
-  } catch (error) {
-    fail(2, error.message)
-  }
-  if (marker && marker.repositoryKey !== null && marker.repositoryKey !== repoKey) {
-    fail(2, `persisted PR-body CI invalidation has an invalid shape: ${bodyEditMarkerPath}`)
-  }
-  return marker
-}
-
-let bodyMutated = false
-if (codexOnly) {
-  const degradedBody = withDegradedReviewFirst(pullRequest.body)
-  if (degradedBody !== pullRequest.body) {
-    const guardsWorkflowRuns = await readGuardsWorkflowRuns()
-    persistBodyEditInvalidation({
-      path: bodyEditMarkerPath,
-      repositoryKey: repoKey,
-      prNumber: pullRequest.number,
-      headSha: pullRequestState.headRefOid,
-      baseSha: pullRequestState.baseRefOid,
-      statusCheckRollup: pullRequestState.statusCheckRollup,
-      guardsWorkflowRuns,
-    })
-    const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
-    if (!edited.ok) {
-      clearBodyEditInvalidation(bodyEditMarkerPath)
-      fail(2, `could not enforce degraded PR body marker on #${pullRequest.number}: ${edited.error}`)
-    }
-    pullRequest.body = degradedBody
-    bodyMutated = true
-  }
-}
-
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
  * looked: the header above promises that every check reads a GitHub artifact, and CI status was the
@@ -455,51 +402,20 @@ const readRollup = () => {
   return { total: newestByName.size, failing, pending }
 }
 
-const applyBodyEditInvalidation = async (rollup) => {
-  const marker = readBodyEditMarker()
-  if (!marker) return rollup
-  if (marker.headSha !== pullRequestState.headRefOid || marker.baseSha !== pullRequestState.baseRefOid) {
-    clearBodyEditInvalidation(bodyEditMarkerPath)
-    return rollup
-  }
-
-  const pending = pendingBodyEditGuards(marker, await readGuardsWorkflowRuns())
-    .map((name) => checkMetadata(`post-edit ${name}`, { status: "NOT_REGISTERED", conclusion: null }))
-
-  if (pending.length === 0) {
-    clearBodyEditInvalidation(bodyEditMarkerPath)
-    return rollup
-  }
-  return { ...rollup, pending: [...rollup.pending, ...pending] }
-}
-
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
 const sleep = (seconds) => {
   const buffer = new Int32Array(new SharedArrayBuffer(4))
   Atomics.wait(buffer, 0, 0, seconds * 1000)
 }
 
-let rollup = await applyBodyEditInvalidation(readRollup())
-if (bodyMutated) {
-  const bodyEditPending = checkMetadata("PR body edited; rerun delivery after edited-event checks register", { status: "NOT_REGISTERED", conclusion: null })
-  checks.ci = {
-    pass: false,
-    observed: `${rollup.total} checks observed before the required post-edit delivery rerun`,
-    failing: rollup.failing,
-    pending: [...rollup.pending, bodyEditPending],
-    requiredContexts,
-    waitedSeconds: 0,
-    invalidatedByBodyEdit: true,
-  }
-  emit("CI_PENDING")
-}
+let rollup = readRollup()
 const deadline = Date.now() + waitCiSeconds * 1000
 while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   pullRequestState = await readPullRequestState()
   await validatePullRequestState(pullRequestState)
   requiredContexts = await readRequiredContexts(pullRequestState)
-  rollup = await applyBodyEditInvalidation(readRollup())
+  rollup = readRollup()
 }
 
 checks.ci = {

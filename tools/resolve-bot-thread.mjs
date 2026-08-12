@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Reply to ONE Codex review thread and then resolve it. Never the other way round, and never the
+ * Reply to ONE Pullfrog review thread and then resolve it. Never the other way round, and never the
  * resolve alone.
  *
  * A resolved thread with no reply is worse than an open one: it reads as handled and records no
  * reason, so a later reader cannot tell a fix from a shrug. Measured 2026-08-05, PR #681 is merged
- * with a P2 thread still open and `isOutdated=true`, which means the code moved underneath it and
- * the record will never say whether it was addressed.
+ * with a review thread still open and `isOutdated=true`, which means the code moved underneath it
+ * and the record will never say whether it was addressed.
  *
  * So the ordering is a gate, not a convention: the reply is posted first, and the resolve is
  * attempted ONLY after the reply is confirmed. A failed or empty reply exits non-zero having
@@ -220,7 +220,7 @@ if (resolveOnly) {
     console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: true, isResolved: true, note: "already resolved; nothing to do" }, null, 2))
     process.exit(0)
   }
-  /** The bot's own comment is the first, so a reply is anything beyond it. */
+  /** Pullfrog's own comment is the first, so a reply is anything beyond it. */
   if ((thread.comments?.totalCount ?? 0) < 2) {
     fail(2, `${threadId} carries no reply, so --resolve-only would close it with no stated reason. Send a reply body on stdin instead`)
   }

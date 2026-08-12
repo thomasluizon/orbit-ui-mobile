@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -55,7 +55,7 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
 const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
   JSON.stringify({ statusCheckRollup: nodes })
 
-const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null, workflowRuns = []) => {
+const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -74,7 +74,6 @@ const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft: false, ...state }) },
     { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required }) },
-    { match: "run list --workflow guards.yml", stdout: JSON.stringify(workflowRuns) },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
 }
@@ -276,42 +275,25 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: ghPlan(JSON.stringify([numericPullRequest])) },
   )
 
-  const marker = stage("verify-delivery/degraded-edit-not-called", "pending")
-  const codexBody = pullRequest(pushed.head)
-  codexBody.body = `Implements ${ISSUE}.`
-  const codexOnly = check(
-    TOOL,
-    "codex-only delivery restores the degraded first line and invalidates pre-edit CI",
-    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"invalidatedByBodyEdit": true/ },
-    { path: testedToolPath, env: orcaEnv([
-      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([codexBody]) },
-      { match: "pr edit 200 --body-file -", stdout: "", removePath: marker },
-      { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
-      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
-      { match: "run list --workflow guards.yml", stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
-      { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
-    ]) },
-  )
-  T(`${TOOL}: degraded body enforcement invoked the PR edit before delivery`, !existsSync(marker), codexOnly.stdout || codexOnly.stderr)
-  const markedBody = { ...codexBody, body: `DEGRADED: same-vendor review\n\nImplements ${ISSUE}.\n` }
+  /**
+   * Pullfrog publishes `pullfrog-approval`, which branch protection requires on `main`, so the
+   * review verdict reaches this tool as one more required context. An approval the rollup does not
+   * carry is CI_PENDING, and a delivery that carries it is DELIVERED like any other green check.
+   */
+  const approval = { __typename: "StatusContext", context: "pullfrog-approval", state: "SUCCESS" }
   check(
     TOOL,
-    "the next codex-only invocation cannot reuse pre-edit checks before replacements register",
-    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only", "--wait-ci", "1"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"post-edit Guards workflow"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, null, [{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
+    "a required pullfrog-approval that has not registered is CI_PENDING",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(), { behind_by: 0 }, ["Lint", "pullfrog-approval"]) },
   )
   check(
     TOOL,
-    "a later codex-only invocation settles after the replacement Guards checks register",
-    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
+    "a SUCCESS pullfrog-approval alongside the other required checks is DELIVERED",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2099-08-08T10:00:00Z" }]), { behind_by: 0 }, null, [
-      { databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
-      { databaseId: 11, createdAt: "2099-08-08T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
-    ]) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }, approval]), { behind_by: 0 }, ["Lint", "pullfrog-approval"]) },
   )
 
   /**

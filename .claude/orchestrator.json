@@ -1,6 +1,5 @@
 {
   "worker": "codex",
-  "reviewer": "claude",
   "workers": {
     "codex": {
       "command": "codex",
@@ -14,24 +13,6 @@
         "default": {
           "model": "gpt-5.6-sol",
           "args": ["-c", "model_reasoning_effort=\"high\""]
-        },
-        "review": {
-          "model": "gpt-5.6-sol",
-          "args": ["-c", "model_reasoning_effort=\"xhigh\""]
-        }
-      }
-    },
-    "claude": {
-      "command": "claude",
-      "args": ["--permission-mode", "bypassPermissions", "--print"],
-      "models": {
-        "default": {
-          "model": "opus",
-          "args": ["--effort", "high"]
-        },
-        "review": {
-          "model": "opus",
-          "args": ["--effort", "high"]
         }
       }
     }
@@ -43,10 +24,8 @@
     "pollSeconds": 60
   },
   "caps": {
-    "reviewRounds": 2,
     "parallelTickets": 3,
-    "botReviewWaitSeconds": 900,
-    "connectorFixAttempts": 3,
+    "reviewFixAttempts": 3,
     "workerLogMegabytes": 32
   },
   "tickets": {

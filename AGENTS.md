@@ -86,3 +86,7 @@ you rely on them; that is the whole point of this section.
   `mergePullRequest` mutation.
 - Never `git worktree remove --force`: on Windows it follows a junction and deletes the link
   target. Remove the junctions first, then remove the worktree without `--force`.
+- Never try to satisfy the reviewer by editing a repository file. Pullfrog reviews every pull
+  request in GitHub Actions and reads its instructions from the Pullfrog console, server-side, so
+  no commit on your branch can change them. Its `pullfrog-approval` status check is required on
+  `main` in both code repositories. A red check means you fix the code it names.

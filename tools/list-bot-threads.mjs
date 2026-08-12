@@ -1,22 +1,21 @@
 #!/usr/bin/env node
 /**
- * Report what the GitHub Codex reviewer said about ONE pull request, and make "it never reviewed"
- * a verdict the caller can branch on rather than a silence it reads as approval.
+ * Report what Pullfrog said about ONE pull request, and make "it never reviewed" a verdict the
+ * caller can branch on rather than a silence it reads as approval.
  *
- * /orchestrate hands Thomas a pull request it calls reviewed. A second reviewer reviews that same
- * pull request and nothing in the harness has ever read it. Measured 2026-08-05 across PRs #676,
- * #680 and #681: eight inline threads opened, eight still unresolved, all three merged.
+ * Pullfrog is the only reviewer of an Orbit pull request. It runs in GitHub Actions, it reviews a
+ * pull request when the pull request opens, and it re-reviews after every push. /orchestrate reads
+ * this tool to clear that review: it fixes the blocking findings, files the rest as tickets, and
+ * replies to every thread it did not fix.
  *
  * Two shapes make a naive reading wrong, and both are handled here rather than documented:
  *
  *   1. An empty thread list is ambiguous between "reviewed, found nothing" and "has not reviewed
- *      yet". The verdict is therefore derived from a current-head bot Review or measured clean
- *      issue comment, never from the thread count.
- *   2. A body-level CHANGES_REQUESTED opens no review thread at all, so zero unresolved threads is
+ *      yet". The verdict is therefore derived from a current-head Pullfrog review, never from the
+ *      thread count. Measured on pull request 711 (2026-08-12): the clean pass arrived as a review
+ *      with the state APPROVED and opened no thread at all.
+ *   2. A body-level CHANGES_REQUESTED opens no review thread either, so zero unresolved threads is
  *      not proof of a clean pull request. Both surfaces are read in one query.
- *
- * A draft pull request attracts no Codex review ever, so waiting on one burns the whole budget and
- * then reports a reviewer that was never going to run. Draft is checked before the clock starts.
  *
  * It reads. It never replies, resolves, or fixes: tools/resolve-bot-thread.mjs owns the mutations.
  */
@@ -27,45 +26,54 @@ import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifie
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const BOT_LOGIN = "chatgpt-codex-connector"
+/**
+ * The login as GraphQL spells it, because this tool reads GraphQL and nothing else. The two GitHub
+ * APIs disagree on the same identity, and both spellings were read on 2026-08-12:
+ * `gh api repos/thomasluizon/orbit-ui-mobile/pulls/711/reviews` prints `pullfrog[bot]`, while the
+ * GraphQL `author.login` of that same review prints `pullfrog` with the typename `Bot`. A login
+ * that never matches makes this tool report NO_REVIEW forever, so the GraphQL spelling wins.
+ */
+const BOT_LOGIN = "pullfrog"
 
 const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|landing> | URL) [options]
 
   --pr <number|url>   the pull request to read (required)
   --repo <key>        required for a bare number; a full PR URL selects its repository
-  --wait-seconds <n>  how long to wait for the bot review to land (default 900, 0 polls once)
+  --wait-seconds <n>  how long to wait for the review to land (default 900, 0 polls once)
   --poll-seconds <n>  gap between polls (default 30)
   --command-timeout-seconds <n>  hard bound for each gh child (default 45)
-  --bot <login>       reviewer login to filter on (default ${BOT_LOGIN})
-  --no-request        do NOT post "@codex review" first; wait for a review that
-                      may never have been triggered (default: request it)
+  --bot <login>       reviewer login to filter on (default ${BOT_LOGIN}); a trailing [bot] is dropped
+  --no-request        do NOT post "@pullfrog review" first; wait only for the review Pullfrog
+                      starts on its own (default: post the request)
   --help, -h          print this usage and exit 0
 
-The bot reviews on open, on ready-for-review, and on an explicit "@codex review" comment. Whether it
-re-reviews after a plain push is NOT reliable (#676 never did, #682 did), so a review is accepted
-only when its commit is the current head. 900 covers the longest lag observed on a real pull request
-(564s on #676) with margin.
+Pullfrog reviews a pull request when it opens and re-reviews after every push, so a push alone is a
+reliable trigger. A review still counts only when its commit is the current head. The 900-second
+default is a carry-over bound that nobody has measured for Pullfrog. The one timing taken so far is
+148 seconds, from the request comment on pull request 711 to the submitted review of a one-file diff
+(2026-08-12).
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, threads[].
 Errors go to stderr.
 
-  verdict  REVIEWED      a bot Review or clean issue comment OF THE CURRENT HEAD exists;
+  verdict  REVIEWED      a Pullfrog review OF THE CURRENT HEAD exists;
                          threads[] may be empty (clean)
-           CHANGES_REQUESTED  a bot review of the current head exists and requests changes
-           DRAFT         the pull request is a draft, so no review will ever arrive
-           NO_REVIEW     no bot review of this head inside the budget. staleReviewCommit names
+           CHANGES_REQUESTED  a review of the current head exists and requests changes
+           NO_REVIEW     no review of this head inside the budget. staleReviewCommit names
                          the commit an older review WAS given on, when there is one
 
 A review is evidence about the commit it was given on and nothing else. One pinned to an older
-head is NOT accepted: after any push the newest bot review still names the old commit, and taking
-it would report REVIEWED for code the bot never saw.
+head is NOT accepted: after a push the newest review names the old commit until the re-review
+lands, and taking it would report REVIEWED for code Pullfrog never saw.
+
+A draft pull request is read exactly like any other one, because Pullfrog reviews drafts too.
 
   threads[]  id, isResolved, isOutdated, path, line, severity, claim
 
-Severity is parsed from the P1/P2/P3 badge the bot stamps in the comment body. A thread whose
-severity cannot be parsed is reported as P1: an unreadable severity is never downgraded.
+Pullfrog publishes no severity, so every thread reports P1. The caller treats each finding as
+blocking until the caller triages it.
 
-exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW or DRAFT, 2 usage or environment error`
+exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, 2 usage or environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -109,7 +117,12 @@ const pullRequest = urlMatch?.[3] ?? pullRequestArg
 const waitSeconds = numberFlag("--wait-seconds", 900)
 const pollSeconds = numberFlag("--poll-seconds", 30, { min: 1 })
 const commandTimeoutSeconds = numberFlag("--command-timeout-seconds", 45, { min: 1 })
-const botLogin = argOf("--bot") ?? BOT_LOGIN
+/**
+ * The `[bot]` suffix is stripped at the boundary because REST and GraphQL spell the same reviewer
+ * differently, and a caller who copied the login out of a REST response is right about the identity
+ * and wrong only about the spelling. Stripping it here means the comparisons below stay exact.
+ */
+const botLogin = (argOf("--bot") ?? BOT_LOGIN).replace(/\[bot\]$/, "")
 if (!botLogin || botLogin.startsWith("-")) fail(2, `${USAGE}\n\n--bot requires a login`)
 const requestReview = !process.argv.includes("--no-request")
 
@@ -154,7 +167,6 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
     pullRequest(number:$pr){
       number isDraft baseRefOid headRefOid
       reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
-      comments(last:100){nodes{author{login} body createdAt url}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
         nodes{
@@ -200,7 +212,7 @@ const readPullRequest = async () => {
     const pageInfo = node.reviewThreads?.pageInfo
     if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
     if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
-    console.error(JSON.stringify({ event: "CODEX_THREAD_PAGE_READ", pr: Number(pullRequest), page, headRefOid: node.headRefOid, hasNextPage: pageInfo.hasNextPage }))
+    console.error(JSON.stringify({ event: "REVIEW_THREAD_PAGE_READ", pr: Number(pullRequest), page, headRefOid: node.headRefOid, hasNextPage: pageInfo.hasNextPage }))
     return node
   }
 
@@ -225,17 +237,18 @@ const readPullRequest = async () => {
 }
 
 /**
- * The badge is shields.io markup in the comment body, confirmed on #681:
- * ![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat). Failing closed to P1 is
- * deliberate: a severity nobody can read is the one most likely to matter.
+ * Pullfrog publishes no severity. Pull request 711 is the only Pullfrog review in this repository
+ * so far (2026-08-12), it approved, and it opened no thread that a severity could be read from, so
+ * there is no measured shape to parse. Every finding therefore reports P1: the caller triages it or
+ * treats it as blocking, and nothing is downgraded by a parser written against a guess.
  */
-const severityOf = (body) => (typeof body === "string" && /\bP([123])\b/.test(body) ? `P${/\bP([123])\b/.exec(body)[1]}` : "P1")
+const UNTRIAGED_SEVERITY = "P1"
 
 /**
- * The first line of prose after the badge, so a caller can triage without refetching the body. The
- * bot wraps its badge in nested <sub> tags, so stripping markdown alone leaves "<sub><sub> </sub>"
- * as the "first line"; HTML tags go too, and the line is only accepted once something readable
- * survives.
+ * The first line of prose in the thread, so a caller can triage without refetching the body.
+ * Pullfrog writes markdown and embeds raw HTML: its review body on pull request 711 carried
+ * `<sup>` and `<picture>` tags plus an HTML comment block of review metadata. Markdown markup and
+ * HTML tags are both stripped, and the line is only accepted once something readable survives.
  */
 const claimOf = (body) => {
   if (typeof body !== "string") return ""
@@ -293,112 +306,73 @@ const startedAt = Date.now()
 const deadline = Date.now() + waitSeconds * 1000
 await awaitGraphqlBudget(deadline)
 let node = await readPullRequest()
-progress("CODEX_REVIEW_STATE_READ", node, startedAt, deadline)
-
-if (node.isDraft) {
-  console.log(JSON.stringify({ pr: Number(pullRequest), isDraft: true, verdict: "DRAFT", reviewedAt: null, reviewState: null, threads: [], note: "a draft pull request attracts no Codex review; mark it ready for review" }, null, 2))
-  process.exit(1)
-}
+progress("REVIEW_STATE_READ", node, startedAt, deadline)
 
 /**
  * A review is only evidence about the commit it was given on.
  *
- * Whether the bot re-reviews after a push is NOT reliable, and both shapes are measured: PR #676
- * reviewed once and never again while commits kept landing, and PR #682 reviewed the old head, took
- * a push, and reviewed the new head seven minutes later. So the newest bot review may name the OLD
- * commit, and accepting it would report REVIEWED for code the bot never saw. That is the same class
- * of defect this tool exists to remove: the harness reading a stale approval as a current one.
- *
- * Comparing the commit is what makes the answer correct under either behaviour. A review whose
- * commit is not the head does not count, and the wait continues.
+ * Pullfrog re-reviews after every push, so between a push and the next review the newest review
+ * still names the OLD commit. Accepting it would report REVIEWED for code Pullfrog never saw, which
+ * is the very defect this tool exists to remove: the harness reading a stale approval as a current
+ * one. Comparing the commit is what makes the answer correct. A review whose commit is not the head
+ * does not count, and the wait continues.
  */
-const CONNECTOR_EVIDENCE_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
+const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
 const botReviewOf = (payload) =>
   (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
     .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
     // Confirmed live ReviewState enum: APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING.
-    // A pending or dismissed review is not a completed connector pass and must never become evidence.
-    .filter((review) => CONNECTOR_EVIDENCE_STATES.has(review.state))
+    // APPROVED is the state Pullfrog used for its clean pass on pull request 711 (2026-08-12). A
+    // pending or dismissed review is not a completed pass and must never become evidence.
+    .filter((review) => COMPLETED_REVIEW_STATES.has(review.state))
     .at(-1)
-
-const CLEAN_COMMENT = "Codex Review: Didn't find any major issues."
-const connectorCommentLogins = new Set(botLogin.endsWith("[bot]") ? [botLogin, botLogin.slice(0, -5)] : [botLogin, `${botLogin}[bot]`])
-// The live connector issue-comment shape reports exactly 10 hex characters. Accepting a shorter
-// unmeasured prefix could match more than one commit; accepting a guessed longer shape would violate
-// the repository's external-interface rule.
-const commitFromComment = (comment) => /\*\*Reviewed commit:\*\*\s*`([0-9a-f]{10})`(?![0-9a-f])/i.exec(comment?.body ?? "")?.[1] ?? null
-const cleanCommentOf = (payload) =>
-  (payload.comments?.nodes ?? [])
-    .filter((comment) => connectorCommentLogins.has(comment.author?.login))
-    .map((comment) => ({ ...comment, reportedCommit: commitFromComment(comment) }))
-    .filter((comment) => comment.body?.includes(CLEAN_COMMENT))
-    .filter((comment) => comment.reportedCommit && payload.headRefOid?.toLowerCase().startsWith(comment.reportedCommit.toLowerCase()))
-    .at(-1)
-
-const staleCommentOf = (payload) =>
-  (payload.comments?.nodes ?? [])
-    .filter((comment) => connectorCommentLogins.has(comment.author?.login))
-    .map((comment) => ({ ...comment, reportedCommit: commitFromComment(comment) }))
-    .filter((comment) => comment.body?.includes(CLEAN_COMMENT) && comment.reportedCommit)
-    .at(-1)
-
-const evidenceOf = (payload) => {
-  const review = botReviewOf(payload)
-  if (review?.state === "CHANGES_REQUESTED") return { kind: "REVIEW", value: review }
-  const comment = cleanCommentOf(payload)
-  if (!review) return comment ? { kind: "ISSUE_COMMENT", value: comment } : null
-  if (!comment) return { kind: "REVIEW", value: review }
-  return Date.parse(comment.createdAt) > Date.parse(review.submittedAt) ? { kind: "ISSUE_COMMENT", value: comment } : { kind: "REVIEW", value: review }
-}
 
 /** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
-const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && CONNECTOR_EVIDENCE_STATES.has(review.state)).at(-1)
+const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && COMPLETED_REVIEW_STATES.has(review.state)).at(-1)
 
-let evidence = evidenceOf(node)
+let review = botReviewOf(node)
 
 /**
  * Ask BEFORE waiting, not after.
  *
- * The bot reviews on open, on ready-for-review, and on an explicit request, and a plain push is not
- * a reliable trigger: #676 took one review and never re-reviewed while commits kept landing. Waiting
- * first and asking afterwards spends the entire budget on a review that may never have been
- * triggered, then starts a second budget from zero. Measured on #685: 900 seconds elapsed to
- * NO_REVIEW, the request was then posted by hand, and the review arrived within minutes.
+ * Pullfrog starts a review by itself when a pull request opens and after every push, so the request
+ * is normally redundant. It stays for the two cases that automation does not cover: a pull request
+ * that was already open before auto-review was turned on, and a re-review wanted without a push.
+ * The trigger is measured, not assumed: on pull request 711 the comment "@pullfrog review" landed at
+ * 16:01:48Z on 2026-08-12, the workflow run started six seconds later, and the review was submitted
+ * at 16:04:16Z. Pass --no-request to suppress it.
  *
  * The request is gated on `botReviewOf` returning nothing, which is already "no review pinned to the
- * CURRENT head", so a pull request the bot has genuinely reviewed is never nagged.
+ * CURRENT head", so a pull request Pullfrog has genuinely reviewed is never nagged.
  */
 let requested = false
-if (requestReview && !evidence && waitSeconds > 0) {
-  await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@codex review"], `gh pr comment ${pullRequest}`)
+if (requestReview && !review && waitSeconds > 0) {
+  await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@pullfrog review"], `gh pr comment ${pullRequest}`)
   requested = true
-  progress("CODEX_REVIEW_REQUESTED", node, startedAt, deadline)
+  progress("REVIEW_REQUESTED", node, startedAt, deadline)
 }
 
-while (!evidence && Date.now() < deadline) {
+while (!review && Date.now() < deadline) {
   await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
   node = await readPullRequest()
-  evidence = evidenceOf(node)
-  progress(evidence ? "CODEX_REVIEW_ARRIVED" : "CODEX_REVIEW_WAITING", node, startedAt, deadline)
+  review = botReviewOf(node)
+  progress(review ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
 }
 
 const threads = (node.reviewThreads?.nodes ?? [])
   .filter((thread) => thread.comments?.nodes?.[0]?.author?.login === botLogin)
-  .map((thread) => {
-    const body = thread.comments.nodes[0].body
-    return {
-      id: thread.id,
-      isResolved: Boolean(thread.isResolved),
-      isOutdated: Boolean(thread.isOutdated),
-      path: thread.path ?? null,
-      line: thread.line ?? null,
-      severity: severityOf(body),
-      claim: claimOf(body),
-    }
-  })
+  .map((thread) => ({
+    id: thread.id,
+    isResolved: Boolean(thread.isResolved),
+    isOutdated: Boolean(thread.isOutdated),
+    path: thread.path ?? null,
+    line: thread.line ?? null,
+    severity: UNTRIAGED_SEVERITY,
+    claim: claimOf(thread.comments.nodes[0].body),
+  }))
 
 /**
  * This tool is the ONLY producer of review-thread node ids in the harness, so it is the only place
@@ -415,24 +389,21 @@ recordObservedIdentifiers(threads.map((thread) => thread.id), {
   runIdentifier: currentRunIdentifier(),
 })
 
-if (!evidence) {
+if (!review) {
   const stale = staleReviewOf(node)
-  const staleComment = staleCommentOf(node)
   /**
    * The note distinguishes "asked and still absent" from "never asked", because the two justify
    * different actions and only the first is evidence about the reviewer rather than about us.
    */
   const asked = requested
-    ? '"@codex review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
-    : 'no "@codex review" was posted on this run, so the reviewer may simply never have been triggered'
+    ? '"@pullfrog review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
+    : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
   const note = stale
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
-    : staleComment
-      ? `the newest ${botLogin} clean issue comment reports commit ${staleComment.reportedCommit}, not head ${node.headRefOid}; it never saw this code. ${asked}`
     : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? staleComment?.reportedCommit ?? null, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -440,27 +411,23 @@ if (!evidence) {
   process.exit(1)
 }
 
-const review = evidence.value
-const verdict = evidence.kind === "REVIEW" && review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
+const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
 console.log(
   JSON.stringify(
     {
       pr: Number(pullRequest),
-      isDraft: false,
+      isDraft: Boolean(node.isDraft),
       verdict,
-      reviewedAt: evidence.kind === "REVIEW" ? (review.submittedAt ?? null) : (review.createdAt ?? null),
-      reviewState: evidence.kind === "REVIEW" ? (review.state ?? null) : "CLEAN_COMMENT",
-      reviewSource: evidence.kind,
-      reviewUrl: evidence.kind === "ISSUE_COMMENT" ? (review.url ?? null) : null,
-      reportedCommit: evidence.kind === "ISSUE_COMMENT" ? review.reportedCommit : review.commit.oid,
+      reviewedAt: review.submittedAt ?? null,
+      reviewState: review.state ?? null,
       reviewedCommit: node.headRefOid,
       baseRefOid: node.baseRefOid,
       headRefOid: node.headRefOid,
       /**
        * A body-level CHANGES_REQUESTED carries its whole complaint here and opens no thread, so
        * without the body the caller learns it is blocked and nothing about why. Only carried for
-       * that verdict: on a COMMENTED review the body is the bot's boilerplate preamble and the
-       * threads hold the findings.
+       * that verdict: on an approving or commenting review the body is Pullfrog's summary of the
+       * diff plus its metadata block, and the threads hold the findings.
        */
       reviewBody: verdict === "CHANGES_REQUESTED" ? (review.body ?? "").trim().slice(0, 4000) : null,
       threadsComplete: node.reviewThreads.complete === true,

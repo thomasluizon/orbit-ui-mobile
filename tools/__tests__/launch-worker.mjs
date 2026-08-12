@@ -1,6 +1,5 @@
-import { spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 
@@ -101,7 +100,7 @@ export const cases = () => {
       TOOL,
       "--measurement refuses when the config declares no measurement cap, rather than falling back",
       ["--issue", "ORB-201", "--worktree", noMeasurementCap.worktree, "--prompt", noMeasurementCap.prompt, "--measurement", "--dry-run"],
-      { status: 2, stderr: /require timeouts\.measurementNoProgressMinutes/ },
+      { status: 2, stderr: /requires timeouts\.measurementNoProgressMinutes/ },
       { path: noMeasurementCap.path },
     )
   }
@@ -115,8 +114,8 @@ export const cases = () => {
   check(TOOL, "refuses a prompt file that does not exist", ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", join(fixture.base, "absent.md")], { status: 2, stderr: /prompt file not found/ }, options)
   check(TOOL, "refuses an empty prompt file", ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", stage("launch-worker/empty-prompt.md", "")], { status: 2, stderr: /prompt file is empty/ }, options)
 
-  /** A work order written into the tree becomes part of the worker's own diff, and then the
-   * reviewer reads instructions authored by the change under review. */
+  /** A work order written into the tree becomes part of the worker's own diff, so the pull request
+   * ships the prompt and Pullfrog reviews it as if it were product code. */
   const insidePrompt = join(fixture.worktree, "work-order.md")
   writeFileSync(insidePrompt, "the work order, verbatim\n")
   check(
@@ -140,7 +139,7 @@ export const cases = () => {
     { path: unresolvable.path },
   )
 
-  const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run", "--codex-only"], { status: 0, stdout: /"dryRun": true/ }, options)
+  const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
   let plan = null
@@ -169,74 +168,6 @@ export const cases = () => {
     plan !== null && plan.branch === "main" && plan.args.at(-1).includes(fixture.prompt) && !plan.args.at(-1).includes("the work order, verbatim"),
     JSON.stringify(plan?.args?.at(-1)),
   )
-  T(`${TOOL}: --codex-only is recorded and changes no model`, plan !== null && plan.codexOnly === true && plan.model === engine.models.default.model, JSON.stringify(plan))
-
-  const exits = launch("exits", launchConfig(stubEngine(IMMEDIATE)))
-  const exited = check(
-    TOOL,
-    "a worker that exits on its own is reported EXITED with its code",
-    ["--issue", "ORB-201", "--worktree", exits.worktree, "--prompt", exits.prompt],
-    { status: 0, stdout: /"exitCode": 0,\s*"outcome": "EXITED"/ },
-    { path: exits.path, env: githubAuthEnv() },
-  )
-  const exitedLog = discardLog(exited.stdout)
-  T(
-    `${TOOL}: a real launch writes its log outside the worktree it is about to hand back`,
-    typeof exitedLog === "string" && exitedLog.includes("orbit-workers") && !exitedLog.startsWith(exits.worktree),
-    exited.stdout || exited.stderr,
-  )
-
-  const githubTimeout = launch("github-timeout", launchConfig(stubEngine(IMMEDIATE)))
-  const githubDescendantPidFile = stage("launch-worker/github-descendant.pid", "")
-  const githubTimedOut = check(
-    TOOL,
-    "a hanging post-worker GitHub call is bounded",
-    ["--issue", "ORB-201", "--worktree", githubTimeout.worktree, "--prompt", githubTimeout.prompt, "--codex-only", "--command-timeout-seconds", "1"],
-    { status: 1, stdout: /"outcome": "PR_BODY_ENFORCEMENT_FAILED"/, stderr: /GitHub command timed out after 1s/ },
-    { path: githubTimeout.path, env: orcaEnv([
-      { match: "auth token --user test-owner", stdout: "test-github-token" },
-      { match: "pr list --head main --json number,body,baseRefOid,headRefOid,statusCheckRollup", stdout: "", hangTreePidFile: githubDescendantPidFile },
-    ]) },
-  )
-  discardLog(githubTimedOut.stdout)
-  const githubDescendantPid = Number(readFileSync(githubDescendantPidFile, "utf8"))
-  T(`${TOOL}: post-worker GitHub timeout removes the complete child process tree`, Number.isInteger(githubDescendantPid) && !processIsRunning(githubDescendantPid), `descendant ${githubDescendantPid} still alive`)
-
-  const bodyEdit = launch("body-edit-invalidation", launchConfig(stubEngine(IMMEDIATE)))
-  const bodyEditHead = bodyEdit.worktree && spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true }).stdout.trim()
-  const bodyEdited = check(
-    TOOL,
-    "a codex-only launcher persists the old Guards baseline before editing the PR body",
-    ["--issue", "ORB-201", "--worktree", bodyEdit.worktree, "--prompt", bodyEdit.prompt, "--codex-only"],
-    { status: 0, stdout: /"outcome": "EXITED"/ },
-    { path: bodyEdit.path, env: orcaEnv([
-      { match: "auth token --user test-owner", stdout: "test-github-token" },
-      { match: "pr list --head main --json number,body,baseRefOid,headRefOid,statusCheckRollup", stdout: JSON.stringify([{
-        number: 200,
-        body: "Implements ORB-201.",
-        baseRefOid: "base-sha",
-        headRefOid: bodyEditHead,
-        statusCheckRollup: [{ workflowName: "Guards", name: "Harness tools", startedAt: "2026-08-07T10:00:00Z" }],
-      }]) },
-      { match: `run list --workflow guards.yml --commit ${bodyEditHead}`, stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-07T09:00:00Z", headSha: bodyEditHead, status: "completed", conclusion: "success" }]) },
-      { match: "pr edit 200 --body-file -", stdout: "" },
-    ]) },
-  )
-  discardLog(bodyEdited.stdout)
-  const bodyEditGitPath = spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true }).stdout.trim()
-  const bodyEditReceiptPath = resolve(bodyEdit.worktree, bodyEditGitPath, "orbit-body-edit-invalidations", "200.json")
-  let bodyEditReceipt = null
-  try {
-    bodyEditReceipt = JSON.parse(readFileSync(bodyEditReceiptPath, "utf8"))
-  } catch {
-    bodyEditReceipt = null
-  }
-  T(
-    `${TOOL}: launcher body edit receipt is pinned to the exact head/base and pre-edit Guards run`,
-    bodyEditReceipt?.headSha === bodyEditHead && bodyEditReceipt?.baseSha === "base-sha" && bodyEditReceipt?.guardsRuns?.[0]?.name === "Harness tools" && bodyEditReceipt?.preEditWorkflowRuns?.[0]?.databaseId === 10,
-    JSON.stringify(bodyEditReceipt),
-  )
-
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:
    * a hardcoded 45 and 10 minutes would leave a sleeping worker running until the suite's own
@@ -313,203 +244,4 @@ export const cases = () => {
     `exit ${refused.status}: ${refused.stderr || refused.stdout}`,
   )
 
-  reviewCases()
-}
-
-/**
- * The reviewer half of the launcher. It exists because /orchestrate step 8 demands a session that
- * did not write the code, launched from the MAIN CHECKOUT, and the guardrail hook refuses a raw
- * `claude` from an orchestrating session: the launcher's marker is the only exemption a
- * main-checkout reviewer can claim.
- */
-const reviewConfig = () => {
-  const real = realOrchestratorConfig()
-  const stub = (engineName, reviewModel) => ({
-    ...real.workers[engineName],
-    command: process.execPath,
-    args: [IMMEDIATE],
-    models: { ...real.workers[engineName].models, review: { model: reviewModel, args: [] } },
-  })
-  return {
-    ...real,
-    workers: {
-      ...real.workers,
-      [real.reviewer]: stub(real.reviewer, "gate-stub-reviewer"),
-      // Stubbed too, because --codex-only moves the reviewer onto the WORKER engine, and a gate
-      // that needs the real codex CLI on PATH is not hermetic.
-      [real.worker]: stub(real.worker, "gate-stub-fallback-reviewer"),
-    },
-  }
-}
-
-/**
- * A reviewer runs in the checkout the tool itself sits in, so the staged base has to BE a git
- * repository. Staging it as one is what proves the launcher resolves the main checkout from its own
- * location rather than from a flag a caller could point anywhere.
- */
-const stageReviewFixture = (label) => {
-  const staged = stageWithConfig(label, TOOL, reviewConfig())
-  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
-    if (spawnSync("git", ["-C", staged.base, ...args], { encoding: "utf8" }).status !== 0) return null
-  }
-  const apiPath = join(dirname(staged.base), `${label}-api-primary`)
-  mkdirSync(apiPath, { recursive: true })
-  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
-    if (spawnSync("git", ["-C", apiPath, ...args], { encoding: "utf8" }).status !== 0) return null
-  }
-  /**
-   * The contract must be COMMITTED in both fixtures, because the gate compares committed blobs
-   * rather than working-tree bytes. A fixture that only copied the files on disk would leave both
-   * blobs unreadable, and the gate would then be exercised only through its missing-contract arm.
-   */
-  const sourceRoot = join(TOOLS_DIR, "..")
-  for (const repoPath of [staged.base, apiPath]) {
-    const destination = join(repoPath, ".claude", "skills", "pr-review")
-    mkdirSync(destination, { recursive: true })
-    cpSync(join(sourceRoot, ".claude", "skills", "pr-review", "SKILL.md"), join(destination, "SKILL.md"))
-    cpSync(join(sourceRoot, ".claude", "skills", "pr-review", "rubric.md"), join(destination, "rubric.md"))
-    for (const args of [
-      ["add", "--", ".claude/skills/pr-review/SKILL.md", ".claude/skills/pr-review/rubric.md"],
-      ["commit", "-q", "-m", "pr-review contract"],
-    ]) {
-      if (spawnSync("git", ["-C", repoPath, ...args], { encoding: "utf8" }).status !== 0) return null
-    }
-  }
-  const config = reviewConfig()
-  config.repos = { ...config.repos, ui: staged.base, api: apiPath }
-  writeFileSync(staged.configPath, `${JSON.stringify(config, null, 2)}\n`)
-  return { ...staged, apiPath }
-}
-
-const reviewCases = () => {
-  const staged = stageReviewFixture("launch-worker-review")
-  if (!staged) {
-    T(`${TOOL}: a git-backed main-checkout fixture is available`, false, "could not stage a git repository")
-    return
-  }
-  const prompt = stage("launch-worker/review-order.md", "the review order, verbatim\n")
-  const options = { path: staged.path }
-
-  check(TOOL, "--review refuses a missing repository", ["--issue", "ORB-201", "--review", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /--review requires --repo/ }, options)
-  check(TOOL, "--review refuses an unknown repository", ["--issue", "ORB-201", "--review", "--repo", "ghost", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /--repo must name a configured repository/ }, options)
-
-  check(
-    TOOL,
-    "--review refuses --worktree, so a reviewer cannot read the PR's own AGENTS.md",
-    ["--issue", "ORB-201", "--review", "--repo", "ui", "--worktree", staged.base, "--prompt", prompt],
-    { status: 2, stderr: /--review refuses --worktree/ },
-    options,
-  )
-
-  check(
-    TOOL,
-    "--review needs no --worktree",
-    ["--issue", "ORB-201", "--review", "--repo", "ui", "--prompt", prompt, "--dry-run"],
-    { status: 0, stdout: /"review": true/ },
-    options,
-  )
-
-  const plan = check(
-    TOOL,
-    "--review resolves the reviewer engine and the review model tier",
-    ["--issue", "ORB-201", "--review", "--repo", "ui", "--prompt", prompt, "--dry-run"],
-    { status: 0, stdout: /"tier": "review"/ },
-    options,
-  )
-  const resolved = JSON.parse(plan.stdout)
-  const real = realOrchestratorConfig()
-  T(
-    `${TOOL}: --review runs the reviewer engine, not the implementer's`,
-    resolved.engine === real.reviewer && resolved.engine !== real.worker,
-    `engine ${resolved.engine}, reviewer ${real.reviewer}, worker ${real.worker}`,
-  )
-  T(
-    `${TOOL}: --review runs in the main checkout the tool sits in`,
-    resolved.runDirectory === staged.base,
-    `runDirectory ${resolved.runDirectory}, expected ${staged.base}`,
-  )
-  T(
-    `${TOOL}: --review hands the reviewer the review tier's model`,
-    resolved.model === "gate-stub-reviewer",
-    `model ${resolved.model}`,
-  )
-  T(
-    `${TOOL}: the review pointer tells the reviewer not to fix what it finds`,
-    resolved.args.at(-1).includes("you do not fix what you find"),
-    resolved.args.at(-1),
-  )
-
-  check(
-    TOOL,
-    "--review refuses a review order written inside the main checkout",
-    ["--issue", "ORB-201", "--review", "--repo", "ui", "--prompt", stage(`staged/launch-worker-review/review-order.md`, "committed by accident\n"), "--dry-run"],
-    { status: 2, stderr: /review order written into a repository gets committed/ },
-    options,
-  )
-
-  /**
-   * The fallback reviewer. --codex-only means the Claude quota is exhausted, so resolving the
-   * configured reviewer there would launch the one engine that is known to be unavailable, and the
-   * only path meant to survive a quota outage would be the only path that cannot run.
-   */
-  const fallback = check(
-    TOOL,
-    "--review with --codex-only reviews on the worker engine, never the unavailable Claude reviewer",
-    ["--issue", "ORB-201", "--review", "--repo", "ui", "--codex-only", "--prompt", prompt, "--dry-run"],
-    { status: 0, stdout: /"tier": "review"/ },
-    options,
-  )
-  const degraded = JSON.parse(fallback.stdout)
-  T(
-    `${TOOL}: --review --codex-only resolves the worker engine, not the reviewer engine`,
-    degraded.engine === real.worker && degraded.engine !== real.reviewer,
-    `engine ${degraded.engine}, worker ${real.worker}, reviewer ${real.reviewer}`,
-  )
-  T(
-    `${TOOL}: --review --codex-only still resolves the review tier, not the implementer's`,
-    degraded.tier === "review" && degraded.model === "gate-stub-fallback-reviewer",
-    `tier ${degraded.tier}, model ${degraded.model}`,
-  )
-  T(
-    `${TOOL}: --review --codex-only still runs in the main checkout`,
-    degraded.runDirectory === staged.base,
-    `runDirectory ${degraded.runDirectory}`,
-  )
-
-  const api = check(TOOL, "--review --repo api runs from the API primary main checkout", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 0, stdout: /"repositoryKey": "api"/ }, options)
-  T(`${TOOL}: API review cwd is the configured API primary checkout`, JSON.parse(api.stdout).runDirectory === staged.apiPath, api.stdout)
-
-  /**
-   * A reviewer's only progress signal is log growth, and an engine that buffers its whole answer
-   * (claude --print) writes zero log bytes until it finishes. Measured 2026-08-09: a 126-file
-   * review was killed NO_PROGRESS at exactly ten minutes with a 0-byte log while working
-   * correctly. Reviews therefore resolve the measurement window; the hard ceiling still binds.
-   */
-  const reviewPlan = JSON.parse(api.stdout)
-  T(
-    `${TOOL}: --review resolves the measurement no-progress window, because a buffering reviewer is silent while working`,
-    reviewPlan.noProgressMinutes === realOrchestratorConfig().timeouts.measurementNoProgressMinutes && reviewPlan.noProgressMinutes > realOrchestratorConfig().timeouts.noProgressMinutes,
-    `review window ${reviewPlan.noProgressMinutes}`,
-  )
-
-  /**
-   * The parity gate is GONE, and staying gone is load-bearing: the contract is single-sourced in
-   * orbit-ui-mobile and materialized into every review order from its origin/main, so there is no
-   * second committed copy whose drift could be asserted. Both prior revisions of the gate halted
-   * every review in both repositories over byte differences in duplicated markdown (2026-08-08
-   * CRLF materialization; 2026-08-09 a mirror taken six minutes before the canonical side moved).
-   * An api review therefore launches with NO api-side contract committed at all.
-   */
-  const apiSkillPath = join(staged.apiPath, ".claude", "skills", "pr-review", "SKILL.md")
-  writeFileSync(apiSkillPath, "drift that must not matter\n")
-  for (const args of [["add", "--", ".claude/skills/pr-review/SKILL.md"], ["commit", "-q", "-m", "drift"]]) {
-    spawnSync("git", ["-C", staged.apiPath, ...args], { encoding: "utf8" })
-  }
-  check(
-    TOOL,
-    "an api review launches regardless of any api-side pr-review file state",
-    ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"],
-    { status: 0, stdout: /"repositoryKey": "api"/ },
-    options,
-  )
 }
