@@ -34,6 +34,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, requiredChecksOf } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -269,20 +270,24 @@ checks.sizeAdvisory = { changedFiles: fileCount, additions: pullRequest.addition
 const repositoryFromUrl = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+\/?$/i.exec(pullRequest.url)?.[1]
 if (!repositoryFromUrl) fail(2, `pull request #${pullRequest.number} carried no parseable GitHub URL`)
 
+/**
+ * One GraphQL request, exactly what `gh pr view --json statusCheckRollup` sent, plus the producing
+ * app of every check. Branch protection pins a required check to an app, so a rollup read that
+ * drops the producer cannot tell the required check from a same-named one somebody else published.
+ * PULL_REQUEST_STATE_QUERY carries the measurement behind the swap.
+ */
 const readPullRequestState = async () => {
-  const viewed = await run(GH, ["pr", "view", String(pullRequest.number), "--json", "baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"], githubCwd)
-  if (!viewed.ok) fail(2, `gh pr view ${pullRequest.number} failed: ${viewed.error}`)
+  const viewed = await run(GH, pullRequestStateArgv(repositoryFromUrl, pullRequest.number), githubCwd)
+  if (!viewed.ok) fail(2, `the pull request read for ${pullRequest.number} failed: ${viewed.error}`)
   let parsed
   try {
     parsed = JSON.parse(viewed.stdout)
   } catch {
-    fail(2, `gh pr view ${pullRequest.number} returned unparseable JSON: ${viewed.stdout.trim().slice(0, 240) || "empty output"}`)
+    fail(2, `the pull request read for ${pullRequest.number} returned unparseable JSON: ${viewed.stdout.trim().slice(0, 240) || "empty output"}`)
   }
-  if (!Array.isArray(parsed?.statusCheckRollup)) fail(2, `gh pr view ${pullRequest.number} returned no statusCheckRollup array`)
-  if (typeof parsed.baseRefName !== "string" || typeof parsed.baseRefOid !== "string" || typeof parsed.headRefOid !== "string" || typeof parsed.isDraft !== "boolean") {
-    fail(2, `gh pr view ${pullRequest.number} returned incomplete base/head/draft state`)
-  }
-  return parsed
+  const state = pullRequestStateFromGraphQl(parsed)
+  if (state === null) fail(2, `the pull request read for ${pullRequest.number} returned incomplete base/head/draft/rollup state`)
+  return state
 }
 
 const validatePullRequestState = async (state) => {
@@ -316,25 +321,24 @@ const validatePullRequestState = async (state) => {
 let pullRequestState = await readPullRequestState()
 await validatePullRequestState(pullRequestState)
 
-const readRequiredContexts = async (state) => {
-  const required = await run(
+const readRequiredChecks = async (state) => {
+  const protection = await run(
     GH,
     ["api", `repos/${repositoryFromUrl}/branches/${encodeURIComponent(state.baseRefName)}/protection/required_status_checks`],
     githubCwd,
   )
-  if (!required.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${required.error}`)
+  if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   let parsed
   try {
-    parsed = JSON.parse(required.stdout)
+    parsed = JSON.parse(protection.stdout)
   } catch {
-    fail(2, `gh api required status checks returned unparseable JSON: ${required.stdout.trim().slice(0, 240) || "empty output"}`)
+    fail(2, `gh api required status checks returned unparseable JSON: ${protection.stdout.trim().slice(0, 240) || "empty output"}`)
   }
-  if (!Array.isArray(parsed?.contexts) || parsed.contexts.some((context) => typeof context !== "string" || context.length === 0)) {
-    fail(2, `gh api required status checks returned no string contexts array for ${state.baseRefName}`)
-  }
-  return parsed.contexts
+  const parsedChecks = requiredChecksOf(parsed)
+  if (parsedChecks === null) fail(2, `gh api required status checks returned no { context, app_id } checks array for ${state.baseRefName}`)
+  return parsedChecks
 }
-let requiredContexts = await readRequiredContexts(pullRequestState)
+let requiredChecks = await readRequiredChecks(pullRequestState)
 
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
@@ -343,13 +347,14 @@ let requiredContexts = await readRequiredContexts(pullRequestState)
  * required-or-gating checks were red.
  *
  * The rollup mixes two node types with DIFFERENT fields, confirmed against a live response rather
- * than assumed: a `CheckRun` carries `status` plus `conclusion`, where `conclusion` is the EMPTY
- * STRING (not null) until it completes, and a `StatusContext` carries `state` alone and no status.
- * Reading only one shape silently ignores every check of the other kind.
+ * than assumed: a `CheckRun` carries `status` plus `conclusion`, and a `StatusContext` carries
+ * `state` alone and no status. Reading only one shape silently ignores every check of the other
+ * kind. lib/readiness-receipt.mjs normalises both into one node shape carrying the producing app.
+ *
+ * The three buckets below are the exact complement of the pass rule readinessCiIsGreen applies,
+ * and the matching of a required check is the library's own, so this reading of CI and the
+ * receipt's reading cannot disagree. They were burned once by disagreeing.
  */
-// Confirmed with live GraphQL enum introspection on 2026-08-07. Passing is an allowlist so a new
-// GitHub conclusion cannot silently become green; STALE and every unknown value fail closed.
-const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
 
@@ -363,30 +368,34 @@ const checkMetadata = (name, node) => {
     name,
     status: node.status ?? node.state ?? null,
     conclusion: node.conclusion ?? node.state ?? null,
+    /** The app that published the check, so a wrong-producer check is named rather than merely
+     * counted. Null on a StatusContext, which carries no producing app. */
+    appId: node.appId ?? null,
   }
 }
 
 const readRollup = () => {
-  const rollup = pullRequestState.statusCheckRollup
   /**
    * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
    * reads as failing and pending at once and could never clear. Measured on #685, where a re-queued
-   * `Dash Ban` appeared twice. Keep only the newest entry per check name, which is what the GitHub
-   * UI shows and the only reading under which a re-run can go green.
+   * `Dash Ban` appeared twice. `newestChecks` keeps only the newest entry per check and producer,
+   * which is what the GitHub UI shows and the only reading under which a re-run can go green.
    */
-  const newestByName = new Map()
-  for (const node of rollup) {
-    const name = node.name ?? node.context ?? "unnamed check"
-    const startedAt = node.startedAt ?? node.createdAt ?? ""
-    const previous = newestByName.get(name)
-    if (!previous || String(startedAt) >= String(previous.startedAt ?? previous.createdAt ?? "")) newestByName.set(name, node)
-  }
+  // Never null here: readPullRequestState rejects any rollup entry that carries no check name.
+  const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
   const failing = []
   const pending = []
-  for (const name of requiredContexts) {
-    if (!newestByName.has(name)) pending.push(checkMetadata(name, { status: "NOT_REGISTERED", conclusion: null }))
+  /**
+   * A required check the rollup does not carry UNDER ITS PINNED PRODUCER is pending, never green.
+   * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is now also
+   * the mechanism by which a same-named success from another app fails to clear the review gate.
+   */
+  for (const required of requiredChecks) {
+    if (findRegisteredCheck(newestByCheck, required)) continue
+    pending.push({ ...checkMetadata(required.context, { status: "NOT_REGISTERED", conclusion: null }), requiredAppId: required.appId })
   }
-  for (const [name, node] of newestByName) {
+  for (const node of newestByCheck.values()) {
+    const name = node.name ?? node.context
     if (node.__typename === "StatusContext" || typeof node.state === "string") {
       if (FAILING_STATES.has(node.state)) failing.push(checkMetadata(name, node))
       else if (PENDING_STATES.has(node.state)) pending.push(checkMetadata(name, node))
@@ -399,7 +408,7 @@ const readRollup = () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  return { total: newestByName.size, failing, pending }
+  return { total: newestByCheck.size, failing, pending }
 }
 
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
@@ -414,7 +423,7 @@ while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < 
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   pullRequestState = await readPullRequestState()
   await validatePullRequestState(pullRequestState)
-  requiredContexts = await readRequiredContexts(pullRequestState)
+  requiredChecks = await readRequiredChecks(pullRequestState)
   rollup = readRollup()
 }
 
@@ -423,7 +432,7 @@ checks.ci = {
   observed: `${rollup.total} checks: ${rollup.failing.length} failing, ${rollup.pending.length} pending`,
   failing: rollup.failing,
   pending: rollup.pending,
-  requiredContexts,
+  requiredChecks,
   waitedSeconds: waitCiSeconds,
 }
 if (rollup.failing.length > 0) emit("CI_FAILING")

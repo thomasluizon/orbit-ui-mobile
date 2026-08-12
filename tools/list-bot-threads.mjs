@@ -14,8 +14,9 @@
  *      yet". The verdict is therefore derived from a current-head Pullfrog review, never from the
  *      thread count. Measured on pull request 711 (2026-08-12): the clean pass arrived as a review
  *      with the state APPROVED and opened no thread at all.
- *   2. A body-level CHANGES_REQUESTED opens no review thread either, so zero unresolved threads is
- *      not proof of a clean pull request. Both surfaces are read in one query.
+ *   2. A review that did not approve states its complaint in the review BODY and can open no review
+ *      thread at all, so zero unresolved threads is not proof of a clean pull request. Both surfaces
+ *      are read in one query, and both are reported.
  *
  * It reads. It never replies, resolves, or fixes: tools/resolve-bot-thread.mjs owns the mutations.
  */
@@ -53,14 +54,18 @@ default is a carry-over bound that nobody has measured for Pullfrog. The one tim
 148 seconds, from the request comment on pull request 711 to the submitted review of a one-file diff
 (2026-08-12).
 
-Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, threads[].
-Errors go to stderr.
+Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
+threads[]. Errors go to stderr.
 
-  verdict  REVIEWED      a Pullfrog review OF THE CURRENT HEAD exists;
-                         threads[] may be empty (clean)
+  verdict  REVIEWED      a Pullfrog review OF THE CURRENT HEAD exists; threads[] may be empty,
+                         and a non-null reviewBody can still carry a finding
            CHANGES_REQUESTED  a review of the current head exists and requests changes
            NO_REVIEW     no review of this head inside the budget. staleReviewCommit names
                          the commit an older review WAS given on, when there is one
+
+reviewBody carries the review body for EVERY accepted state except APPROVED, and is null when the
+body is empty. Triage it exactly like a thread: counts{} describes threads only, so "REVIEWED with
+zero threads" is a clean pull request only when reviewBody is null too.
 
 A review is evidence about the commit it was given on and nothing else. One pinned to an older
 head is NOT accepted: after a push the newest review names the old commit until the re-review
@@ -325,6 +330,9 @@ const botReviewOf = (payload) =>
     // Confirmed live ReviewState enum: APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING.
     // APPROVED is the state Pullfrog used for its clean pass on pull request 711 (2026-08-12). A
     // pending or dismissed review is not a completed pass and must never become evidence.
+    // COMMENTED stays accepted because it IS a completed review, and it is safe to accept only
+    // because the body of every non-APPROVED state is reported below. Drop that and a COMMENTED
+    // review whose whole finding lives in its body reads here as a clean pass.
     .filter((review) => COMPLETED_REVIEW_STATES.has(review.state))
     .at(-1)
 
@@ -412,6 +420,29 @@ if (!review) {
 }
 
 const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
+
+/**
+ * The body of every accepted state EXCEPT APPROVED, because a review that did not approve states
+ * its complaint there and no thread has to repeat it.
+ *
+ * Measured on 2026-08-12, on the three Pullfrog reviews read that day. Every body opened with a
+ * blockquote callout that states the verdict in prose. The CHANGES_REQUESTED review of pull request
+ * 716 opened with `[!IMPORTANT]` and named both of its blocking findings there. The APPROVED
+ * reviews of pull request 711 and of orbit-api pull request 473 opened with `No new issues found.`
+ * and then summarized the diff. So the body is the reviewer's own statement of the verdict, not a
+ * preamble.
+ *
+ * COMMENTED is the one state nobody measured, because Pullfrog posted none yet. An earlier comment
+ * here said a commenting review puts boilerplate in the body and the findings in the threads. That
+ * shape was measured against the ChatGPT Codex connector, never against Pullfrog, so it does not
+ * transfer. A COMMENTED review that states its finding in the body and opens no thread otherwise
+ * reaches the caller as REVIEWED with zero findings. APPROVED is the single state whose body says
+ * there is nothing to act on, so it alone stays null.
+ *
+ * An empty body normalizes to null, so null always means "nothing to read" and never "dropped".
+ */
+const reviewBody = review.state === "APPROVED" ? null : (review.body ?? "").trim().slice(0, 4000) || null
+
 console.log(
   JSON.stringify(
     {
@@ -423,13 +454,7 @@ console.log(
       reviewedCommit: node.headRefOid,
       baseRefOid: node.baseRefOid,
       headRefOid: node.headRefOid,
-      /**
-       * A body-level CHANGES_REQUESTED carries its whole complaint here and opens no thread, so
-       * without the body the caller learns it is blocked and nothing about why. Only carried for
-       * that verdict: on an approving or commenting review the body is Pullfrog's summary of the
-       * diff plus its metadata block, and the threads hold the findings.
-       */
-      reviewBody: verdict === "CHANGES_REQUESTED" ? (review.body ?? "").trim().slice(0, 4000) : null,
+      reviewBody,
       threadsComplete: node.reviewThreads.complete === true,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
       threads,

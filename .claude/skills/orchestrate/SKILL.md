@@ -81,7 +81,7 @@ run it always was.
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
  8  CLEAR PULLFROG   Pullfrog reviews on open and re-reviews on every push. Ask for nothing.
-                     node tools/list-bot-threads.mjs --pr <n> --repo <key> -> the findings
+                     node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
                      FIX every finding that breaks behaviour, security or data integrity
                      FILE every other finding as an orbit-tickets issue
                      REPLY AND RESOLVE every thread you filed, with resolve-bot-thread.mjs
@@ -651,6 +651,14 @@ node tools/list-bot-threads.mjs --pr <n> --repo <key>
 **Never read the thread count as the verdict.** An empty list is ambiguous between "reviewed, found
 nothing" and "has not run yet", and a body-level verdict opens no thread at all. The tool derives
 the verdict from the review itself for exactly this reason; do not re-derive it by eye.
+
+**A finding reaches you on TWO surfaces: `threads[]` and `reviewBody`.** The tool carries the review
+body for every accepted state except `APPROVED`, because a review that did not approve states its
+complaint there and no thread has to repeat it. `counts{}` describes threads only, so `REVIEWED`
+with zero threads is a clean pull request only when `reviewBody` is null as well. Read a non-null
+`reviewBody` and split it exactly like a thread. It carries no thread id, so
+`resolve-bot-thread.mjs` cannot answer it: fix it or file it, then push, and the re-review posts a
+fresh `pullfrog-approval` over the new head.
 
 **Split every unresolved finding two ways, and act on both halves:**
 

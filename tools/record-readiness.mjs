@@ -2,7 +2,7 @@
 /**
  * Persist and evaluate one final-head readiness receipt from artifacts produced by the harness.
  *
- * One live read, not two. This tool reads the pull request, its required contexts, the compare,
+ * One live read, not two. This tool reads the pull request, its required checks, the compare,
  * and the ticket ONCE, evaluates everything against that snapshot, and writes the receipt. The
  * previous revision read the pull request twice per invocation (an opening read and a closing
  * revalidation) to catch a seconds-wide race; measured 2026-08-09, that doubling was one of the
@@ -13,8 +13,13 @@
  *
  * The code review is NOT an axis here. Pullfrog reviews every pull request in GitHub Actions and
  * publishes `pullfrog-approval`, a required status check on both `main` branches, so the review
- * verdict arrives through the required contexts this tool already reads. A separate review axis
+ * verdict arrives through the required checks this tool already reads. A separate review axis
  * would be a second, weaker copy of a fact branch protection enforces.
+ *
+ * The pull request read is one `gh api graphql` call because branch protection pins a required
+ * check to a producing app and `gh pr view --json statusCheckRollup` drops that identity. Both
+ * commands send exactly one GraphQL request, so the budget above is unchanged. See
+ * PULL_REQUEST_STATE_QUERY.
  */
 
 import { readFileSync } from "node:fs"
@@ -23,7 +28,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { readinessCiIsGreen, readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, requiredChecksOf, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -99,24 +104,17 @@ try {
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
   const result = await runBounded(
     process.env.GH_BIN || "gh",
-    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"],
+    pullRequestStateArgv(repository, prNumber),
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
-  if (result.timedOut) fail(`gh pr view ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (result.timedOut) fail(`the pull request read for ${prNumber} timed out after 45s; the complete child process tree was terminated`)
   if (result.error || result.status !== 0) {
     const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
-    fail(`gh pr view ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+    fail(`the pull request read for ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
-  live = JSON.parse(result.stdout)
-  if (
-    live?.number !== prNumber ||
-    typeof live?.baseRefName !== "string" ||
-    typeof live?.baseRefOid !== "string" ||
-    typeof live?.headRefOid !== "string" ||
-    typeof live?.isDraft !== "boolean" ||
-    !Array.isArray(live?.statusCheckRollup)
-  ) {
-    fail(`gh pr view ${prNumber} did not return the confirmed number/base/head/draft shape`)
+  live = pullRequestStateFromGraphQl(JSON.parse(result.stdout))
+  if (live === null || live.number !== prNumber) {
+    fail(`the pull request read for ${prNumber} did not return the confirmed number/base/head/draft/rollup shape`)
   }
   const requiredRead = await runBounded(
     process.env.GH_BIN || "gh",
@@ -128,8 +126,9 @@ try {
     const detail = requiredRead.stderr || requiredRead.stdout || requiredRead.error?.message || `exit ${requiredRead.status}`
     fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
-  const requiredContexts = JSON.parse(requiredRead.stdout)?.contexts
-  liveCiGreen = readinessCiIsGreen(live.statusCheckRollup, requiredContexts)
+  const requiredChecks = requiredChecksOf(JSON.parse(requiredRead.stdout))
+  if (requiredChecks === null) fail(`required checks for PR ${prNumber} returned no { context, app_id } checks array`)
+  liveCiGreen = readinessCiIsGreen(live.statusCheckRollup, requiredChecks)
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",

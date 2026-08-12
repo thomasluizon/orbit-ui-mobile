@@ -56,25 +56,51 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const ticketArtifact = stage("record-readiness/ticket.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--ticket", ticketArtifact]
 
-  const greenCheck = { __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:00:00Z", workflowName: "Guards" }
+  /**
+   * The two app ids are live, read on 2026-08-12 from
+   * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
+   * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
+   */
+  const GITHUB_ACTIONS_APP = 15368
+  const PULLFROG_APP = 1768019
+  /** The exact node shape the confirmed GraphQL rollup returns, app identity included. */
+  const checkRun = (name, appId, { status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-07T10:00:00Z", workflow = "Guards" } = {}) => ({
+    __typename: "CheckRun",
+    name,
+    status,
+    conclusion,
+    startedAt,
+    completedAt: startedAt,
+    detailsUrl: null,
+    checkSuite: { app: { databaseId: appId }, workflowRun: workflow === null ? null : { workflow: { name: workflow } } },
+  })
+  const greenCheck = checkRun("Lint", GITHUB_ACTIONS_APP)
   /**
    * Pullfrog reviews the pull request in GitHub Actions and publishes `pullfrog-approval`, which is
-   * a required status check on `main`. The review verdict therefore arrives through the required
-   * contexts this tool already reads, and no separate review artifact exists to pass here.
+   * a required status check on `main` pinned to Pullfrog's own app. The review verdict therefore
+   * arrives through the required checks this tool already reads, and no separate review artifact
+   * exists to pass here.
    */
-  const approval = { __typename: "StatusContext", context: "pullfrog-approval", state: "SUCCESS", createdAt: "2026-08-07T10:30:00Z" }
+  const approval = checkRun("pullfrog-approval", PULLFROG_APP, { startedAt: "2026-08-07T10:30:00Z", workflow: null })
   const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, ticketStatus = "In Review", options = {}) => ({
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-      { match: "pr view 700", stdout: JSON.stringify({
+      { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
         number: 700,
         baseRefName: "main",
         baseRefOid,
         headRefOid,
         isDraft: options.isDraft ?? false,
-        statusCheckRollup: options.statusCheckRollup ?? [greenCheck, approval],
+        statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
+      } } } }) },
+      /**
+       * The real payload carries BOTH lists, and only `checks` names the app that must provide each
+       * check. Confirmed live on 2026-08-12 against the `main` protection of this repository.
+       */
+      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({
+        contexts: ["Lint", "pullfrog-approval"],
+        ...(options.omitChecks === true ? {} : { checks: options.checks ?? [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }] }),
       }) },
-      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint", "pullfrog-approval"] }) },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
     ]),
     ORBIT_TICKET_STATUS: ticketStatus,
@@ -106,6 +132,38 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     argv,
     { status: 1, stdout: /CI_STALE/ },
     { path: staged.path, env: live(HEAD, BASE, 0, "In Review", { statusCheckRollup: [greenCheck] }) },
+  )
+
+  /**
+   * The producer gate, end to end. Branch protection pins `pullfrog-approval` to app 1768019, so a
+   * SUCCESS of that exact name published by any other app leaves the required check unsatisfied and
+   * GitHub still refuses the merge. A receipt keyed on the context alone called this READY.
+   */
+  check(
+    TOOL,
+    "a SUCCESS pullfrog-approval published by the WRONG app cannot reach READY",
+    argv,
+    { status: 1, stdout: /CI_STALE/ },
+    { path: staged.path, env: live(HEAD, BASE, 0, "In Review", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP, { startedAt: "2026-08-07T10:30:00Z" })] }) },
+  )
+  /** The same rollup clears once protection accepts any producer for that context. */
+  check(
+    TOOL,
+    "a required check with a null app id is satisfied by any producer",
+    argv,
+    { status: 0, stdout: /"verdict": "READY"/ },
+    { path: staged.path, env: live(HEAD, BASE, 0, "In Review", {
+      statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP, { startedAt: "2026-08-07T10:30:00Z" })],
+      checks: [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: null }],
+    }) },
+  )
+  /** `contexts` alone cannot decide, so a protection payload without `checks` fails closed. */
+  check(
+    TOOL,
+    "a protection payload carrying no checks array fails closed rather than ignoring the producer",
+    argv,
+    { status: 2, stderr: /returned no \{ context, app_id \} checks array/ },
+    { path: staged.path, env: live(HEAD, BASE, 0, "In Review", { omitChecks: true }) },
   )
 
   const failedRerun = { ...greenCheck, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }

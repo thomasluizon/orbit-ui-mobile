@@ -163,9 +163,41 @@ export const cases = () => {
     parsed(clean)?.reviewBody === null,
     clean.stdout,
   )
+  /**
+   * The live shape of an APPROVED body, read 2026-08-12 on pull request 711 and on orbit-api pull
+   * request 473: a clean-pass callout, a summary of the diff, and the metadata block. It is never
+   * empty, so the `clean` fixture above proves nothing about a real approval. A clean pass states
+   * no complaint, so the caller gets zero findings on both surfaces.
+   */
+  const approvedWithBody = readPr(payload({ reviews: [botReview("APPROVED", "2026-08-12T16:04:16Z", HEAD, "> No new issues found.\n\n**Reviewed changes** Reviewed the pinned action update.\n\n<!-- Pullfrog review metadata -->")] }))
+  const approvedPlan = parsed(approvedWithBody)
+  T(
+    `${TOOL}: an approving review with a real non-empty body is still a clean pass with no findings`,
+    approvedWithBody.status === 0 && approvedPlan?.verdict === "REVIEWED" && approvedPlan.reviewState === "APPROVED" && approvedPlan.counts.total === 0 && approvedPlan.reviewBody === null,
+    approvedWithBody.stdout || approvedWithBody.stderr,
+  )
+  /**
+   * Raised by Pullfrog on this branch's own pull request (#716), and it was right. A COMMENTED
+   * review is a completed review that did not approve, and it can carry its whole finding in the
+   * body while opening no thread. Reporting REVIEWED with zero findings there leaves step 8 nothing
+   * to fix and nothing to file while `pullfrog-approval` stays red. The body is the finding, so the
+   * caller must receive it.
+   */
+  const COMMENTED_BODY = "> [!IMPORTANT]\n> The readiness path drops the app identity of a required check.\n\n**Reviewed changes** Reviewed the readiness receipt and the thread reader.\n\n<!-- Pullfrog review metadata -->"
+  const commentedWithBody = readPr(payload({ reviews: [botReview("COMMENTED", "2026-08-12T18:48:24Z", HEAD, COMMENTED_BODY)] }))
+  const commentedPlan = parsed(commentedWithBody)
+  T(
+    `${TOOL}: a COMMENTED review with a body and no thread hands the caller that body, never silence`,
+    commentedWithBody.status === 0 && commentedPlan?.verdict === "REVIEWED" && commentedPlan.reviewState === "COMMENTED" && commentedPlan.counts.total === 0 && commentedPlan.reviewBody === COMMENTED_BODY,
+    commentedWithBody.stdout || commentedWithBody.stderr,
+  )
+  /**
+   * The empty-body case, kept exactly as it was. `null` now means the body held nothing to read,
+   * never that a COMMENTED body is dropped, so a caller can tell the two apart.
+   */
   const commented = readPr(payload({ reviews: [botReview("COMMENTED")] }))
   T(
-    `${TOOL}: a COMMENTED review is REVIEWED and carries no body, because there the threads hold the findings`,
+    `${TOOL}: a COMMENTED review with an empty body is REVIEWED and reports no body to read`,
     commented.status === 0 && parsed(commented)?.verdict === "REVIEWED" && parsed(commented)?.reviewBody === null,
     commented.stdout || commented.stderr,
   )
