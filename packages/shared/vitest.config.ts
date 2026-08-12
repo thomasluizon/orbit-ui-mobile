@@ -4,12 +4,14 @@ export default defineConfig({
   test: {
     include: ['src/__tests__/**/*.test.ts'],
     /**
-     * Four workspace vitest instances run at once under `turbo run test`, and each sizes its
-     * worker pool to the whole machine, so they oversubscribe the CPU. The 5s/10s defaults
-     * expire on module-graph re-import cost alone, which passes in under 500ms run standalone.
+     * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
+     * the whole machine, so together they oversubscribe the CPU and time out module-graph
+     * imports. The cap keeps the aggregate near one machine's worth. The cap alone still went
+     * red in 1 of 3 runs, so the margin over the 5s default covers the residual import cost.
      */
-    testTimeout: 30000,
-    hookTimeout: 30000,
+    maxWorkers: '25%',
+    testTimeout: 15000,
+    hookTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
