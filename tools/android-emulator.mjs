@@ -57,6 +57,7 @@ Options:
   --dns <servers>     Comma-separated DNS servers passed to -dns-server. Default: ${DNS_SERVERS}
   --verify-host <host> Host the guest must resolve before a running AVD is reused. Default: ${VERIFY_HOST}
   --timeout <seconds> Seconds to wait for boot. Default: ${BOOT_TIMEOUT_SECONDS}
+  --shutdown-timeout <seconds> Seconds to wait for a restarted AVD to leave adb devices. Default: ${SHUTDOWN_TIMEOUT_SECONDS}
   --json              Emit the result as JSON on stdout.
   --help, -h          Print this usage and exit 0.
 
@@ -83,6 +84,7 @@ function parseArgs(argv) {
     avd: AVD_NAME,
     dns: DNS_SERVERS,
     verifyHost: VERIFY_HOST,
+    shutdownTimeout: SHUTDOWN_TIMEOUT_SECONDS,
     timeout: BOOT_TIMEOUT_SECONDS,
     json: false,
   }
@@ -96,7 +98,7 @@ function parseArgs(argv) {
       options.status = true
     } else if (arg === "--json") {
       options.json = true
-    } else if (arg === "--avd" || arg === "--dns" || arg === "--verify-host" || arg === "--timeout") {
+    } else if (arg === "--avd" || arg === "--dns" || arg === "--verify-host" || arg === "--timeout" || arg === "--shutdown-timeout") {
       const value = argv[index + 1]
       if (value === undefined || value.startsWith("--")) {
         fail(EXIT.INVALID_INPUT, `${arg} requires a value`)
@@ -105,6 +107,13 @@ function parseArgs(argv) {
       if (arg === "--avd") options.avd = value
       else if (arg === "--dns") options.dns = value
       else if (arg === "--verify-host") options.verifyHost = value
+      else if (arg === "--shutdown-timeout") {
+        const seconds = Number(value)
+        if (!Number.isFinite(seconds) || seconds <= 0) {
+          fail(EXIT.INVALID_INPUT, `--shutdown-timeout requires a positive number of seconds, got ${value}`)
+        }
+        options.shutdownTimeout = seconds
+      }
       else {
         const seconds = Number(value)
         if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -155,6 +164,23 @@ function run(command, args, options = {}) {
     shell: needsShell,
     windowsHide: true,
   })
+}
+
+/**
+ * Every serial `adb devices` lists, whatever its transport state, or null when the command itself
+ * failed. Shutdown is judged against this, never against the `device`-only view: a serial sitting in
+ * `offline` is still holding its AVD lock, and an empty list from a failed command is not evidence
+ * of anything.
+ */
+function listedSerials(adb) {
+  const listed = run(adb, ["devices"])
+  if (listed.status !== 0) return null
+  return String(listed.stdout ?? "")
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => line.trim().split(/\s+/))
+    .filter((parts) => parts.length >= 2 && parts[0].startsWith("emulator-"))
+    .map((parts) => parts[0])
 }
 
 function bootedSerials(adb) {
@@ -279,11 +305,16 @@ function launchEmulator(sdkPath, avd, dns) {
   return path.join(logDir, `${avd}.out.log`)
 }
 
-/** True once `serial` has left `adb devices`. The caller must not launch before this holds. */
+/**
+ * True once `serial` has left `adb devices` entirely. The caller must not launch before this holds.
+ * A failed listing keeps waiting rather than counting as departure, so a transient `adb` error can
+ * never license a relaunch into the running process.
+ */
 async function waitForShutdown(adb, serial, timeoutSeconds) {
   const deadline = Date.now() + timeoutSeconds * 1000
   while (Date.now() < deadline) {
-    if (!bootedSerials(adb).includes(serial)) return true
+    const serials = listedSerials(adb)
+    if (serials !== null && !serials.includes(serial)) return true
     await new Promise((resolve) => setTimeout(resolve, 2000))
   }
   return false
@@ -366,8 +397,8 @@ async function main() {
     }
     // Confirmed shutdown, never a fixed delay: a surviving process keeps the AVD lock, and
     // waitForBoot would then rediscover this same DNS-broken serial and call it ready.
-    if (!(await waitForShutdown(adb, running, SHUTDOWN_TIMEOUT_SECONDS))) {
-      fail(EXIT.FAILED, `${running} was still present ${SHUTDOWN_TIMEOUT_SECONDS}s after emu kill; stop it and retry.`)
+    if (!(await waitForShutdown(adb, running, options.shutdownTimeout))) {
+      fail(EXIT.FAILED, `${running} was still present ${options.shutdownTimeout}s after emu kill; stop it and retry.`)
     }
   }
 
