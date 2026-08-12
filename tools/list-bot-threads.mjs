@@ -44,6 +44,10 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
   --poll-seconds <n>  gap between polls (default 30)
   --command-timeout-seconds <n>  hard bound for each gh child (default 45)
   --bot <login>       reviewer login to filter on (default ${BOT_LOGIN}); a trailing [bot] is dropped
+  --re-review         request a FRESH review of the head that is already reviewed, and accept
+                      only a review submitted after the one present when this run started. The
+                      only way to clear a finding carried in a review BODY, which opens no
+                      thread to resolve. Needs --wait-seconds above 0.
   --no-request        do NOT post "@pullfrog review" first; wait only for the review Pullfrog
                       starts on its own (default: post the request)
   --help, -h          print this usage and exit 0
@@ -96,7 +100,7 @@ const argOf = (flag) => {
 }
 
 const VALUE_FLAGS = new Set(["--pr", "--repo", "--wait-seconds", "--poll-seconds", "--command-timeout-seconds", "--bot"])
-const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--no-request", "--help", "-h"])
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--no-request", "--re-review", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, because `--wait-seconds -5` is a
  * legitimate (if invalid) argument and reporting it as an unknown option would hide the real
@@ -130,6 +134,9 @@ const commandTimeoutSeconds = numberFlag("--command-timeout-seconds", 45, { min:
 const botLogin = (argOf("--bot") ?? BOT_LOGIN).replace(/\[bot\]$/, "")
 if (!botLogin || botLogin.startsWith("-")) fail(2, `${USAGE}\n\n--bot requires a login`)
 const requestReview = !process.argv.includes("--no-request")
+const reReview = process.argv.includes("--re-review")
+if (reReview && !requestReview) fail(2, `${USAGE}\n\n--re-review and --no-request contradict each other`)
+if (reReview && waitSeconds === 0) fail(2, `${USAGE}\n\n--re-review needs --wait-seconds above 0 to observe the fresh review`)
 
 const GH = process.env.GH_BIN || "gh"
 let config
@@ -336,10 +343,38 @@ const botReviewOf = (payload) =>
     .filter((review) => COMPLETED_REVIEW_STATES.has(review.state))
     .at(-1)
 
+/**
+ * A missing or unparseable submittedAt sorts BELOW every real timestamp, so a review whose age
+ * cannot be read can never be mistaken for the fresh one --re-review is waiting on.
+ */
+const submittedAtOf = (review) => {
+  const parsed = Date.parse(review?.submittedAt ?? "")
+  return Number.isFinite(parsed) ? parsed : -1
+}
+
 /** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
 const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && COMPLETED_REVIEW_STATES.has(review.state)).at(-1)
 
-let review = botReviewOf(node)
+/**
+ * The review this run must supersede, when --re-review asks for a fresh adjudication of the head
+ * that is already reviewed. Read BEFORE the request is posted, so "newer than this" is a fact about
+ * the run's starting state and not about whatever arrives while it waits.
+ */
+const priorReview = botReviewOf(node)
+const priorSubmittedAt = reReview ? submittedAtOf(priorReview) : null
+
+/**
+ * A review is superseded only by a LATER review of the same head. Comparing the timestamp is what
+ * makes --re-review terminate: without it the run reads the review it was sent to replace, reports
+ * the finding it just answered, and never converges.
+ */
+const currentReviewOf = (payload) => {
+  const found = botReviewOf(payload)
+  if (!reReview || !found) return found
+  return submittedAtOf(found) > priorSubmittedAt ? found : null
+}
+
+let review = currentReviewOf(node)
 
 /**
  * Ask BEFORE waiting, not after.
@@ -351,14 +386,21 @@ let review = botReviewOf(node)
  * 16:01:48Z on 2026-08-12, the workflow run started six seconds later, and the review was submitted
  * at 16:04:16Z. Pass --no-request to suppress it.
  *
- * The request is gated on `botReviewOf` returning nothing, which is already "no review pinned to the
- * CURRENT head", so a pull request Pullfrog has genuinely reviewed is never nagged.
+ * By default the request is gated on there being no review of the CURRENT head, so a pull request
+ * Pullfrog has genuinely reviewed is never nagged.
+ *
+ * --re-review lifts that gate deliberately, and it is the ONLY transition that can clear a finding
+ * carried in a review BODY. Such a finding opens no thread, so there is nothing to reply to and
+ * resolve, and answering it in a ticket changes no code. Without this flag the only way to get the
+ * verdict re-adjudicated is a push, which for a filed finding means an empty commit invented purely
+ * to move the head. Record the disposition as a pull request comment, then re-review; never
+ * manufacture a commit.
  */
 let requested = false
 if (requestReview && !review && waitSeconds > 0) {
   await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@pullfrog review"], `gh pr comment ${pullRequest}`)
   requested = true
-  progress("REVIEW_REQUESTED", node, startedAt, deadline)
+  progress(reReview ? "RE_REVIEW_REQUESTED" : "REVIEW_REQUESTED", node, startedAt, deadline)
 }
 
 while (!review && Date.now() < deadline) {
@@ -366,7 +408,7 @@ while (!review && Date.now() < deadline) {
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
   node = await readPullRequest()
-  review = botReviewOf(node)
+  review = currentReviewOf(node)
   progress(review ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
 }
 

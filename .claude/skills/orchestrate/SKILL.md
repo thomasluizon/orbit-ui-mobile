@@ -656,9 +656,27 @@ the verdict from the review itself for exactly this reason; do not re-derive it 
 body for every accepted state except `APPROVED`, because a review that did not approve states its
 complaint there and no thread has to repeat it. `counts{}` describes threads only, so `REVIEWED`
 with zero threads is a clean pull request only when `reviewBody` is null as well. Read a non-null
-`reviewBody` and split it exactly like a thread. It carries no thread id, so
-`resolve-bot-thread.mjs` cannot answer it: fix it or file it, then push, and the re-review posts a
-fresh `pullfrog-approval` over the new head.
+`reviewBody` and split it exactly like a thread.
+
+**A body finding you FILE rather than fix needs its own transition, and this is the one place the
+loop can fail to converge.** It carries no thread id, so `resolve-bot-thread.mjs` cannot answer it.
+Filing changes no code, so nothing pushes, so the head never moves and the red
+`pullfrog-approval` is never re-adjudicated. Do this instead, and never invent an empty commit to
+manufacture a push:
+
+1. Post the disposition as a pull request comment. Name the ticket you filed.
+2. Re-adjudicate the same head:
+
+```bash
+node tools/list-bot-threads.mjs --pr <n> --repo <key> --re-review --wait-seconds 900
+```
+
+`--re-review` posts `@pullfrog review` even though the head is already reviewed, and it accepts
+only a review submitted AFTER the one that was present when the run started. That timestamp
+comparison is what makes it terminate: without it the run reads back the review it was sent to
+replace and reports the finding it just answered.
+
+A body finding you FIX needs none of this. The fix moves the head, and the push re-reviews it.
 
 **Split every unresolved finding two ways, and act on both halves:**
 

@@ -201,6 +201,27 @@ export const cases = () => {
     commented.status === 0 && parsed(commented)?.verdict === "REVIEWED" && parsed(commented)?.reviewBody === null,
     commented.stdout || commented.stderr,
   )
+  /**
+   * --re-review is the ONLY transition that can clear a finding carried in a review body, because
+   * such a finding opens no thread to resolve and filing it pushes nothing. Raised by Pullfrog on
+   * this branch's own pull request (#716) as a convergence hole, and it was right.
+   *
+   * The argument guards are asserted here rather than the wait itself: the wait needs a live review
+   * to arrive, which this hermetic gate cannot produce. What IS mechanical is that the flag refuses
+   * every shape under which it could never terminate.
+   */
+  const contradiction = readPr(payload({}), 0, ["--re-review", "--no-request"])
+  T(
+    `${TOOL}: --re-review and --no-request contradict each other and are refused`,
+    contradiction.status === 2 && /contradict each other/.test(contradiction.stderr),
+    contradiction.stdout || contradiction.stderr,
+  )
+  const noWait = readPr(payload({}), 0, ["--re-review"])
+  T(
+    `${TOOL}: --re-review with a zero wait is refused, because it could never observe a fresh review`,
+    noWait.status === 2 && /--wait-seconds above 0/.test(noWait.stderr),
+    noWait.stdout || noWait.stderr,
+  )
   for (const incompleteState of ["PENDING", "DISMISSED"]) {
     const incomplete = readPr(payload({ reviews: [botReview(incompleteState)] }))
     T(
