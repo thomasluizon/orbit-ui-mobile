@@ -221,6 +221,24 @@ function readySerialFor(adb, avd) {
 }
 
 /**
+ * Any serial running `avd`, booted or still starting. A starting AVD holds its lock exactly like a
+ * ready one, so the launch decision must consult this rather than readiness.
+ */
+function presentSerialFor(adb, avd) {
+  return (listedSerials(adb) ?? []).find((serial) => avdNameForSerial(adb, serial) === avd) ?? null
+}
+
+/** Waits for one specific serial to finish booting. Returns the serial, or null on timeout. */
+async function waitForBootOf(adb, serial, timeoutSeconds) {
+  const deadline = Date.now() + timeoutSeconds * 1000
+  while (Date.now() < deadline) {
+    if (isBootCompleted(adb, serial)) return serial
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+  }
+  return null
+}
+
+/**
  * Whether the guest can resolve `host`. A running emulator started without `-dns-server` inherits the
  * host resolver, which is exactly the failure this tool exists to prevent, so reuse is gated on this
  * rather than on the process merely being up. Observed failure text on 2026-08-12:
@@ -359,19 +377,38 @@ async function main() {
     fail(EXIT.NO_SDK, `adb or emulator missing under ${sdkPath}. Install platform-tools and the emulator package.`)
   }
 
-  const running = readySerialFor(adb, options.avd)
   const exists = listAvds(emulator).includes(options.avd)
 
   if (options.status) {
+    const ready = readySerialFor(adb, options.avd)
+    const booting = ready ? null : presentSerialFor(adb, options.avd)
     report(options, {
       avd: options.avd,
-      serial: running,
-      state: running ? "ready" : exists ? "stopped" : "absent",
+      serial: ready ?? booting,
+      state: ready ? "ready" : booting ? "booting" : exists ? "stopped" : "absent",
       sdk: sdkPath,
       created: false,
-      booted: Boolean(running),
+      booted: Boolean(ready),
     })
     process.exit(EXIT.OK)
+  }
+
+  /**
+   * Adopt an instance of this AVD that is merely BOOTING, never launch alongside it. Matching on
+   * boot completion alone hid a starting AVD, so a second launch raced the first for the same AVD
+   * lock. Adoption waits for that serial specifically, then falls through to the same DNS gate,
+   * because an instance this tool did not start carries no DNS guarantee.
+   */
+  let running = readySerialFor(adb, options.avd)
+  if (!running) {
+    const booting = presentSerialFor(adb, options.avd)
+    if (booting) {
+      process.stderr.write(`android-emulator: ${options.avd} is already starting as ${booting}; waiting for it\n`)
+      running = await waitForBootOf(adb, booting, options.timeout)
+      if (!running) {
+        fail(EXIT.BOOT_TIMEOUT, `${booting} was already starting but never completed boot within ${options.timeout}s.`)
+      }
+    }
   }
 
   if (running) {

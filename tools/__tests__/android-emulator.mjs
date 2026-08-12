@@ -183,6 +183,27 @@ export const cases = () => {
     stderr: /still present/,
   }, { env: sdkEnv(listingBreaks) })
 
+  // A serial that is listed but has not finished booting still holds the AVD lock. Launching
+  // alongside it would race for that lock, so it must be adopted, not duplicated.
+  const starting = stageSdk("already-booting", {
+    devices: ["emulator-5554\tdevice"],
+    boot: "",
+    avdName: "Orbit_Pixel_9_API_35",
+    avds: ["Orbit_Pixel_9_API_35"],
+    ping: "ping: unknown host api.useorbit.org",
+  })
+  T("android-emulator.mjs: a starting AVD reports booting, not stopped", statusOf(starting).parsed?.state === "booting")
+  const adopted = run("android-emulator.mjs", ["--timeout", "3", "--shutdown-timeout", "3"], { env: sdkEnv(starting) })
+  T(
+    "android-emulator.mjs: a starting AVD is adopted and waited for, never launched a second time",
+    adopted.status === 5 && /already starting/.test(adopted.stderr) && /never completed boot/.test(adopted.stderr),
+    `status=${adopted.status} stderr=${adopted.stderr.trim().split("\n").slice(0, 2).join(" | ")}`,
+  )
+  T(
+    "android-emulator.mjs: adopting a starting AVD does not kill it",
+    !existsSync(join(starting, "killed.marker")),
+  )
+
   const killBreaks = stageSdk("kill-fails", {
     devices: ["emulator-5554\tdevice"],
     killFails: true,
