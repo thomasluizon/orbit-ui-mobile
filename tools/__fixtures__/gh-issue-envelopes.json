@@ -105,7 +105,8 @@
         },
         "$.stateReason": {
           "types": [
-            "null"
+            "null",
+            "string"
           ]
         },
         "$.title": {
@@ -138,6 +139,96 @@
         "$": {
           "types": [
             "string"
+          ]
+        }
+      }
+    },
+    "issueViewComments": {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "<issue-number>",
+        "--repo",
+        "thomasluizon/orbit-tickets",
+        "--json",
+        "comments"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.comments": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.comments[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.comments[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].author": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.comments[].author.login": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].authorAssociation": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].createdAt": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].includesCreatedEdit": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.comments[].isMinimized": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.comments[].minimizedReason": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].reactionGroups": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.comments[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.comments[].viewerDidAuthor": {
+          "types": [
+            "boolean"
           ]
         }
       }
@@ -451,6 +542,16 @@
         "$.items[].estimate": {
           "types": [
             "number"
+          ]
+        },
+        "$.items[].linked pull requests": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.items[].linked pull requests[]": {
+          "types": [
+            "string"
           ]
         },
         "$.totalCount": {

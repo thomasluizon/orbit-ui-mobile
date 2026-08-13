@@ -53,7 +53,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,listLabels,listMilestones,listTickets,preflightTicketCompletion,readTicket,resolveTicket,setStatus",
+      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,listLabels,listMilestones,listTickets,preflightTicketCompletion,readComments,readTicket,resolveTicket,setStatus,updateBody",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -81,6 +81,18 @@ export const cases = async () => {
     `${TOOL}: the fixture guard refuses an issue state outside the GitHub enum`,
     /asserts unsupported enum at \$\.state: "MERGED"/.test(
       (await messageOf(() => orcaEnv([{ match: "issue view 221", stdout: JSON.stringify(issue({ state: "MERGED" })) }]))) ?? "",
+    ),
+  )
+  const commentsPayload = JSON.stringify({ comments: [{ author: { login: "thomasluizon" }, body: "b", createdAt: "2026-08-13T18:58:17Z" }] })
+  T(
+    `${TOOL}: a bare --json comments query validates against the comments envelope`,
+    (await messageOf(() => orcaEnv([{ match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments", stdout: commentsPayload }]))) === null,
+  )
+  /** The routing regression: a combined field list must fall through to the issueView envelope and fail loudly there. */
+  T(
+    `${TOOL}: a combined --json comments,body query never routes to the comments envelope`,
+    /asserts unrecorded key \$\.comments/.test(
+      (await messageOf(() => orcaEnv([{ match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments,body", stdout: commentsPayload }]))) ?? "",
     ),
   )
 

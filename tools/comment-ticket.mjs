@@ -7,10 +7,11 @@
  * 2b writes its answers to the ticket BEFORE any worktree exists, so there is no pull request to name
  * and no lifecycle state to move. That is this tool.
  *
- * Why the ticket and not the transcript: /orchestrate already treats a comment as part of the work
- * order rather than commentary on it, and the LATER comment wins, and `compose-prompt.mjs` already
- * passes comments through to the worker. So a decision written here reaches the implementer over a
- * path that already exists, and it stays auditable after the session ends.
+ * Why the ticket and not the transcript: a comment stays auditable after the session ends, and
+ * `compose-prompt.mjs` renders the visible comment thread into the worker prompt, oldest first,
+ * where the later comment wins. Use a comment for a decision that arrives as its own event, such as
+ * an answer to an open question; a correction to the work order itself belongs in the BODY, through
+ * `update-ticket.mjs`, so the ticket stays one coherent order rather than a body plus errata.
  */
 
 import { readFileSync } from "node:fs"

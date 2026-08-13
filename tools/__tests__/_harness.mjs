@@ -173,6 +173,8 @@ const assertRecordedGhValue = (command, value, recordedPaths, path = "$") => {
 }
 
 const ghEnvelopeName = (command, entry) => {
+  /** Before the generic issue view; the lookahead keeps a multi-field list like `--json comments,body` out of this envelope. */
+  if (/\bissue\s+view\b[\s\S]*--json\s+comments(?=\s|$)/.test(command)) return "issueViewComments"
   if (/\bissue\s+view\b/.test(command)) return (entry.exit ?? 0) === 0 ? "issueView" : "issueViewError"
   if (/\bissue\s+list\b/.test(command)) return "issueList"
   if (/\bproject\s+item-list\b/.test(command)) return "projectItemList"
