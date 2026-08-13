@@ -174,12 +174,17 @@ before scripting anything on top of it.
 
 **orbit-ui-mobile (npm workspaces, npm 11):**
 
-1. On a fresh branch, list the drift: `npm outdated` at the root (it covers the workspaces).
+1. On a fresh branch, list the drift: `npm outdated --json` at the root (it covers the
+   workspaces). Exit 1 with a populated object IS the drift signal, not a failure; the object is
+   keyed by package name with `current` / `wanted` / `latest` / `dependent` (the workspace) /
+   `location`.
 2. Update everything it names, majors included. Two pin classes take a deliberate step instead
    of a blind bump:
-   - **Expo-managed packages** (`apps/mobile`): align through the Expo CLI's own resolver
-     (`npx expo install --check`, then `--fix`) so every Expo-managed package sits exactly where
-     the pinned SDK wants it. The Expo SDK version itself is OUT of this sweep: an SDK major is
+   - **Expo-managed packages** (`apps/mobile`): align through the Expo CLI's own resolver.
+     `npx expo install --check` exits 0 with `Dependencies are up to date` when aligned and
+     exits 1 with `Found outdated dependencies` when not; `npx expo install --fix` applies the
+     aligned versions, and packages under `expo.install.exclude` in `apps/mobile/package.json`
+     are skipped by both. The Expo SDK version itself is OUT of this sweep: an SDK major is
      its own ticket (#715 is the precedent), and the `Expo SDK Pin` gate fails any drift.
    - **Root `overrides` pins** (react, react-dom, and the security pins): bump the override and
      every dependent range together so the override never points below the installed version.
@@ -189,10 +194,16 @@ before scripting anything on top of it.
 **orbit-api (per-project PackageReference, no central management):**
 
 1. On a fresh branch, list the drift and the known-vulnerable set:
-   `dotnet list Orbit.slnx package --outdated` and `dotnet list Orbit.slnx package --vulnerable
-   --include-transitive`.
-2. Update every named package per project with `dotnet add <csproj> package <id>`. The .NET SDK
-   pin in `global.json` is OUT of this sweep, same reasoning as the Expo SDK.
+   `dotnet list Orbit.slnx package --outdated --format json` and
+   `dotnet list Orbit.slnx package --vulnerable --include-transitive --format json`. Always
+   `--format json` (the human output localizes to the host language): the envelope is
+   `{ version, parameters, sources, projects[] }`, each drifted project carries
+   `frameworks[].topLevelPackages[]` with `id` / `requestedVersion` / `resolvedVersion` /
+   `latestVersion`, and a project with nothing to report omits `frameworks`. Exit is 0 whether
+   or not drift exists, so read the JSON, never the exit code.
+2. Update every named package per project with `dotnet add <csproj> package <id>` (installs the
+   latest and rewrites the `PackageReference`). The .NET SDK pin in `global.json` is OUT of
+   this sweep, same reasoning as the Expo SDK.
 3. `dotnet build Orbit.slnx` and `dotnet test Orbit.slnx`.
 
 **Holdback rule — nothing is silently skipped.** A package that cannot land (breaking major,
