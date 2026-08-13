@@ -200,14 +200,14 @@ before scripting anything on top of it.
    array — a string names the vulnerable dependency the entry inherits from, while an advisory
    object carries `source` / `name` / `dependency` / `title` / `url` / `severity` / `cwe` /
    `cvss` / `range` — and `fixAvailable` takes exactly three forms (npm's installed arborist
-   source, `audit-report.js` `#fixAvailable`): `{ name, version, isSemVerMajor }` names the
-   exact update that clears the advisory; `true` means an in-range update clears it without a
-   named target; `false` means no clearing version exists at all. The tiering maps each form:
-   holding back the named update (object form) or any update of a package whose advisory says
-   `true` is **High**; under `false` there is no fix to withhold, so the holdback itself is
-   **Medium** and the unfixable advisory is reported as its own standing security finding
-   instead. Retain this output; any value outside this contract gets re-confirmed in that run
-   (rule 8) before the tiering reads it.
+   source, `audit-report.js` `#fixAvailable`): `{ name, version, isSemVerMajor }` names a
+   version that clears the advisory; `true` means some version inside the declared spec is not
+   vulnerable, WITHOUT naming it; `false` means no clearing version exists at all. Only
+   `false` is decisive on its own — nothing can be withheld, so the advisory is reported
+   through the security-finding path, never blamed on a holdback. The other two forms say a fix
+   exists somewhere; neither proves the specific candidate this sweep held back would have
+   cleared it, so neither tiers a holdback by itself. Retain this output; any value outside
+   this contract gets re-confirmed in that run (rule 8) before the tiering reads it.
 2. Update everything it names, majors included. Two pin classes take a deliberate step instead
    of a blind bump:
    - **Expo-managed packages** (`apps/mobile`): align through the Expo CLI's own resolver.
@@ -245,10 +245,19 @@ before scripting anything on top of it.
 **Holdback rule — nothing is silently skipped.** A package that cannot land (breaking major,
 peer conflict, red gate after the bump) is reverted to keep the PR green and recorded as a
 **holdback**: name, current → latest, and the exact failure. Every holdback becomes a finding
-in the Phase 3 consolidated set — **High** when the retained `npm audit --json` baseline or the
-`--vulnerable --format json` output names an advisory the held-back update would fix, **Medium**
-otherwise — so it is ticketed, never forgotten. Severity comes from that captured advisory
-evidence, never from guessing.
+in the Phase 3 consolidated set, so it is ticketed, never forgotten.
+
+**Tier a holdback on the candidate, never on the baseline alone.** A holdback is **High** only
+when retained evidence shows that **this specific candidate version** removes an advisory:
+before reverting the failed update, re-run `npm audit --json` (or
+`dotnet list Orbit.slnx package --vulnerable --include-transitive --format json`) with the
+candidate applied and confirm the advisory is gone from the output. Advisory disappears with the
+candidate in place: **High**, and cite both audits. Advisory still present, or the candidate
+never installed far enough to audit: **Medium** — the update is ordinary currency debt, and any
+advisory that survives is reported through the security-finding path under its own name rather
+than attributed to this holdback. A baseline that merely proves *a* fix exists somewhere
+(`fixAvailable: true`, or an object naming a different version) never promotes a holdback on its
+own. Severity comes from that captured before-and-after evidence, never from guessing.
 
 **Sweep verdict** for inventory item 12: `SWEPT` (everything current, gates green),
 `SWEPT_WITH_HOLDBACKS` (green PR plus the named holdbacks), or `FAILED` (the sweep itself could
@@ -273,8 +282,8 @@ the ticket table and drives the verdict; it is not a report:
 | Consolidated tier | Maps from |
 |---|---|
 | **Blocker** | security Tier 1 · tests Critical · performance Critical · code-quality Critical · ops Blocker · a11y Blocker |
-| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · a11y High · a vulnerable dependency holdback |
-| **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium · a11y Medium · a non-vulnerable dependency holdback |
+| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · a11y High · a dependency holdback proven to withhold an advisory fix |
+| **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium · a11y Medium · every other dependency holdback |
 | **Low / Info** | performance Low/Info · code-quality Low/Info |
 | **Out-of-scope / acknowledged** | security Tier 3 · enterprise-only ops |
 
