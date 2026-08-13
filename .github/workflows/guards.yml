@@ -3,7 +3,7 @@ name: Guards
 # The deterministic replacements for the Claude-session-only PostToolUse hooks
 # (D6): these hold for Codex, Claude, a human, or a bot, because CI
 # is the one layer nothing bypasses. Jobs:
-#   root-allowlist - every repository-root file must be a deliberate architecture addition
+#   root-allowlist - root entries are deliberate and npm overrides exist only at the root
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
 #   ratchet - the eslint-suppressions.json baselines may only shrink
@@ -37,6 +37,8 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-root-allowlist.mjs
+      - name: Workspace packages declare no ignored overrides
+        run: node tools/check-workspace-overrides.mjs
 
   dashes:
     name: Dash Ban
