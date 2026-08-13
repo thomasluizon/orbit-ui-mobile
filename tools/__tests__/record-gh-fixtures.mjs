@@ -20,6 +20,11 @@ export const cases = () => {
   })
   const result = check(TOOL, "records only read-only live command shapes", ["--output", output], { status: 0, stdout: /record-gh-fixtures: wrote/ }, {
     env: orcaEnv([
+      /** Before the generic prefix, and non-empty: the recorder refuses to write comment paths it never observed. */
+      {
+        match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments",
+        stdout: JSON.stringify({ comments: [{ author: { login: "thomasluizon" }, body: "a decision", createdAt: "2026-08-13T18:58:17Z" }] }),
+      },
       { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue },
       { match: "issue view 2147483647 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
       { match: "issue list --repo thomasluizon/orbit-tickets", stdout: `[${issue}]` },
@@ -47,6 +52,16 @@ export const cases = () => {
     `${TOOL}: derives observed paths without admitting an unobserved key`,
     Boolean(manifest.commands.issueView.paths["$.blockedBy.nodes"]) && !manifest.commands.issueView.paths["$.madeUpField"],
     JSON.stringify(manifest.commands.issueView.paths),
+  )
+  /**
+   * The comment paths the worker prompt depends on. An envelope recorded from a ticket with no
+   * comments would carry `$.comments` and nothing under it, which reads as coverage and proves
+   * nothing about the shape compose-prompt.mjs renders.
+   */
+  T(
+    `${TOOL}: derives the comment paths the worker prompt renders`,
+    ["body", "createdAt", "author.login"].every((path) => manifest.commands.issueViewComments.paths[`$.comments[].${path}`]),
+    JSON.stringify(manifest.commands.issueViewComments?.paths),
   )
   T(
     `${TOOL}: derives the populated project item paths read by the adapter`,

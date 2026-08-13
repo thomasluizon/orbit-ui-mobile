@@ -44,6 +44,13 @@ const stateReasonFilter = 'if .stateReason == "" then .stateReason = null else .
 const commands = {
   issueView: ["issue", "view", String(sampleNumber), "--repo", config.repository, "--json", issueFields, "--jq", stateReasonFilter],
   issueViewError: ["issue", "view", "2147483647", "--repo", config.repository, "--json", issueFields, "--jq", stateReasonFilter],
+  /**
+   * A separate envelope from issueView, because it is a different query with a different response
+   * shape. Recording it against the same sample only proves the comment paths while that issue
+   * still carries comments, so `record` fails loudly on an empty array rather than writing a
+   * manifest whose `$.comments[]` paths silently vanish.
+   */
+  issueViewComments: ["issue", "view", String(sampleNumber), "--repo", config.repository, "--json", "comments"],
   issueList: ["issue", "list", "--repo", config.repository, "--state", "all", "--limit", "1000", "--json", issueFields, "--jq", `map(${stateReasonFilter})`],
   projectItemList: ["project", "item-list", String(config.projectNumber), "--owner", config.projectOwner, "--format", "json", "--limit", "1000"],
   labelList: ["label", "list", "--repo", config.repository, "--limit", "1000", "--json", "name"],
@@ -92,6 +99,9 @@ const record = (name, command) => {
       throw new Error(`${name} returned invalid JSON: ${error.message}`)
     }
   }
+  if (name === "issueViewComments" && (!Array.isArray(value?.comments) || value.comments.length === 0)) {
+    throw new Error(`issueViewComments recorded no comments on issue ${sampleNumber}, so the comment paths would be missing rather than proven`)
+  }
   const paths = {}
   addPaths(paths, value)
   return {
@@ -101,9 +111,39 @@ const record = (name, command) => {
   }
 }
 
+/**
+ * A recording UNIONS with the manifest already on disk instead of replacing it, because every
+ * envelope is sampled from one live ticket and that ticket keeps changing. Recording on 2026-08-13
+ * flipped issueView's `$.stateReason` from null to string, purely because sample #221 had been
+ * closed since the previous run, and every stub of an OPEN ticket then failed against it. A
+ * nullable field must stay nullable once both shapes have been seen.
+ *
+ * This still enters nothing by hand: every type in the union was observed in real gh output at some
+ * recording. The cost is that a field GitHub genuinely removes lingers until the manifest is
+ * deleted and rebuilt, which is the safe direction for a guard whose job is to refuse inventions.
+ */
+const unionPaths = (previous, next) => {
+  const merged = { ...next }
+  for (const [path, entry] of Object.entries(previous ?? {})) {
+    const types = [...new Set([...(merged[path]?.types ?? []), ...entry.types])].sort()
+    merged[path] = { types }
+  }
+  return merged
+}
+
+let priorCommands = {}
+try {
+  priorCommands = JSON.parse(readFileSync(outputPath, "utf8")).commands ?? {}
+} catch {
+  priorCommands = {}
+}
+
 try {
   const recorded = {}
-  for (const [name, command] of Object.entries(commands)) recorded[name] = record(name, command)
+  for (const [name, command] of Object.entries(commands)) {
+    const fresh = record(name, command)
+    recorded[name] = { ...fresh, paths: unionPaths(priorCommands[name]?.paths, fresh.paths) }
+  }
   const manifest = {
     schemaVersion: 1,
     generation: {

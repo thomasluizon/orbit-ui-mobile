@@ -18,10 +18,16 @@ const ticket = (overrides = {}) => ({
   url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
   ...overrides,
 })
-const ticketPlan = (value = ticket()) => [
+/**
+ * The comments entry comes FIRST because the stub resolves with `plan.find`, and the generic
+ * `issue view 221` prefix would otherwise answer the comments read with the ticket envelope.
+ */
+const ticketPlan = (value = ticket(), comments = []) => [
+  { match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments", stdout: JSON.stringify({ comments }) },
   { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(value) },
   { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
 ]
+const comment = (body, author = "thomasluizon", createdAt = "2026-08-13T18:58:17Z") => ({ author: { login: author }, body, createdAt })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
 
 export const cases = () => {
@@ -67,6 +73,28 @@ export const cases = () => {
     /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt,
   )
+
+  T(`${TOOL}: a ticket with no comments grows no comment section`, !prompt.includes("Comments on"), prompt.slice(0, 200))
+
+  /**
+   * The regression this file exists to hold. Three documents claimed comments already reached the
+   * worker while this tool read only the body, so /orchestrate step 2b's answers stopped at the
+   * reviewer. A prompt that drops a comment is a prompt missing half its work order.
+   */
+  const withComments = join(root, "compose-prompt", "with-comments.md")
+  check(
+    TOOL,
+    "carries the ticket's comments into the prompt, oldest first",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", withComments],
+    { status: 0 },
+    options(ticketPlan(ticket(), [comment("Answer one: Tabler, never Lucide."), comment("Answer two: ship without the icon.", "thomasluizon", "2026-08-13T19:30:00Z")])),
+  )
+  const commented = composed(withComments)
+  T(`${TOOL}: the body still leads the prompt`, commented.startsWith("# Ticket body\n\nKeep this verbatim."), commented.slice(0, 200))
+  T(`${TOOL}: every comment body reaches the worker`, commented.includes("Answer one: Tabler, never Lucide.") && commented.includes("Answer two: ship without the icon."), commented)
+  T(`${TOOL}: comments are ordered oldest first`, commented.indexOf("Answer one") < commented.indexOf("Answer two"), commented)
+  T(`${TOOL}: each comment carries its author and date so the later-wins rule is applicable`, /### thomasluizon on 2026-08-13T19:30:00Z/.test(commented), commented)
+  T(`${TOOL}: the prompt states that the later comment wins`, /the LATER comment wins/.test(commented), commented)
 
   const wrongTarget = join(root, "compose-prompt", "wrong-target.md")
   check(

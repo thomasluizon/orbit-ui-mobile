@@ -220,6 +220,48 @@ export const addComment = async (number, body) => {
 }
 
 /**
+ * Read one ticket's comments, oldest first.
+ *
+ * Field shape confirmed live on 2026-08-13 against issue #312, never from memory (code standard 8):
+ * gh issue view 312 --repo thomasluizon/orbit-tickets --json comments --jq '.comments[0] | keys'
+ * returned author, authorAssociation, body, createdAt, id, includesCreatedEdit, isMinimized,
+ * minimizedReason, reactionGroups, url, viewerDidAuthor. `author` is an object carrying `login`.
+ *
+ * `readTicket` deliberately does not fetch these. It is called on almost every orchestration step,
+ * and a comment thread is unbounded, so the cost belongs only to the caller that renders them.
+ */
+export const readComments = async (number) => {
+  positiveIssueNumber(number)
+  const tickets = ticketConfiguration()
+  const args = ["issue", "view", String(number), "--repo", tickets.repository, "--json", "comments"]
+  const payload = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+  if (payload === null || typeof payload !== "object" || !Array.isArray(payload.comments)) {
+    throw new Error(`gh issue view carried no comments array for issue #${number}`)
+  }
+  return payload.comments.map((comment) => {
+    if (comment === null || typeof comment !== "object" || typeof comment.body !== "string" || typeof comment.createdAt !== "string") {
+      throw new Error(`gh issue view carried an invalid comment on issue #${number}`)
+    }
+    const login = comment.author?.login
+    return { body: comment.body, createdAt: comment.createdAt, author: typeof login === "string" && login.length > 0 ? login : "unknown" }
+  })
+}
+
+/**
+ * Replace one ticket body. A comment cannot do this job: `readTicket` never fetches comments and
+ * `compose-prompt.mjs` builds the worker prompt from `liveTicket.body` alone, so a fact added as a
+ * comment reaches Thomas and the reviewer and never reaches the implementer. D2 makes the body the
+ * prompt, and before this existed the body was write-once, so anything learned after creation could
+ * not be put where the worker would read it (2026-08-13).
+ */
+export const updateBody = async (number, body) => {
+  positiveIssueNumber(number)
+  if (typeof body !== "string" || body.trim().length === 0) throw new Error("GitHub issue body must be a non-empty string")
+  const tickets = ticketConfiguration()
+  await runGh(["issue", "edit", String(number), "--repo", tickets.repository, "--body-file", "-"], { input: body })
+}
+
+/**
  * Verified live on 2026-08-08. This exact read returned one title per line for every milestone:
  * gh api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title
  */

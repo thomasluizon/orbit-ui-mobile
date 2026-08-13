@@ -103,6 +103,7 @@ const CASE_MODULES = [
   ["salvage-worker.mjs", "salvage-worker"],
   ["sync-issue-state.mjs", "sync-issue-state"],
   ["teardown-worktree.mjs", "teardown-worktree"],
+  ["update-ticket.mjs", "update-ticket"],
   ["verify-delivery.mjs", "verify-delivery"],
 ]
 
@@ -143,6 +144,7 @@ const INVALID_INPUT = {
   "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "update-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "verify-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
 

@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 /**
- * One worker prompt = the ticket body verbatim + an orchestrator's brief + the finishing contract.
+ * One worker prompt = the ticket body verbatim + its comments + an orchestrator's brief + the
+ * finishing contract.
+ *
+ * WHY the comments are here, added 2026-08-13: three places claimed this file already passed them
+ * through, and it did not. It read `liveTicket.body` alone. That silently broke the conversation
+ * -first path in /orchestrate step 2b, whose whole design is to answer a ticket's open questions in
+ * a comment BEFORE composing the prompt. Those answers reached Thomas and the reviewer and never
+ * reached the implementer, which is the one reader that had to act on them.
  *
  * WHY the brief exists: a raw ticket is input to planning, not a task description. Anthropic's
  * multi-agent research writeup measured vague subagent instructions causing duplicated work, one
@@ -11,12 +18,12 @@
 
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
-import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
+import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
-  --issue <reference> ticket whose body to compose (required)
+  --issue <reference> ticket whose body and comments to compose (required)
   --repo <key>      target repository key from .claude/orchestrator.json (required)
   --out <path>      absolute prompt path, OUTSIDE every Orbit repository (required)
   --worktree <path> worktree the worker will run in, named in the brief
@@ -64,16 +71,30 @@ for (const declared of Object.values(config.repos)) {
 
 let resolvedTicket
 let liveTicket
+let liveComments
 try {
   resolvedTicket = resolveTicket(issue)
   liveTicket = await readTicket(resolvedTicket.number)
   assertRepositoryLabel(liveTicket, repoKey)
+  liveComments = await readComments(resolvedTicket.number)
 } catch (error) {
   fail(2, `failed to compose ${issue}: ${error.message}`)
 }
 
 const ticketReference = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
-const ticket = liveTicket.body
+
+/**
+ * Oldest first, each one attributed and dated, because /orchestrate's rule is that the LATER
+ * comment wins over both the body and every earlier comment. A worker cannot apply that rule
+ * without the order and cannot weigh a decision without knowing who made it and when.
+ */
+const commentSection = liveComments.length === 0
+  ? ""
+  : `\n\n---\n\n## Comments on ${ticketReference}, oldest first\n\nA comment is part of the work order, not commentary on it. Where a comment and the body above disagree, the LATER comment wins.\n\n${liveComments
+      .map((comment) => `### ${comment.author} on ${comment.createdAt}\n\n${comment.body.replace(/\s*$/, "")}`)
+      .join("\n\n")}`
+
+const ticket = `${liveTicket.body.replace(/\s*$/, "")}${commentSection}`
 
 /**
  * The brief promised the worktree path, the checked-out branch and the base branch, and shipped

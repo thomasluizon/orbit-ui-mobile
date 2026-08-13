@@ -81,6 +81,11 @@ split as the second option) and whose second is the milestone decision, so neith
 skill decided quietly. **He can correct the split here**; an edit loops back through B or C and
 returns to this gate.
 
+**When he overrides, his decision goes into the body before you create anything.** A ticket that
+holds two root causes because Thomas merged them reads to a fresh worker like two tickets filed by
+mistake, and that worker will reasonably split the PR. Write the decision, its date, and its reason
+into the affected bodies as their own section, so the ticket carries the shape it must ship in.
+
 Every body carries the 6.2 sections: Problem/why, Scope, Out of scope, Expected behaviour,
 Technical details, Affected modules / files, Acceptance criteria, Test scenarios, plus
 Rollout/kill-switch and Events/metrics where risk or measurement exists. Standing rules, each one a
@@ -132,6 +137,23 @@ defect if violated:
    relations. Any failure stops the sequence. Do not replace any part with a raw tracker mutation.
 5. Print the final table: issue reference, title, repo, type, milestone or `none`, and `blockedBy`.
    When tickets land in an existing milestone, say which rows are new.
+6. **Say nothing to Thomas that the body does not already carry.** Before you send the closing
+   message, check every claim in it against the body you just wrote. A caveat, a risk, a "worth
+   knowing before `/orchestrate`", a design-system question, a decision Thomas made at the gate: if
+   it is worth telling him, the implementer needs it too, and the implementer reads the body. The
+   closing message SUMMARIZES the tickets; it never adds to them. A fact that exists only in the
+   chat is a fact that did not get filed, and `/ticket` writes tickets, not chat.
+
+   This was a real defect on 2026-08-13. The gate merged two proposed tickets into one, the closing
+   message reported "ship this as one PR" and the design-system gap as things to know, and neither
+   the merge decision nor its reason was in the body a worker would read.
+
+   Discovered something after `create-ticket.mjs` printed? Recompose the COMPLETE body and replace
+   it with
+   `node tools/update-ticket.mjs --issue "<actual-#N>" --body-file <scratchpad-file> --confirm-replace`.
+   Use `node tools/comment-ticket.mjs` only for a decision that arrives later as its own event, such
+   as an answer to an open question; both reach the worker, and the body is where a work order
+   belongs.
 
 Stop there. No code, no branches, no worktrees, no fixing even for a one-liner: the output is
 tickets, and the ticket is the record that makes the work reviewable. `/orchestrate <issue-reference>`
