@@ -49,6 +49,7 @@ These back required CI checks. They fail a merge.
 | `check-suppressions-ratchet.mjs` | Fails when the lint-suppression count grows. Backs `Suppressions Ratchet` (escape hatch: the `ratchet:reseed` label). | `node tools/check-suppressions-ratchet.mjs` |
 | `check-push-target.mjs` | Refuses a push whose target is a protected branch. | `node tools/check-push-target.mjs` |
 | `check-root-allowlist.mjs` | Fails when an undeclared file OR directory exists at the repository root, including ignored and untracked ones. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs` |
+| `check-workspace-overrides.mjs` | Fails when an npm workspace declares an `overrides` key that npm would ignore. Backs `Root Allowlist`. | `node tools/check-workspace-overrides.mjs` |
 
 ## Architecture map and visual evidence
 
