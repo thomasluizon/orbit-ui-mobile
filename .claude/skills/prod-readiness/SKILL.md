@@ -147,9 +147,18 @@ ops or a11y finding (default-refuted), and returns:
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
   a11yFindings: [ same shape, check "a11y-web" | "a11y-mobile" ],
-  opsChecksRun, a11yChecksRun, opsDeferred, failedAudits, unconvergedAudits,
+  opsChecksRun, opsChecksFailed, a11yChecksRun, a11yChecksFailed, a11yNotApplicable,
+  opsDeferred, failedAudits, unconvergedAudits,
   performanceMeasurement }
 ```
+
+The workflow fails closed on its own machinery. A check whose finder died lands in
+`opsChecksFailed` / `a11yChecksFailed`, never in `*ChecksRun`: its inventory item is
+**coverage UNKNOWN** (forces at most CONDITIONAL), never clean. A serious finding whose
+skeptic died is kept, carrying `unverified` — treat it as real until re-verified, and say so
+in the ticket. The a11y checks run only when the resolved scope contains a UI surface; an
+`api`-only scope returns `a11yNotApplicable` with the reason, and inventory item 11 then reads
+**N/A (scope has no UI surface)** — that is a verdict, not a skipped item.
 
 `opsDeferred` always includes **backups** ("verify in the DB console: PITR plus a tested
 restore path"), **paid-api-cost-caps** ("verify in each provider console: a hard monthly cap
@@ -167,17 +176,26 @@ approval gate must surface.
 The one layer the read-only workflow cannot own: bring **every package in both in-scope repos**
 current, prove it against the gates, and open at most one `chore(deps)` pull request per repo
 (D4). Pull requests are **opened, never merged**, by this skill; Pullfrog reviews them like any
-other PR. Run this while the Phase 2 workflow executes; neither depends on the other.
+other PR.
+
+**The audited tree stays immutable.** The Phase 2 finders and skeptics read the project
+checkouts, so the sweep never edits those. Run each repo's sweep in a **dedicated worktree**
+(`git worktree add`) branched fresh from `main`; with that isolation the sweep and the Phase 2
+workflow can run concurrently. A sweep run against the same tree the finders are reading is
+invalid, whatever its result.
 
 Per rule 8, confirm every CLI flag and output shape against the real invocation in this run
 before scripting anything on top of it.
 
 **orbit-ui-mobile (npm workspaces, npm 11):**
 
-1. On a fresh branch, list the drift: `npm outdated --json` at the root (it covers the
+1. In the sweep worktree, list the drift: `npm outdated --json` at the root (it covers the
    workspaces). Exit 1 with a populated object IS the drift signal, not a failure; the object is
    keyed by package name with `current` / `wanted` / `latest` / `dependent` (the workspace) /
-   `location`.
+   `location`. In the same step capture the advisory baseline with `npm audit --json` (exit 1
+   when vulnerabilities exist): `metadata.vulnerabilities` carries the severity totals and
+   `vulnerabilities` is keyed by package with `severity` / `via` / `range` / `fixAvailable`.
+   Retain this output — it is the evidence the holdback tiering reads.
 2. Update everything it names, majors included. Two pin classes take a deliberate step instead
    of a blind bump:
    - **Expo-managed packages** (`apps/mobile`): align through the Expo CLI's own resolver.
@@ -189,7 +207,13 @@ before scripting anything on top of it.
    - **Root `overrides` pins** (react, react-dom, and the security pins): bump the override and
      every dependent range together so the override never points below the installed version.
 3. `npm install`, then the full local proof: `npm run type-check && npm run lint && npm test
-   && npm run build`.
+   && npm run build`. **`npm run build` proves web only** — `@orbit/mobile` has no `build`
+   script, so Turbo skips it. When the sweep touched an Expo-managed or otherwise native
+   package (anything with an Android footprint), additionally build the release APK via the
+   `android-generate` path (`npm run android:apk` in `apps/mobile`; read
+   `.claude/skills/android-generate/SKILL.md` first) so a native ABI or autolinking break
+   cannot pass the listed gates. Re-run `npm audit --json` after the final state (including
+   any reverts) and diff it against the baseline.
 
 **orbit-api (per-project PackageReference, no central management):**
 
@@ -209,14 +233,20 @@ before scripting anything on top of it.
 **Holdback rule — nothing is silently skipped.** A package that cannot land (breaking major,
 peer conflict, red gate after the bump) is reverted to keep the PR green and recorded as a
 **holdback**: name, current → latest, and the exact failure. Every holdback becomes a finding
-in the Phase 3 consolidated set — **High** when the held-back version fixes a vulnerability the
-`--vulnerable` / audit output names, **Medium** otherwise — so it is ticketed, never forgotten.
+in the Phase 3 consolidated set — **High** when the retained `npm audit --json` baseline or the
+`--vulnerable --format json` output names an advisory the held-back update would fix, **Medium**
+otherwise — so it is ticketed, never forgotten. Severity comes from that captured advisory
+evidence, never from guessing.
 
 **Sweep verdict** for inventory item 12: `SWEPT` (everything current, gates green),
 `SWEPT_WITH_HOLDBACKS` (green PR plus the named holdbacks), or `FAILED` (the sweep itself could
 not complete — forces at most CONDITIONAL and names itself as a blocker). Push each branch and
 open the `chore(deps)` PR before the Phase 3 gate; the PRs are provenance the gate cites, and
-they wait on Pullfrog like everything else.
+they wait on Pullfrog like everything else. **The verdict certifies the sweep branch, not the
+launch head**: until the `chore(deps)` PRs are merged into the head being shipped, item 12 is a
+standing launch condition — `SWEPT` or `SWEPT_WITH_HOLDBACKS` with unmerged PRs caps the launch
+verdict at CONDITIONAL, naming the pending PRs, unless Thomas explicitly waives them at the
+gate.
 
 ---
 
@@ -285,13 +315,16 @@ re-validate each with `--issue`.
 ### Launch verdict (§5 honesty), computed, never hardcoded
 
 - **GO** only if **zero Blockers** AND all **12** inventory items produced a verdict (every
-  audit ran and converged; every ops and a11y check resolved or is a legitimately Deferred
-  un-verifiable like backups, the paid-API cost caps, and the a11y runtime matrix; the
-  dependency sweep is `SWEPT` or `SWEPT_WITH_HOLDBACKS` with every holdback ticketed), and
-  performance is `MEASURED`.
-- **CONDITIONAL** if no Blockers but some items are Deferred in a way that gates launch (e.g.
-  backups unverified, staging gate absent, a child audit did not converge, performance is
-  `CODE_ONLY`, or the dependency sweep `FAILED`): name the conditions.
+  audit ran and converged; every ops and a11y check resolved with no `opsChecksFailed` /
+  `a11yChecksFailed` entry, or is a legitimately Deferred un-verifiable like backups, the
+  paid-API cost caps, and the a11y runtime matrix, or a legitimate N/A like a11y under an
+  api-only scope; the dependency sweep is `SWEPT` or `SWEPT_WITH_HOLDBACKS` with every holdback
+  ticketed AND its `chore(deps)` PRs merged into the launch head or explicitly waived by
+  Thomas), and performance is `MEASURED`.
+- **CONDITIONAL** if no Blockers but some items are Deferred or unproven in a way that gates
+  launch (e.g. backups unverified, staging gate absent, a child audit did not converge, an ops
+  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, the dependency
+  sweep `FAILED`, or its PRs are still unmerged): name the conditions.
 - **NO-GO** if any Blocker stands.
 - **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker**: a partial
   sweep can never read green. The coverage table makes any non-running or unconverged audit

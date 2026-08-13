@@ -119,6 +119,14 @@ const rank = (s) => {
 }
 const isSerious = (f) => /blocker|high/i.test(f.severity || '')
 
+function uiInScope(requestedScope) {
+  if (!requestedScope || requestedScope === 'both') return true
+  if (['ui', 'web', 'mobile', 'frontend'].includes(requestedScope)) return true
+  if (['api', 'backend'].includes(requestedScope)) return false
+  const normalized = String(requestedScope).replaceAll('\\', '/').toLowerCase()
+  return !(normalized.includes('/orbit-api/') || /^(?:\.\/)?(?:src|tests)\//.test(normalized))
+}
+
 const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const scope = parsedArgs.scope || 'both'
 const performanceMeasurement = parsedArgs.performanceMeasurement || {
@@ -137,22 +145,36 @@ const auditResults = (
 ).map((r, i) => r || { kind: AUDIT_KINDS[i], failed: true, findings: [], counts: {}, coverage: [], deferred: [] })
 
 phase('Ops')
-const opsRaw = (
-  await parallel(
-    OPS_CHECKS.map((c) => () =>
-      agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
-    )
+const opsResults = await parallel(
+  OPS_CHECKS.map((c) => () =>
+    agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
+      .then((r) => ({ check: c.check, result: r }))
   )
-).filter(Boolean).flatMap((r) => r.findings || [])
+)
+const opsChecksFailed = OPS_CHECKS
+  .map((c, i) => (opsResults[i] && opsResults[i].result ? null : c.check))
+  .filter(Boolean)
+if (opsChecksFailed.length) log(`ops: ${opsChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those checks, never clean`)
+const opsRaw = opsResults.filter((x) => x && x.result).flatMap((x) => x.result.findings || [])
 
 phase('A11y')
-const a11yRaw = (
-  await parallel(
+const a11yInScope = uiInScope(scope)
+let a11yResults = []
+if (a11yInScope) {
+  a11yResults = await parallel(
     A11Y_CHECKS.map((c) => () =>
       agent(a11yPrompt(c), { label: c.check, phase: 'A11y', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
+        .then((r) => ({ check: c.check, result: r }))
     )
   )
-).filter(Boolean).flatMap((r) => r.findings || [])
+} else {
+  log(`a11y: not applicable — the resolved scope "${scope}" contains no UI surface`)
+}
+const a11yChecksFailed = a11yInScope
+  ? A11Y_CHECKS.map((c, i) => (a11yResults[i] && a11yResults[i].result ? null : c.check)).filter(Boolean)
+  : []
+if (a11yChecksFailed.length) log(`a11y: ${a11yChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those checks, never clean`)
+const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result.findings || [])
 
 phase('Verify')
 const REFUTE_FRAMING = {
@@ -183,6 +205,7 @@ const survivorsByLayer = { ops: [], a11y: [] }
 for (const { f, v, layer } of verdicts) {
   if (v && v.refuted) continue
   if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
+  if (!v) f.unverified = 'the skeptic died — kept unchallenged (a dead verifier is not a clean pass); re-verify before acting'
   survivorsByLayer[layer].push(f)
 }
 const opsFindings = [...survivorsByLayer.ops, ...opsRaw.filter((f) => !isSerious(f))]
@@ -195,8 +218,11 @@ return {
   audits: auditResults,
   opsFindings,
   a11yFindings,
-  opsChecksRun: OPS_CHECKS.map((c) => c.check),
-  a11yChecksRun: A11Y_CHECKS.map((c) => c.check),
+  opsChecksRun: OPS_CHECKS.filter((c) => !opsChecksFailed.includes(c.check)).map((c) => c.check),
+  opsChecksFailed,
+  a11yChecksRun: a11yInScope ? A11Y_CHECKS.filter((c) => !a11yChecksFailed.includes(c.check)).map((c) => c.check) : [],
+  a11yChecksFailed,
+  a11yNotApplicable: a11yInScope ? null : `the resolved scope "${scope}" contains no UI surface`,
   opsDeferred: [
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },
     { check: 'paid-api-cost-caps', reason: 'un-verifiable from a repo read: verify in each provider console (OpenAI, Resend, Stripe, FCM): a hard monthly cap AND a spend alert at 50% of it. An in-app rate limit bounds one caller, only the provider cap bounds the bill' },
