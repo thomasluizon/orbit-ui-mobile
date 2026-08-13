@@ -12,15 +12,24 @@
 //                      each with method (only when exactly one explicit
 //                      `method:` appears at its callsites - fetch-default GET
 //                      is NOT inferred, null is emitted instead of a guess),
-//                      the web action files and mobile callsites referencing
-//                      it, and the shared Zod types files those callsites
-//                      import. Mobile callsites exclude __tests__ - tests are
-//                      section 5's axis, not a consumer.
+//                      the web and mobile callsites referencing it, and the
+//                      shared Zod types files those callsites import. Web
+//                      scans the whole app (hooks, server components, the
+//                      sanctioned BFF handlers), not only app/actions - reads
+//                      never go through actions, so an actions-only scan
+//                      mislabeled 39 shared endpoints mobile-only
+//                      (2026-08-13). Both platforms exclude __tests__ -
+//                      tests are section 5's axis, not a consumer.
 //   3. dependencies  - directory-level import edges per workspace, including
 //                      cross-package edges into @orbit/shared.
-//   4. i18nOwnership - keys used by each route's source file + its one-level
+//   4. i18nOwnership - keys used by each route's source file, its layout
+//                      chain, and the transitive closure of their repo
 //                      imports; every en.json leaf attributable to no route
 //                      lands in `unowned` (again: the gap is the signal).
+//                      One-level attribution left 1427 of 2332 keys unowned
+//                      because most keys live two or more components deep
+//                      (2026-08-13); what remains unowned now is dynamic
+//                      construction or genuinely dead.
 //   5. testCoverage  - which vitest files touch which top-level module dir,
 //                      plus the dirs no test touches.
 //
@@ -47,6 +56,10 @@ const HTTP_METHOD = /method:\s*['"](GET|POST|PUT|PATCH|DELETE)['"]/
 //   (onboarding)/index - mobile mounts onboarding as its own group root
 //                        (href "/", colliding with (tabs)/index) while web
 //                        serves the same screen at /onboarding.
+// NOT an alias: web /u/[slug] (the public VIEW page) has no mobile mirror on
+// purpose - a shared profile link opens in the browser. Mobile
+// public-profile.tsx is the SETTINGS screen and pairs by name with web
+// /public-profile; aliasing it to /u/[slug] mispairs both (proven 2026-08-13).
 const MOBILE_ROUTE_ALIASES = new Map([["(onboarding)/index", "/onboarding"]])
 
 const USAGE = `arch-map - derive architecture.json + architecture.html at the repo root.
@@ -320,18 +333,17 @@ function sharedNamedImports(posixPath) {
 
 function buildEndpoints() {
   const endpoints = parseEndpointTree()
-  const webActionFiles = sourceFilesOf("apps/web").filter((path) => path.startsWith("apps/web/app/actions/"))
-  const mobileFiles = sourceFilesOf("apps/mobile").filter(
-    (path) => !TEST_FILE.test(path) && !path.includes("/__tests__/"),
-  )
+  const notTest = (path) => !TEST_FILE.test(path) && !path.includes("/__tests__/")
+  const webFiles = sourceFilesOf("apps/web").filter(notTest)
+  const mobileFiles = sourceFilesOf("apps/mobile").filter(notTest)
   const exportMap = typesExportMap()
 
   return endpoints.map(({ name, path }) => {
     const reference = new RegExp(`\\bAPI\\.${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
     const referenceAll = new RegExp(reference.source, "g")
-    const webActions = webActionFiles.filter((file) => reference.test(read(file)))
+    const webCallsites = webFiles.filter((file) => reference.test(read(file)))
     const mobileCallsites = mobileFiles.filter((file) => reference.test(read(file)))
-    const callsites = [...webActions, ...mobileCallsites]
+    const callsites = [...webCallsites, ...mobileCallsites]
 
     const methods = new Set()
     for (const file of callsites) {
@@ -355,7 +367,7 @@ function buildEndpoints() {
       name,
       method: methods.size === 1 ? [...methods][0] : null,
       path,
-      usedBy: { webActions, mobileCallsites },
+      usedBy: { webCallsites, mobileCallsites },
       zodSchemas: callsites.length === 0 ? null : [...schemas].sort(byCode),
     }
   })
@@ -423,12 +435,25 @@ function keysUsedBy(files, leafKeys) {
   return [...used].sort(byCode)
 }
 
+/** Every repo file reachable by imports from the seeds, seeds included. */
+function importClosure(seeds) {
+  const visited = new Set()
+  const queue = [...seeds]
+  while (queue.length > 0) {
+    const file = queue.shift()
+    if (visited.has(file)) continue
+    visited.add(file)
+    queue.push(...importsOf(file))
+  }
+  return [...visited].sort(byCode)
+}
+
 function buildI18nOwnership(routes) {
   const messages = JSON.parse(read("packages/shared/src/i18n/en.json"))
   const leafKeys = new Set(flattenMessages(messages, "", []))
   const byRoute = routes.map((route) => {
-    const oneLevel = [route.sourceFile, ...importsOf(route.sourceFile)]
-    return { platform: route.platform, routePath: route.routePath, sourceFile: route.sourceFile, keys: keysUsedBy(oneLevel, leafKeys) }
+    const reachable = importClosure([route.sourceFile, ...route.layouts])
+    return { platform: route.platform, routePath: route.routePath, sourceFile: route.sourceFile, keys: keysUsedBy(reachable, leafKeys) }
   })
   const owned = new Set(byRoute.flatMap((route) => route.keys))
   return { byRoute, unowned: [...leafKeys].filter((key) => !owned.has(key)).sort(byCode) }
@@ -554,15 +579,16 @@ function render(d) {
     routeRows.push(["mobile", r.routePath, code(r.sourceFile), mobileBySource.has(r.sourceFile) ? badge("paired", "paired") : badge("unpaired", "unpaired")])
   }
   table("routes", ["platform", "route", "source", "parity"], routeRows)
-  table("endpoints", ["name", "method", "path", "web actions", "mobile callsites", "zod types files"], d.endpoints.map(e => [
+  table("endpoints", ["name", "method", "path", "web callsites", "mobile callsites", "zod types files"], d.endpoints.map(e => [
     code(e.name), e.method ?? "?", e.path,
-    e.usedBy.webActions.length ? e.usedBy.webActions.map(f => f.replace("apps/web/app/actions/", "")).join(", ") : muted("none"),
-    String(e.usedBy.mobileCallsites.length), e.zodSchemas === null ? muted("null") : (e.zodSchemas.map(f => f.replace("packages/shared/src/types/", "")).join(", ") || muted("none")),
+    e.usedBy.webCallsites.length ? String(e.usedBy.webCallsites.length) : muted("none"),
+    e.usedBy.mobileCallsites.length ? String(e.usedBy.mobileCallsites.length) : muted("none"),
+    e.zodSchemas === null ? muted("null") : (e.zodSchemas.map(f => f.replace("packages/shared/src/types/", "")).join(", ") || muted("none")),
   ]))
   const depRows = []
   for (const ws of Object.keys(d.dependencies)) for (const edge of d.dependencies[ws]) depRows.push([ws, code(edge.from), "\\u2192", code(edge.to)])
   table("deps", ["workspace", "from", "", "to"], depRows)
-  document.getElementById("unowned-sub").textContent = d.i18nOwnership.unowned.length + " en.json leaf keys not attributable to any route's source file or its one-level imports."
+  document.getElementById("unowned-sub").textContent = d.i18nOwnership.unowned.length + " en.json leaf keys not attributable to any route through its source file, layout chain, and transitive imports: each is dynamically constructed or dead."
   for (const key of d.i18nOwnership.unowned) document.getElementById("unowned").appendChild(el("div", null, key))
   for (const dir of d.testCoverage.untested) document.getElementById("untested").appendChild(el("div", null, dir))
 }
