@@ -247,17 +247,24 @@ peer conflict, red gate after the bump) is reverted to keep the PR green and rec
 **holdback**: name, current → latest, and the exact failure. Every holdback becomes a finding
 in the Phase 3 consolidated set, so it is ticketed, never forgotten.
 
-**Tier a holdback on the candidate, never on the baseline alone.** A holdback is **High** only
-when retained evidence shows that **this specific candidate version** removes an advisory:
-before reverting the failed update, re-run `npm audit --json` (or
-`dotnet list Orbit.slnx package --vulnerable --include-transitive --format json`) with the
-candidate applied and confirm the advisory is gone from the output. Advisory disappears with the
-candidate in place: **High**, and cite both audits. Advisory still present, or the candidate
-never installed far enough to audit: **Medium** — the update is ordinary currency debt, and any
-advisory that survives is reported through the security-finding path under its own name rather
-than attributed to this holdback. A baseline that merely proves *a* fix exists somewhere
-(`fixAvailable: true`, or an object naming a different version) never promotes a holdback on its
-own. Severity comes from that captured before-and-after evidence, never from guessing.
+**Tier a holdback on an isolated candidate, never on the baseline and never on the combined
+sweep state.** A holdback is **High** only when evidence isolates **that one candidate** as the
+change that removes an advisory. The sweep updates every package at once, so an audit taken with
+the candidate merely present cannot say which package did the fixing. Run a controlled pair per
+holdback, changing exactly one thing between them:
+
+- **A**, the final sweep state: every successful update applied, this candidate reverted. This is
+  the after-revert audit step 3 already captures.
+- **B**: state A plus this one candidate, and nothing else. Audit, record, revert it again.
+
+The advisory is present in A and absent in B: the candidate is the remediation, so the holdback
+is **High**, citing both audits. Present in both, absent in both, or B never installed far
+enough to audit: **Medium** — ordinary currency debt. Any advisory still standing in A is
+reported through the security-finding path under its own name, never attributed to a holdback.
+A baseline that merely proves *a* fix exists somewhere (`fixAvailable: true`, or an object naming
+a different version) never promotes a holdback on its own. Severity comes from that A/B evidence,
+never from guessing. The NuGet side runs the same pair with
+`dotnet list Orbit.slnx package --vulnerable --include-transitive --format json`.
 
 **Sweep verdict** for inventory item 12: `SWEPT` (everything current, gates green),
 `SWEPT_WITH_HOLDBACKS` (green PR plus the named holdbacks), or `FAILED` (the sweep itself could
