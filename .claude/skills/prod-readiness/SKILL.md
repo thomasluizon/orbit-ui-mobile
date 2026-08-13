@@ -193,9 +193,16 @@ before scripting anything on top of it.
    workspaces). Exit 1 with a populated object IS the drift signal, not a failure; the object is
    keyed by package name with `current` / `wanted` / `latest` / `dependent` (the workspace) /
    `location`. In the same step capture the advisory baseline with `npm audit --json` (exit 1
-   when vulnerabilities exist): `metadata.vulnerabilities` carries the severity totals and
-   `vulnerabilities` is keyed by package with `severity` / `via` / `range` / `fixAvailable`.
-   Retain this output — it is the evidence the holdback tiering reads.
+   when vulnerabilities exist). The envelope is `auditReportVersion` plus `metadata`
+   (`dependencies` counts and `vulnerabilities` severity totals) plus `vulnerabilities` keyed
+   by package with `name` / `severity` / `isDirect` / `via` / `effects` / `range` / `nodes` /
+   `fixAvailable`. Two fields carry the proof the holdback tiering reads: `via` is a MIXED
+   array — a string names the vulnerable dependency the entry inherits from, while an advisory
+   object carries `source` / `name` / `dependency` / `title` / `url` / `severity` / `cwe` /
+   `cvss` / `range` — and `fixAvailable`, when it is an object, names
+   `{ name, version, isSemVerMajor }`: the exact update that clears the advisory, which is what
+   a holdback is compared against. Retain this output; any value outside this captured contract
+   gets re-confirmed in that run (rule 8) before the tiering reads it.
 2. Update everything it names, majors included. Two pin classes take a deliberate step instead
    of a blind bump:
    - **Expo-managed packages** (`apps/mobile`): align through the Expo CLI's own resolver.
