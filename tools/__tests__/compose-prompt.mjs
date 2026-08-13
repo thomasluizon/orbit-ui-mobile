@@ -27,7 +27,7 @@ const ticketPlan = (value = ticket(), comments = []) => [
   { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(value) },
   { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
 ]
-const comment = (body, author = "thomasluizon", createdAt = "2026-08-13T18:58:17Z") => ({ author: { login: author }, body, createdAt })
+const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
 
 export const cases = () => {
@@ -81,18 +81,24 @@ export const cases = () => {
    * worker while this tool read only the body, so /orchestrate step 2b's answers stopped at the
    * reviewer. A prompt that drops a comment is a prompt missing half its work order.
    */
+  /** The response arrives newest first with a minimized comment in the middle: neither order nor visibility is trusted. */
   const withComments = join(root, "compose-prompt", "with-comments.md")
   check(
     TOOL,
     "carries the ticket's comments into the prompt, oldest first",
     ["--issue", "ORB-215", "--repo", "ui", "--out", withComments],
     { status: 0 },
-    options(ticketPlan(ticket(), [comment("Answer one: Tabler, never Lucide."), comment("Answer two: ship without the icon.", "thomasluizon", "2026-08-13T19:30:00Z")])),
+    options(ticketPlan(ticket(), [
+      comment("Answer two: ship without the icon.", "2026-08-13T19:30:00Z"),
+      comment("Withdrawn: use Lucide after all.", "2026-08-13T19:10:00Z", true),
+      comment("Answer one: Tabler, never Lucide."),
+    ])),
   )
   const commented = composed(withComments)
   T(`${TOOL}: the body still leads the prompt`, commented.startsWith("# Ticket body\n\nKeep this verbatim."), commented.slice(0, 200))
-  T(`${TOOL}: every comment body reaches the worker`, commented.includes("Answer one: Tabler, never Lucide.") && commented.includes("Answer two: ship without the icon."), commented)
-  T(`${TOOL}: comments are ordered oldest first`, commented.indexOf("Answer one") < commented.indexOf("Answer two"), commented)
+  T(`${TOOL}: every visible comment body reaches the worker`, commented.includes("Answer one: Tabler, never Lucide.") && commented.includes("Answer two: ship without the icon."), commented)
+  T(`${TOOL}: a shuffled response is still rendered oldest first`, commented.indexOf("Answer one") < commented.indexOf("Answer two"), commented)
+  T(`${TOOL}: a minimized comment never becomes part of the work order`, !commented.includes("Withdrawn: use Lucide after all."), commented)
   T(`${TOOL}: each comment carries its author and date so the later-wins rule is applicable`, /### thomasluizon on 2026-08-13T19:30:00Z/.test(commented), commented)
   T(`${TOOL}: the prompt states that the later comment wins`, /the LATER comment wins/.test(commented), commented)
 

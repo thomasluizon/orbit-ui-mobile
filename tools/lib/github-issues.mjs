@@ -220,12 +220,17 @@ export const addComment = async (number, body) => {
 }
 
 /**
- * Read one ticket's comments, oldest first.
+ * Read one ticket's visible comments, sorted oldest first.
  *
  * Field shape confirmed live on 2026-08-13 against issue #312, never from memory (code standard 8):
  * gh issue view 312 --repo thomasluizon/orbit-tickets --json comments --jq '.comments[0] | keys'
  * returned author, authorAssociation, body, createdAt, id, includesCreatedEdit, isMinimized,
  * minimizedReason, reactionGroups, url, viewerDidAuthor. `author` is an object carrying `login`.
+ *
+ * Minimized comments are dropped: the "later comment wins" rule must never hand authority to a
+ * comment a maintainer hid as outdated. The sort is explicit because neither the CLI's
+ * `comments(first: 100)` query nor GraphQL pagination promises chronological order; Node's stable
+ * sort keeps the response order for equal timestamps.
  *
  * `readTicket` deliberately does not fetch these. It is called on almost every orchestration step,
  * and a comment thread is unbounded, so the cost belongs only to the caller that renders them.
@@ -238,21 +243,24 @@ export const readComments = async (number) => {
   if (payload === null || typeof payload !== "object" || !Array.isArray(payload.comments)) {
     throw new Error(`gh issue view carried no comments array for issue #${number}`)
   }
-  return payload.comments.map((comment) => {
+  for (const comment of payload.comments) {
     if (comment === null || typeof comment !== "object" || typeof comment.body !== "string" || typeof comment.createdAt !== "string") {
       throw new Error(`gh issue view carried an invalid comment on issue #${number}`)
     }
-    const login = comment.author?.login
-    return { body: comment.body, createdAt: comment.createdAt, author: typeof login === "string" && login.length > 0 ? login : "unknown" }
-  })
+  }
+  return payload.comments
+    .filter((comment) => comment.isMinimized !== true)
+    .map((comment) => {
+      const login = comment.author?.login
+      return { body: comment.body, createdAt: comment.createdAt, author: typeof login === "string" && login.length > 0 ? login : "unknown" }
+    })
+    .sort((first, second) => first.createdAt.localeCompare(second.createdAt))
 }
 
 /**
- * Replace one ticket body. A comment cannot do this job: `readTicket` never fetches comments and
- * `compose-prompt.mjs` builds the worker prompt from `liveTicket.body` alone, so a fact added as a
- * comment reaches Thomas and the reviewer and never reaches the implementer. D2 makes the body the
- * prompt, and before this existed the body was write-once, so anything learned after creation could
- * not be put where the worker would read it (2026-08-13).
+ * Replace one ticket body. Comments also reach the worker through `compose-prompt.mjs`, but the
+ * body is the work order itself (D2): a correction to the order belongs here, not in an errata
+ * comment. Before this existed the body was write-once (2026-08-13).
  */
 export const updateBody = async (number, body) => {
   positiveIssueNumber(number)

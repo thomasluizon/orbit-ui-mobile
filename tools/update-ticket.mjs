@@ -2,16 +2,14 @@
 /**
  * Replace the body of one ticket.
  *
- * The body was write-once until this existed (2026-08-13). `create-ticket.mjs` writes it, and
- * nothing could change it afterwards, so a fact learned after creation had nowhere to go that the
- * implementer would read. `comment-ticket.mjs` is not that place: `readTicket` never fetches
- * comments, and `compose-prompt.mjs` builds the worker prompt from `liveTicket.body` alone, so a
- * comment reaches Thomas and the reviewer and stops there. D2 makes the ticket the prompt, so a
- * correction that never reaches the prompt is not filed at all.
+ * The body was write-once until this existed (2026-08-13): `create-ticket.mjs` wrote it and nothing
+ * could change it afterwards. D2 makes the ticket the prompt, so a correction to the work order
+ * belongs here, in the body. `comment-ticket.mjs` also reaches the worker (compose-prompt renders
+ * the thread), but a comment is for a decision arriving as its own event; a body plus errata
+ * comments stops being one coherent work order.
  *
- * This replaces the whole body rather than appending, because a ticket that grows an "actually,
- * see below" tail stops being one coherent work order. Compose the complete body, then write it.
- * GitHub keeps the previous body in the issue's edit history.
+ * This replaces the whole body rather than appending, for the same reason. Compose the complete
+ * body, then write it. GitHub keeps the previous body in the issue's edit history.
  */
 
 import { readFileSync } from "node:fs"
