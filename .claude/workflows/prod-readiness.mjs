@@ -1,10 +1,11 @@
 export const meta = {
   name: 'prod-readiness',
-  description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer audit no child covers (D11 judgement no gate checks), verifies its own ops findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
+  description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer and static-a11y audits no child covers (D11 judgement no gate checks), verifies its own findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
   phases: [
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging' },
-    { title: 'Verify', detail: 'skeptic per Blocker/High ops finding — default refuted' },
+    { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
+    { title: 'Verify', detail: 'skeptic per Blocker/High ops or a11y finding — default refuted' },
   ],
 }
 
@@ -76,6 +77,29 @@ const OPS_CHECKS = [
   },
 ]
 
+const A11Y_LADDER = 'Blocker (an essential journey cannot complete by keyboard or with assistive technology) / High (a confirmed WCAG 2.2 A/AA failure on a core journey — auth, today, habit logging, settings, billing — or in a shared primitive every screen composes) / Medium (an A/AA failure off the core journeys, or a best-practice gap with concrete user impact)'
+
+const A11Y_CHECKS = [
+  {
+    check: 'a11y-web',
+    where: `${UI}\\apps\\web — shared primitives and shell first (components/, the app/(app) layout, dialogs, menus, toasts, forms), then the core journeys (auth, today, habit logging, settings, billing)`,
+  },
+  {
+    check: 'a11y-mobile',
+    where: `${UI}\\apps\\mobile — shared primitives and the navigation shell first (components/, sheets, dialogs, tab bar), then the same core journeys; judge React Native semantics (accessibilityRole / accessibilityLabel / accessibilityState, grouped children, focus after navigation)`,
+  },
+]
+
+function a11yPrompt(c) {
+  return [
+    `Static accessibility sweep "${c.check}" for Orbit. The floor is WCAG 2.2 Level AA and the objective is accessible task completion, never a score. This is a source read: claim only what source can prove.`,
+    `Where to look: ${c.where}.`,
+    `Judge the a11y judgement no gate owns: native-element-first (a pressable div/View where a button belongs); every ARIA role or RN accessibility prop as a keyboard and focus contract the code must honour (a role added without its key handling or focus management); focus on open, trapped while open, returned on close for dialogs and menus; a localized label in both locales for icon-only controls; colour as the only signal; the 3:1 non-text contrast floor for icons, borders, and state indicators; hit targets under 44 grown by glyph instead of padding; and materially different UI states (empty, loading, validation-error, dialog, menu, toast) that lose semantics the populated state has.`,
+    `Gate-owned, do NOT flag: anything the react-doctor.yml a11y rules already fail on, and anything ESLint local/* or the Design Token Guard owns. Runtime-only claims (200% zoom, screen-reader output, the route x state x viewport x input-mode matrix) are OUT of scope: the workflow defers them as a11y-runtime-matrix, so never emit a finding that needs the live DOM.`,
+    `Severity ladder: [${A11Y_LADDER}]. For each finding return: severity, check ("${c.check}"), title, location (repo-relative path:line), risk (which user and which task is blocked, and how), evidence (the exact line that proves it), fix (the concrete change). Findings only; return an empty array if the surface is clean.`,
+  ].join('\n')
+}
+
 function opsPrompt(c) {
   return [
     `Ops-readiness check "${c.check}" for the Orbit production system. This is NOT covered by any code/test/security/performance audit — it asks whether the RUNNING system survives production.`,
@@ -93,7 +117,15 @@ const rank = (s) => {
   if (x.includes('medium')) return 2
   return 3
 }
-const isSeriousOps = (f) => /blocker|high/i.test(f.severity || '')
+const isSerious = (f) => /blocker|high/i.test(f.severity || '')
+
+function uiInScope(requestedScope) {
+  if (!requestedScope || requestedScope === 'both') return true
+  if (['ui', 'web', 'mobile', 'frontend'].includes(requestedScope)) return true
+  if (['api', 'backend'].includes(requestedScope)) return false
+  const normalized = String(requestedScope).replaceAll('\\', '/').toLowerCase()
+  return !(normalized.includes('/orbit-api/') || /^(?:\.\/)?(?:src|tests)\//.test(normalized))
+}
 
 const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const scope = parsedArgs.scope || 'both'
@@ -104,7 +136,7 @@ const performanceMeasurement = parsedArgs.performanceMeasurement || {
 const AUDIT_KINDS = ['security', 'tests', 'performance', 'code-quality']
 
 phase('Audits')
-log(`prod-readiness · scope ${scope} · running ${AUDIT_KINDS.length} audits + ops`)
+log(`prod-readiness · scope ${scope} · running ${AUDIT_KINDS.length} audits + ops + a11y`)
 const auditResults = (
   await parallel(AUDIT_KINDS.map((k) => () => workflow(
     { scriptPath: '.claude/workflows/audit.mjs' },
@@ -113,49 +145,88 @@ const auditResults = (
 ).map((r, i) => r || { kind: AUDIT_KINDS[i], failed: true, findings: [], counts: {}, coverage: [], deferred: [] })
 
 phase('Ops')
-const opsRaw = (
-  await parallel(
-    OPS_CHECKS.map((c) => () =>
-      agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
+const opsResults = await parallel(
+  OPS_CHECKS.map((c) => () =>
+    agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
+      .then((r) => ({ check: c.check, result: r }))
+  )
+)
+const opsChecksFailed = OPS_CHECKS
+  .map((c, i) => (opsResults[i] && opsResults[i].result ? null : c.check))
+  .filter(Boolean)
+if (opsChecksFailed.length) log(`ops: ${opsChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those checks, never clean`)
+const opsRaw = opsResults.filter((x) => x && x.result).flatMap((x) => x.result.findings || [])
+
+phase('A11y')
+const a11yInScope = uiInScope(scope)
+let a11yResults = []
+if (a11yInScope) {
+  a11yResults = await parallel(
+    A11Y_CHECKS.map((c) => () =>
+      agent(a11yPrompt(c), { label: c.check, phase: 'A11y', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
+        .then((r) => ({ check: c.check, result: r }))
     )
   )
-).filter(Boolean).flatMap((r) => r.findings || [])
+} else {
+  log(`a11y: not applicable — the resolved scope "${scope}" contains no UI surface`)
+}
+const a11yChecksFailed = a11yInScope
+  ? A11Y_CHECKS.map((c, i) => (a11yResults[i] && a11yResults[i].result ? null : c.check)).filter(Boolean)
+  : []
+if (a11yChecksFailed.length) log(`a11y: ${a11yChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those checks, never clean`)
+const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result.findings || [])
 
 phase('Verify')
-const seriousOps = opsRaw.filter(isSeriousOps).sort((a, b) => rank(a.severity) - rank(b.severity))
-const opsVerdicts = (
+const REFUTE_FRAMING = {
+  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global.',
+  a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a react-doctor.yml rule already fails on it, or the severity is inflated.',
+}
+const verifyTargets = [
+  ...opsRaw.filter(isSerious).map((f) => ({ f, layer: 'ops' })),
+  ...a11yRaw.filter(isSerious).map((f) => ({ f, layer: 'a11y' })),
+].sort((a, b) => rank(a.f.severity) - rank(b.f.severity))
+const verdicts = (
   await parallel(
-    seriousOps.map((f) => () =>
+    verifyTargets.map(({ f, layer }) => () =>
       agent(
         [
-          `Adversarially REFUTE this ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global.`,
+          `Adversarially REFUTE this ${REFUTE_FRAMING[layer]}`,
           `Default to refuted=true when uncertain — the burden is on the finding.`,
           `Finding: severity=${f.severity} · check=${f.check} · title=${f.title} · location=${f.location || ''} · risk=${f.risk}.`,
           `Return refuted (bool) + note. If real but over-rated, set adjustedSeverity.`,
         ].join('\n'),
         { label: `verify:${f.check}`, phase: 'Verify', model: 'haiku', agentType: 'audit-readonly', schema: OPS_VERDICT }
-      ).then((v) => ({ f, v }))
+      ).then((v) => ({ f, v, layer }))
     )
   )
 ).filter(Boolean)
 
-const opsFindings = []
-for (const { f, v } of opsVerdicts) {
+const survivorsByLayer = { ops: [], a11y: [] }
+for (const { f, v, layer } of verdicts) {
   if (v && v.refuted) continue
   if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
-  opsFindings.push(f)
+  if (!v) f.unverified = 'the skeptic died — kept unchallenged (a dead verifier is not a clean pass); re-verify before acting'
+  survivorsByLayer[layer].push(f)
 }
-opsFindings.push(...opsRaw.filter((f) => !isSeriousOps(f)))
-opsFindings.sort((a, b) => rank(a.severity) - rank(b.severity))
+const opsFindings = [...survivorsByLayer.ops, ...opsRaw.filter((f) => !isSerious(f))]
+  .sort((a, b) => rank(a.severity) - rank(b.severity))
+const a11yFindings = [...survivorsByLayer.a11y, ...a11yRaw.filter((f) => !isSerious(f))]
+  .sort((a, b) => rank(a.severity) - rank(b.severity))
 
 return {
   scope,
   audits: auditResults,
   opsFindings,
-  opsChecksRun: OPS_CHECKS.map((c) => c.check),
+  a11yFindings,
+  opsChecksRun: OPS_CHECKS.filter((c) => !opsChecksFailed.includes(c.check)).map((c) => c.check),
+  opsChecksFailed,
+  a11yChecksRun: a11yInScope ? A11Y_CHECKS.filter((c) => !a11yChecksFailed.includes(c.check)).map((c) => c.check) : [],
+  a11yChecksFailed,
+  a11yNotApplicable: a11yInScope ? null : `the resolved scope "${scope}" contains no UI surface`,
   opsDeferred: [
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },
     { check: 'paid-api-cost-caps', reason: 'un-verifiable from a repo read: verify in each provider console (OpenAI, Resend, Stripe, FCM): a hard monthly cap AND a spend alert at 50% of it. An in-app rate limit bounds one caller, only the provider cap bounds the bill' },
+    { check: 'a11y-runtime-matrix', reason: 'un-verifiable from a repo read — needs the running app: the axe A/AA tag set (wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa), a keyboard pass, and a screen-reader pass over the route x state x viewport x input-mode matrix; the static sweep claims source-provable findings only, never conformance' },
   ],
   failedAudits: auditResults.filter((r) => r.failed).map((r) => r.kind),
   unconvergedAudits: auditResults

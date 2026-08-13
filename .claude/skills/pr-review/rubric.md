@@ -61,8 +61,30 @@ and any concurrency or ordering assumption the diff silently relies on.
 
 > Reference: CLAUDE.md rule 2.
 
-Orphaned exports, functions, or types with zero references after this change (cite the grep); dead branches;
-commented-out code; stubs and speculative parameters; imports the diff itself orphaned.
+Four categories, each proven before it is judged — everything is **live until proven dead**:
+
+- **Confirmed dead.** Orphaned exports, functions, types, constants, or barrel re-exports with zero
+  references after this change (cite the grep); dead branches; commented-out code; stubs and speculative
+  parameters; imports the diff itself orphaned.
+- **Dedupe.** The same constant, string, or type literal declared verbatim in two or more places; name
+  every location and the one shared home it should collapse into.
+- **Drift.** A magic literal that duplicates an existing named constant; reference the constant so the
+  copies cannot diverge.
+- **Arbitrary limits.** A cap, threshold, or timeout guarding a situation users cannot reach; quantify
+  the real limit before recommending removal. An intentional tuning value (animation timing, debounce
+  interval, size minimum) stays, reported as arbitrary-but-intentional, and so does validation that
+  guards corrupt or missing data.
+
+Verification rules: check tests before removing an export and keep one that covers non-trivial logic (or
+name the trade-off); a symbol used only in its own file gets unexported, not deleted; dynamic access,
+reflection, constructed imports, public APIs, and framework entry points are live. One missed reference
+makes the verdict wrong, so when in doubt it stays live.
+
+**Stale comments belong here too.** The comment-policy gates own narration; what no gate can see is a
+comment that has drifted into a lie — it describes behaviour the code no longer has, cites an issue that
+is closed, or restates the adjacent code on a surface no lint covers (workflow YAML, tooling scripts,
+markdown). A comment earns its keep only while it carries a why the code cannot; a pure restatement is a
+finding, and when unsure, keep it.
 
 ### 3. SOLID / clean architecture
 
@@ -72,14 +94,29 @@ commented-out code; stubs and speculative parameters; imports the diff itself or
   unrelated responsibilities is a cohesion finding when the evidence supports it, but when a split would
   merely relocate the same tangle, say that instead.
 - For branch-heavy code look for the **code-judo move**: a state-model or data-shape reframe that deletes
-  whole branches. Prefer it to another conditional; flag flag-soup and special-case ladders.
+  whole branches. Prefer it to another conditional; flag flag-soup and special-case ladders. Be ambitious
+  about it: prefer the reframe that makes whole branches, helpers, modes, or layers disappear over the one
+  that merely redistributes them, and treat a new ad-hoc conditional dropped into an unrelated flow as a
+  design problem, not a stylistic nit. A refactor that moves complexity around without reducing the number
+  of concepts a reader must hold is relocation, not simplification — say so.
 - No premature abstraction: extract on the third real use, not the second. Apply the **deletion test** to
   thin wrappers, since if removing the module makes its complexity vanish rather than exposing useful
   behaviour it is pass-through indirection. Repeated casts or optionality juggling means a structural type
   mismatch that one better type, or one parse at the trust boundary, would remove.
+- **Shallow modules and depth.** A module whose interface is nearly as complex as its implementation is
+  shallow: it costs a concept without hiding one. Deepen it behind a small interface over real behaviour,
+  or inline it. A pure function extracted only for testability, while the real bugs live in how it is
+  called, has traded **locality** for a unit test — judge the call site, not the extraction. One adapter
+  is a hypothetical seam, two are a real one; do not build the seam before the second adapter exists.
+  Weight findings by churn: a smell in a file that keeps changing outranks the same smell in a stable leaf.
+- **Orchestration and atomicity.** Independent work serialized for no reason, and related updates that can
+  leave state half-applied, are design smells when the cleaner structure is obvious. Prefer the parallel
+  or atomic flow only where it also simplifies the code; do not over-index on micro-optimization.
 - DRY at the right level: cross-app to `packages/shared`, cross-component to `apps/<platform>/components/`,
   never lifted to shared for one caller. Business logic belongs in its domain, CQRS, or shared layer, never
-  in a controller, component, DTO, or adapter; new backend endpoints follow CQRS.
+  in a controller, component, DTO, or adapter; new backend endpoints follow CQRS. A bespoke helper where
+  the codebase already has a canonical utility for the job is architectural drift, not convenience: reuse
+  the canonical one or deepen it.
 
 ### 4. No-workaround / root cause
 
@@ -228,11 +265,17 @@ is the same violation as the loud version.
   content unless it is a mobile bottom-sheet or dialog's single primary action, a mobile auth or onboarding
   submit, a full-screen empty-state CTA, or a paired confirm row, and the lint rule cannot see mobile
   StyleSheet width, so flag `alignSelf: 'stretch'` and `width: '100%'` pills by eye.
-- **A11y.** Colour as the only signal; the 3:1 non-text contrast floor for icons, borders, and state
-  indicators; where focus lands on open, that it is trapped, and where it returns on close; a localized
-  label in both locales for icon-only controls; hit targets at least 44, reached by padding rather than by
-  growing the glyph. Arbitrary `z-*` values have no lint rule yet, so flag them by eye. 200% zoom and
-  screen-reader semantics need the live DOM: say a pass is owed, do not guess.
+- **A11y.** The floor is WCAG 2.2 AA and the objective is accessible task completion, not a score: axe
+  zero and Lighthouse 100 are instrument readings, never the claim. Prefer native HTML and visible labels
+  over ARIA, and treat every ARIA role the diff adds as a keyboard and focus contract it must honour.
+  Then the by-eye list: colour as the only signal; the 3:1 non-text contrast floor for icons, borders, and
+  state indicators; where focus lands on open, that it is trapped, and where it returns on close; a
+  localized label in both locales for icon-only controls; hit targets at least 44, reached by padding
+  rather than by growing the glyph; and every materially different UI state the diff touches (empty,
+  loading, validation-error, dialog, menu, toast) judged, not only the populated happy path. Arbitrary
+  `z-*` values have no lint rule yet, so flag them by eye. 200% zoom, screen-reader semantics, and the
+  full route x state x viewport x input-mode matrix need the live DOM: say a pass is owed, limit the claim
+  to what was actually inspected, and do not guess.
 
 ### 11. Backend hard rules
 
