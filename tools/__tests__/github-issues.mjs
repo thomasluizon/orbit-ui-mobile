@@ -83,6 +83,18 @@ export const cases = async () => {
       (await messageOf(() => orcaEnv([{ match: "issue view 221", stdout: JSON.stringify(issue({ state: "MERGED" })) }]))) ?? "",
     ),
   )
+  const commentsPayload = JSON.stringify({ comments: [{ author: { login: "thomasluizon" }, body: "b", createdAt: "2026-08-13T18:58:17Z" }] })
+  T(
+    `${TOOL}: a bare --json comments query validates against the comments envelope`,
+    (await messageOf(() => orcaEnv([{ match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments", stdout: commentsPayload }]))) === null,
+  )
+  /** The routing regression: a combined field list must fall through to the issueView envelope and fail loudly there. */
+  T(
+    `${TOOL}: a combined --json comments,body query never routes to the comments envelope`,
+    /asserts unrecorded key \$\.comments/.test(
+      (await messageOf(() => orcaEnv([{ match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments,body", stdout: commentsPayload }]))) ?? "",
+    ),
+  )
 
   const previousGh = process.env.GH_BIN
   const previousNodeOptions = process.env.NODE_OPTIONS
