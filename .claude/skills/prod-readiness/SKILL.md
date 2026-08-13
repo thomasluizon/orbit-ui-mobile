@@ -199,10 +199,15 @@ before scripting anything on top of it.
    `fixAvailable`. Two fields carry the proof the holdback tiering reads: `via` is a MIXED
    array — a string names the vulnerable dependency the entry inherits from, while an advisory
    object carries `source` / `name` / `dependency` / `title` / `url` / `severity` / `cwe` /
-   `cvss` / `range` — and `fixAvailable`, when it is an object, names
-   `{ name, version, isSemVerMajor }`: the exact update that clears the advisory, which is what
-   a holdback is compared against. Retain this output; any value outside this captured contract
-   gets re-confirmed in that run (rule 8) before the tiering reads it.
+   `cvss` / `range` — and `fixAvailable` takes exactly three forms (npm's installed arborist
+   source, `audit-report.js` `#fixAvailable`): `{ name, version, isSemVerMajor }` names the
+   exact update that clears the advisory; `true` means an in-range update clears it without a
+   named target; `false` means no clearing version exists at all. The tiering maps each form:
+   holding back the named update (object form) or any update of a package whose advisory says
+   `true` is **High**; under `false` there is no fix to withhold, so the holdback itself is
+   **Medium** and the unfixable advisory is reported as its own standing security finding
+   instead. Retain this output; any value outside this contract gets re-confirmed in that run
+   (rule 8) before the tiering reads it.
 2. Update everything it names, majors included. Two pin classes take a deliberate step instead
    of a blind bump:
    - **Expo-managed packages** (`apps/mobile`): align through the Expo CLI's own resolver.
