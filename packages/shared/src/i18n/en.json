@@ -1395,7 +1395,7 @@
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",
-      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI memory and AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
+      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
     },
     "minors": {
       "title": "Age Requirement",

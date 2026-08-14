@@ -1,10 +1,11 @@
 import * as SQLite from 'expo-sqlite'
-import type {
-  MutationEntityType,
-  MutationScope,
-  MutationType,
-  QueuedMutation,
-  QueuedMutationStatus,
+import {
+  mutationScopeSchema,
+  type MutationEntityType,
+  type MutationScope,
+  type MutationType,
+  type QueuedMutation,
+  type QueuedMutationStatus,
 } from '@orbit/shared/types/sync'
 
 let db: SQLite.SQLiteDatabase | null = null
@@ -100,6 +101,7 @@ function buildMeta(mutation: QueuedMutation): QueueMetaRow {
 
 function mapRow(row: QueueRow): QueuedMutation {
   const meta = parseJson<QueueMetaRow>(row.meta) ?? {}
+  const scope = mutationScopeSchema.safeParse(meta.scope)
 
   return {
     id: row.id,
@@ -110,7 +112,7 @@ function mapRow(row: QueueRow): QueuedMutation {
     payload: parseJson(row.payload),
     retries: row.retries,
     maxRetries: row.max_retries,
-    scope: meta.scope,
+    scope: scope.success ? scope.data : undefined,
     entityType: meta.entityType,
     status: meta.status ?? 'pending',
     dedupeKey: meta.dedupeKey ?? null,

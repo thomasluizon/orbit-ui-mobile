@@ -1395,7 +1395,7 @@
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
-      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar a memória e os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
+      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
     },
     "minors": {
       "title": "Requisito de idade",
