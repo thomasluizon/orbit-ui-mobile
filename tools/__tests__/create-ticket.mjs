@@ -16,12 +16,15 @@ const BLOCKER = JSON.stringify({
   url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
 })
 const EMPTY_PROJECT = JSON.stringify({ items: [], totalCount: 0 })
+/** Blocker validation only proves the issue exists and discards the ticket, so it must not hydrate
+ * board items. The marker survives exactly while no board read happens. */
+const boardReadMarker = stage("create-ticket/board-read", "must remain")
 
 const readPlan = ({ labels = LABELS, milestones = "Harness Context and Calibration\n", blocker = BLOCKER } = {}) => [
   { match: "label list --repo thomasluizon/orbit-tickets --limit 1000 --json name", stdout: labels },
   { match: "api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100", stdout: milestones },
   { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: blocker },
-  { match: "project item-list 2 --owner thomasluizon", stdout: EMPTY_PROJECT },
+  { match: "project item-list 2 --owner thomasluizon", stdout: EMPTY_PROJECT, removePath: boardReadMarker },
 ]
 
 const createPlan = (label, overrides = {}) => {
@@ -122,4 +125,6 @@ export const cases = async () => {
   const statusFailure = createPlan("status-failure", { statusExit: 1 })
   check(TOOL, "a failed Status write stops before relations", argv(bodyFile), { status: 1, stderr: /project item-edit .* failed/ }, { env: orcaEnv(statusFailure.plan) })
   T(`${TOOL}: a failed Status write leaves the relation untouched`, existsSync(statusFailure.markers.relationMarker))
+
+  T(`${TOOL}: blocker validation reads no Projects board item`, existsSync(boardReadMarker))
 }

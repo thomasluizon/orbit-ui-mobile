@@ -1,15 +1,26 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "salvage-worker.mjs"
-const ADAPTER_STUB = `export const resolveTicket = (reference) => {
+const boardReadMarker = stage("salvage-worker/board-read", "must remain")
+/**
+ * The stub OBSERVES the hydration flag. Only the repository label is asserted from the ticket, so a
+ * board read here is pure GraphQL cost; a stub that ignored the argument would let that read come
+ * back while the gate stayed green.
+ */
+const ADAPTER_STUB = `import { rmSync } from "node:fs"
+
+export const resolveTicket = (reference) => {
   const identifier = String(reference).toUpperCase()
   if (identifier !== "ORB-250") throw new Error("Unknown migrated ticket " + reference)
   return { identifier, number: 250 }
 }
-export const readTicket = async () => ({ identifier: "ORB-250", number: 250, labels: [{ name: "repo:ui" }] })
+export const readTicket = async (number, options) => {
+  if (options?.withProjectItem !== false) rmSync(${JSON.stringify(boardReadMarker)}, { force: true })
+  return { identifier: "ORB-250", number: 250, labels: [{ name: "repo:ui" }] }
+}
 export const assertRepositoryLabel = (ticket, repoKey) => {
   if (ticket.labels.length !== 1 || ticket.labels[0].name !== "repo:" + repoKey) throw new Error("ticket repository label mismatch")
   return ticket
@@ -235,4 +246,6 @@ export const cases = () => {
     { status: 0, stdout: /apps\/web\/app\/api\/\[\.\.\.path\]\/route\.ts/ },
     { path: literalStaged.path },
   )
+
+  T(`${TOOL}: salvaging reads no Projects board item`, existsSync(boardReadMarker))
 }
