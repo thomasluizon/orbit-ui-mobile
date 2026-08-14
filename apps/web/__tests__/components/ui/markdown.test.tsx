@@ -32,4 +32,23 @@ describe('Markdown', () => {
     expect(root.className).toContain('prose-orbit')
     expect(root.className).toContain('text-sm')
   })
+
+  it('keeps tables and makes horizontally scrollable blocks keyboard reachable', () => {
+    const fence = '`'.repeat(3)
+    const content = [
+      `${fence}sh`,
+      'command --flag=abcdefghijklmnopqrstuvwxyz',
+      fence,
+      '',
+      '| one | two |',
+      '| --- | --- |',
+      '| a | b |',
+    ].join('\n')
+    const { container } = render(<Markdown content={content} />)
+
+    expect(container.querySelector('pre')).toHaveAttribute('tabindex', '0')
+    expect(container.querySelector('pre')?.textContent).toContain('command --flag=')
+    expect(container.querySelector('table')).toHaveAttribute('tabindex', '0')
+    expect(container.querySelector('table')?.textContent).toContain('two')
+  })
 })

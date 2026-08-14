@@ -71,6 +71,7 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     description: {
       flex: 1,
+      minWidth: 0,
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 21,

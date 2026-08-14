@@ -31,7 +31,7 @@ function linkifyText(text: string): string {
   const result = parts.map((part, i) => {
     const escaped = escapeHtml(part)
     if (i % 2 === 1) {
-      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-[var(--primary)] hover:underline">${escaped}</a>`
+      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="wrap-anywhere text-[var(--primary-soft)] hover:underline">${escaped}</a>`
     }
     return escaped
   }).join('')
@@ -309,7 +309,7 @@ export function AppOverlay({
                 <div className="flex-1 min-w-0">
                   <h2
                     id={titleId}
-                    className="text-[24px] font-medium leading-snug text-[var(--fg-1)]"
+                    className="wrap-anywhere text-[24px] font-medium leading-snug text-[var(--fg-1)]"
                   >
                     {titleContent || title}
                   </h2>
@@ -317,7 +317,7 @@ export function AppOverlay({
                     <div className="mt-1 flex items-start gap-2">
                       <p
                         id={descriptionId}
-                        className="flex-1 text-sm text-[var(--fg-2)] whitespace-pre-wrap max-h-32 overflow-y-auto"
+                        className="min-w-0 flex-1 wrap-anywhere text-sm text-[var(--fg-2)] whitespace-pre-wrap max-h-32 overflow-y-auto"
                         // react-doctor-disable-next-line dangerous-html-sink -- linkedDescription is DOMPurify.sanitize()'d with a fixed <a>-only allowlist in linkifyText(); no scripts or event handlers survive https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                         dangerouslySetInnerHTML={{ __html: linkedDescription }}
                       />

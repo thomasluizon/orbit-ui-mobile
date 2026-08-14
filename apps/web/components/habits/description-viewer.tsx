@@ -21,25 +21,38 @@ export function DescriptionViewer({
 }: Readonly<DescriptionViewerProps>) {
   const t = useTranslations()
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) setCopied(false)
+    if (!nextOpen) {
+      setCopied(false)
+      setCopyFailed(false)
+    }
     onOpenChange(nextOpen)
   }
 
   function copyDescription() {
+    setCopyFailed(false)
     void navigator.clipboard
       .writeText(description)
       .then(() => {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       })
-      .catch(() => setCopied(false))
+      .catch(() => {
+        setCopied(false)
+        setCopyFailed(true)
+      })
   }
 
   return (
     <AppOverlay open={open} onOpenChange={handleOpenChange} title={title}>
-      <div className="flex justify-end" style={{ paddingBottom: 10 }}>
+      <div className="flex items-center justify-end gap-2" style={{ paddingBottom: 10 }}>
+        {copyFailed ? (
+          <p role="alert" className="text-xs text-[var(--status-bad-text)]">
+            {t('habits.detail.copyFailed')}
+          </p>
+        ) : null}
         <button
           type="button"
           aria-label={t('habits.detail.copyDescription')}
@@ -55,7 +68,7 @@ export function DescriptionViewer({
         </button>
       </div>
       <div
-        className="rounded-[18px] bg-[var(--bg-card)]"
+        className="min-w-0 rounded-[18px] bg-[var(--bg-card)]"
         style={{
           padding: '18px 20px',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',

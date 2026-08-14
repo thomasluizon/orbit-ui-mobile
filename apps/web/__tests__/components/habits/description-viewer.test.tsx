@@ -1,19 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
-}))
-
-vi.mock('marked', () => ({
-  marked: {
-    parse: (md: string) => `<p>${md}</p>`,
-  },
-}))
-
-vi.mock('dompurify', () => ({
-  default: { sanitize: (html: string) => html },
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
@@ -73,6 +65,63 @@ describe('DescriptionViewer', () => {
     expect(screen.getByText('Some description')).toBeInTheDocument()
   })
 
+  it('keeps pathological prose complete while preserving scrollable blocks', () => {
+    const reportedList = '#16,#17,#18,#19,#21,#23,#25,#28,#30,#32,#39,#48,#49,#62,#64,#82'
+    const longToken = 'x'.repeat(400)
+    const longUrl = `https://orbit.app/reference/${'u'.repeat(270)}`
+    const base64Blob = 'Q'.repeat(240)
+    const table = [
+      '| one | two | three | four | five | six | seven | eight |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| a | b | c | d | e | f | g | h |',
+    ].join('\n')
+    const description = [
+      reportedList,
+      longToken,
+      `<${longUrl}>`,
+      `\`${base64Blob}\``,
+      `\`\`\`sh\n${base64Blob}\n\`\`\``,
+      table,
+      'Ordinary short prose still reads normally.',
+    ].join('\n\n')
+
+    const { container } = render(
+      <DescriptionViewer
+        open
+        onOpenChange={vi.fn()}
+        title="Pathological description"
+        description={description}
+      />,
+    )
+
+    const prose = container.querySelector('.prose-orbit')
+    expect(prose?.textContent).toContain(reportedList)
+    expect(prose?.textContent).toContain(longToken)
+    expect(prose?.textContent).toContain(longUrl)
+    expect(prose?.textContent).toContain('Ordinary short prose still reads normally.')
+
+    const link = screen.getByRole('link', { name: longUrl })
+    expect(link).toHaveAttribute('href', longUrl)
+
+    const codeElements = Array.from(container.querySelectorAll('code'))
+    expect(codeElements.some((code) => code.closest('pre') === null && code.textContent === base64Blob)).toBe(true)
+    const codeBlock = container.querySelector('pre')
+    expect(codeBlock).toHaveAttribute('tabindex', '0')
+    expect(codeBlock?.textContent).toContain(base64Blob)
+
+    const markdownTable = container.querySelector('table')
+    expect(markdownTable).toHaveAttribute('tabindex', '0')
+    expect(markdownTable?.textContent).toContain('eight')
+
+    const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    const proseDeclaration = css.match(/\.prose-orbit\s*\{[^}]+\}/)?.[0]
+    expect(proseDeclaration).toContain('max-width: 65ch')
+    expect(proseDeclaration).toContain('overflow-wrap: anywhere')
+    expect(css).toMatch(/\.prose-orbit a\s*\{[^}]*overflow-wrap: anywhere/s)
+    expect(css).toMatch(/\.prose-orbit pre\s*\{[^}]*overflow-x: auto[^}]*overflow-wrap: normal/s)
+    expect(css).toMatch(/\.prose-orbit table\s*\{[^}]*overflow-x: auto[^}]*overflow-wrap: normal/s)
+  })
+
   it('copies the description when the copy button is clicked', async () => {
     render(
       <DescriptionViewer
@@ -86,7 +135,7 @@ describe('DescriptionViewer', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('Copy me'))
   })
 
-  it('keeps the copy button usable when clipboard access is denied', async () => {
+  it('shows a persistent error next to the copy button when clipboard access is denied', async () => {
     writeText.mockRejectedValue(new Error('denied'))
     render(
       <DescriptionViewer
@@ -97,7 +146,9 @@ describe('DescriptionViewer', () => {
       />,
     )
     fireEvent.click(screen.getByLabelText('habits.detail.copyDescription'))
-    await waitFor(() => expect(writeText).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.copyFailed')
+    })
     expect(screen.getByLabelText('habits.detail.copyDescription')).toBeInTheDocument()
   })
 })

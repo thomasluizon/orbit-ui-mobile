@@ -162,6 +162,34 @@ describe('AppOverlay', () => {
     expect(document.body.textContent).toContain('Some description')
   })
 
+  it('keeps space-free titles and descriptions inside the header row', () => {
+    const title = 'T'.repeat(400)
+    const description = 'D'.repeat(400)
+    render(
+      <AppOverlay
+        open
+        onOpenChange={vi.fn()}
+        title={title}
+        description={description}
+        expandable
+      >
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const heading = screen.getByRole('heading', { name: title })
+    const preview = screen.getByText(description)
+    const expandButton = screen.getByRole('button', { name: 'common.expandDescription' })
+
+    expect(heading).toHaveTextContent(title)
+    expect(heading.className).toContain('wrap-anywhere')
+    expect(preview).toHaveTextContent(description)
+    expect(preview.className).toContain('min-w-0')
+    expect(preview.className).toContain('wrap-anywhere')
+    expect(expandButton.className).toContain('shrink-0')
+    expect(expandButton.className).toContain('size-8')
+  })
+
   it('renders expand button when expandable', () => {
     const onExpand = vi.fn()
     render(
@@ -357,6 +385,8 @@ describe('AppOverlay', () => {
     const link = document.querySelector('a[href="https://orbit.app"]')
     expect(link).not.toBeNull()
     expect(link).toHaveAttribute('target', '_blank')
+    expect(link?.className).toContain('wrap-anywhere')
+    expect(link?.className).toContain('text-[var(--primary-soft)]')
   })
 
   it('traps Tab focus within the panel and wraps at both ends', () => {

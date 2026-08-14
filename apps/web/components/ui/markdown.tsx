@@ -24,6 +24,12 @@ const ALLOWED_TAGS = [
   'h2',
   'h3',
   'a',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
 
@@ -37,10 +43,13 @@ export function Markdown({ content, className }: Readonly<MarkdownProps>) {
   const html = useMemo(() => {
     if (!content) return ''
     const raw = marked.parse(content, { async: false })
-    return DOMPurify.sanitize(raw, {
+    const sanitized = DOMPurify.sanitize(raw, {
       ALLOWED_TAGS,
       ALLOWED_ATTR,
     })
+    return sanitized
+      .replaceAll('<pre>', '<pre tabindex="0">')
+      .replaceAll('<table>', '<table tabindex="0">')
   }, [content])
 
   if (!html) return null

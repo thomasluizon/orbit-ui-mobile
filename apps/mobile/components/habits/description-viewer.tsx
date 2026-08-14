@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   card: {
+    minWidth: 0,
     borderRadius: 18,
     borderWidth: 1,
     paddingVertical: 18,
