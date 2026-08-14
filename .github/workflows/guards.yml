@@ -9,6 +9,7 @@ name: Guards
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
+#   performance-workflow - generated measured-performance logic matches its canonical module
 
 on:
   pull_request:
@@ -143,3 +144,13 @@ jobs:
         if: steps.mobile-pkg.outputs.changed == 'true'
         working-directory: apps/mobile
         run: CI=1 npx expo install --check
+
+  performance-workflow:
+    name: Performance Workflow Drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/generate-performance-workflow.mjs --check

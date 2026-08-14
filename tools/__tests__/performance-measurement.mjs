@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { runInNewContext } from "node:vm"
+import * as fc from "fast-check"
 
 import { REPO_ROOT, T } from "./_harness.mjs"
+import { GENERATED_END, GENERATED_START } from "../generate-performance-workflow.mjs"
 import {
   applyMeasuredQueryContexts,
   attachPerformanceMetrics,
@@ -117,13 +119,10 @@ export const cases = async () => {
   )
 
   const measurementFunctions = auditWorkflow.slice(
-    auditWorkflow.indexOf("const PERFORMANCE_MONTH_DAYS"),
-    auditWorkflow.indexOf("const MEASURED_METRIC_KEYS"),
+    auditWorkflow.indexOf(GENERATED_START) + GENERATED_START.length,
+    auditWorkflow.indexOf(GENERATED_END),
   )
-  const performanceAttachmentFunctions = auditWorkflow.slice(
-    auditWorkflow.indexOf("const MEASURED_METRIC_KEYS"),
-    auditWorkflow.indexOf("const UI"),
-  )
+  const performanceAttachmentFunctions = ""
   const offsetOnlyIsBounded = runInNewContext(
     `${measurementFunctions}\nresolvePerformanceMeasurement({
       status: 'available',
@@ -434,9 +433,8 @@ export const cases = async () => {
    * P1, connector pass 3 on #699: measure the PROJECTED result width, not the full table row.
    * `bytesPerRow` describes the whole row, so charging it to a narrow projection overstated a
    * careful query in direct proportion to how well it was written, which is backwards for a signal
-   * meant to find unbounded reads. Every case below is run through BOTH copies of the logic, the
-   * tools/lib module and the workflow slice, because two copies that must agree are how this
-   * defect class keeps coming back.
+   * meant to find unbounded reads. Every case below runs through the canonical module and the
+   * generated workflow block so the sandboxed consumer proves it executes the generated source.
    */
   const projectionInput = (queryShape) => ({
     ...availableInput(),
@@ -496,6 +494,22 @@ export const cases = async () => {
    * could raise full-entity-projection on a query that projects almost nothing. */
   const nested = probe('SELECT COALESCE(h."Note", h."Title"), h."Id" FROM "Habits" h')
   T("performance-measurement: a comma inside a function call is not a column boundary", nested.fromLib.projectionColumns === 2, String(nested.fromLib.projectionColumns))
+  const quotedKeywords = probe('SELECT h."from", h."limit" FROM "Habits" h WHERE h."UserId" = $1')
+  T(
+    "performance-measurement: quoted SQL keywords stay identifiers rather than parser positions",
+    quotedKeywords.fromLib.queryShapeStatus === "parsed"
+      && quotedKeywords.fromLib.projectionColumns === 2
+      && quotedKeywords.fromLib.bounded === false,
+    JSON.stringify(quotedKeywords.fromLib),
+  )
+  const literalKeywords = probe('SELECT COALESCE(h."Title", \'FROM, LIMIT\'), h."Id" FROM "Habits" h')
+  T(
+    "performance-measurement: SQL keywords and commas inside literals do not shape the outer query",
+    literalKeywords.fromLib.queryShapeStatus === "parsed"
+      && literalKeywords.fromLib.projectionColumns === 2
+      && literalKeywords.fromLib.bounded === false,
+    JSON.stringify(literalKeywords.fromLib),
+  )
 
   /**
    * P1, connector pass 4 on #699: an EMPTY public table reports a legitimate `n_live_tup` of 0.
@@ -549,11 +563,9 @@ export const cases = async () => {
   /**
    * THE guard against this defect class, rather than against one more instance of it.
    *
-   * `tools/lib/performance-measurement.mjs` and the copy inlined in `.claude/workflows/audit.mjs`
-   * must agree, and they cannot be merged into one module because a workflow script is sandboxed and
-   * cannot import from disk. Every past fix had to be applied twice and the second copy is where it
-   * was missed. So the copies are compared directly, over a corpus that covers each branch of the
-   * projection and egress logic. A future edit to either copy alone fails here.
+   * The workflow is sandboxed and cannot import the canonical module from disk, so its block is
+   * generated. The generator test compares it byte for byte; this corpus additionally executes the
+   * generated block over every projection and egress branch.
    */
   /**
    * P1, connector pass 5 on #699: only a TOP-LEVEL row limit bounds the statement. A correlated
@@ -641,21 +653,158 @@ export const cases = async () => {
       || JSON.stringify([...fromLib.signals].sort()) !== JSON.stringify([...fromWorkflow.signals].sort())
   })
   T(
-    "performance-measurement: the module and the inlined workflow copy agree on every corpus query",
+    "performance-measurement: the module and generated workflow agree on every corpus query",
     divergent.length === 0,
     `diverged on: ${JSON.stringify(divergent)}`,
   )
   const distinct = probe('SELECT DISTINCT h."Id", h."UserId" FROM "Habits" h')
   T("performance-measurement: DISTINCT is not counted as a column", distinct.fromLib.projectionColumns === 2, String(distinct.fromLib.projectionColumns))
 
-  /** A root-scoped enumeration covering every column IS the whole row, and is charged exactly the
-   * measured width, never more. This is the real shape of the unpaginated habit list in
-   * `pg_stat_statements`: named columns, not `h.*`. */
+  /** More expressions than the root table has columns cannot prove a whole-row projection. */
   const overCounted = probe('SELECT a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v FROM "Habits" h')
   T(
-    "performance-measurement: a root enumeration covering the row is charged the row width, never more",
-    overCounted.fromLib.projectedBytesPerRow === 400 && overCounted.fromWorkflow.projectedBytesPerRow === 400,
-    JSON.stringify({ lib: overCounted.fromLib.projectedBytesPerRow, workflow: overCounted.fromWorkflow.projectedBytesPerRow }),
+    "performance-measurement: an over-counted enumeration becomes unknown instead of exceeding the table width",
+    overCounted.fromLib.projectionColumns === null
+      && overCounted.fromLib.projectedBytesPerRow === null
+      && overCounted.fromWorkflow.projectionColumns === null,
+    JSON.stringify({ columns: overCounted.fromLib.projectionColumns, bytes: overCounted.fromLib.projectedBytesPerRow }),
+  )
+
+  const propertyCheck = (name, property) => {
+    try {
+      fc.assert(property, { numRuns: 500 })
+      T(name, true)
+    } catch (error) {
+      T(name, false, error instanceof Error ? error.message : String(error))
+    }
+  }
+  const numericMeasurement = fc.record({
+    rows: fc.integer({ min: 0, max: 10_000_000 }),
+    calls: fc.integer({ min: 1, max: 1_000_000 }),
+    bytesPerRow: fc.integer({ min: 1, max: 100_000 }),
+    windowDays: fc.integer({ min: 1, max: 730 }),
+    columnCount: fc.integer({ min: 1, max: 100 }),
+    wholeRow: fc.boolean(),
+  })
+  propertyCheck(
+    "performance-measurement property: measured sample egress never exceeds rows times bytesPerRow",
+    fc.property(numericMeasurement, ({ rows, calls, bytesPerRow, windowDays, columnCount, wholeRow }) => {
+      const queryShape = wholeRow ? 'SELECT * FROM "Habits" h' : 'SELECT h."Id" FROM "Habits" h'
+      const query = resolvePerformanceMeasurement({
+        status: "available",
+        windowDays,
+        tableStats: [{ table: "Habits", liveRows: Math.max(rows, 1), columnCount }],
+        queryStats: [{ queryId: "property", rootTable: "Habits", rows, calls, bytesPerRow, queryShape }],
+      }).rowsRanking[0]
+      const sampleEgressBytes = rows * (query.projectedBytesPerRow ?? 0)
+      const normalizedUpperBound = rows / windowDays * (365.25 / 12) * bytesPerRow
+      return sampleEgressBytes <= rows * bytesPerRow
+        && (query.monthlyEgressBytes == null || query.monthlyEgressBytes <= normalizedUpperBound)
+    }),
+  )
+  propertyCheck(
+    "performance-measurement property: projected columns never exceed the table column count",
+    fc.property(
+      fc.integer({ min: 1, max: 100 }),
+      fc.integer({ min: 1, max: 150 }),
+      (columnCount, selectedCount) => {
+        const projection = Array.from({ length: selectedCount }, (_, index) => `h."Column${index}"`).join(", ")
+        const query = resolvePerformanceMeasurement({
+          status: "available",
+          windowDays: 30,
+          tableStats: [{ table: "Habits", liveRows: 1, columnCount }],
+          queryStats: [{
+            queryId: "property",
+            rootTable: "Habits",
+            rows: 1,
+            calls: 1,
+            bytesPerRow: 100,
+            queryShape: `SELECT ${projection} FROM "Habits" h`,
+          }],
+        }).rowsRanking[0]
+        return query.projectionColumns == null || query.projectionColumns <= columnCount
+      },
+    ),
+  )
+  propertyCheck(
+    "performance-measurement property: background budget never signals measured egress under budget",
+    fc.property(numericMeasurement, ({ rows, calls, bytesPerRow, windowDays, columnCount }) => {
+      const monthlyEgressBytes = rows / windowDays * (365.25 / 12) * bytesPerRow
+      const backgroundBudgetBytes = monthlyEgressBytes + 1
+      const unresolved = resolvePerformanceMeasurement({
+        status: "available",
+        windowDays,
+        backgroundBudgetBytes,
+        tableStats: [{ table: "Habits", liveRows: Math.max(rows, 1), columnCount }],
+        queryStats: [{
+          queryId: "property",
+          rootTable: "Habits",
+          rows,
+          calls,
+          bytesPerRow,
+          queryShape: 'SELECT * FROM "Habits" h',
+        }],
+      })
+      const measured = applyMeasuredQueryContexts(unresolved, [{
+        queryId: "property",
+        location: "src/PropertyJob.cs:1",
+        executionContext: "background",
+      }])
+      return !measured.signals.some((signal) => signal.kind === "background-sweep-budget")
+    }),
+  )
+
+  const unreadableShapes = [
+    'WITH source AS (SELECT * FROM "Habits") SELECT * FROM source',
+    'SELECT FROM "Habits" h',
+    'SELECT h."Id" FROM "Habits" h WHERE h."Title" = \'unterminated',
+    'SELECT * FROM "Habits" h UNION SELECT * FROM "Habits" h',
+  ]
+  const unknownFailures = unreadableShapes.map((queryShape, index) => {
+    const unresolved = resolvePerformanceMeasurement({
+      status: "available",
+      windowDays: 1,
+      backgroundBudgetBytes: 1,
+      largeTableFraction: 0.01,
+      tableStats: [{ table: "Habits", liveRows: 1, columnCount: 20 }],
+      queryStats: [{
+        queryId: `unknown-${index}`,
+        rootTable: "Habits",
+        calls: 1,
+        rows: 1000,
+        bytesPerRow: 1000,
+        queryShape,
+      }],
+    })
+    const query = unresolved.rowsRanking[0]
+    const request = applyMeasuredQueryContexts(unresolved, [{
+      queryId: query.queryId,
+      location: "src/UnknownQuery.cs:1",
+      executionContext: "request",
+    }])
+    const background = applyMeasuredQueryContexts(unresolved, [{
+      queryId: query.queryId,
+      location: "src/UnknownJob.cs:1",
+      executionContext: "background",
+    }])
+    return {
+      query,
+      signals: [...request.signals, ...background.signals],
+    }
+  })
+  T(
+    "performance-measurement: unreadable SQL says why every query-shape signal was suppressed",
+    unknownFailures.every(({ query, signals }) => (
+      query.queryShapeStatus === "unknown"
+      && typeof query.queryShapeReason === "string"
+      && query.queryShapeReason.length > 0
+      && query.projectionColumns === null
+      && query.projectedBytesPerRow === null
+      && query.monthlyEgressBytes === null
+      && query.bounded === null
+      && signals.length === 0
+    )),
+    JSON.stringify(unknownFailures),
   )
 
   /**
