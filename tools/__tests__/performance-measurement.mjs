@@ -584,6 +584,14 @@ export const cases = async () => {
     outerLimit.fromLib.bounded === true && outerLimit.fromWorkflow.bounded === true,
     JSON.stringify({ lib: outerLimit.fromLib.bounded, workflow: outerLimit.fromWorkflow.bounded }),
   )
+  /** `LIMIT ALL` is valid PostgreSQL for no limit at all, so reading the bare keyword as bounded
+   * suppressed `unbounded-user-list` on exactly the shape that signal exists to catch. */
+  const limitAll = probe('SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 LIMIT ALL')
+  T(
+    "performance-measurement: LIMIT ALL leaves the statement unbounded",
+    limitAll.fromLib.bounded === false && limitAll.fromWorkflow.bounded === false,
+    JSON.stringify({ lib: limitAll.fromLib.bounded, workflow: limitAll.fromWorkflow.bounded }),
+  )
 
   /**
    * P1, connector pass 5 on #699: counting expressions was an inference, not a proof. `SELECT h.*,
@@ -601,6 +609,22 @@ export const cases = async () => {
     "performance-measurement: a bare star over a join is not the root row either",
     bareStarOverJoin.fromLib.projectedBytesPerRow === null && bareStarOverJoin.fromWorkflow.projectedBytesPerRow === null,
     JSON.stringify({ lib: bareStarOverJoin.fromLib.projectedBytesPerRow }),
+  )
+  /** PostgreSQL joins comma-separated FROM items exactly like an explicit JOIN, so reading the
+   * comma form as a single source charged a two-relation result at the root table's row width. */
+  const bareStarOverCommaJoin = probe('SELECT * FROM "Habits" h, "Goals" g WHERE g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: a bare star over a COMMA join is not the root row",
+    bareStarOverCommaJoin.fromLib.projectedBytesPerRow === null && bareStarOverCommaJoin.fromWorkflow.projectedBytesPerRow === null,
+    JSON.stringify({ lib: bareStarOverCommaJoin.fromLib.projectedBytesPerRow, workflow: bareStarOverCommaJoin.fromWorkflow.projectedBytesPerRow }),
+  )
+  /** The FROM-clause bound matters: an ORDER BY list carries top-level commas of its own and must
+   * not read as a second source. */
+  const orderedRootStar = probe('SELECT h.* FROM "Habits" h ORDER BY h."Name", h."Id"')
+  T(
+    "performance-measurement: commas in ORDER BY do not make the query a join",
+    orderedRootStar.fromLib.projectedBytesPerRow === 400 && orderedRootStar.fromWorkflow.projectedBytesPerRow === 400,
+    JSON.stringify({ lib: orderedRootStar.fromLib.projectedBytesPerRow, workflow: orderedRootStar.fromWorkflow.projectedBytesPerRow }),
   )
   const rootStarOverJoin = probe('SELECT h.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
   T(

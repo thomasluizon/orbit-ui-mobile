@@ -179,6 +179,17 @@ const skipSelectModifier = (tokens, depths, start, end) => {
   return null
 }
 
+/** PostgreSQL accepts comma-separated FROM items, which join exactly like an explicit JOIN. Bounding
+ * the scan to the FROM clause keeps a GROUP BY or ORDER BY list from reading as a second source. */
+const hasCommaJoin = (tokens, depths, fromIndex) => {
+  for (let index = fromIndex + 1; index < tokens.length; index++) {
+    if (depths[index] !== 0) continue
+    if (tokens[index].type === "identifier" && !tokens[index].quoted && OUTER_CLAUSE_KEYWORDS.has(tokens[index].lower)) return false
+    if (tokens[index].value === ",") return true
+  }
+  return false
+}
+
 const rootSource = (tokens, depths, fromIndex) => {
   let index = fromIndex + 1
   if (tokens[index]?.type !== "identifier") return null
@@ -229,6 +240,7 @@ const analyzeQueryShape = (queryShape, columnCount) => {
   if (!root) return unknownSql("root FROM source is unsupported")
 
   const joined = tokens.some((token, index) => depths[index] === 0 && isKeyword(token, "join"))
+    || hasCommaJoin(tokens, depths, fromIndex)
   const columns = expressions.map(directColumn)
   const starColumns = columns.filter((column) => column?.star)
   const knownColumnCount = Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
@@ -259,7 +271,9 @@ const analyzeQueryShape = (queryShape, columnCount) => {
     reason: null,
     projectionColumns,
     projectsRootWholeRow: starWholeRow || explicitWholeRow,
-    bounded: outerWords.some((token, index) => isKeyword(token, "limit") || (
+    bounded: outerWords.some((token, index) => (
+      isKeyword(token, "limit") && !isKeyword(outerWords[index + 1], "all")
+    ) || (
       isKeyword(token, "fetch") && ["first", "next"].some((keyword) => isKeyword(outerWords[index + 1], keyword))
     )),
     userScoped: tokens.some((token) => token.type === "identifier" && token.lower === "userid"),
