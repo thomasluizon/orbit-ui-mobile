@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "groups": {
+    "R1-primitive-overlay": [
+      "overlay-share-share-card-sheet",
+      "overlay-ui-app-date-picker",
+      "overlay-ui-app-overlay",
+      "overlay-ui-app-time-picker",
+      "overlay-ui-centered-overlay",
+      "overlay-ui-confirm-dialog",
+      "overlay-ui-context-menu",
+      "overlay-ui-popover",
+      "m-overlay-components-bottom-sheet-modal",
+      "m-overlay-share-share-card-sheet",
+      "m-overlay-ui-anchored-menu",
+      "m-overlay-ui-app-date-picker",
+      "m-overlay-ui-app-select",
+      "m-overlay-ui-app-time-picker",
+      "m-overlay-ui-confirm-dialog"
+    ],
+    "R2-primitive-shell": [
+      "error-app",
+      "not-found-root",
+      "overlay-app-layout",
+      "overlay-command-command-palette",
+      "overlay-shell-rail-drawer",
+      "m-not-found-root",
+      "m-error-root"
+    ],
+    "R3-primitive-row": [
+      "overlay-habits-bulk-action-bar-v2",
+      "overlay-habits-controls-menu",
+      "overlay-habit-list-confirm-dialogs",
+      "overlay-habit-list-move-parent-overlay",
+      "overlay-habits-habit-row-trailing",
+      "overlay-habits-habit-row",
+      "m-overlay-habit-list-confirm-dialogs",
+      "m-overlay-habit-list-move-parent-dialog"
+    ],
+    "R4-motion-celebration": [
+      "overlay-components-fresh-start-modal",
+      "overlay-gamification-achievement-toast",
+      "overlay-gamification-all-done-celebration",
+      "overlay-gamification-goal-completed-celebration",
+      "overlay-gamification-level-up-overlay",
+      "overlay-gamification-streak-celebration",
+      "overlay-gamification-streak-freeze-celebration",
+      "overlay-gamification-welcome-back-toast",
+      "overlay-ui-fresh-start-animation",
+      "m-overlay-components-fresh-start-modal",
+      "m-overlay-gamification-achievement-toast",
+      "m-overlay-gamification-all-done-celebration",
+      "m-overlay-gamification-goal-completed-celebration",
+      "m-overlay-gamification-level-up-overlay",
+      "m-overlay-gamification-streak-celebration",
+      "m-overlay-gamification-streak-freeze-celebration",
+      "m-overlay-gamification-welcome-back-toast",
+      "m-overlay-ui-fresh-start-animation"
+    ],
+    "R5-screen-today": [
+      "view-today",
+      "view-all",
+      "view-general",
+      "view-goals",
+      "overlay-app-today-page-view",
+      "overlay-app-today-shell",
+      "m-route-tabs-index",
+      "m-overlay-tabs-today-modals"
+    ],
+    "R6-screen-goals": [
+      "overlay-goals-create-goal-modal",
+      "overlay-goals-edit-goal-modal",
+      "overlay-goals-goal-card",
+      "overlay-goals-goal-detail-drawer",
+      "overlay-goals-goals-view",
+      "m-overlay-goals-create-goal-modal",
+      "m-overlay-goals-edit-goal-modal",
+      "m-overlay-goals-goal-detail-drawer"
+    ],
+    "R7-screen-habits-crud": [
+      "overlay-habits-create-habit-modal",
+      "overlay-habits-description-viewer",
+      "overlay-habits-edit-habit-modal",
+      "overlay-habits-habit-detail-drawer",
+      "overlay-habit-form-fields-habit-emoji-selector",
+      "overlay-habits-reschedule-sheet",
+      "m-overlay-habits-create-habit-modal",
+      "m-overlay-habits-description-viewer",
+      "m-overlay-habits-edit-habit-modal",
+      "m-overlay-habits-habit-detail-drawer",
+      "m-overlay-habit-form-fields-habit-emoji-selector",
+      "m-overlay-habits-reschedule-sheet"
+    ],
+    "R8-screen-calendar": [
+      "route-calendar-sync",
+      "route-calendar",
+      "overlay-components-calendar-shell",
+      "m-route-tabs-calendar",
+      "m-route-calendar-sync",
+      "m-overlay-components-calendar-shell"
+    ],
+    "R9-screen-streak": [
+      "route-streak",
+      "m-route-streak"
+    ],
+    "R10-screen-achievements": [
+      "route-achievements",
+      "m-route-achievements"
+    ],
+    "R11-screen-astra": [
+      "route-ai-settings",
+      "route-chat",
+      "error-chat",
+      "block-chat-chat-composer-bar",
+      "block-chat-chat-empty-state",
+      "block-chat-action-chips",
+      "block-chat-breakdown-frequency-picker",
+      "block-chat-breakdown-habit-row",
+      "block-chat-breakdown-suggestion",
+      "block-chat-clarification-card",
+      "block-chat-conflict-warning",
+      "block-chat-goal-list-card",
+      "block-chat-habit-list-card",
+      "block-chat-message-bubble",
+      "block-chat-pending-operation-card",
+      "block-chat-suggestion-chips",
+      "block-chat-typing-indicator",
+      "m-route-ai-settings",
+      "m-route-chat",
+      "m-block-chat-action-chips",
+      "m-block-chat-breakdown-frequency-picker",
+      "m-block-chat-breakdown-habit-row",
+      "m-block-chat-breakdown-suggestion",
+      "m-block-chat-chat-animations",
+      "m-block-chat-chat-composer-input",
+      "m-block-chat-chat-empty-state",
+      "m-block-chat-chat-input-area",
+      "m-block-chat-chat-input-bar",
+      "m-block-chat-clarification-card",
+      "m-block-chat-conflict-warning",
+      "m-block-chat-goal-list-card",
+      "m-block-chat-habit-list-card",
+      "m-block-chat-pending-operation-card",
+      "m-block-chat-suggestion-chips",
+      "m-block-chat-typing-indicator",
+      "m-block-chat-message-bubble"
+    ],
+    "R12-screen-insights": [
+      "route-explore",
+      "route-insights",
+      "route-retrospective",
+      "route-wrapped",
+      "m-route-retrospective",
+      "m-route-wrapped"
+    ],
+    "R13-screen-social": [],
+    "R14-screen-onboarding": [
+      "route-onboarding",
+      "overlay-onboarding-feature-guide-drawer",
+      "overlay-onboarding-onboarding-flow",
+      "overlay-tour-tour-replay-modal",
+      "overlay-tour-tour-spotlight",
+      "overlay-tour-tour-tooltip",
+      "m-route-onboarding-index",
+      "m-overlay-onboarding-astra-import-prompt",
+      "m-overlay-onboarding-calendar-import-prompt",
+      "m-overlay-onboarding-feature-guide-drawer",
+      "m-overlay-onboarding-onboarding-flow",
+      "m-overlay-tour-tour-overlay",
+      "m-overlay-tour-tour-replay-modal",
+      "m-overlay-ui-push-prompt"
+    ],
+    "R15-screen-auth": [
+      "route-auth-callback",
+      "route-login",
+      "error-auth",
+      "m-route-auth-callback",
+      "m-route-login"
+    ],
+    "R16-screen-settings": [
+      "route-advanced",
+      "route-preferences",
+      "route-profile",
+      "route-delete-account",
+      "overlay-components-preference-picker-sheet",
+      "overlay-components-delete-account-modal",
+      "overlay-components-edit-name-sheet",
+      "overlay-advanced-advanced-sections",
+      "overlay-navigation-notification-bell",
+      "overlay-navigation-notification-detail-modal",
+      "overlay-ui-create-api-key-modal",
+      "m-route-tabs-profile",
+      "m-route-advanced",
+      "m-route-preferences",
+      "m-overlay-components-delete-account-modal",
+      "m-overlay-components-edit-name-sheet",
+      "m-overlay-app-advanced-sections",
+      "m-overlay-app-preferences-sections",
+      "m-overlay-navigation-notification-bell",
+      "m-overlay-navigation-notification-detail-modal",
+      "m-overlay-ui-create-api-key-modal",
+      "m-overlay-components-version-update-drawer"
+    ],
+    "R17-screen-monetization": [
+      "route-upgrade",
+      "route-r-code",
+      "overlay-marketing-consent-marketing-consent-prompt",
+      "overlay-milestone-share-milestone-share-prompt",
+      "overlay-referral-referral-drawer",
+      "overlay-referral-referral-prompt",
+      "overlay-ui-trial-expired-modal",
+      "m-route-r-code",
+      "m-route-upgrade",
+      "m-overlay-marketing-consent-marketing-consent-prompt",
+      "m-overlay-milestone-share-milestone-share-prompt",
+      "m-overlay-referral-referral-drawer",
+      "m-overlay-referral-referral-prompt",
+      "m-overlay-review-moment-review-moment-sheet",
+      "m-overlay-ui-expiry-warning",
+      "m-overlay-ui-trial-expired-modal"
+    ],
+    "R18-screen-static": [
+      "route-about",
+      "route-support",
+      "route-privacy",
+      "route-terms",
+      "m-route-about",
+      "m-route-privacy",
+      "m-route-support",
+      "m-route-terms"
+    ],
+    "R21-widget": [
+      "m-widget-orbit-widget"
+    ]
+  },
+  "excluded": [
+    {
+      "surfaceId": "route-public-profile",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "route-social",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "route-u-slug",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "not-found-public-u-slug",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "overlay-components-cheer-composer",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "overlay-components-edit-handle-sheet",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "overlay-components-friend-profile-view",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "overlay-components-friend-row",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "overlay-components-invite-confirm-sheet",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "overlay-settings-public-profile-settings",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-route-public-profile",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-route-social",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-overlay-components-cheer-composer",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-overlay-components-edit-handle-sheet",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-overlay-components-friend-profile-sheet",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-overlay-components-friend-row",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    },
+    {
+      "surfaceId": "m-overlay-components-invite-confirm-sheet",
+      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
+    }
+  ],
+  "notes": {
+    "route-explore": "Web-only by the live inventory; no mobile counterpart exists.",
+    "route-insights": "Web-only by the live inventory; retrospective and wrapped provide the related mobile screen coverage.",
+    "overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
+    "m-overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
+    "route-public-profile": "First-rule-wins assigned public profile to canceled R13 over R16; #211 removes it.",
+    "m-route-public-profile": "First-rule-wins assigned public profile to canceled R13 over R16; #211 removes it.",
+    "m-widget-orbit-widget": "D66 adds the Android widget to the manifest and assigns it to #76 (R21)."
+  }
+}
+

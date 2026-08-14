@@ -67,10 +67,7 @@ const SOURCE_EXTENSIONS = [".tsx", ".ts", ".css"]
 // VETO and never grant, the cost is a surface that stays vetoed until
 // something it exclusively owns changes - conservative in the safe direction.
 const OWNERSHIP_MAX_REACH = 1
-const ALIASES = [
-  ["@/", "apps/web/"],
-  ["@orbit/shared/", "packages/shared/src/"],
-]
+const SHARED_ALIAS = ["@orbit/shared/", "packages/shared/src/"]
 
 // A component is an overlay when it DIRECTLY pulls in one of the real overlay
 // bases, or mounts its own portal/modal. Direct imports matter: transitive
@@ -137,12 +134,13 @@ function walk(dir, found = []) {
 function resolveSpecifier(specifier, fromFile) {
   let base = null
   if (specifier.startsWith(".")) base = resolve(dirname(fromFile), specifier)
-  else
-    for (const [prefix, target] of ALIASES)
-      if (specifier.startsWith(prefix)) {
-        base = resolve(REPO_ROOT, target + specifier.slice(prefix.length))
-        break
-      }
+  else if (specifier.startsWith("@/")) {
+    const sourcePath = toPosix(fromFile)
+    const appRoot = sourcePath.startsWith("apps/mobile/") ? "apps/mobile/" : "apps/web/"
+    base = resolve(REPO_ROOT, appRoot + specifier.slice(2))
+  } else if (specifier.startsWith(SHARED_ALIAS[0])) {
+    base = resolve(REPO_ROOT, SHARED_ALIAS[1] + specifier.slice(SHARED_ALIAS[0].length))
+  }
   if (!base) return null
   // Only real source files may enter a closure. Resolving a bare specifier used
   // to admit `apps/web/package.json` (about/page.tsx imports it for the version
@@ -245,6 +243,7 @@ export function readRootViews(source) {
  * @param {RegExp} selfMounted pattern for a component that mounts its own overlay
  */
 export function isOverlaySource(posixPath, bases, selfMounted) {
+  if (bases.some((base) => posixPath.includes(base))) return true
   const absolute = join(REPO_ROOT, posixPath)
   for (const edge of importsOf(absolute)) {
     const target = toPosix(edge)
@@ -265,6 +264,51 @@ function hasEmptyState(closure) {
     if (EMPTY_STATE_MARKERS.some((marker) => posix.includes(marker))) return true
   }
   return false
+}
+
+function hasDefaultExport(sourceFile) {
+  let source = ""
+  try {
+    source = readFileSync(join(REPO_ROOT, sourceFile), "utf8")
+  } catch {
+    return false
+  }
+  return /\bexport\s+default\b|\bexport\s*\{[^}]*\bas\s+default\b[^}]*\}/s.test(source)
+}
+
+function specialSurfaceLabel(sourceFile, filename) {
+  const pathWithoutRoot = sourceFile.replace(/^apps\/web\/app\/?/, "").replace(new RegExp(`\/?${filename}\\.tsx$`), "")
+  const segments = pathWithoutRoot.split("/").filter(Boolean).map((segment) => segment.replace(/^\((.+)\)$/, "$1"))
+  return slug(segments.join("-")) || "root"
+}
+
+function chatBlockEntries(platform, routeSurfaceId, routeSourceFile) {
+  const routeClosure = closureOf(join(REPO_ROOT, routeSourceFile))
+  const candidateRoots =
+    platform === "web"
+      ? [join(REPO_ROOT, "apps", "web", "components", "chat"), join(REPO_ROOT, "apps", "web", "app", "(chat)", "chat")]
+      : [join(REPO_ROOT, "apps", "mobile", "components", "chat")]
+  const candidates = candidateRoots
+    .flatMap((root) => walk(root))
+    .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
+    .filter((file) => file.endsWith(".tsx") && routeClosure.has(file) && file !== join(REPO_ROOT, routeSourceFile))
+    .sort()
+
+  return candidates.map((absolutePath) => {
+    const sourceFile = toPosix(absolutePath)
+    const componentsMarker = platform === "web" ? "apps/web/components/chat/" : "apps/mobile/components/chat/"
+    const label = sourceFile.startsWith(componentsMarker)
+      ? sourceFile.slice(componentsMarker.length).replace(/\.tsx$/, "")
+      : sourceFile.split("/").at(-1).replace(/\.tsx$/, "")
+    return {
+      surfaceId: `${platform === "mobile" ? "m-" : ""}block-chat-${slug(label)}`,
+      platform,
+      kind: "block",
+      sourceFile,
+      href: "/chat",
+      parentSurfaceId: routeSurfaceId,
+    }
+  })
 }
 
 function webEntries() {
@@ -288,8 +332,32 @@ function webEntries() {
       continue
     }
     const { href, label } = webRouteIdentity(sourceFile)
-    surfaces.push({ surfaceId: `route-${slug(label) || "root"}`, platform: "web", kind: "route", sourceFile, href })
+    const surface = { surfaceId: `route-${slug(label) || "root"}`, platform: "web", kind: "route", sourceFile, href }
+    if (surface.surfaceId === "route-explore" || surface.surfaceId === "route-insights") {
+      surface.counterpart = {
+        status: "web-only",
+        reason: "No mobile route exists; redesign coverage must account for this platform divergence.",
+      }
+    }
+    surfaces.push(surface)
   }
+
+  const errorFiles = walk(appDir).map(toPosix).filter((path) => path.endsWith("/error.tsx")).sort()
+  for (const sourceFile of errorFiles) {
+    const label = specialSurfaceLabel(sourceFile, "error")
+    surfaces.push({ surfaceId: `error-${label}`, platform: "web", kind: "error", sourceFile, href: null })
+  }
+
+  const notFoundFiles = walk(appDir)
+    .map(toPosix)
+    .filter((path) => path === "apps/web/app/not-found.tsx" || path.endsWith("/not-found.tsx"))
+    .sort()
+  for (const sourceFile of notFoundFiles) {
+    const label = specialSurfaceLabel(sourceFile, "not-found")
+    surfaces.push({ surfaceId: `not-found-${label}`, platform: "web", kind: "not-found", sourceFile, href: null })
+  }
+
+  surfaces.push(...chatBlockEntries("web", "route-chat", "apps/web/app/(chat)/chat/page.tsx"))
 
   // Overlays and any other non-route surface, found by what a component
   // RENDERS rather than by what it is named. This is what makes the command
@@ -330,7 +398,8 @@ function mobileEntries() {
         path.endsWith(".tsx") &&
         !/\/_layout\.tsx$/.test(path) &&
         !/\/_components\//.test(path) &&
-        !/\/\+not-found\.tsx$/.test(path),
+        !/\/\+not-found\.tsx$/.test(path) &&
+        hasDefaultExport(path),
     )
     .sort()
 
@@ -339,17 +408,64 @@ function mobileEntries() {
     surfaces.push({ surfaceId: `m-route-${slug(label)}`, platform: "mobile", kind: "route", sourceFile, href })
   }
 
+  const notFoundSource = "apps/mobile/app/+not-found.tsx"
+  if (hasDefaultExport(notFoundSource)) {
+    surfaces.push({ surfaceId: "m-not-found-root", platform: "mobile", kind: "not-found", sourceFile: notFoundSource, href: null })
+  }
+
+  const errorSource = "apps/mobile/components/ui/app-error-boundary.tsx"
+  if (hasDefaultExport(errorSource) || statExists(errorSource)) {
+    surfaces.push({ surfaceId: "m-error-root", platform: "mobile", kind: "error", sourceFile: errorSource, href: null })
+  }
+
+  surfaces.push(...chatBlockEntries("mobile", "m-route-chat", "apps/mobile/app/chat.tsx"))
+
   const candidates = [...walk(componentsDir), ...walk(appDir)]
     .map(toPosix)
     .filter((path) => path.endsWith(".tsx"))
     .sort()
   const screenSet = new Set(screens)
+  const globalOverlayHost = join(REPO_ROOT, "apps", "mobile", "components", "global-overlays.tsx")
+  const nonSurfaceHostImports = new Set([
+    "apps/mobile/components/onboarding/onboarding-actions-context.tsx",
+    "apps/mobile/components/tour/tour-provider.tsx",
+  ])
+  const globalOverlaySources = new Set(
+    importsOf(globalOverlayHost)
+      .map(toPosix)
+      .filter((path) => path.startsWith("apps/mobile/components/") && path.endsWith(".tsx") && !nonSurfaceHostImports.has(path)),
+  )
   for (const sourceFile of candidates) {
     if (screenSet.has(sourceFile)) continue
-    if (!isOverlaySource(sourceFile, MOBILE_OVERLAY_BASES, MOBILE_SELF_MOUNTED_OVERLAY)) continue
+    if (!globalOverlaySources.has(sourceFile) && !isOverlaySource(sourceFile, MOBILE_OVERLAY_BASES, MOBILE_SELF_MOUNTED_OVERLAY)) continue
     surfaces.push({ surfaceId: `m-overlay-${slug(overlayName(sourceFile))}`, platform: "mobile", kind: "overlay", sourceFile, href: null })
   }
+
+  const widgetRoot = join(REPO_ROOT, "apps", "mobile", "modules", "orbit-widget")
+  const widgetFiles = walk(widgetRoot)
+    .map(toPosix)
+    .filter((path) => !path.includes("/ios/") && !path.endsWith(".web.ts") && !path.endsWith(".web.tsx"))
+    .sort()
+  const widgetSource = "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml"
+  if (widgetFiles.includes(widgetSource)) {
+    surfaces.push({
+      surfaceId: "m-widget-orbit-widget",
+      platform: "mobile",
+      kind: "widget",
+      sourceFile: widgetSource,
+      href: null,
+      ownedFilesOverride: widgetFiles,
+    })
+  }
   return surfaces
+}
+
+function statExists(sourceFile) {
+  try {
+    return statSync(join(REPO_ROOT, sourceFile)).isFile()
+  } catch {
+    return false
+  }
 }
 
 /** Attach each surface's frozen exclusive-ownership set and its state axis. */
@@ -371,7 +487,9 @@ function attachOwnershipAndStates(surfaces) {
     // both genuinely changed when it changes. The shared app shell sits far
     // above this bound (~100 reachers), so it still belongs to nobody, which
     // is what keeps an untouched surface untouched.
-    const owned = [...closure].filter((file) => reachCount.get(file) <= OWNERSHIP_MAX_REACH).map(toPosix).sort()
+    const owned = surface.ownedFilesOverride
+      ? surface.ownedFilesOverride
+      : [...closure].filter((file) => reachCount.get(file) <= OWNERSHIP_MAX_REACH).map(toPosix).sort()
     // A surface that owns nothing under that bound (a thin re-export) still
     // owns its own entry file for the purposes of "was this worked on".
     surface.ownedFiles = owned.length > 0 ? owned : [surface.sourceFile]
@@ -418,7 +536,7 @@ function buildManifest(baselineRef) {
     for (const state of surface.states)
       for (const theme of THEMES)
         for (const locale of LOCALES) {
-          const { states, ...rest } = surface
+          const { states, ownedFilesOverride, ...rest } = surface
           cells.push({ ...rest, state, theme, locale, pixelEvidence: pixelEvidenceFor(surface, state) })
         }
 
