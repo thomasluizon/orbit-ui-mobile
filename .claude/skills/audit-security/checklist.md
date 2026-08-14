@@ -207,10 +207,12 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   requirement from the trial length, the user's jurisdiction, and the billing channel
   before flagging — California's pre-expiry reminder binds free periods over 31 days
   (Orbit's trial is 7), and Play's duty is upfront conversion disclosure. Where a
-  reminder is due, provider-side delivery counts: a verified Stripe
-  `customer.subscription.trial_will_end` notice is compliant without a repo-owned
-  scheduler or template. Today the trial holds no card; re-derive when ORB-138 applies
-  the price. A charging trial missing a notice its duty demands is **Tier 2**.
+  reminder is due, provider-side delivery counts, with proof the customer was actually
+  notified: an enabled and sent Stripe reminder email, or an Orbit-sent equivalent.
+  `customer.subscription.trial_will_end` is the webhook TRIGGER for such an email;
+  receiving or handling the event alone never satisfies the check. Today the trial
+  holds no card; re-derive when ORB-138 applies the price. A charging trial missing a
+  notice its duty demands is **Tier 2**.
 - [ ] **No invented social proof**: no testimonial, review count, star rating, or
   `aggregateRating` structured data inside the supplied audit roots that does not trace
   to a real user statement. An invented review is **Tier 1** (the FTC fake-review rule
