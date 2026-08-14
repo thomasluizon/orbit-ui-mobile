@@ -170,7 +170,6 @@ const LAST_WRITE_WINS_TYPES = new Set<MutationType>([
   'setColorScheme',
   'setThemePreference',
   'setTimeZone',
-  'setAiMemory',
   'setAiSummary',
   'setProactiveAstra',
   'completeOnboarding',
@@ -179,7 +178,6 @@ const LAST_WRITE_WINS_TYPES = new Set<MutationType>([
   'reorderGoals',
   'markAllNotificationsRead',
   'deleteAllNotifications',
-  'bulkDeleteUserFacts',
 ])
 
 function mergePayload(existing: unknown, incoming: unknown): unknown {

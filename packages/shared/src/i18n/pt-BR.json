@@ -171,7 +171,6 @@
       "tags": "tag",
       "notifications": "notificação",
       "profile": "configuração",
-      "userFacts": "memória",
       "apiKeys": "chave de API",
       "calendar": "calendário"
     },
@@ -1084,10 +1083,6 @@
       "title": "Cor do tema",
       "description": "Escolha sua cor de destaque"
     },
-    "aiMemory": {
-      "title": "Memória da IA",
-      "description": "Com isso ativado, o Orbit aprende suas preferências, rotinas e contexto das conversas para te dar respostas mais personalizadas."
-    },
     "aiSummary": {
       "title": "Resumo diário",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
@@ -1099,30 +1094,6 @@
     "marketingEmails": {
       "title": "Novidades do produto por e-mail",
       "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser."
-    },
-    "facts": {
-      "title": "O que a Astra sabe",
-      "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar a ela.",
-      "factsError": "Não foi possível carregar o que a Astra sabe.",
-      "retry": "Tentar de novo",
-      "save": "Salvar",
-      "cancel": "Cancelar",
-      "delete": "Excluir",
-      "preference": "Preferência",
-      "routine": "Rotina",
-      "context": "Contexto",
-      "default": "Padrão",
-      "none": "Nenhuma",
-      "select": "Selecionar",
-      "selectAll": "Selecionar tudo",
-      "deselectAll": "Limpar",
-      "selectedCount": "{n} selecionado(s)",
-      "deleteSelected": "Excluir ({n})",
-      "deleteSelectedShort": "Excluir selecionados",
-      "bulkDeleteConfirmTitle": "Excluir os fatos selecionados?",
-      "bulkDeleteConfirmBody": "A Astra vai esquecer esses fatos. Isso não pode ser desfeito.",
-      "count": "{n} / {max}",
-      "lockedHint": "Faça upgrade para o Pro e deixe a Astra lembrar do que você conta no chat."
     },
     "support": {
       "title": "Suporte",
@@ -1182,7 +1153,6 @@
       "deleteHabits": "Todos os hábitos, sub-hábitos e o histórico de conclusão",
       "deleteGoals": "Todas as metas e os registros de progresso",
       "deleteChat": "As conversas com a IA",
-      "deleteUserFacts": "A memória da IA (o que ela sabe sobre você)",
       "deleteAchievements": "Conquistas, XP e progresso de nível",
       "deleteNotifications": "Todas as notificações",
       "deleteChecklist": "Os modelos de checklist salvos",
@@ -1863,12 +1833,8 @@
         "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). O app inteiro se adapta: fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
         "languageTitle": "Idioma",
         "languageDesc": "Alterne entre inglês e português. O app, as respostas da IA e os e-mails se adaptam ao idioma escolhido.",
-        "aiMemoryTitle": "Memória da IA",
-        "aiMemoryDesc": "Quando ativada, a IA aprende com as suas conversas: suas preferências, rotinas e objetivos. Ela usa isso para dar sugestões mais personalizadas. Você pode ver e gerenciar tudo em 'O que o Orbit sabe'. Recurso Pro.",
         "aiSummaryTitle": "Resumo diário da IA",
         "aiSummaryDesc": "Ativa um cartão de resumo diário feito pela IA na sua página Hoje, com insights sobre seus hábitos e uma dose de incentivo. Recurso Pro.",
-        "userFactsTitle": "O que o Orbit sabe",
-        "userFactsDesc": "Adicione você mesmo fatos sobre você (preferências, rotinas, contexto) que a IA usa para personalizar as sugestões. Por exemplo: 'Trabalho à noite' ou 'Prefiro me exercitar ao ar livre'. Recurso Pro.",
         "timezoneTitle": "Fuso horário",
         "timezoneDesc": "Seu fuso horário é detectado automaticamente no primeiro login. Ele define quando os hábitos vencem e o que é 'hoje' para a sua agenda.",
         "supportTitle": "Suporte",
@@ -1937,12 +1903,6 @@
         "free": "1 tema",
         "pro": "Todos os 6 temas",
         "tooltip": "Personalize o Orbit com 6 cores de tema: roxo, azul, verde, rosa, laranja e ciano. No plano grátis, você usa o tema roxo padrão."
-      },
-      "aiMemory": {
-        "label": "Memória da IA",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "A IA lembra suas preferências, metas e contexto de uma conversa para outra, para um acompanhamento mais personalizado."
       },
       "summary": {
         "label": "Resumo diário",

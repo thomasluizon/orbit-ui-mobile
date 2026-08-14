@@ -13,7 +13,6 @@ const exportedSettingsSchema = z.object({
   weekStartDay: z.number(),
   themePreference: z.string().nullable(),
   colorScheme: z.string().nullable(),
-  aiMemoryEnabled: z.boolean(),
   aiSummaryEnabled: z.boolean(),
   proactiveAstraEnabled: z.boolean(),
 })
@@ -74,12 +73,6 @@ const exportedTagSchema = z.object({
   name: z.string(),
   color: z.string(),
   createdAtUtc: z.string(),
-})
-
-const exportedUserFactSchema = z.object({
-  factText: z.string(),
-  category: z.string().nullable(),
-  extractedAtUtc: z.string(),
 })
 
 const exportedSubscriptionSchema = z.object({
@@ -182,7 +175,6 @@ export const userDataExportSchema = z.object({
   habits: z.array(exportedHabitSchema),
   goals: z.array(exportedGoalSchema),
   tags: z.array(exportedTagSchema),
-  facts: z.array(exportedUserFactSchema),
   notifications: z.array(exportedNotificationSchema),
   checklistTemplates: z.array(exportedChecklistTemplateSchema),
   achievements: z.array(exportedAchievementSchema),

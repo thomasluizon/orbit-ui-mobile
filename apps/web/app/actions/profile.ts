@@ -4,7 +4,6 @@ import type {
   UpdateTimezoneRequest,
   SetNameRequest,
   SetLanguageRequest,
-  SetAiMemoryRequest,
   SetAiSummaryRequest,
   SetProactiveAstraRequest,
   SetMarketingEmailConsentRequest,
@@ -34,13 +33,6 @@ export async function updateTimezone(data: UpdateTimezoneRequest): Promise<void>
 
 export async function updateLanguage(data: SetLanguageRequest): Promise<void> {
   await serverAuthFetch(API.profile.language, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  })
-}
-
-export async function updateAiMemory(data: SetAiMemoryRequest): Promise<void> {
-  await serverAuthFetch(API.profile.aiMemory, {
     method: 'PUT',
     body: JSON.stringify(data),
   })

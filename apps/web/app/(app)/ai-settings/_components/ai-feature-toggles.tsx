@@ -1,6 +1,6 @@
 'use client'
 
-import { BellRing, Brain, Lock, Satellite } from 'lucide-react'
+import { BellRing, Lock, Satellite } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
@@ -8,13 +8,10 @@ import { ProBadge } from '@/components/ui/pro-badge'
 
 interface AiFeatureTogglesProps {
   hasProAccess: boolean
-  aiMemoryEnabled: boolean
   aiSummaryEnabled: boolean
   proactiveAstraEnabled: boolean
-  memoryPending: boolean
   summaryPending: boolean
   proactivePending: boolean
-  onToggleMemory: () => void
   onToggleSummary: () => void
   onToggleProactive: () => void
   onUpgrade: () => void
@@ -22,13 +19,10 @@ interface AiFeatureTogglesProps {
 
 export function AiFeatureToggles({
   hasProAccess,
-  aiMemoryEnabled,
   aiSummaryEnabled,
   proactiveAstraEnabled,
-  memoryPending,
   summaryPending,
   proactivePending,
-  onToggleMemory,
   onToggleSummary,
   onToggleProactive,
   onUpgrade,
@@ -40,33 +34,6 @@ export function AiFeatureToggles({
       <SectionLabel bottom={4} trailing={<ProBadge />}>
         {t('profile.sections.aiFeatures')}
       </SectionLabel>
-      {hasProAccess ? (
-        <SettingsRow
-          icon={Brain}
-          label={t('profile.aiMemory.title')}
-          desc={t('profile.aiMemory.description')}
-          accessory="none"
-          divider={false}
-        >
-          <Switch
-            on={aiMemoryEnabled}
-            onToggle={onToggleMemory}
-            ariaLabel={t('profile.aiMemory.title')}
-            disabled={memoryPending}
-          />
-        </SettingsRow>
-      ) : (
-        <SettingsRow
-          icon={Brain}
-          label={t('profile.aiMemory.title')}
-          desc={t('profile.aiMemory.description')}
-          onClick={onUpgrade}
-          accessory="chevron"
-          divider={false}
-        >
-          <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
-        </SettingsRow>
-      )}
       {hasProAccess ? (
         <SettingsRow
           icon={Satellite}

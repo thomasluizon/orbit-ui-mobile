@@ -482,11 +482,6 @@ export type {
   SupportRequestBody,
 } from './support'
 export {
-  normalizeUserFactCategory,
-  USER_FACTS_PER_PAGE,
-} from './user-facts'
-export type { UserFactCategoryKey } from './user-facts'
-export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
   resolveProfileNavHint,

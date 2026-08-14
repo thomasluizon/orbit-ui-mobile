@@ -6,7 +6,6 @@ import {
   notificationKeys,
   profileKeys,
   tagKeys,
-  userFactKeys,
 } from '@orbit/shared/query'
 import type {
   MutationEntityType,
@@ -38,7 +37,6 @@ const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> =
   tags: [tagKeys.all, habitKeys.lists()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
-  userFacts: [userFactKeys.all],
   apiKeys: [apiKeyKeys.all],
   calendar: [profileKeys.all],
 }
@@ -381,9 +379,6 @@ export function getMutationScope(type: MutationType): MutationScope {
     case 'deleteNotification':
     case 'deleteAllNotifications':
       return 'notifications'
-    case 'deleteUserFact':
-    case 'bulkDeleteUserFacts':
-      return 'userFacts'
     case 'createApiKey':
     case 'deleteApiKey':
       return 'apiKeys'
@@ -394,7 +389,6 @@ export function getMutationScope(type: MutationType): MutationScope {
     case 'setColorScheme':
     case 'setThemePreference':
     case 'setTimeZone':
-    case 'setAiMemory':
     case 'setAiSummary':
     case 'setProactiveAstra':
     case 'setMarketingConsent':

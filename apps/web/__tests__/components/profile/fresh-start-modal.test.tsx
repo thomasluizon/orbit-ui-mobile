@@ -91,7 +91,6 @@ describe('FreshStartModal', () => {
     expect(screen.getByText('profile.freshStart.deleteHabits')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteGoals')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteChat')).toBeInTheDocument()
-    expect(screen.getByText('profile.freshStart.deleteUserFacts')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteAchievements')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteNotifications')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteChecklist')).toBeInTheDocument()

@@ -8,7 +8,7 @@ import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
 import { profileSchema, setNameRequestSchema } from '../types/profile'
 import { notificationItemSchema, notificationsResponseSchema } from '../types/notification'
 import { achievementSchema, gamificationProfileSchema } from '../types/gamification'
-import { appConfigSchema, upgradeRequiredSchema } from '../types/config'
+import { appConfigSchema, DEFAULT_CONFIG, upgradeRequiredSchema } from '../types/config'
 
 import {
   userSchema,
@@ -41,6 +41,7 @@ import {
 
 import {
   mutationTypeSchema,
+  mutationScopeSchema,
   mutationEntityTypeSchema,
   queuedMutationSchema,
   syncBatchRequestSchema,
@@ -62,8 +63,6 @@ import {
   referralStatsSchema,
   referralDashboardSchema,
 } from '../types/referral'
-
-import { userFactSchema } from '../types/user-fact'
 
 import {
   apiKeySchema,
@@ -325,6 +324,12 @@ describe('profile schema', () => {
     const result = profileSchema.safeParse(profile)
     expect(result.success).toBe(true)
   })
+
+  it('accepts and strips a legacy removed profile field', () => {
+    const legacyField = ['ai', 'Memory', 'Enabled'].join('')
+    const result = profileSchema.parse({ ...createMockProfile(), [legacyField]: true })
+    expect(result).not.toHaveProperty(legacyField)
+  })
 })
 
 describe('setNameRequestSchema', () => {
@@ -473,6 +478,16 @@ describe('config schema', () => {
     const { minVersion: _, ...rest } = config
     const result = appConfigSchema.safeParse(rest)
     expect(result.success).toBe(false)
+  })
+
+  it('accepts and strips a legacy removed limit', () => {
+    const legacyLimit = ['max', 'User', 'Facts'].join('')
+    const result = appConfigSchema.parse({
+      ...createMockConfig(),
+      limits: { ...createMockConfig().limits, [legacyLimit]: 50 },
+    })
+    expect(result.limits).not.toHaveProperty(legacyLimit)
+    expect(DEFAULT_CONFIG.limits).not.toHaveProperty(legacyLimit)
   })
 })
 
@@ -1193,6 +1208,18 @@ describe('sync schemas', () => {
     it('rejects invalid mutation type', () => {
       expect(mutationTypeSchema.safeParse('archiveHabit').success).toBe(false)
     })
+
+    it('rejects retired mutation types and scope', () => {
+      const retiredTypes = [
+        ['set', 'Ai', 'Memory'].join(''),
+        ['delete', 'User', 'Fact'].join(''),
+        ['bulkDelete', 'User', 'Facts'].join(''),
+      ]
+      for (const retiredType of retiredTypes) {
+        expect(mutationTypeSchema.safeParse(retiredType).success).toBe(false)
+      }
+      expect(mutationScopeSchema.safeParse(['user', 'Facts'].join('')).success).toBe(false)
+    })
   })
 
   describe('queuedMutationSchema', () => {
@@ -1341,8 +1368,14 @@ describe('sync schemas', () => {
   describe('mutationEntityTypeSchema', () => {
     it('lists exactly the supported sync entity types', () => {
       expect([...mutationEntityTypeSchema.options].sort()).toEqual(
-        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag', 'userFact'].sort(),
+        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag'].sort(),
       )
+    })
+
+    it('rejects the retired entity type', () => {
+      expect(
+        mutationEntityTypeSchema.safeParse(['user', 'Fact'].join('')).success,
+      ).toBe(false)
     })
   })
 
@@ -1716,52 +1749,6 @@ describe('referral schemas', () => {
 })
 
 
-describe('user fact schema', () => {
-  it('parses valid user fact', () => {
-    const result = userFactSchema.safeParse({
-      id: 'fact-1',
-      factText: 'User prefers morning workouts',
-      category: 'preferences',
-      extractedAtUtc: '2025-01-01T00:00:00Z',
-      updatedAtUtc: null,
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts null category', () => {
-    const result = userFactSchema.safeParse({
-      id: 'fact-1',
-      factText: 'Some fact',
-      category: null,
-      extractedAtUtc: '2025-01-01T00:00:00Z',
-      updatedAtUtc: '2025-01-02T00:00:00Z',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects missing factText', () => {
-    const result = userFactSchema.safeParse({
-      id: 'fact-1',
-      category: null,
-      extractedAtUtc: '2025-01-01T00:00:00Z',
-      updatedAtUtc: null,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects non-string id', () => {
-    const result = userFactSchema.safeParse({
-      id: 123,
-      factText: 'Some fact',
-      category: null,
-      extractedAtUtc: '2025-01-01T00:00:00Z',
-      updatedAtUtc: null,
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
-
 describe('api key schemas', () => {
   describe('apiKeySchema', () => {
     it('parses valid API key', () => {
@@ -1929,7 +1916,6 @@ describe('barrel re-exports', () => {
     expect(barrel.billingDetailsSchema).toBeDefined()
     expect(barrel.referralCodeSchema).toBeDefined()
     expect(barrel.referralDashboardSchema).toBeDefined()
-    expect(barrel.userFactSchema).toBeDefined()
     expect(barrel.apiKeySchema).toBeDefined()
     expect(barrel.apiKeyCreateRequestSchema).toBeDefined()
     expect(barrel.checklistTemplateSchema).toBeDefined()
@@ -1970,7 +1956,6 @@ describe('barrel re-exports', () => {
     expect(barrel.apiKeyKeys).toBeDefined()
     expect(barrel.configKeys).toBeDefined()
     expect(barrel.calendarKeys).toBeDefined()
-    expect(barrel.userFactKeys).toBeDefined()
     expect(barrel.QUERY_STALE_TIMES).toBeDefined()
   })
 

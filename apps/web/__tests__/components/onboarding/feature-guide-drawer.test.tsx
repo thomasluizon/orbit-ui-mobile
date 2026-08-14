@@ -52,6 +52,20 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).toContain('onboarding.featureGuide.astraSection.canDoTitle')
   })
 
+  it('omits both retired settings entries', () => {
+    render(<FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('onboarding.featureGuide.settings'))
+    const removedSuffixes = [
+      ['ai', 'MemoryTitle'].join(''),
+      ['user', 'FactsTitle'].join(''),
+    ]
+    for (const suffix of removedSuffixes) {
+      expect(document.body.textContent).not.toContain(
+        `onboarding.featureGuide.settingsSection.${suffix}`,
+      )
+    }
+  })
+
   it.each([
     { tab: 'connect', title: 'onboarding.featureGuide.connectSection.mcpTitle' },
     { tab: 'social', title: 'onboarding.featureGuide.socialSection.optInTitle' },

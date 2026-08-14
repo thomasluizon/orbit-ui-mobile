@@ -171,7 +171,6 @@
       "tags": "tag",
       "notifications": "notification",
       "profile": "settings",
-      "userFacts": "memory",
       "apiKeys": "API key",
       "calendar": "calendar"
     },
@@ -1084,10 +1083,6 @@
       "title": "Color Scheme",
       "description": "Choose your accent color"
     },
-    "aiMemory": {
-      "title": "AI Memory",
-      "description": "When enabled, Orbit learns your preferences, routines, and context from conversations to give you more personalized responses."
-    },
     "aiSummary": {
       "title": "Daily Summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
@@ -1099,30 +1094,6 @@
     "marketingEmails": {
       "title": "Product updates by email",
       "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime."
-    },
-    "facts": {
-      "title": "What Astra knows",
-      "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
-      "factsError": "Couldn't load what Astra knows.",
-      "retry": "Try again",
-      "save": "Save",
-      "cancel": "Cancel",
-      "delete": "Delete",
-      "preference": "Preference",
-      "routine": "Routine",
-      "context": "Context",
-      "default": "Default",
-      "none": "None",
-      "select": "Select",
-      "selectAll": "Select all",
-      "deselectAll": "Clear",
-      "selectedCount": "{n} selected",
-      "deleteSelected": "Delete ({n})",
-      "deleteSelectedShort": "Delete selected",
-      "bulkDeleteConfirmTitle": "Delete selected facts?",
-      "bulkDeleteConfirmBody": "Astra will forget them. This can't be undone.",
-      "count": "{n} / {max}",
-      "lockedHint": "Upgrade to Pro to let Astra remember the facts you share in chat."
     },
     "support": {
       "title": "Support",
@@ -1182,7 +1153,6 @@
       "deleteHabits": "All habits, sub-habits, and completion history",
       "deleteGoals": "All goals and progress logs",
       "deleteChat": "AI chat conversations",
-      "deleteUserFacts": "AI memory (user facts)",
       "deleteAchievements": "Achievements, XP, and level progress",
       "deleteNotifications": "All notifications",
       "deleteChecklist": "Saved checklist templates",
@@ -1863,12 +1833,8 @@
         "colorSchemeDesc": "Choose from 6 accent colors (purple, blue, green, rose, orange, cyan). The entire app adapts -- backgrounds, buttons, shadows, and the AI chat orb all change to match.",
         "languageTitle": "Language",
         "languageDesc": "Switch between English and Portuguese. The app, AI responses, and emails all adapt to your chosen language.",
-        "aiMemoryTitle": "AI Memory",
-        "aiMemoryDesc": "When enabled, the AI learns from your conversations -- your preferences, routines, and goals. It uses this to give more personalized suggestions. You can view and manage what it knows in 'What Orbit Knows'. Pro feature.",
         "aiSummaryTitle": "AI Daily Summary",
         "aiSummaryDesc": "Enables a daily AI-generated summary card on your Today page with insights about your habits and motivational nudges. Pro feature.",
-        "userFactsTitle": "What Orbit Knows",
-        "userFactsDesc": "Manually add facts about yourself (preferences, routines, context) that the AI uses to personalize its suggestions. For example: 'I work night shifts' or 'I prefer outdoor exercise'. Pro feature.",
         "timezoneTitle": "Timezone",
         "timezoneDesc": "Your timezone is auto-detected on first login. It determines when habits are due and what 'today' means for your schedule.",
         "supportTitle": "Support",
@@ -1937,12 +1903,6 @@
         "free": "1 theme",
         "pro": "All 6 themes",
         "tooltip": "Personalize Orbit with 6 color schemes: purple, blue, green, rose, orange, and cyan. Free users get the default purple theme."
-      },
-      "aiMemory": {
-        "label": "AI Memory",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "The AI remembers your preferences, goals, and context across conversations for more personalized coaching."
       },
       "summary": {
         "label": "Daily Summary",

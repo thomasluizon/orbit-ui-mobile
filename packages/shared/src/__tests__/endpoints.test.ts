@@ -19,7 +19,6 @@ describe('API endpoints', () => {
       expect(API.profile.get).toBe('/api/profile')
       expect(API.profile.timezone).toBe('/api/profile/timezone')
       expect(API.profile.weekStartDay).toBe('/api/profile/week-start-day')
-      expect(API.profile.aiMemory).toBe('/api/profile/ai-memory')
       expect(API.profile.aiSummary).toBe('/api/profile/ai-summary')
       expect(API.profile.proactiveAstra).toBe('/api/profile/proactive-astra')
       expect(API.profile.onboarding).toBe('/api/profile/onboarding')
@@ -154,17 +153,6 @@ describe('API endpoints', () => {
       expect(API.ai.pendingOperationStepUp('op-1')).toBe('/api/ai/pending-operations/op-1/step-up')
       expect(API.ai.pendingOperationVerifyStepUp('op-1')).toBe('/api/ai/pending-operations/op-1/step-up/verify')
       expect(API.ai.pendingOperationExecute('op-1')).toBe('/api/ai/pending-operations/op-1/execute')
-    })
-  })
-
-  describe('userFacts', () => {
-    it('has correct static paths', () => {
-      expect(API.userFacts.list).toBe('/api/user-facts')
-      expect(API.userFacts.bulk).toBe('/api/user-facts/bulk')
-    })
-
-    it('has correct parameterized paths', () => {
-      expect(API.userFacts.delete('f-1')).toBe('/api/user-facts/f-1')
     })
   })
 

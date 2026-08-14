@@ -7,9 +7,8 @@ export const mutationTypeSchema = z.enum([
   'createGoal', 'updateGoal', 'deleteGoal', 'restoreGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',
   'createTag', 'updateTag', 'deleteTag', 'restoreTag', 'assignTags',
   'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification', 'deleteAllNotifications',
-  'setName', 'setLanguage', 'setWeekStartDay', 'setColorScheme', 'setThemePreference', 'setTimeZone', 'setAiMemory', 'setAiSummary', 'setProactiveAstra', 'setMarketingConsent',
+  'setName', 'setLanguage', 'setWeekStartDay', 'setColorScheme', 'setThemePreference', 'setTimeZone', 'setAiSummary', 'setProactiveAstra', 'setMarketingConsent',
   'completeOnboarding', 'dismissCalendarPrompt', 'dismissImportPrompt', 'resetProfile',
-  'deleteUserFact', 'bulkDeleteUserFacts',
   'createApiKey', 'deleteApiKey',
 ])
 export type MutationType = z.infer<typeof mutationTypeSchema>
@@ -20,7 +19,6 @@ export const mutationScopeSchema = z.enum([
   'tags',
   'notifications',
   'profile',
-  'userFacts',
   'apiKeys',
   'calendar',
 ])
@@ -32,7 +30,6 @@ export const mutationEntityTypeSchema = z.enum([
   'tag',
   'notification',
   'profile',
-  'userFact',
   'apiKey',
 ])
 export type MutationEntityType = z.infer<typeof mutationEntityTypeSchema>

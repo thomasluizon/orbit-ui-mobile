@@ -11,7 +11,6 @@ import {
   apiKeyKeys,
   configKeys,
   calendarKeys,
-  userFactKeys,
 } from '../query/keys'
 import { QUERY_STALE_TIMES } from '../query/options'
 
@@ -227,17 +226,6 @@ describe('calendarKeys', () => {
     )
   })
 })
-
-describe('userFactKeys', () => {
-  it('all returns base key', () => {
-    expect(userFactKeys.all).toEqual(['userFacts'])
-  })
-
-  it('lists returns list key', () => {
-    expect(userFactKeys.lists()).toEqual(['userFacts', 'list'])
-  })
-})
-
 
 describe('QUERY_STALE_TIMES', () => {
   it('profile is 5 minutes', () => {

@@ -35,4 +35,10 @@ describe('PlanComparisonCards', () => {
     expect(icons.length).toBeGreaterThan(0)
     icons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'))
   })
+
+  it('does not render the retired comparison row', () => {
+    render(<PlanComparisonCards t={t} />)
+    const retiredKey = ['upgrade.features.ai', 'Memory.label'].join('')
+    expect(screen.queryByText(retiredKey)).not.toBeInTheDocument()
+  })
 })

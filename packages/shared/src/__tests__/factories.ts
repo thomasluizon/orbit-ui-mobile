@@ -93,7 +93,6 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     name: 'Thomas',
     email: 'thomas@example.com',
     timeZone: 'America/Sao_Paulo',
-    aiMemoryEnabled: true,
     aiSummaryEnabled: true,
     proactiveAstraEnabled: false,
     hasCompletedOnboarding: true,

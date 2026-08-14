@@ -111,11 +111,6 @@ export const aiKeys = {
   capabilities: () => [...aiKeys.all, 'capabilities'] as const,
 }
 
-export const userFactKeys = {
-  all: ['userFacts'] as const,
-  lists: () => [...userFactKeys.all, 'list'] as const,
-}
-
 export const versionCheckKeys = {
   all: ['version-check'] as const,
   latest: (pkg: string) => [...versionCheckKeys.all, pkg] as const,

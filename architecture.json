@@ -2403,24 +2403,6 @@
       "zodSchemas": []
     },
     {
-      "name": "profile.aiMemory",
-      "method": "PUT",
-      "path": "/api/profile/ai-memory",
-      "usedBy": {
-        "webCallsites": [
-          "apps/web/app/actions/profile.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/app/ai-settings.tsx"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/data-export.ts",
-        "packages/shared/src/types/profile.ts",
-        "packages/shared/src/types/public-profile.ts"
-      ]
-    },
-    {
       "name": "profile.aiSummary",
       "method": "PUT",
       "path": "/api/profile/ai-summary",
@@ -3052,50 +3034,6 @@
       },
       "zodSchemas": [
         "packages/shared/src/types/upload.ts"
-      ]
-    },
-    {
-      "name": "userFacts.bulk",
-      "method": "DELETE",
-      "path": "/api/user-facts/bulk",
-      "usedBy": {
-        "webCallsites": [
-          "apps/web/app/actions/user-facts.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/app/use-user-facts.ts"
-        ]
-      },
-      "zodSchemas": []
-    },
-    {
-      "name": "userFacts.delete",
-      "method": "DELETE",
-      "path": "/api/user-facts/{id}",
-      "usedBy": {
-        "webCallsites": [
-          "apps/web/app/actions/user-facts.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/app/use-user-facts.ts"
-        ]
-      },
-      "zodSchemas": []
-    },
-    {
-      "name": "userFacts.list",
-      "method": null,
-      "path": "/api/user-facts",
-      "usedBy": {
-        "webCallsites": [
-          "apps/web/app/(app)/ai-settings/_components/use-user-facts.ts"
-        ],
-        "mobileCallsites": [
-          "apps/mobile/app/use-user-facts.ts"
-        ]
-      },
-      "zodSchemas": [
-        "packages/shared/src/types/user-fact.ts"
       ]
     }
   ],
@@ -5624,10 +5562,8 @@
           "common.minutes",
           "common.next",
           "common.nextMonth",
-          "common.nextPage",
           "common.previous",
           "common.previousMonth",
-          "common.previousPage",
           "common.proBadge",
           "common.retry",
           "common.save",
@@ -5950,24 +5886,8 @@
           "onboarding.wizard.importDescription",
           "onboarding.wizard.importNotNow",
           "onboarding.wizard.importTitle",
-          "profile.aiMemory.description",
-          "profile.aiMemory.title",
           "profile.aiSummary.description",
           "profile.aiSummary.title",
-          "profile.facts.bulkDeleteConfirmBody",
-          "profile.facts.bulkDeleteConfirmTitle",
-          "profile.facts.cancel",
-          "profile.facts.count",
-          "profile.facts.deleteSelected",
-          "profile.facts.deleteSelectedShort",
-          "profile.facts.deselectAll",
-          "profile.facts.empty",
-          "profile.facts.factsError",
-          "profile.facts.lockedHint",
-          "profile.facts.retry",
-          "profile.facts.select",
-          "profile.facts.selectAll",
-          "profile.facts.title",
           "profile.proactiveAstra.description",
           "profile.proactiveAstra.title",
           "profile.sections.aiFeatures",
@@ -6023,7 +5943,6 @@
           "streakDisplay.freeze.celebrationTitle",
           "streakDisplay.freeze.eyebrow",
           "streakDisplay.title",
-          "summary.askAstra",
           "tour.mockData.checklists.coolDown",
           "tour.mockData.checklists.mainWorkout",
           "tour.mockData.checklists.warmUp",
@@ -18345,8 +18264,6 @@
           "common.continue",
           "common.dismiss",
           "common.later",
-          "common.next",
-          "common.previous",
           "common.proBadge",
           "common.queued",
           "common.retry",
@@ -18443,21 +18360,8 @@
           "onboarding.wizard.importNotNow",
           "onboarding.wizard.importTitle",
           "persistentReminder.channelName",
-          "profile.aiMemory.description",
-          "profile.aiMemory.title",
           "profile.aiSummary.description",
           "profile.aiSummary.title",
-          "profile.facts.cancel",
-          "profile.facts.count",
-          "profile.facts.delete",
-          "profile.facts.deleteSelectedShort",
-          "profile.facts.deselectAll",
-          "profile.facts.empty",
-          "profile.facts.factsError",
-          "profile.facts.lockedHint",
-          "profile.facts.retry",
-          "profile.facts.select",
-          "profile.facts.selectAll",
           "profile.proactiveAstra.description",
           "profile.proactiveAstra.title",
           "profile.sections.aiFeatures",
@@ -18504,7 +18408,6 @@
           "streakDisplay.freeze.celebrationSubtitle",
           "streakDisplay.freeze.celebrationTitle",
           "streakDisplay.freeze.eyebrow",
-          "summary.askAstra",
           "tour.mockData.checklists.coolDown",
           "tour.mockData.checklists.mainWorkout",
           "tour.mockData.checklists.warmUp",
@@ -18565,14 +18468,10 @@
           "chat.astraAvatarLabel",
           "common.back",
           "common.backToProfile",
-          "common.cancel",
           "common.close",
-          "common.confirm",
           "common.continue",
           "common.dismiss",
           "common.later",
-          "common.next",
-          "common.previous",
           "common.proBadge",
           "common.queued",
           "common.retry",
@@ -18669,25 +18568,8 @@
           "onboarding.wizard.importNotNow",
           "onboarding.wizard.importTitle",
           "persistentReminder.channelName",
-          "profile.aiMemory.description",
-          "profile.aiMemory.title",
           "profile.aiSummary.description",
           "profile.aiSummary.title",
-          "profile.facts.bulkDeleteConfirmBody",
-          "profile.facts.bulkDeleteConfirmTitle",
-          "profile.facts.cancel",
-          "profile.facts.count",
-          "profile.facts.delete",
-          "profile.facts.deleteSelected",
-          "profile.facts.deleteSelectedShort",
-          "profile.facts.deselectAll",
-          "profile.facts.empty",
-          "profile.facts.factsError",
-          "profile.facts.lockedHint",
-          "profile.facts.retry",
-          "profile.facts.select",
-          "profile.facts.selectAll",
-          "profile.facts.title",
           "profile.proactiveAstra.description",
           "profile.proactiveAstra.title",
           "profile.sections.aiFeatures",
@@ -18734,7 +18616,6 @@
           "streakDisplay.freeze.celebrationSubtitle",
           "streakDisplay.freeze.celebrationTitle",
           "streakDisplay.freeze.eyebrow",
-          "summary.askAstra",
           "tour.mockData.checklists.coolDown",
           "tour.mockData.checklists.mainWorkout",
           "tour.mockData.checklists.warmUp",
@@ -26567,6 +26448,8 @@
       "chat.starterChips.logHabit",
       "chat.starterChips.planWeek",
       "common.help",
+      "common.nextPage",
+      "common.previousPage",
       "common.required",
       "common.search",
       "common.selected",
@@ -26579,7 +26462,6 @@
       "common.syncEntity.notifications",
       "common.syncEntity.profile",
       "common.syncEntity.tags",
-      "common.syncEntity.userFacts",
       "errors.api.aiUnavailable",
       "errors.api.apiKeyLimit",
       "errors.api.calendarFetchFailed",
@@ -26971,8 +26853,6 @@
       "onboarding.featureGuide.rewardsSection.xpLevelsDesc",
       "onboarding.featureGuide.rewardsSection.xpLevelsTitle",
       "onboarding.featureGuide.settings",
-      "onboarding.featureGuide.settingsSection.aiMemoryDesc",
-      "onboarding.featureGuide.settingsSection.aiMemoryTitle",
       "onboarding.featureGuide.settingsSection.aiSummaryDesc",
       "onboarding.featureGuide.settingsSection.aiSummaryTitle",
       "onboarding.featureGuide.settingsSection.colorSchemeDesc",
@@ -26989,8 +26869,6 @@
       "onboarding.featureGuide.settingsSection.supportTitle",
       "onboarding.featureGuide.settingsSection.timezoneDesc",
       "onboarding.featureGuide.settingsSection.timezoneTitle",
-      "onboarding.featureGuide.settingsSection.userFactsDesc",
-      "onboarding.featureGuide.settingsSection.userFactsTitle",
       "onboarding.featureGuide.settingsSection.weekStartDayDesc",
       "onboarding.featureGuide.settingsSection.weekStartDayTitle",
       "onboarding.featureGuide.social",
@@ -27080,13 +26958,6 @@
       "profile.deleteAccount.errorGeneric",
       "profile.deleteAccount.warning",
       "profile.editName.errorGeneric",
-      "profile.facts.context",
-      "profile.facts.default",
-      "profile.facts.none",
-      "profile.facts.preference",
-      "profile.facts.routine",
-      "profile.facts.save",
-      "profile.facts.selectedCount",
       "profile.freshStart.deleteAchievements",
       "profile.freshStart.deleteChat",
       "profile.freshStart.deleteChecklist",
@@ -27094,7 +26965,6 @@
       "profile.freshStart.deleteHabits",
       "profile.freshStart.deleteNotifications",
       "profile.freshStart.deleteOnboarding",
-      "profile.freshStart.deleteUserFacts",
       "profile.freshStart.errorGeneric",
       "profile.freshStart.preserveAccount",
       "profile.freshStart.preservePreferences",
@@ -27304,10 +27174,6 @@
       "upgrade.features.ai.label",
       "upgrade.features.ai.pro",
       "upgrade.features.ai.tooltip",
-      "upgrade.features.aiMemory.free",
-      "upgrade.features.aiMemory.label",
-      "upgrade.features.aiMemory.pro",
-      "upgrade.features.aiMemory.tooltip",
       "upgrade.features.apiKeys.free",
       "upgrade.features.apiKeys.label",
       "upgrade.features.apiKeys.pro",
@@ -27386,7 +27252,6 @@
         "apps/mobile/__tests__/app/upgrade-model.test.ts",
         "apps/mobile/__tests__/app/use-preference-controls.test.tsx",
         "apps/mobile/__tests__/app/use-today-view-sync.test.ts",
-        "apps/mobile/__tests__/app/use-user-facts.test.tsx",
         "apps/mobile/__tests__/components/ai-settings-sections.test.tsx",
         "apps/mobile/__tests__/components/calendar-day-detail.test.tsx",
         "apps/mobile/__tests__/components/calendar-picker-section.test.tsx",
@@ -27681,7 +27546,6 @@
         "apps/web/__tests__/actions/social.test.ts",
         "apps/web/__tests__/actions/tags.test.ts",
         "apps/web/__tests__/actions/uploads.test.ts",
-        "apps/web/__tests__/actions/user-facts.test.ts",
         "apps/web/__tests__/app/api/auth-google-route.test.ts",
         "apps/web/__tests__/app/api/auth-send-code-route.test.ts",
         "apps/web/__tests__/app/api/auth-verify-code-route.test.ts",
@@ -27702,11 +27566,6 @@
         "apps/web/__tests__/app/use-today-search.test.ts",
         "apps/web/__tests__/app/use-today-view-sync.test.tsx",
         "apps/web/__tests__/components/ai-settings/ai-feature-toggles.test.tsx",
-        "apps/web/__tests__/components/ai-settings/fact-item.test.tsx",
-        "apps/web/__tests__/components/ai-settings/facts-pagination.test.tsx",
-        "apps/web/__tests__/components/ai-settings/facts-select-bar.test.tsx",
-        "apps/web/__tests__/components/ai-settings/use-user-facts.test.ts",
-        "apps/web/__tests__/components/ai-settings/user-facts-list.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-page-view-switcher.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-picker-section.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-shell.test.tsx",
@@ -28026,7 +27885,6 @@
       "packages/shared/src/api": [
         "apps/mobile/__tests__/app/advanced-api-keys.test.tsx",
         "apps/mobile/__tests__/app/use-preference-controls.test.tsx",
-        "apps/mobile/__tests__/app/use-user-facts.test.tsx",
         "apps/mobile/__tests__/components/profile/use-data-export.test.tsx",
         "apps/mobile/__tests__/hooks/use-apply-onboarding.test.tsx",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
@@ -28051,7 +27909,6 @@
         "apps/mobile/__tests__/screens/account-deletion.test.tsx",
         "apps/web/__tests__/actions/onboarding.test.ts",
         "apps/web/__tests__/actions/uploads.test.ts",
-        "apps/web/__tests__/actions/user-facts.test.ts",
         "apps/web/__tests__/lib/profile-presentation.test.ts",
         "packages/shared/src/__tests__/endpoints.test.ts",
         "packages/shared/src/__tests__/social.test.ts",
@@ -28083,7 +27940,6 @@
       "packages/shared/src/query": [
         "apps/mobile/__tests__/app/advanced-api-keys.test.tsx",
         "apps/mobile/__tests__/app/use-preference-controls.test.tsx",
-        "apps/mobile/__tests__/app/use-user-facts.test.tsx",
         "apps/mobile/__tests__/hooks/use-calendar-auto-sync.test.ts",
         "apps/mobile/__tests__/hooks/use-calendar-data.test.ts",
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
@@ -28238,9 +28094,6 @@
         "apps/mobile/__tests__/shared/habit-utils.test.ts",
         "apps/web/__tests__/actions/onboarding.test.ts",
         "apps/web/__tests__/app/today-page.test.tsx",
-        "apps/web/__tests__/components/ai-settings/fact-item.test.tsx",
-        "apps/web/__tests__/components/ai-settings/use-user-facts.test.ts",
-        "apps/web/__tests__/components/ai-settings/user-facts-list.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-agenda-view.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-day-detail.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-grid.test.tsx",
@@ -28473,7 +28326,6 @@
         "packages/shared/src/__tests__/types.test.ts",
         "packages/shared/src/__tests__/upgrade-denial-branches.test.ts",
         "packages/shared/src/__tests__/upgrade.test.ts",
-        "packages/shared/src/__tests__/user-facts.test.ts",
         "packages/shared/src/__tests__/utils.test.ts",
         "packages/shared/src/__tests__/version.test.ts",
         "packages/shared/src/__tests__/wrapped.test.ts",

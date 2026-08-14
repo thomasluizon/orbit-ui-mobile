@@ -17,7 +17,6 @@ vi.stubGlobal('fetch', mockFetch)
 const {
   updateTimezone,
   updateLanguage,
-  updateAiMemory,
   updateAiSummary,
   updateWeekStartDay,
   updateThemePreference,
@@ -101,28 +100,6 @@ describe('profile server actions', () => {
     })
   })
 
-
-  describe('updateAiMemory', () => {
-    it('sends PUT to /api/profile/ai-memory', async () => {
-      mock204()
-
-      await updateAiMemory({ enabled: true })
-
-      const [url, init] = mockFetch.mock.calls[0]!
-      expect(url).toContain('/api/profile/ai-memory')
-      expect(init.method).toBe('PUT')
-      expect(JSON.parse(init.body)).toEqual({ enabled: true })
-    })
-
-    it('sends false value', async () => {
-      mock204()
-
-      await updateAiMemory({ enabled: false })
-
-      const [, init] = mockFetch.mock.calls[0]!
-      expect(JSON.parse(init.body)).toEqual({ enabled: false })
-    })
-  })
 
 
   describe('updateAiSummary', () => {

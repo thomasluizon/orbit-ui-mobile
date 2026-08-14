@@ -13,7 +13,6 @@ export {
   apiKeyKeys,
   configKeys,
   calendarKeys,
-  userFactKeys,
   versionCheckKeys,
   checklistTemplateKeys,
   uploadMutationKeys,

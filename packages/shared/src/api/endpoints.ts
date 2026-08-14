@@ -14,7 +14,6 @@ export const API = {
     name: '/api/profile/name',
     timezone: '/api/profile/timezone',
     weekStartDay: '/api/profile/week-start-day',
-    aiMemory: '/api/profile/ai-memory',
     aiSummary: '/api/profile/ai-summary',
     proactiveAstra: '/api/profile/proactive-astra',
     onboarding: '/api/profile/onboarding',
@@ -143,12 +142,6 @@ export const API = {
     pendingOperationExecute: (id: string) => `/api/ai/pending-operations/${id}/execute` as const,
     clarificationResolve: (operationId: string) =>
       `/api/ai/clarifications/${operationId}/resolve` as const,
-  },
-
-  userFacts: {
-    list: '/api/user-facts',
-    delete: (id: string) => `/api/user-facts/${id}` as const,
-    bulk: '/api/user-facts/bulk',
   },
 
   calendar: {
