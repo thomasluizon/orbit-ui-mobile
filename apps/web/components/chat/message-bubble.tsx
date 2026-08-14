@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import { getRelatedSurfaces, stripHabitListDirective } from '@orbit/shared/chat'
+import { getRelatedSurfaces, stripChatDirectives } from '@orbit/shared/chat'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
@@ -151,7 +151,7 @@ export function MessageBubble({
               style={{ border: '1px solid var(--hairline)' }}
             />
           )}
-          <Markdown content={stripHabitListDirective(message.content)} />
+          <Markdown content={stripChatDirectives(message.content)} />
         </div>
 
         {!isUser && message.habitList && (

@@ -7,7 +7,7 @@ import { ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
-import { getRelatedSurfaces, stripHabitListDirective } from "@orbit/shared/chat";
+import { getRelatedSurfaces, stripChatDirectives } from "@orbit/shared/chat";
 import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
@@ -139,7 +139,7 @@ export function MessageBubble({
           )}
 
           <Markdown tone={isUser ? "onPrimary" : "default"}>
-            {stripHabitListDirective(message.content)}
+            {stripChatDirectives(message.content)}
           </Markdown>
         </View>
 
