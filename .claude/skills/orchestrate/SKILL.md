@@ -77,8 +77,10 @@ run it always was.
                      statusCheckRollup, both node shapes -> no check red, none pending
                      DELIVERED · NO_COMMIT · DIRTY_TREE · UNPUSHED · NO_PR · UNLINKED_PR
                      · STALE_PR · OUT_OF_DATE · CI_FAILING · CI_PENDING
-                     anything but DELIVERED: FIRST read the worker log tail for NEEDS_DECISION,
-                     then the bounded readiness/fixer path or a real blocker
+                     on EVERY worker exit, DELIVERED included: read the worker log tail for
+                     NEEDS_DECISION and the PR body's ## Assumptions (attended: adjudicate
+                     both with Thomas NOW, before step 8)
+                     anything but DELIVERED enters the bounded readiness/fixer path or a real blocker
                      SALVAGE allowed: discard residue · test then commit+push what the worker
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
@@ -95,7 +97,8 @@ run it always was.
 10  Hand over        PR URL, advisory diff size, receipt and READY verdict.
                      PRINT manual steps from THREE sources: the ticket (complete-ticket.mjs
                      --preflight) + the PR body's ## Manual steps + your own read of the diff
-                     READ the PR body's ## Assumptions: attended -> adjudicate with Thomas here
+                     PRINT the adjudicated assumptions (decided at the step 7 worker-exit read,
+                     never first seen here)
                      READY -> In Review.
                      UPDATE remaining[] in .git/orbit-orchestrate-run.json
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
@@ -590,20 +593,33 @@ Never fix a diff to satisfy a check that never ran.
 `CI_PENDING` is its own verdict rather than a pass or a stop. Pass `--wait-ci <seconds>` to let
 checks settle; without it the state is reported immediately and the run does not sit on it.
 
-### `NEEDS_DECISION` in the worker log
+### `NEEDS_DECISION` and `## Assumptions`, read at EVERY worker exit
 
 The composed prompt forbids a worker from guessing a decision that belongs to Thomas: it commits
-what is already safe and ends its output with `NEEDS_DECISION: <question>`. On every non-DELIVERED
-verdict, read the tail of the worker log for that line BEFORE diagnosing anything else, because it
-explains the verdict: a worker that stopped on a question often leaves `NO_COMMIT` or a partial
-branch behind, and neither means the work failed.
+what is already safe and ends its output with `NEEDS_DECISION: <question>`. Read the tail of the
+worker log for that line on EVERY worker exit, `DELIVERED` included, before diagnosing anything
+else. `verify-delivery.mjs` reads git and GitHub artifacts and never the log, so a delivered branch
+proves nothing about an unanswered question: a worker can deliver the safe half completely and
+still end on the question that scopes the rest. On a failed verdict the line also explains it: a
+worker that stopped on a question often leaves `NO_COMMIT` or a partial branch behind, and neither
+means the work failed.
 
 - **Attended:** ask Thomas the question, the worker's recommended answer first. Write the answer to
-  the ticket with `comment-ticket.mjs`, recompose the prompt, and launch a fresh worker. That is a
-  NEW work order carrying the answer, not the banned auto-relaunch of a failed prompt.
-- **`--sleep`:** the ticket stops there. Its question goes to the step 11 decision list, exactly
-  like a `NEEDS_CONVERSATION` deferral, so Thomas wakes to a question instead of a confidently
-  wrong pull request.
+  the ticket with `comment-ticket.mjs`. No delivery yet: recompose the prompt and launch a fresh
+  worker, which is a NEW work order carrying the answer, not the banned auto-relaunch of a failed
+  prompt. Delivered PR in hand: the answer either confirms the PR complete or becomes fixer work on
+  it inside the step 9 bound.
+- **`--sleep`:** the question goes to the step 11 decision list, exactly like a
+  `NEEDS_CONVERSATION` deferral. A delivered PR carrying an open `NEEDS_DECISION` stays in the run
+  record but its ticket is synchronized as In Progress with the decision required, never In Review:
+  Thomas wakes to a question instead of a confidently wrong pull request.
+
+**The PR body's `## Assumptions` section is read at the same moment.** The contract makes
+assumptions mechanical by definition (a Thomas-owned decision hiding in that list is a
+`NEEDS_DECISION` and is treated as one). Attended: put them to Thomas as one batch here, BEFORE the
+step 8 and 9 loops run, so an answer that invalidates work becomes ordinary bounded-fixer work and
+no receipt has to be revoked after the fact. Under `--sleep`: they go to the step 11 decision list;
+being mechanical, they do not block readiness.
 
 ### Salvage: what you may do to a dead worker's worktree without asking
 
@@ -845,10 +861,11 @@ Print:
   env var read in the diff with no value set anywhere IS a manual step, whether or not anybody
   wrote it down. Post the merged list to the ticket with `comment-ticket.mjs` so it survives
   scrollback, and print it here. Silence stays the normal answer when all three sources are empty.
-- **The PR body's `## Assumptions` section, adjudicated rather than merely printed.** Attended: put
-  each assumption to Thomas at this stop, as one batch; an answer that invalidates the work sends
-  the PR back through the bounded fixer before READY. Under `--sleep`: the assumptions go to the
-  step 11 decision list, so Thomas reads them before he merges anything.
+- **The PR body's `## Assumptions` section, with each one's adjudication.** The adjudication itself
+  happened at the step 7 worker-exit read, before the step 8 and 9 loops ran; this stop only prints
+  the outcomes. An assumption first discovered here is a step 7 miss, and it is adjudicated now
+  rather than skipped. Under `--sleep`: the assumptions go to the step 11 decision list, so Thomas
+  reads them before he merges anything.
 
 **Why a manual step is printed here and not only at merge.** orbit-tickets#81 said "merge, deploy to
 Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until the key exists." The

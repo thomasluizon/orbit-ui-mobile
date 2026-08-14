@@ -274,6 +274,12 @@ export const updateBody = async (number, body) => {
  * raw-mutation hook blocks `gh issue edit` from a session, and until this existed a label change
  * on an existing ticket had no path at all (measured 2026-08-13: `needs:conversation` could not be
  * applied to #36 by any tool).
+ *
+ * The `--add-label` / `--remove-label` contract is proven by execution against gh 2.97.0 on
+ * 2026-08-13, per code standard 8, three real invocations on orbit-tickets#316 with the label set
+ * read back after each: `--add-label harness` added it; `--add-label needs:no-conversation
+ * --remove-label harness` in ONE call applied both; `--add-label harness` restored it. Exit 0 on
+ * each, and the follow-up `issue view` showed exactly the expected set every time.
  */
 export const editLabels = async (number, { add = [], remove = [] } = {}) => {
   positiveIssueNumber(number)

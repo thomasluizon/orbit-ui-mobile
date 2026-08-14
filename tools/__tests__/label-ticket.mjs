@@ -41,6 +41,12 @@ export const cases = () => {
   )
   T(`${TOOL}: a refused label never reaches gh issue edit`, existsSync(editMarker))
 
+  /**
+   * The stubbed issue view already carries the target label, so stdout alone cannot prove the
+   * mutation ran: deleting the editLabels write would still print the label. The removePath marker
+   * is the proof of execution: only the matched `issue edit ... --add-label` command consumes it.
+   */
+  const addReached = stage("label-ticket/add-reached", "consumed by the edit command")
   check(
     TOOL,
     "adds a validated label and reports the resulting label set",
@@ -49,12 +55,14 @@ export const cases = () => {
     {
       env: orcaEnv([
         { match: "label list --repo thomasluizon/orbit-tickets", stdout: labelList },
-        { match: "issue edit 221 --repo thomasluizon/orbit-tickets --add-label needs:conversation", stdout: "", ignoreTicketShape: true },
+        { match: "issue edit 221 --repo thomasluizon/orbit-tickets --add-label needs:conversation", stdout: "", ignoreTicketShape: true, removePath: addReached },
         { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(["repo:ui", "Improvement", "needs:conversation"]) },
       ]),
     },
   )
+  T(`${TOOL}: the add mutation actually reached gh issue edit`, !existsSync(addReached))
 
+  const removeReached = stage("label-ticket/remove-reached", "consumed by the edit command")
   check(
     TOOL,
     "removes a validated label through --remove-label",
@@ -63,9 +71,10 @@ export const cases = () => {
     {
       env: orcaEnv([
         { match: "label list --repo thomasluizon/orbit-tickets", stdout: labelList },
-        { match: "issue edit 221 --repo thomasluizon/orbit-tickets --remove-label needs:conversation", stdout: "", ignoreTicketShape: true },
+        { match: "issue edit 221 --repo thomasluizon/orbit-tickets --remove-label needs:conversation", stdout: "", ignoreTicketShape: true, removePath: removeReached },
         { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(["repo:ui", "Improvement"]) },
       ]),
     },
   )
+  T(`${TOOL}: the remove mutation actually reached gh issue edit`, !existsSync(removeReached))
 }
