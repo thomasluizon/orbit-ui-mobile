@@ -117,7 +117,8 @@ if (typeof githubCwd !== "string" || githubCwd.trim().length === 0) {
 let issue
 try {
   const resolvedTicket = resolveTicket(issueArgument)
-  const liveTicket = await readTicket(resolvedTicket.number)
+  /** Labels are the only field asserted here, so the board read is pure cost on the hottest path. */
+  const liveTicket = await readTicket(resolvedTicket.number, { withProjectItem: false })
   assertRepositoryLabel(liveTicket, repoKey)
   issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
 } catch (error) {

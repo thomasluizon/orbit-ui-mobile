@@ -363,7 +363,8 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
     milestone === null ? [] : listMilestones(),
     Promise.all(blockedBy.map(async (reference) => {
       const resolved = resolveTicket(reference)
-      await readTicket(resolved.number)
+      /** This read only proves the blocker exists; its value is discarded. */
+      await readTicket(resolved.number, { withProjectItem: false })
       return resolved.number
     })),
   ])

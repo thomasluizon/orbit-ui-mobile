@@ -82,7 +82,8 @@ if (typeof config.repos?.[repoKey] !== "string") fail(2, `unknown repository key
 let issue
 try {
   const resolvedTicket = resolveTicket(issueArgument)
-  assertRepositoryLabel(await readTicket(resolvedTicket.number), repoKey)
+  /** Labels are the only field asserted here. */
+  assertRepositoryLabel(await readTicket(resolvedTicket.number, { withProjectItem: false }), repoKey)
   issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
 } catch (error) {
   fail(2, `ticket assertion failed: ${error.message}`)

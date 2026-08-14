@@ -58,6 +58,24 @@ export const cases = () => {
   )
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
+
+  /**
+   * Only the body, the comments and the labels reach the prompt, so a whole-board read here is pure
+   * GraphQL cost on the hot path. #308 memoized the read per process, which buys nothing when the
+   * orchestrator spawns one process per ticket.
+   */
+  const boardMarker = stage("compose-prompt/board-read", "must remain")
+  check(
+    TOOL,
+    "composes without reading the Projects board",
+    ["--issue", "orb-215", "--repo", "ui", "--out", out],
+    { status: 0 },
+    options([
+      ...ticketPlan().slice(0, 2),
+      { match: "project item-list 2 --owner thomasluizon", stdout: projectItems, removePath: boardMarker },
+    ]),
+  )
+  T(`${TOOL}: composing reads no Projects board item`, existsSync(boardMarker))
   T(
     `${TOOL}: size is advisory and mandatory generated artifacts stay with their source change`,
     /File and line counts are advisory\s+review information, never delivery gates/.test(prompt) && /migrations with their\s+model change/.test(prompt) && /architecture artifacts\s+with the module or route change/.test(prompt),

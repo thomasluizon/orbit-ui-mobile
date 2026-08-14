@@ -74,7 +74,8 @@ let liveTicket
 let liveComments
 try {
   resolvedTicket = resolveTicket(issue)
-  liveTicket = await readTicket(resolvedTicket.number)
+  /** Only the body, the comments and the labels reach the worker prompt. */
+  liveTicket = await readTicket(resolvedTicket.number, { withProjectItem: false })
   assertRepositoryLabel(liveTicket, repoKey)
   liveComments = await readComments(resolvedTicket.number)
 } catch (error) {

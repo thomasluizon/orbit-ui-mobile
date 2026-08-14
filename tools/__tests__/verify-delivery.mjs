@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -86,6 +86,8 @@ const prState = (nodes, headRefOid, isDraft = false) => ({
   data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, statusCheckRollup: { contexts: { nodes } } } } },
 })
 
+const boardReadMarker = stage("verify-delivery/board-read", "must remain")
+
 const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null) => {
   let headRefOid = "fixture-head"
   try {
@@ -95,6 +97,12 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
   }
   const required = requiredChecks ?? requiredFrom(nodes)
   return orcaEnv([
+    /**
+     * Only the repository label is asserted from the ticket, so a whole-board read here is pure
+     * GraphQL cost on the path the orchestrator runs two or three times per ticket. The marker
+     * survives exactly while no board read happens.
+     */
+    { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "api graphql", stdout: JSON.stringify(prState(nodes, headRefOid)) },
@@ -130,13 +138,23 @@ export const cases = () => {
   testedToolPath = hermeticStaged.path
   stage(
     "staged/verify-delivery-hermetic/tools/lib/github-issues.mjs",
-    `export const resolveTicket = (reference) => {
+    `import { rmSync } from "node:fs"
+
+export const resolveTicket = (reference) => {
   const value = String(reference).toUpperCase()
   if (value === "ORB-200") return { identifier: "ORB-200", number: 200 }
   if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
   throw new Error("Unknown migrated ticket " + reference)
 }
-export const readTicket = async (number) => ({ identifier: number === 200 ? "ORB-200" : null, number, labels: [{ name: "repo:ui" }] })
+/**
+ * The stub OBSERVES the hydration flag rather than ignoring it. A stub that dropped the options
+ * argument made the marker below unfailable: the board read could be restored in production and the
+ * gate stayed green, which is the defect this coverage exists to prevent.
+ */
+export const readTicket = async (number, options) => {
+  if (options?.withProjectItem !== false) rmSync(${JSON.stringify(boardReadMarker)}, { force: true })
+  return { identifier: number === 200 ? "ORB-200" : null, number, labels: [{ name: "repo:ui" }] }
+}
 export const assertRepositoryLabel = (ticket, repoKey) => {
   if (ticket.labels.length !== 1 || ticket.labels[0].name !== "repo:" + repoKey) throw new Error("ticket repository label mismatch")
   return ticket
@@ -491,4 +509,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     unknownRepo.status === 2 && /--repo must name a configured repository \(known: ui\)/.test(unknownRepo.stderr),
     `exit ${unknownRepo.status}: ${unknownRepo.stderr || unknownRepo.stdout}`,
   )
+
+  T(`${TOOL}: verifying delivery reads no Projects board item`, existsSync(boardReadMarker))
 }
