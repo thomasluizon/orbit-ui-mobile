@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -86,6 +86,8 @@ const prState = (nodes, headRefOid, isDraft = false) => ({
   data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, statusCheckRollup: { contexts: { nodes } } } } },
 })
 
+const boardReadMarker = stage("verify-delivery/board-read", "must remain")
+
 const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null) => {
   let headRefOid = "fixture-head"
   try {
@@ -95,6 +97,12 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
   }
   const required = requiredChecks ?? requiredFrom(nodes)
   return orcaEnv([
+    /**
+     * Only the repository label is asserted from the ticket, so a whole-board read here is pure
+     * GraphQL cost on the path the orchestrator runs two or three times per ticket. The marker
+     * survives exactly while no board read happens.
+     */
+    { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "api graphql", stdout: JSON.stringify(prState(nodes, headRefOid)) },
@@ -491,4 +499,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     unknownRepo.status === 2 && /--repo must name a configured repository \(known: ui\)/.test(unknownRepo.stderr),
     `exit ${unknownRepo.status}: ${unknownRepo.stderr || unknownRepo.stdout}`,
   )
+
+  T(`${TOOL}: verifying delivery reads no Projects board item`, existsSync(boardReadMarker))
 }
