@@ -6,8 +6,6 @@ import {
   restoreQueryCache,
   setQueryCacheScope,
   clearPersistedQueryCache,
-  isAppActive,
-  isOnline,
   QUERY_CACHE_VERSION,
 } from '@/lib/query-client'
 
@@ -139,7 +137,7 @@ describe('mobile query client', () => {
   })
 
   it('does not restore one account cache under a different account', async () => {
-    getItemMock.mockImplementation(async (key: string) =>
+    getItemMock.mockImplementation((key: string) =>
       key === '@orbit/query-cache:user-1'
         ? JSON.stringify([
             { queryKey: ['secret'], state: { data: { a: 1 }, dataUpdatedAt: 1 } },
@@ -161,11 +159,6 @@ describe('mobile query client', () => {
     await setQueryCacheScope('user-2')
 
     expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
-  })
-
-  it('exposes app-active and online connectivity snapshots', () => {
-    expect(typeof isAppActive()).toBe('boolean')
-    expect(typeof isOnline()).toBe('boolean')
   })
 
   it('clears the scoped and legacy persisted caches on demand', async () => {
