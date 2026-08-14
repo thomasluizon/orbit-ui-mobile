@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 
-import { T, orcaEnv, stage } from "./_harness.mjs"
+import { T, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 import * as githubIssues from "../lib/github-issues.mjs"
 
 const TOOL = "lib/github-issues.mjs"
@@ -26,11 +26,18 @@ const projectItem = {
   status: "In Review",
 }
 const populatedProjectItems = JSON.stringify({ items: [projectItem], totalCount: 1 })
-const emptyProjectItems = JSON.stringify({ items: [], totalCount: 0 })
-const environmentFor = (ticketOutput = JSON.stringify(issue()), projectOutput = populatedProjectItems) =>
+const issueProjectItem = {
+  id: "PVTI_harness_item",
+  project: { id: "PVT_kwHOBE6dNc4Bfy2y", number: 2 },
+  fieldValueByName: { name: "In Review" },
+}
+const issueProjectItems = (nodes = [issueProjectItem], pageInfo = { hasNextPage: false, endCursor: "cursor-one" }) => JSON.stringify({
+  data: { repository: { issue: { number: 221, state: "OPEN", projectItems: { nodes, pageInfo } } } },
+})
+const environmentFor = (ticketOutput = JSON.stringify(issue()), projectOutput = issueProjectItems()) =>
   orcaEnv([
-    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: ticketOutput },
-    { match: "project item-list 2 --owner thomasluizon", stdout: projectOutput },
+    ...githubIssueReadPlan(ticketOutput),
+    { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221", stdout: projectOutput, ticketEnvelope: "issueProjectItems" },
   ])
 
 const messageOf = async (call) => {
@@ -53,7 +60,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,editLabels,listLabels,listMilestones,listTickets,preflightTicketCompletion,readComments,readTicket,resolveTicket,setStatus,updateBody",
+      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,editLabels,listLabels,listMilestones,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,resolveTicket,setStatus,updateBody",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -138,52 +145,48 @@ export const cases = async () => {
       JSON.stringify(read),
     )
 
-    const sequentialReadCount = stage("github-issues/sequential-project-read-count", "0")
+    const boardReadMarker = stage("github-issues/single-ticket-board-read", "must remain")
     applyEnvironment(
       orcaEnv([
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
-        {
-          match: "project item-list 2 --owner thomasluizon",
-          stdout: populatedProjectItems,
-          stdoutSequence: [populatedProjectItems, populatedProjectItems],
-          sequenceFile: sequentialReadCount,
-        },
+        ...githubIssueReadPlan(issue()),
+        { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221", stdout: issueProjectItems(), ticketEnvelope: "issueProjectItems" },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, removePath: boardReadMarker },
       ]),
     )
-    const sequentialIssues = await freshGithubIssues()
-    await sequentialIssues.readTicket(221)
-    await sequentialIssues.readTicket(221)
+    await (await freshGithubIssues()).readTicket(221)
     T(
-      `${TOOL}: sequential ticket reads reuse one in-process Projects promise`,
-      readFileSync(sequentialReadCount, "utf8") === "1",
-      `project item-list calls: ${readFileSync(sequentialReadCount, "utf8")}`,
+      `${TOOL}: a single-ticket project read never scans the complete board`,
+      existsSync(boardReadMarker),
+      "the whole-board stub was invoked",
     )
 
-    const concurrentReadCount = stage("github-issues/concurrent-project-read-count", "0")
+    const bulkReadCount = stage("github-issues/bulk-project-read-count", "0")
     applyEnvironment(
       orcaEnv([
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        ...githubIssueReadPlan(issue()),
         {
           match: "project item-list 2 --owner thomasluizon",
           stdout: populatedProjectItems,
           stdoutSequence: [populatedProjectItems, populatedProjectItems],
-          sequenceFile: concurrentReadCount,
+          sequenceFile: bulkReadCount,
         },
       ]),
     )
-    const concurrentIssues = await freshGithubIssues()
-    await Promise.all([concurrentIssues.readTicket(221), concurrentIssues.readTicket(221)])
+    const bulkIssues = await freshGithubIssues()
+    await bulkIssues.readTickets([221])
+    await bulkIssues.readTickets([221])
     T(
-      `${TOOL}: concurrent ticket reads share the same in-flight Projects promise`,
-      readFileSync(concurrentReadCount, "utf8") === "1",
-      `project item-list calls: ${readFileSync(concurrentReadCount, "utf8")}`,
+      `${TOOL}: bulk ticket reads reuse one in-process Projects promise`,
+      readFileSync(bulkReadCount, "utf8") === "1",
+      `project item-list calls: ${readFileSync(bulkReadCount, "utf8")}`,
     )
 
     const skippedProjectRead = stage("github-issues/skipped-project-read", "must remain")
     applyEnvironment(
       orcaEnv([
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        ...githubIssueReadPlan(issue()),
         { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, removePath: skippedProjectRead },
+        { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221", stdout: issueProjectItems(), ticketEnvelope: "issueProjectItems", removePath: skippedProjectRead },
       ]),
     )
     const issueOnly = await (await freshGithubIssues()).readTicket(221, { withProjectItem: false })
@@ -196,25 +199,76 @@ export const cases = async () => {
     const retryIssues = await freshGithubIssues()
     applyEnvironment(
       orcaEnv([
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(issue()) },
+        ...githubIssueReadPlan(issue()),
         { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, stderr: "GraphQL: rate limited", exit: 1 },
       ]),
     )
-    const firstProjectFailure = await messageOf(() => retryIssues.readTicket(221))
-    applyEnvironment(environmentFor())
-    const retried = await retryIssues.readTicket(221)
+    const firstProjectFailure = await messageOf(() => retryIssues.readTickets([221]))
+    applyEnvironment(orcaEnv([
+      ...githubIssueReadPlan(issue()),
+      { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
+    ]))
+    const [retried] = await retryIssues.readTickets([221])
     T(
       `${TOOL}: a failed Projects promise is evicted so a later read retries`,
       /GraphQL: rate limited/.test(firstProjectFailure ?? "") && retried.status === "In Review",
       firstProjectFailure ?? JSON.stringify(retried),
     )
 
-    applyEnvironment(environmentFor(JSON.stringify(issue()), emptyProjectItems))
+    applyEnvironment(environmentFor(JSON.stringify(issue()), issueProjectItems([])))
     const absent = await (await freshGithubIssues()).readTicket(221)
     T(
       `${TOOL}: a ticket absent from the configured board has null project fields`,
       absent.status === null && absent.projectItemId === null,
       JSON.stringify(absent),
+    )
+
+    applyEnvironment(environmentFor(JSON.stringify(issue()), issueProjectItems([
+      { id: "PVTI_other_project", project: { id: "PVT_other_owner_project", number: 2 }, fieldValueByName: { name: "Done" } },
+      issueProjectItem,
+    ])))
+    const filtered = await (await freshGithubIssues()).readTicket(221)
+    T(
+      `${TOOL}: an issue on equal-numbered boards uses only the configured global project id`,
+      filtered.status === "In Review" && filtered.projectItemId === "PVTI_harness_item",
+      JSON.stringify(filtered),
+    )
+
+    const paginationReadCount = stage("github-issues/project-pagination-read-count", "0")
+    const unrelatedItems = Array.from({ length: 5 }, (_, index) => ({
+      id: `PVTI_unrelated_${index}`,
+      project: { id: `PVT_unrelated_${index}`, number: index + 10 },
+      fieldValueByName: { name: "Todo" },
+    }))
+    applyEnvironment(
+      orcaEnv([
+        ...githubIssueReadPlan(issue()),
+        {
+          match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221",
+          stdout: issueProjectItems(unrelatedItems, { hasNextPage: true, endCursor: "cursor-one" }),
+          stdoutSequence: [
+            issueProjectItems(unrelatedItems, { hasNextPage: true, endCursor: "cursor-one" }),
+            issueProjectItems([issueProjectItem], { hasNextPage: false, endCursor: "cursor-two" }),
+          ],
+          sequenceFile: paginationReadCount,
+          ticketEnvelope: "issueProjectItems",
+        },
+      ]),
+    )
+    const paginated = await (await freshGithubIssues()).readTicket(221)
+    T(
+      `${TOOL}: a configured project beyond the first five memberships is still found`,
+      paginated.status === "In Review" && paginated.projectItemId === "PVTI_harness_item" && readFileSync(paginationReadCount, "utf8") === "2",
+      JSON.stringify(paginated),
+    )
+
+    applyEnvironment(environmentFor(JSON.stringify(issue()), issueProjectItems([
+      issueProjectItem,
+      { ...issueProjectItem, id: "PVTI_duplicate_item" },
+    ])))
+    T(
+      `${TOOL}: duplicate items on the configured project are refused`,
+      /appears more than once/.test(await messageOf(() => (freshGithubIssues()).then((module) => module.readTicket(221))) ?? ""),
     )
 
     applyEnvironment(
@@ -305,13 +359,13 @@ export const cases = async () => {
 
     applyEnvironment(
       orcaEnv([
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
+        { match: "api repos/thomasluizon/orbit-tickets/issues/221 --jq", stdout: "", stderr: "HTTP 404: issue not found", exit: 1 },
         { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
       ]),
     )
     T(
       `${TOOL}: a failed GitHub issue read is reported rather than normalized`,
-      /failed: GraphQL: issue not found/.test(await messageOf(() => githubIssues.readTicket(221)) ?? ""),
+      /failed: HTTP 404: issue not found/.test(await messageOf(() => githubIssues.readTicket(221)) ?? ""),
     )
   } finally {
     restoreEnvironment()

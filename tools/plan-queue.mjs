@@ -16,7 +16,7 @@
  * Other DAG shapes run against main in a later wave, after every blocker has landed.
  */
 
-import { listMilestones, listTickets, readTicket, resolveTicket } from "./lib/github-issues.mjs"
+import { listMilestones, listTickets, readTickets, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { classifyConversationFirst, classifyExecutability } from "./lib/ticket-executability.mjs"
 
@@ -143,7 +143,7 @@ for (const reference of scopeIds) {
   if (fetched.has(id)) continue
   let ticket
   try {
-    ticket = await readTicket(resolved.number)
+    ticket = (await readTickets([resolved.number]))[0]
   } catch (error) {
     fail(2, `ticket read failed for ${id}: ${error.message}`)
   }
@@ -161,7 +161,8 @@ for (const { blockedBy } of fetched.values()) {
     if (fetched.has(blocker) || blockerState.has(blocker)) continue
     const resolved = resolveTicket(blocker)
     try {
-      blockerState.set(blocker, isClosed(await readTicket(resolved.number)))
+      const [ticket] = await readTickets([resolved.number])
+      blockerState.set(blocker, isClosed(ticket))
     } catch (error) {
       fail(2, `blocker read failed for ${blocker}: ${error.message}`)
     }

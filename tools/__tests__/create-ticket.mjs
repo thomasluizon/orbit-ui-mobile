@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 
-import { T, check, orcaEnv, stage } from "./_harness.mjs"
+import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "create-ticket.mjs"
 const LABELS = JSON.stringify([{ name: "repo:ui" }, { name: "Improvement" }])
@@ -23,7 +23,7 @@ const boardReadMarker = stage("create-ticket/board-read", "must remain")
 const readPlan = ({ labels = LABELS, milestones = "Harness Context and Calibration\n", blocker = BLOCKER } = {}) => [
   { match: "label list --repo thomasluizon/orbit-tickets --limit 1000 --json name", stdout: labels },
   { match: "api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100", stdout: milestones },
-  { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: blocker },
+  ...githubIssueReadPlan(blocker),
   { match: "project item-list 2 --owner thomasluizon", stdout: EMPTY_PROJECT, removePath: boardReadMarker },
 ]
 

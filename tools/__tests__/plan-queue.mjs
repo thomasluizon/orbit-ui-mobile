@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs"
+
 import { check, realOrchestratorConfig, run, stage, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "plan-queue.mjs"
@@ -53,7 +55,9 @@ export const cases = () => {
   const staged = stageWithConfig("plan-queue", TOOL, realOrchestratorConfig())
   stage(
     "staged/plan-queue/tools/lib/github-issues.mjs",
-    `const tickets = JSON.parse(process.env.ORBIT_TICKET_STUB || "[]")
+    `import { rmSync } from "node:fs"
+
+const tickets = JSON.parse(process.env.ORBIT_TICKET_STUB || "[]")
 const byIdentifier = new Map(tickets.map((ticket) => [ticket.identifier, ticket]))
 const byNumber = new Map(tickets.map((ticket) => [ticket.number, ticket]))
 export const resolveTicket = (reference) => {
@@ -67,9 +71,18 @@ export const resolveTicket = (reference) => {
   return { number: found.number, identifier }
 }
 export const readTicket = async (number) => {
+  if (process.env.ORBIT_SINGLE_READ_MARKER) rmSync(process.env.ORBIT_SINGLE_READ_MARKER, { force: true })
   const found = byNumber.get(number)
   if (!found) throw new Error("ticket not found")
   return structuredClone(found)
+}
+export const readTickets = async (numbers) => {
+  if (process.env.ORBIT_BULK_READ_MARKER) rmSync(process.env.ORBIT_BULK_READ_MARKER, { force: true })
+  return numbers.map((number) => {
+    const found = byNumber.get(number)
+    if (!found) throw new Error("ticket not found")
+    return structuredClone(found)
+  })
 }
 export const listMilestones = async () => JSON.parse(process.env.ORBIT_MILESTONE_STUB || "[]")
 export const listTickets = async ({ milestone = null } = {}) => tickets
@@ -77,7 +90,19 @@ export const listTickets = async ({ milestone = null } = {}) => tickets
   .map((ticket) => structuredClone(ticket))
 `,
   )
-  const execute = (references, tickets, extra = []) => run(TOOL, ["--tickets", references.join(","), ...extra], { path: staged.path, env: { ORBIT_TICKET_STUB: JSON.stringify(tickets) } })
+  const execute = (references, tickets, extra = [], environment = {}) => run(TOOL, ["--tickets", references.join(","), ...extra], { path: staged.path, env: { ORBIT_TICKET_STUB: JSON.stringify(tickets), ...environment } })
+
+  const bulkReadMarker = stage("plan-queue/bulk-read-marker", "pending")
+  const singleReadMarker = stage("plan-queue/single-read-marker", "must remain")
+  const bulkPath = execute(["ORB-1", "ORB-2"], [ticket("ORB-1"), ticket("ORB-2")], [], {
+    ORBIT_BULK_READ_MARKER: bulkReadMarker,
+    ORBIT_SINGLE_READ_MARKER: singleReadMarker,
+  })
+  T(
+    `${TOOL}: planning routes ticket hydration through the one-board bulk adapter`,
+    bulkPath.status === 0 && !existsSync(bulkReadMarker) && existsSync(singleReadMarker),
+    bulkPath.stderr || bulkPath.stdout,
+  )
 
   /**
    * Two fail-closed exits that the move off Linear kept in the tool but lost from the suite. The

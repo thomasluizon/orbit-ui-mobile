@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { check, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
@@ -24,7 +24,7 @@ const ticket = (overrides = {}) => ({
  */
 const ticketPlan = (value = ticket(), comments = []) => [
   { match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments", stdout: JSON.stringify({ comments }) },
-  { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(value) },
+  ...githubIssueReadPlan(value),
   { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
@@ -71,7 +71,7 @@ export const cases = () => {
     ["--issue", "orb-215", "--repo", "ui", "--out", out],
     { status: 0 },
     options([
-      ...ticketPlan().slice(0, 2),
+      ...ticketPlan().slice(0, -1),
       { match: "project item-list 2 --owner thomasluizon", stdout: projectItems, removePath: boardMarker },
     ]),
   )
@@ -157,9 +157,9 @@ export const cases = () => {
     TOOL,
     "a ticket read error is refused rather than composed",
     ["--issue", "ORB-215", "--repo", "ui", "--out", join(root, "compose-prompt", "read-error.md")],
-    { status: 2, stderr: /failed to compose ORB-215: gh issue view .* failed: issue not found/ },
+    { status: 2, stderr: /failed to compose ORB-215: gh api repos\/.* failed: issue not found/ },
     options([
-      { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "issue not found", exit: 1 },
+      { match: "api repos/thomasluizon/orbit-tickets/issues/221 --jq", stdout: "", stderr: "issue not found", exit: 1 },
       { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
     ]),
   )

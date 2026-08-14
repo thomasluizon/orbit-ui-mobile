@@ -126,6 +126,30 @@ export const BASH = resolveBash()
  */
 export const realOrchestratorConfig = () => JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
 
+/** Build the REST ticket read from the same normalized issue value each case already asserts. */
+export const githubIssueReadPlan = (value, repository = "thomasluizon/orbit-tickets") => {
+  const issue = typeof value === "string" ? JSON.parse(value) : value
+  const compact = {
+    body: issue.body,
+    html_url: issue.url,
+    labels: issue.labels.map((label) => ({ name: label.name })),
+    number: issue.number,
+    state: issue.state,
+    state_reason: issue.stateReason,
+    title: issue.title,
+  }
+  const dependencyEntry = (relation, connection) => ({
+    match: `api --paginate repos/${repository}/issues/${issue.number}/dependencies/${relation}`,
+    stdout: JSON.stringify(connection.nodes.map((dependency) => dependency.number)),
+    ticketEnvelope: "issueDependencyNumbers",
+  })
+  return [
+    { match: `api repos/${repository}/issues/${issue.number} --jq`, stdout: JSON.stringify(compact), ticketEnvelope: "restIssue" },
+    dependencyEntry("blocked_by", issue.blockedBy),
+    dependencyEntry("blocking", issue.blocking),
+  ]
+}
+
 let ghEnvelopeManifest
 
 const ghEnvelopes = () => {
@@ -173,6 +197,14 @@ const assertRecordedGhValue = (command, value, recordedPaths, path = "$") => {
 }
 
 const ghEnvelopeName = (command, entry) => {
+  if (entry.ticketEnvelope === "restIssue" || entry.ticketEnvelope === "issueDependencyNumbers") {
+    if (!/\bapi\b/.test(command)) throw new Error(`gh fixture ${command} applies ${entry.ticketEnvelope} to a non-API command`)
+    return entry.ticketEnvelope
+  }
+  if (entry.ticketEnvelope === "issueProjectItems") {
+    if (!/\bapi\s+graphql\b/.test(command)) throw new Error(`gh fixture ${command} applies issueProjectItems to a non-GraphQL command`)
+    return "issueProjectItems"
+  }
   /** Before the generic issue view; the lookahead keeps a multi-field list like `--json comments,body` out of this envelope. */
   if (/\bissue\s+view\b[\s\S]*--json\s+comments(?=\s|$)/.test(command)) return "issueViewComments"
   if (/\bissue\s+view\b/.test(command)) return (entry.exit ?? 0) === 0 ? "issueView" : "issueViewError"
