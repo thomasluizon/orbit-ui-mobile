@@ -39,7 +39,9 @@ Test scenarios prove the new or changed behaviour, and no fabricated red case be
 ## B. product-manager: how many tickets
 
 1. Spawn `product-manager` with the raw request plus `architecture.json`. It returns the sharpened
-   problem, the affected surfaces and endpoints, the per-ticket 6.2 material, and a first-cut split.
+   problem, the affected surfaces and endpoints, the eight-category edge-case scenarios, the
+   per-ticket 6.2 material, and a first-cut split. A return with no edge-case pass is incomplete;
+   send it back rather than filling the gap yourself.
 2. Spawn `design-specialist` in parallel whenever any surface is user-visible. For a pure chore or
    harness item with no UI, state that it was skipped and why.
 3. **Splitting one message that lists several problems.** Decide which of these three shapes each
