@@ -24,12 +24,16 @@
 //                      cross-package edges into @orbit/shared.
 //   4. i18nOwnership - keys used by each route's source file, its layout
 //                      chain, and the transitive closure of their repo
-//                      imports; every en.json leaf attributable to no route
+//                      imports, where a re-export edge is followed only for
+//                      the names actually requested and type-only edges are
+//                      skipped; every en.json leaf attributable to no route
 //                      lands in `unowned` (again: the gap is the signal).
 //                      One-level attribution left 1427 of 2332 keys unowned
-//                      because most keys live two or more components deep
-//                      (2026-08-13); what remains unowned now is dynamic
-//                      construction or genuinely dead.
+//                      because most keys live two or more components deep,
+//                      and a whole-file closure over-attributed through
+//                      barrels (habits.generalHabit landed on 73 of 76
+//                      routes), hiding dead keys (both 2026-08-13). What
+//                      remains unowned is dynamic construction or dead.
 //   5. testCoverage  - which vitest files touch which top-level module dir,
 //                      plus the dirs no test touches.
 //
@@ -435,17 +439,91 @@ function keysUsedBy(files, leafKeys) {
   return [...used].sort(byCode)
 }
 
-/** Every repo file reachable by imports from the seeds, seeds included. */
-function importClosure(seeds) {
-  const visited = new Set()
-  const queue = [...seeds]
-  while (queue.length > 0) {
-    const file = queue.shift()
-    if (visited.has(file)) continue
-    visited.add(file)
-    queue.push(...importsOf(file))
+const FROM_STATEMENT = /(?:^|\n)\s*(import|export)\s+([^;'"]*?)\s*from\s*['"]([^'"]+)['"]/g
+const DYNAMIC_IMPORT = /import\s*\(\s*['"]([^'"]+)['"]\s*\)|require\(\s*['"]([^'"]+)['"]\s*\)/g
+
+/**
+ * Import edges with the SYMBOLS each edge carries, so the ownership closure can
+ * traverse a barrel's re-exports only for the names actually requested. A
+ * whole-file closure attributed habits.generalHabit to 73 of 76 routes through
+ * barrel edges nobody imported, hiding dead keys from the sweep (2026-08-13).
+ * `names`/`exported` null means "all" (default, namespace, export *, dynamic).
+ */
+const importEdgeDetailCache = new Map()
+function importEdgesOf(posixPath) {
+  const cached = importEdgeDetailCache.get(posixPath)
+  if (cached) return cached
+  const edges = []
+  const source = read(posixPath)
+  for (const match of source.matchAll(FROM_STATEMENT)) {
+    const [, keyword, clause, specifier] = match
+    const target = resolveSpecifier(specifier, posixPath)
+    if (!target) continue
+    if (/^type\s/.test(clause.trim())) continue
+    const braced = clause.match(/\{([^}]*)\}/)
+    const outsideBraces = clause.replace(/\{[^}]*\}/, "").replace(/,/g, "").trim()
+    const named = []
+    if (braced)
+      for (const raw of braced[1].split(",")) {
+        if (/^\s*type\s/.test(raw)) continue
+        const parts = raw.split(/\s+as\s+/).map((part) => part.trim())
+        if (parts[0]) named.push(keyword === "export" ? { exported: parts[1] ?? parts[0], source: parts[0] } : { source: parts[0] })
+      }
+    if (keyword === "import") {
+      /* a default or namespace clause evaluates the whole target module; a clause left empty after stripping type specifiers erases entirely */
+      if (!outsideBraces && named.length === 0) continue
+      edges.push({ target, kind: "import", names: outsideBraces ? null : named.map((entry) => entry.source) })
+    } else {
+      if (!outsideBraces.includes("*") && named.length === 0) continue
+      edges.push(outsideBraces.includes("*")
+        ? { target, kind: "reexport", exported: null }
+        : { target, kind: "reexport", exported: new Map(named.map((entry) => [entry.exported, entry.source])) })
+    }
   }
-  return [...visited].sort(byCode)
+  for (const match of source.matchAll(DYNAMIC_IMPORT)) {
+    const target = resolveSpecifier(match[1] ?? match[2], posixPath)
+    if (target) edges.push({ target, kind: "import", names: null })
+  }
+  importEdgeDetailCache.set(posixPath, edges)
+  return edges
+}
+
+/**
+ * Every repo file reachable from the seeds through value imports, following a
+ * re-export edge only for the requested names. Type-only edges are skipped:
+ * they erase at runtime and can never render a key.
+ */
+function importClosure(seeds) {
+  /** file -> "ALL" once fully expanded, else the Set of names already requested through it */
+  const expanded = new Map()
+  const queue = seeds.map((file) => ({ file, names: null }))
+  while (queue.length > 0) {
+    const { file, names } = queue.shift()
+    const state = expanded.get(file)
+    if (state === "ALL") continue
+    let requested = names
+    if (names === null) expanded.set(file, "ALL")
+    else {
+      const seen = state ?? new Set()
+      requested = names.filter((name) => !seen.has(name))
+      if (requested.length === 0 && state !== undefined) continue
+      for (const name of requested) seen.add(name)
+      expanded.set(file, seen)
+    }
+    for (const edge of importEdgesOf(file)) {
+      if (edge.kind === "import") {
+        queue.push({ file: edge.target, names: edge.names })
+        continue
+      }
+      if (edge.exported === null) queue.push({ file: edge.target, names: requested })
+      else if (requested === null) queue.push({ file: edge.target, names: [...edge.exported.values()] })
+      else {
+        const carried = requested.filter((name) => edge.exported.has(name)).map((name) => edge.exported.get(name))
+        if (carried.length > 0) queue.push({ file: edge.target, names: carried })
+      }
+    }
+  }
+  return [...expanded.keys()].sort(byCode)
 }
 
 function buildI18nOwnership(routes) {

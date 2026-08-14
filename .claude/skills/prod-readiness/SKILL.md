@@ -286,8 +286,13 @@ gate.
 The map is the finder: regenerate it, then FIX what it reports, deleting stale code rather than
 ticketing it. `tools/arch-map.mjs` derives `architecture.json` + `architecture.html` from the
 tree; after the 2026-08-13 honesty fixes its signals are trustworthy (endpoint usage scans all
-of `apps/web`, i18n ownership walks the transitive import closure, and pairing refuses to
+of `apps/web`, i18n ownership walks the symbol-filtered import closure, and pairing refuses to
 guess). This sweep is `repo:ui` only; never touch `orbit-api` from it.
+
+**Scope-aware, same rule as a11y**: run this sweep only when the resolved scope contains a UI
+surface. Under an `api`-only scope (or an api-side path), inventory item 13 reads **N/A (scope
+has no UI surface)** — that is a verdict, not a skipped item, and it never caps the launch
+verdict.
 
 Run it in a **dedicated worktree** branched fresh from `main` (`git worktree add`), same
 isolation rule as Phase 2b: the audited tree the Phase 2 finders read stays immutable. Start by
@@ -353,10 +358,11 @@ breaks a deep link, a red gate) is reverted and recorded as a holdback: item, si
 exact reason. Every holdback becomes a Medium finding in the Phase 3 consolidated set.
 
 **Sweep verdict** for inventory item 13: `SWEPT` (map regenerated, every actionable signal
-fixed or holdback-recorded, gates green), `SWEPT_WITH_HOLDBACKS`, or `FAILED` (forces at most
-CONDITIONAL and names itself as a blocker). Same launch-condition rule as item 12: the verdict
-certifies the sweep branch, so an unmerged `chore(arch)` PR caps the launch verdict at
-CONDITIONAL unless Thomas explicitly waives it at the gate.
+fixed or holdback-recorded, gates green), `SWEPT_WITH_HOLDBACKS`, `FAILED` (forces at most
+CONDITIONAL and names itself as a blocker), or `N/A (scope has no UI surface)`. Same
+launch-condition rule as item 12: the verdict certifies the sweep branch, so an unmerged
+`chore(arch)` PR caps the launch verdict at CONDITIONAL unless Thomas explicitly waives it at
+the gate.
 
 ---
 
@@ -432,10 +438,10 @@ re-validate each with `--issue`.
   audit ran and converged; every ops and a11y check resolved with no `opsChecksFailed` /
   `a11yChecksFailed` entry, or is a legitimately Deferred un-verifiable like backups, the
   paid-API cost caps, and the a11y runtime matrix, or a legitimate N/A like a11y under an
-  api-only scope; the dependency and architecture sweeps are each `SWEPT` or
-  `SWEPT_WITH_HOLDBACKS` with every holdback ticketed AND their `chore(deps)` / `chore(arch)`
-  PRs merged into the launch head or explicitly waived by Thomas), and performance is
-  `MEASURED`.
+  api-only scope, which also reads the architecture sweep as N/A; the dependency and
+  architecture sweeps are each `SWEPT` or `SWEPT_WITH_HOLDBACKS` (or the architecture sweep is
+  a legitimate N/A) with every holdback ticketed AND their `chore(deps)` / `chore(arch)` PRs
+  merged into the launch head or explicitly waived by Thomas), and performance is `MEASURED`.
 - **CONDITIONAL** if no Blockers but some items are Deferred or unproven in a way that gates
   launch (e.g. backups unverified, staging gate absent, a child audit did not converge, an ops
   or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, either sweep
@@ -462,7 +468,7 @@ re-validate each with `--issue`.
 | Medium | {N} | {…} |
 | Low / Info | {N} | {…} |
 
-**Inventory (13)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred} · accessibility {static ran; runtime matrix deferred} · dependencies {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · architecture {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED}
+**Inventory (13)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred} · accessibility {static ran; runtime matrix deferred} · dependencies {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · architecture {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED | N/A}
 **Measured performance**: {MEASURED with top finding and top-ten table | CODE_ONLY with reason}
 **Dependency sweep**: {the chore(deps) PR links + holdback count, or "FAILED: reason"}
 **Architecture sweep**: {the chore(arch) PR link + per-signal before/after counts + holdback count, or "FAILED: reason"}
