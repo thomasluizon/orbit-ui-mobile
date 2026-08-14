@@ -270,6 +270,29 @@ export const updateBody = async (number, body) => {
 }
 
 /**
+ * Add or remove labels on one existing ticket. The only sanctioned label mutation: the
+ * raw-mutation hook blocks `gh issue edit` from a session, and until this existed a label change
+ * on an existing ticket had no path at all (measured 2026-08-13: `needs:conversation` could not be
+ * applied to #36 by any tool).
+ */
+export const editLabels = async (number, { add = [], remove = [] } = {}) => {
+  positiveIssueNumber(number)
+  const wanted = [...add, ...remove]
+  if (wanted.length === 0) throw new Error("editLabels needs at least one label to add or remove")
+  if (wanted.some((label) => typeof label !== "string" || label.trim().length === 0)) {
+    throw new Error("Ticket labels must be non-empty strings")
+  }
+  const available = await listLabels()
+  const missing = [...new Set(wanted)].filter((label) => !available.includes(label))
+  if (missing.length > 0) throw new Error(`Unknown ticket label(s): ${missing.join(", ")}`)
+  const tickets = ticketConfiguration()
+  const args = ["issue", "edit", String(number), "--repo", tickets.repository]
+  for (const label of [...new Set(add)]) args.push("--add-label", label)
+  for (const label of [...new Set(remove)]) args.push("--remove-label", label)
+  await runGh(args)
+}
+
+/**
  * Verified live on 2026-08-08. This exact read returned one title per line for every milestone:
  * gh api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title
  */

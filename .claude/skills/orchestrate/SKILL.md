@@ -54,6 +54,7 @@ run it always was.
                      generated artifact together; split only at real behavior/deployment boundaries
  2b QUESTION GATE    BOTH MODES. Every question the queue raises, asked in ONE batch, before
                      the first worktree. Answers that remove a ticket remove it now.
+                     The classifier is evidence, not the boundary: ask ANYTHING unresolved.
                      CONVERSATION-FIRST ticket: --sleep -> already deferred NEEDS_CONVERSATION.
                      Attended -> converse ONE TOPIC AT A TIME, then write the decisions to the
                      ticket with comment-ticket.mjs BEFORE compose-prompt. No worker until answered.
@@ -76,7 +77,8 @@ run it always was.
                      statusCheckRollup, both node shapes -> no check red, none pending
                      DELIVERED · NO_COMMIT · DIRTY_TREE · UNPUSHED · NO_PR · UNLINKED_PR
                      · STALE_PR · OUT_OF_DATE · CI_FAILING · CI_PENDING
-                     anything but DELIVERED enters the bounded readiness/fixer path or a real blocker
+                     anything but DELIVERED: FIRST read the worker log tail for NEEDS_DECISION,
+                     then the bounded readiness/fixer path or a real blocker
                      SALVAGE allowed: discard residue · test then commit+push what the worker
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
@@ -91,7 +93,9 @@ run it always was.
                      into branch when behind · rerun invalidated receipts · synchronize the ticket
                      READY only when every receipt names the same current head and base SHA
 10  Hand over        PR URL, advisory diff size, receipt and READY verdict.
-                     PRINT any manual step the ticket carries (complete-ticket.mjs --preflight)
+                     PRINT manual steps from THREE sources: the ticket (complete-ticket.mjs
+                     --preflight) + the PR body's ## Manual steps + your own read of the diff
+                     READ the PR body's ## Assumptions: attended -> adjudicate with Thomas here
                      READY -> In Review.
                      UPDATE remaining[] in .git/orbit-orchestrate-run.json
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
@@ -382,11 +386,23 @@ run at all" and wrong for "design this with me". So for a conversation-first tic
    `node tools/comment-ticket.mjs --issue "<ticket-ref>" --body-file <scratchpad-file>`, never a raw
    `gh issue comment`.
 
+### The classifier is evidence; unresolved uncertainty is the gate
+
+`plan-queue.mjs`'s signals and the `needs:conversation` label are detection aids, not the boundary
+of asking. Attended, ask Thomas ANY question the run raises, at any step, at the moment it appears:
+a contradiction found while reading, a tool the ticket names that is not wired, a dependency that
+does not exist. One topic at a time, your recommended answer first (core rule 7). A decision that
+belongs to Thomas (product, brand, copy, price, design direction, or which of two contradictory
+instructions is current) is never proceeded on by assumption, at any step, in either mode. Under
+`--sleep` the same discovery defers the ticket with its question in the step 11 report. Write every
+answer to the ticket with `comment-ticket.mjs` so it reaches the worker and survives the session.
+
 **What this gate cannot do, stated plainly rather than implied.** It asks only what is derivable from
-the tickets UP FRONT. It cannot predict what a worker hits mid-run: a dependency that turns out to be
-missing, a test that was already broken, an API whose real response contradicts the ticket. Those
-still surface as failed verdicts. This gate removes the class of failure that was knowable before the
-first worktree, and nothing else, and it is not a promise of an uninterrupted night.
+the tickets UP FRONT. What a worker hits mid-run (a dependency that turns out to be missing, a test
+that was already broken, an API whose real response contradicts the ticket) surfaces later: as a
+`NEEDS_DECISION` question when it is a decision (step 7), or as a failed verdict when it is a defect.
+This gate removes the class of failure that was knowable before the first worktree, and nothing
+else, and it is not a promise of an uninterrupted night.
 
 ## Step 2. Scope review, judged for every admitted ticket before any worker spawns
 
@@ -573,6 +589,21 @@ Never fix a diff to satisfy a check that never ran.
 
 `CI_PENDING` is its own verdict rather than a pass or a stop. Pass `--wait-ci <seconds>` to let
 checks settle; without it the state is reported immediately and the run does not sit on it.
+
+### `NEEDS_DECISION` in the worker log
+
+The composed prompt forbids a worker from guessing a decision that belongs to Thomas: it commits
+what is already safe and ends its output with `NEEDS_DECISION: <question>`. On every non-DELIVERED
+verdict, read the tail of the worker log for that line BEFORE diagnosing anything else, because it
+explains the verdict: a worker that stopped on a question often leaves `NO_COMMIT` or a partial
+branch behind, and neither means the work failed.
+
+- **Attended:** ask Thomas the question, the worker's recommended answer first. Write the answer to
+  the ticket with `comment-ticket.mjs`, recompose the prompt, and launch a fresh worker. That is a
+  NEW work order carrying the answer, not the banned auto-relaunch of a failed prompt.
+- **`--sleep`:** the ticket stops there. Its question goes to the step 11 decision list, exactly
+  like a `NEEDS_CONVERSATION` deferral, so Thomas wakes to a question instead of a confidently
+  wrong pull request.
 
 ### Salvage: what you may do to a dead worker's worktree without asking
 
@@ -805,9 +836,19 @@ Print:
 - The `pullfrog-approval` conclusion on the current head, and the head SHA it names.
 - Pullfrog findings: `N found, F fixed, R filed, X not applicable, U left open`.
 - Every follow-up ticket filed, by identifier.
-- **Any manual step the ticket carries**, expanded. Run
-  `node tools/complete-ticket.mjs --issue "<ticket-ref>" --preflight` and print its `manualSteps`
-  field verbatim; it writes nothing. Silence is the normal answer and prints nothing at all.
+- **Every manual step, merged from three sources and deduplicated.** (1) The ticket's own sections:
+  run `node tools/complete-ticket.mjs --issue "<ticket-ref>" --preflight` and take its `manualSteps`
+  verbatim; it writes nothing. (2) The PR body's `## Manual steps` section, which the composed
+  prompt requires of the worker whenever its change needs an action outside the repository. (3)
+  Your own read of the diff: a new configuration or environment key, a secret, a feature flag, or a
+  vendor-console dependency the change introduces that neither the ticket nor the worker named. An
+  env var read in the diff with no value set anywhere IS a manual step, whether or not anybody
+  wrote it down. Post the merged list to the ticket with `comment-ticket.mjs` so it survives
+  scrollback, and print it here. Silence stays the normal answer when all three sources are empty.
+- **The PR body's `## Assumptions` section, adjudicated rather than merely printed.** Attended: put
+  each assumption to Thomas at this stop, as one batch; an answer that invalidates the work sends
+  the PR back through the bounded fixer before READY. Under `--sleep`: the assumptions go to the
+  step 11 decision list, so Thomas reads them before he merges anything.
 
 **Why a manual step is printed here and not only at merge.** orbit-tickets#81 said "merge, deploy to
 Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until the key exists." The
@@ -817,6 +858,9 @@ live 2026-08-10: `posthog-dotnet` events since 2026-07-25, nothing lost), so thi
 rather than an incident. The missing thing is not the key, it is any mechanism that knew. Every gate
 in this harness measures the PULL REQUEST; that step is not in one, so it has to be carried to the
 human at the moments a human is reading. 13 of the 166 open tickets carry a step of the same shape.
+And the ticket section is only ONE of the shapes: the equally common one is a worker introducing
+the out-of-repo dependency mid-implementation, which no ticket section can know in advance. That is
+why the PR body and your own diff read are sources beside the ticket, not decoration on it.
 
 **Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
 watches; zero tokens burn while it waits. **With `--sleep`: go straight to the next ticket.**
@@ -830,8 +874,12 @@ Once the queue is exhausted, print one summary and stop:
 - **The stack layout**, so the merge order is stated rather than worked out at 08:00.
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker. For a
   `NEEDS_CONVERSATION` deferral, print its open questions too, so the night ends in a decision list.
-- **Every manual step across the whole queue, in one "still outstanding" list.** These are Thomas's
-  clicks, not the harness's, and they are the only work the merge does not finish.
+- **Every manual step across the whole queue, in one "still outstanding" list**, merged from all
+  three step 10 sources. These are Thomas's clicks, not the harness's, and they are the only work
+  the merge does not finish.
+- **Every open decision, in one list**: each `NEEDS_DECISION` question a worker raised and each
+  unadjudicated PR-body assumption, beside the `NEEDS_CONVERSATION` questions, so the night ends in
+  a decision list rather than a guess list.
 - **The single command that merges the lot**, ready for Thomas to approve.
 
 Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
