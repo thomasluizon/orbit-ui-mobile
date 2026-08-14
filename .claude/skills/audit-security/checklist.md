@@ -120,6 +120,12 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   tool beyond the user's own data or trigger an unbounded loop. The cost/iteration ceiling
   is server-enforced, not prompt-enforced.
 - [ ] **Model output isn't reflected as trusted HTML/markup** without escaping.
+- [ ] **A self-harm or crisis disclosure gets a crisis response**: the Astra system
+  prompt or a server-side check routes self-harm text to a supportive reply that names
+  crisis resources for the user's locale (BR: CVV 188, US: 988), never to a productivity
+  nudge. Companion-chatbot laws mandate the protocol (California SB 243, in force 2026),
+  and Orbit's audience makes it a product duty besides. No handling anywhere in
+  `orbit-api` is **Tier 1**.
 
 ## G. Error handling & data exposure
 
@@ -163,13 +169,16 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
 
 ## J. Legal & data-handling posture
 
-> Collecting user data puts Orbit under GDPR/CCPA at any scale. These four are
-> repo-checkable; the policy's legal wording is not, and is not a finding.
+> Collecting user data puts Orbit under GDPR/LGPD/CCPA at any scale, and selling a
+> subscription adds consumer-protection exposure (FTC and state equivalents). Every item
+> here is repo- or live-checkable; the policy's legal wording is not, and is not a finding.
 
 - [ ] **A privacy policy is reachable and linked** from the app and the landing page, and
   the processors it names match the ones the code actually calls (Supabase/Render region,
-  Stripe, PostHog US Cloud, Sentry, Resend, Firebase). A policy that contradicts the real
-  processor list is **Tier 2**.
+  Stripe, PostHog US Cloud, Sentry, Resend, Firebase, OpenAI). The AI flow is named in
+  plain terms — user text reaches OpenAI and the policy says so; state AI-disclosure laws
+  make silence its own violation. A policy that contradicts the real processor list is
+  **Tier 2**.
 - [ ] **Account deletion and data export are user-reachable**, not a manual DB action (GDPR
   erasure + portability). Missing a user-facing delete path is **Tier 2**.
 - [ ] **Third-party data flows are intentional**: analytics, crash, and log payloads carry
@@ -178,6 +187,25 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
 - [ ] **No copyleft contamination in shipped dependencies**: a GPL/AGPL package under
   `apps/*` or a NuGet reference in a shipped project forces source disclosure. Cite the
   package and its license (**Tier 2**).
+- [ ] **Object storage is private and deletion is complete**: every Supabase storage
+  bucket (`SupabaseObjectStorageService.cs`) rejects anonymous reads — prove it from
+  outside with the publishable key, like the RLS probe, never by inference. A public
+  bucket over user content is **Tier 1**. Account deletion removes the user's storage
+  objects along with the rows; content the policy promises to delete but that survives in
+  a bucket is **Tier 2**.
+- [ ] **Subscription exit matches entry**: a subscriber cancels inside the app, in no
+  more steps than subscribing took, with no support contact. A cancel path that needs an
+  email is **Tier 2** (FTC negative-option exposure, and Play policy requires it).
+- [ ] **A trial that will charge warns first**: when a payment method is on file, a
+  reminder (email or push) goes out before the auto-charge, and the scheduler and template
+  exist in the repo. Today the trial holds no card, so this item arms when ORB-138 applies
+  the price; a silent auto-charge then is **Tier 2** (full-refund exposure).
+- [ ] **No invented social proof**: no testimonial, review count, star rating, or
+  `aggregateRating` structured data in the app, the landing page, or store-listing copy
+  that does not trace to a real user statement. An invented review is **Tier 1** (the FTC
+  fake-review rule fines per violation). Verified clean 2026-08-13: the landing JSON-LD
+  carries no rating and no testimonials. Re-verify rather than trusting that line —
+  marketing pages change.
 
 ## Tier 3 — out of scope for this audit (acknowledge, don't itemize as findings)
 
