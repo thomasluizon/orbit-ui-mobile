@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "cf8a98c41ddade63276544c43d1e7582a31aee12",
+  "generatedFrom": "4dca455564017f71d2486c183e5aaa0886240467",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 211,
-  "cellCount": 920,
+  "surfaceCount": 212,
+  "cellCount": 924,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -3202,6 +3202,66 @@
       "href": null,
       "ownedFiles": [
         "apps/web/app/(chat)/error.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "error-global",
+      "platform": "web",
+      "kind": "error",
+      "sourceFile": "apps/web/app/global-error.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/global-error.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "error-global",
+      "platform": "web",
+      "kind": "error",
+      "sourceFile": "apps/web/app/global-error.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/global-error.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "error-global",
+      "platform": "web",
+      "kind": "error",
+      "sourceFile": "apps/web/app/global-error.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/global-error.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "error-global",
+      "platform": "web",
+      "kind": "error",
+      "sourceFile": "apps/web/app/global-error.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/global-error.tsx"
       ],
       "closureSize": 10,
       "state": "default",

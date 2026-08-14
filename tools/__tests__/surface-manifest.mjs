@@ -16,6 +16,7 @@ export async function cases() {
   const files = {
     "apps/web/app/(chat)/chat/page.tsx": "import { MessageBubble } from '@/components/chat/message-bubble'\nexport default function Page() { return <MessageBubble /> }\n",
     "apps/web/app/(chat)/error.tsx": "export default function ErrorScreen() { return null }\n",
+    "apps/web/app/global-error.tsx": "export default function GlobalError() { return null }\n",
     "apps/web/app/(app)/explore/page.tsx": "export default function Page() { return null }\n",
     "apps/web/app/(app)/insights/page.tsx": "export default function Page() { return null }\n",
     "apps/web/app/not-found.tsx": "export default function NotFound() { return null }\n",
@@ -30,6 +31,9 @@ export async function cases() {
     "apps/mobile/components/bottom-sheet-modal.tsx": "import { Modal } from 'react-native'\nexport function BottomSheetModal() { return <Modal /> }\n",
     "apps/mobile/components/preferences/picker.tsx": "import { BottomSheetModal } from '@/components/bottom-sheet-modal'\nexport function Picker() { return <BottomSheetModal /> }\n",
     "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml": "<FrameLayout />\n",
+    "apps/mobile/modules/orbit-widget/android/build/generated/widget.xml": "<Generated />\n",
+    "apps/mobile/modules/orbit-widget/android/.gradle/cache.bin": "generated\n",
+    "apps/mobile/modules/orbit-widget/android/.cxx/debug/generated.ninja": "generated\n",
   }
   for (const [relativePath, body] of Object.entries(files)) write(join(repository.path, relativePath), body)
   repository.git(["add", ...Object.keys(files)])
@@ -50,7 +54,10 @@ export async function cases() {
   T("mobile aliases resolve inside the mobile app for overlays", ids.has("m-overlay-preferences-picker"))
   T("web and mobile not-found surfaces are inventoried", ids.has("not-found-root") && ids.has("m-not-found-root"))
   T("web and mobile error surfaces are inventoried", ids.has("error-chat") && ids.has("m-error-root"))
+  T("the Next root-layout global error is inventoried", surfaces.some((surface) => surface.surfaceId === "error-global" && surface.sourceFile === "apps/web/app/global-error.tsx"))
   T("the Android widget is an authoritative surface", ids.has("m-widget-orbit-widget"))
+  const widget = surfaces.find((surface) => surface.surfaceId === "m-widget-orbit-widget")
+  T("Android widget ownership excludes generated build trees", widget?.ownedFiles.every((path) => !/\/android\/(?:build|\.gradle|\.cxx)\//.test(path)), JSON.stringify(widget?.ownedFiles))
   T("web chat blocks are visible under route-chat", surfaces.some((surface) => surface.surfaceId === "block-chat-pending-operation-card" && surface.parentSurfaceId === "route-chat"))
   T("mobile chat blocks are visible under m-route-chat", surfaces.some((surface) => surface.surfaceId === "m-block-chat-pending-operation-card" && surface.parentSurfaceId === "m-route-chat"))
   T(

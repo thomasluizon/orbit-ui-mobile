@@ -185,6 +185,17 @@ const OPENERS = {
   },
 }
 
+// Chat blocks are conditional children of /chat, not pages. A block may only
+// produce pixel evidence when its plan both creates the exact state and proves
+// that the claimed block is visible. Navigating to /chat alone proves neither.
+const BLOCK_CAPTURE_PLANS = {}
+
+function blockCapturePlanFor(surfaceId) {
+  const plan = BLOCK_CAPTURE_PLANS[surfaceId]
+  if (!plan || typeof plan.open !== "function" || typeof plan.assertVisible !== "function") return null
+  return plan
+}
+
 // Dynamic-route surfaces (page.tsx under a [param] segment) always derive with
 // href:null -- surface-manifest.mjs cannot invent a real id. Rather than baking a
 // fixture id into a checked-in file (which rots the moment the local DB resets),
@@ -378,8 +389,17 @@ export function unreachableReason(cell, resolvedHrefs = new Map()) {
   if (cell.kind === "route" && cell.href === null && !resolvedHrefs.has(cell.surfaceId)) {
     return { reason: "dynamic-route", detail: "URL needs a real id; no fixture row resolvable from the API" }
   }
+  if (cell.kind === "block" && !blockCapturePlanFor(cell.surfaceId)) {
+    return {
+      reason: "needs-block-capture-plan",
+      detail: `no deterministic opener and visibility assertion implemented for ${cell.sourceFile}`,
+    }
+  }
   if (cell.kind === "overlay" && !OPENERS[cell.surfaceId]) {
     return { reason: "needs-opener", detail: `no opener implemented for ${cell.sourceFile}` }
+  }
+  if (cell.href === null && !resolvedHrefs.has(cell.surfaceId) && !OPENERS[cell.surfaceId]) {
+    return { reason: "needs-entrypoint", detail: `no deterministic URL or opener implemented for ${cell.sourceFile}` }
   }
   return null
 }
@@ -429,6 +449,12 @@ async function captureCell(page, cell, baseUrl, resolvedHrefs = new Map()) {
   const opener = OPENERS[cell.surfaceId]
   if (opener) await opener(page)
   if (opener) await page.waitForTimeout(400)
+
+  const blockCapturePlan = blockCapturePlanFor(cell.surfaceId)
+  if (blockCapturePlan) {
+    await blockCapturePlan.open(page)
+    await blockCapturePlan.assertVisible(page)
+  }
 
   await page.screenshot({
     path: join(ARTIFACT_DIR, `${cell.surfaceId}--${cell.state ?? "default"}--${cell.theme}--${cell.locale}.png`),

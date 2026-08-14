@@ -342,7 +342,10 @@ function webEntries() {
     surfaces.push(surface)
   }
 
-  const errorFiles = walk(appDir).map(toPosix).filter((path) => path.endsWith("/error.tsx")).sort()
+  const errorFiles = walk(appDir)
+    .map(toPosix)
+    .filter((path) => path === "apps/web/app/global-error.tsx" || path.endsWith("/error.tsx"))
+    .sort()
   for (const sourceFile of errorFiles) {
     const label = specialSurfaceLabel(sourceFile, "error")
     surfaces.push({ surfaceId: `error-${label}`, platform: "web", kind: "error", sourceFile, href: null })
@@ -444,7 +447,13 @@ function mobileEntries() {
   const widgetRoot = join(REPO_ROOT, "apps", "mobile", "modules", "orbit-widget")
   const widgetFiles = walk(widgetRoot)
     .map(toPosix)
-    .filter((path) => !path.includes("/ios/") && !path.endsWith(".web.ts") && !path.endsWith(".web.tsx"))
+    .filter(
+      (path) =>
+        !path.includes("/ios/") &&
+        !/\/android\/(?:build|\.gradle|\.cxx)\//.test(path) &&
+        !path.endsWith(".web.ts") &&
+        !path.endsWith(".web.tsx"),
+    )
     .sort()
   const widgetSource = "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml"
   if (widgetFiles.includes(widgetSource)) {

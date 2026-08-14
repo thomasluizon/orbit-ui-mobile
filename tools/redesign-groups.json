@@ -20,6 +20,7 @@
     ],
     "R2-primitive-shell": [
       "error-app",
+      "error-global",
       "not-found-root",
       "overlay-app-layout",
       "overlay-command-command-palette",
@@ -313,4 +314,3 @@
     "m-widget-orbit-widget": "D66 adds the Android widget to the manifest and assigns it to #76 (R21)."
   }
 }
-
