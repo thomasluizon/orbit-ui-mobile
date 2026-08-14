@@ -73,6 +73,21 @@ export const cases = () => {
     /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt,
   )
+  /**
+   * The two-tier ambiguity rule replaces "choose the reading a careful colleague would", which
+   * instructed silent assumptions. A worker must record mechanical choices in ## Assumptions and
+   * raise a Thomas-owned decision as NEEDS_DECISION rather than guess it.
+   */
+  T(
+    `${TOOL}: the brief splits ambiguity into recorded assumptions and NEEDS_DECISION`,
+    /## Assumptions/.test(prompt) && /NEEDS_DECISION: <one question, with your recommended answer>/.test(prompt) && /NEVER yours to guess/.test(prompt) && !/choose the reading a careful colleague/.test(prompt),
+    prompt,
+  )
+  T(
+    `${TOOL}: the finishing contract requires the PR-body Manual steps section`,
+    /## Manual steps/.test(prompt) && /action outside the repository/.test(prompt) && /what proves it\s+took effect/.test(prompt),
+    prompt,
+  )
 
   T(`${TOOL}: a ticket with no comments grows no comment section`, !prompt.includes("Comments on"), prompt.slice(0, 200))
 

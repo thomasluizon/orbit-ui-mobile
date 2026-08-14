@@ -125,11 +125,27 @@ logging in to the app. If the ticket says screenshots are required, do not gathe
 worker. A fresh worktree has no seeded session, so the attempt can only fail. Two workers finished
 their tickets correctly and then lost the delivery to exactly this.`
 
+/**
+ * WHY ambiguity is two-tiered, added 2026-08-13. The previous sentence told the worker to "choose
+ * the reading a careful colleague would", which made silent assumptions the instructed behaviour:
+ * a headless worker has no human channel, so a decision belonging to Thomas was guessed and the
+ * guess surfaced only when the pull request existed. NEEDS_DECISION is the worker's half of the
+ * channel; /orchestrate step 7 reads it from the worker log and carries the question to Thomas.
+ */
 const brief = `## Orchestrator's brief
 
 **Objective.** Implement ${ticketReference} in the ${repoKey} repository, and nothing else. The
-ticket above is the specification. Where it is ambiguous, choose the reading a careful colleague
-would and say which you chose in the PR body.
+ticket above is the specification.
+
+**Ambiguity has two tiers, and only one of them is yours.** A mechanical ambiguity (a file name, an
+import shape, where a test lives) you resolve yourself and record in the PR body under
+\`## Assumptions\`, one line per assumption naming the alternative you rejected. A decision that is
+Thomas's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
+the ticket names two contradictory ways; a dependency or capability the ticket presumes that turns
+out not to exist. Hitting one of those, stop: commit and push whatever is already safe and
+coherent, and make the LAST line of your output exactly
+\`NEEDS_DECISION: <one question, with your recommended answer>\`. The orchestrator carries that
+question to Thomas. The question costs a minute; a confidently wrong pull request costs the night.
 
 **Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
 Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.
@@ -197,7 +213,16 @@ A red gate on your own PR description blocks the merge just as hard as a failing
 \`gh pr checks <number>\`. A red required check means the work is not delivered, whatever your own
 test run said, and \`tools/verify-delivery.mjs\` now returns CI_FAILING for it. If a check is red for
 a reason your change caused, fix it and push again. If it is red for an infrastructure reason, say so
-explicitly and name the step that failed rather than reporting a clean run.`
+explicitly and name the step that failed rather than reporting a clean run.
+
+**Your PR body carries two structured sections when they apply, and omits them when empty.**
+\`## Assumptions\`: every reading you chose where the ticket was ambiguous, one line each with the
+rejected alternative, so the orchestrator can put them to Thomas instead of discovering them in
+review. \`## Manual steps\`: every action outside the repository your change needs before it takes
+effect (an environment variable, a dashboard or console setting, a secret, a store listing, a manual
+migration or backfill), each naming the exact key, the exact console or screen, and what proves it
+took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
+does not reach it.`
 
 writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishing}\n`, "utf8")
 console.log(resolve(out))
