@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 
-import { check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "sync-issue-state.mjs"
 const HEAD = "a".repeat(40)
@@ -17,7 +17,9 @@ const issue = (overrides = {}) => ({
   url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
   ...overrides,
 })
-const projectItems = JSON.stringify({ items: [], totalCount: 0 })
+const projectItems = JSON.stringify({
+  data: { repository: { issue: { number: 221, state: "OPEN", projectItems: { nodes: [] } } } },
+})
 
 export const cases = () => {
   // The pull request binding resolves the repository slug from origin, so the fixture needs a real
@@ -48,8 +50,8 @@ export const cases = () => {
   const readPlan = (ticket = issue(), pr = pullRequest()) => [
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "pr view 700 --repo", stdout: JSON.stringify(pr) },
-    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(ticket) },
-    { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+    ...githubIssueReadPlan(ticket),
+    { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221", stdout: projectItems, ticketEnvelope: "issueProjectItems" },
   ]
   const writePlan = (statusMarker, commentMarker, stdinFile) => [
     { match: "project item-edit 2 --owner thomasluizon", stdout: "", ignoreTicketShape: true, removePath: statusMarker },

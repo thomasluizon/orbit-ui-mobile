@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 
-import { T, check, orcaEnv, stage } from "./_harness.mjs"
+import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "complete-ticket.mjs"
 
@@ -19,12 +19,15 @@ const issue = (state = "OPEN", body = "Ticket body", repoLabel = "repo:ui") => J
   url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
 })
 const project = (present = true) => JSON.stringify({
-  items: present ? [{
-    content: { number: 221, repository: "thomasluizon/orbit-tickets", type: "Issue" },
-    id: "PVTI_complete",
-    status: "In Review",
-  }] : [],
-  totalCount: present ? 1 : 0,
+  data: { repository: { issue: {
+    number: 221,
+    state: "OPEN",
+    projectItems: { nodes: present ? [{
+      id: "PVTI_complete",
+      project: { number: 2 },
+      fieldValueByName: { name: "In Review" },
+    }] : [] },
+  } } },
 })
 
 const plan = ({ present = true, state = "OPEN", includeWrites = true, body = "Ticket body", repoLabel = "repo:ui", label = "", commentExit = 0 } = {}) => {
@@ -33,8 +36,8 @@ const plan = ({ present = true, state = "OPEN", includeWrites = true, body = "Ti
   const closeMarker = stage(`complete-ticket/${scope}-close`, "pending")
   const commentCapture = stage(`complete-ticket/${scope}-comment.txt`, "unwritten")
   const entries = [
-    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(state, body, repoLabel) },
-    { match: "project item-list 2 --owner thomasluizon", stdout: project(present) },
+    ...githubIssueReadPlan(issue(state, body, repoLabel)),
+    { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221", stdout: project(present), ticketEnvelope: "issueProjectItems" },
     {
       match: "issue comment 221 --repo thomasluizon/orbit-tickets",
       stdout: "",

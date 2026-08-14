@@ -10,6 +10,23 @@ const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
 const STATE_REASON_FILTER = 'if .stateReason == "" then .stateReason = null else . end'
 const LIST_STATE_REASON_FILTER = `map(${STATE_REASON_FILTER})`
+const ISSUE_PROJECT_ITEMS_QUERY = `query IssueProjectItems($o: String!, $r: String!, $n: Int!) {
+  repository(owner: $o, name: $r) {
+    issue(number: $n) {
+      number
+      state
+      projectItems(first: 5) {
+        nodes {
+          id
+          project { number }
+          fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+        }
+      }
+    }
+  }
+}`
 
 const ticketMap = JSON.parse(readFileSync(new URL("../../.claude/linear-to-github-map.json", import.meta.url), "utf8"))
 if (ticketMap === null || typeof ticketMap !== "object" || Array.isArray(ticketMap) || ticketMap.issues === null || typeof ticketMap.issues !== "object" || Array.isArray(ticketMap.issues)) {
@@ -65,16 +82,16 @@ const parseGhJson = (command, stdout) => {
   }
 }
 
-const issueViewArgs = (number, repository) => [
-  "issue",
-  "view",
-  String(number),
-  "--repo",
-  repository,
-  "--json",
-  ISSUE_FIELDS,
+const REST_ISSUE_FILTER = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
+
+const issueArgs = (number, repository) => ["api", `repos/${repository}/issues/${number}`, "--jq", REST_ISSUE_FILTER]
+
+const issueDependenciesArgs = (number, repository, relation) => [
+  "api",
+  "--paginate",
+  `repos/${repository}/issues/${number}/dependencies/${relation}?per_page=100`,
   "--jq",
-  STATE_REASON_FILTER,
+  "[.[].number]",
 ]
 
 const projectItemsArgs = (tickets) => [
@@ -88,6 +105,12 @@ const projectItemsArgs = (tickets) => [
   "--limit",
   "1000",
 ]
+
+const issueProjectItemsArgs = (number, tickets) => {
+  const [owner, name, ...rest] = tickets.repository.split("/")
+  if (!owner || !name || rest.length > 0) throw new Error(`Ticket repository must be owner/name, got ${JSON.stringify(tickets.repository)}`)
+  return ["api", "graphql", "-F", `o=${owner}`, "-F", `r=${name}`, "-F", `n=${number}`, "-f", `query=${ISSUE_PROJECT_ITEMS_QUERY}`]
+}
 
 const projectItemsByProject = new Map()
 
@@ -107,6 +130,50 @@ const readProjectItems = async (tickets) => {
   } catch (error) {
     if (projectItemsByProject.get(projectKey) === pending) projectItemsByProject.delete(projectKey)
     throw error
+  }
+}
+
+const readIssueProjectItems = async (number, tickets) => {
+  const args = issueProjectItemsArgs(number, tickets)
+  const response = parseGhJson(`gh api graphql for issue #${number}`, await runGh(args))
+  const nodes = response?.data?.repository?.issue?.projectItems?.nodes
+  if (!Array.isArray(nodes)) throw new Error(`gh api graphql returned no projectItems nodes array for issue #${number}`)
+  return nodes
+    .filter((node) => node?.project?.number === tickets.projectNumber)
+    .map((node) => ({
+      content: { number, repository: tickets.repository, type: "Issue" },
+      id: node.id,
+      status: node.fieldValueByName?.name,
+    }))
+}
+
+const readIssueDependencies = async (number, tickets, relation) => {
+  const args = issueDependenciesArgs(number, tickets.repository, relation)
+  const stdout = await runGh(args)
+  const pages = stdout.trim().split(/\r?\n/).filter(Boolean).map((page) => parseGhJson(`gh api issue #${number} ${relation}`, page))
+  if (pages.some((page) => !Array.isArray(page) || page.some((dependencyNumber) => !Number.isInteger(dependencyNumber) || dependencyNumber <= 0))) {
+    throw new Error(`gh api returned invalid paginated ${relation} issue numbers for issue #${number}`)
+  }
+  return pages.flat().map((dependencyNumber) => ({ number: dependencyNumber }))
+}
+
+const readIssue = async (number, tickets) => {
+  const args = issueArgs(number, tickets.repository)
+  const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+  const [blockedBy, blocking] = await Promise.all([
+    readIssueDependencies(number, tickets, "blocked_by"),
+    readIssueDependencies(number, tickets, "blocking"),
+  ])
+  return {
+    number: response?.number,
+    url: response?.html_url,
+    title: response?.title,
+    body: response?.body === null ? "" : response?.body,
+    state: typeof response?.state === "string" ? response.state.toUpperCase() : response?.state,
+    stateReason: typeof response?.state_reason === "string" ? response.state_reason.toUpperCase() : response?.state_reason,
+    labels: response?.labels,
+    blockedBy: { nodes: blockedBy, totalCount: blockedBy.length },
+    blocking: { nodes: blocking, totalCount: blocking.length },
   }
 }
 
@@ -183,10 +250,24 @@ export const readTicket = async (number, { withProjectItem = true } = {}) => {
   positiveIssueNumber(number)
   if (typeof withProjectItem !== "boolean") throw new Error("readTicket withProjectItem must be a boolean")
   const tickets = ticketConfiguration()
-  const args = issueViewArgs(number, tickets.repository)
-  const projectItemsPromise = withProjectItem ? readProjectItems(tickets) : Promise.resolve([])
-  const [issueOutput, projectItems] = await Promise.all([runGh(args), projectItemsPromise])
-  return normalizeTicket(parseGhJson(`gh ${args.join(" ")}`, issueOutput), projectItems, tickets.repository)
+  const issue = await readIssue(number, tickets)
+  const projectItems = withProjectItem ? await readIssueProjectItems(number, tickets) : []
+  return normalizeTicket(issue, projectItems, tickets.repository)
+}
+
+/** Bulk callers share one complete board snapshot while retaining the ordinary issue response. */
+export const readTickets = async (numbers) => {
+  if (!Array.isArray(numbers) || numbers.some((number) => !Number.isInteger(number) || number <= 0)) {
+    throw new Error("readTickets requires an array of positive issue numbers")
+  }
+  if (numbers.length === 0) return []
+  const tickets = ticketConfiguration()
+  const projectItems = await readProjectItems(tickets)
+  const normalized = []
+  for (const number of numbers) {
+    normalized.push(normalizeTicket(await readIssue(number, tickets), projectItems, tickets.repository))
+  }
+  return normalized
 }
 
 const writeStatus = async (number, status, { allowDone = false } = {}) => {

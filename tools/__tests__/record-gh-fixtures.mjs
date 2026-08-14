@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { check, orcaEnv, root, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, root, T } from "./_harness.mjs"
 import { join } from "node:path"
 
 const TOOL = "record-gh-fixtures.mjs"
@@ -27,6 +27,21 @@ export const cases = () => {
     },
     { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issueEnvelope },
     { match: "issue view 2147483647 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
+    {
+      match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221",
+      stdout: JSON.stringify({ data: { repository: { issue: {
+        number: 221,
+        state: "OPEN",
+        projectItems: { nodes: [{ id: "PVTI_harness_item", project: { number: 2 }, fieldValueByName: { name: "In Review" } }] },
+      } } } }),
+      ticketEnvelope: "issueProjectItems",
+    },
+    ...githubIssueReadPlan(issueEnvelope),
+    {
+      match: "api --paginate repos/thomasluizon/orbit-tickets/issues/318/dependencies/blocked_by",
+      stdout: JSON.stringify([61]),
+      ticketEnvelope: "issueDependencyNumbers",
+    },
     { match: "issue list --repo thomasluizon/orbit-tickets", stdout: `[${issueEnvelope}]` },
     {
       match: "project item-list 2 --owner thomasluizon",
@@ -64,6 +79,25 @@ export const cases = () => {
     `${TOOL}: derives the comment paths the worker prompt renders`,
     ["body", "createdAt", "author.login"].every((path) => manifest.commands.issueViewComments.paths[`$.comments[].${path}`]),
     JSON.stringify(manifest.commands.issueViewComments?.paths),
+  )
+  T(
+    `${TOOL}: derives the compact REST issue paths read by the adapter`,
+    ["number", "html_url", "title", "body", "state", "state_reason", "labels[].name"].every(
+      (path) => manifest.commands.restIssue.paths[`$.${path}`],
+    ),
+    JSON.stringify(manifest.commands.restIssue?.paths),
+  )
+  T(
+    `${TOOL}: derives populated REST dependency issue numbers`,
+    Boolean(manifest.commands.issueDependencyNumbers.paths["$[]"]),
+    JSON.stringify(manifest.commands.issueDependencyNumbers?.paths),
+  )
+  T(
+    `${TOOL}: derives the issue-scoped project item paths read by the adapter`,
+    ["id", "project.number", "fieldValueByName.name"].every(
+      (path) => manifest.commands.issueProjectItems.paths[`$.data.repository.issue.projectItems.nodes[].${path}`],
+    ),
+    JSON.stringify(manifest.commands.issueProjectItems?.paths),
   )
   T(
     `${TOOL}: derives the populated project item paths read by the adapter`,

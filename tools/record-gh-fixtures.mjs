@@ -41,6 +41,27 @@ if (!Number.isInteger(sampleNumber)) {
 
 const issueFields = "number,url,title,body,state,stateReason,labels,blockedBy,blocking"
 const stateReasonFilter = 'if .stateReason == "" then .stateReason = null else . end'
+const issueProjectItemsQuery = `query IssueProjectItems($o: String!, $r: String!, $n: Int!) {
+  repository(owner: $o, name: $r) {
+    issue(number: $n) {
+      number
+      state
+      projectItems(first: 5) {
+        nodes {
+          id
+          project { number }
+          fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+        }
+      }
+    }
+  }
+}`
+const restIssueFilter = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
+/** Confirmed live with a populated blocked_by response on 2026-08-14. */
+const dependencySampleNumber = 318
+const [repositoryOwner, repositoryName] = config.repository.split("/")
 const commands = {
   issueView: ["issue", "view", String(sampleNumber), "--repo", config.repository, "--json", issueFields, "--jq", stateReasonFilter],
   issueViewError: ["issue", "view", "2147483647", "--repo", config.repository, "--json", issueFields, "--jq", stateReasonFilter],
@@ -51,6 +72,9 @@ const commands = {
    * manifest whose `$.comments[]` paths silently vanish.
    */
   issueViewComments: ["issue", "view", String(sampleNumber), "--repo", config.repository, "--json", "comments"],
+  issueProjectItems: ["api", "graphql", "-F", `o=${repositoryOwner}`, "-F", `r=${repositoryName}`, "-F", `n=${sampleNumber}`, "-f", `query=${issueProjectItemsQuery}`],
+  restIssue: ["api", `repos/${config.repository}/issues/${sampleNumber}`, "--jq", restIssueFilter],
+  issueDependencyNumbers: ["api", "--paginate", `repos/${config.repository}/issues/${dependencySampleNumber}/dependencies/blocked_by?per_page=100`, "--jq", "[.[].number]"],
   issueList: ["issue", "list", "--repo", config.repository, "--state", "all", "--limit", "1000", "--json", issueFields, "--jq", `map(${stateReasonFilter})`],
   projectItemList: ["project", "item-list", String(config.projectNumber), "--owner", config.projectOwner, "--format", "json", "--limit", "1000"],
   labelList: ["label", "list", "--repo", config.repository, "--limit", "1000", "--json", "name"],
@@ -102,10 +126,22 @@ const record = (name, command) => {
   if (name === "issueViewComments" && (!Array.isArray(value?.comments) || value.comments.length === 0)) {
     throw new Error(`issueViewComments recorded no comments on issue ${sampleNumber}, so the comment paths would be missing rather than proven`)
   }
+  if (name === "issueProjectItems" && !value?.data?.repository?.issue?.projectItems?.nodes?.some(
+    (node) => node?.project?.number === config.projectNumber && typeof node?.id === "string" && typeof node?.fieldValueByName?.name === "string",
+  )) {
+    throw new Error(`issueProjectItems recorded no populated item for project ${config.projectNumber} on issue ${sampleNumber}`)
+  }
+  if (name === "issueDependencyNumbers" && (!Array.isArray(value) || value.length === 0 || value.some((number) => !Number.isInteger(number)))) {
+    throw new Error(`issueDependencyNumbers recorded no populated dependency array on issue ${dependencySampleNumber}`)
+  }
   const paths = {}
   addPaths(paths, value)
   return {
-    command: ["gh", ...command.map((part) => (part === String(sampleNumber) ? "<issue-number>" : part))],
+    command: ["gh", ...command.map((part) => {
+      if (part === String(sampleNumber)) return "<issue-number>"
+      if (part === `n=${sampleNumber}`) return "n=<issue-number>"
+      return part.replace(`/issues/${sampleNumber}`, "/issues/<issue-number>").replace(`/issues/${dependencySampleNumber}`, "/issues/<dependency-sample-number>")
+    })],
     observedExitCode: result.status,
     paths,
   }

@@ -233,6 +233,180 @@
         }
       }
     },
+    "issueProjectItems": {
+      "command": [
+        "gh",
+        "api",
+        "graphql",
+        "-F",
+        "o=thomasluizon",
+        "-F",
+        "r=orbit-tickets",
+        "-F",
+        "n=<issue-number>",
+        "-f",
+        "query=query IssueProjectItems($o: String!, $r: String!, $n: Int!) {\n  repository(owner: $o, name: $r) {\n    issue(number: $n) {\n      number\n      state\n      projectItems(first: 5) {\n        nodes {\n          id\n          project { number }\n          fieldValueByName(name: \"Status\") {\n            ... on ProjectV2ItemFieldSingleSelectValue { name }\n          }\n        }\n      }\n    }\n  }\n}"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue.number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.data.repository.issue.state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.data.repository.issue.projectItems": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[].project": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[].project.number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[].fieldValueByName": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[].fieldValueByName.name": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    },
+    "restIssue": {
+      "command": [
+        "gh",
+        "api",
+        "repos/thomasluizon/orbit-tickets/issues/<issue-number>",
+        "--jq",
+        "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.html_url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.labels": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.state_reason": {
+          "types": [
+            "null",
+            "string"
+          ]
+        },
+        "$.title": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    },
+    "issueDependencyNumbers": {
+      "command": [
+        "gh",
+        "api",
+        "--paginate",
+        "repos/thomasluizon/orbit-tickets/issues/<dependency-sample-number>/dependencies/blocked_by?per_page=100",
+        "--jq",
+        "[.[].number]"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "array"
+          ]
+        },
+        "$[]": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    },
     "issueList": {
       "command": [
         "gh",

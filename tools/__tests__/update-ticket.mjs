@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 
-import { T, check, orcaEnv, stage } from "./_harness.mjs"
+import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "update-ticket.mjs"
 
@@ -36,7 +36,7 @@ const plan = (label) => {
     commentMarker,
     projectReadMarker,
     entries: [
-      { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue() },
+      ...githubIssueReadPlan(issue()),
       { match: "project item-list 2 --owner thomasluizon", stdout: project(), removePath: projectReadMarker },
       { match: "issue edit 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, stdinFile: bodyCapture, removePath: editMarker },
       { match: "issue comment 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, removePath: commentMarker },

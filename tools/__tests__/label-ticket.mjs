@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs"
 
-import { T, check, orcaEnv, stage } from "./_harness.mjs"
+import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "label-ticket.mjs"
 
@@ -56,7 +56,7 @@ export const cases = () => {
       env: orcaEnv([
         { match: "label list --repo thomasluizon/orbit-tickets", stdout: labelList },
         { match: "issue edit 221 --repo thomasluizon/orbit-tickets --add-label needs:conversation", stdout: "", ignoreTicketShape: true, removePath: addReached },
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(["repo:ui", "Improvement", "needs:conversation"]) },
+        ...githubIssueReadPlan(issue(["repo:ui", "Improvement", "needs:conversation"])),
       ]),
     },
   )
@@ -72,7 +72,7 @@ export const cases = () => {
       env: orcaEnv([
         { match: "label list --repo thomasluizon/orbit-tickets", stdout: labelList },
         { match: "issue edit 221 --repo thomasluizon/orbit-tickets --remove-label needs:conversation", stdout: "", ignoreTicketShape: true, removePath: removeReached },
-        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue(["repo:ui", "Improvement"]) },
+        ...githubIssueReadPlan(issue(["repo:ui", "Improvement"])),
       ]),
     },
   )
