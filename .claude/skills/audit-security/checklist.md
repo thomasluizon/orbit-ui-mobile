@@ -123,9 +123,12 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
 - [ ] **A self-harm or crisis disclosure gets a crisis response**: the Astra system
   prompt or a server-side check routes self-harm text to a supportive reply that names
   crisis resources for the user's locale (BR: CVV 188, US: 988), never to a productivity
-  nudge. Companion-chatbot laws mandate the protocol (California SB 243, in force 2026),
-  and Orbit's audience makes it a product duty besides. No handling anywhere in
-  `orbit-api` is **Tier 1**.
+  nudge. This is Orbit's own product-safety bar for its audience, and no handling
+  anywhere in `orbit-api` is **Tier 1** by that policy. Companion-chatbot statutes
+  (California SB 243, in force 2026) are conditional context only: whether Astra is a
+  covered companion chatbot rather than a productivity-only bot is a legal call, and
+  the statute's duty is a published protocol with crisis referral, not this exact
+  implementation — cite it as context, never as the severity basis.
 
 ## G. Error handling & data exposure
 
@@ -193,19 +196,29 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   bucket over user content is **Tier 1**. Account deletion removes the user's storage
   objects along with the rows; content the policy promises to delete but that survives in
   a bucket is **Tier 2**.
-- [ ] **Subscription exit matches entry**: a subscriber cancels inside the app, in no
-  more steps than subscribing took, with no support contact. A cancel path that needs an
-  email is **Tier 2** (FTC negative-option exposure, and Play policy requires it).
-- [ ] **A trial that will charge warns first**: when a payment method is on file, a
-  reminder (email or push) goes out before the auto-charge, and the scheduler and template
-  exist in the repo. Today the trial holds no card, so this item arms when ORB-138 applies
-  the price; a silent auto-charge then is **Tier 2** (full-refund exposure).
+- [ ] **Cancellation is easy online and unobstructed**: a subscriber reaches a working
+  cancel path from the app without contacting support — in-app, or the Play
+  Subscription Center link the app already opens (`apps/mobile/app/upgrade.tsx`,
+  `apps/web/components/upgrade/play-billing-dashboard.tsx`), which is compliant. The
+  finding is obstruction: a dead or hidden path, a forced support email, or friction
+  added to delay the exit (ROSCA demands a simple mechanism; counting steps against
+  signup is not the test). An obstructed or missing path is **Tier 2**.
+- [ ] **Trial-to-paid conversion notice matches the duty that applies**: derive the
+  requirement from the trial length, the user's jurisdiction, and the billing channel
+  before flagging — California's pre-expiry reminder binds free periods over 31 days
+  (Orbit's trial is 7), and Play's duty is upfront conversion disclosure. Where a
+  reminder is due, provider-side delivery counts: a verified Stripe
+  `customer.subscription.trial_will_end` notice is compliant without a repo-owned
+  scheduler or template. Today the trial holds no card; re-derive when ORB-138 applies
+  the price. A charging trial missing a notice its duty demands is **Tier 2**.
 - [ ] **No invented social proof**: no testimonial, review count, star rating, or
-  `aggregateRating` structured data in the app, the landing page, or store-listing copy
-  that does not trace to a real user statement. An invented review is **Tier 1** (the FTC
-  fake-review rule fines per violation). Verified clean 2026-08-13: the landing JSON-LD
-  carries no rating and no testimonials. Re-verify rather than trusting that line —
-  marketing pages change.
+  `aggregateRating` structured data inside the supplied audit roots that does not trace
+  to a real user statement. An invented review is **Tier 1** (the FTC fake-review rule
+  fines per violation). The landing repository and the live Play store listing sit
+  OUTSIDE this audit's roots (`audit.mjs` passes only orbit-ui-mobile and orbit-api):
+  put both in the Deferred ledger every run, never let an empty local grep stand for a
+  clean result on them. Landing JSON-LD verified clean by hand 2026-08-13; that line is
+  a snapshot, not coverage.
 
 ## Tier 3 — out of scope for this audit (acknowledge, don't itemize as findings)
 
