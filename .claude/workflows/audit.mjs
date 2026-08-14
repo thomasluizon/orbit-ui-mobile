@@ -250,7 +250,7 @@ const analyzeQueryShape = (queryShape, columnCount) => {
    * relation, so counting expressions and comparing that count against the ROOT table's column
    * count reads a cross-relation width as the root entity's own. Only a projection whose every
    * column names the root alias is attributable; anything else is unknown rather than wrong. */
-  if (joined && columns.some((column) => column && !column.star && column.qualifier !== root.alias)) {
+  if (joined && !columns.every((column) => column && !column.star && column.qualifier === root.alias)) {
     projectionColumns = null
   }
   if (starColumns.length > 0) {

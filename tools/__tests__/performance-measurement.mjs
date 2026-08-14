@@ -626,6 +626,15 @@ export const cases = async () => {
     commaJoinColumns.fromLib.projectionColumns === null && commaJoinColumns.fromWorkflow.projectionColumns === null,
     JSON.stringify({ lib: commaJoinColumns.fromLib.projectionColumns, workflow: commaJoinColumns.fromWorkflow.projectionColumns }),
   )
+  /** An expression the reader cannot classify at all, such as COALESCE across both relations, is
+   * unattributable for the same reason an unqualified column is. Skipping it preserved a count that
+   * equalled the root table's width and fired full-entity-projection over a join. */
+  const joinedExpression = probe('SELECT COALESCE(h."Id", g."HabitId"), h."Name" FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: an unclassifiable expression over a join is not a root projection width",
+    joinedExpression.fromLib.projectionColumns === null && joinedExpression.fromWorkflow.projectionColumns === null,
+    JSON.stringify({ lib: joinedExpression.fromLib.projectionColumns, workflow: joinedExpression.fromWorkflow.projectionColumns }),
+  )
   /** The FROM-clause bound matters: an ORDER BY list carries top-level commas of its own and must
    * not read as a second source. */
   const orderedRootStar = probe('SELECT h.* FROM "Habits" h ORDER BY h."Name", h."Id"')
