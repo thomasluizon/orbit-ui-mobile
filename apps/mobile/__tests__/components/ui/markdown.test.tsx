@@ -98,6 +98,17 @@ describe('mobile Markdown wrapper', () => {
     expect(defaultStyles.text.color).not.toBe(mutedStyles.text.color)
   })
 
+  it('paints every prose role on the primary fill with the on-primary foreground', () => {
+    const props = renderMarkdown({ children: '# Heading', tone: 'onPrimary' })
+    const styles = props.styles as {
+      text: { color: string }
+      h1: { color: string }
+      link: { color: string }
+    }
+    expect(styles.text.color).toBe(styles.h1.color)
+    expect(styles.link.color).toBe(styles.text.color)
+  })
+
   it('keeps prose shrinkable and maps headings to the shared type roles', () => {
     const props = renderMarkdown({ children: '# Heading' })
     const styles = props.styles as {

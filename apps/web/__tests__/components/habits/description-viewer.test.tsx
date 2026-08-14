@@ -13,14 +13,19 @@ vi.mock('@/components/ui/app-overlay', () => ({
     open,
     title,
     children,
+    onOpenChange,
   }: {
     open: boolean
     title?: string
     children?: ReactNode
+    onOpenChange?: (next: boolean) => void
   }) =>
     open ? (
       <div role="dialog" aria-label={title}>
         <h2>{title}</h2>
+        <button type="button" onClick={() => onOpenChange?.(false)}>
+          close-overlay
+        </button>
         {children}
       </div>
     ) : null,
@@ -150,5 +155,41 @@ describe('DescriptionViewer', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.copyFailed')
     })
     expect(screen.getByLabelText('habits.detail.copyDescription')).toBeInTheDocument()
+  })
+
+  it('clears the copy failure when the viewer closes, so reopening starts clean', async () => {
+    writeText.mockRejectedValue(new Error('denied'))
+    const onOpenChange = vi.fn()
+    const { rerender } = render(
+      <DescriptionViewer
+        open={true}
+        onOpenChange={onOpenChange}
+        title="My Habit"
+        description="Copy me"
+      />,
+    )
+    fireEvent.click(screen.getByLabelText('habits.detail.copyDescription'))
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('close-overlay'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+
+    rerender(
+      <DescriptionViewer
+        open={false}
+        onOpenChange={onOpenChange}
+        title="My Habit"
+        description="Copy me"
+      />,
+    )
+    rerender(
+      <DescriptionViewer
+        open={true}
+        onOpenChange={onOpenChange}
+        title="My Habit"
+        description="Copy me"
+      />,
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
