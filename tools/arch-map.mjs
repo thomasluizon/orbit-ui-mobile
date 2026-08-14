@@ -25,15 +25,19 @@
 //   4. i18nOwnership - keys used by each route's source file, its layout
 //                      chain, and the transitive closure of their repo
 //                      imports, where a re-export edge is followed only for
-//                      the names actually requested and type-only edges are
-//                      skipped; every en.json leaf attributable to no route
-//                      lands in `unowned` (again: the gap is the signal).
-//                      One-level attribution left 1427 of 2332 keys unowned
-//                      because most keys live two or more components deep,
-//                      and a whole-file closure over-attributed through
-//                      barrels (habits.generalHabit landed on 73 of 76
-//                      routes), hiding dead keys (both 2026-08-13). What
-//                      remains unowned is dynamic construction or dead.
+//                      the names actually requested, type-only edges are
+//                      skipped, and inside a file reached by named imports
+//                      only module scope plus the requested exports' spans
+//                      are scanned; every en.json leaf attributable to no
+//                      route lands in `unowned` (again: the gap is the
+//                      signal). One-level attribution left 1427 of 2332 keys
+//                      unowned, a whole-file closure over-attributed through
+//                      barrels (habits.generalHabit on 73 of 76 routes), and
+//                      file-granularity scanning let an unrequested sibling
+//                      export contribute ownership (common.select via
+//                      RadioGlyph) - all three hid or drowned dead keys
+//                      (2026-08-13/14). What remains unowned is dynamic
+//                      construction or dead.
 //   5. testCoverage  - which vitest files touch which top-level module dir,
 //                      plus the dirs no test touches.
 //
@@ -47,7 +51,10 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+/** ARCH_MAP_ROOT is the test seam: the regression cases stage a fixture tree and derive from it. */
+const REPO_ROOT = process.env.ARCH_MAP_ROOT
+  ? resolve(process.env.ARCH_MAP_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const WORKSPACES = ["apps/web", "apps/mobile", "packages/shared"]
 const SOURCE_EXTENSIONS = [".tsx", ".ts"]
 const SKIP_DIRS = new Set(["node_modules", ".next", ".expo", "dist", "coverage", "e2e", "test-mocks"])
@@ -420,14 +427,14 @@ function flattenMessages(node, prefix, out) {
 
 const PLURAL_SUFFIXES = ["_zero", "_one", "_two", "_few", "_many", "_other"]
 
-function keysUsedBy(files, leafKeys) {
+function keysUsedBy(scannables, leafKeys) {
   const used = new Set()
   const resolveKey = (candidate) => {
     if (leafKeys.has(candidate)) used.add(candidate)
     for (const suffix of PLURAL_SUFFIXES) if (leafKeys.has(candidate + suffix)) used.add(candidate + suffix)
   }
-  for (const file of files) {
-    const source = read(file)
+  for (const { file, requested } of scannables) {
+    const source = scanTextFor(file, requested)
     const namespaces = new Set()
     for (const match of source.matchAll(/useTranslations\(\s*['"]([^'"]+)['"]/g)) namespaces.add(match[1])
     for (const match of source.matchAll(/keyPrefix:\s*['"]([^'"]+)['"]/g)) namespaces.add(match[1])
@@ -491,7 +498,9 @@ function importEdgesOf(posixPath) {
 /**
  * Every repo file reachable from the seeds through value imports, following a
  * re-export edge only for the requested names. Type-only edges are skipped:
- * they erase at runtime and can never render a key.
+ * they erase at runtime and can never render a key. Returns file -> "ALL" or
+ * the Set of names requested through it, so attribution can also exclude the
+ * unrequested sibling exports INSIDE a reached file.
  */
 function importClosure(seeds) {
   /** file -> "ALL" once fully expanded, else the Set of names already requested through it */
@@ -523,7 +532,133 @@ function importClosure(seeds) {
       }
     }
   }
-  return [...expanded.keys()].sort(byCode)
+  return expanded
+}
+
+const skipQuoted = (source, index) => {
+  /* bails at a newline so a JSX apostrophe corrupts at most one line, an accepted fidelity bound */
+  const quote = source[index]
+  let cursor = index + 1
+  while (cursor < source.length) {
+    if (source[cursor] === "\\") cursor += 2
+    else if (source[cursor] === quote) return cursor + 1
+    else if (source[cursor] === "\n") return cursor
+    else cursor += 1
+  }
+  return cursor
+}
+
+const skipTemplate = (source, index) => {
+  let cursor = index + 1
+  let interpolationDepth = 0
+  while (cursor < source.length) {
+    if (source[cursor] === "\\") cursor += 2
+    else if (source[cursor] === "$" && source[cursor + 1] === "{") { interpolationDepth += 1; cursor += 2 }
+    else if (source[cursor] === "}" && interpolationDepth > 0) { interpolationDepth -= 1; cursor += 1 }
+    else if (source[cursor] === "`" && interpolationDepth === 0) return cursor + 1
+    else cursor += 1
+  }
+  return cursor
+}
+
+function matchTopLevelDeclaration(rest) {
+  let match
+  if ((match = /^export\s+(?:async\s+)?function\*?\s+(\w+)/.exec(rest))) return { exported: [match[1]], localName: match[1] }
+  if ((match = /^export\s+class\s+(\w+)/.exec(rest))) return { exported: [match[1]], localName: match[1] }
+  if ((match = /^export\s+(?:const|let|var)\s+(\w+)/.exec(rest))) return { exported: [match[1]], localName: match[1] }
+  if (/^export\s+default\b/.test(rest)) return { exported: ["default"], localName: null }
+  if ((match = /^export\s*\{([^}]*)\}(?!\s*from)/.exec(rest))) {
+    const aliases = match[1]
+      .split(",")
+      .map((raw) => raw.replace(/^\s*type\s+/, "").split(/\s+as\s+/).map((part) => part.trim()))
+      .filter((parts) => parts[0])
+      .map((parts) => ({ local: parts[0], exported: parts[1] ?? parts[0] }))
+    return { exported: [], localName: null, aliases }
+  }
+  if (/^export\s+(?:type|interface|abstract)\b/.test(rest)) return { exported: [], localName: null }
+  if ((match = /^(?:async\s+)?function\*?\s+(\w+)/.exec(rest))) return { exported: null, localName: match[1] }
+  if ((match = /^(?:const|let|var)\s+(\w+)/.exec(rest))) return { exported: null, localName: match[1] }
+  if (/^class\s+\w+/.test(rest)) return { exported: null, localName: null }
+  return null
+}
+
+/**
+ * Partition a file at its top-level declaration starts, so ownership can
+ * exclude the spans of unrequested sibling exports. `exported: null` is module
+ * scope (imports, local helpers, top-level constants): always scanned, because
+ * reaching the file evaluates it. A named import owning a sibling export's
+ * keys is the defect this exists to stop: /ai-settings imported RadioGlyph
+ * alone and owned SelectCheck's common.select (2026-08-14).
+ */
+const exportSpanCache = new Map()
+function exportSpansOf(posixPath) {
+  const cached = exportSpanCache.get(posixPath)
+  if (cached) return cached
+  const source = read(posixPath)
+  const starts = []
+  let depth = 0
+  let index = 0
+  let lineStart = true
+  while (index < source.length) {
+    const character = source[index]
+    if (character === "/" && source[index + 1] === "/") {
+      const newline = source.indexOf("\n", index)
+      index = newline === -1 ? source.length : newline
+      continue
+    }
+    if (character === "/" && source[index + 1] === "*") {
+      const end = source.indexOf("*/", index + 2)
+      index = end === -1 ? source.length : end + 2
+      lineStart = false
+      continue
+    }
+    if (character === "'" || character === '"') { index = skipQuoted(source, index); lineStart = false; continue }
+    if (character === "`") { index = skipTemplate(source, index); lineStart = false; continue }
+    if (character === "\n") { lineStart = true; index += 1; continue }
+    if (/\s/.test(character)) { index += 1; continue }
+    if ("{([".includes(character)) { depth += 1; index += 1; lineStart = false; continue }
+    if ("})]".includes(character)) { depth -= 1; index += 1; lineStart = false; continue }
+    if (depth === 0 && lineStart) {
+      const declaration = matchTopLevelDeclaration(source.slice(index))
+      if (declaration) starts.push({ index, ...declaration })
+    }
+    lineStart = false
+    index += 1
+  }
+  const spans = starts.map((start, position) => ({
+    start: start.index,
+    end: position + 1 < starts.length ? starts[position + 1].index : source.length,
+    exported: start.exported,
+    localName: start.localName,
+    aliases: start.aliases,
+  }))
+  /* export { a as b } points the exported name at a's own declaration span */
+  for (const span of spans)
+    if (span.aliases)
+      for (const alias of span.aliases) {
+        const declaration = spans.find((candidate) => candidate.localName === alias.local)
+        if (declaration && declaration.exported !== null) declaration.exported.push(alias.exported)
+        else if (declaration) declaration.exported = [alias.exported]
+      }
+  exportSpanCache.set(posixPath, spans)
+  return spans
+}
+
+/** The scannable text of a file reached with `requested` names: module scope plus the requested exports' spans. */
+function scanTextFor(file, requested) {
+  const source = read(file)
+  if (requested === "ALL") return source
+  const excluded = exportSpansOf(file).filter(
+    (span) => span.exported !== null && !span.exported.some((name) => requested.has(name)),
+  )
+  if (excluded.length === 0) return source
+  let kept = ""
+  let cursor = 0
+  for (const span of excluded) {
+    kept += source.slice(cursor, span.start) + "\n"
+    cursor = span.end
+  }
+  return kept + source.slice(cursor)
 }
 
 function buildI18nOwnership(routes) {
@@ -531,7 +666,10 @@ function buildI18nOwnership(routes) {
   const leafKeys = new Set(flattenMessages(messages, "", []))
   const byRoute = routes.map((route) => {
     const reachable = importClosure([route.sourceFile, ...route.layouts])
-    return { platform: route.platform, routePath: route.routePath, sourceFile: route.sourceFile, keys: keysUsedBy(reachable, leafKeys) }
+    const scannables = [...reachable.entries()]
+      .sort((a, b) => byCode(a[0], b[0]))
+      .map(([file, names]) => ({ file, requested: names === "ALL" ? "ALL" : names }))
+    return { platform: route.platform, routePath: route.routePath, sourceFile: route.sourceFile, keys: keysUsedBy(scannables, leafKeys) }
   })
   const owned = new Set(byRoute.flatMap((route) => route.keys))
   return { byRoute, unowned: [...leafKeys].filter((key) => !owned.has(key)).sort(byCode) }
@@ -666,7 +804,7 @@ function render(d) {
   const depRows = []
   for (const ws of Object.keys(d.dependencies)) for (const edge of d.dependencies[ws]) depRows.push([ws, code(edge.from), "\\u2192", code(edge.to)])
   table("deps", ["workspace", "from", "", "to"], depRows)
-  document.getElementById("unowned-sub").textContent = d.i18nOwnership.unowned.length + " en.json leaf keys not attributable to any route through its source file, layout chain, and transitive imports: each is dynamically constructed or dead."
+  document.getElementById("unowned-sub").textContent = d.i18nOwnership.unowned.length + " en.json leaf keys not attributable to any route through its source file, layout chain, and symbol-filtered transitive imports: each is dynamically constructed or dead."
   for (const key of d.i18nOwnership.unowned) document.getElementById("unowned").appendChild(el("div", null, key))
   for (const dir of d.testCoverage.untested) document.getElementById("untested").appendChild(el("div", null, dir))
 }
