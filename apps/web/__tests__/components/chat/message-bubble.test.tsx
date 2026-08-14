@@ -130,6 +130,16 @@ describe('MessageBubble', () => {
     expect(bubble).toBeInTheDocument()
   })
 
+  it('caps a user bubble while preserving a long unbroken message', () => {
+    const longMessage = 'x'.repeat(400)
+    const { container } = render(
+      <MessageBubble message={makeMessage({ role: 'user', content: longMessage })} />,
+    )
+    const bubble = container.querySelector('[data-bubble-role="user"]')
+    expect(bubble?.className).toContain('md:max-w-[65ch]')
+    expect(screen.getByTestId('markdown')).toHaveTextContent(longMessage)
+  })
+
   it('marks AI messages with bubble role', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'ai' })} />,

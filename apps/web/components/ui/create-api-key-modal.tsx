@@ -19,7 +19,7 @@ const CREATED_KEY_STYLE = {
   fontSize: 13,
   color: 'var(--fg-1)',
   lineHeight: 1.6,
-  wordBreak: 'break-all',
+  overflowWrap: 'anywhere',
   fontVariantNumeric: 'tabular-nums',
 } as const
 

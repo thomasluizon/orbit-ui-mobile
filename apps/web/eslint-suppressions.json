@@ -416,7 +416,7 @@
   },
   "components/chat/message-bubble.tsx": {
     "local/spacing-scale": {
-      "count": 3
+      "count": 2
     }
   },
   "components/chat/pending-operation-card.tsx": {

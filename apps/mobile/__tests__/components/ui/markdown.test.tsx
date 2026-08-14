@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { isValidElement, type ReactElement } from 'react'
+import { Markdown } from '@/components/ui/markdown'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -9,8 +10,6 @@ vi.mock('react-native', () => ({
   Text: 'Text',
 }))
 
-// Capture the props the Markdown wrapper passes into react-native-marked so we
-// can assert theming + exercise the safe-link renderer it provides.
 const markedProps: { current: Record<string, unknown> | null } = { current: null }
 vi.mock('react-native-marked', () => {
   class Renderer {
@@ -27,8 +26,6 @@ vi.mock('react-native-marked', () => {
     Renderer,
   }
 })
-
-import { Markdown } from '@/components/ui/markdown'
 
 interface LinkElement {
   props: { onPress?: () => void }
@@ -82,7 +79,6 @@ describe('mobile Markdown wrapper', () => {
 
     for (const href of ['javascript:alert(1)', 'data:text/html,<script>']) {
       const element = renderer.link(['label'], href)
-      // unsafe links render as plain text with no press handler
       expect(element.props.onPress).toBeUndefined()
     }
     expect(openURL).not.toHaveBeenCalled()
@@ -100,5 +96,35 @@ describe('mobile Markdown wrapper', () => {
     const defaultStyles = defaultProps.styles as { text: { color: string } }
     const mutedStyles = mutedProps.styles as { text: { color: string } }
     expect(defaultStyles.text.color).not.toBe(mutedStyles.text.color)
+  })
+
+  it('paints every prose role on the primary fill with the on-primary foreground', () => {
+    const props = renderMarkdown({ children: '# Heading', tone: 'onPrimary' })
+    const styles = props.styles as {
+      text: { color: string }
+      h1: { color: string }
+      link: { color: string }
+    }
+    expect(styles.text.color).toBe(styles.h1.color)
+    expect(styles.link.color).toBe(styles.text.color)
+  })
+
+  it('keeps prose shrinkable and maps headings to the shared type roles', () => {
+    const props = renderMarkdown({ children: '# Heading' })
+    const styles = props.styles as {
+      text: { flexShrink?: number }
+      link: { flexShrink?: number }
+      h1: { fontSize: number; fontFamily: string }
+      h2: { fontSize: number }
+      h3: { fontSize: number; fontFamily: string }
+    }
+    const flatListProps = props.flatListProps as { style?: { minWidth?: number } }
+
+    expect(styles.text.flexShrink).toBe(1)
+    expect(styles.link.flexShrink).toBe(1)
+    expect(styles.h1).toMatchObject({ fontSize: 28, fontFamily: 'Rubik_500Medium' })
+    expect(styles.h2.fontSize).toBe(22)
+    expect(styles.h3).toMatchObject({ fontSize: 18, fontFamily: 'Rubik_400Regular' })
+    expect(flatListProps.style?.minWidth).toBe(0)
   })
 })

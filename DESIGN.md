@@ -227,6 +227,7 @@ Use the semantic classes (web `.t-*`) / shared role data (`packages/shared/src/t
 ### Measure and wrapping
 
 - **Cap body and prose measure at 45-75 characters, target ~65ch.** A paragraph never spans the full container. This is the strongest single consensus in the harvest and it bites hardest at the desktop breakpoint, where the main column is already capped at ~740px. The mobile 412px shell is naturally inside the band; the web desktop surfaces are where this must be applied explicitly.
+- **Break an unbroken token only when running prose cannot otherwise fit its container.** Paragraphs, links, headings, list items, and inline code use `overflow-wrap: anywhere`; ordinary words keep their existing break points. Fenced code and tables preserve their line structure and scroll horizontally inside their own keyboard-reachable boxes.
 - `text-wrap: balance` on headings, `text-wrap: pretty` on body and description copy. Skip both in long-form. **Never hand-break with `<br>`**: pt-BR rewraps anyway and the break lands mid-phrase.
 - **A display or hero heading never exceeds 2-3 lines.** Test heading copy at every breakpoint in **both** locales. Fix an over-wrapping heading by widening the container and reducing the size, never by accepting the wrap.
 - **Ration eyebrows: at most one per three sections, hero included.** When in doubt drop it; the headline alone carries the section. An eyebrow labels a section, it never enumerates one. Numbered meta-labels ("SECTION 01", "QUESTION 05") are banned outright: delete, do not restyle.

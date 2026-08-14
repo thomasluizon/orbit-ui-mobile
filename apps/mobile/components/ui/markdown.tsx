@@ -20,13 +20,19 @@ interface MarkdownProps {
 interface ProseColors {
   body: string
   heading: string
+  link: string
 }
 
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
-  if (tone === "muted") return { body: tokens.fg3, heading: tokens.fg2 }
+  if (tone === "muted")
+    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.primarySoft }
   if (tone === "onPrimary")
-    return { body: tokens.fgOnPrimary, heading: tokens.fgOnPrimary }
-  return { body: tokens.fg2, heading: tokens.fg1 }
+    return {
+      body: tokens.fgOnPrimary,
+      heading: tokens.fgOnPrimary,
+      link: tokens.fgOnPrimary,
+    }
+  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.primarySoft }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
@@ -64,33 +70,45 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
 }
 
 function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyles {
-  const { body, heading } = colors
+  const { body, heading, link } = colors
   return {
-    text: { color: body, fontFamily: 'Rubik_400Regular', fontSize: 14, lineHeight: 20 },
+    text: {
+      color: body,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      flexShrink: 1,
+    },
     paragraph: { marginVertical: 4 },
     strong: { color: heading, fontFamily: 'Rubik_500Medium' },
     em: { color: body, fontStyle: 'italic' },
-    link: { color: tokens.primary, textDecorationLine: 'underline' },
+    link: { color: link, textDecorationLine: 'underline', flexShrink: 1 },
     h1: {
       color: heading,
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 20,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 28,
       marginVertical: 6,
     },
     h2: {
       color: heading,
       fontFamily: 'Rubik_500Medium',
-      fontSize: 18,
+      fontSize: 22,
       marginVertical: 6,
     },
     h3: {
       color: heading,
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 18,
       marginVertical: 4,
     },
     list: { marginVertical: 4 },
-    li: { color: body, fontFamily: 'Rubik_400Regular', fontSize: 14, lineHeight: 20 },
+    li: {
+      color: body,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      flexShrink: 1,
+    },
     codespan: {
       color: body,
       backgroundColor: tokens.bgElev,
@@ -138,7 +156,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
       theme={{
         colors: {
           text: colors.body,
-          link: tokens.primary,
+          link: colors.link,
           code: colors.body,
           border: tokens.hairline,
         },
@@ -146,7 +164,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
       flatListProps={{
         scrollEnabled: false,
         initialNumToRender: 12,
-        style: { backgroundColor: 'transparent' },
+        style: { backgroundColor: 'transparent', minWidth: 0 },
       }}
     />
   )

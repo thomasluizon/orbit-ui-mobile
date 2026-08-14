@@ -332,6 +332,7 @@ function createStyles(tokens: AppTokens) {
 
     bubbleColumnUser: {
       maxWidth: "82%",
+      minWidth: 0,
       flexDirection: "column",
       alignItems: "flex-end",
     },
@@ -343,6 +344,9 @@ function createStyles(tokens: AppTokens) {
     },
 
     bubble: {
+      maxWidth: "100%",
+      minWidth: 0,
+      flexShrink: 1,
       paddingHorizontal: 15,
       paddingVertical: 12,
     },

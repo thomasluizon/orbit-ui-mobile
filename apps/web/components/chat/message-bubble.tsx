@@ -134,11 +134,11 @@ export function MessageBubble({
           data-bubble-role={isUser ? 'user' : 'ai'}
           className={
             isUser
-              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+              ? 'inline-block max-w-full md:max-w-[65ch] bg-[var(--primary)] text-[var(--fg-on-primary)]'
               : 'inline-block max-w-full md:max-w-[65ch] bg-[var(--bg-elev)] text-[var(--fg-1)]'
           }
           style={{
-            padding: '12px 15px',
+            padding: '12px 16px',
             borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
           }}
         >
