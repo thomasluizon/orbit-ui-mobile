@@ -151,7 +151,7 @@ export function MessageBubble({
               style={{ border: '1px solid var(--hairline)' }}
             />
           )}
-          <Markdown content={stripChatDirectives(message.content)} />
+          <Markdown content={isUser ? message.content : stripChatDirectives(message.content)} />
         </div>
 
         {!isUser && message.habitList && (

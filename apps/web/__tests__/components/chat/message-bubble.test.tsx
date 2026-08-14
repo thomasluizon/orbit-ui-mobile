@@ -272,6 +272,19 @@ describe('MessageBubble', () => {
     expect(markdown.textContent).not.toContain('orbit:habits')
   })
 
+  it('preserves user-authored directive text byte-for-byte', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'user',
+          content: '[[orbit:goals]]',
+        })}
+      />,
+    )
+
+    expect(screen.getByTestId('markdown').textContent).toBe('[[orbit:goals]]')
+  })
+
   it('does not render the habit-list card for user messages', () => {
     const { container } = render(
       <MessageBubble

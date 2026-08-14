@@ -150,7 +150,8 @@ export function buildChatMessageWithFileContent(params: {
 
 const COMPLETE_CHAT_DIRECTIVE = /\[\[orbit:[a-z:]+\]\]/gi
 
-const TRAILING_CHAT_DIRECTIVE = /\n?\[\[orbit:[a-z:]*\]?\]?\s*$/i
+const TRAILING_CHAT_DIRECTIVE =
+  /\n?(?:\[\[(?:o(?:r(?:b(?:i(?:t(?::[a-z:]*\]?\]?)?)?)?)?)?)?|\[)\s*$/i
 
 /**
  * Removes `[[orbit:...]]` directives Astra emits to request rendered cards. The

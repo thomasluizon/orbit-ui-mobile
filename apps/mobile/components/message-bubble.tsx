@@ -139,7 +139,7 @@ export function MessageBubble({
           )}
 
           <Markdown tone={isUser ? "onPrimary" : "default"}>
-            {stripChatDirectives(message.content)}
+            {isUser ? message.content : stripChatDirectives(message.content)}
           </Markdown>
         </View>
 

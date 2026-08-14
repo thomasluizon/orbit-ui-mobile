@@ -101,7 +101,7 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
 describe('MessageBubble trace footer (mobile)', () => {
   it('never renders a trace footer, even when the AI message has a correlationId', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble message={makeMessage({ role: 'ai', correlationId: 'req-abc-123' })} />,
       )
@@ -133,7 +133,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
 
   it('renders deep links for known surfaces and drops unknown ones', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({
@@ -148,7 +148,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
     expect(links).toHaveLength(1)
     expect(findSurfaceLinks(tree.root, 'chat.related.surface.mystery')).toHaveLength(0)
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       links[0]?.props.onPress?.()
     })
     expect(push).toHaveBeenCalledWith('/achievements')
@@ -156,7 +156,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
 
   it('does not render the footer for user messages', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({ role: 'user', relatedSurfaces: ['gamification'] })}
@@ -177,7 +177,7 @@ function collectStrings(root: TestTreeRoot): string[] {
 describe('MessageBubble habit-list card (mobile)', () => {
   it('renders the habit-list card for AI messages with a habitList payload', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({
@@ -204,7 +204,7 @@ describe('MessageBubble habit-list card (mobile)', () => {
 
   it('strips the habit-list directive from rendered content', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({
@@ -221,9 +221,25 @@ describe('MessageBubble habit-list card (mobile)', () => {
     expect(strings.some((value) => value.includes('orbit:habits'))).toBe(false)
   })
 
+  it('preserves user-authored directive text byte-for-byte', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'user',
+            content: '[[orbit:goals]]',
+          })}
+        />,
+      )
+    })
+
+    expect(collectStrings(tree.root)).toContain('[[orbit:goals]]')
+  })
+
   it('does not render the card for user messages', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({
@@ -244,7 +260,7 @@ describe('MessageBubble habit-list card (mobile)', () => {
 describe('MessageBubble goal-list card (mobile)', () => {
   it('renders the goal-list card for AI messages with a goalList payload', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({
@@ -270,7 +286,7 @@ describe('MessageBubble goal-list card (mobile)', () => {
 
   it('does not render the card for user messages', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <MessageBubble
           message={makeMessage({
