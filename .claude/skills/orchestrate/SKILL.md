@@ -250,9 +250,10 @@ user. So the same directory layout means opposite things for the two kinds.
 This gate exists because ORB-115, ORB-111 and ORB-118 all closed as Done with their work undone,
 invisibly, on a shadowed skill.
 
-Expected state: `~/.claude/skills/` holds exactly 12 dirs (`brain`, `brain-agenda`, `brain-capture`,
-`brain-decide`, `brain-review`, `catch-up`, `humanize`, `i-have-adhd`, `message`, `grilling`, `tdd`,
-`diagnosing-bugs`) and none of them may also exist under `.claude/skills/`.
+Expected state: `~/.claude/skills/` holds exactly 16 dirs (`brain`, `brain-agenda`, `brain-capture`,
+`brain-decide`, `brain-review`, `computer-use`, `diagnosing-bugs`, `find-skills`,
+`g-best-implementation`, `g-deep-research`, `g-simplify`, `g-video`, `grilling`, `orca-cli`,
+`orchestration`, `tdd`) and none of them may also exist under `.claude/skills/`.
 
 ## Step 1. Plan the queue
 
