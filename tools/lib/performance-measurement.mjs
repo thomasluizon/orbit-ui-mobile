@@ -3,6 +3,11 @@ const DEFAULT_BACKGROUND_BUDGET_BYTES = 50 * 1024 * 1024
 const DEFAULT_LARGE_TABLE_FRACTION = 0.25
 const EXECUTION_CONTEXTS = new Set(["request", "background"])
 const CONTEXT_SIGNAL_KINDS = new Set(["unbounded-user-list", "background-sweep-budget"])
+const OUTER_CLAUSE_KEYWORDS = new Set([
+  "cross", "except", "fetch", "for", "full", "group", "having", "inner", "intersect", "join",
+  "left", "limit", "offset", "order", "right", "union", "where", "window",
+])
+const isKeyword = (token, keyword) => token?.type === "identifier" && token.quoted !== true && token.lower === keyword
 
 const positiveNumber = (value, field) => {
   if (!Number.isFinite(value) || value <= 0) throw new Error(`${field} must be a positive number`)
@@ -14,103 +19,261 @@ const nonNegativeNumber = (value, field) => {
   return value
 }
 
-/**
- * How many columns a SELECT list actually projects.
- *
- * `select.split(",").length` was wrong in both directions and each error pushed the same way, so a
- * badly written query scored better than a careful one:
- *   `select *`                     counted 1 column, then never matched full-entity-projection
- *   `select coalesce(a, b), c`     counted 3 columns for 2, then matched it spuriously
- *
- * A star projects the whole row, so it resolves to the table's column count when that is known and
- * to null when it is not. Null means "unknown", never "one", and every caller treats it that way.
- */
-/** Everything outside a parenthesis is the OUTER query. A subquery cannot speak for it. */
-const outerQueryOnly = (queryShape) => {
-  let depth = 0
-  let outer = ""
-  for (const character of queryShape) {
-    if (character === "(") { depth += 1; continue }
-    if (character === ")") { if (depth > 0) depth -= 1; continue }
-    if (depth === 0) outer += character
-  }
-  return outer
-}
+const unknownSql = (reason) => ({
+  status: "unknown",
+  reason,
+  projectionColumns: null,
+  projectsRootWholeRow: null,
+  bounded: null,
+  userScoped: null,
+})
 
-const selectedExpressions = (queryShape) => {
-  const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(queryShape)?.[1]
-  if (!select) return null
-  const list = select.replace(/^\s*(?:distinct\s+on\s*\([\s\S]*?\)|distinct|all)\s+/i, "").trim()
-  if (list === "") return null
-  let depth = 0
-  let current = ""
-  const parts = []
-  for (const character of list) {
-    if (character === "(") depth++
-    else if (character === ")") depth--
-    if (character === "," && depth === 0) {
-      parts.push(current)
-      current = ""
+const readQuoted = (sql, start, quote) => {
+  let value = ""
+  for (let index = start + 1; index < sql.length; index++) {
+    if (sql[index] !== quote) {
+      value += sql[index]
       continue
     }
-    current += character
+    if (sql[index + 1] === quote) {
+      value += quote
+      index++
+      continue
+    }
+    return { end: index + 1, value }
   }
-  parts.push(current)
-  const columns = parts.map((part) => part.trim()).filter(Boolean)
-  return columns.length === 0 ? null : columns
+  return null
 }
 
-const rootAliasOf = (queryShape) =>
-  /\bfrom\s+"?[\w.]+"?\s+(?:as\s+)?"?([A-Za-z_]\w*)"?/i.exec(outerQueryOnly(queryShape))?.[1]?.toLowerCase() ?? null
+/** A small PostgreSQL lexer. Unsupported or malformed input returns a reason instead of a guess. */
+const tokenizeSql = (sql) => {
+  const tokens = []
+  for (let index = 0; index < sql.length;) {
+    const character = sql[index]
+    if (/\s/.test(character)) { index++; continue }
+    if (character === "-" && sql[index + 1] === "-") {
+      const lineEnd = sql.indexOf("\n", index + 2)
+      index = lineEnd < 0 ? sql.length : lineEnd + 1
+      continue
+    }
+    if (character === "/" && sql[index + 1] === "*") {
+      const commentEnd = sql.indexOf("*/", index + 2)
+      if (commentEnd < 0) return { reason: "unterminated block comment" }
+      index = commentEnd + 2
+      continue
+    }
+    if (character === "\"") {
+      const quoted = readQuoted(sql, index, "\"")
+      if (!quoted) return { reason: "unterminated quoted identifier" }
+      tokens.push({ type: "identifier", value: quoted.value, lower: quoted.value.toLowerCase(), quoted: true })
+      index = quoted.end
+      continue
+    }
+    if (character === "'") {
+      const quoted = readQuoted(sql, index, "'")
+      if (!quoted) return { reason: "unterminated string literal" }
+      tokens.push({ type: "literal", value: quoted.value })
+      index = quoted.end
+      continue
+    }
+    const parameter = /^\$\d+/.exec(sql.slice(index))?.[0]
+    if (parameter) {
+      tokens.push({ type: "parameter", value: parameter })
+      index += parameter.length
+      continue
+    }
+    const word = /^[A-Za-z_][A-Za-z_0-9$]*/.exec(sql.slice(index))?.[0]
+    if (word) {
+      tokens.push({ type: "identifier", value: word, lower: word.toLowerCase(), quoted: false })
+      index += word.length
+      continue
+    }
+    const number = /^\d+(?:\.\d+)?/.exec(sql.slice(index))?.[0]
+    if (number) {
+      tokens.push({ type: "literal", value: number })
+      index += number.length
+      continue
+    }
+    if ("(),.*;".includes(character)) {
+      tokens.push({ type: "punctuation", value: character })
+      index++
+      continue
+    }
+    if ("=<>!+-/%:^|&~?[]".includes(character)) {
+      tokens.push({ type: "operator", value: character })
+      index++
+      continue
+    }
+    return { reason: `unsupported SQL character at offset ${index}` }
+  }
+  return { tokens }
+}
+
+const topLevelDepths = (tokens) => {
+  const depths = []
+  let depth = 0
+  for (const token of tokens) {
+    depths.push(depth)
+    if (token.value === "(") depth++
+    if (token.value === ")") {
+      depth--
+      if (depth < 0) return null
+    }
+  }
+  return depth === 0 ? depths : null
+}
+
+const splitProjection = (tokens, depths, start, end) => {
+  const expressions = []
+  let expressionStart = start
+  for (let index = start; index < end; index++) {
+    if (depths[index] === 0 && tokens[index].value === ",") {
+      if (index === expressionStart) return null
+      expressions.push(tokens.slice(expressionStart, index))
+      expressionStart = index + 1
+    }
+  }
+  if (expressionStart === end) return null
+  expressions.push(tokens.slice(expressionStart, end))
+  return expressions
+}
+
+const directColumn = (expression) => {
+  const asIndex = expression.findIndex((token) => isKeyword(token, "as"))
+  const value = asIndex < 0 ? expression : expression.slice(0, asIndex)
+  if (value.length === 1 && value[0].type === "identifier") {
+    return { qualifier: null, column: value[0].lower, star: false }
+  }
+  if (
+    value.length === 3
+    && value[0].type === "identifier"
+    && value[1].value === "."
+    && (value[2].type === "identifier" || value[2].value === "*")
+  ) {
+    return { qualifier: value[0].lower, column: value[2].lower ?? value[2].value, star: value[2].value === "*" }
+  }
+  if (value.length === 1 && value[0].value === "*") return { qualifier: null, column: "*", star: true }
+  return null
+}
+
+const skipSelectModifier = (tokens, depths, start, end) => {
+  if (isKeyword(tokens[start], "all")) return start + 1
+  if (!isKeyword(tokens[start], "distinct")) return start
+  if (!isKeyword(tokens[start + 1], "on")) return start + 1
+  if (tokens[start + 2]?.value !== "(") return null
+  for (let index = start + 3; index < end; index++) {
+    if (tokens[index].value === ")" && depths[index] === 1) return index + 1
+  }
+  return null
+}
+
+/** PostgreSQL accepts comma-separated FROM items, which join exactly like an explicit JOIN. Bounding
+ * the scan to the FROM clause keeps a GROUP BY or ORDER BY list from reading as a second source. */
+const hasCommaJoin = (tokens, depths, fromIndex) => {
+  for (let index = fromIndex + 1; index < tokens.length; index++) {
+    if (depths[index] !== 0) continue
+    if (tokens[index].type === "identifier" && !tokens[index].quoted && OUTER_CLAUSE_KEYWORDS.has(tokens[index].lower)) return false
+    if (tokens[index].value === ",") return true
+  }
+  return false
+}
+
+const rootSource = (tokens, depths, fromIndex) => {
+  let index = fromIndex + 1
+  if (tokens[index]?.type !== "identifier") return null
+  const names = [tokens[index].lower]
+  index++
+  while (tokens[index]?.value === "." && tokens[index + 1]?.type === "identifier") {
+    names.push(tokens[index + 1].lower)
+    index += 2
+  }
+  let alias = names.at(-1)
+  if (isKeyword(tokens[index], "as")) {
+    if (tokens[index + 1]?.type !== "identifier") return null
+    alias = tokens[index + 1].lower
+  } else if (
+    tokens[index]?.type === "identifier"
+    && depths[index] === 0
+    && (tokens[index].quoted || !OUTER_CLAUSE_KEYWORDS.has(tokens[index].lower))
+  ) {
+    alias = tokens[index].lower
+  }
+  return { alias }
+}
 
 /**
- * Provably the ROOT table's whole row, which is the only projection `bytesPerRow` actually measures.
- *
- * `projectionColumns >= columnCount` was an inference, not a proof: `SELECT h.*, g.*` counts more
- * expressions than `Habits` has columns while `bytesPerRow` still measures only `h`, so the egress
- * came out substantially understated and could suppress the background-budget signal. So the test is
- * now structural: exactly ONE selected expression, and it is that root table's star.
+ * Reads only the SELECT facts the performance audit needs. A shape outside this conservative
+ * grammar reports unknown; callers never reinterpret unknown as zero, false, or one column.
  */
-const projectsRootWholeRow = (queryShape, columnCount) => {
-  const columns = selectedExpressions(queryShape)
-  if (!columns) return false
-  const alias = rootAliasOf(queryShape)
-  const joined = /\bjoin\b/i.test(outerQueryOnly(queryShape))
-  const qualifierOf = (expression) => /^"?([A-Za-z_]\w*)"?\s*\.\s*(?:"[^"]+"|\*|\w+)$/.exec(expression)?.[1]?.toLowerCase() ?? null
-  /** Every expression must come from the ROOT table, because that is all `bytesPerRow` measures. */
-  const isRootScoped = (expression) => {
-    const qualifier = qualifierOf(expression)
-    if (qualifier != null) return alias != null && qualifier === alias
-    /** Unqualified only resolves to the root when there is nothing else it could come from. */
-    return !joined
+export const analyzeQueryShape = (queryShape, columnCount) => {
+  const lexed = tokenizeSql(queryShape)
+  if (!lexed.tokens) return unknownSql(lexed.reason)
+  const tokens = lexed.tokens
+  while (tokens.at(-1)?.value === ";") tokens.pop()
+  if (tokens.some((token) => token.value === ";")) return unknownSql("multiple SQL statements are unsupported")
+  const depths = topLevelDepths(tokens)
+  if (!depths) return unknownSql("unbalanced parentheses")
+  if (!isKeyword(tokens[0], "select")) return unknownSql("only a top-level SELECT statement is supported")
+
+  const fromIndex = tokens.findIndex((token, index) => index > 0 && depths[index] === 0 && isKeyword(token, "from"))
+  if (fromIndex < 0) return unknownSql("top-level SELECT has no FROM clause")
+  if (tokens.some((token, index) => depths[index] === 0 && ["union", "intersect", "except"].some((keyword) => isKeyword(token, keyword)))) {
+    return unknownSql("set operations are unsupported")
   }
-  if (!columns.every(isRootScoped)) return false
-  const isStar = (expression) => expression === "*" || /(?:^|\.)\*$/.test(expression)
-  if (columns.length === 1 && isStar(columns[0])) return true
-  if (columns.some(isStar)) return false
-  /** An explicit enumeration is the whole row when it covers every column, which is how the real
-   * unpaginated habit list appears in `pg_stat_statements`: 29 named columns, not `h.*`. */
-  return Number.isFinite(columnCount) && columnCount > 0 && columns.length >= columnCount
-}
+  const projectionStart = skipSelectModifier(tokens, depths, 1, fromIndex)
+  if (projectionStart == null || projectionStart >= fromIndex) return unknownSql("SELECT modifier is incomplete")
+  const expressions = splitProjection(tokens, depths, projectionStart, fromIndex)
+  if (!expressions) return unknownSql("SELECT list is incomplete")
+  const root = rootSource(tokens, depths, fromIndex)
+  if (!root) return unknownSql("root FROM source is unsupported")
 
-const selectedColumnCount = (queryShape, columnCount) => {
-  const columns = selectedExpressions(queryShape)
-  if (!columns) return null
-  /** A bare or qualified star expands to every column, so the width is the table's, not one. */
-  if (columns.some((column) => column === "*" || /(?:^|\.)\*$/.test(column))) {
-    return Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
+  const joined = tokens.some((token, index) => depths[index] === 0 && isKeyword(token, "join"))
+    || hasCommaJoin(tokens, depths, fromIndex)
+  const columns = expressions.map(directColumn)
+  const starColumns = columns.filter((column) => column?.star)
+  const knownColumnCount = Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
+  let projectionColumns = expressions.length
+  if (expressions.length > (knownColumnCount ?? Number.POSITIVE_INFINITY)) projectionColumns = null
+  /** Over any join, comma-separated or explicit, a projected expression may belong to another
+   * relation, so counting expressions and comparing that count against the ROOT table's column
+   * count reads a cross-relation width as the root entity's own. Only a projection whose every
+   * column names the root alias is attributable; anything else is unknown rather than wrong. */
+  if (joined && !columns.every((column) => column && !column.star && column.qualifier === root.alias)) {
+    projectionColumns = null
   }
-  return columns.length
+  if (starColumns.length > 0) {
+    const onlyStar = expressions.length === 1 ? starColumns[0] : null
+    const rootStar = onlyStar && (onlyStar.qualifier === root.alias || (!joined && onlyStar.qualifier == null))
+    projectionColumns = rootStar ? knownColumnCount : null
+  }
+
+  const rootColumns = columns.filter((column) => column && !column.star && (
+    column.qualifier === root.alias || (!joined && column.qualifier == null)
+  ))
+  const uniqueRootColumns = new Set(rootColumns.map((column) => column.column))
+  const explicitWholeRow = knownColumnCount != null
+    && rootColumns.length === expressions.length
+    && uniqueRootColumns.size === knownColumnCount
+    && rootColumns.length === knownColumnCount
+  const onlyStar = expressions.length === 1 ? starColumns[0] : null
+  const starWholeRow = Boolean(knownColumnCount && onlyStar && (
+    onlyStar.qualifier === root.alias || (!joined && onlyStar.qualifier == null)
+  ))
+  const outerWords = tokens.filter((token, index) => depths[index] === 0 && token.type === "identifier")
+
+  return {
+    status: "parsed",
+    reason: null,
+    projectionColumns,
+    projectsRootWholeRow: starWholeRow || explicitWholeRow,
+    bounded: outerWords.some((token, index) => (
+      isKeyword(token, "limit") && !isKeyword(outerWords[index + 1], "all")
+    ) || (
+      isKeyword(token, "fetch") && ["first", "next"].some((keyword) => isKeyword(outerWords[index + 1], keyword))
+    )),
+    userScoped: tokens.some((token) => token.type === "identifier" && token.lower === "userid"),
+  }
 }
-
-/**
- * Only a TOP-LEVEL row limit bounds the statement. A scalar or correlated subquery carrying
- * `LIMIT 1` used to mark the whole query bounded, which suppressed `unbounded-user-list`, the
- * principal signal this audit exists to raise, on exactly the shape it is meant to catch.
- */
-const isBoundedQuery = (queryShape) => /\b(?:limit|fetch\s+(?:first|next))\b/i.test(outerQueryOnly(queryShape))
-
-const isUserScopedQuery = (queryShape) => /[".]UserId\b/i.test(queryShape)
 
 const normalizeTableStats = (tableStats) => (tableStats ?? []).map((entry, index) => ({
   table: String(entry.table || ""),
@@ -137,10 +300,11 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
   const intervalSeconds = windowDays * 86400 / calls
   const rootTable = String(entry.rootTable || "")
   const table = tableByName.get(rootTable)
+  const queryAnalysis = analyzeQueryShape(queryShape, table?.columnCount)
   /** Dividing by an empty table's 0 rows is Infinity, which would fire large-table-fraction on every
    * query against it. An empty table has no meaningful fraction, so the metric is unknown. */
   const tableFraction = table && table.liveRows > 0 ? rowsPerCall / table.liveRows : null
-  const projectionColumns = selectedColumnCount(queryShape, table?.columnCount)
+  const projectionColumns = queryAnalysis.projectionColumns
   /**
    * Egress is what the query SENDS, which is its projection, not the width of the table row.
    * `bytesPerRow` comes from pg_stats and describes the whole row, so charging every query the full
@@ -162,16 +326,17 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
    * number nobody can defend. `unbounded-user-list`, the principal signal, reads `bounded` and is
    * unaffected either way.
    */
-  const projectedBytesPerRow = bytesPerRow == null || !projectsRootWholeRow(queryShape, table?.columnCount) ? null : bytesPerRow
+  const projectedBytesPerRow = bytesPerRow == null || queryAnalysis.projectsRootWholeRow !== true ? null : bytesPerRow
   const monthlyEgressBytes = projectedBytesPerRow == null ? null : rows / windowDays * DAYS_PER_MONTH * projectedBytesPerRow
-  const userScoped = isUserScopedQuery(queryShape)
-  const bounded = isBoundedQuery(queryShape)
   const signals = []
 
-  if (table?.columnCount && projectionColumns != null && projectionColumns >= table.columnCount) {
+  /** full-entity-projection fails closed: an unknown projection emits no signal. */
+  if (queryAnalysis.status === "parsed" && table?.columnCount && projectionColumns === table.columnCount) {
     signals.push("full-entity-projection")
   }
-  if (tableFraction != null && tableFraction >= thresholds.largeTableFraction) {
+  /** large-table-fraction also fails closed. Without a parsed root SELECT, the supplied root table
+   * cannot be tied to the SQL strongly enough to raise a finding from its row count. */
+  if (queryAnalysis.status === "parsed" && tableFraction != null && tableFraction >= thresholds.largeTableFraction) {
     signals.push("large-table-fraction")
   }
 
@@ -190,13 +355,15 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
     intervalSeconds,
     tableFraction,
     projectionColumns,
-    bounded,
-    userScoped,
+    queryShapeStatus: queryAnalysis.status,
+    queryShapeReason: queryAnalysis.reason,
+    bounded: queryAnalysis.bounded,
+    userScoped: queryAnalysis.userScoped,
     signals,
   }
 }
 
-const unavailable = (reason) => ({
+const unavailablePerformanceMeasurement = (reason) => ({
   status: "unavailable",
   verdict: "CODE_ONLY",
   reason,
@@ -211,7 +378,7 @@ const unavailable = (reason) => ({
 
 export function resolvePerformanceMeasurement(input, options = {}) {
   if (!input || input.status !== "available") {
-    return unavailable(String(input?.reason || "production measurement was not supplied"))
+    return unavailablePerformanceMeasurement(String(input?.reason || "production measurement was not supplied"))
   }
 
   try {
@@ -258,7 +425,7 @@ export function resolvePerformanceMeasurement(input, options = {}) {
       signals,
     }
   } catch (error) {
-    return unavailable(`production measurement was invalid: ${error instanceof Error ? error.message : String(error)}`)
+    return unavailablePerformanceMeasurement(`production measurement was invalid: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -342,7 +509,10 @@ export function applyMeasuredQueryContexts(measurement, mappings) {
       return query
     }
     const signals = query.signals.filter((kind) => !CONTEXT_SIGNAL_KINDS.has(kind))
-    if (mapping.executionContext === "request" && !query.bounded) signals.push("unbounded-user-list")
+    /** unbounded-user-list fails closed: unknown boundedness is not treated as unbounded. */
+    if (mapping.executionContext === "request" && query.bounded === false) signals.push("unbounded-user-list")
+    /** background-sweep-budget fails closed: unreadable or non-whole-row projections have null
+     * egress, so they cannot cross the budget on an invented number. */
     if (
       mapping.executionContext === "background"
       && query.monthlyEgressBytes != null
@@ -406,6 +576,7 @@ const MEASURED_METRIC_KEYS = ["calls", "rowsPerCall", "bytesPerRow", "callsPerMo
  *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
  */
 export function attachPerformanceMetrics(findings, measurement) {
+  if (!measurement) return findings
   /**
    * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
    * nothing to overwrite an agent's numbers with, and the skeptic prompt reads any finding carrying
