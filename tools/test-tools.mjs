@@ -71,6 +71,7 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
  */
 const CASE_MODULES = [
   ["android-emulator.mjs", "android-emulator"],
+  ["arch-map.mjs", "arch-map"],
   ["capture-surfaces.mjs", "capture-surfaces"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-push-target.mjs", "check-push-target"],

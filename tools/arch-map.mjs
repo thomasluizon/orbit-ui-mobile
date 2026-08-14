@@ -12,15 +12,32 @@
 //                      each with method (only when exactly one explicit
 //                      `method:` appears at its callsites - fetch-default GET
 //                      is NOT inferred, null is emitted instead of a guess),
-//                      the web action files and mobile callsites referencing
-//                      it, and the shared Zod types files those callsites
-//                      import. Mobile callsites exclude __tests__ - tests are
-//                      section 5's axis, not a consumer.
+//                      the web and mobile callsites referencing it, and the
+//                      shared Zod types files those callsites import. Web
+//                      scans the whole app (hooks, server components, the
+//                      sanctioned BFF handlers), not only app/actions - reads
+//                      never go through actions, so an actions-only scan
+//                      mislabeled 39 shared endpoints mobile-only
+//                      (2026-08-13). Both platforms exclude __tests__ -
+//                      tests are section 5's axis, not a consumer.
 //   3. dependencies  - directory-level import edges per workspace, including
 //                      cross-package edges into @orbit/shared.
-//   4. i18nOwnership - keys used by each route's source file + its one-level
-//                      imports; every en.json leaf attributable to no route
-//                      lands in `unowned` (again: the gap is the signal).
+//   4. i18nOwnership - keys used by each route's source file, its layout
+//                      chain, and the transitive closure of their repo
+//                      imports, where a re-export edge is followed only for
+//                      the names actually requested, type-only edges are
+//                      skipped, and inside a file reached by named imports
+//                      only module scope plus the requested exports' spans
+//                      are scanned; every en.json leaf attributable to no
+//                      route lands in `unowned` (again: the gap is the
+//                      signal). One-level attribution left 1427 of 2332 keys
+//                      unowned, a whole-file closure over-attributed through
+//                      barrels (habits.generalHabit on 73 of 76 routes), and
+//                      file-granularity scanning let an unrequested sibling
+//                      export contribute ownership (common.select via
+//                      RadioGlyph) - all three hid or drowned dead keys
+//                      (2026-08-13/14). What remains unowned is dynamic
+//                      construction or dead.
 //   5. testCoverage  - which vitest files touch which top-level module dir,
 //                      plus the dirs no test touches.
 //
@@ -34,7 +51,10 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+/** ARCH_MAP_ROOT is the test seam: the regression cases stage a fixture tree and derive from it. */
+const REPO_ROOT = process.env.ARCH_MAP_ROOT
+  ? resolve(process.env.ARCH_MAP_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const WORKSPACES = ["apps/web", "apps/mobile", "packages/shared"]
 const SOURCE_EXTENSIONS = [".tsx", ".ts"]
 const SKIP_DIRS = new Set(["node_modules", ".next", ".expo", "dist", "coverage", "e2e", "test-mocks"])
@@ -47,6 +67,10 @@ const HTTP_METHOD = /method:\s*['"](GET|POST|PUT|PATCH|DELETE)['"]/
 //   (onboarding)/index - mobile mounts onboarding as its own group root
 //                        (href "/", colliding with (tabs)/index) while web
 //                        serves the same screen at /onboarding.
+// NOT an alias: web /u/[slug] (the public VIEW page) has no mobile mirror on
+// purpose - a shared profile link opens in the browser. Mobile
+// public-profile.tsx is the SETTINGS screen and pairs by name with web
+// /public-profile; aliasing it to /u/[slug] mispairs both (proven 2026-08-13).
 const MOBILE_ROUTE_ALIASES = new Map([["(onboarding)/index", "/onboarding"]])
 
 const USAGE = `arch-map - derive architecture.json + architecture.html at the repo root.
@@ -320,18 +344,17 @@ function sharedNamedImports(posixPath) {
 
 function buildEndpoints() {
   const endpoints = parseEndpointTree()
-  const webActionFiles = sourceFilesOf("apps/web").filter((path) => path.startsWith("apps/web/app/actions/"))
-  const mobileFiles = sourceFilesOf("apps/mobile").filter(
-    (path) => !TEST_FILE.test(path) && !path.includes("/__tests__/"),
-  )
+  const notTest = (path) => !TEST_FILE.test(path) && !path.includes("/__tests__/")
+  const webFiles = sourceFilesOf("apps/web").filter(notTest)
+  const mobileFiles = sourceFilesOf("apps/mobile").filter(notTest)
   const exportMap = typesExportMap()
 
   return endpoints.map(({ name, path }) => {
     const reference = new RegExp(`\\bAPI\\.${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
     const referenceAll = new RegExp(reference.source, "g")
-    const webActions = webActionFiles.filter((file) => reference.test(read(file)))
+    const webCallsites = webFiles.filter((file) => reference.test(read(file)))
     const mobileCallsites = mobileFiles.filter((file) => reference.test(read(file)))
-    const callsites = [...webActions, ...mobileCallsites]
+    const callsites = [...webCallsites, ...mobileCallsites]
 
     const methods = new Set()
     for (const file of callsites) {
@@ -355,7 +378,7 @@ function buildEndpoints() {
       name,
       method: methods.size === 1 ? [...methods][0] : null,
       path,
-      usedBy: { webActions, mobileCallsites },
+      usedBy: { webCallsites, mobileCallsites },
       zodSchemas: callsites.length === 0 ? null : [...schemas].sort(byCode),
     }
   })
@@ -404,14 +427,14 @@ function flattenMessages(node, prefix, out) {
 
 const PLURAL_SUFFIXES = ["_zero", "_one", "_two", "_few", "_many", "_other"]
 
-function keysUsedBy(files, leafKeys) {
+function keysUsedBy(scannables, leafKeys) {
   const used = new Set()
   const resolveKey = (candidate) => {
     if (leafKeys.has(candidate)) used.add(candidate)
     for (const suffix of PLURAL_SUFFIXES) if (leafKeys.has(candidate + suffix)) used.add(candidate + suffix)
   }
-  for (const file of files) {
-    const source = read(file)
+  for (const { file, requested } of scannables) {
+    const source = scanTextFor(file, requested)
     const namespaces = new Set()
     for (const match of source.matchAll(/useTranslations\(\s*['"]([^'"]+)['"]/g)) namespaces.add(match[1])
     for (const match of source.matchAll(/keyPrefix:\s*['"]([^'"]+)['"]/g)) namespaces.add(match[1])
@@ -423,12 +446,230 @@ function keysUsedBy(files, leafKeys) {
   return [...used].sort(byCode)
 }
 
+const FROM_STATEMENT = /(?:^|\n)\s*(import|export)\s+([^;'"]*?)\s*from\s*['"]([^'"]+)['"]/g
+const DYNAMIC_IMPORT = /import\s*\(\s*['"]([^'"]+)['"]\s*\)|require\(\s*['"]([^'"]+)['"]\s*\)/g
+
+/**
+ * Import edges with the SYMBOLS each edge carries, so the ownership closure can
+ * traverse a barrel's re-exports only for the names actually requested. A
+ * whole-file closure attributed habits.generalHabit to 73 of 76 routes through
+ * barrel edges nobody imported, hiding dead keys from the sweep (2026-08-13).
+ * `names`/`exported` null means "all" (default, namespace, export *, dynamic).
+ */
+const importEdgeDetailCache = new Map()
+function importEdgesOf(posixPath) {
+  const cached = importEdgeDetailCache.get(posixPath)
+  if (cached) return cached
+  const edges = []
+  const source = read(posixPath)
+  for (const match of source.matchAll(FROM_STATEMENT)) {
+    const [, keyword, clause, specifier] = match
+    const target = resolveSpecifier(specifier, posixPath)
+    if (!target) continue
+    if (/^type\s/.test(clause.trim())) continue
+    const braced = clause.match(/\{([^}]*)\}/)
+    const outsideBraces = clause.replace(/\{[^}]*\}/, "").replace(/,/g, "").trim()
+    const named = []
+    if (braced)
+      for (const raw of braced[1].split(",")) {
+        if (/^\s*type\s/.test(raw)) continue
+        const parts = raw.split(/\s+as\s+/).map((part) => part.trim())
+        if (parts[0]) named.push(keyword === "export" ? { exported: parts[1] ?? parts[0], source: parts[0] } : { source: parts[0] })
+      }
+    if (keyword === "import") {
+      /* a default or namespace clause evaluates the whole target module; a clause left empty after stripping type specifiers erases entirely */
+      if (!outsideBraces && named.length === 0) continue
+      edges.push({ target, kind: "import", names: outsideBraces ? null : named.map((entry) => entry.source) })
+    } else {
+      if (!outsideBraces.includes("*") && named.length === 0) continue
+      edges.push(outsideBraces.includes("*")
+        ? { target, kind: "reexport", exported: null }
+        : { target, kind: "reexport", exported: new Map(named.map((entry) => [entry.exported, entry.source])) })
+    }
+  }
+  for (const match of source.matchAll(DYNAMIC_IMPORT)) {
+    const target = resolveSpecifier(match[1] ?? match[2], posixPath)
+    if (target) edges.push({ target, kind: "import", names: null })
+  }
+  importEdgeDetailCache.set(posixPath, edges)
+  return edges
+}
+
+/**
+ * Every repo file reachable from the seeds through value imports, following a
+ * re-export edge only for the requested names. Type-only edges are skipped:
+ * they erase at runtime and can never render a key. Returns file -> "ALL" or
+ * the Set of names requested through it, so attribution can also exclude the
+ * unrequested sibling exports INSIDE a reached file.
+ */
+function importClosure(seeds) {
+  /** file -> "ALL" once fully expanded, else the Set of names already requested through it */
+  const expanded = new Map()
+  const queue = seeds.map((file) => ({ file, names: null }))
+  while (queue.length > 0) {
+    const { file, names } = queue.shift()
+    const state = expanded.get(file)
+    if (state === "ALL") continue
+    let requested = names
+    if (names === null) expanded.set(file, "ALL")
+    else {
+      const seen = state ?? new Set()
+      requested = names.filter((name) => !seen.has(name))
+      if (requested.length === 0 && state !== undefined) continue
+      for (const name of requested) seen.add(name)
+      expanded.set(file, seen)
+    }
+    for (const edge of importEdgesOf(file)) {
+      if (edge.kind === "import") {
+        queue.push({ file: edge.target, names: edge.names })
+        continue
+      }
+      if (edge.exported === null) queue.push({ file: edge.target, names: requested })
+      else if (requested === null) queue.push({ file: edge.target, names: [...edge.exported.values()] })
+      else {
+        const carried = requested.filter((name) => edge.exported.has(name)).map((name) => edge.exported.get(name))
+        if (carried.length > 0) queue.push({ file: edge.target, names: carried })
+      }
+    }
+  }
+  return expanded
+}
+
+const skipQuoted = (source, index) => {
+  /* bails at a newline so a JSX apostrophe corrupts at most one line, an accepted fidelity bound */
+  const quote = source[index]
+  let cursor = index + 1
+  while (cursor < source.length) {
+    if (source[cursor] === "\\") cursor += 2
+    else if (source[cursor] === quote) return cursor + 1
+    else if (source[cursor] === "\n") return cursor
+    else cursor += 1
+  }
+  return cursor
+}
+
+const skipTemplate = (source, index) => {
+  let cursor = index + 1
+  let interpolationDepth = 0
+  while (cursor < source.length) {
+    if (source[cursor] === "\\") cursor += 2
+    else if (source[cursor] === "$" && source[cursor + 1] === "{") { interpolationDepth += 1; cursor += 2 }
+    else if (source[cursor] === "}" && interpolationDepth > 0) { interpolationDepth -= 1; cursor += 1 }
+    else if (source[cursor] === "`" && interpolationDepth === 0) return cursor + 1
+    else cursor += 1
+  }
+  return cursor
+}
+
+function matchTopLevelDeclaration(rest) {
+  let match
+  if ((match = /^export\s+(?:async\s+)?function\*?\s+(\w+)/.exec(rest))) return { exported: [match[1]], localName: match[1] }
+  if ((match = /^export\s+class\s+(\w+)/.exec(rest))) return { exported: [match[1]], localName: match[1] }
+  if ((match = /^export\s+(?:const|let|var)\s+(\w+)/.exec(rest))) return { exported: [match[1]], localName: match[1] }
+  if (/^export\s+default\b/.test(rest)) return { exported: ["default"], localName: null }
+  if ((match = /^export\s*\{([^}]*)\}(?!\s*from)/.exec(rest))) {
+    const aliases = match[1]
+      .split(",")
+      .map((raw) => raw.replace(/^\s*type\s+/, "").split(/\s+as\s+/).map((part) => part.trim()))
+      .filter((parts) => parts[0])
+      .map((parts) => ({ local: parts[0], exported: parts[1] ?? parts[0] }))
+    return { exported: [], localName: null, aliases }
+  }
+  if (/^export\s+(?:type|interface|abstract)\b/.test(rest)) return { exported: [], localName: null }
+  if ((match = /^(?:async\s+)?function\*?\s+(\w+)/.exec(rest))) return { exported: null, localName: match[1] }
+  if ((match = /^(?:const|let|var)\s+(\w+)/.exec(rest))) return { exported: null, localName: match[1] }
+  if (/^class\s+\w+/.test(rest)) return { exported: null, localName: null }
+  return null
+}
+
+/**
+ * Partition a file at its top-level declaration starts, so ownership can
+ * exclude the spans of unrequested sibling exports. `exported: null` is module
+ * scope (imports, local helpers, top-level constants): always scanned, because
+ * reaching the file evaluates it. A named import owning a sibling export's
+ * keys is the defect this exists to stop: /ai-settings imported RadioGlyph
+ * alone and owned SelectCheck's common.select (2026-08-14).
+ */
+const exportSpanCache = new Map()
+function exportSpansOf(posixPath) {
+  const cached = exportSpanCache.get(posixPath)
+  if (cached) return cached
+  const source = read(posixPath)
+  const starts = []
+  let depth = 0
+  let index = 0
+  let lineStart = true
+  while (index < source.length) {
+    const character = source[index]
+    if (character === "/" && source[index + 1] === "/") {
+      const newline = source.indexOf("\n", index)
+      index = newline === -1 ? source.length : newline
+      continue
+    }
+    if (character === "/" && source[index + 1] === "*") {
+      const end = source.indexOf("*/", index + 2)
+      index = end === -1 ? source.length : end + 2
+      lineStart = false
+      continue
+    }
+    if (character === "'" || character === '"') { index = skipQuoted(source, index); lineStart = false; continue }
+    if (character === "`") { index = skipTemplate(source, index); lineStart = false; continue }
+    if (character === "\n") { lineStart = true; index += 1; continue }
+    if (/\s/.test(character)) { index += 1; continue }
+    if ("{([".includes(character)) { depth += 1; index += 1; lineStart = false; continue }
+    if ("})]".includes(character)) { depth -= 1; index += 1; lineStart = false; continue }
+    if (depth === 0 && lineStart) {
+      const declaration = matchTopLevelDeclaration(source.slice(index))
+      if (declaration) starts.push({ index, ...declaration })
+    }
+    lineStart = false
+    index += 1
+  }
+  const spans = starts.map((start, position) => ({
+    start: start.index,
+    end: position + 1 < starts.length ? starts[position + 1].index : source.length,
+    exported: start.exported,
+    localName: start.localName,
+    aliases: start.aliases,
+  }))
+  /* export { a as b } points the exported name at a's own declaration span */
+  for (const span of spans)
+    if (span.aliases)
+      for (const alias of span.aliases) {
+        const declaration = spans.find((candidate) => candidate.localName === alias.local)
+        if (declaration && declaration.exported !== null) declaration.exported.push(alias.exported)
+        else if (declaration) declaration.exported = [alias.exported]
+      }
+  exportSpanCache.set(posixPath, spans)
+  return spans
+}
+
+/** The scannable text of a file reached with `requested` names: module scope plus the requested exports' spans. */
+function scanTextFor(file, requested) {
+  const source = read(file)
+  if (requested === "ALL") return source
+  const excluded = exportSpansOf(file).filter(
+    (span) => span.exported !== null && !span.exported.some((name) => requested.has(name)),
+  )
+  if (excluded.length === 0) return source
+  let kept = ""
+  let cursor = 0
+  for (const span of excluded) {
+    kept += source.slice(cursor, span.start) + "\n"
+    cursor = span.end
+  }
+  return kept + source.slice(cursor)
+}
+
 function buildI18nOwnership(routes) {
   const messages = JSON.parse(read("packages/shared/src/i18n/en.json"))
   const leafKeys = new Set(flattenMessages(messages, "", []))
   const byRoute = routes.map((route) => {
-    const oneLevel = [route.sourceFile, ...importsOf(route.sourceFile)]
-    return { platform: route.platform, routePath: route.routePath, sourceFile: route.sourceFile, keys: keysUsedBy(oneLevel, leafKeys) }
+    const reachable = importClosure([route.sourceFile, ...route.layouts])
+    const scannables = [...reachable.entries()]
+      .sort((a, b) => byCode(a[0], b[0]))
+      .map(([file, names]) => ({ file, requested: names === "ALL" ? "ALL" : names }))
+    return { platform: route.platform, routePath: route.routePath, sourceFile: route.sourceFile, keys: keysUsedBy(scannables, leafKeys) }
   })
   const owned = new Set(byRoute.flatMap((route) => route.keys))
   return { byRoute, unowned: [...leafKeys].filter((key) => !owned.has(key)).sort(byCode) }
@@ -554,15 +795,16 @@ function render(d) {
     routeRows.push(["mobile", r.routePath, code(r.sourceFile), mobileBySource.has(r.sourceFile) ? badge("paired", "paired") : badge("unpaired", "unpaired")])
   }
   table("routes", ["platform", "route", "source", "parity"], routeRows)
-  table("endpoints", ["name", "method", "path", "web actions", "mobile callsites", "zod types files"], d.endpoints.map(e => [
+  table("endpoints", ["name", "method", "path", "web callsites", "mobile callsites", "zod types files"], d.endpoints.map(e => [
     code(e.name), e.method ?? "?", e.path,
-    e.usedBy.webActions.length ? e.usedBy.webActions.map(f => f.replace("apps/web/app/actions/", "")).join(", ") : muted("none"),
-    String(e.usedBy.mobileCallsites.length), e.zodSchemas === null ? muted("null") : (e.zodSchemas.map(f => f.replace("packages/shared/src/types/", "")).join(", ") || muted("none")),
+    e.usedBy.webCallsites.length ? String(e.usedBy.webCallsites.length) : muted("none"),
+    e.usedBy.mobileCallsites.length ? String(e.usedBy.mobileCallsites.length) : muted("none"),
+    e.zodSchemas === null ? muted("null") : (e.zodSchemas.map(f => f.replace("packages/shared/src/types/", "")).join(", ") || muted("none")),
   ]))
   const depRows = []
   for (const ws of Object.keys(d.dependencies)) for (const edge of d.dependencies[ws]) depRows.push([ws, code(edge.from), "\\u2192", code(edge.to)])
   table("deps", ["workspace", "from", "", "to"], depRows)
-  document.getElementById("unowned-sub").textContent = d.i18nOwnership.unowned.length + " en.json leaf keys not attributable to any route's source file or its one-level imports."
+  document.getElementById("unowned-sub").textContent = d.i18nOwnership.unowned.length + " en.json leaf keys not attributable to any route through its source file, layout chain, and symbol-filtered transitive imports: each is dynamically constructed or dead."
   for (const key of d.i18nOwnership.unowned) document.getElementById("unowned").appendChild(el("div", null, key))
   for (const dir of d.testCoverage.untested) document.getElementById("untested").appendChild(el("div", null, dir))
 }

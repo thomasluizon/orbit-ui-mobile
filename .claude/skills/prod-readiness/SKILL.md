@@ -1,6 +1,6 @@
 ---
 name: prod-readiness
-description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow, adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), a static WCAG 2.2 AA accessibility sweep, and a dependency sweep that updates every package in both repos, then consolidates everything into ONE combined GitHub ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the react-doctor.yml gate, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
+description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow, adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), a static WCAG 2.2 AA accessibility sweep, a dependency sweep that updates every package in both repos, and an architecture-drift sweep that regenerates architecture.json and deletes the stale code it exposes (phantom mobile routes, endpoints no platform calls, dead i18n keys), then consolidates everything into ONE combined GitHub ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the react-doctor.yml gate, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
 argument-hint: <both (default) | ui | api | path>
 ---
 
@@ -14,8 +14,9 @@ launch verdict. This skill is an **orchestrator**: the **`prod-readiness` dynami
 (`.claude/workflows/prod-readiness.mjs`) runs the four audit workflows in parallel (**Haiku
 fan-out**), adds the ops-layer audit and the static-a11y sweep none of them cover, verifies its
 own findings, and returns everything; **you (Opus) consolidate** the return into one combined
-ticket table and a launch verdict, and **you run the dependency sweep** (Phase 2b), the one
-layer that edits code and therefore cannot run inside the read-only workflow.
+ticket table and a launch verdict, and **you run the dependency sweep** (Phase 2b) **and the
+architecture-drift sweep** (Phase 2c), the two layers that edit code and therefore cannot run
+inside the read-only workflow.
 
 **Golden rule: orchestrate, don't re-derive.** Each audit workflow owns its own analysis, its
 own adversarial Verify, and its own loop; this skill's workflow **invokes** them and
@@ -24,7 +25,8 @@ static-a11y layer, and the dependency sweep are the only analysis this skill add
 are non-negotiable: no audit is silently skipped (every one runs-and-reports or lands in the
 Deferred ledger with a reason), no ops or a11y finding ships without surviving a challenge, and
 the approval gate states what the sweep did **not** do. The output is tickets plus a verdict
-plus at most two `chore(deps)` pull requests, never a persisted report (D10).
+plus at most two `chore(deps)` pull requests plus one `chore(arch)` pull request, never a
+persisted report (D10).
 
 ---
 
@@ -79,7 +81,7 @@ react-doctor backlog is mechanical debt for the ORB-46 project, not a prod-readi
 `Dependency Review` and `dependabot-auto-merge` gate NEW dependency regressions per PR; neither
 sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
 
-**The binding inventory (§1), twelve items:**
+**The binding inventory (§1), thirteen items:**
 
 | # | Inventory item | Kind | Owner of the analysis |
 |---|---|---|---|
@@ -94,7 +96,8 @@ sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
 | 9 | Staging | ops check | the workflow (own §2 challenge) |
 | 10 | Paid-API cost caps + spend alerts | ops check | the workflow (returns as Deferred, un-verifiable from a repo read) |
 | 11 | Accessibility (static WCAG 2.2 AA) | a11y check | the workflow (own §2 challenge; the runtime matrix returns as Deferred) |
-| 12 | Dependency freshness | session sweep | you (Phase 2b — the only layer that edits code) |
+| 12 | Dependency freshness | session sweep | you (Phase 2b — edits code) |
+| 13 | Architecture drift | session sweep | you (Phase 2c — edits code) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
 **(b) in the Deferred ledger with a one-line reason**.
@@ -278,11 +281,97 @@ gate.
 
 ---
 
+## Phase 2c — Architecture-drift sweep (session-run, edits code)
+
+The map is the finder: regenerate it, then FIX what it reports, deleting stale code rather than
+ticketing it. `tools/arch-map.mjs` derives `architecture.json` + `architecture.html` from the
+tree; after the 2026-08-13 honesty fixes its signals are trustworthy (endpoint usage scans all
+of `apps/web`, i18n ownership walks the symbol-filtered import closure, and pairing refuses to
+guess). This sweep is `repo:ui` only; never touch `orbit-api` from it.
+
+**Scope-aware, same rule as a11y**: run this sweep only when the resolved scope contains a UI
+surface. Under an `api`-only scope (or an api-side path), inventory item 13 reads **N/A (scope
+has no UI surface)** — that is a verdict, not a skipped item, and it never caps the launch
+verdict.
+
+Run it in a **dedicated worktree** branched fresh from `main` (`git worktree add`), same
+isolation rule as Phase 2b: the audited tree the Phase 2 finders read stays immutable. Start by
+running `node tools/arch-map.mjs` twice in the worktree and diffing (byte-identical or the
+sweep aborts as FAILED); every signal below reads from that fresh map, never the committed one.
+
+**1. Phantom mobile routes** (`routes.unpaired.mobile`). expo-router registers every file under
+`apps/mobile/app/` as a navigable, deep-linkable route, so a section, atom, styles, or hook
+file in that directory is a phantom screen. For each unpaired mobile route decide which it is:
+
+- A non-screen file (its name or content says section/atoms/styles/hooks/model, it renders a
+  fragment, or it exports helpers): grep both apps for the route name as a string first (a
+  `router.push` built from a literal), then move it under `apps/mobile/components/` (or a
+  screen-adjacent folder there) and fix the imports. `-styles.ts` and `-labels.ts` files follow
+  their consumers.
+- A real screen with no web mirror: NOT sweep work. Building a missing mirror is feature work;
+  record it as a Medium finding for Phase 3 unless an existing ticket already covers it.
+- A real, intentional platform divergence (e.g. web `/u/[slug]` is the public view a shared
+  link opens in the browser; mobile has none on purpose): record the justification once in the
+  `MOBILE_ROUTE_ALIASES` comment block in `tools/arch-map.mjs` if it is a naming divergence, or
+  in the finding table as acknowledged if it is a real absence. Never invent an alias to make a
+  row green: an alias pairs two files only when they are the SAME screen (the 2026-08-13
+  public-profile mispair is the cautionary precedent recorded in that comment block).
+
+**2. Endpoints used by neither platform** (`usedBy.webCallsites` and `mobileCallsites` both
+empty). For each, in order:
+
+1. Grep BOTH apps and `packages/shared` for the endpoint name AND its literal path: the offline
+   queue, MCP handlers, and BFF forwarding can consume a path without referencing `API.*`, and
+   a consumer found by literal path is itself drift, so rewrite it to use the shared map (which
+   also fixes attribution).
+2. Still zero consumers: delete the entry from `packages/shared/src/api`, plus any Zod schema
+   file nothing imports afterward. This deletes client-side map entries only; the server in
+   `orbit-api` is untouched, and old shipped mobile clients carry their own copy of the map, so
+   deletion is safe. The append-only DTO rule binds fields old clients READ, not dead client
+   map entries.
+3. Liveness ambiguous (a dynamic consumer you cannot prove dead): holdback, not deletion.
+
+**3. Dead i18n keys** (`i18nOwnership.unowned`). Every unowned key is dynamically constructed
+or dead; the sweep's job is to prove which, per key or per namespace:
+
+1. Grep both apps and `packages/shared` for the key literal and for its parent namespace fed by
+   a template (`t(\`ns.${...}\`)`, a key built from a variable, keys referenced from shared
+   catalogs like the tour, achievements, error-code maps, or notification templates). A
+   namespace with ANY dynamic access is alive in full unless proven otherwise (the `auth.errors.*`
+   family is the canonical example: unowned in the map, alive through error-code mapping).
+2. Proven dead: delete from `en.json` AND `pt-BR.json` in the same edit.
+3. Ambiguous: holdback.
+
+**4. Everything else the map reports** (`testCoverage.untested` dirs, genuinely one-platform
+endpoints, unpaired web routes with no mobile screen) is a finding for the Phase 3 consolidated
+set, not sweep-deletable code.
+
+**Prove it, then ship it.** After the edits: `npm run type-check && npm run lint && npm test &&
+npm run build`, then regenerate the map twice (byte-identical) and commit the regenerated
+`architecture.json` + `architecture.html` in the same branch (the `Architecture map drift` CI
+check fails otherwise; if `tools/arch-map.mjs` itself was edited, also run
+`node tools/test-tools.mjs`). Open at most ONE `chore(arch)` PR, opened never merged, reviewed
+by Pullfrog like everything else.
+
+**Holdback rule, same as Phase 2b.** Anything that cannot land (ambiguous liveness, a move that
+breaks a deep link, a red gate) is reverted and recorded as a holdback: item, signal, and the
+exact reason. Every holdback becomes a Medium finding in the Phase 3 consolidated set.
+
+**Sweep verdict** for inventory item 13: `SWEPT` (map regenerated, every actionable signal
+fixed or holdback-recorded, gates green), `SWEPT_WITH_HOLDBACKS`, `FAILED` (forces at most
+CONDITIONAL and names itself as a blocker), or `N/A (scope has no UI surface)`. Same
+launch-condition rule as item 12: the verdict certifies the sweep branch, so an unmerged
+`chore(arch)` PR caps the launch verdict at CONDITIONAL unless Thomas explicitly waives it at
+the gate.
+
+---
+
 ## Phase 3: Consolidate and emit tickets (Opus, D10)
 
 ### Unified ladder (severity normalization for ranking)
 
-Consolidate the child + ops + a11y + dependency findings into one severity spine, tagging each
+Consolidate the child + ops + a11y + dependency + architecture-drift findings into one severity
+spine, tagging each
 with its **source audit + native label** so nothing is silently relabeled. This ranking orders
 the ticket table and drives the verdict; it is not a report:
 
@@ -290,15 +379,15 @@ the ticket table and drives the verdict; it is not a report:
 |---|---|
 | **Blocker** | security Tier 1 · tests Critical · performance Critical · code-quality Critical · ops Blocker · a11y Blocker |
 | **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · a11y High · a dependency holdback proven to withhold an advisory fix |
-| **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium · a11y Medium · every other dependency holdback |
+| **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium · a11y Medium · every other dependency holdback · every architecture-drift holdback and missing-mirror finding |
 | **Low / Info** | performance Low/Info · code-quality Low/Info |
 | **Out-of-scope / acknowledged** | security Tier 3 · enterprise-only ops |
 
 ### Emit the consolidated ticket set
 
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`** over the **whole
-consolidated finding set** (all four children plus the ops, a11y, and dependency-holdback
-findings), as ONE combined table behind ONE approval gate. Do not run each child skill's own
+consolidated finding set** (all four children plus the ops, a11y, dependency-holdback, and
+architecture-drift findings), as ONE combined table behind ONE approval gate. Do not run each child skill's own
 gate; prod-readiness invokes the audit workflows directly and owns the single consolidated
 emission.
 
@@ -322,7 +411,7 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **Verdict**: {GO | CONDITIONAL | NO-GO}, one calibrated line (why, and the single thing in
   the way).
 - **Ticket table**: title · repo · parity · consolidated tier · blockedBy, ordered by tier.
-- **Coverage (the binding 12-item inventory)**: for each of the 12 items, ran / did-not-run /
+- **Coverage (the binding 13-item inventory)**: for each of the 13 items, ran / did-not-run /
   deferred and the result. Backups is always `deferred` (verify in the DB console). Any
   `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
 - **Measured performance**: show the top ten query shapes by rows with calls, rows per call,
@@ -330,6 +419,9 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
   If the measurement is unavailable, show `CODE_ONLY` and the exact reason in this section.
 - **Dependency sweep**: the verdict, the two `chore(deps)` PR links, and the holdback table
   (name, current → latest, failure, tier).
+- **Architecture sweep**: the verdict, the `chore(arch)` PR link, the before/after count per
+  signal (unpaired mobile routes, unused endpoints, unowned keys), and the holdback table
+  (item, signal, reason).
 - **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
   verify-cap overflow") plus `opsDeferred` (backups, paid-API cost caps, the a11y runtime
   matrix) plus enterprise-only ops.
@@ -342,17 +434,18 @@ re-validate each with `--issue`.
 
 ### Launch verdict (§5 honesty), computed, never hardcoded
 
-- **GO** only if **zero Blockers** AND all **12** inventory items produced a verdict (every
+- **GO** only if **zero Blockers** AND all **13** inventory items produced a verdict (every
   audit ran and converged; every ops and a11y check resolved with no `opsChecksFailed` /
   `a11yChecksFailed` entry, or is a legitimately Deferred un-verifiable like backups, the
   paid-API cost caps, and the a11y runtime matrix, or a legitimate N/A like a11y under an
-  api-only scope; the dependency sweep is `SWEPT` or `SWEPT_WITH_HOLDBACKS` with every holdback
-  ticketed AND its `chore(deps)` PRs merged into the launch head or explicitly waived by
-  Thomas), and performance is `MEASURED`.
+  api-only scope, which also reads the architecture sweep as N/A; the dependency and
+  architecture sweeps are each `SWEPT` or `SWEPT_WITH_HOLDBACKS` (or the architecture sweep is
+  a legitimate N/A) with every holdback ticketed AND their `chore(deps)` / `chore(arch)` PRs
+  merged into the launch head or explicitly waived by Thomas), and performance is `MEASURED`.
 - **CONDITIONAL** if no Blockers but some items are Deferred or unproven in a way that gates
   launch (e.g. backups unverified, staging gate absent, a child audit did not converge, an ops
-  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, the dependency
-  sweep `FAILED`, or its PRs are still unmerged): name the conditions.
+  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, either sweep
+  `FAILED`, or a sweep's PRs are still unmerged): name the conditions.
 - **NO-GO** if any Blocker stands.
 - **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker**: a partial
   sweep can never read green. The coverage table makes any non-running or unconverged audit
@@ -375,9 +468,10 @@ re-validate each with `--issue`.
 | Medium | {N} | {…} |
 | Low / Info | {N} | {…} |
 
-**Inventory (12)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred} · accessibility {static ran; runtime matrix deferred} · dependencies {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED}
+**Inventory (13)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred} · accessibility {static ran; runtime matrix deferred} · dependencies {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · architecture {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED | N/A}
 **Measured performance**: {MEASURED with top finding and top-ten table | CODE_ONLY with reason}
 **Dependency sweep**: {the chore(deps) PR links + holdback count, or "FAILED: reason"}
+**Architecture sweep**: {the chore(arch) PR link + per-signal before/after counts + holdback count, or "FAILED: reason"}
 **Tickets**: {the final ORB-N table, identifier · title · repo · tier · blockedBy, or "clean: nothing to ticket"}
 **Top blocker**: {the single highest-priority ticket standing between here and launch, or "none"}
 ```
@@ -389,10 +483,15 @@ re-validate each with `--issue`.
 - **Write a report file, or create tickets unattended.** The output is a consolidated GitHub
   ticket set plus a verdict headline, behind the one approval gate; nothing is persisted to
   `.claude/audits/` and nothing is created before Thomas approves (D10).
-- **Merge the `chore(deps)` PRs, or bump a platform SDK inside the sweep.** The sweep opens
-  PRs; merging stays with the normal review flow. The Expo SDK and the `global.json` .NET SDK
-  pins are their own tickets, never a sweep side effect. Never `--no-verify`, and never leave a
-  red gate in the sweep branch: revert to a holdback instead.
+- **Merge the `chore(deps)` or `chore(arch)` PRs, or bump a platform SDK inside a sweep.** The
+  sweeps open PRs; merging stays with the normal review flow. The Expo SDK and the
+  `global.json` .NET SDK pins are their own tickets, never a sweep side effect. Never
+  `--no-verify`, and never leave a red gate in a sweep branch: revert to a holdback instead.
+- **Delete on ambiguity, or silence a map signal to look swept.** An endpoint or i18n key whose
+  liveness cannot be proven is a holdback, never a deletion; an alias in `MOBILE_ROUTE_ALIASES`
+  pairs two files only when they are the same screen. The map's unpaired/unowned/unused rows
+  are the signal — the sweep empties them by fixing code, never by teaching the analyzer to
+  stop reporting them.
 - **Invent ops or a11y findings to look thorough.** A clean check earns a plain "ready," not a
   manufactured nit. A finding with no concrete anchor plus risk is not a finding, and a static
   a11y claim that needs the live DOM belongs to the deferred runtime matrix, not the findings.
