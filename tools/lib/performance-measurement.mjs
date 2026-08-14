@@ -234,6 +234,13 @@ export const analyzeQueryShape = (queryShape, columnCount) => {
   const knownColumnCount = Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
   let projectionColumns = expressions.length
   if (expressions.length > (knownColumnCount ?? Number.POSITIVE_INFINITY)) projectionColumns = null
+  /** Over any join, comma-separated or explicit, a projected expression may belong to another
+   * relation, so counting expressions and comparing that count against the ROOT table's column
+   * count reads a cross-relation width as the root entity's own. Only a projection whose every
+   * column names the root alias is attributable; anything else is unknown rather than wrong. */
+  if (joined && columns.some((column) => column && !column.star && column.qualifier !== root.alias)) {
+    projectionColumns = null
+  }
   if (starColumns.length > 0) {
     const onlyStar = expressions.length === 1 ? starColumns[0] : null
     const rootStar = onlyStar && (onlyStar.qualifier === root.alias || (!joined && onlyStar.qualifier == null))

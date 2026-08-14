@@ -618,6 +618,14 @@ export const cases = async () => {
     bareStarOverCommaJoin.fromLib.projectedBytesPerRow === null && bareStarOverCommaJoin.fromWorkflow.projectedBytesPerRow === null,
     JSON.stringify({ lib: bareStarOverCommaJoin.fromLib.projectedBytesPerRow, workflow: bareStarOverCommaJoin.fromWorkflow.projectedBytesPerRow }),
   )
+  /** An unqualified column list over a comma join belongs to no single relation, so counting it
+   * against the ROOT table's column count would fire full-entity-projection from a wrong fact. */
+  const commaJoinColumns = probe('SELECT "Id", "Name" FROM "Habits" h, "Goals" g WHERE g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: an unqualified column list over a COMMA join is not a root projection width",
+    commaJoinColumns.fromLib.projectionColumns === null && commaJoinColumns.fromWorkflow.projectionColumns === null,
+    JSON.stringify({ lib: commaJoinColumns.fromLib.projectionColumns, workflow: commaJoinColumns.fromWorkflow.projectionColumns }),
+  )
   /** The FROM-clause bound matters: an ORDER BY list carries top-level commas of its own and must
    * not read as a second source. */
   const orderedRootStar = probe('SELECT h.* FROM "Habits" h ORDER BY h."Name", h."Id"')
