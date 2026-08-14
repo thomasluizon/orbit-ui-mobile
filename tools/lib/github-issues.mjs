@@ -10,15 +10,16 @@ const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
 const STATE_REASON_FILTER = 'if .stateReason == "" then .stateReason = null else . end'
 const LIST_STATE_REASON_FILTER = `map(${STATE_REASON_FILTER})`
-const ISSUE_PROJECT_ITEMS_QUERY = `query IssueProjectItems($o: String!, $r: String!, $n: Int!) {
+const ISSUE_PROJECT_ITEMS_QUERY = `query IssueProjectItems($o: String!, $r: String!, $n: Int!, $after: String) {
   repository(owner: $o, name: $r) {
     issue(number: $n) {
       number
       state
-      projectItems(first: 5) {
+      projectItems(first: 5, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
-          project { number }
+          project { id number }
           fieldValueByName(name: "Status") {
             ... on ProjectV2ItemFieldSingleSelectValue { name }
           }
@@ -106,10 +107,11 @@ const projectItemsArgs = (tickets) => [
   "1000",
 ]
 
-const issueProjectItemsArgs = (number, tickets) => {
+const issueProjectItemsArgs = (number, tickets, after = null) => {
   const [owner, name, ...rest] = tickets.repository.split("/")
   if (!owner || !name || rest.length > 0) throw new Error(`Ticket repository must be owner/name, got ${JSON.stringify(tickets.repository)}`)
-  return ["api", "graphql", "-F", `o=${owner}`, "-F", `r=${name}`, "-F", `n=${number}`, "-f", `query=${ISSUE_PROJECT_ITEMS_QUERY}`]
+  const cursorArgs = after === null ? [] : ["-f", `after=${after}`]
+  return ["api", "graphql", "-F", `o=${owner}`, "-F", `r=${name}`, "-F", `n=${number}`, ...cursorArgs, "-f", `query=${ISSUE_PROJECT_ITEMS_QUERY}`]
 }
 
 const projectItemsByProject = new Map()
@@ -134,12 +136,26 @@ const readProjectItems = async (tickets) => {
 }
 
 const readIssueProjectItems = async (number, tickets) => {
-  const args = issueProjectItemsArgs(number, tickets)
-  const response = parseGhJson(`gh api graphql for issue #${number}`, await runGh(args))
-  const nodes = response?.data?.repository?.issue?.projectItems?.nodes
-  if (!Array.isArray(nodes)) throw new Error(`gh api graphql returned no projectItems nodes array for issue #${number}`)
+  const nodes = []
+  const cursors = new Set()
+  let after = null
+  while (true) {
+    const args = issueProjectItemsArgs(number, tickets, after)
+    const response = parseGhJson(`gh api graphql for issue #${number}`, await runGh(args))
+    const connection = response?.data?.repository?.issue?.projectItems
+    if (!Array.isArray(connection?.nodes)) throw new Error(`gh api graphql returned no projectItems nodes array for issue #${number}`)
+    if (typeof connection?.pageInfo?.hasNextPage !== "boolean") throw new Error(`gh api graphql returned no projectItems hasNextPage boolean for issue #${number}`)
+    nodes.push(...connection.nodes)
+    if (!connection.pageInfo.hasNextPage) break
+    const cursor = connection.pageInfo.endCursor
+    if (typeof cursor !== "string" || cursor.length === 0 || cursors.has(cursor)) {
+      throw new Error(`gh api graphql returned an invalid projectItems endCursor for issue #${number}`)
+    }
+    cursors.add(cursor)
+    after = cursor
+  }
   return nodes
-    .filter((node) => node?.project?.number === tickets.projectNumber)
+    .filter((node) => node?.project?.id === tickets.projectId)
     .map((node) => ({
       content: { number, repository: tickets.repository, type: "Issue" },
       id: node.id,

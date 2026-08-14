@@ -245,7 +245,7 @@
         "-F",
         "n=<issue-number>",
         "-f",
-        "query=query IssueProjectItems($o: String!, $r: String!, $n: Int!) {\n  repository(owner: $o, name: $r) {\n    issue(number: $n) {\n      number\n      state\n      projectItems(first: 5) {\n        nodes {\n          id\n          project { number }\n          fieldValueByName(name: \"Status\") {\n            ... on ProjectV2ItemFieldSingleSelectValue { name }\n          }\n        }\n      }\n    }\n  }\n}"
+        "query=query IssueProjectItems($o: String!, $r: String!, $n: Int!, $after: String) {\n  repository(owner: $o, name: $r) {\n    issue(number: $n) {\n      number\n      state\n      projectItems(first: 5, after: $after) {\n        pageInfo { hasNextPage endCursor }\n        nodes {\n          id\n          project { id number }\n          fieldValueByName(name: \"Status\") {\n            ... on ProjectV2ItemFieldSingleSelectValue { name }\n          }\n        }\n      }\n    }\n  }\n}"
       ],
       "observedExitCode": 0,
       "paths": {
@@ -284,6 +284,21 @@
             "object"
           ]
         },
+        "$.data.repository.issue.projectItems.pageInfo": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issue.projectItems.pageInfo.hasNextPage": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.data.repository.issue.projectItems.pageInfo.endCursor": {
+          "types": [
+            "string"
+          ]
+        },
         "$.data.repository.issue.projectItems.nodes": {
           "types": [
             "array"
@@ -302,6 +317,11 @@
         "$.data.repository.issue.projectItems.nodes[].project": {
           "types": [
             "object"
+          ]
+        },
+        "$.data.repository.issue.projectItems.nodes[].project.id": {
+          "types": [
+            "string"
           ]
         },
         "$.data.repository.issue.projectItems.nodes[].project.number": {

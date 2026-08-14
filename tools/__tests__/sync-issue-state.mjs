@@ -18,7 +18,11 @@ const issue = (overrides = {}) => ({
   ...overrides,
 })
 const projectItems = JSON.stringify({
-  data: { repository: { issue: { number: 221, state: "OPEN", projectItems: { nodes: [] } } } },
+  data: { repository: { issue: {
+    number: 221,
+    state: "OPEN",
+    projectItems: { nodes: [], pageInfo: { hasNextPage: false, endCursor: "cursor-one" } },
+  } } },
 })
 
 export const cases = () => {

@@ -28,11 +28,11 @@ const projectItem = {
 const populatedProjectItems = JSON.stringify({ items: [projectItem], totalCount: 1 })
 const issueProjectItem = {
   id: "PVTI_harness_item",
-  project: { number: 2 },
+  project: { id: "PVT_kwHOBE6dNc4Bfy2y", number: 2 },
   fieldValueByName: { name: "In Review" },
 }
-const issueProjectItems = (nodes = [issueProjectItem]) => JSON.stringify({
-  data: { repository: { issue: { number: 221, state: "OPEN", projectItems: { nodes } } } },
+const issueProjectItems = (nodes = [issueProjectItem], pageInfo = { hasNextPage: false, endCursor: "cursor-one" }) => JSON.stringify({
+  data: { repository: { issue: { number: 221, state: "OPEN", projectItems: { nodes, pageInfo } } } },
 })
 const environmentFor = (ticketOutput = JSON.stringify(issue()), projectOutput = issueProjectItems()) =>
   orcaEnv([
@@ -224,14 +224,42 @@ export const cases = async () => {
     )
 
     applyEnvironment(environmentFor(JSON.stringify(issue()), issueProjectItems([
-      { id: "PVTI_other_project", project: { number: 99 }, fieldValueByName: { name: "Done" } },
+      { id: "PVTI_other_project", project: { id: "PVT_other_owner_project", number: 2 }, fieldValueByName: { name: "Done" } },
       issueProjectItem,
     ])))
     const filtered = await (await freshGithubIssues()).readTicket(221)
     T(
-      `${TOOL}: an issue on multiple boards uses only the configured project number`,
+      `${TOOL}: an issue on equal-numbered boards uses only the configured global project id`,
       filtered.status === "In Review" && filtered.projectItemId === "PVTI_harness_item",
       JSON.stringify(filtered),
+    )
+
+    const paginationReadCount = stage("github-issues/project-pagination-read-count", "0")
+    const unrelatedItems = Array.from({ length: 5 }, (_, index) => ({
+      id: `PVTI_unrelated_${index}`,
+      project: { id: `PVT_unrelated_${index}`, number: index + 10 },
+      fieldValueByName: { name: "Todo" },
+    }))
+    applyEnvironment(
+      orcaEnv([
+        ...githubIssueReadPlan(issue()),
+        {
+          match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221",
+          stdout: issueProjectItems(unrelatedItems, { hasNextPage: true, endCursor: "cursor-one" }),
+          stdoutSequence: [
+            issueProjectItems(unrelatedItems, { hasNextPage: true, endCursor: "cursor-one" }),
+            issueProjectItems([issueProjectItem], { hasNextPage: false, endCursor: "cursor-two" }),
+          ],
+          sequenceFile: paginationReadCount,
+          ticketEnvelope: "issueProjectItems",
+        },
+      ]),
+    )
+    const paginated = await (await freshGithubIssues()).readTicket(221)
+    T(
+      `${TOOL}: a configured project beyond the first five memberships is still found`,
+      paginated.status === "In Review" && paginated.projectItemId === "PVTI_harness_item" && readFileSync(paginationReadCount, "utf8") === "2",
+      JSON.stringify(paginated),
     )
 
     applyEnvironment(environmentFor(JSON.stringify(issue()), issueProjectItems([

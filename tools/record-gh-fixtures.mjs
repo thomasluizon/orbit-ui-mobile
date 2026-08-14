@@ -41,15 +41,16 @@ if (!Number.isInteger(sampleNumber)) {
 
 const issueFields = "number,url,title,body,state,stateReason,labels,blockedBy,blocking"
 const stateReasonFilter = 'if .stateReason == "" then .stateReason = null else . end'
-const issueProjectItemsQuery = `query IssueProjectItems($o: String!, $r: String!, $n: Int!) {
+const issueProjectItemsQuery = `query IssueProjectItems($o: String!, $r: String!, $n: Int!, $after: String) {
   repository(owner: $o, name: $r) {
     issue(number: $n) {
       number
       state
-      projectItems(first: 5) {
+      projectItems(first: 5, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
-          project { number }
+          project { id number }
           fieldValueByName(name: "Status") {
             ... on ProjectV2ItemFieldSingleSelectValue { name }
           }
@@ -127,9 +128,12 @@ const record = (name, command) => {
     throw new Error(`issueViewComments recorded no comments on issue ${sampleNumber}, so the comment paths would be missing rather than proven`)
   }
   if (name === "issueProjectItems" && !value?.data?.repository?.issue?.projectItems?.nodes?.some(
-    (node) => node?.project?.number === config.projectNumber && typeof node?.id === "string" && typeof node?.fieldValueByName?.name === "string",
+    (node) => node?.project?.id === config.projectId && node?.project?.number === config.projectNumber && typeof node?.id === "string" && typeof node?.fieldValueByName?.name === "string",
   )) {
-    throw new Error(`issueProjectItems recorded no populated item for project ${config.projectNumber} on issue ${sampleNumber}`)
+    throw new Error(`issueProjectItems recorded no populated item for configured project ${config.projectId} on issue ${sampleNumber}`)
+  }
+  if (name === "issueProjectItems" && typeof value?.data?.repository?.issue?.projectItems?.pageInfo?.hasNextPage !== "boolean") {
+    throw new Error(`issueProjectItems recorded no pagination state on issue ${sampleNumber}`)
   }
   if (name === "issueDependencyNumbers" && (!Array.isArray(value) || value.length === 0 || value.some((number) => !Number.isInteger(number)))) {
     throw new Error(`issueDependencyNumbers recorded no populated dependency array on issue ${dependencySampleNumber}`)

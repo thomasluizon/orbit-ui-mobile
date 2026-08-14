@@ -22,11 +22,14 @@ const project = (present = true) => JSON.stringify({
   data: { repository: { issue: {
     number: 221,
     state: "OPEN",
-    projectItems: { nodes: present ? [{
-      id: "PVTI_complete",
-      project: { number: 2 },
-      fieldValueByName: { name: "In Review" },
-    }] : [] },
+    projectItems: {
+      pageInfo: { hasNextPage: false, endCursor: "cursor-one" },
+      nodes: present ? [{
+        id: "PVTI_complete",
+        project: { id: "PVT_kwHOBE6dNc4Bfy2y", number: 2 },
+        fieldValueByName: { name: "In Review" },
+      }] : [],
+    },
   } } },
 })
 

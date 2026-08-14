@@ -32,7 +32,10 @@ export const cases = () => {
       stdout: JSON.stringify({ data: { repository: { issue: {
         number: 221,
         state: "OPEN",
-        projectItems: { nodes: [{ id: "PVTI_harness_item", project: { number: 2 }, fieldValueByName: { name: "In Review" } }] },
+        projectItems: {
+          pageInfo: { hasNextPage: false, endCursor: "cursor-one" },
+          nodes: [{ id: "PVTI_harness_item", project: { id: "PVT_kwHOBE6dNc4Bfy2y", number: 2 }, fieldValueByName: { name: "In Review" } }],
+        },
       } } } }),
       ticketEnvelope: "issueProjectItems",
     },
@@ -94,8 +97,10 @@ export const cases = () => {
   )
   T(
     `${TOOL}: derives the issue-scoped project item paths read by the adapter`,
-    ["id", "project.number", "fieldValueByName.name"].every(
+    ["id", "project.id", "project.number", "fieldValueByName.name"].every(
       (path) => manifest.commands.issueProjectItems.paths[`$.data.repository.issue.projectItems.nodes[].${path}`],
+    ) && ["hasNextPage", "endCursor"].every(
+      (path) => manifest.commands.issueProjectItems.paths[`$.data.repository.issue.projectItems.pageInfo.${path}`],
     ),
     JSON.stringify(manifest.commands.issueProjectItems?.paths),
   )
