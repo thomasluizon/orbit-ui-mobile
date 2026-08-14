@@ -3,9 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
 
-// Bridge React Native AppState → TanStack Query focus manager so that
-// `refetchOnWindowFocus` fires on app foreground and `refetchInterval`
-// correctly pauses while backgrounded.
+/**
+ * Bridges AppState to TanStack Query focus so foreground refetching and
+ * background interval pausing follow the native application lifecycle.
+ */
 focusManager.setEventListener((handleFocus) => {
   const subscription = AppState.addEventListener('change', (status: AppStateStatus) => {
     handleFocus(status === 'active')
@@ -13,60 +14,22 @@ focusManager.setEventListener((handleFocus) => {
   return () => subscription.remove()
 })
 
-// Bridge NetInfo → TanStack Query online manager so offline polling pauses
-// and `refetchOnReconnect` fires on reconnect.
+/** Bridges NetInfo to TanStack Query so reconnect behavior follows native connectivity. */
 onlineManager.setEventListener((setOnline) => {
   return NetInfo.addEventListener((state) => {
     setOnline(!!state.isConnected)
   })
 })
 
-let currentAppStateStatus: AppStateStatus = AppState.currentState
-let currentOnline = true
-
-const globalScope = globalThis as typeof globalThis & {
-  __orbitConnectivityTrackers__?: { remove: () => void }[]
-}
-
-function registerConnectivityTrackers(): void {
-  for (const tracker of globalScope.__orbitConnectivityTrackers__ ?? []) {
-    tracker.remove()
-  }
-
-  const appStateSubscription = AppState.addEventListener('change', (status) => {
-    currentAppStateStatus = status
-  })
-  const netInfoUnsubscribe = NetInfo.addEventListener((state) => {
-    currentOnline = !!state.isConnected
-  })
-
-  globalScope.__orbitConnectivityTrackers__ = [
-    appStateSubscription,
-    { remove: netInfoUnsubscribe },
-  ]
-}
-
-registerConnectivityTrackers()
-
-export function isAppActive(): boolean {
-  return currentAppStateStatus === 'active'
-}
-
-export function isOnline(): boolean {
-  return currentOnline
-}
-
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes (matches web)
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours (matches web, supports offline)
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 60 * 24,
       retry: (failureCount, error) => {
-        // Don't retry on 401 (auth errors)
         if (error instanceof Error && error.message.includes('401')) return false
         return failureCount < 3
       },
-      // Bridged to AppState above, so "window focus" == "app foregrounded".
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
     },
@@ -113,10 +76,10 @@ export async function persistQueryCache(): Promise<void> {
   if (!key) return
   try {
     const cache = queryClient.getQueryCache().getAll()
-    const serializable: Array<{
+    const serializable: {
       queryKey: readonly unknown[]
       state: { data: unknown; dataUpdatedAt: number }
-    }> = []
+    }[] = []
     for (const query of cache) {
       if (query.state.status !== 'success') continue
       serializable.push({
