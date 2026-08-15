@@ -62,8 +62,11 @@ describe('catch-all API proxy route', () => {
   it('rejects retired profile mutations before calling auth or backend', async () => {
     const retiredPaths = [
       ['profile', 'handle'],
+      ['profile', 'HANDLE'],
       ['profile', ['social', 'opt-in'].join('-')],
+      ['profile', ['Social', 'Opt-In'].join('-')],
       ['profile', 'public'],
+      ['profile', 'PUBLIC'],
     ]
 
     for (const path of retiredPaths) {

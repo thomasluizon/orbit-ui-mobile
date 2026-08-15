@@ -37,9 +37,11 @@ const RETIRED_PROFILE_PATHS = new Set([
 ])
 
 function isAllowedPath(path: string): boolean {
-  if (RETIRED_PROFILE_PATHS.has(path)) return false
+  const normalizedPath = path.toLowerCase()
+  if (RETIRED_PROFILE_PATHS.has(normalizedPath)) return false
   return ALLOWED_PREFIXES.some(
-    (prefix) => path.startsWith(prefix) || path === prefix.slice(0, -1)
+    (prefix) =>
+      normalizedPath.startsWith(prefix) || normalizedPath === prefix.slice(0, -1)
   )
 }
 
@@ -65,8 +67,8 @@ function validatePath(path: string | undefined): string | null {
   ) {
     return null
   }
-  if (!isAllowedPath(path)) return null
-  return path
+  if (!isAllowedPath(decoded)) return null
+  return decoded
 }
 
 function buildCleanQuery(url: URL): string {
