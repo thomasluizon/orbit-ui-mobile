@@ -11,7 +11,6 @@ import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ProfileNavGroup } from '@/components/profile/profile-nav-group'
 
 const PROFILE_FEATURE_SECTIONS = buildProfileNavSections([
-  { labelKey: 'nav.social', ids: ['social'] },
   { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
   { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
   { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },

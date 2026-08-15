@@ -4,10 +4,12 @@ import { AppState, Platform } from 'react-native'
 import Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import { useRouter } from 'expo-router'
-import type { Href } from 'expo-router'
 import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
-import type { NativePushRegistrationStatus } from '@orbit/shared/utils'
+import {
+  isViewableNotificationUrl,
+  type NativePushRegistrationStatus,
+} from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
 import {
@@ -143,13 +145,9 @@ function isGrantedStatus(status: string): status is 'granted' {
   return status === 'granted'
 }
 
-function isSafeInternalUrl(value: unknown): value is string {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-}
-
 if (notificationsModule) {
   notificationsModule.setNotificationHandler({
-    handleNotification: async () => ({
+    handleNotification: () => Promise.resolve({
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
@@ -522,8 +520,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
       (response) => {
         const maybeUrl = response.notification.request.content?.data?.url
-        if (isSafeInternalUrl(maybeUrl)) {
-          router.push(maybeUrl as Href)
+        if (typeof maybeUrl === 'string' && isViewableNotificationUrl(maybeUrl)) {
+          router.push(maybeUrl)
         }
       },
     )

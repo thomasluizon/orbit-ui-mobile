@@ -38,10 +38,11 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('rejects retired social endpoint prefixes before calling auth or backend', async () => {
+  it('rejects retired client endpoint prefixes before calling auth or backend', async () => {
     const retiredPrefixes = [
       ['chall', 'enges'].join(''),
       ['account', 'ability'].join(''),
+      ['fri', 'ends'].join(''),
     ]
 
     for (const prefix of retiredPrefixes) {

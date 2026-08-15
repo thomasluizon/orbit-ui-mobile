@@ -325,6 +325,24 @@ describe('profile schema', () => {
     const result = profileSchema.safeParse(profile)
     expect(result.success).toBe(true)
   })
+
+  it('tolerates compatibility fields while the server contract still returns them', () => {
+    const result = profileSchema.safeParse(createMockProfile({
+      handle: 'orbit_user',
+      socialOptIn: true,
+      publicProfile: {
+        enabled: true,
+        slug: 'orbit-user',
+        shareUrl: 'https://app.useorbit.org/u/orbit-user',
+        showStreak: true,
+        showLevel: true,
+        showAchievements: true,
+        showTopHabits: true,
+      },
+    }))
+
+    expect(result.success).toBe(true)
+  })
 })
 
 describe('setNameRequestSchema', () => {

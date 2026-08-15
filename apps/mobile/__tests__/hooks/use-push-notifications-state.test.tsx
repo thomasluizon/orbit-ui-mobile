@@ -5,7 +5,7 @@ import { API } from '@orbit/shared/api'
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   storage: new Map<string, string>(),
-  apiClient: vi.fn(async () => undefined),
+  apiClient: vi.fn(() => Promise.resolve(undefined)),
   router: {
     push: vi.fn(),
   },
@@ -23,24 +23,26 @@ const mocks = vi.hoisted(() => ({
   },
   auth: {
     isAuthenticated: true,
-    user: { userId: 'user-1' } as { userId: string } | null,
+    user: { userId: 'user-1' },
   },
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (key: string) => mocks.storage.get(key) ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
+    getItem: vi.fn((key: string) => Promise.resolve(mocks.storage.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
       mocks.storage.set(key, value)
+      return Promise.resolve()
     }),
-    removeItem: vi.fn(async (key: string) => {
+    removeItem: vi.fn((key: string) => {
       mocks.storage.delete(key)
+      return Promise.resolve()
     }),
   },
 }))
 
 vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal() as typeof import('react-native')
+  const actual = await importOriginal()
   return {
     ...actual,
     Platform: {
@@ -376,13 +378,12 @@ describe('usePushNotifications', () => {
       notification: { request: { content: { data: { url } } } },
     })
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       notify(buildResponse('/social'))
     })
-    expect(mocks.router.push).toHaveBeenCalledWith('/social')
+    expect(mocks.router.push).not.toHaveBeenCalled()
 
-    mocks.router.push.mockClear()
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       notify(buildResponse('https://evil.example'))
       notify(buildResponse('//evil.example'))
       notify({ notification: { request: { content: {} } } })

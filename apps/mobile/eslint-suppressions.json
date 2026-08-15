@@ -147,74 +147,9 @@
       "count": 2
     }
   },
-  "app/public-profile.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "app/retrospective-styles.ts": {
     "local/spacing-scale": {
       "count": 16
-    }
-  },
-  "app/social/_components/add-friend-form.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/social/_components/cheer-composer.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/_components/edit-handle-sheet.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/social/_components/feed-event-card.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/_components/friend-profile-sheet.tsx": {
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "app/social/_components/friend-request-row.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/_components/friend-row.tsx": {
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "app/social/_components/invite-confirm-sheet.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/social/_components/invite-hero.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/social/_components/social-feed.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/social/_components/social-identity-bar.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/social/_components/social-opt-in-gate.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "app/streak-sections-styles.ts": {
@@ -556,11 +491,6 @@
   "components/share/share-card.tsx": {
     "local/spacing-scale": {
       "count": 17
-    }
-  },
-  "components/social/social-entry-card.tsx": {
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/today/setup-checklist-card.tsx": {

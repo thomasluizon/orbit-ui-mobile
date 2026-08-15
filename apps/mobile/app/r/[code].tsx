@@ -21,11 +21,7 @@ export default function ReferralRedirectScreen() {
     const validCode = code && isValidReferralCode(code) ? code : undefined
 
     if (isAuthenticated) {
-      if (validCode) {
-        router.replace({ pathname: '/social', params: { invite: validCode } })
-      } else {
-        router.replace('/social')
-      }
+      router.replace('/today')
       return
     }
 

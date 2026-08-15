@@ -20,14 +20,14 @@ const mocks = vi.hoisted(() => ({
   hasProAccess: false,
   trialDaysLeft: 5,
   profile: null as ReturnType<typeof createMockProfile> | null,
-  plans: { couponPercentOff: 0 } as Record<string, unknown> | undefined,
+  plans: { couponPercentOff: 0 },
   billing: undefined as Record<string, unknown> | undefined,
   goBack: vi.fn(),
   refetchPlans: vi.fn(() => Promise.resolve()),
   refetchBilling: vi.fn(() => Promise.resolve()),
   playBilling: {
     isProcessing: false,
-    errorKey: '' as string,
+    errorKey: '',
     clearError: vi.fn(),
     purchase: vi.fn(() => Promise.resolve()),
     restorePurchases: vi.fn(() => Promise.resolve()),
@@ -161,12 +161,12 @@ describe('UpgradeScreen', () => {
   })
 
   it('routes back to the fallback when the user stays free', async () => {
-    mocks.from = '/social'
+    mocks.from = '/profile'
     const tree = await renderScreen()
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       ;(findByType(tree.root, 'PricingSection').props.onStayFree as () => void)()
     })
-    expect(mocks.goBack).toHaveBeenCalledWith('/social')
+    expect(mocks.goBack).toHaveBeenCalledWith('/profile')
   })
 
   it('restores purchases and retries plan loading via the pricing section', async () => {
@@ -239,13 +239,13 @@ describe('UpgradeScreen', () => {
     expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBe('monthly')
 
     mocks.playBilling.isProcessing = true
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree!.update(<UpgradeScreen />)
     })
     expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBe('monthly')
 
     mocks.playBilling.isProcessing = false
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree!.update(<UpgradeScreen />)
     })
     expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBeNull()

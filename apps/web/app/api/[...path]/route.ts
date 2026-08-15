@@ -28,7 +28,6 @@ const ALLOWED_PREFIXES = [
   'checklist-templates/',
   'sync/',
   'habits/',
-  'friends/',
 ]
 
 function isAllowedPath(path: string): boolean {

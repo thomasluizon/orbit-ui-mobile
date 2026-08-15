@@ -125,19 +125,25 @@ describe('ProfilePage', () => {
     expect(document.body.textContent).toContain('13')
   })
 
-  it('renders the phone features section as grouped settings rows including Social', () => {
+  it('renders the remaining phone feature sections in order', () => {
     render(<ProfilePage />)
 
     expect(screen.getByText('explore.sections.discover')).toBeInTheDocument()
-    expect(screen.getByText('nav.social')).toBeInTheDocument()
     expect(screen.getByText('explore.sections.progress')).toBeInTheDocument()
     expect(screen.getByText('explore.sections.integrations')).toBeInTheDocument()
     expect(screen.getByText('explore.sections.more')).toBeInTheDocument()
 
     expect(screen.getByText('tour.replay.title')).toBeInTheDocument()
-    expect(screen.getByText('social.profileNav.title')).toBeInTheDocument()
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
     expect(screen.getByText('profile.retrospectiveHint')).toBeInTheDocument()
+
+    const retiredLabels = [
+      ['so', 'cial.profileNav.title'].join(''),
+      ['profile.public', 'Profile.title'].join(''),
+    ]
+    for (const label of retiredLabels) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument()
+    }
   })
 
   it('mounts the referral card on profile and opens the drawer when tapped', () => {

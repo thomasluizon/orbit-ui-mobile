@@ -20,7 +20,6 @@ import type { ProfileStyles } from './profile-styles'
 type Tokens = ReturnType<typeof createTokensV2>
 
 const PROFILE_FEATURE_SECTIONS = [
-  { labelKey: 'nav.social', ids: ['social'] },
   { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
   { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
   { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
