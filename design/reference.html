@@ -354,7 +354,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .stattile .l{font-size:var(--fs-sm);color:var(--fg-2);line-height:1.3}
 .infocard{border-radius:var(--r-card);padding:var(--s-4);display:flex;gap:var(--s-3);align-items:flex-start}
 .infocard.quiet{background:var(--bg-elev)}
-.infocard.accent{background:var(--primary-dim)}
+
 .infocard .ic{width:24px;height:24px;flex:0 0 auto;display:grid;place-items:center;font-size:13px}
 .plancard{border-radius:var(--r-card);padding:var(--s-5);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline);display:flex;flex-direction:column;gap:var(--s-2)}
 .plancard.sel{background:var(--primary-dim);box-shadow:inset 0 0 0 1.5px var(--primary)}
@@ -910,9 +910,9 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 
     <div class="grid g3">
       <div class="stack">
-        <span class="note">InfoCard. The accent tone is a focal call-out, which is the accent's selected-state role.</span>
+        <span class="note">InfoCard. One tone only. A static informational card is not one of the four accent roles, so there is no accent variant.</span>
         <div class="infocard quiet"><div class="ic" style="color:var(--fg-3)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-2)">Habitos arquivados nao contam para o limite.</p></div>
-        <div class="infocard accent"><div class="ic" style="color:var(--primary-soft)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-1)">Astra pode criar varios habitos de uma vez.</p></div>
+        <div class="infocard quiet"><div class="ic" style="color:var(--fg-3)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-1)">Astra pode criar varios habitos de uma vez.</p></div>
       </div>
       <div class="stack">
         <span class="note">PlanCard. The tint and ring on the chosen plan are a selected state, not decoration.</span>
