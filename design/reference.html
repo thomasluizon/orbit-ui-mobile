@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-mode="dark" data-hue="emerald" data-fill="dark" data-space="a" data-speed="medium">
+<html lang="en" data-mode="dark" data-hue="emerald">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -42,27 +42,17 @@
   --p-l-hair:rgba(9,9,11,0.08); --p-l-hair-ghost:rgba(9,9,11,0.10); --p-l-hair-strong:rgba(9,9,11,0.16);
   --p-l-fg1:#1A1A1D; --p-l-fg2:#424247; --p-l-fg3:#68686D; --p-l-fg4:#89898D;
 
-  /* --- primitives: nine candidate accents, two treatments each ---------
-     LIGHT fill = ink text on it, anchored at the lightness where that hue is
-       most itself (hand-tuned per hue: gold lives at L 0.86, violet at 0.70).
-     DARK fill  = the lightest value at which WHITE still clears 4.5.
-     Every value clears 3.0 on the canvas as a graphic; every -text value
-     clears 4.5 on the canvas.                                             */
-  --p-violet-light:#A787F6;  --p-violet-dark:#8362CD;  --p-violet-text:#8565D0;  --p-violet-rgb:167,135,246;
-  --p-indigo-light:#8394FF;  --p-indigo-dark:#606DD6;  --p-indigo-text:#626FD9;  --p-indigo-rgb:131,148,255;
-  --p-azure-light:#60A7FF;   --p-azure-dark:#2776D2;   --p-azure-text:#2A79D5;   --p-azure-rgb:96,167,255;
-  --p-space-light:#00BCEE;   --p-space-dark:#0080A4;   --p-space-text:#0083A7;   --p-space-rgb:0,188,238;
-  --p-teal-light:#00CACC;    --p-teal-dark:#008485;    --p-teal-text:#008788;    --p-teal-rgb:0,202,204;
-  --p-emerald-light:#43D58F; --p-emerald-dark:#008854; --p-emerald-text:#008B56; --p-emerald-rgb:67,213,143;
-  --p-gold-light:#F2CF3B;    --p-gold-dark:#8C7500;    --p-gold-text:#8F7700;    --p-gold-rgb:242,207,59;
-  --p-amber-light:#FFB24F;   --p-amber-dark:#A66900;   --p-amber-text:#A96B00;   --p-amber-rgb:255,178,79;
-  --p-orange-light:#FF8E59;  --p-orange-dark:#C4530F;  --p-orange-text:#C85716;  --p-orange-rgb:255,142,89;
-  --p-rose-light:#F47DB9;    --p-rose-dark:#BF4D8A;    --p-rose-text:#C2508C;    --p-rose-rgb:244,125,185;
-  --p-on-light-fill:#020618;
-  --p-on-dark-fill:#FFFFFF;
-  --p-violet-lmtext:#8160CB;  --p-indigo-lmtext:#5D69D2;  --p-azure-lmtext:#2373CE;  --p-space-lmtext:#007D9F;
-  --p-teal-lmtext:#008183;    --p-emerald-lmtext:#008451; --p-gold-lmtext:#8A7300;   --p-amber-lmtext:#A16500;
-  --p-orange-lmtext:#C15109;  --p-rose-lmtext:#BB4986;
+  /* --- primitives: the three candidate accents ------------------------
+     One treatment only: a DARK fill with white on it. Each fill is the
+     lightest value at which white still clears 4.5, and each clears 3.0 on
+     the canvas as a graphic. Each -text value clears 4.5 on the canvas, and
+     each -lmtext value clears 4.5 on #FAFAFA.
+     Rose sits at hue 350, not 15: at 15 it was 10 degrees from the
+     destructive red, so the primary CTA and the delete button read alike. */
+  --p-emerald-dark:#008854; --p-emerald-text:#008B56; --p-emerald-rgb:0,136,84;   --p-emerald-lmtext:#008451;
+  --p-rose-dark:#BF4D8A;    --p-rose-text:#C2508C;    --p-rose-rgb:191,77,138;    --p-rose-lmtext:#BB4986;
+  --p-orange-dark:#C4530F;  --p-orange-text:#C85716;  --p-orange-rgb:196,83,15;   --p-orange-lmtext:#C15109;
+  --p-on-fill:#FFFFFF;
 
   /* --- primitives: status -------------------------------------------- */
   --p-overdue:#FE9A00; --p-bad:#FB2C36; --p-on-status:#020618;
@@ -92,15 +82,14 @@
   --hairline-strong:var(--p-hair-strong);
   --fg-1:var(--p-fg1); --fg-2:var(--p-fg2); --fg-3:var(--p-fg3); --fg-4:var(--p-fg4);
 
-  --hue-light:var(--p-space-light);
-  --hue-dark:var(--p-space-dark);
-  --hue-text:var(--p-space-text);
-  --hue-rgb:var(--p-space-rgb);
-  --hue-lmtext:var(--p-space-lmtext);
+  --hue-dark:var(--p-emerald-dark);
+  --hue-text:var(--p-emerald-text);
+  --hue-rgb:var(--p-emerald-rgb);
+  --hue-lmtext:var(--p-emerald-lmtext);
 
   --primary:var(--hue-dark);
   --primary-soft:var(--hue-text);
-  --fg-on-primary:var(--p-on-dark-fill);
+  --fg-on-primary:var(--p-on-fill);
   --primary-rgb:var(--hue-rgb);
   --primary-pressed:color-mix(in oklab, var(--primary) 84%, var(--p-canvas));
   --primary-hover:color-mix(in oklab, var(--primary) 88%, var(--fg-on-primary));
@@ -134,8 +123,8 @@
   --r-chip:8px; --r-well:12px; --r-md:16px; --r-card:20px; --r-sheet:28px; --r-pill:999px;
 
   /* --- motion -------------------------------------------------------- */
-  --dur-fast:180ms;    /* a small control: button, chip, icon */
-  --dur-hover:280ms;   /* a surface: row, card, panel */
+  --dur-fast:240ms;    /* a small control: button, chip, icon */
+  --dur-hover:380ms;   /* a surface: row, card, panel */
   --dur-enter:220ms;
   --ease-standard:cubic-bezier(0.2,0,0,1);
   --ease-out:cubic-bezier(0.16,1,0.3,1);
@@ -152,30 +141,15 @@
   --hairline:var(--p-l-hair); --border-control:var(--p-l-hair);
   --hairline-ghost:var(--p-l-hair-ghost); --hairline-strong:var(--p-l-hair-strong);
   --fg-1:var(--p-l-fg1); --fg-2:var(--p-l-fg2); --fg-3:var(--p-l-fg3); --fg-4:var(--p-l-fg4);
+  --primary-soft:var(--hue-lmtext);
   --status-overdue:var(--p-l-overdue); --status-bad:var(--p-l-bad); --fg-on-bad:var(--p-l-on-bad);
   --selection-bg:var(--p-l-sel);
 }
-[data-hue="violet"] {--hue-light:var(--p-violet-light); --hue-dark:var(--p-violet-dark); --hue-text:var(--p-violet-text); --hue-rgb:var(--p-violet-rgb); --hue-lmtext:var(--p-violet-lmtext)}
-[data-hue="indigo"] {--hue-light:var(--p-indigo-light); --hue-dark:var(--p-indigo-dark); --hue-text:var(--p-indigo-text); --hue-rgb:var(--p-indigo-rgb); --hue-lmtext:var(--p-indigo-lmtext)}
-[data-hue="azure"]  {--hue-light:var(--p-azure-light);  --hue-dark:var(--p-azure-dark);  --hue-text:var(--p-azure-text);  --hue-rgb:var(--p-azure-rgb);  --hue-lmtext:var(--p-azure-lmtext)}
-[data-hue="space"]  {--hue-light:var(--p-space-light);  --hue-dark:var(--p-space-dark);  --hue-text:var(--p-space-text);  --hue-rgb:var(--p-space-rgb);  --hue-lmtext:var(--p-space-lmtext)}
-[data-hue="teal"]   {--hue-light:var(--p-teal-light);   --hue-dark:var(--p-teal-dark);   --hue-text:var(--p-teal-text);   --hue-rgb:var(--p-teal-rgb);   --hue-lmtext:var(--p-teal-lmtext)}
-[data-hue="emerald"]{--hue-light:var(--p-emerald-light);--hue-dark:var(--p-emerald-dark);--hue-text:var(--p-emerald-text);--hue-rgb:var(--p-emerald-rgb);--hue-lmtext:var(--p-emerald-lmtext)}
-[data-hue="gold"]   {--hue-light:var(--p-gold-light);   --hue-dark:var(--p-gold-dark);   --hue-text:var(--p-gold-text);   --hue-rgb:var(--p-gold-rgb);   --hue-lmtext:var(--p-gold-lmtext)}
-[data-hue="amber"]  {--hue-light:var(--p-amber-light);  --hue-dark:var(--p-amber-dark);  --hue-text:var(--p-amber-text);  --hue-rgb:var(--p-amber-rgb);  --hue-lmtext:var(--p-amber-lmtext)}
-[data-hue="orange"] {--hue-light:var(--p-orange-light); --hue-dark:var(--p-orange-dark); --hue-text:var(--p-orange-text); --hue-rgb:var(--p-orange-rgb); --hue-lmtext:var(--p-orange-lmtext)}
-[data-hue="rose"]   {--hue-light:var(--p-rose-light);   --hue-dark:var(--p-rose-dark);   --hue-text:var(--p-rose-text);   --hue-rgb:var(--p-rose-rgb);   --hue-lmtext:var(--p-rose-lmtext)}
+[data-hue="emerald"]{--hue-dark:var(--p-emerald-dark); --hue-text:var(--p-emerald-text); --hue-rgb:var(--p-emerald-rgb); --hue-lmtext:var(--p-emerald-lmtext)}
+[data-hue="orange"] {--hue-dark:var(--p-orange-dark); --hue-text:var(--p-orange-text); --hue-rgb:var(--p-orange-rgb); --hue-lmtext:var(--p-orange-lmtext)}
+[data-hue="rose"]   {--hue-dark:var(--p-rose-dark); --hue-text:var(--p-rose-text); --hue-rgb:var(--p-rose-rgb); --hue-lmtext:var(--p-rose-lmtext)}
 
-[data-fill="light"]{--primary:var(--hue-light); --primary-soft:var(--hue-light); --fg-on-primary:var(--p-on-light-fill)}
-[data-fill="dark"] {--primary:var(--hue-dark);  --primary-soft:var(--hue-text);  --fg-on-primary:var(--p-on-dark-fill)}
-/* light mode takes the dark fill whichever treatment is selected. Two attributes, so it
-   outranks the single-attribute [data-fill] blocks above. */
-[data-mode="light"][data-fill]{--primary:var(--hue-dark); --primary-soft:var(--hue-lmtext); --fg-on-primary:var(--p-on-dark-fill)}
 
-[data-speed="fast"]  {--dur-fast:120ms; --dur-hover:180ms}
-[data-speed="medium"]{--dur-fast:180ms; --dur-hover:280ms}
-[data-speed="slow"]  {--dur-fast:240ms; --dur-hover:380ms}
-[data-space="b"]{--s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-7:32px; --s-8:40px; --s-9:56px}
 
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-synthesis:none}
@@ -336,44 +310,11 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <button data-v="light" aria-pressed="false">Light</button>
       </div>
     </div>
-    <div class="grp"><span class="grp-l">Scheme</span>
-      <div class="seg" id="seg-scheme">
-        <button data-hue="emerald" data-fill="dark"  aria-pressed="true"><i class="dot" style="background:var(--p-emerald-dark)"></i>Emerald</button>
-        <button data-hue="rose"    data-fill="dark"  aria-pressed="false"><i class="dot" style="background:var(--p-rose-dark)"></i>Rose</button>
-        <button data-hue="orange"  data-fill="light" aria-pressed="false"><i class="dot" style="background:var(--p-orange-light)"></i>Orange</button>
-      </div>
-    </div>
-    <div class="grp"><span class="grp-l">Speed</span>
-      <div class="seg" id="seg-speed">
-        <button data-v="fast" aria-pressed="false">Fast</button>
-        <button data-v="medium" aria-pressed="true">Medium</button>
-        <button data-v="slow" aria-pressed="false">Slow</button>
-      </div>
-    </div>
-    <div class="grp"><span class="grp-l">All hues</span>
+    <div class="grp"><span class="grp-l">Accent</span>
       <div class="seg" id="seg-hue">
-        <button data-v="violet"  aria-pressed="false"><i class="dot" style="background:var(--p-violet-dark)"></i>Violet</button>
-        <button data-v="indigo"  aria-pressed="false"><i class="dot" style="background:var(--p-indigo-dark)"></i>Indigo</button>
-        <button data-v="azure"   aria-pressed="false"><i class="dot" style="background:var(--p-azure-dark)"></i>Azure</button>
-        <button data-v="space"   aria-pressed="false"><i class="dot" style="background:var(--p-space-dark)"></i>Space</button>
-        <button data-v="teal"    aria-pressed="false"><i class="dot" style="background:var(--p-teal-dark)"></i>Teal</button>
         <button data-v="emerald" aria-pressed="true"><i class="dot" style="background:var(--p-emerald-dark)"></i>Emerald</button>
-        <button data-v="gold"    aria-pressed="false"><i class="dot" style="background:var(--p-gold-light)"></i>Gold</button>
-        <button data-v="amber"   aria-pressed="false" title="collides with the overdue status hue"><i class="dot" style="background:var(--p-amber-light)"></i>Amber</button>
-        <button data-v="orange"  aria-pressed="false"><i class="dot" style="background:var(--p-orange-light)"></i>Orange</button>
-        <button data-v="rose"    aria-pressed="false"><i class="dot" style="background:var(--p-rose-light)"></i>Rose</button>
-      </div>
-    </div>
-    <div class="grp"><span class="grp-l">Fill</span>
-      <div class="seg" id="seg-fill">
-        <button data-v="dark" aria-pressed="true">Dark, white text</button>
-        <button data-v="light" aria-pressed="false">Light, ink text</button>
-      </div>
-    </div>
-    <div class="grp"><span class="grp-l">Spacing</span>
-      <div class="seg" id="seg-space">
-        <button data-v="a" aria-pressed="true">A, chosen</button>
-        <button data-v="b" aria-pressed="false">B</button>
+        <button data-v="rose"    aria-pressed="false"><i class="dot" style="background:var(--p-rose-dark)"></i>Rose</button>
+        <button data-v="orange"  aria-pressed="false"><i class="dot" style="background:var(--p-orange-dark)"></i>Orange</button>
       </div>
     </div>
   </div>
@@ -391,21 +332,22 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       and the prose is the defect. Everything is hoverable: move the pointer over rows, cards, buttons
       and links to see the transition canon.
     </p>
-    <p class="note">Settled so far: spacing A &middot; no serif &middot; XP as a row, no ring. Open: the hue and the fill treatment.</p>
+    <p class="note">Settled: spacing A &middot; no serif &middot; XP as a row &middot; a dark fill with white text &middot; slow hover, 240ms on a control and 380ms on a surface. Open: which of the three accents.</p>
   </header>
 
   <!-- ================= 1. THE ACCENT ================= -->
   <section class="sec">
-    <div class="sec-h"><span class="sec-n">01</span><h2 class="sec-t">The accent, nine hues and two treatments</h2></div>
-    <p class="lede">Every option below already clears every contrast floor, so none of this is a
-      correctness question. <strong>Dark fill</strong> puts white on a deeper colour. <strong>Light fill</strong>
-      puts the canvas ink on a bright colour, which is the aihero.dev treatment. Switch hue and fill in the bar above. <strong>Amber sits inside 15 degrees of the overdue status hue</strong>, so on amber the accent and a status read as one colour. Rose was moved from hue 15 to 350 for the same reason: at 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button looked alike.</p>
+    <div class="sec-h"><span class="sec-n">01</span><h2 class="sec-t">The accent, three candidates</h2></div>
+    <p class="lede">Three candidates, one treatment: a dark fill with white on it. All three clear every
+      contrast floor, so this is a look question and not a correctness one. Rose sits at hue 350 rather than
+      15, because at 15 it was 10 degrees from the destructive red and the primary CTA read like the delete
+      button. Switch the accent in the bar above.</p>
 
     <div class="grid g3" style="margin-bottom:var(--s-6)">
       <div class="tile stack">
         <span class="note">Primary CTA and its hover</span>
         <div class="hstack"><button class="pill">Log habit</button><button class="pill sm ghost">Skip</button></div>
-        <span class="note">Hover the fill. One step over 120ms, easing back out. The card behind it stays put.</span>
+        <span class="note">Hover the fill. One step over 240ms, easing back out. The card behind it stays put.</span>
       </div>
       <div class="tile stack">
         <span class="note">Ring, done state, progress</span>
@@ -463,7 +405,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 
     <div class="grid g3" style="margin-bottom:var(--s-6)">
       <div class="tile stack">
-        <p style="font-weight:500">Surface, 180ms</p>
+        <p style="font-weight:500">Surface, 380ms</p>
         <p class="note">Hover the rows. Background steps one level and the hairline strengthens.</p>
         <div class="rows">
           <div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Notificações</p></div></div>
@@ -471,12 +413,12 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         </div>
       </div>
       <div class="tile stack">
-        <p style="font-weight:500">Control, 120ms</p>
+        <p style="font-weight:500">Control, 240ms</p>
         <p class="note">Hover each. Faster, because a control is smaller and you trigger it far more often.</p>
         <div class="hstack"><button class="pill sm">Primary</button><button class="pill sm ghost">Ghost</button><button class="pill sm secondary">Secondary</button></div>
       </div>
       <div class="tile stack">
-        <p style="font-weight:500">Press, 120ms</p>
+        <p style="font-weight:500">Press, 240ms</p>
         <p class="note">Press and hold, then drag off before releasing. It returns smoothly rather than snapping.</p>
         <div class="hstack"><button class="pill">Hold me</button></div>
       </div>
@@ -743,20 +685,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 </div>
 
 <script>
-const schemeSeg = document.getElementById('seg-scheme');
-schemeSeg.addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  for (const b of schemeSeg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === btn));
-  document.documentElement.setAttribute('data-hue', btn.dataset.hue);
-  document.documentElement.setAttribute('data-fill', btn.dataset.fill);
-  for (const [group, value] of [['hue', btn.dataset.hue], ['fill', btn.dataset.fill]]) {
-    for (const b of document.getElementById('seg-' + group).querySelectorAll('button')) {
-      b.setAttribute('aria-pressed', String(b.dataset.v === value));
-    }
-  }
-});
-for (const id of ['mode','hue','fill','space','speed']) {
+for (const id of ['mode','hue']) {
   const seg = document.getElementById('seg-' + id);
   seg.addEventListener('click', (e) => {
     const btn = e.target.closest('button');

@@ -1,5 +1,5 @@
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
-> - Anchor (D66, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, a deep space-blue accent. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
+> - Anchor (D66, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent (the hue is decided at human grant 1). **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
@@ -19,7 +19,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 ## Identity & anchor (locked)
 
-Orbit is a **spacious, near-black habit tracker with one deep space-blue accent**. Space is the primary hierarchy device. Where a surface step or a hairline would separate two things, use space first.
+Orbit is a **spacious, near-black habit tracker with exactly one accent**. Space is the primary hierarchy device. Where a surface step or a hairline would separate two things, use space first.
 
 Identity comes from three things and nothing else:
 
@@ -180,11 +180,11 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 
 **The shortlist, narrowed by Thomas on 2026-08-15**, is three schemes. The page presents them as presets and keeps the full grid for comparison:
 
-| scheme | fill | on the fill | note |
+| candidate | fill | on the fill | note |
 |---|---|---|---|
 | **Emerald** `#008854` | dark | white | clean: 93 degrees from overdue, 133 from bad |
 | **Rose** `#BF4D8A` | dark | white | **moved from hue 15 to 350.** At 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button read as the same colour. At 350 it clears it by 35 and stays a pink-red |
-| **Orange** `#FF8E59` | light | canvas ink | passes at 20 degrees from both overdue and bad, which is the tightest of the three |
+| **Orange** `#C4530F` | dark | white | passes at 20 degrees from both overdue and bad, which is the tightest of the three |
 
 **Three roles, three floors, and every candidate clears all three:**
 
@@ -194,20 +194,12 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 | `--primary-soft` | **accent text only**: an accent-coloured word, link, or numeral on the canvas | it on canvas >= 4.5 |
 | `--fg-on-primary` | whatever sits on the fill | 4.5 on the fill |
 
-**Two fill treatments, and the choice decides `--fg-on-primary`:**
-
-| treatment | the fill | what sits on it |
-|---|---|---|
-| **dark fill** | the lightest value at which white still clears 4.5 | white |
-| **light fill** | a bright value, anchored at the lightness where that hue is most itself | the canvas ink `#020618` |
-
-**A brand colour is never quietly darkened to make white work.** A colour that fails as a fill behind white text is still the brand colour; the correct move is to change what sits on it, which is exactly what the light-fill treatment does.
+**One fill treatment, settled 2026-08-15: a dark fill with white on it.** `--primary` is the lightest value at which white still clears 4.5 on it, and `--fg-on-primary` is always `#FFFFFF`. The light-fill alternative, a bright fill carrying the canvas ink, was rendered and rejected by looking.
 
 Consequences that hold either way:
 
 - **`--primary` is never small text on the canvas.** Use `--primary-soft` for an accent word, even where the two resolve to the same byte.
 - **A selected state may carry the accent on its glyph and label.** That is state, not emphasis, and it is the one exception to fill-only.
-- **The light fill's anchor lightness is hand-tuned per hue** and recorded, because a single lightness across the wheel flatters some hues and washes others. Yellow's vivid band sits near L 0.86 and violet's near L 0.70; anchoring both at one value turns the yellow to mustard.
 - A future accent change re-measures all three floors. It never eyeballs them.
 
 **Accent rationing.** The accent appears on: the active tab, progress and ring indicators, done dots, the primary CTA, the FAB, and active nav. That is the whole list. It is **never** decorative on a card, a row, a border, a heading, or an icon that is not communicating state. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
@@ -238,7 +230,7 @@ Consequences that hold either way:
 - **Shadows are for elevation, borders are for structure.** Replace a border that only faked depth with a shadow. Keep a border that divides content or marks a state: dividers, table boundaries, input outlines, selected and focus states.
 - **On dark, the 1px ring does the work.** Layered depth shadows are barely visible on a near-black canvas, so a lifted surface reads from its inset hairline plus the scrim beneath it. Reserve sh-2 and sh-3 for surfaces genuinely floating over a scrim.
 - **Images carry a 1px outline** at `rgba(255,255,255,0.10)` on dark and `rgba(0,0,0,0.10)` on light, with `outline-offset: -1px` so the ring hugs the corner radius. Never a tinted neutral, which reads as dirt on the image edge, and never `border`, which changes layout.
-- Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits. Movement durations 160/220/280; hover durations 180 for a control and 280 for a surface. Transform and opacity only for movement. Full governance in **Motion**.
+- Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits. Movement durations 160/220/280; hover durations 240 for a control and 380 for a surface. Transform and opacity only for movement. Full governance in **Motion**.
 
 #### Icons
 
@@ -591,13 +583,13 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 
 **A clickable thing with no hover state is a defect.** A hover transition is feedback, not decoration, so the frequency gate does not suppress it: the gate subtracts animations that play at you, and a hover state answers you. Every interactive element carries one.
 
-**A hover reads slower than a press.** The durations below are deliberately longer than the movement scale: a press is a confirmation and wants to be immediate, while a hover is an invitation and wants to arrive. These values were set by feel against the rendered reference, not derived.
+**A hover reads slower than a press.** The durations below are deliberately longer than the movement scale: a press is a confirmation and wants to be immediate, while a hover is an invitation and wants to arrive. These values were set by feel against the rendered reference, not derived. Thomas chose the slowest of three rendered options on 2026-08-15.
 
 | target | duration | what changes |
 |---|---|---|
-| a surface (row, card, panel, list item) | **280ms** | background goes to `--bg-hover`, and its hairline to `--hairline-strong` |
-| a control (button, chip, segmented control, icon button) | **180ms** | fill or label colour only |
-| a link | **280ms** | colour, plus an underline scaling from the leading edge |
+| a surface (row, card, panel, list item) | **380ms** | background goes to `--bg-hover`, and its hairline to `--hairline-strong` |
+| a control (button, chip, segmented control, icon button) | **240ms** | fill or label colour only |
+| a link | **380ms** | colour, plus an underline scaling from the leading edge |
 
 - **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. Measured 2026-08-15: `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.31:1**, which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
 - **Only an interactive surface gets a hover state.** A static card that lights up under the pointer advertises a click that does nothing. This is the "controls distinct from content" rule read in the other direction, and it is the more common half to get wrong.
@@ -761,7 +753,7 @@ The same test governs any future external component, from any source. Nothing en
 ## Working model
 
 1. **Context** - state the screen's job in one sentence.
-2. **Anchor** - already chosen: **spacious, near-black, one space-blue accent, warmth in the mark**. Do not re-pick.
+2. **Anchor** - already chosen: **spacious, near-black, one rationed accent, warmth in the mark**. Do not re-pick the anchor. The accent HUE is the one open question and is settled at grant 1.
 3. **Focal element** - name the one element that wins this view, and how. Demote everything else deliberately.
 4. **Differentiator** - name the one memorable move for this screen. It must come from the identity carriers, never from added decoration.
 5. **System** - use the tokens above. No new colours, families, radii, or spacing values.
@@ -796,7 +788,7 @@ Blur the surface. Hierarchy and section boundaries must still read, and nothing 
 
 ### Scene-sentence test
 
-Describe the rendered screen in one sentence as if narrating a film scene. If it reads like every other SaaS app, the design is generic. It must name Orbit's character: a near-black canvas with real air around everything, quiet tonal panels, one space-blue reserved for what is done and what is next, and the orbital ring language carrying the identity. If the only way to make the sentence specific is by describing decoration, the design has failed.
+Describe the rendered screen in one sentence as if narrating a film scene. If it reads like every other SaaS app, the design is generic. It must name Orbit's character: a near-black canvas with real air around everything, quiet tonal panels, one rationed accent reserved for what is done and what is next, and the orbital ring language carrying the identity. If the only way to make the sentence specific is by describing decoration, the design has failed.
 
 ## Enforcement
 
