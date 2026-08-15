@@ -137,6 +137,22 @@ describe('mobile offline queue', () => {
     withTransactionSyncMock.mockClear()
   })
 
+  it('drops retired scopes from persisted rows', () => {
+    storedRows.set('retired-scope-row', {
+      id: 'retired-scope-row',
+      timestamp: Date.now(),
+      type: 'deleteHabit',
+      endpoint: '/api/habits/retired',
+      method: 'DELETE',
+      payload: 'null',
+      retries: 0,
+      max_retries: 3,
+      meta: JSON.stringify({ scope: 'retiredScope', entityType: 'habit' }),
+    })
+
+    expect(getAll()[0]?.scope).toBeUndefined()
+  })
+
   it('rewrites the queue inside a single transaction so a crash cannot drop it', () => {
     enqueue(makeMutation({ id: 'create-1' }))
 

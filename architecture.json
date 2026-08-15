@@ -26432,7 +26432,6 @@
       "chat.pendingOp.capability.subscriptions-manage",
       "chat.pendingOp.capability.sync-write",
       "chat.pendingOp.capability.tags-delete",
-      "chat.pendingOp.capability.user-facts-delete",
       "chat.pendingOp.errors.confirmation_required",
       "chat.pendingOp.errors.step_up_required",
       "chat.pendingOp.risk.destructive",
