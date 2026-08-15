@@ -64,6 +64,7 @@ describe('catch-all API proxy route', () => {
       ['profile', 'handle'],
       ['profile', 'HANDLE'],
       ['profile', 'handle', '%2e'],
+      ['profile', '%2e', 'handle'],
       ['profile', ['social', 'opt-in'].join('-')],
       ['profile', ['Social', 'Opt-In'].join('-')],
       ['profile', 'public'],

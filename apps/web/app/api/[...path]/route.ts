@@ -67,6 +67,7 @@ function validatePath(path: string | undefined): string | null {
   if (
     path.includes('..') ||
     decoded.includes('..') ||
+    decoded.split('/').includes('.') ||
     path.includes('//') ||
     decoded.includes('//') ||
     path.includes('\\') ||
