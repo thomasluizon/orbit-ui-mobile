@@ -2,7 +2,6 @@ export const FRESH_START_DELETED_ITEM_KEYS = [
   'profile.freshStart.deleteHabits',
   'profile.freshStart.deleteGoals',
   'profile.freshStart.deleteChat',
-  'profile.freshStart.deleteUserFacts',
   'profile.freshStart.deleteAchievements',
   'profile.freshStart.deleteNotifications',
   'profile.freshStart.deleteChecklist',

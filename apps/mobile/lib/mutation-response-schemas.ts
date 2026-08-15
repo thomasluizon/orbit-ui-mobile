@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod'
-import type { MutationType } from '@orbit/shared/types/sync'
+import { mutationTypeSchema, type MutationType } from '@orbit/shared/types/sync'
 import {
   bulkCreateResponseSchema,
   bulkDeleteResponseSchema,
@@ -25,6 +25,7 @@ const MUTATION_RESPONSE_SCHEMAS: Partial<Record<MutationType, ZodType>> = {
  * validated (opt-in), preserving prior behavior.
  * See https://github.com/thomasluizon/orbit-ui-mobile/issues/479
  */
-export function getMutationResponseSchema(type: MutationType): ZodType | undefined {
-  return MUTATION_RESPONSE_SCHEMAS[type]
+export function getMutationResponseSchema(type: string): ZodType | undefined {
+  const currentType = mutationTypeSchema.safeParse(type)
+  return currentType.success ? MUTATION_RESPONSE_SCHEMAS[currentType.data] : undefined
 }

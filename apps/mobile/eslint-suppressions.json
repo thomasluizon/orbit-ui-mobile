@@ -117,11 +117,6 @@
       "count": 1
     }
   },
-  "app/ai-settings-styles.ts": {
-    "local/spacing-scale": {
-      "count": 12
-    }
-  },
   "app/calendar-sync-styles.ts": {
     "local/spacing-scale": {
       "count": 15

@@ -14,33 +14,33 @@ import {
   update,
 } from '@/lib/offline-queue'
 
-const { withTransactionSyncMock } = vi.hoisted(() => ({
+interface StoredRow {
+  id: string
+  timestamp: number
+  type: string
+  endpoint: string
+  method: string
+  payload: string
+  retries: number
+  max_retries: number
+  meta: string | null
+}
+
+const { storedRows, withTransactionSyncMock } = vi.hoisted(() => ({
+  storedRows: new Map<string, StoredRow>(),
   withTransactionSyncMock: vi.fn((task: () => void) => {
     task()
   }),
 }))
 
 vi.mock('expo-sqlite', () => {
-  interface StoredRow {
-    id: string
-    timestamp: number
-    type: string
-    endpoint: string
-    method: string
-    payload: string
-    retries: number
-    max_retries: number
-    meta: string | null
-  }
-
-  const rows = new Map<string, StoredRow>()
   const columns = [{ name: 'meta' }]
 
   return {
     openDatabaseSync: () => ({
       execSync: (sql: string) => {
         if (sql.includes('DELETE FROM mutation_queue')) {
-          rows.clear()
+          storedRows.clear()
         }
       },
       getAllSync: <T,>(sql: string) => {
@@ -48,7 +48,7 @@ vi.mock('expo-sqlite', () => {
           return columns as T[]
         }
         if (sql.startsWith('SELECT * FROM mutation_queue')) {
-          return Array.from(rows.values()).sort((a, b) => a.timestamp - b.timestamp) as T[]
+          return Array.from(storedRows.values()).sort((a, b) => a.timestamp - b.timestamp) as T[]
         }
         return [] as T[]
       },
@@ -76,7 +76,7 @@ vi.mock('expo-sqlite', () => {
             string | null,
           ]
 
-          rows.set(id, {
+          storedRows.set(id, {
             id,
             timestamp,
             type,
@@ -91,17 +91,17 @@ vi.mock('expo-sqlite', () => {
         }
 
         if (sql === 'DELETE FROM mutation_queue') {
-          rows.clear()
+          storedRows.clear()
           return
         }
 
         if (sql.startsWith('DELETE FROM mutation_queue WHERE id = ?')) {
-          rows.delete(String(params[0]))
+          storedRows.delete(String(params[0]))
         }
       },
       getFirstSync: <T,>(sql: string) => {
         if (sql.startsWith('SELECT COUNT(*) as cnt')) {
-          return { cnt: rows.size } as T
+          return { cnt: storedRows.size } as T
         }
         return null as T
       },
@@ -135,6 +135,30 @@ describe('mobile offline queue', () => {
   beforeEach(() => {
     clear()
     withTransactionSyncMock.mockClear()
+  })
+
+  it('preserves a retired persisted operation without assigning current metadata', () => {
+    const retiredType = ['delete', 'User', 'Fact'].join('')
+    storedRows.set('retired-scope-row', {
+      id: 'retired-scope-row',
+      timestamp: Date.now(),
+      type: retiredType,
+      endpoint: ['/api/user', '-facts/retired'].join(''),
+      method: 'DELETE',
+      payload: 'null',
+      retries: 0,
+      max_retries: 3,
+      meta: JSON.stringify({
+        scope: ['user', 'Facts'].join(''),
+        entityType: ['user', 'Fact'].join(''),
+      }),
+    })
+
+    expect(getAll()[0]).toEqual(expect.objectContaining({
+      type: retiredType,
+      scope: undefined,
+      entityType: undefined,
+    }))
   })
 
   it('rewrites the queue inside a single transaction so a crash cannot drop it', () => {

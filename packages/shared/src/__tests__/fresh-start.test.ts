@@ -8,7 +8,7 @@ import {
 
 describe('fresh-start utils', () => {
   it('keeps the deleted and preserved key lists stable', () => {
-    expect(FRESH_START_DELETED_ITEM_KEYS).toHaveLength(8)
+    expect(FRESH_START_DELETED_ITEM_KEYS).toHaveLength(7)
     expect(FRESH_START_PRESERVED_ITEM_KEYS).toEqual([
       'profile.freshStart.preserveAccount',
       'profile.freshStart.preserveSubscription',

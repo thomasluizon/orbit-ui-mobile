@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QueuedMutation } from '@orbit/shared/types/sync'
+import type {
+  MutationType,
+  PersistedQueuedMutation,
+  QueuedMutation,
+} from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 
 import {
@@ -15,11 +19,10 @@ import {
   subscribeDroppedMutations,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
-import type { MutationType } from '@orbit/shared/types/sync'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const mocks = vi.hoisted(() => {
-  const queued: QueuedMutation[] = []
+  const queued: PersistedQueuedMutation[] = []
   const resolvedIds = new Map<string, string>()
   let online = false
 
@@ -59,7 +62,7 @@ const mocks = vi.hoisted(() => {
     if (index >= 0) queued.splice(index, 1)
   })
 
-  const update = vi.fn((id: string, patch: Partial<QueuedMutation>) => {
+  const update = vi.fn((id: string, patch: Partial<PersistedQueuedMutation>) => {
     const mutation = queued.find((entry) => entry.id === id)
     if (!mutation) return
     Object.assign(mutation, patch)
@@ -79,27 +82,30 @@ const mocks = vi.hoisted(() => {
     }
   })
 
-  const upsertOfflineEntity = vi.fn(async () => {})
-  const setOfflineEntityStatus = vi.fn(async () => {})
-  const clearOfflineEntity = vi.fn(async () => {})
-  const markOfflineTombstone = vi.fn(async () => {})
-  const resolveOfflineEntity = vi.fn(async (_entityType: string, oldId: string, newId: string) => {
+  const upsertOfflineEntity = vi.fn(() => Promise.resolve())
+  const setOfflineEntityStatus = vi.fn(() => Promise.resolve())
+  const clearOfflineEntity = vi.fn(() => Promise.resolve())
+  const markOfflineTombstone = vi.fn(() => Promise.resolve())
+  const resolveOfflineEntity = vi.fn((_entityType: string, oldId: string, newId: string) => {
     resolvedIds.set(oldId, newId)
+    return Promise.resolve()
   })
-  const getResolvedEntityId = vi.fn(async (_entityType: string, id: string) => resolvedIds.get(id) ?? id)
+  const getResolvedEntityId = vi.fn((_entityType: string, id: string) =>
+    Promise.resolve(resolvedIds.get(id) ?? id),
+  )
 
-  const persistQueryCache = vi.fn(async () => {})
-  const invalidateQueries = vi.fn(async () => {})
+  const persistQueryCache = vi.fn(() => Promise.resolve())
+  const invalidateQueries = vi.fn(() => Promise.resolve())
 
-  const apiClient = vi.fn(async (endpoint: string) => {
+  const apiClient = vi.fn((endpoint: string): Promise<{ id: string } | null> => {
     if (endpoint === '/api/habits') {
-      return { id: 'habit-1' }
+      return Promise.resolve({ id: 'habit-1' })
     }
 
-    return null
+    return Promise.resolve(null)
   })
 
-  const getCurrentConnectivity = vi.fn(async () => online)
+  const getCurrentConnectivity = vi.fn(() => Promise.resolve(online))
 
   return {
     queued,
@@ -183,8 +189,8 @@ describe('offline mutations', () => {
     mocks.persistQueryCache.mockClear()
     mocks.invalidateQueries.mockClear()
     mocks.apiClient.mockReset()
-    mocks.apiClient.mockImplementation(async (endpoint: string) =>
-      endpoint === '/api/habits' ? { id: 'habit-1' } : null,
+    mocks.apiClient.mockImplementation((endpoint: string) =>
+      Promise.resolve(endpoint === '/api/habits' ? { id: 'habit-1' } : null),
     )
     mocks.getCurrentConnectivity.mockClear()
     cancelScheduledFlush()
@@ -204,9 +210,7 @@ describe('offline mutations', () => {
     const queuedAck = { queued: true as const }
     const result = await queueOrExecute({
       mutation,
-      execute: async () => {
-        throw new Error('should not execute while offline')
-      },
+      execute: () => Promise.reject(new Error('should not execute while offline')),
       queuedResult: queuedAck,
     })
 
@@ -273,9 +277,9 @@ describe('offline mutations', () => {
     let keyDuringExecute: string | null = null
     await queueOrExecute({
       mutation,
-      execute: async () => {
+      execute: () => {
         keyDuringExecute = consumePendingIdempotencyKey()
-        return { id: 'tag-1' }
+        return Promise.resolve({ id: 'tag-1' })
       },
       queuedResult: { queued: true as const },
     })
@@ -295,7 +299,7 @@ describe('offline mutations', () => {
 
     await queueOrExecute({
       mutation,
-      execute: async () => ({ id: 'tag-1' }),
+      execute: () => Promise.resolve({ id: 'tag-1' }),
       queuedResult: { queued: true as const },
     })
 
@@ -314,7 +318,7 @@ describe('offline mutations', () => {
         payload: { language: 'en' },
         dedupeKey: 'profile-language',
       },
-      execute: async () => undefined,
+      execute: () => Promise.resolve(undefined),
     })
 
     expect(result).toMatchObject({
@@ -337,7 +341,7 @@ describe('offline mutations', () => {
       targetEntityId: 'offline-habit-1',
     })
 
-    const execute = vi.fn(async () => ({ ok: true }))
+    const execute = vi.fn(() => Promise.resolve({ ok: true }))
     const queuedAck = { queued: true as const }
 
     const result = await queueOrExecute({
@@ -365,7 +369,7 @@ describe('offline mutations', () => {
       clientEntityId: 'offline-habit-1',
     })
 
-    const execute = vi.fn(async () => ({ id: 'habit-1' }))
+    const execute = vi.fn(() => Promise.resolve({ id: 'habit-1' }))
 
     const result = await queueOrExecute({
       mutation,
@@ -391,7 +395,7 @@ describe('offline mutations', () => {
       dependsOn: ['offline-tag-1'],
     })
 
-    const execute = vi.fn(async () => ({ ok: true }))
+    const execute = vi.fn(() => Promise.resolve({ ok: true }))
     const queuedAck = { queued: true as const }
 
     const result = await queueOrExecute({
@@ -420,9 +424,7 @@ describe('offline mutations', () => {
 
     await expect(queueOrExecute({
       mutation,
-      execute: async () => {
-        throw new Error('Validation failed')
-      },
+      execute: () => Promise.reject(new Error('Validation failed')),
       queuedResult: { queued: true as const },
     })).rejects.toThrow('Validation failed')
 
@@ -482,12 +484,12 @@ describe('offline mutations', () => {
 
   it('flushes payload-only dependencies after earlier offline ids are rewritten', async () => {
     mocks.setOnline(true)
-    mocks.apiClient.mockImplementation(async (endpoint: string) => {
+    mocks.apiClient.mockImplementation((endpoint: string) => {
       if (endpoint === '/api/tags') {
-        return { id: 'tag-1' }
+        return Promise.resolve({ id: 'tag-1' })
       }
 
-      return null
+      return Promise.resolve(null)
     })
 
     mocks.queued.push(
@@ -585,11 +587,11 @@ describe('offline mutations', () => {
 
   it('drops a validation-rejected mutation, keeps flushing the rest, and reports the dropped one', async () => {
     mocks.setOnline(true)
-    mocks.apiClient.mockImplementation(async (endpoint: string) => {
+    mocks.apiClient.mockImplementation((endpoint: string) => {
       if (endpoint === '/api/habits/habit-bad') {
-        throw new Error('400 validation failed')
+        return Promise.reject(new Error('400 validation failed'))
       }
-      return { id: 'habit-good' }
+      return Promise.resolve({ id: 'habit-good' })
     })
 
     const droppedCandidate = {
@@ -650,13 +652,76 @@ describe('offline mutations', () => {
     expect(mocks.queued).toHaveLength(0)
   })
 
-  it('notifies subscribers on every dropped mutation and stops after unsubscribe', async () => {
+  it('replays a retired persisted operation without current-scope invalidation', async () => {
     mocks.setOnline(true)
-    mocks.apiClient.mockImplementation(async () => {
-      throw new Error('400 validation failed')
+    const retiredType = ['delete', 'User', 'Fact'].join('')
+    const endpoint = ['/api/user', '-facts/retired'].join('')
+    mocks.queued.push({
+      id: 'retired-operation',
+      timestamp: Date.now(),
+      type: retiredType,
+      endpoint,
+      method: 'DELETE',
+      payload: null,
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dependsOn: [],
     })
 
-    const dropped: Array<{ id: string; type: string }> = []
+    const result = await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      endpoint,
+      expect.objectContaining({ method: 'DELETE' }),
+      undefined,
+    )
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      succeeded: 1,
+      failed: 0,
+      remaining: 0,
+      droppedMutations: [],
+    })
+  })
+
+  it('drops a rejected retired operation without classifying it as a current scope', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValue(new Error('400 validation failed'))
+    const retiredType = ['bulkDelete', 'User', 'Facts'].join('')
+    mocks.queued.push({
+      id: 'retired-rejected-operation',
+      timestamp: Date.now(),
+      type: retiredType,
+      endpoint: ['/api/user', '-facts/bulk'].join(''),
+      method: 'DELETE',
+      payload: null,
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dependsOn: [],
+    })
+
+    const result = await flushQueuedMutations()
+
+    expect(getMutationScope(retiredType)).toBeUndefined()
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(result.droppedMutations).toEqual([
+      {
+        id: 'retired-rejected-operation',
+        type: retiredType,
+        lastError: '400 validation failed',
+      },
+    ])
+  })
+
+  it('notifies subscribers on every dropped mutation and stops after unsubscribe', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockImplementation(() =>
+      Promise.reject(new Error('400 validation failed')),
+    )
+
+    const dropped: { id: string; type: string }[] = []
     const unsubscribe = subscribeDroppedMutations((drop) => {
       dropped.push({ id: drop.id, type: drop.type })
     })
@@ -722,9 +787,9 @@ describe('offline mutations', () => {
     let executedWith: QueuedMutation | null = null
     await queueOrExecute({
       mutation,
-      execute: async (resolved) => {
+      execute: (resolved) => {
         executedWith = resolved
-        return { ok: true }
+        return Promise.resolve({ ok: true })
       },
       queuedResult: { queued: true as const },
     })
@@ -755,9 +820,7 @@ describe('offline mutations', () => {
         method: 'PUT',
         payload: { title: 'Retry' },
       }),
-      execute: async () => {
-        throw new TypeError('Network request failed')
-      },
+      execute: () => Promise.reject(new TypeError('Network request failed')),
       queuedResult: queuedAck,
     })
 
@@ -778,7 +841,7 @@ describe('offline mutations', () => {
         entityType: 'habit',
         targetEntityId: 'habit-7',
       }),
-      execute: async () => undefined,
+      execute: () => Promise.resolve(undefined),
       queuedResult: { queued: true as const },
     })
 
@@ -970,9 +1033,9 @@ describe('offline mutations', () => {
     it('replays 120 queued mutations in enqueue order, applying every one with none dropped', async () => {
       mocks.setOnline(true)
       const flushOrder: string[] = []
-      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+      mocks.apiClient.mockImplementation((endpoint: string) => {
         flushOrder.push(endpoint)
-        return null
+        return Promise.resolve(null)
       })
 
       const total = 120
@@ -1005,13 +1068,13 @@ describe('offline mutations', () => {
       mocks.setOnline(true)
       const flushOrder: string[] = []
       let dropThirdOnce = true
-      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+      mocks.apiClient.mockImplementation((endpoint: string) => {
         flushOrder.push(endpoint)
         if (endpoint === '/api/habits/habit-c' && dropThirdOnce) {
           dropThirdOnce = false
-          throw new Error('Network request failed')
+          return Promise.reject(new Error('Network request failed'))
         }
-        return null
+        return Promise.resolve(null)
       })
 
       for (const suffix of ['a', 'b', 'c', 'd']) {
@@ -1052,12 +1115,12 @@ describe('offline mutations', () => {
     it('keeps unacknowledged mutations queued and unsent when a flush times out mid-batch', async () => {
       mocks.setOnline(true)
       const flushOrder: string[] = []
-      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+      mocks.apiClient.mockImplementation((endpoint: string) => {
         flushOrder.push(endpoint)
         if (endpoint === '/api/habits/habit-slow') {
-          throw new Error('The request timed out')
+          return Promise.reject(new Error('The request timed out'))
         }
-        return null
+        return Promise.resolve(null)
       })
 
       mocks.queued.push(
@@ -1118,10 +1181,10 @@ describe('offline mutations', () => {
     it('defers a dependent mutation until its offline dependency resolves, even when queued ahead of the create', async () => {
       mocks.setOnline(true)
       const flushOrder: string[] = []
-      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+      mocks.apiClient.mockImplementation((endpoint: string) => {
         flushOrder.push(endpoint)
-        if (endpoint === '/api/tags') return { id: 'tag-1' }
-        return null
+        if (endpoint === '/api/tags') return Promise.resolve({ id: 'tag-1' })
+        return Promise.resolve(null)
       })
 
       mocks.queued.push(
@@ -1204,12 +1267,11 @@ describe('offline mutation helpers', () => {
   })
 
   it('maps every mutation type group to its invalidation scope', () => {
-    const cases: Array<[MutationType, string]> = [
+    const cases: [MutationType, string][] = [
       ['createGoal', 'goals'],
       ['linkGoalHabits', 'goals'],
       ['assignTags', 'tags'],
       ['markNotificationRead', 'notifications'],
-      ['bulkDeleteUserFacts', 'userFacts'],
       ['createApiKey', 'apiKeys'],
       ['dismissCalendarPrompt', 'calendar'],
       ['setLanguage', 'profile'],

@@ -6,14 +6,15 @@ import {
   notificationKeys,
   profileKeys,
   tagKeys,
-  userFactKeys,
 } from '@orbit/shared/query'
 import type {
   MutationEntityType,
   MutationScope,
   MutationType,
+  PersistedQueuedMutation,
   QueuedMutation,
 } from '@orbit/shared/types/sync'
+import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
@@ -38,7 +39,6 @@ const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> =
   tags: [tagKeys.all, habitKeys.lists()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
-  userFacts: [userFactKeys.all],
   apiKeys: [apiKeyKeys.all],
   calendar: [profileKeys.all],
 }
@@ -50,7 +50,7 @@ export interface QueuedMarker {
 
 export interface DroppedMutation {
   id: string
-  type: MutationType
+  type: string
   lastError: string | null
 }
 
@@ -212,7 +212,7 @@ function collectOfflineIds(value: unknown, ids: Set<string>): void {
   }
 }
 
-function hasPendingOfflineDependencies(mutation: QueuedMutation): boolean {
+function hasPendingOfflineDependencies(mutation: PersistedQueuedMutation): boolean {
   const pendingIds = new Set<string>()
 
   if (mutation.targetEntityId?.startsWith('offline-')) {
@@ -254,7 +254,7 @@ function replaceIdInValue(value: unknown, oldId: string, newId: string): unknown
   return value
 }
 
-function rewriteMutationIdReferences(mutation: QueuedMutation, oldId: string, newId: string): QueuedMutation {
+function rewriteMutationIdReferences<T extends PersistedQueuedMutation>(mutation: T, oldId: string, newId: string): T {
   return {
     ...mutation,
     endpoint: mutation.endpoint.includes(oldId)
@@ -267,7 +267,7 @@ function rewriteMutationIdReferences(mutation: QueuedMutation, oldId: string, ne
   }
 }
 
-async function resolveMutationReferences(mutation: QueuedMutation): Promise<QueuedMutation> {
+async function resolveMutationReferences<T extends PersistedQueuedMutation>(mutation: T): Promise<T> {
   if (!mutation.entityType || !mutation.targetEntityId) return mutation
 
   const resolvedId = await getResolvedEntityId(mutation.entityType, mutation.targetEntityId)
@@ -361,7 +361,7 @@ function shouldStopFlushing(error: unknown): boolean {
   return message.includes('unauthorized') || message.includes('forbidden')
 }
 
-export function getMutationScope(type: MutationType): MutationScope {
+export function getMutationScope(type: string): MutationScope | undefined {
   switch (type) {
     case 'createGoal':
     case 'updateGoal':
@@ -381,9 +381,6 @@ export function getMutationScope(type: MutationType): MutationScope {
     case 'deleteNotification':
     case 'deleteAllNotifications':
       return 'notifications'
-    case 'deleteUserFact':
-    case 'bulkDeleteUserFacts':
-      return 'userFacts'
     case 'createApiKey':
     case 'deleteApiKey':
       return 'apiKeys'
@@ -394,7 +391,6 @@ export function getMutationScope(type: MutationType): MutationScope {
     case 'setColorScheme':
     case 'setThemePreference':
     case 'setTimeZone':
-    case 'setAiMemory':
     case 'setAiSummary':
     case 'setProactiveAstra':
     case 'setMarketingConsent':
@@ -403,7 +399,7 @@ export function getMutationScope(type: MutationType): MutationScope {
     case 'resetProfile':
       return 'profile'
     default:
-      return 'habits'
+      return mutationTypeSchema.safeParse(type).success ? 'habits' : undefined
   }
 }
 
@@ -480,13 +476,14 @@ function serializeMutationPayload(payload: unknown): string | undefined {
 
 function addTouchedScope(
   touchedScopes: Set<MutationScope>,
-  mutation: QueuedMutation,
+  mutation: PersistedQueuedMutation,
 ): void {
-  touchedScopes.add(mutation.scope ?? getMutationScope(mutation.type))
+  const scope = mutation.scope ?? getMutationScope(mutation.type)
+  if (scope) touchedScopes.add(scope)
 }
 
 async function clearCreatedOfflineEntity(
-  mutation: QueuedMutation,
+  mutation: PersistedQueuedMutation,
   response: unknown,
 ): Promise<void> {
   if (!mutation.entityType || !mutation.clientEntityId) return
@@ -501,7 +498,7 @@ async function clearCreatedOfflineEntity(
   await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
 }
 
-async function clearDeletedOfflineEntity(mutation: QueuedMutation): Promise<void> {
+async function clearDeletedOfflineEntity(mutation: PersistedQueuedMutation): Promise<void> {
   if (!mutation.entityType || !mutation.targetEntityId || !mutation.type.startsWith('delete')) {
     return
   }
@@ -510,7 +507,7 @@ async function clearDeletedOfflineEntity(mutation: QueuedMutation): Promise<void
 }
 
 async function finalizeSuccessfulFlush(
-  mutation: QueuedMutation,
+  mutation: PersistedQueuedMutation,
   response: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<void> {
@@ -520,7 +517,7 @@ async function finalizeSuccessfulFlush(
   remove(mutation.id)
 }
 
-async function markMutationSyncing(mutation: QueuedMutation): Promise<void> {
+async function markMutationSyncing(mutation: PersistedQueuedMutation): Promise<void> {
   update(mutation.id, { status: 'syncing', lastError: null })
 
   if (mutation.entityType && mutation.clientEntityId) {
@@ -531,7 +528,7 @@ async function markMutationSyncing(mutation: QueuedMutation): Promise<void> {
 type FlushStopReason = 'network' | 'auth' | null
 
 async function handleFlushFailure(
-  mutation: QueuedMutation,
+  mutation: PersistedQueuedMutation,
   error: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<{
@@ -600,7 +597,7 @@ type FlushStepResult = {
 }
 
 async function processQueuedMutationFlush(
-  originalMutation: QueuedMutation,
+  originalMutation: PersistedQueuedMutation,
   touchedScopes: Set<MutationScope>,
 ): Promise<FlushStepResult> {
   const currentMutation = getById(originalMutation.id)

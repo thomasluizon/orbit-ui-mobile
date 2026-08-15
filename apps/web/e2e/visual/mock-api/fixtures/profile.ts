@@ -12,7 +12,6 @@ export const profileFixture = {
   email: 'preview@useorbit.org',
   timeZone: 'UTC',
   uses24HourClock: true,
-  aiMemoryEnabled: false,
   aiSummaryEnabled: false,
   hasCompletedOnboarding: true,
   hasCompletedTour: true,

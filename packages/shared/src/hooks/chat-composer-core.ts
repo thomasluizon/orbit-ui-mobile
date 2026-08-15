@@ -10,7 +10,6 @@ import {
   referralKeys,
   subscriptionKeys,
   tagKeys,
-  userFactKeys,
 } from '../query/keys'
 import type {
   ActionResult,
@@ -90,7 +89,6 @@ const AGENT_INVALIDATION_KEY_FAMILIES: readonly (readonly unknown[])[] = [
   tagKeys.all,
   notificationKeys.all,
   calendarKeys.all,
-  userFactKeys.all,
   gamificationKeys.all,
   subscriptionKeys.all,
   referralKeys.all,

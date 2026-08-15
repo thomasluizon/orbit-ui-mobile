@@ -59,7 +59,6 @@ const defaultProfile = {
   name: 'Thomas',
   email: 'thomas@example.com',
   timeZone: 'America/Sao_Paulo',
-  aiMemoryEnabled: true,
   aiSummaryEnabled: true,
   hasCompletedOnboarding: true,
   hasCompletedTour: false,

@@ -37,5 +37,7 @@ describe('PlanComparisonCards (mobile)', () => {
     expect(expanded).toContain('upgrade.features.retrospective.label')
     expect(expanded).toContain('upgrade.matrix.yearlyTag')
     expect(expanded).toContain('upgrade.matrix.notIncluded')
+    const retiredKey = ['upgrade.features.ai', 'Memory.label'].join('')
+    expect(expanded).not.toContain(retiredKey)
   })
 })

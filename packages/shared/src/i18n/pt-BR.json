@@ -171,7 +171,6 @@
       "tags": "tag",
       "notifications": "notificação",
       "profile": "configuração",
-      "userFacts": "memória",
       "apiKeys": "chave de API",
       "calendar": "calendário"
     },
@@ -875,7 +874,6 @@
         "tags-delete": "Excluir tags",
         "notifications-delete": "Excluir notificações",
         "calendar-sync-manage": "Gerenciar sincronização de agenda",
-        "user-facts-delete": "Excluir memórias da IA",
         "subscriptions-manage": "Gerenciar assinatura",
         "api-keys-manage": "Gerenciar chaves de API",
         "sync-write": "Gravar dados de sincronização",
@@ -997,7 +995,7 @@
       "accountActions": "Ações da conta",
       "subscription": "Assinatura",
       "preferencesHint": "Idioma, cores, notificações",
-      "aiFeaturesHint": "Memória, resumo diário",
+      "aiFeaturesHint": "Resumo diário, check-ins proativos",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
@@ -1017,10 +1015,6 @@
       "title": "Cor do tema",
       "description": "Escolha sua cor de destaque"
     },
-    "aiMemory": {
-      "title": "Memória da IA",
-      "description": "Com isso ativado, o Orbit aprende suas preferências, rotinas e contexto das conversas para te dar respostas mais personalizadas."
-    },
     "aiSummary": {
       "title": "Resumo diário",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
@@ -1032,30 +1026,6 @@
     "marketingEmails": {
       "title": "Novidades do produto por e-mail",
       "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser."
-    },
-    "facts": {
-      "title": "O que a Astra sabe",
-      "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar a ela.",
-      "factsError": "Não foi possível carregar o que a Astra sabe.",
-      "retry": "Tentar de novo",
-      "save": "Salvar",
-      "cancel": "Cancelar",
-      "delete": "Excluir",
-      "preference": "Preferência",
-      "routine": "Rotina",
-      "context": "Contexto",
-      "default": "Padrão",
-      "none": "Nenhuma",
-      "select": "Selecionar",
-      "selectAll": "Selecionar tudo",
-      "deselectAll": "Limpar",
-      "selectedCount": "{n} selecionado(s)",
-      "deleteSelected": "Excluir ({n})",
-      "deleteSelectedShort": "Excluir selecionados",
-      "bulkDeleteConfirmTitle": "Excluir os fatos selecionados?",
-      "bulkDeleteConfirmBody": "A Astra vai esquecer esses fatos. Isso não pode ser desfeito.",
-      "count": "{n} / {max}",
-      "lockedHint": "Faça upgrade para o Pro e deixe a Astra lembrar do que você conta no chat."
     },
     "support": {
       "title": "Suporte",
@@ -1115,7 +1085,6 @@
       "deleteHabits": "Todos os hábitos, sub-hábitos e o histórico de conclusão",
       "deleteGoals": "Todas as metas e os registros de progresso",
       "deleteChat": "As conversas com a IA",
-      "deleteUserFacts": "A memória da IA (o que ela sabe sobre você)",
       "deleteAchievements": "Conquistas, XP e progresso de nível",
       "deleteNotifications": "Todas as notificações",
       "deleteChecklist": "Os modelos de checklist salvos",
@@ -1140,7 +1109,7 @@
       "warning": "Esta ação não tem volta.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
       "warningPro": "Sua conta será desativada e apagada de vez 7 dias depois de o seu plano expirar, em {date}. Entre de novo antes disso para cancelar.",
-      "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Vamos enviar um código de confirmação para o seu e-mail.",
+      "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
       "sending": "Enviando...",
       "codeInstructions": "Digite o código de 6 dígitos que enviamos ao seu e-mail para confirmar a desativação da conta.",
@@ -1302,7 +1271,7 @@
       "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
-      "preferences": "Preferências: idioma, fuso horário, cor do tema, configurações de notificação e o que você ensina para a memória da IA",
+      "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
       "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes), o identificador de publicidade do seu dispositivo (usado pelo Google AdMob para exibir anúncios a usuários gratuitos) e diagnósticos de falhas com identificadores pessoais removidos"
     },
     "howWeUse": {
@@ -1338,7 +1307,7 @@
       "intro": "Guardamos seus dados só pelo tempo necessário para oferecer o serviço:",
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
       "sessions": "Sessões de autenticação e tokens de push: guardados enquanto estão ativos e removidos quando você sai, quando o token expira ou quando o aparelho é desinscrito.",
-      "ai": "Histórico do chat com a IA e a memória dela: guardados enquanto os recursos de IA estiverem ativos; excluir sua conta ou limpar a memória da IA remove tudo isso.",
+      "ai": "Histórico do chat com a IA: guardado enquanto os recursos de IA estiverem ativos e removido quando você exclui sua conta.",
       "reminderHistory": "Registros de lembretes enviados, alertas de deslize e congelamentos de sequência: guardados por 90 dias a partir da data do registro.",
       "syncRecords": "Registros excluídos mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
       "calendarSuggestions": "Sugestões de importação do Google Agenda que você não importa: guardadas por 14 dias.",
@@ -1358,7 +1327,7 @@
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
-      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar a memória e os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
+      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
     },
     "minors": {
       "title": "Requisito de idade",
@@ -1366,7 +1335,7 @@
     },
     "export": {
       "title": "Seu direito de exportar os dados",
-      "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags, a memória da IA e as configurações) em um arquivo JSON, na página de Perfil, de acordo com o seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
+      "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags e configurações) em um arquivo JSON, na página de Perfil, de acordo com o seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
     },
     "deletion": {
       "title": "Exclusão de dados",
@@ -1374,7 +1343,7 @@
       "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
       "step2": "2. Enviamos um código de confirmação para o seu e-mail",
       "step3": "3. Digite o código para confirmar a exclusão",
-      "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
+      "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA e configurações. Esta ação não tem volta."
     },
     "contact": {
       "title": "Contato",
@@ -1720,7 +1689,7 @@
         "canDoTitle": "Criar e registrar",
         "canDoDesc": "Diga à Astra quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar conclusões. Ela também cria tarefas únicas, como 'comprar ovos amanhã'.",
         "toolsBreadthTitle": "61 ferramentas integradas",
-        "toolsBreadthDesc": "A Astra não é só conversa -- ela age. São 61 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário, memória e sua conta. Quase tudo que você faz tocando na tela, você faz pedindo. O plano grátis inclui 20 mensagens de IA por mês; o Pro sobe para 500.",
+        "toolsBreadthDesc": "A Astra não é só conversa -- ela age. São 61 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário e sua conta. Quase tudo que você faz tocando na tela, você faz pedindo. O plano grátis inclui 20 mensagens de IA por mês; o Pro sobe para 500.",
         "manageTitle": "Atualizar e excluir",
         "manageDesc": "Peça à Astra para mudar hábitos: 'passar minha academia para amanhã', 'renomear corrida para caminhada', 'mudar meditação para semanal' ou 'excluir meu hábito de leitura'. Ela também faz ações em massa.",
         "insightsTitle": "Progresso e análise",
@@ -1785,12 +1754,8 @@
         "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). O app inteiro se adapta: fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
         "languageTitle": "Idioma",
         "languageDesc": "Alterne entre inglês e português. O app, as respostas da IA e os e-mails se adaptam ao idioma escolhido.",
-        "aiMemoryTitle": "Memória da IA",
-        "aiMemoryDesc": "Quando ativada, a IA aprende com as suas conversas: suas preferências, rotinas e objetivos. Ela usa isso para dar sugestões mais personalizadas. Você pode ver e gerenciar tudo em 'O que o Orbit sabe'. Recurso Pro.",
         "aiSummaryTitle": "Resumo diário da IA",
         "aiSummaryDesc": "Ativa um cartão de resumo diário feito pela IA na sua página Hoje, com insights sobre seus hábitos e uma dose de incentivo. Recurso Pro.",
-        "userFactsTitle": "O que o Orbit sabe",
-        "userFactsDesc": "Adicione você mesmo fatos sobre você (preferências, rotinas, contexto) que a IA usa para personalizar as sugestões. Por exemplo: 'Trabalho à noite' ou 'Prefiro me exercitar ao ar livre'. Recurso Pro.",
         "timezoneTitle": "Fuso horário",
         "timezoneDesc": "Seu fuso horário é detectado automaticamente no primeiro login. Ele define quando os hábitos vencem e o que é 'hoje' para a sua agenda.",
         "supportTitle": "Suporte",
@@ -1859,12 +1824,6 @@
         "free": "1 tema",
         "pro": "Todos os 6 temas",
         "tooltip": "Personalize o Orbit com 6 cores de tema: roxo, azul, verde, rosa, laranja e ciano. No plano grátis, você usa o tema roxo padrão."
-      },
-      "aiMemory": {
-        "label": "Memória da IA",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "A IA lembra suas preferências, metas e contexto de uma conversa para outra, para um acompanhamento mais personalizado."
       },
       "summary": {
         "label": "Resumo diário",
@@ -2049,8 +2008,6 @@
     "api": {
       "noPermission": "Você não tem permissão para isso.",
       "sessionExpired": "Sua sessão expirou. Entre de novo.",
-      "factsLimit": "Você chegou ao limite de fatos salvos. Apague alguns para adicionar novos.",
-      "duplicateFact": "A Astra já sabe algo parecido.",
       "duplicateTag": "Você já tem uma tag com esse nome.",
       "apiKeyLimit": "Você chegou ao número máximo de chaves de API.",
       "messageTooLong": "Essa mensagem é longa demais. Tente encurtar.",
@@ -2873,7 +2830,7 @@
     },
     "data": {
       "title": "O que é excluído",
-      "body": "A exclusão remove seus hábitos, o histórico de conclusão, as metas, as tags, as conversas e a memória da IA, as configurações e o perfil da conta. Depois do fim do período de carência, esta ação não tem volta."
+      "body": "A exclusão remove seus hábitos, o histórico de conclusão, as metas, as tags, as conversas, as configurações e o perfil da conta. Depois do fim do período de carência, esta ação não tem volta."
     }
   },
   "dataExport": {

@@ -27,7 +27,7 @@ Free-tier limits (source: `AppConstants.cs`): **10** top-level habits, **20** AI
 ## The headline
 
 ### Astra — your AI habit coach
-Astra is a conversational coach that can actually *act*, not just talk. Tell it "I ran today" and it logs the run; ask "how am I doing?" and it analyzes your real streaks and completion rates. It has **61 built-in tools** spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, memory, and your account — so almost anything you can do by tapping, you can do by asking. It takes typed messages, **voice input** (speak instead of type, multi-language), and **images** (photograph a schedule and it extracts habits for review).
+Astra is a conversational coach that can actually *act*, not just talk. Tell it "I ran today" and it logs the run; ask "how am I doing?" and it analyzes your real streaks and completion rates. It has built-in tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account — so almost anything you can do by tapping, you can do by asking. It takes typed messages, **voice input** (speak instead of type, multi-language), and **images** (photograph a schedule and it extracts habits for review).
 
 ### Connect your assistant — Orbit speaks MCP
 Orbit exposes a full **Model Context Protocol** server, so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your account and manage your habits and goals from wherever you already chat with AI. **79 MCP tools across 15 tool classes**, scoped to your account, secured by OAuth 2.0 dynamic client registration or scoped, hashed API keys. This is a rare consumer feature: Orbit is a habit tracker your favorite AI assistant can drive.
@@ -51,11 +51,10 @@ Astra is the in-app assistant on the chat surface (web `/chat`, mobile `chat`). 
 | Tool breadth — habit bulk ops | 5 tools: bulk create/delete/log/skip and bulk emoji update | Free | Both | — |
 | Tool breadth — goals | 10 tools: create/query/update/delete, status, progress, link habits/goals, AI review, reorder | Pro (goals are Pro) | Both | — |
 | Tool breadth — tags | 5 tools: assign, list, create, update, delete | Free | Both | — |
-| Tool breadth — profile & preferences | 5 tools: get profile, update preferences, set color scheme, set AI memory, set AI summary | Free / Pro per setting | Both | — |
+| Tool breadth — profile & preferences | 4 tools: get profile, update preferences, set color scheme, set AI summary | Free / Pro per setting | Both | — |
 | Tool breadth — checklist templates | 3 tools: get, create, delete reusable templates | Free | Both | — |
 | Tool breadth — notifications | 3 tools: get, update, delete reminders | Free | Both | — |
 | Tool breadth — calendar | 2 tools: calendar overview, manage Google Calendar sync | Pro (calendar is Pro) | Both | — |
-| Tool breadth — memory / user facts | 2 tools: get, delete stored facts | Pro (AI memory is Pro) | Both | — |
 | Tool breadth — summary & retrospective | 2 tools: daily summary, retrospective | Pro / Yearly-Pro | Both | — |
 | Tool breadth — referrals | 2 tools: referral overview, referral code | Free | Both | — |
 | Tool breadth — subscriptions | 2 tools: subscription overview, manage subscription | Free | Both | — |
@@ -91,7 +90,6 @@ Orbit's MCP server lets external assistants (Claude, ChatGPT, any MCP client) dr
 | Gamification tools | 3 tools — XP, levels, achievements, streaks reads | Pro | Both | — |
 | API-key tools | 2 tools — manage keys from within MCP | Pro | Both | — |
 | Calendar tools | 2 tools — calendar overview and sync | Pro | Both | — |
-| User-fact tools | 2 tools — read/write AI memory facts | Pro | Both | — |
 | Account tools | 1 tool — account-level operations | Pro | Both | — |
 | Feature tools | 1 tool — feature discovery/description | Pro | Both | — |
 | Support tools | 1 tool — submit support requests | Pro | Both | — |
@@ -218,7 +216,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 |---|---|---|---|---|
 | Free tier | 10 habits, 20 AI msgs/mo, core tracking, gamification, milestone sharing, referrals | Free | Both | — |
 | 7-day trial | Full Pro access (except Retrospective); set at signup, no card | Trial | Both | — |
-| Orbit Pro | Unlimited habits, 500 AI msgs, sub-habits, goals, calendar, daily summary, memory, API keys/MCP, all color schemes | Pro | Both | — |
+| Orbit Pro | Unlimited habits, 500 AI msgs, sub-habits, goals, calendar, daily summary, API keys/MCP, all color schemes | Pro | Both | — |
 | Yearly Pro | Everything in Pro **plus** the AI Retrospective | Yearly-Pro | Both | — |
 | AI Retrospective | AI analysis over week/month/quarter/year | **Yearly-Pro only** | Both | — |
 | Purchase — mobile | Play Billing (native verify + RTDN); backend is source of truth | — | Mobile | — |
@@ -234,10 +232,8 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 |---|---|---|---|---|
 | Color scheme | 6 accent schemes (purple, blue, green, rose, orange, cyan) × dark/light | Free base; premium schemes Pro | Both | — |
 | Language | English / Brazilian Portuguese; app, AI, and emails follow | Free | Both | Full en + pt-BR parity |
-| AI memory | AI learns preferences/routines from conversations | Pro | Both | — |
 | AI daily summary toggle | Enable the Today summary card | Pro | Both | — |
 | Marketing email consent | One-time opt-in prompt + "Product updates by email" toggle; consent stored in-app (DB is the source of truth for the code-based sender), self-hosted unsubscribe flips it back | Free | Both | en + pt-BR |
-| What Orbit Knows | Manually add facts the AI uses to personalize (max 50) | Pro | Both | — |
 | Timezone | Auto-detected; drives due dates and "today" | Free | Both | — |
 | Week start day | Monday or Sunday across all calendars | Free | Both | — |
 | Support | Contact form from Profile | Free | Both | — |

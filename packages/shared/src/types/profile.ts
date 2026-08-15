@@ -22,7 +22,6 @@ export const profileSchema = z.object({
   email: z.string(),
   timeZone: z.string().nullable(),
   uses24HourClock: z.boolean().optional(),
-  aiMemoryEnabled: z.boolean(),
   aiSummaryEnabled: z.boolean(),
   hasCompletedOnboarding: z.boolean(),
   hasCompletedTour: z.boolean(),
@@ -80,12 +79,6 @@ export const updateTimezoneRequestSchema = z.object({
 })
 
 export type UpdateTimezoneRequest = z.infer<typeof updateTimezoneRequestSchema>
-
-export const setAiMemoryRequestSchema = z.object({
-  enabled: z.boolean(),
-})
-
-export type SetAiMemoryRequest = z.infer<typeof setAiMemoryRequestSchema>
 
 export const setAiSummaryRequestSchema = z.object({
   enabled: z.boolean(),

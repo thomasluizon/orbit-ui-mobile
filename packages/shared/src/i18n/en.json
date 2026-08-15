@@ -171,7 +171,6 @@
       "tags": "tag",
       "notifications": "notification",
       "profile": "settings",
-      "userFacts": "memory",
       "apiKeys": "API key",
       "calendar": "calendar"
     },
@@ -875,7 +874,6 @@
         "tags-delete": "Delete tags",
         "notifications-delete": "Delete notifications",
         "calendar-sync-manage": "Manage calendar sync",
-        "user-facts-delete": "Delete AI memory facts",
         "subscriptions-manage": "Manage subscription",
         "api-keys-manage": "Manage API keys",
         "sync-write": "Write sync data",
@@ -997,7 +995,7 @@
       "accountActions": "Account actions",
       "subscription": "Subscription",
       "preferencesHint": "Language, colors, notifications",
-      "aiFeaturesHint": "Memory, daily summary",
+      "aiFeaturesHint": "Daily summary, proactive check-ins",
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
@@ -1017,10 +1015,6 @@
       "title": "Color Scheme",
       "description": "Choose your accent color"
     },
-    "aiMemory": {
-      "title": "AI Memory",
-      "description": "When enabled, Orbit learns your preferences, routines, and context from conversations to give you more personalized responses."
-    },
     "aiSummary": {
       "title": "Daily Summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
@@ -1032,30 +1026,6 @@
     "marketingEmails": {
       "title": "Product updates by email",
       "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime."
-    },
-    "facts": {
-      "title": "What Astra knows",
-      "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
-      "factsError": "Couldn't load what Astra knows.",
-      "retry": "Try again",
-      "save": "Save",
-      "cancel": "Cancel",
-      "delete": "Delete",
-      "preference": "Preference",
-      "routine": "Routine",
-      "context": "Context",
-      "default": "Default",
-      "none": "None",
-      "select": "Select",
-      "selectAll": "Select all",
-      "deselectAll": "Clear",
-      "selectedCount": "{n} selected",
-      "deleteSelected": "Delete ({n})",
-      "deleteSelectedShort": "Delete selected",
-      "bulkDeleteConfirmTitle": "Delete selected facts?",
-      "bulkDeleteConfirmBody": "Astra will forget them. This can't be undone.",
-      "count": "{n} / {max}",
-      "lockedHint": "Upgrade to Pro to let Astra remember the facts you share in chat."
     },
     "support": {
       "title": "Support",
@@ -1115,7 +1085,6 @@
       "deleteHabits": "All habits, sub-habits, and completion history",
       "deleteGoals": "All goals and progress logs",
       "deleteChat": "AI chat conversations",
-      "deleteUserFacts": "AI memory (user facts)",
       "deleteAchievements": "Achievements, XP, and level progress",
       "deleteNotifications": "All notifications",
       "deleteChecklist": "Saved checklist templates",
@@ -1140,7 +1109,7 @@
       "warning": "This action is irreversible.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
       "warningPro": "Your account will be deactivated and permanently deleted 7 days after your plan expires on {date}. Log back in anytime before then to cancel.",
-      "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, user facts, and settings. We'll email you a confirmation code to continue.",
+      "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
       "sending": "Sending...",
       "codeInstructions": "Enter the 6-digit code sent to your email to confirm account deactivation.",
@@ -1302,7 +1271,7 @@
       "account": "Account information: name and email address (via email signup or Google OAuth)",
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
-      "preferences": "Preferences: language, timezone, color scheme, notification settings, and AI memory facts you provide",
+      "preferences": "Preferences: language, timezone, color scheme, and notification settings",
       "device": "Device data: a push notification token (to deliver reminders), your device advertising identifier (used by Google AdMob to show ads to free users), and crash diagnostics with personal identifiers removed"
     },
     "howWeUse": {
@@ -1338,7 +1307,7 @@
       "intro": "We retain your data only as long as needed to provide the service:",
       "account": "Account data: kept for as long as your account is active.",
       "sessions": "Authentication sessions and push tokens: kept while active and removed on logout, token expiry, or device unsubscribe.",
-      "ai": "AI chat history and memory facts: kept while AI features are enabled; deleting your account or clearing AI memory removes them.",
+      "ai": "AI chat history: kept while AI features are enabled and removed when you delete your account.",
       "reminderHistory": "Sent reminder, slip alert, and streak freeze records: kept for 90 days from the record date.",
       "syncRecords": "Records deleted for offline sync: kept for 31 days before permanent removal.",
       "calendarSuggestions": "Google Calendar import suggestions that you do not import: kept for 14 days.",
@@ -1358,7 +1327,7 @@
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",
-      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI memory and AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
+      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
     },
     "minors": {
       "title": "Age Requirement",
@@ -1366,7 +1335,7 @@
     },
     "export": {
       "title": "Your Right to Export Your Data",
-      "body": "You can download a copy of all your Orbit data (habits, logs, goals, tags, AI memory facts, and settings) as a JSON file from the Profile page, in line with your data-portability rights under LGPD Art. 18."
+      "body": "You can download a copy of all your Orbit data (habits, logs, goals, tags, and settings) as a JSON file from the Profile page, in line with your data-portability rights under LGPD Art. 18."
     },
     "deletion": {
       "title": "Data Deletion",
@@ -1374,7 +1343,7 @@
       "step1": "1. Go to Profile and tap \"Delete account\"",
       "step2": "2. A confirmation code will be sent to your email",
       "step3": "3. Enter the code to confirm deletion",
-      "step4": "7 days after confirmation, or 7 days after the end of your current paid period, whichever is later, all data is permanently deleted, including habits, completion history, AI conversations, user facts, and settings. This action is irreversible."
+      "step4": "7 days after confirmation, or 7 days after the end of your current paid period, whichever is later, all data is permanently deleted, including habits, completion history, AI conversations, and settings. This action is irreversible."
     },
     "contact": {
       "title": "Contact",
@@ -1720,7 +1689,7 @@
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "61 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, memory, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 20 AI messages per month; Pro raises it to 500.",
+        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 20 AI messages per month; Pro raises it to 500.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -1785,12 +1754,8 @@
         "colorSchemeDesc": "Choose from 6 accent colors (purple, blue, green, rose, orange, cyan). The entire app adapts -- backgrounds, buttons, shadows, and the AI chat orb all change to match.",
         "languageTitle": "Language",
         "languageDesc": "Switch between English and Portuguese. The app, AI responses, and emails all adapt to your chosen language.",
-        "aiMemoryTitle": "AI Memory",
-        "aiMemoryDesc": "When enabled, the AI learns from your conversations -- your preferences, routines, and goals. It uses this to give more personalized suggestions. You can view and manage what it knows in 'What Orbit Knows'. Pro feature.",
         "aiSummaryTitle": "AI Daily Summary",
         "aiSummaryDesc": "Enables a daily AI-generated summary card on your Today page with insights about your habits and motivational nudges. Pro feature.",
-        "userFactsTitle": "What Orbit Knows",
-        "userFactsDesc": "Manually add facts about yourself (preferences, routines, context) that the AI uses to personalize its suggestions. For example: 'I work night shifts' or 'I prefer outdoor exercise'. Pro feature.",
         "timezoneTitle": "Timezone",
         "timezoneDesc": "Your timezone is auto-detected on first login. It determines when habits are due and what 'today' means for your schedule.",
         "supportTitle": "Support",
@@ -1859,12 +1824,6 @@
         "free": "1 theme",
         "pro": "All 6 themes",
         "tooltip": "Personalize Orbit with 6 color schemes: purple, blue, green, rose, orange, and cyan. Free users get the default purple theme."
-      },
-      "aiMemory": {
-        "label": "AI Memory",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "The AI remembers your preferences, goals, and context across conversations for more personalized coaching."
       },
       "summary": {
         "label": "Daily Summary",
@@ -2049,8 +2008,6 @@
     "api": {
       "noPermission": "You don't have permission to do that.",
       "sessionExpired": "Your session expired. Please sign in again.",
-      "factsLimit": "You've hit your saved-facts limit. Delete a few to add more.",
-      "duplicateFact": "Astra already knows something like that.",
       "duplicateTag": "You already have a tag with that name.",
       "apiKeyLimit": "You've reached the maximum number of API keys.",
       "messageTooLong": "That message is too long. Try shortening it.",
@@ -2873,7 +2830,7 @@
     },
     "data": {
       "title": "What Gets Deleted",
-      "body": "Deletion removes your habits, completion history, goals, tags, AI conversations and memory facts, settings, and account profile. This action is irreversible once the grace period ends."
+      "body": "Deletion removes your habits, completion history, goals, tags, AI conversations, settings, and account profile. This action is irreversible once the grace period ends."
     }
   },
   "dataExport": {

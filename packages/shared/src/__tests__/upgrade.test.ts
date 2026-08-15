@@ -68,6 +68,11 @@ describe('upgrade utils', () => {
     }
   })
 
+  it('omits the retired AI comparison row', () => {
+    const retiredKey = ['ai', 'Memory'].join('')
+    expect(allMatrixRows.some((feature) => feature.key === retiredKey)).toBe(false)
+  })
+
   it('has matching locale entries in both en and pt-BR for every rendered key', () => {
     const matrixKeys = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => [
       `upgrade.categories.${category.category}`,

@@ -175,8 +175,6 @@ export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
   shouldRedirectProfileNavItem,
-  normalizeUserFactCategory,
-  USER_FACTS_PER_PAGE,
   buildCalendarAutoSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
@@ -260,5 +258,4 @@ export type {
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
-  UserFactCategoryKey,
 } from './utils/index'

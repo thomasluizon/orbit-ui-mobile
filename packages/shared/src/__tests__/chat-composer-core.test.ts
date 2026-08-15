@@ -8,6 +8,7 @@ import {
   buildAgentExecutionMessage,
   classifySendFailure,
   findPremiumPolicyDenial,
+  invalidateAgentQueries,
   selectActionInvalidations,
 } from '../hooks/chat-composer-core'
 
@@ -174,6 +175,22 @@ describe('selectActionInvalidations', () => {
       tags: false,
     })
     expect(selectActionInvalidations([])).toEqual({ habits: false, goals: false, tags: false })
+  })
+})
+
+describe('invalidateAgentQueries', () => {
+  it('keeps the surviving invalidations without the retired query family', async () => {
+    const invalidatedKeys: (readonly unknown[])[] = []
+    const queryClient = {
+      invalidateQueries: async ({ queryKey }: { queryKey: readonly unknown[] }) => {
+        invalidatedKeys.push(queryKey)
+      },
+    }
+    await invalidateAgentQueries(queryClient as never)
+    const retiredQueryKey = ['user', 'Facts'].join('')
+    expect(invalidatedKeys).not.toContainEqual([retiredQueryKey])
+    expect(invalidatedKeys).toContainEqual(['habits'])
+    expect(invalidatedKeys).toContainEqual(['profile'])
   })
 })
 

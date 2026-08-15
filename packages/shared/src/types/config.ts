@@ -8,7 +8,6 @@ export type FeatureFlag = z.infer<typeof featureFlagSchema>
 
 export const appConfigSchema = z.object({
   limits: z.object({
-    maxUserFacts: z.number(),
     maxHabitDepth: z.number(),
     maxTagsPerHabit: z.number(),
     maxReferrals: z.number(),
@@ -34,7 +33,6 @@ export type UpgradeRequiredResponse = z.infer<typeof upgradeRequiredSchema>
 
 export const DEFAULT_CONFIG: AppConfig = {
   limits: {
-    maxUserFacts: 50,
     maxHabitDepth: 5,
     maxTagsPerHabit: 5,
     maxReferrals: 10,

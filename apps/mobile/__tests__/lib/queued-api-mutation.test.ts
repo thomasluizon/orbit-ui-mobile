@@ -101,16 +101,16 @@ describe('performQueuedApiMutation', () => {
   })
 
   it('respects a custom executor override', async () => {
-    const execute = vi.fn(async () => 'done')
-    mocks.runQueuedMutation.mockImplementation(async ({ execute: forwardedExecute, mutation }: {
+    const execute = vi.fn(() => Promise.resolve('done'))
+    mocks.runQueuedMutation.mockImplementation(({ execute: forwardedExecute, mutation }: {
       execute: (mutation: { endpoint: string; method: string; payload: unknown }) => Promise<unknown>
       mutation: { endpoint: string; method: string; payload: unknown }
     }) => forwardedExecute(mutation))
 
     const result = await performQueuedApiMutation({
-      type: 'setAiMemory',
+      type: 'setAiSummary',
       scope: 'profile',
-      endpoint: '/api/profile/ai-memory',
+      endpoint: '/api/profile/ai-summary',
       method: 'PUT',
       payload: { enabled: true },
       execute,
@@ -118,9 +118,9 @@ describe('performQueuedApiMutation', () => {
     })
 
     expect(execute).toHaveBeenCalledWith({
-      type: 'setAiMemory',
+      type: 'setAiSummary',
       scope: 'profile',
-      endpoint: '/api/profile/ai-memory',
+      endpoint: '/api/profile/ai-summary',
       method: 'PUT',
       payload: { enabled: true },
     })

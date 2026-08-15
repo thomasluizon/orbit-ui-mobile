@@ -24,31 +24,6 @@
       "count": 1
     }
   },
-  "app/(app)/ai-settings/_components/fact-item.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/ai-settings/_components/facts-pagination.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/ai-settings/_components/facts-select-bar.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/ai-settings/_components/user-facts-list.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/(app)/ai-settings/page.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx": {
     "local/spacing-scale": {
       "count": 8

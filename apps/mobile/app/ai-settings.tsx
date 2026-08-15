@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { View, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -13,15 +13,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
-import { SectionLabel } from '@/components/ui/section-label'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { createStyles } from './ai-settings-styles'
-import { useUserFacts } from './use-user-facts'
-import {
-  AiFeatureToggles,
-  FactsSelectBar,
-  UserFactsList,
-} from './ai-settings-sections'
+import { AiFeatureToggles } from './ai-settings-sections'
 
 export default function AiSettingsScreen() {
   const { t } = useTranslation()
@@ -36,36 +29,8 @@ export default function AiSettingsScreen() {
   )
   const styles = useMemo(() => createStyles(), [])
   const hasProAccess = profile?.hasProAccess ?? false
-  const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
   const proactiveAstraEnabled = hasProAccess && (profile?.proactiveAstraEnabled ?? false)
-
-  // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the toggle to the profile cache and rolls back on error; the server stores the boolean verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const aiMemoryMutation = useMutation({
-    mutationFn: (enabled: boolean) =>
-      performQueuedApiMutation({
-        type: 'setAiMemory',
-        scope: 'profile',
-        endpoint: API.profile.aiMemory,
-        method: 'PUT',
-        payload: { enabled },
-        dedupeKey: 'profile-ai-memory',
-      }),
-    onMutate: (enabled) => {
-      const previous = profile?.aiMemoryEnabled
-      patchProfile({ aiMemoryEnabled: enabled })
-      return { previous }
-    },
-    onError: (
-      _err: unknown,
-      _enabled: boolean,
-      context: { previous?: boolean } | undefined,
-    ) => {
-      if (context?.previous !== undefined) {
-        patchProfile({ aiMemoryEnabled: context.previous })
-      }
-    },
-  })
 
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -123,46 +88,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  const {
-    factsQuery,
-    facts,
-    pagedFacts,
-    selectMode,
-    selectedFactIds,
-    deleteMutation,
-    bulkDeleteMutation,
-    factsPage,
-    setFactsPage,
-    totalFactsPages,
-    toggleSelectMode,
-    toggleFactSelection,
-    toggleSelectAll,
-  } = useUserFacts(hasProAccess)
-
-  const showPaging = totalFactsPages > 1 && !selectMode
-  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false)
-
-  const factsTrailing =
-    !hasProAccess || facts.length === 0 ? undefined : (
-      <FactsSelectBar
-        tokens={tokens}
-        t={t}
-        styles={styles}
-        selectMode={selectMode}
-        selectedCount={selectedFactIds.size}
-        allSelected={selectedFactIds.size === facts.length}
-        bulkDeletePending={bulkDeleteMutation.isPending}
-        showPaging={showPaging}
-        page={factsPage}
-        totalPages={totalFactsPages}
-        onPreviousPage={() => setFactsPage((p) => Math.max(1, p - 1))}
-        onNextPage={() => setFactsPage((p) => Math.min(totalFactsPages, p + 1))}
-        onToggleSelectAll={toggleSelectAll}
-        onBulkDelete={() => setBulkDeleteConfirmOpen(true)}
-        onToggleSelectMode={toggleSelectMode}
-      />
-    )
-
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
@@ -183,48 +108,16 @@ export default function AiSettingsScreen() {
           tokens={tokens}
           t={t}
           hasProAccess={hasProAccess}
-          aiMemoryEnabled={aiMemoryEnabled}
           aiSummaryEnabled={aiSummaryEnabled}
           proactiveAstraEnabled={proactiveAstraEnabled}
-          memoryPending={aiMemoryMutation.isPending}
           summaryPending={aiSummaryMutation.isPending}
           proactivePending={proactiveAstraMutation.isPending}
-          onToggleMemory={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
           onToggleSummary={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
           onToggleProactive={() => proactiveAstraMutation.mutate(!proactiveAstraEnabled)}
           onUpgrade={() => router.push(buildUpgradeHref('/ai-settings'))}
         />
-
-        <SectionLabel trailing={factsTrailing}>
-          {t('profile.facts.title')}
-        </SectionLabel>
-
-        <UserFactsList
-          tokens={tokens}
-          t={t}
-          styles={styles}
-          hasProAccess={hasProAccess}
-          factsQuery={factsQuery}
-          facts={facts}
-          pagedFacts={pagedFacts}
-          selectMode={selectMode}
-          selectedFactIds={selectedFactIds}
-          onToggleSelection={toggleFactSelection}
-          onDelete={(id) => deleteMutation.mutate(id)}
-          onAskAstra={() => router.push('/chat')}
-        />
-
         <View style={{ height: 24 }} />
       </ScrollView>
-
-      <ConfirmDialog
-        open={bulkDeleteConfirmOpen}
-        onOpenChange={setBulkDeleteConfirmOpen}
-        title={t('profile.facts.bulkDeleteConfirmTitle')}
-        description={t('profile.facts.bulkDeleteConfirmBody')}
-        confirmLabel={t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
-        onConfirm={() => bulkDeleteMutation.mutate([...selectedFactIds])}
-      />
     </SafeAreaView>
   )
 }

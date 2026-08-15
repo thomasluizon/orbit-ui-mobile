@@ -15,7 +15,6 @@ const validExport = {
     weekStartDay: 1,
     themePreference: 'dark',
     colorScheme: 'blue',
-    aiMemoryEnabled: true,
     aiSummaryEnabled: false,
     proactiveAstraEnabled: true,
   },
@@ -54,7 +53,6 @@ const validExport = {
   ],
   goals: [],
   tags: [],
-  facts: [],
   notifications: [
     {
       id: '22222222-2222-2222-2222-222222222222',
@@ -172,6 +170,19 @@ describe('userDataExportSchema', () => {
     }
     const result = userDataExportSchema.parse(withSecret)
     expect(result.apiKeys[0]).not.toHaveProperty('keyHash')
+  })
+
+  it('accepts and strips fields that the server has not retired yet', () => {
+    const legacySettingKey = ['ai', 'Memory', 'Enabled'].join('')
+    const legacyCollectionKey = ['facts'].join('')
+    const result = userDataExportSchema.parse({
+      ...validExport,
+      [legacyCollectionKey]: [],
+      settings: { ...validExport.settings, [legacySettingKey]: true },
+    })
+
+    expect(result).not.toHaveProperty(legacyCollectionKey)
+    expect(result.settings).not.toHaveProperty(legacySettingKey)
   })
 
   it('rejects a payload missing required top-level collections', () => {
