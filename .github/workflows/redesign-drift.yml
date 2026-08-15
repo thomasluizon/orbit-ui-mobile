@@ -1,0 +1,80 @@
+name: Redesign drift control
+
+# D36: the redesign lands on the long-lived `redesign/main` integration branch, not on
+# `main`. That branch therefore drifts behind `main` every time anything else merges,
+# and the drift is invisible until an R ticket hits a conflict weeks later.
+#
+# This job merges `main` into `redesign/main` on every push to `main`, so the
+# integration branch is never more than one commit behind. It uses a real merge and
+# never a rebase or a force push, because `redesign/main` is shared: every open R-ticket
+# branch is cut from it, and rewriting its history would strand all of them.
+#
+# When the merge conflicts, the job fails loudly and stops. Resolving a conflict is a
+# human decision about two real changes, and a machine picking a side silently is how a
+# redesign quietly loses a fix that landed on main.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: redesign-drift
+  cancel-in-progress: false
+
+jobs:
+  merge-main-into-redesign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Skip when the integration branch does not exist
+        id: exists
+        run: |
+          # `git ls-remote --exit-code` returns 2 for "no matching ref" but 128 for an auth or
+          # transport failure. Collapsing every nonzero into "absent" would let an unreachable
+          # remote finish this job green, which is a verifier error reported as a clean pass.
+          # Only 2 means absent; anything else is unknown, and unknown fails loudly.
+          set +e
+          probe=$(git ls-remote --exit-code --heads origin redesign/main 2>&1)
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" -eq 2 ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "redesign/main does not exist yet; nothing to keep in sync."
+          else
+            echo "::error::git ls-remote failed with status $rc, so the state of redesign/main is unknown. Refusing to treat that as absent."
+            echo "$probe"
+            exit 1
+          fi
+
+      - name: Merge main into redesign/main
+        if: steps.exists.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git switch redesign/main
+
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "redesign/main already contains main. Nothing to do."
+            exit 0
+          fi
+
+          if ! git merge --no-ff --no-edit origin/main; then
+            git merge --abort || true
+            echo "::error::main does not merge cleanly into redesign/main. Resolve it by hand; this job never picks a side."
+            exit 1
+          fi
+
+          git push origin redesign/main
+          echo "Merged main into redesign/main."
