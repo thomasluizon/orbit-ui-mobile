@@ -60,20 +60,28 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 - **`text-box: trim-both cap alphabetic` on badges, chips and pill labels**, so text sits optically centred rather than low. Progressive enhancement; unsupported browsers keep the default leading. Web only.
 - **Light text on a dark surface is compensated on three axes**: add `0.01em` tracking, add `0.05` to the line-height, and add one weight step where the face needs it. This is the legibility check that the maximum-contrast target requires, and it answers the halation risk the direction ADR recorded.
 
-**The serif is PROVISIONAL and is decided at human grant 1.** The candidate is Instrument Serif on warm surfaces only (onboarding hero lines, celebration headlines, empty-state one-liners). `design/reference.html` renders every warm surface both ways. Recorded evidence, both directions: **against**, the direction ADR bans a display serif as a second warmth source, `better-typography` says rarely use more than three families and Orbit already spends three, and `typeset` says never introduce a second family without a role it alone can perform. **For**, `choosing-fonts` says a serif headline over a sans body reads as a deliberate display-versus-reading split rather than a mistake. Do not ship it in either direction without Thomas's look.
+**There is no serif. Cut by Thomas against the rendered reference, 2026-08-15.** Instrument Serif was carried as D66 decision 9's provisional fourth family on warm surfaces. It is dropped, so **the direction ADR's ban on a display serif as a second warmth source stands unamended**, and D66 decision 9 resolves to "cut". Three families is the whole system. A warm surface gets its warmth from space, size and the mark, never from a second face.
 
 ### Spacing (base 4)
 
-**The step values are PROVISIONAL until human grant 1.** D66 decision 12 keeps the enumerated-set-plus-ratchet mechanism and re-decides the values against the rendered reference. Do not codify either scale into `local/spacing-scale` before Thomas looks.
+**The scale is these ten values and nothing else** (chosen by Thomas against the rendered reference, 2026-08-15):
 
-| candidate | steps | argument |
-|---|---|---|
-| **A, fewer and bigger** | `0 4 8 12 16 24 32 48 64 96` | Ten steps. Drops 20, 28, 40 and 56, which are the values the 1,436 existing violations cluster around, so there is less to choose wrongly between. Bigger jumps at the top serve the spacious direction. |
-| **B, current trimmed** | `0 4 8 12 16 20 24 32 40 48 56 64` | Twelve steps. Closer to existing usage, so the post-redesign suppression paydown is smaller. Keeps the mid-range granularity the current row rhythm uses. |
+```
+0  4  8  12  16  24  32  48  64  96
+```
 
-**The rule the values must satisfy, whichever wins: the gap between two groups is at least 2x the gap within a group.** 8 inside a group means 16 or more between groups. Uniform gaps everywhere are the tell of no decision. This is the only mechanical grounding the scale has.
+It drops 20, 28, 40 and 56, which are the values the 1,436 existing violations cluster around, so there is less to choose wrongly between, and its jumps widen at the top to serve the spacious direction.
 
-**Both candidates keep 12 and 24**, because those are the measured control clearances below.
+**The rule the values satisfy: the gap between two groups is at least 2x the gap within a group.** 8 inside a group means 16 or more between groups. Uniform gaps everywhere are the tell of no decision. This is the mechanical grounding the scale has.
+
+**12 and 24 survive** because those are the measured control clearances below.
+
+**Two padding roles sit on top of the scale**, because a card that hugs its text reads as cramped no matter how correct the gaps around it are:
+
+| role | value |
+|---|---|
+| card and panel padding | **24** |
+| list-row padding | **16** |
 
 | between | clearance |
 |---|---|
@@ -119,12 +127,13 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
 --fg-3 #8F8F93   /*  6.18:1 */   --fg-4 #5D5D60   /*  3.03:1, clears the 3:1 non-text floor */
---primary         #24B4E2                     /* oklch(0.719 0.130 225.9). Fill and graphic ONLY */
---primary-soft    #24B4E2                     /* accent TEXT. Same byte on dark; see the accent note */
---primary-pressed #009AC4
---primary-rgb     36, 180, 226
---primary-dim     rgba(36,180,226,0.14)       /* the accent tint -> #0D2129 */
---fg-on-primary   #020618                     /* the canvas ink, NOT white. White on --primary is 2.41:1 */
+--primary         PENDING GRANT 1             /* fill and graphic ONLY. See "The accent" */
+--primary-soft    PENDING GRANT 1             /* accent TEXT on the canvas */
+--primary-pressed PENDING GRANT 1             /* the fill, 16% toward the canvas */
+--primary-hover   PENDING GRANT 1             /* the fill, 12% toward its own foreground */
+--primary-rgb     PENDING GRANT 1
+--primary-dim     PENDING GRANT 1             /* the fill at 18% over the canvas */
+--fg-on-primary   PENDING GRANT 1             /* white on a dark fill, the canvas ink on a light fill */
 --status-done     var(--primary)
 --status-empty    var(--fg-4)                 /* ring track. 3.03:1 */
 --status-skip     var(--fg-3)
@@ -132,7 +141,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --status-overdue  #FE9A00                     /* 9.32:1, hue 65.4 */
 --status-bad      #FB2C36                     /* 5.23:1, hue 25.4 */
 --fg-on-bad       #020618      --fg-on-overdue #020618
---selection-bg    rgba(36,180,226,0.32)
+--selection-bg    the fill at alpha 0.32
 --scrim           rgba(0,0,0,0.55)            /* THE overlay backdrop. Theme-independent */
 ```
 
@@ -153,31 +162,42 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
---primary #0080A4          /* white on it 4.54:1, on canvas 4.35:1 */
---primary-soft #007DA0     /* accent text, 4.53:1 on canvas */
---primary-pressed #006785  /* white on it 6.40:1 */
---fg-on-primary #FFFFFF
---selection-bg rgba(0,128,164,0.18)
+--primary        PENDING GRANT 1   /* light mode always takes the DARK fill, with white on it */
+--primary-soft   PENDING GRANT 1   /* derived against #FAFAFA, not against the canvas */
+--fg-on-primary  #FFFFFF
+--selection-bg   the fill at alpha 0.18
 ```
 
 **Dark is not light reversed.** Reversal is the starting point. Vividness comes down, the dark end needs more separation than the light end, and every pair is remeasured, because contrast is not symmetric.
 
 **One switching mechanism.** A class (or the mobile mode value) is the switch, and `prefers-color-scheme` only sets the initial value. Never let a media query own some tokens and a class own others.
 
-### The accent, and why `--primary` and `--primary-soft` stay two tokens
+### The accent: the method is settled, the hue is open
 
-| token | role | floor | dark measurement |
-|---|---|---|---|
-| `--primary` `#24B4E2` | **fill and graphic only**: CTA background, FAB, progress ring, done dots, level bar, active tab | `--fg-on-primary` on it >= 4.5 **and** it on canvas >= 3.0 | ink on it **8.35:1** · on canvas **8.24:1** |
-| `--primary-soft` `#24B4E2` | **accent text only**: an accent-coloured word, link, or numeral on the canvas | it on canvas >= 4.5 | **8.24:1** |
+**The hue and the fill treatment are decided at human grant 1**, from `design/reference.html`, which renders ten hues against both treatments on real components. Everything below is settled regardless of which one wins.
 
-**On dark the two roles resolve to the same byte, and that is a result, not a shortcut.** The split existed because no single violet satisfied both floors: a dark violet was needed for white-on-fill, a light violet for text-on-canvas. A cyan-leaning accent at `oklch(0.719 ...)` clears both. Light mode already worked this way. **Keep both token names and both role rules**, so a future accent change re-derives correctly instead of rediscovering the conflict.
+**Three roles, three floors, and every candidate clears all three:**
 
-Consequences that are not negotiable:
+| token | role | floor |
+|---|---|---|
+| `--primary` | **fill and graphic only**: CTA background, FAB, progress ring, done dots, level bar, active tab | `--fg-on-primary` on it >= 4.5 **and** it on canvas >= 3.0 |
+| `--primary-soft` | **accent text only**: an accent-coloured word, link, or numeral on the canvas | it on canvas >= 4.5 |
+| `--fg-on-primary` | whatever sits on the fill | 4.5 on the fill |
 
-- **`--fg-on-primary` is the canvas ink `#020618`, never white.** White on `--primary` measures 2.41:1. **The brand colour is not darkened to make white work.** A brand colour that fails as a fill behind white text is still the brand colour; the correct move is to change what sits on it, not to quietly darken it.
-- **`--primary` is never small text on the canvas.** Use `--primary-soft` for an accent word, even though the bytes match today.
+**Two fill treatments, and the choice decides `--fg-on-primary`:**
+
+| treatment | the fill | what sits on it |
+|---|---|---|
+| **dark fill** | the lightest value at which white still clears 4.5 | white |
+| **light fill** | a bright value, anchored at the lightness where that hue is most itself | the canvas ink `#020618` |
+
+**A brand colour is never quietly darkened to make white work.** A colour that fails as a fill behind white text is still the brand colour; the correct move is to change what sits on it, which is exactly what the light-fill treatment does.
+
+Consequences that hold either way:
+
+- **`--primary` is never small text on the canvas.** Use `--primary-soft` for an accent word, even where the two resolve to the same byte.
 - **A selected state may carry the accent on its glyph and label.** That is state, not emphasis, and it is the one exception to fill-only.
+- **The light fill's anchor lightness is hand-tuned per hue** and recorded, because a single lightness across the wheel flatters some hues and washes others. Yellow's vivid band sits near L 0.86 and violet's near L 0.70; anchoring both at one value turns the yellow to mustard.
 - A future accent change re-measures all three floors. It never eyeballs them.
 
 **Accent rationing.** The accent appears on: the active tab, progress and ring indicators, done dots, the primary CTA, the FAB, and active nav. That is the whole list. It is **never** decorative on a card, a row, a border, a heading, or an icon that is not communicating state. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
@@ -208,7 +228,7 @@ Consequences that are not negotiable:
 - **Shadows are for elevation, borders are for structure.** Replace a border that only faked depth with a shadow. Keep a border that divides content or marks a state: dividers, table boundaries, input outlines, selected and focus states.
 - **On dark, the 1px ring does the work.** Layered depth shadows are barely visible on a near-black canvas, so a lifted surface reads from its inset hairline plus the scrim beneath it. Reserve sh-2 and sh-3 for surfaces genuinely floating over a scrim.
 - **Images carry a 1px outline** at `rgba(255,255,255,0.10)` on dark and `rgba(0,0,0,0.10)` on light, with `outline-offset: -1px` so the ring hugs the corner radius. Never a tinted neutral, which reads as dirt on the image edge, and never `border`, which changes layout.
-- Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits, durations 160/220/280. Transform and opacity only. Full governance in **Motion**.
+- Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits. Movement durations 160/220/280; hover durations 120 for a control and 180 for a surface. Transform and opacity only for movement. Full governance in **Motion**.
 
 #### Icons
 
@@ -557,6 +577,23 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.
 
+### Hover, and why it is not governed by the frequency gate
+
+**A clickable thing with no hover state is a defect.** A hover transition is feedback, not decoration, so the frequency gate does not suppress it: the gate subtracts animations that play at you, and a hover state answers you. Every interactive element carries one.
+
+| target | duration | what changes |
+|---|---|---|
+| a surface (row, card, panel, list item) | **180ms** | background steps `--bg-card` to `--bg-elev`, and its hairline goes to `--hairline-strong` |
+| a control (button, chip, segmented control, icon button) | **120ms** | fill or label colour only |
+| a link | **180ms** | colour, plus an underline scaling from the leading edge |
+
+- **Declare the transition on the base rule, never inside `:hover`.** A transition declared inside `:hover` applies on the way in and not on the way out, so the state arrives smoothly and snaps away. That single mistake is most of what makes an interface feel cheap.
+- **Hover moves exactly one step.** One surface level, one colour step. Two simultaneous changes read as a different component, not the same one under a pointer.
+- **Hover never uses `transform`.** Transform belongs to press. A card that lifts on hover is the SaaS-template tell.
+- **Name the properties.** Never `transition: all`.
+- **Gate hover behind `@media (hover: hover) and (pointer: fine)`**, so a touch tap does not latch a hover state that then sticks until the next tap elsewhere.
+- **Easing is `--ease-standard` in both directions** for a colour change. Reserve `--ease-out` for anything that moves.
+
 ### How
 
 - **Transform and opacity only**, named explicitly. Durations 160 / 220 / 280.
@@ -678,6 +715,7 @@ The same test governs any future external component, from any source. Nothing en
 - **No gradient wash.** No gradient borders, no gradient text, no mesh, no bloom, no scanlines, no film grain, no "subtle texture".
 - **No Liquid Glass.** No glass material, no frosted chrome as a look, no translucent panel stacked on a translucent panel.
 - **No sparkle icon** as an AI or default marker. Identity is the Astra glyph.
+- **No interactive element without a hover state**, and no hover state that uses `transform` or that declares its transition inside `:hover`.
 - **No pill used as a CTA outside `PillButton`**, and no pill in a hero. The pill radius means interactive; a static element uses radius 8.
 - **No default component-library theme and no default white accent** on any surface, marketing included.
 - **No decorative background orbit arcs.**
@@ -695,7 +733,7 @@ The same test governs any future external component, from any source. Nothing en
 - No structural hacks.
 - No arbitrary z-index. Overlays stack on the semantic scale.
 - No off-grid icon size. The set is 16 / 20 / 24.
-- **No new font families, radii, or colours outside this spec.** Geist Sans, Space Grotesk and Geist Mono only, plus Instrument Serif if and only if grant 1 keeps it.
+- **No new font families, radii, or colours outside this spec.** Geist Sans, Space Grotesk and Geist Mono. There is no fourth family and no serif.
 - No per-component theme branches. The two modes resolve through tokens only.
 - No em dashes and no en dashes. No UPPERCASE typed into a string.
 - No `<br>` to hand-break copy.
