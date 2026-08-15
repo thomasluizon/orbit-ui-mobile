@@ -119,10 +119,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const messages = useChatStore((s) => s.messages);
   const isTyping = useChatStore((s) => s.isTyping);
+  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
   const addMessage = useChatStore((s) => s.addMessage);
   const updateMessage = useChatStore((s) => s.updateMessage);
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent);
   const setIsTyping = useChatStore((s) => s.setIsTyping);
+  const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId);
 
   const {
     isRecording,
@@ -138,7 +140,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const [sendError, setSendError] = useState<string | null>(null);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -152,6 +153,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
+  const isSending = isTyping || streamingMessageId !== null;
   const showSuggestions = messages.length === 0 && !isTyping;
 
   const starterChips = useMemo(
@@ -569,6 +571,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       handleFailedSend,
       scrollToBottom,
       setIsTyping,
+      setStreamingMessageId,
       t,
       updateMessage,
     ],
@@ -602,7 +605,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const sendMessage = useCallback(
     async (content?: string) => {
       const typedContent = content?.trim() ?? "";
-      if ((!typedContent && !selectedImage && !selectedTextFile) || isTyping) return;
+      const sendState = useChatStore.getState();
+      if (
+        (!typedContent && !selectedImage && !selectedTextFile) ||
+        sendState.isTyping ||
+        sendState.streamingMessageId !== null
+      ) return;
       if (!isOnline) {
         setSendError(offlineTitle);
         return;
@@ -632,7 +640,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     [
       imagePreview,
       isOnline,
-      isTyping,
       offlineTitle,
       performSend,
       selectedImage,
@@ -642,15 +649,16 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const retryLastSend = useCallback(async () => {
-    if (!lastFailedSend || isTyping) return;
+    const sendState = useChatStore.getState();
+    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return;
     if (!isOnline) {
       setSendError(offlineTitle);
       return;
     }
     await performSend(lastFailedSend, true);
-  }, [isOnline, isTyping, lastFailedSend, offlineTitle, performSend]);
+  }, [isOnline, lastFailedSend, offlineTitle, performSend]);
 
-  const canRetryLastSend = lastFailedSend !== null && !isTyping;
+  const canRetryLastSend = lastFailedSend !== null && !isSending;
 
   const {
     confirmAndExecutePendingOperation,
@@ -666,6 +674,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     flatListRef,
     messages,
     isTyping,
+    isSending,
     streamingMessageId,
     sendError,
     selectedImage,

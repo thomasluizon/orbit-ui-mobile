@@ -111,10 +111,12 @@ export function useChatComposer() {
 
   const messages = useChatStore((s) => s.messages)
   const isTyping = useChatStore((s) => s.isTyping)
+  const streamingMessageId = useChatStore((s) => s.streamingMessageId)
   const addMessage = useChatStore((s) => s.addMessage)
   const updateMessage = useChatStore((s) => s.updateMessage)
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent)
   const setIsTyping = useChatStore((s) => s.setIsTyping)
+  const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId)
 
   const {
     isRecording,
@@ -137,7 +139,6 @@ export function useChatComposer() {
   })
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
@@ -176,9 +177,10 @@ export function useChatComposer() {
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
+  const isSending = isTyping || streamingMessageId !== null
   const canSend =
     (input.trim().length > 0 || selectedImage !== null || selectedTextFile !== null) &&
-    !isTyping &&
+    !isSending &&
     !atMessageLimit &&
     isOnline
   const showSuggestions = messages.length === 0 && !isTyping
@@ -501,6 +503,7 @@ export function useChatComposer() {
     handleFailedSend,
     scrollToBottom,
     setIsTyping,
+    setStreamingMessageId,
     t,
     updateMessage,
   ])
@@ -532,7 +535,12 @@ export function useChatComposer() {
   const sendMessage = useCallback(
     async (content?: string) => {
       const typedContent = content || input.trim()
-      if ((!typedContent && !selectedImage && !selectedTextFile) || isTyping) return
+      const sendState = useChatStore.getState()
+      if (
+        (!typedContent && !selectedImage && !selectedTextFile) ||
+        sendState.isTyping ||
+        sendState.streamingMessageId !== null
+      ) return
 
       const messageContent = selectedTextFile
         ? buildChatMessageWithFileContent({
@@ -558,7 +566,6 @@ export function useChatComposer() {
       clearImage,
       imagePreview,
       input,
-      isTyping,
       performSend,
       removeTextFile,
       selectedImage,
@@ -568,11 +575,12 @@ export function useChatComposer() {
   )
 
   const retryLastSend = useCallback(async () => {
-    if (!lastFailedSend || isTyping) return
+    const sendState = useChatStore.getState()
+    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
     await performSend(lastFailedSend, true)
-  }, [isTyping, lastFailedSend, performSend])
+  }, [lastFailedSend, performSend])
 
-  const canRetryLastSend = lastFailedSend !== null && !isTyping
+  const canRetryLastSend = lastFailedSend !== null && !isSending
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -604,6 +612,7 @@ export function useChatComposer() {
     starterChips,
     messages,
     isTyping,
+    isSending,
     streamingMessageId,
     hasProAccess,
     aiMessagesUsed,

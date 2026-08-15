@@ -150,8 +150,36 @@ export function buildChatMessageWithFileContent(params: {
 
 const COMPLETE_CHAT_DIRECTIVE = /\[\[orbit:[a-z:]+\]\]/gi
 
-const TRAILING_CHAT_DIRECTIVE =
-  /\n?(?:\[\[(?:o(?:r(?:b(?:i(?:t(?::[a-z:]*\]?\]?)?)?)?)?)?)?|\[)\s*$/i
+const CHAT_DIRECTIVE_OPEN = '[[orbit:'
+
+function isChatDirectivePrefix(candidate: string): boolean {
+  const normalized = candidate.toLowerCase()
+  if (CHAT_DIRECTIVE_OPEN.startsWith(normalized)) return true
+  if (!normalized.startsWith(CHAT_DIRECTIVE_OPEN)) return false
+
+  const body = normalized.slice(CHAT_DIRECTIVE_OPEN.length)
+  const closingBracket = body.indexOf(']')
+  const directiveBody = closingBracket === -1 ? body : body.slice(0, closingBracket)
+  if (closingBracket !== -1 && closingBracket !== body.length - 1) return false
+
+  return [...directiveBody].every((character) =>
+    character === ':' || (character >= 'a' && character <= 'z'),
+  )
+}
+
+function stripTrailingChatDirectivePrefix(content: string): string {
+  const withoutTrailingWhitespace = content.trimEnd()
+  const directiveStart = withoutTrailingWhitespace.lastIndexOf('[[')
+  if (directiveStart >= 0) {
+    const candidate = withoutTrailingWhitespace.slice(directiveStart)
+    if (isChatDirectivePrefix(candidate)) {
+      return withoutTrailingWhitespace.slice(0, directiveStart).trimEnd()
+    }
+  }
+  return withoutTrailingWhitespace.endsWith('[')
+    ? withoutTrailingWhitespace.slice(0, -1).trimEnd()
+    : withoutTrailingWhitespace
+}
 
 /**
  * Removes `[[orbit:...]]` directives Astra emits to request rendered cards. The
@@ -161,8 +189,7 @@ const TRAILING_CHAT_DIRECTIVE =
  */
 export function stripChatDirectives(content: string, isStreaming = false): string {
   const withoutCompleteDirectives = content.replace(COMPLETE_CHAT_DIRECTIVE, '')
-  return (isStreaming
-    ? withoutCompleteDirectives.replace(TRAILING_CHAT_DIRECTIVE, '')
-    : withoutCompleteDirectives
-  ).trimEnd()
+  return isStreaming
+    ? stripTrailingChatDirectivePrefix(withoutCompleteDirectives)
+    : withoutCompleteDirectives.trimEnd()
 }

@@ -59,6 +59,7 @@ export default function ChatScreen() {
     flatListRef,
     messages,
     isTyping,
+    isSending,
     streamingMessageId,
     sendError,
     retryLastSend,
@@ -266,7 +267,7 @@ export default function ChatScreen() {
           atMessageLimit={atMessageLimit}
           isRecording={isRecording}
           isTranscribing={isTranscribing}
-          isTyping={isTyping}
+          isTyping={isSending}
           selectedImagePresent={selectedImage !== null}
           selectedTextFileName={selectedTextFile?.name ?? null}
           selectedTextFilePresent={selectedTextFile !== null}

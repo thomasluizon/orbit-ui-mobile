@@ -29,6 +29,7 @@ export default function ChatPage() {
     chatContainerRef,
     messages,
     isTyping,
+    isSending,
     streamingMessageId,
     hasProAccess,
     atMessageLimit,
@@ -180,7 +181,7 @@ export default function ChatPage() {
         toggleRecording={composer.toggleRecording}
         recordingTime={composer.recordingTime}
         starterChips={composer.starterChips}
-        isTyping={isTyping}
+        isTyping={isSending}
         hasProAccess={hasProAccess}
         aiMessagesUsed={composer.aiMessagesUsed}
         aiMessagesLimit={composer.aiMessagesLimit}

@@ -7,6 +7,7 @@ describe('chat store', () => {
     useChatStore.setState({
       messages: [],
       isTyping: false,
+      streamingMessageId: null,
     })
   })
 
@@ -124,10 +125,11 @@ describe('chat store', () => {
     })
 
     it('resets typing state', () => {
-      useChatStore.setState({ isTyping: true })
+      useChatStore.setState({ isTyping: true, streamingMessageId: 'draft-1' })
       const { clearMessages } = useChatStore.getState()
       clearMessages()
       expect(useChatStore.getState().isTyping).toBe(false)
+      expect(useChatStore.getState().streamingMessageId).toBeNull()
     })
   })
 })

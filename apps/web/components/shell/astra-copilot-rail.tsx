@@ -224,7 +224,7 @@ function AstraRailComposer({ composer, onUpgrade }: Readonly<{ composer: Compose
       toggleRecording={composer.toggleRecording}
       recordingTime={composer.recordingTime}
       starterChips={composer.starterChips}
-      isTyping={composer.isTyping}
+      isTyping={composer.isSending}
       hasProAccess={composer.hasProAccess}
       aiMessagesUsed={composer.aiMessagesUsed}
       aiMessagesLimit={composer.aiMessagesLimit}
