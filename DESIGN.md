@@ -168,9 +168,14 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 
 ```
 --bg #FAFAFA · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF
+--bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
 --status-done var(--fg-1) · empty var(--fg-4) · skip var(--fg-3) · frozen var(--fg-2)   /* the five neutrals resolve through the fg ramp in BOTH variants */
+--status-overdue #B45B00   /* 4.53:1 on #FAFAFA, hue 54.5 */
+--status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
+--fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
+--fg-on-overdue  #FFFFFF   /* 4.73:1 on the fill */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
@@ -180,6 +185,10 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --fg-on-primary  #FFFFFF
 --selection-bg   the fill at alpha 0.18
 ```
+
+**The two status hues move in light mode, and that is load-bearing for the accent.** Both are darkened to clear the floor on `#FAFAFA`, which drags `--status-overdue` from hue 65.4 down to **54.5** and `--status-bad` from 25.4 up to **28.5**. The warm band from roughly hue 25 to 65 is therefore fully occupied on a light canvas, so **derivation rule 6's 15-degree separation is tighter in light mode than in dark and must be measured there too.** Measured 2026-08-15: a hue 45 warm-orange accent sits 9.8 degrees from light `--status-overdue`, inside the band, while a hue 350 rose sits 64.6 degrees away.
+
+**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** `design/reference.html` never repoints it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. The page is incomplete here rather than authoritative, so the floor decides.
 
 **Dark is not light reversed.** Reversal is the starting point. Vividness comes down, the dark end needs more separation than the light end, and every pair is remeasured, because contrast is not symmetric.
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="91" height="28" viewBox="0 0 91 28" fill="none" role="img" aria-labelledby="orbit-lockup-rose-title">
+  <title id="orbit-lockup-rose-title">Orbit</title>
+  <svg x="0" y="0" width="28" height="28" viewBox="0 0 24 24" fill="none">
+    <g transform="translate(0,-0.5)">
+      <ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1, #F4F4F6)" stroke-width="1.75"/>
+      <circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary, #BF4D8A)"/>
+    </g>
+  </svg>
+  <text x="40" y="21.7" font-family="Space Grotesk, Geist, system-ui, sans-serif" font-size="22" font-weight="600" letter-spacing="-0.44" fill="var(--fg-1, #F4F4F6)">Orbit</text>
+</svg>
