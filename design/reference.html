@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-mode="dark" data-hue="space" data-fill="dark" data-space="a">
+<html lang="en" data-mode="dark" data-hue="emerald" data-fill="dark" data-space="a" data-speed="medium">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -27,6 +27,8 @@
   --p-well:rgba(250,250,250,0.08);
   --p-elev:#1C1C1E;
   --p-elev2:rgba(250,250,250,0.12);
+  --p-hover:rgba(250,250,250,0.14);   /* 1.31:1 against the resting card. 0.08 measured 1.09 and read as nothing */
+  --p-l-hover:rgba(9,9,11,0.06);
   --p-sunk:rgba(0,0,0,0.28);
   --p-hair:rgba(255,255,255,0.08);
   --p-hair-ghost:rgba(255,255,255,0.10);
@@ -55,12 +57,12 @@
   --p-gold-light:#F2CF3B;    --p-gold-dark:#8C7500;    --p-gold-text:#8F7700;    --p-gold-rgb:242,207,59;
   --p-amber-light:#FFB24F;   --p-amber-dark:#A66900;   --p-amber-text:#A96B00;   --p-amber-rgb:255,178,79;
   --p-orange-light:#FF8E59;  --p-orange-dark:#C4530F;  --p-orange-text:#C85716;  --p-orange-rgb:255,142,89;
-  --p-rose-light:#FF7C8A;    --p-rose-dark:#C94B5D;    --p-rose-text:#CB4D5E;    --p-rose-rgb:255,124,138;
+  --p-rose-light:#F47DB9;    --p-rose-dark:#BF4D8A;    --p-rose-text:#C2508C;    --p-rose-rgb:244,125,185;
   --p-on-light-fill:#020618;
   --p-on-dark-fill:#FFFFFF;
   --p-violet-lmtext:#8160CB;  --p-indigo-lmtext:#5D69D2;  --p-azure-lmtext:#2373CE;  --p-space-lmtext:#007D9F;
   --p-teal-lmtext:#008183;    --p-emerald-lmtext:#008451; --p-gold-lmtext:#8A7300;   --p-amber-lmtext:#A16500;
-  --p-orange-lmtext:#C15109;  --p-rose-lmtext:#C5485A;
+  --p-orange-lmtext:#C15109;  --p-rose-lmtext:#BB4986;
 
   /* --- primitives: status -------------------------------------------- */
   --p-overdue:#FE9A00; --p-bad:#FB2C36; --p-on-status:#020618;
@@ -82,6 +84,7 @@
   --bg-well:var(--p-well);
   --bg-elev:var(--p-elev);
   --bg-elev-2:var(--p-elev2);
+  --bg-hover:var(--p-hover);
   --bg-sunk:var(--p-sunk);
   --hairline:var(--p-hair);
   --border-control:var(--p-hair);
@@ -131,8 +134,8 @@
   --r-chip:8px; --r-well:12px; --r-md:16px; --r-card:20px; --r-sheet:28px; --r-pill:999px;
 
   /* --- motion -------------------------------------------------------- */
-  --dur-fast:120ms;    /* a small control: button, chip, icon */
-  --dur-hover:180ms;   /* a surface: row, card, panel */
+  --dur-fast:180ms;    /* a small control: button, chip, icon */
+  --dur-hover:280ms;   /* a surface: row, card, panel */
   --dur-enter:220ms;
   --ease-standard:cubic-bezier(0.2,0,0,1);
   --ease-out:cubic-bezier(0.16,1,0.3,1);
@@ -144,7 +147,7 @@
 /* mode + variant blocks repoint semantics only. No literals below this line. */
 [data-mode="light"]{
   --bg:var(--p-l-canvas); --bg-card:var(--p-l-card); --bg-field:var(--p-l-field);
-  --bg-well:var(--p-l-well); --bg-elev:var(--p-l-elev); --bg-elev-2:var(--p-l-elev2);
+  --bg-well:var(--p-l-well); --bg-elev:var(--p-l-elev); --bg-elev-2:var(--p-l-elev2); --bg-hover:var(--p-l-hover);
   --bg-sunk:var(--p-l-sunk);
   --hairline:var(--p-l-hair); --border-control:var(--p-l-hair);
   --hairline-ghost:var(--p-l-hair-ghost); --hairline-strong:var(--p-l-hair-strong);
@@ -169,6 +172,9 @@
    outranks the single-attribute [data-fill] blocks above. */
 [data-mode="light"][data-fill]{--primary:var(--hue-dark); --primary-soft:var(--hue-lmtext); --fg-on-primary:var(--p-on-dark-fill)}
 
+[data-speed="fast"]  {--dur-fast:120ms; --dur-hover:180ms}
+[data-speed="medium"]{--dur-fast:180ms; --dur-hover:280ms}
+[data-speed="slow"]  {--dur-fast:240ms; --dur-hover:380ms}
 [data-space="b"]{--s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-7:32px; --s-8:40px; --s-9:56px}
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -185,17 +191,21 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
    and never uses transform: transform belongs to press.
    --------------------------------------------------------------------------- */
 @media (hover:hover) and (pointer:fine){
-  .row:hover{background:var(--bg-elev)}
-  .tile:hover,.panel:hover{background:var(--bg-elev); box-shadow:inset 0 0 0 1px var(--hairline-strong)}
+  /* An interactive surface suppresses its own hover while the pointer is on an interactive
+     DESCENDANT. Without the :not(:has(...)) guard both light up at once and the pointer
+     appears to be in two places. Static cards (.tile, .panel) get no hover state at all,
+     because a hover state on something you cannot click is an invitation to a dead click. */
+  .row:hover:not(:has(button:hover, a:hover, [role="button"]:hover)){background:var(--bg-hover)}
+  .hoverbox:hover:not(:has(button:hover, a:hover, [role="button"]:hover)){background:var(--bg-hover); box-shadow:inset 0 0 0 1px var(--hairline-strong)}
   .pill:hover{background:var(--primary-hover)}
-  .pill.ghost:hover{background:var(--bg-elev); box-shadow:inset 0 0 0 1.5px var(--fg-4)}
+  .pill.ghost:hover{background:var(--bg-hover); box-shadow:inset 0 0 0 1.5px var(--fg-4)}
   .pill.secondary:hover{background:var(--fg-2)}
-  .seg button:hover{color:var(--fg-1); background:var(--bg-elev)}
+  .seg button:hover{color:var(--fg-1); background:var(--bg-hover)}
   .sw:hover .sw-chip{box-shadow:inset 0 0 0 1px var(--hairline-strong)}
   .lnk:hover{color:var(--fg-1)}
   .lnk:hover::after{transform:scaleX(1)}
 }
-.row,.tile,.panel{transition:background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard)}
+.row,.hoverbox{transition:background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard)}
 .pill{transition:background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), scale var(--dur-fast) var(--ease-out)}
 .seg button{transition:color var(--dur-fast) var(--ease-standard), background-color var(--dur-fast) var(--ease-standard)}
 .sw-chip{transition:box-shadow var(--dur-hover) var(--ease-standard)}
@@ -326,18 +336,32 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <button data-v="light" aria-pressed="false">Light</button>
       </div>
     </div>
-    <div class="grp"><span class="grp-l">Hue</span>
+    <div class="grp"><span class="grp-l">Scheme</span>
+      <div class="seg" id="seg-scheme">
+        <button data-hue="emerald" data-fill="dark"  aria-pressed="true"><i class="dot" style="background:var(--p-emerald-dark)"></i>Emerald</button>
+        <button data-hue="rose"    data-fill="dark"  aria-pressed="false"><i class="dot" style="background:var(--p-rose-dark)"></i>Rose</button>
+        <button data-hue="orange"  data-fill="light" aria-pressed="false"><i class="dot" style="background:var(--p-orange-light)"></i>Orange</button>
+      </div>
+    </div>
+    <div class="grp"><span class="grp-l">Speed</span>
+      <div class="seg" id="seg-speed">
+        <button data-v="fast" aria-pressed="false">Fast</button>
+        <button data-v="medium" aria-pressed="true">Medium</button>
+        <button data-v="slow" aria-pressed="false">Slow</button>
+      </div>
+    </div>
+    <div class="grp"><span class="grp-l">All hues</span>
       <div class="seg" id="seg-hue">
         <button data-v="violet"  aria-pressed="false"><i class="dot" style="background:var(--p-violet-dark)"></i>Violet</button>
         <button data-v="indigo"  aria-pressed="false"><i class="dot" style="background:var(--p-indigo-dark)"></i>Indigo</button>
         <button data-v="azure"   aria-pressed="false"><i class="dot" style="background:var(--p-azure-dark)"></i>Azure</button>
-        <button data-v="space"   aria-pressed="true"><i class="dot" style="background:var(--p-space-dark)"></i>Space</button>
+        <button data-v="space"   aria-pressed="false"><i class="dot" style="background:var(--p-space-dark)"></i>Space</button>
         <button data-v="teal"    aria-pressed="false"><i class="dot" style="background:var(--p-teal-dark)"></i>Teal</button>
-        <button data-v="emerald" aria-pressed="false"><i class="dot" style="background:var(--p-emerald-dark)"></i>Emerald</button>
+        <button data-v="emerald" aria-pressed="true"><i class="dot" style="background:var(--p-emerald-dark)"></i>Emerald</button>
         <button data-v="gold"    aria-pressed="false"><i class="dot" style="background:var(--p-gold-light)"></i>Gold</button>
         <button data-v="amber"   aria-pressed="false" title="collides with the overdue status hue"><i class="dot" style="background:var(--p-amber-light)"></i>Amber</button>
         <button data-v="orange"  aria-pressed="false"><i class="dot" style="background:var(--p-orange-light)"></i>Orange</button>
-        <button data-v="rose"    aria-pressed="false" title="collides with the bad status hue"><i class="dot" style="background:var(--p-rose-light)"></i>Rose</button>
+        <button data-v="rose"    aria-pressed="false"><i class="dot" style="background:var(--p-rose-light)"></i>Rose</button>
       </div>
     </div>
     <div class="grp"><span class="grp-l">Fill</span>
@@ -375,13 +399,13 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
     <div class="sec-h"><span class="sec-n">01</span><h2 class="sec-t">The accent, nine hues and two treatments</h2></div>
     <p class="lede">Every option below already clears every contrast floor, so none of this is a
       correctness question. <strong>Dark fill</strong> puts white on a deeper colour. <strong>Light fill</strong>
-      puts the canvas ink on a bright colour, which is the aihero.dev treatment. Switch hue and fill in the bar above. <strong>Amber and Rose sit inside 15 degrees of the overdue and bad status hues</strong>, so on those two an accent and a status read as the same colour; every other option clears them.</p>
+      puts the canvas ink on a bright colour, which is the aihero.dev treatment. Switch hue and fill in the bar above. <strong>Amber sits inside 15 degrees of the overdue status hue</strong>, so on amber the accent and a status read as one colour. Rose was moved from hue 15 to 350 for the same reason: at 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button looked alike.</p>
 
     <div class="grid g3" style="margin-bottom:var(--s-6)">
       <div class="tile stack">
         <span class="note">Primary CTA and its hover</span>
         <div class="hstack"><button class="pill">Log habit</button><button class="pill sm ghost">Skip</button></div>
-        <span class="note">Hover the fill. It moves one step over 120ms and eases back out.</span>
+        <span class="note">Hover the fill. One step over 120ms, easing back out. The card behind it stays put.</span>
       </div>
       <div class="tile stack">
         <span class="note">Ring, done state, progress</span>
@@ -438,20 +462,23 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       an interface feel cheap: the state arrives smoothly and then snaps away.</p>
 
     <div class="grid g3" style="margin-bottom:var(--s-6)">
-      <div class="hoverbox">
-        <p style="font-weight:500;margin-bottom:var(--s-2)">Surface, 180ms</p>
-        <p class="note">A row or a card steps from <code>--bg-card</code> to <code>--bg-elev</code> and its
-          hairline strengthens. Two properties, one step each.</p>
+      <div class="tile stack">
+        <p style="font-weight:500">Surface, 180ms</p>
+        <p class="note">Hover the rows. Background steps one level and the hairline strengthens.</p>
+        <div class="rows">
+          <div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Notificações</p></div></div>
+          <div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Lembretes</p></div></div>
+        </div>
       </div>
-      <div class="hoverbox">
-        <p style="font-weight:500;margin-bottom:var(--s-2)">Control, 120ms</p>
-        <p class="note">A button, chip or segmented control is faster, because it is smaller and you
-          trigger it more often. Colour only.</p>
+      <div class="tile stack">
+        <p style="font-weight:500">Control, 120ms</p>
+        <p class="note">Hover each. Faster, because a control is smaller and you trigger it far more often.</p>
+        <div class="hstack"><button class="pill sm">Primary</button><button class="pill sm ghost">Ghost</button><button class="pill sm secondary">Secondary</button></div>
       </div>
-      <div class="hoverbox">
-        <p style="font-weight:500;margin-bottom:var(--s-2)">Press, 120ms</p>
-        <p class="note"><code>scale(0.96)</code> on pointer-down, never on release, via a CSS transition so
-          releasing mid-press returns smoothly.</p>
+      <div class="tile stack">
+        <p style="font-weight:500">Press, 120ms</p>
+        <p class="note">Press and hold, then drag off before releasing. It returns smoothly rather than snapping.</p>
+        <div class="hstack"><button class="pill">Hold me</button></div>
       </div>
     </div>
 
@@ -716,7 +743,20 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 </div>
 
 <script>
-for (const id of ['mode','hue','fill','space']) {
+const schemeSeg = document.getElementById('seg-scheme');
+schemeSeg.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  for (const b of schemeSeg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === btn));
+  document.documentElement.setAttribute('data-hue', btn.dataset.hue);
+  document.documentElement.setAttribute('data-fill', btn.dataset.fill);
+  for (const [group, value] of [['hue', btn.dataset.hue], ['fill', btn.dataset.fill]]) {
+    for (const b of document.getElementById('seg-' + group).querySelectorAll('button')) {
+      b.setAttribute('aria-pressed', String(b.dataset.v === value));
+    }
+  }
+});
+for (const id of ['mode','hue','fill','space','speed']) {
   const seg = document.getElementById('seg-' + id);
   seg.addEventListener('click', (e) => {
     const btn = e.target.closest('button');

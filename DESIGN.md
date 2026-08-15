@@ -120,6 +120,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-well         rgba(250,250,250,0.08)      /* emoji wells, icon squares -> #1C1C1E */
 --bg-elev         #1C1C1E                     /* OPAQUE. Overlay panel, menus, popovers */
 --bg-elev-2       rgba(250,250,250,0.12)      /* the highest inline step -> #262628 */
+--bg-hover        rgba(250,250,250,0.14)      /* THE hover surface -> #2B2B2C. 1.31:1 against the resting card */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
 --border-control  rgba(255,255,255,0.08)      /* border: encloses a control. Same value today, separate role */
@@ -158,6 +159,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 ```
 --bg #FAFAFA · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF
 --bg-sunk rgba(9,9,11,0.04)
+--bg-hover rgba(9,9,11,0.06)
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
@@ -175,6 +177,14 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 ### The accent: the method is settled, the hue is open
 
 **The hue and the fill treatment are decided at human grant 1**, from `design/reference.html`, which renders ten hues against both treatments on real components. Everything below is settled regardless of which one wins.
+
+**The shortlist, narrowed by Thomas on 2026-08-15**, is three schemes. The page presents them as presets and keeps the full grid for comparison:
+
+| scheme | fill | on the fill | note |
+|---|---|---|---|
+| **Emerald** `#008854` | dark | white | clean: 93 degrees from overdue, 133 from bad |
+| **Rose** `#BF4D8A` | dark | white | **moved from hue 15 to 350.** At 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button read as the same colour. At 350 it clears it by 35 and stays a pink-red |
+| **Orange** `#FF8E59` | light | canvas ink | passes at 20 degrees from both overdue and bad, which is the tightest of the three |
 
 **Three roles, three floors, and every candidate clears all three:**
 
@@ -228,7 +238,7 @@ Consequences that hold either way:
 - **Shadows are for elevation, borders are for structure.** Replace a border that only faked depth with a shadow. Keep a border that divides content or marks a state: dividers, table boundaries, input outlines, selected and focus states.
 - **On dark, the 1px ring does the work.** Layered depth shadows are barely visible on a near-black canvas, so a lifted surface reads from its inset hairline plus the scrim beneath it. Reserve sh-2 and sh-3 for surfaces genuinely floating over a scrim.
 - **Images carry a 1px outline** at `rgba(255,255,255,0.10)` on dark and `rgba(0,0,0,0.10)` on light, with `outline-offset: -1px` so the ring hugs the corner radius. Never a tinted neutral, which reads as dirt on the image edge, and never `border`, which changes layout.
-- Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits. Movement durations 160/220/280; hover durations 120 for a control and 180 for a surface. Transform and opacity only for movement. Full governance in **Motion**.
+- Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits. Movement durations 160/220/280; hover durations 180 for a control and 280 for a surface. Transform and opacity only for movement. Full governance in **Motion**.
 
 #### Icons
 
@@ -581,12 +591,17 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 
 **A clickable thing with no hover state is a defect.** A hover transition is feedback, not decoration, so the frequency gate does not suppress it: the gate subtracts animations that play at you, and a hover state answers you. Every interactive element carries one.
 
+**A hover reads slower than a press.** The durations below are deliberately longer than the movement scale: a press is a confirmation and wants to be immediate, while a hover is an invitation and wants to arrive. These values were set by feel against the rendered reference, not derived.
+
 | target | duration | what changes |
 |---|---|---|
-| a surface (row, card, panel, list item) | **180ms** | background steps `--bg-card` to `--bg-elev`, and its hairline goes to `--hairline-strong` |
-| a control (button, chip, segmented control, icon button) | **120ms** | fill or label colour only |
-| a link | **180ms** | colour, plus an underline scaling from the leading edge |
+| a surface (row, card, panel, list item) | **280ms** | background goes to `--bg-hover`, and its hairline to `--hairline-strong` |
+| a control (button, chip, segmented control, icon button) | **180ms** | fill or label colour only |
+| a link | **280ms** | colour, plus an underline scaling from the leading edge |
 
+- **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. Measured 2026-08-15: `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.31:1**, which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
+- **Only an interactive surface gets a hover state.** A static card that lights up under the pointer advertises a click that does nothing. This is the "controls distinct from content" rule read in the other direction, and it is the more common half to get wrong.
+- **A container suppresses its own hover while the pointer is on an interactive descendant.** Otherwise a button inside a card lights both, and the pointer appears to be in two places at once. On web, `:hover:not(:has(button:hover, a:hover, [role="button"]:hover))`.
 - **Declare the transition on the base rule, never inside `:hover`.** A transition declared inside `:hover` applies on the way in and not on the way out, so the state arrives smoothly and snaps away. That single mistake is most of what makes an interface feel cheap.
 - **Hover moves exactly one step.** One surface level, one colour step. Two simultaneous changes read as a different component, not the same one under a pointer.
 - **Hover never uses `transform`.** Transform belongs to press. A card that lifts on hover is the SaaS-template tell.
