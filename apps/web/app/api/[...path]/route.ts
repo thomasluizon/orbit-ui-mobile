@@ -30,7 +30,14 @@ const ALLOWED_PREFIXES = [
   'habits/',
 ]
 
+const RETIRED_PROFILE_PATHS = new Set([
+  'profile/handle',
+  'profile/social-opt-in',
+  'profile/public',
+])
+
 function isAllowedPath(path: string): boolean {
+  if (RETIRED_PROFILE_PATHS.has(path)) return false
   return ALLOWED_PREFIXES.some(
     (prefix) => path.startsWith(prefix) || path === prefix.slice(0, -1)
   )

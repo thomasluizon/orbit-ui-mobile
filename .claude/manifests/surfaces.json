@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "1d40e92c9ec1485d522ed5f674bcf8a1db8d55dc",
+  "generatedFrom": "9f9a3e6cd63fae0a2ff7820ca67086a3e78ffdb6",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 161,
-  "cellCount": 720,
+  "surfaceCount": 149,
+  "cellCount": 664,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -89,7 +89,7 @@
         "apps/web/app/(app)/achievements/_components/achievements-locked-state.tsx",
         "apps/web/app/(app)/achievements/page.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -107,7 +107,7 @@
         "apps/web/app/(app)/achievements/_components/achievements-locked-state.tsx",
         "apps/web/app/(app)/achievements/page.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -125,7 +125,7 @@
         "apps/web/app/(app)/achievements/_components/achievements-locked-state.tsx",
         "apps/web/app/(app)/achievements/page.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -143,7 +143,7 @@
         "apps/web/app/(app)/achievements/_components/achievements-locked-state.tsx",
         "apps/web/app/(app)/achievements/page.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -160,7 +160,7 @@
         "apps/web/app/actions/api-keys.ts",
         "apps/web/hooks/use-api-key-management.ts"
       ],
-      "closureSize": 167,
+      "closureSize": 164,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -177,7 +177,7 @@
         "apps/web/app/actions/api-keys.ts",
         "apps/web/hooks/use-api-key-management.ts"
       ],
-      "closureSize": 167,
+      "closureSize": 164,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -194,7 +194,7 @@
         "apps/web/app/actions/api-keys.ts",
         "apps/web/hooks/use-api-key-management.ts"
       ],
-      "closureSize": 167,
+      "closureSize": 164,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -211,7 +211,7 @@
         "apps/web/app/actions/api-keys.ts",
         "apps/web/hooks/use-api-key-management.ts"
       ],
-      "closureSize": 167,
+      "closureSize": 164,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -234,7 +234,7 @@
         "apps/web/app/(app)/ai-settings/page.tsx",
         "apps/web/app/actions/user-facts.ts"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -257,7 +257,7 @@
         "apps/web/app/(app)/ai-settings/page.tsx",
         "apps/web/app/actions/user-facts.ts"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -280,7 +280,7 @@
         "apps/web/app/(app)/ai-settings/page.tsx",
         "apps/web/app/actions/user-facts.ts"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -303,400 +303,430 @@
         "apps/web/app/(app)/ai-settings/page.tsx",
         "apps/web/app/actions/user-facts.ts"
       ],
+      "closureSize": 155,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
+        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
+        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+        "apps/web/app/(app)/calendar-sync/page.tsx"
+      ],
+      "closureSize": 169,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/page.tsx",
+        "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-cell.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
+        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-load-error.tsx",
+        "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-stats.tsx",
+        "apps/web/components/calendar/calendar-time-grid.tsx",
+        "apps/web/components/calendar/calendar-week-view.tsx",
+        "apps/web/components/calendar/show-recurring-toggle.tsx",
+        "apps/web/components/calendar/use-agenda-day.ts"
+      ],
+      "closureSize": 189,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "route-explore",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "ownedFiles": [
+        "apps/web/app/(app)/explore/page.tsx"
+      ],
+      "closureSize": 157,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-explore",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "ownedFiles": [
+        "apps/web/app/(app)/explore/page.tsx"
+      ],
+      "closureSize": 157,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "route-explore",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "ownedFiles": [
+        "apps/web/app/(app)/explore/page.tsx"
+      ],
       "closureSize": 157,
       "state": "default",
       "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar-sync",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
-      "href": "/calendar-sync",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/connect-google.ts",
-        "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
-        "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
-        "apps/web/app/(app)/calendar-sync/page.tsx"
-      ],
-      "closureSize": 171,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-calendar",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
-      "href": "/calendar",
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/page.tsx",
-        "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-day-cell.tsx",
-        "apps/web/components/calendar/calendar-day-detail.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
-        "apps/web/components/calendar/calendar-load-error.tsx",
-        "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-stats.tsx",
-        "apps/web/components/calendar/calendar-time-grid.tsx",
-        "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
-        "apps/web/components/calendar/use-agenda-day.ts"
-      ],
-      "closureSize": 192,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-explore",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
-      "href": "/explore",
-      "ownedFiles": [
-        "apps/web/app/(app)/explore/page.tsx"
-      ],
-      "closureSize": 160,
-      "state": "default",
-      "theme": "light",
       "locale": "en",
       "pixelEvidence": "web-capture"
     },
@@ -709,37 +739,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/explore/page.tsx"
       ],
-      "closureSize": 160,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-explore",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
-      "href": "/explore",
-      "ownedFiles": [
-        "apps/web/app/(app)/explore/page.tsx"
-      ],
-      "closureSize": 160,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-explore",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
-      "href": "/explore",
-      "ownedFiles": [
-        "apps/web/app/(app)/explore/page.tsx"
-      ],
-      "closureSize": 160,
+      "closureSize": 157,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -776,7 +776,7 @@
         "apps/web/hooks/use-streak-history.ts",
         "apps/web/hooks/use-xp-history.ts"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -813,7 +813,7 @@
         "apps/web/hooks/use-streak-history.ts",
         "apps/web/hooks/use-xp-history.ts"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -850,7 +850,7 @@
         "apps/web/hooks/use-streak-history.ts",
         "apps/web/hooks/use-xp-history.ts"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -887,7 +887,7 @@
         "apps/web/hooks/use-streak-history.ts",
         "apps/web/hooks/use-xp-history.ts"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -902,7 +902,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -917,7 +917,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -932,7 +932,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -947,7 +947,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -962,7 +962,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -977,7 +977,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -992,7 +992,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -1007,7 +1007,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1022,7 +1022,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -1037,7 +1037,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -1052,7 +1052,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -1067,7 +1067,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1082,7 +1082,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -1097,7 +1097,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -1112,7 +1112,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -1127,7 +1127,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1142,7 +1142,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -1157,7 +1157,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -1172,7 +1172,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -1187,7 +1187,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1202,7 +1202,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -1217,7 +1217,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -1232,7 +1232,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -1247,7 +1247,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1262,7 +1262,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -1277,7 +1277,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -1292,7 +1292,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -1307,7 +1307,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1322,7 +1322,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -1337,7 +1337,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -1352,7 +1352,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -1367,7 +1367,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx"
       ],
-      "closureSize": 320,
+      "closureSize": 314,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1388,7 +1388,7 @@
         "apps/web/app/(app)/preferences/page.tsx",
         "apps/web/hooks/use-push-notification-preferences.ts"
       ],
-      "closureSize": 156,
+      "closureSize": 154,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -1409,7 +1409,7 @@
         "apps/web/app/(app)/preferences/page.tsx",
         "apps/web/hooks/use-push-notification-preferences.ts"
       ],
-      "closureSize": 156,
+      "closureSize": 154,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -1430,7 +1430,7 @@
         "apps/web/app/(app)/preferences/page.tsx",
         "apps/web/hooks/use-push-notification-preferences.ts"
       ],
-      "closureSize": 156,
+      "closureSize": 154,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -1451,7 +1451,7 @@
         "apps/web/app/(app)/preferences/page.tsx",
         "apps/web/hooks/use-push-notification-preferences.ts"
       ],
-      "closureSize": 156,
+      "closureSize": 154,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1477,7 +1477,7 @@
         "apps/web/app/(app)/profile/_components/use-profile-screen.ts",
         "apps/web/app/(app)/profile/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 217,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -1503,7 +1503,7 @@
         "apps/web/app/(app)/profile/_components/use-profile-screen.ts",
         "apps/web/app/(app)/profile/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 217,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -1529,7 +1529,7 @@
         "apps/web/app/(app)/profile/_components/use-profile-screen.ts",
         "apps/web/app/(app)/profile/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 217,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -1555,67 +1555,7 @@
         "apps/web/app/(app)/profile/_components/use-profile-screen.ts",
         "apps/web/app/(app)/profile/page.tsx"
       ],
-      "closureSize": 220,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-public-profile",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/web/app/(app)/public-profile/page.tsx"
-      ],
-      "closureSize": 146,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-public-profile",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/web/app/(app)/public-profile/page.tsx"
-      ],
-      "closureSize": 146,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-public-profile",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/web/app/(app)/public-profile/page.tsx"
-      ],
-      "closureSize": 146,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-public-profile",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/web/app/(app)/public-profile/page.tsx"
-      ],
-      "closureSize": 146,
+      "closureSize": 217,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1636,7 +1576,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -1657,7 +1597,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -1678,7 +1618,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -1699,7 +1639,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1720,7 +1660,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -1741,7 +1681,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -1762,7 +1702,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -1783,199 +1723,7 @@
         "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
         "apps/web/app/(app)/retrospective/page.tsx"
       ],
-      "closureSize": 167,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "route-social",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/social/page.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/add-friend-form.tsx",
-        "apps/web/app/(app)/social/_components/feed-event-card.tsx",
-        "apps/web/app/(app)/social/_components/friend-request-row.tsx",
-        "apps/web/app/(app)/social/_components/invite-hero.tsx",
-        "apps/web/app/(app)/social/_components/social-feed.tsx",
-        "apps/web/app/(app)/social/_components/social-friends.tsx",
-        "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
-        "apps/web/app/(app)/social/_components/social-opt-in-gate.tsx",
-        "apps/web/app/(app)/social/_components/social-section-states.tsx",
-        "apps/web/app/(app)/social/page.tsx"
-      ],
-      "closureSize": 173,
+      "closureSize": 165,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -1993,7 +1741,7 @@
         "apps/web/app/(app)/streak/_components/streak-sections.tsx",
         "apps/web/app/(app)/streak/page.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 171,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2011,7 +1759,7 @@
         "apps/web/app/(app)/streak/_components/streak-sections.tsx",
         "apps/web/app/(app)/streak/page.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 171,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2029,7 +1777,7 @@
         "apps/web/app/(app)/streak/_components/streak-sections.tsx",
         "apps/web/app/(app)/streak/page.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 171,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2047,7 +1795,7 @@
         "apps/web/app/(app)/streak/_components/streak-sections.tsx",
         "apps/web/app/(app)/streak/page.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 171,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2066,7 +1814,7 @@
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2085,7 +1833,7 @@
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2104,7 +1852,7 @@
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2123,7 +1871,7 @@
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2138,7 +1886,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/upgrade/page.tsx"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2153,7 +1901,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/upgrade/page.tsx"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2168,7 +1916,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/upgrade/page.tsx"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2183,7 +1931,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/upgrade/page.tsx"
       ],
-      "closureSize": 157,
+      "closureSize": 155,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2202,7 +1950,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2221,7 +1969,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2240,7 +1988,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2259,7 +2007,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2274,7 +2022,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/page.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 123,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2289,7 +2037,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/page.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 123,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2304,7 +2052,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/page.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 123,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2319,7 +2067,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/page.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 123,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2340,7 +2088,7 @@
         "apps/web/app/(auth)/login/page.tsx",
         "apps/web/app/(auth)/login/use-login-flow.ts"
       ],
-      "closureSize": 140,
+      "closureSize": 138,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2361,7 +2109,7 @@
         "apps/web/app/(auth)/login/page.tsx",
         "apps/web/app/(auth)/login/use-login-flow.ts"
       ],
-      "closureSize": 140,
+      "closureSize": 138,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2382,7 +2130,7 @@
         "apps/web/app/(auth)/login/page.tsx",
         "apps/web/app/(auth)/login/use-login-flow.ts"
       ],
-      "closureSize": 140,
+      "closureSize": 138,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2403,7 +2151,7 @@
         "apps/web/app/(auth)/login/page.tsx",
         "apps/web/app/(auth)/login/use-login-flow.ts"
       ],
-      "closureSize": 140,
+      "closureSize": 138,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2419,7 +2167,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2435,7 +2183,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2451,7 +2199,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2467,7 +2215,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2483,7 +2231,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -2499,7 +2247,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -2515,7 +2263,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -2531,7 +2279,7 @@
         "apps/web/app/(chat)/chat/chat-empty-state.tsx",
         "apps/web/app/(chat)/chat/page.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 245,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2546,7 +2294,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2561,7 +2309,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2576,7 +2324,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2591,7 +2339,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2778,70 +2526,6 @@
       "pixelEvidence": "web-capture"
     },
     {
-      "surfaceId": "route-u-slug",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(public)/u/[slug]/page.tsx",
-        "apps/web/components/profile/public-profile-view.tsx"
-      ],
-      "closureSize": 112,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-u-slug",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(public)/u/[slug]/page.tsx",
-        "apps/web/components/profile/public-profile-view.tsx"
-      ],
-      "closureSize": 112,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-u-slug",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(public)/u/[slug]/page.tsx",
-        "apps/web/components/profile/public-profile-view.tsx"
-      ],
-      "closureSize": 112,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "route-u-slug",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(public)/u/[slug]/page.tsx",
-        "apps/web/components/profile/public-profile-view.tsx"
-      ],
-      "closureSize": 112,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
       "surfaceId": "route-r-code",
       "platform": "web",
       "kind": "route",
@@ -2850,7 +2534,7 @@
       "ownedFiles": [
         "apps/web/app/r/[code]/page.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2865,7 +2549,7 @@
       "ownedFiles": [
         "apps/web/app/r/[code]/page.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2880,7 +2564,7 @@
       "ownedFiles": [
         "apps/web/app/r/[code]/page.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2895,7 +2579,7 @@
       "ownedFiles": [
         "apps/web/app/r/[code]/page.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2910,7 +2594,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -2925,7 +2609,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -2940,7 +2624,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -2955,7 +2639,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -2996,7 +2680,7 @@
         "apps/web/lib/api-fetch-i18n-provider.tsx",
         "apps/web/lib/providers.tsx"
       ],
-      "closureSize": 367,
+      "closureSize": 364,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3037,7 +2721,7 @@
         "apps/web/lib/api-fetch-i18n-provider.tsx",
         "apps/web/lib/providers.tsx"
       ],
-      "closureSize": 367,
+      "closureSize": 364,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3078,7 +2762,7 @@
         "apps/web/lib/api-fetch-i18n-provider.tsx",
         "apps/web/lib/providers.tsx"
       ],
-      "closureSize": 367,
+      "closureSize": 364,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3119,7 +2803,7 @@
         "apps/web/lib/api-fetch-i18n-provider.tsx",
         "apps/web/lib/providers.tsx"
       ],
-      "closureSize": 367,
+      "closureSize": 364,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3134,7 +2818,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3149,7 +2833,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3164,7 +2848,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3179,7 +2863,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3194,7 +2878,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 146,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3209,7 +2893,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 146,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3224,7 +2908,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 146,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3239,7 +2923,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 146,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3254,7 +2938,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3269,7 +2953,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3284,7 +2968,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3299,7 +2983,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3314,7 +2998,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
       ],
-      "closureSize": 115,
+      "closureSize": 113,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3329,7 +3013,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
       ],
-      "closureSize": 115,
+      "closureSize": 113,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3344,7 +3028,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
       ],
-      "closureSize": 115,
+      "closureSize": 113,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3359,307 +3043,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
       ],
-      "closureSize": 115,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-cheer-composer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/cheer-composer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/cheer-composer.tsx"
-      ],
-      "closureSize": 118,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-cheer-composer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/cheer-composer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/cheer-composer.tsx"
-      ],
-      "closureSize": 118,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-cheer-composer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/cheer-composer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/cheer-composer.tsx"
-      ],
-      "closureSize": 118,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-cheer-composer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/cheer-composer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/cheer-composer.tsx"
-      ],
-      "closureSize": 118,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-edit-handle-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx"
-      ],
-      "closureSize": 140,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-edit-handle-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx"
-      ],
-      "closureSize": 140,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-edit-handle-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx"
-      ],
-      "closureSize": 140,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-edit-handle-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx"
-      ],
-      "closureSize": 140,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-profile-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-profile-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-profile-view.tsx"
-      ],
-      "closureSize": 120,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-profile-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-profile-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-profile-view.tsx"
-      ],
-      "closureSize": 120,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-profile-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-profile-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-profile-view.tsx"
-      ],
-      "closureSize": 120,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-profile-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-profile-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-profile-view.tsx"
-      ],
-      "closureSize": 120,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 125,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 125,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 125,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-friend-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 125,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-invite-confirm-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx"
-      ],
-      "closureSize": 119,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-invite-confirm-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx"
-      ],
-      "closureSize": 119,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-invite-confirm-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx"
-      ],
-      "closureSize": 119,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-components-invite-confirm-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx"
-      ],
-      "closureSize": 119,
+      "closureSize": 113,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3674,7 +3058,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3689,7 +3073,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3704,7 +3088,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3719,7 +3103,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3734,7 +3118,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -3749,7 +3133,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -3764,7 +3148,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -3779,7 +3163,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 319,
+      "closureSize": 313,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3794,7 +3178,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-shell.tsx"
       ],
-      "closureSize": 159,
+      "closureSize": 157,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3809,7 +3193,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-shell.tsx"
       ],
-      "closureSize": 159,
+      "closureSize": 157,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3824,7 +3208,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-shell.tsx"
       ],
-      "closureSize": 159,
+      "closureSize": 157,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3839,7 +3223,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-shell.tsx"
       ],
-      "closureSize": 159,
+      "closureSize": 157,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3854,7 +3238,7 @@
       "ownedFiles": [
         "apps/web/components/advanced/advanced-sections.tsx"
       ],
-      "closureSize": 43,
+      "closureSize": 41,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3869,7 +3253,7 @@
       "ownedFiles": [
         "apps/web/components/advanced/advanced-sections.tsx"
       ],
-      "closureSize": 43,
+      "closureSize": 41,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3884,7 +3268,7 @@
       "ownedFiles": [
         "apps/web/components/advanced/advanced-sections.tsx"
       ],
-      "closureSize": 43,
+      "closureSize": 41,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3899,7 +3283,7 @@
       "ownedFiles": [
         "apps/web/components/advanced/advanced-sections.tsx"
       ],
-      "closureSize": 43,
+      "closureSize": 41,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3914,7 +3298,7 @@
       "ownedFiles": [
         "apps/web/components/command/command-palette.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 147,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3929,7 +3313,7 @@
       "ownedFiles": [
         "apps/web/components/command/command-palette.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 147,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -3944,7 +3328,7 @@
       "ownedFiles": [
         "apps/web/components/command/command-palette.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 147,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -3959,7 +3343,7 @@
       "ownedFiles": [
         "apps/web/components/command/command-palette.tsx"
       ],
-      "closureSize": 149,
+      "closureSize": 147,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -3974,7 +3358,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/achievement-toast.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -3989,7 +3373,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/achievement-toast.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4004,7 +3388,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/achievement-toast.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4019,7 +3403,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/achievement-toast.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4274,7 +3658,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/streak-freeze-celebration.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 150,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4289,7 +3673,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/streak-freeze-celebration.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 150,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4304,7 +3688,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/streak-freeze-celebration.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 150,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4319,7 +3703,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/streak-freeze-celebration.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 150,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4334,7 +3718,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/welcome-back-toast.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4349,7 +3733,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/welcome-back-toast.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4364,7 +3748,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/welcome-back-toast.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4379,7 +3763,7 @@
       "ownedFiles": [
         "apps/web/components/gamification/welcome-back-toast.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4394,7 +3778,7 @@
       "ownedFiles": [
         "apps/web/components/goals/create-goal-modal.tsx"
       ],
-      "closureSize": 172,
+      "closureSize": 169,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4409,7 +3793,7 @@
       "ownedFiles": [
         "apps/web/components/goals/create-goal-modal.tsx"
       ],
-      "closureSize": 172,
+      "closureSize": 169,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4424,7 +3808,7 @@
       "ownedFiles": [
         "apps/web/components/goals/create-goal-modal.tsx"
       ],
-      "closureSize": 172,
+      "closureSize": 169,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4439,7 +3823,7 @@
       "ownedFiles": [
         "apps/web/components/goals/create-goal-modal.tsx"
       ],
-      "closureSize": 172,
+      "closureSize": 169,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4454,7 +3838,7 @@
       "ownedFiles": [
         "apps/web/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4469,7 +3853,7 @@
       "ownedFiles": [
         "apps/web/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4484,7 +3868,7 @@
       "ownedFiles": [
         "apps/web/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4499,7 +3883,7 @@
       "ownedFiles": [
         "apps/web/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 171,
+      "closureSize": 168,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4514,7 +3898,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-card.tsx"
       ],
-      "closureSize": 195,
+      "closureSize": 192,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4529,7 +3913,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-card.tsx"
       ],
-      "closureSize": 195,
+      "closureSize": 192,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4544,7 +3928,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-card.tsx"
       ],
-      "closureSize": 195,
+      "closureSize": 192,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4559,7 +3943,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-card.tsx"
       ],
-      "closureSize": 195,
+      "closureSize": 192,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4574,7 +3958,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 189,
+      "closureSize": 186,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4589,7 +3973,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 189,
+      "closureSize": 186,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4604,7 +3988,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 189,
+      "closureSize": 186,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4619,7 +4003,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 189,
+      "closureSize": 186,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4634,7 +4018,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4649,7 +4033,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4664,7 +4048,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4679,7 +4063,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4694,7 +4078,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -4709,7 +4093,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -4724,7 +4108,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -4739,7 +4123,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goals-view.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4874,7 +4258,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -4889,7 +4273,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -4904,7 +4288,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -4919,7 +4303,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 201,
+      "closureSize": 198,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -4994,7 +4378,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5009,7 +4393,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5024,7 +4408,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5039,7 +4423,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 199,
+      "closureSize": 196,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5054,7 +4438,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-drawer.tsx"
       ],
-      "closureSize": 177,
+      "closureSize": 174,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5069,7 +4453,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-drawer.tsx"
       ],
-      "closureSize": 177,
+      "closureSize": 174,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5084,7 +4468,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-drawer.tsx"
       ],
-      "closureSize": 177,
+      "closureSize": 174,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5099,7 +4483,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-drawer.tsx"
       ],
-      "closureSize": 177,
+      "closureSize": 174,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5114,7 +4498,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5129,7 +4513,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5144,7 +4528,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5159,7 +4543,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5234,7 +4618,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5249,7 +4633,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5264,7 +4648,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5279,7 +4663,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 110,
+      "closureSize": 108,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5294,7 +4678,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row-trailing.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5309,7 +4693,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row-trailing.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5324,7 +4708,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row-trailing.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5339,7 +4723,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row-trailing.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5354,7 +4738,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5369,7 +4753,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5384,7 +4768,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5399,7 +4783,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-row.tsx"
       ],
-      "closureSize": 118,
+      "closureSize": 116,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5414,7 +4798,7 @@
       "ownedFiles": [
         "apps/web/components/habits/reschedule-sheet.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 145,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5429,7 +4813,7 @@
       "ownedFiles": [
         "apps/web/components/habits/reschedule-sheet.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 145,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5444,7 +4828,7 @@
       "ownedFiles": [
         "apps/web/components/habits/reschedule-sheet.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 145,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5459,7 +4843,7 @@
       "ownedFiles": [
         "apps/web/components/habits/reschedule-sheet.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 145,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5474,7 +4858,7 @@
       "ownedFiles": [
         "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5489,7 +4873,7 @@
       "ownedFiles": [
         "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5504,7 +4888,7 @@
       "ownedFiles": [
         "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5519,6 +4903,66 @@
       "ownedFiles": [
         "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
       ],
+      "closureSize": 135,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "closureSize": 137,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "closureSize": 137,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "closureSize": 137,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "web-capture"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
       "closureSize": 137,
       "state": "default",
       "theme": "dark",
@@ -5526,66 +4970,6 @@
       "pixelEvidence": "web-capture"
     },
     {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
       "surfaceId": "overlay-navigation-notification-bell",
       "platform": "web",
       "kind": "overlay",
@@ -5594,7 +4978,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-bell.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5609,7 +4993,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-bell.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5624,7 +5008,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-bell.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5639,7 +5023,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-bell.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5654,7 +5038,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-detail-modal.tsx"
       ],
-      "closureSize": 107,
+      "closureSize": 105,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5669,7 +5053,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-detail-modal.tsx"
       ],
-      "closureSize": 107,
+      "closureSize": 105,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5684,7 +5068,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-detail-modal.tsx"
       ],
-      "closureSize": 107,
+      "closureSize": 105,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5699,7 +5083,7 @@
       "ownedFiles": [
         "apps/web/components/navigation/notification-detail-modal.tsx"
       ],
-      "closureSize": 107,
+      "closureSize": 105,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5774,7 +5158,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5789,7 +5173,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5804,7 +5188,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5819,7 +5203,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5834,7 +5218,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-drawer.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5849,7 +5233,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-drawer.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5864,7 +5248,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-drawer.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5879,7 +5263,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-drawer.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -5894,7 +5278,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-prompt.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -5909,7 +5293,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-prompt.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -5924,7 +5308,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-prompt.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -5939,67 +5323,7 @@
       "ownedFiles": [
         "apps/web/components/referral/referral-prompt.tsx"
       ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-settings-public-profile-settings",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/settings/public-profile-settings.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/settings/public-profile-settings.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-settings-public-profile-settings",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/settings/public-profile-settings.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/settings/public-profile-settings.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-settings-public-profile-settings",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/settings/public-profile-settings.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/settings/public-profile-settings.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "web-capture"
-    },
-    {
-      "surfaceId": "overlay-settings-public-profile-settings",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/settings/public-profile-settings.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/settings/public-profile-settings.tsx"
-      ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6014,7 +5338,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-sheet.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6029,7 +5353,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-sheet.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6044,7 +5368,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-sheet.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6059,7 +5383,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-sheet.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6134,7 +5458,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-replay-modal.tsx"
       ],
-      "closureSize": 152,
+      "closureSize": 149,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6149,7 +5473,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-replay-modal.tsx"
       ],
-      "closureSize": 152,
+      "closureSize": 149,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6164,7 +5488,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-replay-modal.tsx"
       ],
-      "closureSize": 152,
+      "closureSize": 149,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6179,7 +5503,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-replay-modal.tsx"
       ],
-      "closureSize": 152,
+      "closureSize": 149,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6254,7 +5578,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 144,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6269,7 +5593,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 144,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6284,7 +5608,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 144,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6299,7 +5623,7 @@
       "ownedFiles": [
         "apps/web/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 147,
+      "closureSize": 144,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6314,7 +5638,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6329,7 +5653,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6344,7 +5668,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6359,7 +5683,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 137,
+      "closureSize": 135,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6434,7 +5758,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6449,7 +5773,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6464,7 +5788,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6479,7 +5803,7 @@
       "ownedFiles": [
         "apps/web/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6674,7 +5998,7 @@
       "ownedFiles": [
         "apps/web/components/ui/create-api-key-modal.tsx"
       ],
-      "closureSize": 112,
+      "closureSize": 110,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6689,7 +6013,7 @@
       "ownedFiles": [
         "apps/web/components/ui/create-api-key-modal.tsx"
       ],
-      "closureSize": 112,
+      "closureSize": 110,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6704,7 +6028,7 @@
       "ownedFiles": [
         "apps/web/components/ui/create-api-key-modal.tsx"
       ],
-      "closureSize": 112,
+      "closureSize": 110,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6719,7 +6043,7 @@
       "ownedFiles": [
         "apps/web/components/ui/create-api-key-modal.tsx"
       ],
-      "closureSize": 112,
+      "closureSize": 110,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6854,7 +6178,7 @@
       "ownedFiles": [
         "apps/web/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6869,7 +6193,7 @@
       "ownedFiles": [
         "apps/web/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6884,7 +6208,7 @@
       "ownedFiles": [
         "apps/web/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6899,7 +6223,7 @@
       "ownedFiles": [
         "apps/web/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 135,
+      "closureSize": 133,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6914,7 +6238,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -6929,7 +6253,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -6944,7 +6268,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -6959,7 +6283,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -6983,7 +6307,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7007,7 +6331,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7031,7 +6355,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7055,7 +6379,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7079,7 +6403,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -7103,7 +6427,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -7127,7 +6451,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -7151,7 +6475,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx"
       ],
-      "closureSize": 162,
+      "closureSize": 160,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7166,7 +6490,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7181,7 +6505,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7196,7 +6520,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7211,7 +6535,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7226,7 +6550,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -7241,7 +6565,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -7256,7 +6580,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -7271,7 +6595,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7298,7 +6622,7 @@
         "apps/mobile/app/(tabs)/profile/_components/profile-subscription-display.ts",
         "apps/mobile/app/(tabs)/profile/_components/use-data-export.ts"
       ],
-      "closureSize": 219,
+      "closureSize": 216,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7325,7 +6649,7 @@
         "apps/mobile/app/(tabs)/profile/_components/profile-subscription-display.ts",
         "apps/mobile/app/(tabs)/profile/_components/use-data-export.ts"
       ],
-      "closureSize": 219,
+      "closureSize": 216,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7352,7 +6676,7 @@
         "apps/mobile/app/(tabs)/profile/_components/profile-subscription-display.ts",
         "apps/mobile/app/(tabs)/profile/_components/use-data-export.ts"
       ],
-      "closureSize": 219,
+      "closureSize": 216,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7379,7 +6703,7 @@
         "apps/mobile/app/(tabs)/profile/_components/profile-subscription-display.ts",
         "apps/mobile/app/(tabs)/profile/_components/use-data-export.ts"
       ],
-      "closureSize": 219,
+      "closureSize": 216,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7394,7 +6718,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-modals.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7409,7 +6733,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-modals.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7424,7 +6748,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-modals.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7439,7 +6763,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-modals.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7454,7 +6778,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7469,7 +6793,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7484,7 +6808,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7499,7 +6823,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7514,7 +6838,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -7529,7 +6853,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -7544,7 +6868,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -7559,7 +6883,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-sections.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 307,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7574,7 +6898,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-shell.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7589,7 +6913,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-shell.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7604,7 +6928,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-shell.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7619,7 +6943,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/today-shell.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7694,7 +7018,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements-sections.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7709,7 +7033,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements-sections.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7724,7 +7048,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements-sections.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7739,7 +7063,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements-sections.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7754,7 +7078,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7769,7 +7093,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7784,7 +7108,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7799,7 +7123,7 @@
       "ownedFiles": [
         "apps/mobile/app/achievements.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7814,7 +7138,7 @@
       "ownedFiles": [
         "apps/mobile/app/advanced-sections.tsx"
       ],
-      "closureSize": 32,
+      "closureSize": 30,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7829,7 +7153,7 @@
       "ownedFiles": [
         "apps/mobile/app/advanced-sections.tsx"
       ],
-      "closureSize": 32,
+      "closureSize": 30,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7844,7 +7168,7 @@
       "ownedFiles": [
         "apps/mobile/app/advanced-sections.tsx"
       ],
-      "closureSize": 32,
+      "closureSize": 30,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7859,7 +7183,7 @@
       "ownedFiles": [
         "apps/mobile/app/advanced-sections.tsx"
       ],
-      "closureSize": 32,
+      "closureSize": 30,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7875,7 +7199,7 @@
         "apps/mobile/app/advanced-api-keys.ts",
         "apps/mobile/app/advanced.tsx"
       ],
-      "closureSize": 168,
+      "closureSize": 165,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7891,7 +7215,7 @@
         "apps/mobile/app/advanced-api-keys.ts",
         "apps/mobile/app/advanced.tsx"
       ],
-      "closureSize": 168,
+      "closureSize": 165,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7907,7 +7231,7 @@
         "apps/mobile/app/advanced-api-keys.ts",
         "apps/mobile/app/advanced.tsx"
       ],
-      "closureSize": 168,
+      "closureSize": 165,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7923,7 +7247,7 @@
         "apps/mobile/app/advanced-api-keys.ts",
         "apps/mobile/app/advanced.tsx"
       ],
-      "closureSize": 168,
+      "closureSize": 165,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7938,7 +7262,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings-sections.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -7953,7 +7277,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings-sections.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -7968,7 +7292,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings-sections.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -7983,7 +7307,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings-sections.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -7998,7 +7322,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8013,7 +7337,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8028,7 +7352,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8043,7 +7367,7 @@
       "ownedFiles": [
         "apps/mobile/app/ai-settings.tsx"
       ],
-      "closureSize": 153,
+      "closureSize": 151,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8058,7 +7382,7 @@
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx"
       ],
-      "closureSize": 121,
+      "closureSize": 119,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8073,7 +7397,7 @@
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx"
       ],
-      "closureSize": 121,
+      "closureSize": 119,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8088,7 +7412,7 @@
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx"
       ],
-      "closureSize": 121,
+      "closureSize": 119,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8103,7 +7427,7 @@
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx"
       ],
-      "closureSize": 121,
+      "closureSize": 119,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8118,7 +7442,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-picker-section.tsx"
       ],
-      "closureSize": 117,
+      "closureSize": 115,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8133,7 +7457,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-picker-section.tsx"
       ],
-      "closureSize": 117,
+      "closureSize": 115,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8148,7 +7472,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-picker-section.tsx"
       ],
-      "closureSize": 117,
+      "closureSize": 115,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8163,7 +7487,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-picker-section.tsx"
       ],
-      "closureSize": 117,
+      "closureSize": 115,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8178,7 +7502,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-auto-section.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 122,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8193,7 +7517,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-auto-section.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 122,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8208,7 +7532,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-auto-section.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 122,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8223,7 +7547,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-auto-section.tsx"
       ],
-      "closureSize": 125,
+      "closureSize": 122,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8238,7 +7562,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-event-row.tsx"
       ],
-      "closureSize": 108,
+      "closureSize": 106,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8253,7 +7577,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-event-row.tsx"
       ],
-      "closureSize": 108,
+      "closureSize": 106,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8268,7 +7592,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-event-row.tsx"
       ],
-      "closureSize": 108,
+      "closureSize": 106,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8283,7 +7607,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync-event-row.tsx"
       ],
-      "closureSize": 108,
+      "closureSize": 106,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8358,7 +7682,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8373,7 +7697,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8388,7 +7712,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8403,7 +7727,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8418,7 +7742,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -8433,7 +7757,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -8448,7 +7772,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -8463,7 +7787,7 @@
       "ownedFiles": [
         "apps/mobile/app/calendar-sync.tsx"
       ],
-      "closureSize": 182,
+      "closureSize": 179,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8478,7 +7802,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8493,7 +7817,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8508,7 +7832,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8523,7 +7847,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 228,
+      "closureSize": 225,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -8779,7 +8103,7 @@
         "apps/mobile/app/login.tsx",
         "apps/mobile/app/use-login-flow.ts"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8795,7 +8119,7 @@
         "apps/mobile/app/login.tsx",
         "apps/mobile/app/use-login-flow.ts"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8811,7 +8135,7 @@
         "apps/mobile/app/login.tsx",
         "apps/mobile/app/use-login-flow.ts"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8827,6 +8151,66 @@
         "apps/mobile/app/login.tsx",
         "apps/mobile/app/use-login-flow.ts"
       ],
+      "closureSize": 134,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-route-preferences-sections",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
+      "href": "/preferences-sections",
+      "ownedFiles": [
+        "apps/mobile/app/preferences-sections.tsx"
+      ],
+      "closureSize": 136,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-route-preferences-sections",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
+      "href": "/preferences-sections",
+      "ownedFiles": [
+        "apps/mobile/app/preferences-sections.tsx"
+      ],
+      "closureSize": 136,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-route-preferences-sections",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
+      "href": "/preferences-sections",
+      "ownedFiles": [
+        "apps/mobile/app/preferences-sections.tsx"
+      ],
+      "closureSize": 136,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-route-preferences-sections",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
+      "href": "/preferences-sections",
+      "ownedFiles": [
+        "apps/mobile/app/preferences-sections.tsx"
+      ],
       "closureSize": 136,
       "state": "default",
       "theme": "dark",
@@ -8834,66 +8218,6 @@
       "pixelEvidence": "none"
     },
     {
-      "surfaceId": "m-route-preferences-sections",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
-      "href": "/preferences-sections",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-sections.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-preferences-sections",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
-      "href": "/preferences-sections",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-sections.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-preferences-sections",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
-      "href": "/preferences-sections",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-sections.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-preferences-sections",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences-sections.tsx",
-      "href": "/preferences-sections",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-sections.tsx"
-      ],
-      "closureSize": 138,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
       "surfaceId": "m-route-preferences",
       "platform": "mobile",
       "kind": "route",
@@ -8904,7 +8228,7 @@
         "apps/mobile/app/preferences.tsx",
         "apps/mobile/app/use-preference-controls.ts"
       ],
-      "closureSize": 152,
+      "closureSize": 150,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -8921,7 +8245,7 @@
         "apps/mobile/app/preferences.tsx",
         "apps/mobile/app/use-preference-controls.ts"
       ],
-      "closureSize": 152,
+      "closureSize": 150,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -8938,7 +8262,7 @@
         "apps/mobile/app/preferences.tsx",
         "apps/mobile/app/use-preference-controls.ts"
       ],
-      "closureSize": 152,
+      "closureSize": 150,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -8955,7 +8279,7 @@
         "apps/mobile/app/preferences.tsx",
         "apps/mobile/app/use-preference-controls.ts"
       ],
-      "closureSize": 152,
+      "closureSize": 150,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9016,66 +8340,6 @@
         "apps/mobile/app/privacy.tsx"
       ],
       "closureSize": 40,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-public-profile",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/public-profile.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/mobile/app/public-profile.tsx"
-      ],
-      "closureSize": 146,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-public-profile",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/public-profile.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/mobile/app/public-profile.tsx"
-      ],
-      "closureSize": 146,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-public-profile",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/public-profile.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/mobile/app/public-profile.tsx"
-      ],
-      "closureSize": 146,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-public-profile",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/public-profile.tsx",
-      "href": "/public-profile",
-      "ownedFiles": [
-        "apps/mobile/app/public-profile.tsx"
-      ],
-      "closureSize": 146,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9150,7 +8414,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-dashboard.tsx"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -9165,7 +8429,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-dashboard.tsx"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -9180,7 +8444,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-dashboard.tsx"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -9195,7 +8459,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-dashboard.tsx"
       ],
-      "closureSize": 146,
+      "closureSize": 144,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9450,7 +8714,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -9465,7 +8729,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -9480,7 +8744,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -9495,7 +8759,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9510,7 +8774,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -9525,7 +8789,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -9540,7 +8804,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -9555,7 +8819,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective-view.tsx"
       ],
-      "closureSize": 151,
+      "closureSize": 149,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9570,7 +8834,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -9585,7 +8849,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -9600,7 +8864,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -9615,7 +8879,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9630,7 +8894,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "empty",
       "theme": "light",
       "locale": "en",
@@ -9645,7 +8909,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR",
@@ -9660,7 +8924,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
+      "closureSize": 165,
       "state": "empty",
       "theme": "dark",
       "locale": "en",
@@ -9675,207 +8939,7 @@
       "ownedFiles": [
         "apps/mobile/app/retrospective.tsx"
       ],
-      "closureSize": 167,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-route-social",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/social.tsx",
-      "href": "/social",
-      "ownedFiles": [
-        "apps/mobile/app/social.tsx",
-        "apps/mobile/app/social/_components/add-friend-form.tsx",
-        "apps/mobile/app/social/_components/edit-handle-sheet.tsx",
-        "apps/mobile/app/social/_components/feed-event-card.tsx",
-        "apps/mobile/app/social/_components/friend-request-row.tsx",
-        "apps/mobile/app/social/_components/invite-confirm-sheet.tsx",
-        "apps/mobile/app/social/_components/invite-hero.tsx",
-        "apps/mobile/app/social/_components/social-feed.tsx",
-        "apps/mobile/app/social/_components/social-friends.tsx",
-        "apps/mobile/app/social/_components/social-identity-bar.tsx",
-        "apps/mobile/app/social/_components/social-opt-in-gate.tsx"
-      ],
-      "closureSize": 169,
+      "closureSize": 165,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR",
@@ -9950,7 +9014,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak-sections.tsx"
       ],
-      "closureSize": 111,
+      "closureSize": 109,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -9965,7 +9029,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak-sections.tsx"
       ],
-      "closureSize": 111,
+      "closureSize": 109,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -9980,7 +9044,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak-sections.tsx"
       ],
-      "closureSize": 111,
+      "closureSize": 109,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -9995,7 +9059,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak-sections.tsx"
       ],
-      "closureSize": 111,
+      "closureSize": 109,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10010,7 +9074,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 173,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10025,7 +9089,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 173,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10040,7 +9104,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 173,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10055,7 +9119,7 @@
       "ownedFiles": [
         "apps/mobile/app/streak.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 173,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10070,7 +9134,7 @@
       "ownedFiles": [
         "apps/mobile/app/support.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10085,7 +9149,7 @@
       "ownedFiles": [
         "apps/mobile/app/support.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10100,7 +9164,7 @@
       "ownedFiles": [
         "apps/mobile/app/support.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10115,7 +9179,7 @@
       "ownedFiles": [
         "apps/mobile/app/support.tsx"
       ],
-      "closureSize": 142,
+      "closureSize": 140,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10190,7 +9254,7 @@
       "ownedFiles": [
         "apps/mobile/app/upgrade.tsx"
       ],
-      "closureSize": 158,
+      "closureSize": 156,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10205,7 +9269,7 @@
       "ownedFiles": [
         "apps/mobile/app/upgrade.tsx"
       ],
-      "closureSize": 158,
+      "closureSize": 156,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10220,7 +9284,7 @@
       "ownedFiles": [
         "apps/mobile/app/upgrade.tsx"
       ],
-      "closureSize": 158,
+      "closureSize": 156,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10235,7 +9299,7 @@
       "ownedFiles": [
         "apps/mobile/app/upgrade.tsx"
       ],
-      "closureSize": 158,
+      "closureSize": 156,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10250,7 +9314,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-cover.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10265,7 +9329,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-cover.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10280,7 +9344,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-cover.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10295,7 +9359,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-cover.tsx"
       ],
-      "closureSize": 109,
+      "closureSize": 107,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10310,7 +9374,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-player.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10325,7 +9389,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-player.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10340,7 +9404,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-player.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10355,7 +9419,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-player.tsx"
       ],
-      "closureSize": 138,
+      "closureSize": 136,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10370,7 +9434,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-slide.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10385,7 +9449,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-slide.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10400,7 +9464,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-slide.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10415,7 +9479,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-slide.tsx"
       ],
-      "closureSize": 136,
+      "closureSize": 134,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10430,7 +9494,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10445,7 +9509,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10460,7 +9524,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10475,7 +9539,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 153,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10490,7 +9554,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10505,7 +9569,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10520,7 +9584,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10535,67 +9599,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx"
       ],
-      "closureSize": 105,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-overlay-components-friend-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 124,
-      "state": "default",
-      "theme": "light",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-overlay-components-friend-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 124,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-overlay-components-friend-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 124,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en",
-      "pixelEvidence": "none"
-    },
-    {
-      "surfaceId": "m-overlay-components-friend-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/social/_components/friend-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/social/_components/friend-row.tsx"
-      ],
-      "closureSize": 124,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10614,7 +9618,7 @@
         "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx",
         "apps/mobile/components/goals/create-goal-modal/styles.ts"
       ],
-      "closureSize": 170,
+      "closureSize": 167,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10633,7 +9637,7 @@
         "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx",
         "apps/mobile/components/goals/create-goal-modal/styles.ts"
       ],
-      "closureSize": 170,
+      "closureSize": 167,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10652,7 +9656,7 @@
         "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx",
         "apps/mobile/components/goals/create-goal-modal/styles.ts"
       ],
-      "closureSize": 170,
+      "closureSize": 167,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10671,7 +9675,7 @@
         "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx",
         "apps/mobile/components/goals/create-goal-modal/styles.ts"
       ],
-      "closureSize": 170,
+      "closureSize": 167,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10686,7 +9690,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10701,7 +9705,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10716,7 +9720,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10731,7 +9735,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/edit-goal-modal.tsx"
       ],
-      "closureSize": 169,
+      "closureSize": 166,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10757,7 +9761,7 @@
         "apps/mobile/components/goals/goal-detail-sections.tsx",
         "apps/mobile/components/goals/goal-metrics-panel.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10783,7 +9787,7 @@
         "apps/mobile/components/goals/goal-detail-sections.tsx",
         "apps/mobile/components/goals/goal-metrics-panel.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10809,7 +9813,7 @@
         "apps/mobile/components/goals/goal-detail-sections.tsx",
         "apps/mobile/components/goals/goal-metrics-panel.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10835,7 +9839,7 @@
         "apps/mobile/components/goals/goal-detail-sections.tsx",
         "apps/mobile/components/goals/goal-metrics-panel.tsx"
       ],
-      "closureSize": 186,
+      "closureSize": 183,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10911,7 +9915,7 @@
         "apps/mobile/components/habits/create-habit-modal.tsx",
         "apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx"
       ],
-      "closureSize": 209,
+      "closureSize": 206,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10927,7 +9931,7 @@
         "apps/mobile/components/habits/create-habit-modal.tsx",
         "apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx"
       ],
-      "closureSize": 209,
+      "closureSize": 206,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -10943,7 +9947,7 @@
         "apps/mobile/components/habits/create-habit-modal.tsx",
         "apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx"
       ],
-      "closureSize": 209,
+      "closureSize": 206,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -10959,7 +9963,7 @@
         "apps/mobile/components/habits/create-habit-modal.tsx",
         "apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx"
       ],
-      "closureSize": 209,
+      "closureSize": 206,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -10974,7 +9978,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 208,
+      "closureSize": 205,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -10989,7 +9993,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 208,
+      "closureSize": 205,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11004,7 +10008,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 208,
+      "closureSize": 205,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11019,7 +10023,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 208,
+      "closureSize": 205,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11041,7 +10045,7 @@
         "apps/mobile/components/habits/habit-detail-drawer/styles.ts",
         "apps/mobile/components/habits/habit-detail-sections.tsx"
       ],
-      "closureSize": 178,
+      "closureSize": 175,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11063,7 +10067,7 @@
         "apps/mobile/components/habits/habit-detail-drawer/styles.ts",
         "apps/mobile/components/habits/habit-detail-sections.tsx"
       ],
-      "closureSize": 178,
+      "closureSize": 175,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11085,7 +10089,7 @@
         "apps/mobile/components/habits/habit-detail-drawer/styles.ts",
         "apps/mobile/components/habits/habit-detail-sections.tsx"
       ],
-      "closureSize": 178,
+      "closureSize": 175,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11107,7 +10111,7 @@
         "apps/mobile/components/habits/habit-detail-drawer/styles.ts",
         "apps/mobile/components/habits/habit-detail-sections.tsx"
       ],
-      "closureSize": 178,
+      "closureSize": 175,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11125,7 +10129,7 @@
         "apps/mobile/components/navigation/notification-detail-modal.tsx",
         "apps/mobile/components/navigation/notification-row.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11143,7 +10147,7 @@
         "apps/mobile/components/navigation/notification-detail-modal.tsx",
         "apps/mobile/components/navigation/notification-row.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11161,7 +10165,7 @@
         "apps/mobile/components/navigation/notification-detail-modal.tsx",
         "apps/mobile/components/navigation/notification-row.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11179,7 +10183,7 @@
         "apps/mobile/components/navigation/notification-detail-modal.tsx",
         "apps/mobile/components/navigation/notification-row.tsx"
       ],
-      "closureSize": 141,
+      "closureSize": 139,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11204,7 +10208,7 @@
         "apps/mobile/components/onboarding/onboarding-template-packs.tsx",
         "apps/mobile/components/onboarding/onboarding-welcome.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11229,7 +10233,7 @@
         "apps/mobile/components/onboarding/onboarding-template-packs.tsx",
         "apps/mobile/components/onboarding/onboarding-welcome.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11254,7 +10258,7 @@
         "apps/mobile/components/onboarding/onboarding-template-packs.tsx",
         "apps/mobile/components/onboarding/onboarding-welcome.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11279,7 +10283,7 @@
         "apps/mobile/components/onboarding/onboarding-template-packs.tsx",
         "apps/mobile/components/onboarding/onboarding-welcome.tsx"
       ],
-      "closureSize": 185,
+      "closureSize": 182,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11296,7 +10300,7 @@
         "apps/mobile/components/tour/tour-spotlight.tsx",
         "apps/mobile/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 150,
+      "closureSize": 147,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11313,7 +10317,7 @@
         "apps/mobile/components/tour/tour-spotlight.tsx",
         "apps/mobile/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 150,
+      "closureSize": 147,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11330,7 +10334,7 @@
         "apps/mobile/components/tour/tour-spotlight.tsx",
         "apps/mobile/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 150,
+      "closureSize": 147,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11347,7 +10351,7 @@
         "apps/mobile/components/tour/tour-spotlight.tsx",
         "apps/mobile/components/tour/tour-tooltip.tsx"
       ],
-      "closureSize": 150,
+      "closureSize": 147,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11422,7 +10426,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11437,7 +10441,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11452,7 +10456,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11467,7 +10471,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-date-picker.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11542,7 +10546,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11557,7 +10561,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11572,7 +10576,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11587,7 +10591,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/app-time-picker.tsx"
       ],
-      "closureSize": 131,
+      "closureSize": 129,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11722,7 +10726,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/push-prompt.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11737,7 +10741,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/push-prompt.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11752,7 +10756,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/push-prompt.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11767,7 +10771,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/push-prompt.tsx"
       ],
-      "closureSize": 105,
+      "closureSize": 103,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
@@ -11782,7 +10786,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "light",
       "locale": "en",
@@ -11797,7 +10801,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
@@ -11812,7 +10816,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "dark",
       "locale": "en",
@@ -11827,7 +10831,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 132,
+      "closureSize": 130,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",

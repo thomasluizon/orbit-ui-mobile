@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET } from '@/app/api/[...path]/route'
+import { GET, PUT } from '@/app/api/[...path]/route'
 import { resolveServerSession } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
@@ -50,6 +50,25 @@ describe('catch-all API proxy route', () => {
       const response = await GET(request, {
         params: Promise.resolve({ path: [prefix, 'sample'] }),
       })
+
+      expect(response.status).toBe(404)
+      expect(await response.json()).toEqual({ error: 'Not found' })
+    }
+
+    expect(resolveServerSession).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects retired profile mutations before calling auth or backend', async () => {
+    const retiredPaths = [
+      ['profile', 'handle'],
+      ['profile', ['social', 'opt-in'].join('-')],
+      ['profile', 'public'],
+    ]
+
+    for (const path of retiredPaths) {
+      const request = createRequest(path.join('/'))
+      const response = await PUT(request, { params: Promise.resolve({ path }) })
 
       expect(response.status).toBe(404)
       expect(await response.json()).toEqual({ error: 'Not found' })

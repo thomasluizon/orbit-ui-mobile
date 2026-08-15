@@ -4,7 +4,7 @@
 > - Downstream copy (Play listing, landing page, QA matrix) derives its rows from here, so nothing is undersold.
 > - Gating: Free / Trial (7-day, full Pro except Retrospective) / Pro / Yearly-Pro, computed from `User` flags in `PayGateService.cs`.
 > - Free limits: 10 top-level habits and 20 AI messages/month; Both = web + mobile (Expo, Android-only), with no iOS app.
-> - Headline surfaces: Astra (61 AI tools), the MCP server (79 tools / 15 classes), the opt-in social layer, the core tracker.
+> - Headline surfaces: Astra (61 AI tools), the MCP server (79 tools / 15 classes), sharing and referrals, the core tracker.
 > - Read the whole doc before writing store, marketing, or QA copy.
 
 The single, code-derived, gating- and platform-aware map of everything Orbit does. Downstream copy — the Play listing, the landing page, the store description, and the pre-launch QA matrix — derives its rows from here, so no feature is undersold or invisible and nothing needs feature archaeology.
@@ -32,8 +32,8 @@ Astra is a conversational coach that can actually *act*, not just talk. Tell it 
 ### Connect your assistant — Orbit speaks MCP
 Orbit exposes a full **Model Context Protocol** server, so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your account and manage your habits and goals from wherever you already chat with AI. **79 MCP tools across 15 tool classes**, scoped to your account, secured by OAuth 2.0 dynamic client registration or scoped, hashed API keys. This is a rare consumer feature: Orbit is a habit tracker your favorite AI assistant can drive.
 
-### A social layer built for support, not ranking
-Opt in and you unlock cheers to celebrate a friend's streak, a friends feed, public profiles, milestone sharing, and referral invite links. Deliberately **no leaderboards** — the social layer is about encouragement, not competition. It is **off by default**; your habits stay private until you choose to share.
+### Share progress and invite people you know
+Celebrate progress with milestone cards and use personal referral links to invite people to Orbit.
 
 ### A serious core tracker underneath
 Flexible scheduling (daily, weekly, monthly, yearly, flexible, one-time, general), sub-habits, checklists, bad-habit tracking with AI slip alerts, goals with velocity metrics, a color-coded calendar with Google Calendar import, XP and levels, achievement badges, streaks with streak-freeze protection, an Orbit Wrapped recap, and an Android home-screen widget.
@@ -100,16 +100,10 @@ Orbit's MCP server lets external assistants (Claude, ChatGPT, any MCP client) dr
 
 ---
 
-## Social & Growth
-
-Behind the `socialOptIn` flag (default **off**; toggle in Settings). Constants in `AppConstants.cs`. **No leaderboards.**
+## Sharing & Growth
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Social opt-in | Master switch; habits stay private until enabled | Free | Both | — |
-| Cheers | Send a short encouragement on a friend's streak/milestone | Free | Both | — |
-| Friends & feed | Add by handle, accept requests, shared milestone feed | Free | Both | Handle is brand-neutral |
-| Public profile | Claim a handle; shareable public profile of streaks/achievements | Free | Web-only SSR page (`/u/[slug]`); managed on both | — |
 | Milestone sharing | Share a milestone card on a big streak/achievement | Free | Both | — |
 | Referral / invite links | Personal invite link; referrals grow the community (`r/[code]`) | Free | Both | — |
 
@@ -222,7 +216,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Free tier | 10 habits, 20 AI msgs/mo, core tracking, gamification, social | Free | Both | — |
+| Free tier | 10 habits, 20 AI msgs/mo, core tracking, gamification, milestone sharing, referrals | Free | Both | — |
 | 7-day trial | Full Pro access (except Retrospective); set at signup, no card | Trial | Both | — |
 | Orbit Pro | Unlimited habits, 500 AI msgs, sub-habits, goals, calendar, daily summary, memory, API keys/MCP, all color schemes | Pro | Both | — |
 | Yearly Pro | Everything in Pro **plus** the AI Retrospective | Yearly-Pro | Both | — |
@@ -274,7 +268,7 @@ Play-required public URLs — they look unused in-app but must never be deleted.
 | Terms of Service | Public `/terms` | Free | Both | en + pt-BR |
 | Privacy Policy | Public `/privacy` | Free | Both | en + pt-BR |
 | Delete-account page | Public `/delete-account` (Play compliance) | Free | Web-only public page | — |
-| About / Feature Guide | In-app guide covering Astra, Connect, Social, Habits, Goals, Calendar, Rewards, Settings, Notifications | Free | Both | Fully i18n-driven (en + pt-BR) |
+| About / Feature Guide | In-app guide covering Astra, Connect, Habits, Goals, Calendar, Rewards, Settings, Notifications | Free | Both | Fully i18n-driven (en + pt-BR) |
 | Public referral landing | `r/[code]` invite entry point | Free | Both | — |
 
 ---
