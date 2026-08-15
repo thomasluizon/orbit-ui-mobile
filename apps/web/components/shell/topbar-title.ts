@@ -10,7 +10,6 @@ const TOPBAR_TITLE_ROUTES: readonly (readonly [string, string])[] = [
   ['/chat', 'nav.astra'],
   ['/explore', 'nav.explore'],
   ['/profile', 'nav.profile'],
-  ['/social', 'social.title'],
   ['/preferences', 'preferences.title'],
   ['/ai-settings', 'aiSettings.title'],
   ['/advanced', 'advancedSettings.title'],
@@ -21,7 +20,6 @@ const TOPBAR_TITLE_ROUTES: readonly (readonly [string, string])[] = [
   ['/retrospective', 'retrospective.title'],
   ['/upgrade', 'upgrade.title'],
   ['/wrapped', 'wrapped.title'],
-  ['/public-profile', 'profile.publicProfile.title'],
 ]
 
 /**

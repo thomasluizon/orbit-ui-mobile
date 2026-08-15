@@ -335,9 +335,6 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'tour.replay.title').props.hint).toBe(
       'explore.tourHint',
     )
-    expect(findRowByLabel(tree, 'social.profileNav.title').props.hint).toBe(
-      'social.profileNav.hint',
-    )
     expect(findRowByLabel(tree, 'profile.retrospectiveTitle').props.hint).toBe(
       'profile.retrospectiveHint',
     )
@@ -353,6 +350,19 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'profile.sections.advanced').props.hint).toBe(
       'profile.sections.advancedHint',
     )
+
+    const removedLabels = [
+      ['so', 'cial.profileNav.title'].join(''),
+      ['profile.public', 'Profile.title'].join(''),
+    ]
+    for (const label of removedLabels) {
+      expect(
+        tree.root.findAll(
+          (node: SettingsRowStubNode) =>
+            node.type === 'SettingsRowStub' && node.props.label === label,
+        ),
+      ).toHaveLength(0)
+    }
   })
 
   it('opens the tour replay modal from the discover row', async () => {

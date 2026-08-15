@@ -17,6 +17,12 @@ describe('notification-actions', () => {
     expect(isViewableNotificationUrl(null)).toBe(false)
   })
 
+  it('rejects destinations removed with the social feature', () => {
+    expect(isViewableNotificationUrl('/social')).toBe(false)
+    expect(isViewableNotificationUrl('/public-profile')).toBe(false)
+    expect(isViewableNotificationUrl('/u/example')).toBe(false)
+  })
+
   it('derives notification detail action visibility', () => {
     expect(
       getNotificationDetailActionVisibility({
@@ -47,11 +53,6 @@ describe('notification-actions', () => {
   it('maps gamification and referral notifications to the celebration glyph', () => {
     expect(getNotificationGlyph({ url: null, habitId: null })).toBe('celebration')
     expect(getNotificationGlyph({ url: '/profile', habitId: null })).toBe('celebration')
-  })
-
-  it('maps social deep-links to their dedicated glyphs', () => {
-    expect(getNotificationGlyph({ url: '/social?tab=friends', habitId: null })).toBe('friend')
-    expect(getNotificationGlyph({ url: '/social?tab=feed', habitId: null })).toBe('cheer')
   })
 
   it('falls back to the reminder glyph for habit notifications', () => {

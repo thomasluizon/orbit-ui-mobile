@@ -7,7 +7,6 @@ import type { EngagementSlotCard } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { ReferralCard } from '@/components/referral/referral-card'
-import { SocialEntryCard } from '@/components/social/social-entry-card'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -47,15 +46,6 @@ export function TodayEngagementCards({
           </motion.div>
         )}
 
-        {engagementSlot === 'socialEntry' && (
-          <motion.div
-            key="engagement-social-entry"
-            exit={{ opacity: 0, y: -4 }}
-            transition={exitTransition}
-          >
-            <SocialEntryCard />
-          </motion.div>
-        )}
       </AnimatePresence>
     </div>
   )

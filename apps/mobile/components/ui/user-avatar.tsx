@@ -8,7 +8,7 @@ interface UserAvatarProps {
   size?: number
 }
 
-/** Generic initials avatar disc for friends and feed actors where no uploaded picture exists. */
+/** Generic initials avatar disc for people without an uploaded picture. */
 export function UserAvatar({ name, size = 44 }: Readonly<UserAvatarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)

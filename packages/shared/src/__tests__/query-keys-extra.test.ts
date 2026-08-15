@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   aiKeys,
   checklistTemplateKeys,
-  cheerKeys,
   calendarKeys,
-  friendKeys,
   gamificationKeys,
   goalKeys,
   habitKeys,
@@ -37,16 +35,7 @@ describe('goal and gamification keys', () => {
   })
 })
 
-describe('social and subscription keys', () => {
-  it('builds friend and cheer keys', () => {
-    expect(friendKeys.list()).toEqual(['friends', 'list'])
-    expect(friendKeys.feed()).toEqual(['friends', 'feed'])
-    expect(friendKeys.profile('u-1')).toEqual(['friends', 'profile', 'u-1'])
-    expect(friendKeys.invitePreview('code-1')).toEqual(['friends', 'invitePreview', 'code-1'])
-    expect(cheerKeys.list('received')).toEqual(['cheers', 'list', 'received'])
-    expect(cheerKeys.list('sent')).toEqual(['cheers', 'list', 'sent'])
-  })
-
+describe('subscription keys', () => {
   it('builds subscription billing keys', () => {
     expect(subscriptionKeys.billing()).toEqual(['subscriptions', 'billing'])
   })

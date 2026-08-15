@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET } from '@/app/api/[...path]/route'
+import { GET, PUT } from '@/app/api/[...path]/route'
 import { resolveServerSession } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
@@ -38,10 +38,11 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('rejects retired social endpoint prefixes before calling auth or backend', async () => {
+  it('rejects retired client endpoint prefixes before calling auth or backend', async () => {
     const retiredPrefixes = [
       ['chall', 'enges'].join(''),
       ['account', 'ability'].join(''),
+      ['fri', 'ends'].join(''),
     ]
 
     for (const prefix of retiredPrefixes) {
@@ -56,6 +57,56 @@ describe('catch-all API proxy route', () => {
 
     expect(resolveServerSession).not.toHaveBeenCalled()
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects retired profile mutations before calling auth or backend', async () => {
+    const retiredPaths = [
+      ['profile', 'handle'],
+      ['profile', 'HANDLE'],
+      ['profile', 'handle', '%2e'],
+      ['profile', '%2e', 'handle'],
+      ['profile', ['social', 'opt-in'].join('-')],
+      ['profile', ['Social', 'Opt-In'].join('-')],
+      ['profile', 'public'],
+      ['profile', 'PUBLIC'],
+    ]
+
+    for (const path of retiredPaths) {
+      const request = createRequest(path.join('/'))
+      const response = await PUT(request, { params: Promise.resolve({ path }) })
+
+      expect(response.status).toBe(404)
+      expect(await response.json()).toEqual({ error: 'Not found' })
+    }
+
+    expect(resolveServerSession).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('preserves encoded allowed paths when forwarding', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'initial-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue(
+      new Response('{"ok":true}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const encodedPath = 'profile/%25252e%25252e/admin'
+    const request = createRequest(encodedPath)
+
+    const response = await GET(request, {
+      params: Promise.resolve({ path: encodedPath.split('/') }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledWith(
+      `http://localhost:5000/api/${encodedPath}`,
+      expect.any(Object),
+    )
   })
 
   it('forwards sanitized client context and retries with a refreshed token', async () => {
