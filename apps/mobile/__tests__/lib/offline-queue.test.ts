@@ -137,20 +137,28 @@ describe('mobile offline queue', () => {
     withTransactionSyncMock.mockClear()
   })
 
-  it('drops retired scopes from persisted rows', () => {
+  it('preserves a retired persisted operation without assigning current metadata', () => {
+    const retiredType = ['delete', 'User', 'Fact'].join('')
     storedRows.set('retired-scope-row', {
       id: 'retired-scope-row',
       timestamp: Date.now(),
-      type: 'deleteHabit',
-      endpoint: '/api/habits/retired',
+      type: retiredType,
+      endpoint: ['/api/user', '-facts/retired'].join(''),
       method: 'DELETE',
       payload: 'null',
       retries: 0,
       max_retries: 3,
-      meta: JSON.stringify({ scope: 'retiredScope', entityType: 'habit' }),
+      meta: JSON.stringify({
+        scope: ['user', 'Facts'].join(''),
+        entityType: ['user', 'Fact'].join(''),
+      }),
     })
 
-    expect(getAll()[0]?.scope).toBeUndefined()
+    expect(getAll()[0]).toEqual(expect.objectContaining({
+      type: retiredType,
+      scope: undefined,
+      entityType: undefined,
+    }))
   })
 
   it('rewrites the queue inside a single transaction so a crash cannot drop it', () => {

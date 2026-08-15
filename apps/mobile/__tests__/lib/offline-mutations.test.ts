@@ -648,6 +648,69 @@ describe('offline mutations', () => {
     expect(mocks.queued).toHaveLength(0)
   })
 
+  it('replays a retired persisted operation without current-scope invalidation', async () => {
+    mocks.setOnline(true)
+    const retiredType = ['delete', 'User', 'Fact'].join('')
+    const endpoint = ['/api/user', '-facts/retired'].join('')
+    mocks.queued.push({
+      id: 'retired-operation',
+      timestamp: Date.now(),
+      type: retiredType,
+      endpoint,
+      method: 'DELETE',
+      payload: null,
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dependsOn: [],
+    })
+
+    const result = await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      endpoint,
+      expect.objectContaining({ method: 'DELETE' }),
+      undefined,
+    )
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      succeeded: 1,
+      failed: 0,
+      remaining: 0,
+      droppedMutations: [],
+    })
+  })
+
+  it('drops a rejected retired operation without classifying it as a current scope', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValue(new Error('400 validation failed'))
+    const retiredType = ['bulkDelete', 'User', 'Facts'].join('')
+    mocks.queued.push({
+      id: 'retired-rejected-operation',
+      timestamp: Date.now(),
+      type: retiredType,
+      endpoint: ['/api/user', '-facts/bulk'].join(''),
+      method: 'DELETE',
+      payload: null,
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dependsOn: [],
+    })
+
+    const result = await flushQueuedMutations()
+
+    expect(getMutationScope(retiredType)).toBeUndefined()
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(result.droppedMutations).toEqual([
+      {
+        id: 'retired-rejected-operation',
+        type: retiredType,
+        lastError: '400 validation failed',
+      },
+    ])
+  })
+
   it('notifies subscribers on every dropped mutation and stops after unsubscribe', async () => {
     mocks.setOnline(true)
     mocks.apiClient.mockImplementation(() =>

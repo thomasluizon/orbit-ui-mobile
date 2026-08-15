@@ -13,6 +13,7 @@ import type {
   MutationType,
   QueuedMutation,
 } from '@orbit/shared/types/sync'
+import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
@@ -48,7 +49,7 @@ export interface QueuedMarker {
 
 export interface DroppedMutation {
   id: string
-  type: MutationType
+  type: string
   lastError: string | null
 }
 
@@ -359,7 +360,7 @@ function shouldStopFlushing(error: unknown): boolean {
   return message.includes('unauthorized') || message.includes('forbidden')
 }
 
-export function getMutationScope(type: MutationType): MutationScope {
+export function getMutationScope(type: string): MutationScope | undefined {
   switch (type) {
     case 'createGoal':
     case 'updateGoal':
@@ -397,7 +398,7 @@ export function getMutationScope(type: MutationType): MutationScope {
     case 'resetProfile':
       return 'profile'
     default:
-      return 'habits'
+      return mutationTypeSchema.safeParse(type).success ? 'habits' : undefined
   }
 }
 
@@ -476,7 +477,8 @@ function addTouchedScope(
   touchedScopes: Set<MutationScope>,
   mutation: QueuedMutation,
 ): void {
-  touchedScopes.add(mutation.scope ?? getMutationScope(mutation.type))
+  const scope = mutation.scope ?? getMutationScope(mutation.type)
+  if (scope) touchedScopes.add(scope)
 }
 
 async function clearCreatedOfflineEntity(

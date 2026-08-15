@@ -40,7 +40,7 @@ export type QueuedMutationStatus = z.infer<typeof queuedMutationStatusSchema>
 export const queuedMutationSchema = z.object({
   id: z.string(),
   timestamp: z.number(),
-  type: mutationTypeSchema,
+  type: z.string(),
   endpoint: z.string(),
   method: z.enum(['POST', 'PUT', 'DELETE']),
   payload: z.unknown(),

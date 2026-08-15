@@ -52,9 +52,12 @@ function OfflineManager() {
 
   useEffect(() => {
     return subscribeDroppedMutations((dropped) => {
+      const scope = getMutationScope(dropped.type)
+      if (!scope) return
+
       showError(
         t('common.syncDropped', {
-          item: t(`common.syncEntity.${getMutationScope(dropped.type)}`),
+          item: t(`common.syncEntity.${scope}`),
         }),
       )
     })
@@ -125,13 +128,13 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       setReady(true)
     }
-    boot()
+    void boot()
   }, [initialize])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
-        persistQueryCache()
+        void persistQueryCache()
       }
 
       if (nextState === 'active') {

@@ -1,9 +1,9 @@
 import * as SQLite from 'expo-sqlite'
 import {
+  mutationEntityTypeSchema,
   mutationScopeSchema,
   type MutationEntityType,
   type MutationScope,
-  type MutationType,
   type QueuedMutation,
   type QueuedMutationStatus,
 } from '@orbit/shared/types/sync'
@@ -102,18 +102,19 @@ function buildMeta(mutation: QueuedMutation): QueueMetaRow {
 function mapRow(row: QueueRow): QueuedMutation {
   const meta = parseJson<QueueMetaRow>(row.meta) ?? {}
   const scope = mutationScopeSchema.safeParse(meta.scope)
+  const entityType = mutationEntityTypeSchema.safeParse(meta.entityType)
 
   return {
     id: row.id,
     timestamp: row.timestamp,
-    type: row.type as MutationType,
+    type: row.type,
     endpoint: row.endpoint,
     method: row.method as 'POST' | 'PUT' | 'DELETE',
     payload: parseJson(row.payload),
     retries: row.retries,
     maxRetries: row.max_retries,
     scope: scope.success ? scope.data : undefined,
-    entityType: meta.entityType,
+    entityType: entityType.success ? entityType.data : undefined,
     status: meta.status ?? 'pending',
     dedupeKey: meta.dedupeKey ?? null,
     targetEntityId: meta.targetEntityId ?? null,
@@ -152,11 +153,11 @@ function replaceAll(mutations: QueuedMutation[]): void {
   emitQueueCount()
 }
 
-function isCreateType(type: MutationType): boolean {
+function isCreateType(type: string): boolean {
   return type === 'createHabit' || type === 'createGoal' || type === 'createTag'
 }
 
-const MERGE_INTO_CREATE_TYPES = new Set<MutationType>([
+const MERGE_INTO_CREATE_TYPES = new Set<string>([
   'updateHabit',
   'updateChecklist',
   'assignTags',
@@ -164,9 +165,9 @@ const MERGE_INTO_CREATE_TYPES = new Set<MutationType>([
   'updateTag',
 ])
 
-const DROP_CREATE_TYPES = new Set<MutationType>(['deleteHabit', 'deleteGoal', 'deleteTag'])
+const DROP_CREATE_TYPES = new Set<string>(['deleteHabit', 'deleteGoal', 'deleteTag'])
 
-const LAST_WRITE_WINS_TYPES = new Set<MutationType>([
+const LAST_WRITE_WINS_TYPES = new Set<string>([
   'setLanguage',
   'setWeekStartDay',
   'setColorScheme',
