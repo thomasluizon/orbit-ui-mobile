@@ -181,16 +181,7 @@ const OPENERS = {
 // captured account, using the same bearer the harness already requires. A
 // resolver that gets no usable row returns null, which unreachableReason reports
 // honestly instead of silently skipping the surface (.claude/rules/visual-delivery.md rule 1).
-const DYNAMIC_ROUTE_RESOLVERS = {
-  "route-r-code": async (apiBase, token) => {
-    const response = await fetch(`${apiBase}/api/referrals/dashboard`, {
-      headers: { authorization: `Bearer ${token}` },
-    })
-    if (!response.ok) return null
-    const dashboard = await response.json()
-    return dashboard?.code ? `/r/${dashboard.code}` : null
-  },
-}
+const DYNAMIC_ROUTE_RESOLVERS = {}
 
 async function resolveDynamicRouteHrefs(apiBase, token) {
   const resolved = new Map()
@@ -458,7 +449,11 @@ async function main() {
     return 2
   }
 
-  const inScope = manifest.cells.filter((cell) => !args.filter || cell.surfaceId.includes(args.filter))
+  const inScope = manifest.cells.filter(
+    (cell) =>
+      cell.pixelEvidence === "web-capture" &&
+      (!args.filter || cell.surfaceId.includes(args.filter)),
+  )
   if (inScope.length === 0) {
     process.stderr.write(`capture-surfaces: filter "${args.filter}" matched no cells.\n`)
     return 2

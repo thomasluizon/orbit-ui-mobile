@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "9f9a3e6cd63fae0a2ff7820ca67086a3e78ffdb6",
+  "generatedFrom": "4ee64129fdba90ee47ce14de7ce863efd0d3be0d",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -2538,7 +2538,7 @@
       "state": "default",
       "theme": "light",
       "locale": "en",
-      "pixelEvidence": "web-capture"
+      "pixelEvidence": "none"
     },
     {
       "surfaceId": "route-r-code",
@@ -2553,7 +2553,7 @@
       "state": "default",
       "theme": "light",
       "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
+      "pixelEvidence": "none"
     },
     {
       "surfaceId": "route-r-code",
@@ -2568,7 +2568,7 @@
       "state": "default",
       "theme": "dark",
       "locale": "en",
-      "pixelEvidence": "web-capture"
+      "pixelEvidence": "none"
     },
     {
       "surfaceId": "route-r-code",
@@ -2583,7 +2583,7 @@
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
-      "pixelEvidence": "web-capture"
+      "pixelEvidence": "none"
     },
     {
       "surfaceId": "overlay-components-calendar-shell",

@@ -63,6 +63,7 @@ describe('catch-all API proxy route', () => {
     const retiredPaths = [
       ['profile', 'handle'],
       ['profile', 'HANDLE'],
+      ['profile', 'handle', '%2e'],
       ['profile', ['social', 'opt-in'].join('-')],
       ['profile', ['Social', 'Opt-In'].join('-')],
       ['profile', 'public'],
@@ -79,6 +80,32 @@ describe('catch-all API proxy route', () => {
 
     expect(resolveServerSession).not.toHaveBeenCalled()
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('preserves encoded allowed paths when forwarding', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'initial-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue(
+      new Response('{"ok":true}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const encodedPath = 'profile/%25252e%25252e/admin'
+    const request = createRequest(encodedPath)
+
+    const response = await GET(request, {
+      params: Promise.resolve({ path: encodedPath.split('/') }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledWith(
+      `http://localhost:5000/api/${encodedPath}`,
+      expect.any(Object),
+    )
   })
 
   it('forwards sanitized client context and retries with a refreshed token', async () => {
