@@ -95,7 +95,7 @@
   --primary-hover:color-mix(in oklab, var(--primary) 88%, var(--fg-on-primary));
   --primary-dim:color-mix(in oklab, var(--primary) 18%, var(--bg));
 
-  --status-done:var(--primary);
+  --status-done:var(--fg-1);        /* UNBOUND from the accent. Brightest neutral, so it outranks frozen */
   --status-empty:var(--fg-4);
   --status-skip:var(--fg-3);
   --status-frozen:var(--fg-2);
@@ -259,7 +259,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .row-m{font-family:var(--font-mono);font-size:13px;color:var(--fg-3);letter-spacing:.02em}
 .ring{width:30px;height:30px;border-radius:var(--r-pill);flex:0 0 auto;box-shadow:inset 0 0 0 2px var(--status-empty)}
 .ring.done{background:var(--status-done);box-shadow:none;display:grid;place-items:center}
-.ring.done::after{content:"";width:11px;height:6px;border-left:2px solid var(--fg-on-primary);border-bottom:2px solid var(--fg-on-primary);transform:rotate(-45deg) translate(1px,-2px)}
+.ring.done::after{content:"";width:11px;height:6px;border-left:2.4px solid var(--bg);border-bottom:2.4px solid var(--bg);transform:rotate(-45deg) translate(1px,-2px)}
 
 /* shells */
 .shells{display:flex;gap:var(--s-5);align-items:flex-start;flex-wrap:wrap}
@@ -291,11 +291,37 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .d34.violated{gap:0}
 .d34.violated .item{background:var(--bg-card);border-bottom:1px solid var(--hairline);box-shadow:inset 0 0 0 1px var(--hairline-strong);margin-bottom:var(--s-4);border-radius:var(--r-well)}
 
+
+/* ---------------------------------------------------------------------------
+   BRAND. Each column forces its own accent so the three can be compared side
+   by side, independently of the accent selected in the bar. These blocks only
+   repoint semantics; every literal still lives in :root.
+   --------------------------------------------------------------------------- */
+.brandcol[data-c="emerald"]{--primary:var(--p-emerald-dark); --primary-soft:var(--p-emerald-text)}
+.brandcol[data-c="rose"]   {--primary:var(--p-rose-dark);    --primary-soft:var(--p-rose-text)}
+.brandcol[data-c="orange"] {--primary:var(--p-orange-dark);  --primary-soft:var(--p-orange-text)}
+.brandcol{display:flex;flex-direction:column;gap:var(--s-4)}
+.brandhead{display:flex;align-items:center;gap:var(--s-2);justify-content:space-between}
+.brandname{font-weight:600;font-size:var(--fs-md)}
+.marks{display:flex;align-items:center;gap:var(--s-5);flex-wrap:wrap}
+.markbox{display:flex;flex-direction:column;align-items:center;gap:6px}
+.marklabel{font-family:var(--font-mono);font-size:10px;color:var(--fg-4);letter-spacing:.06em}
+.storetile{width:96px;height:96px;border-radius:22px;background:var(--bg);display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--hairline)}
+.storetile.lg{width:200px;height:200px;border-radius:44px}
+.storetile.sm{width:56px;height:56px;border-radius:13px}
+
+.lockup{display:flex;align-items:center;gap:10px}
+.wordmark{font-family:var(--font-display);font-weight:600;font-size:26px;letter-spacing:-.02em;color:var(--fg-1)}
+.miniapp{border-radius:var(--r-card);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:var(--s-4);display:flex;flex-direction:column;gap:var(--s-3)}
+.minirow{display:flex;align-items:center;gap:var(--s-3)}
+.minitab{display:flex;gap:var(--s-4);padding-top:var(--s-3);border-top:1px solid var(--hairline);font-family:var(--font-mono);font-size:11px;color:var(--fg-4);letter-spacing:.06em}
+.minitab .on{color:var(--primary-soft)}
+
 /* misc */
 .warm{background:var(--bg-card);border-radius:var(--r-card);padding:var(--s-7);text-align:center;box-shadow:inset 0 0 0 1px var(--hairline)}
 .warm-h{font-family:var(--font-display);font-size:var(--fs-3xl);line-height:1.05;letter-spacing:-.02em;margin-bottom:var(--s-3)}
 .xp-bar{height:8px;border-radius:var(--r-pill);background:var(--fg-4);overflow:hidden}
-.xp-fill{height:100%;width:62%;background:var(--primary);transition:width var(--dur-enter) var(--ease-out)}
+.xp-fill{height:100%;width:62%;background:var(--primary);transition:width var(--dur-enter) var(--ease-out)}  /* progress toward something UNFINISHED keeps the accent */
 .spacer-demo{background:var(--primary-dim);border-radius:4px}
 .hoverbox{padding:var(--s-5);border-radius:var(--r-card);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline);cursor:pointer}
 </style>
@@ -391,6 +417,183 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
             <p style="color:var(--fg-2);max-width:44ch;margin-inline:auto">Three days missed, and you opened Orbit anyway.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- ================= BRAND ================= -->
+  <section class="sec">
+    <div class="sec-h"><span class="sec-n">02</span><h2 class="sec-t">The brand, in each accent</h2></div>
+    <p class="lede">A draft mark, so the accent can be judged as an identity rather than as a button colour.
+      It is an orbit in perspective with one body on the path: a tilted ellipse at 0.62 aspect, one stroke,
+      no track and no partial sweep, which is deliberately not the ProgressRing shape, so a logo is never
+      read as a completion percentage. <strong>Done is unbound from the accent</strong>: a completed habit is
+      a neutral disc with a filled check, and the accent is reserved for what is next and what is
+      interactive. That is why the accent survives a bad day instead of draining off the screen.</p>
+    <div class="grid g3">
+      <div class="brandcol" data-c="emerald">
+        <div class="brandhead"><span class="brandname">Emerald</span><span class="badge">ACCENT</span></div>
+
+        <div class="tile stack" style="align-items:center">
+          <span class="note" style="align-self:flex-start">Store icon, 512 rendered at 200. The only pixels a browsing user sees.</span>
+          <div class="storetile lg"><svg width="120" height="120" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Thumbnail row, at the size a store list actually shows</span>
+          <div class="marks" style="gap:var(--s-3)">
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">The two treatments. B ships; A is the monochrome lockup.</span>
+          <div class="marks">
+            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">B ACCENT BODY</span></div>
+            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--fg-1)"/></g></svg><span class="marklabel">A NEUTRAL</span></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Lockup, and the mark down to a favicon</span>
+          <div class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="wordmark" translate="no">Orbit</span></div>
+          <div class="marks">
+            <div class="markbox"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">48 APP</span></div>
+            <div class="markbox"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">24 NAV</span></div>
+            <div class="markbox"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><ellipse cx="8" cy="8" rx="7" ry="4.9" transform="rotate(-28 8 8)" stroke="var(--fg-1)" stroke-width="1.5"/><circle cx="11.4" cy="3.1" r="2" fill="var(--fg-1)"/></svg><span class="marklabel">16 REDRAWN</span></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Astra must never read as the logo</span>
+          <div class="marks">
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--primary-soft)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--primary)"/><circle cx="12" cy="12" r="2.4" fill="var(--primary)"/></svg><span class="marklabel">ASTRA</span></div>
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
+          </div>
+          <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
+        </div>
+
+        <div class="miniapp">
+          <span class="note">In context, with done unbound from the accent</span>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
+          <button class="pill sm" style="width:100%">Registrar</button>
+          <div class="minitab"><span class="on">HOJE</span><span>METAS</span><span>ASTRA</span><span>PERFIL</span></div>
+        </div>
+
+        <p class="note">Cleanest separation from every status hue. The risk is sameness: green plus a check is the most crowded space in this category, so it is legible and forgettable in a store list.</p>
+      </div>
+      <div class="brandcol" data-c="rose">
+        <div class="brandhead"><span class="brandname">Rose</span><span class="badge">ACCENT</span></div>
+
+        <div class="tile stack" style="align-items:center">
+          <span class="note" style="align-self:flex-start">Store icon, 512 rendered at 200. The only pixels a browsing user sees.</span>
+          <div class="storetile lg"><svg width="120" height="120" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Thumbnail row, at the size a store list actually shows</span>
+          <div class="marks" style="gap:var(--s-3)">
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">The two treatments. B ships; A is the monochrome lockup.</span>
+          <div class="marks">
+            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">B ACCENT BODY</span></div>
+            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--fg-1)"/></g></svg><span class="marklabel">A NEUTRAL</span></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Lockup, and the mark down to a favicon</span>
+          <div class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="wordmark" translate="no">Orbit</span></div>
+          <div class="marks">
+            <div class="markbox"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">48 APP</span></div>
+            <div class="markbox"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">24 NAV</span></div>
+            <div class="markbox"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><ellipse cx="8" cy="8" rx="7" ry="4.9" transform="rotate(-28 8 8)" stroke="var(--fg-1)" stroke-width="1.5"/><circle cx="11.4" cy="3.1" r="2" fill="var(--fg-1)"/></svg><span class="marklabel">16 REDRAWN</span></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Astra must never read as the logo</span>
+          <div class="marks">
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--primary-soft)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--primary)"/><circle cx="12" cy="12" r="2.4" fill="var(--primary)"/></svg><span class="marklabel">ASTRA</span></div>
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
+          </div>
+          <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
+        </div>
+
+        <div class="miniapp">
+          <span class="note">In context, with done unbound from the accent</span>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
+          <button class="pill sm" style="width:100%">Registrar</button>
+          <div class="minitab"><span class="on">HOJE</span><span>METAS</span><span>ASTRA</span><span>PERFIL</span></div>
+        </div>
+
+        <p class="note">Reads as unowned among habit trackers, which is the point of a rationed accent. It buys distinctiveness against trackers and loses some against AI companion apps, which also use pink.</p>
+      </div>
+      <div class="brandcol" data-c="orange">
+        <div class="brandhead"><span class="brandname">Orange</span><span class="badge">ACCENT</span></div>
+
+        <div class="tile stack" style="align-items:center">
+          <span class="note" style="align-self:flex-start">Store icon, 512 rendered at 200. The only pixels a browsing user sees.</span>
+          <div class="storetile lg"><svg width="120" height="120" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Thumbnail row, at the size a store list actually shows</span>
+          <div class="marks" style="gap:var(--s-3)">
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">The two treatments. B ships; A is the monochrome lockup.</span>
+          <div class="marks">
+            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">B ACCENT BODY</span></div>
+            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--fg-1)"/></g></svg><span class="marklabel">A NEUTRAL</span></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Lockup, and the mark down to a favicon</span>
+          <div class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="wordmark" translate="no">Orbit</span></div>
+          <div class="marks">
+            <div class="markbox"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">48 APP</span></div>
+            <div class="markbox"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">24 NAV</span></div>
+            <div class="markbox"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><ellipse cx="8" cy="8" rx="7" ry="4.9" transform="rotate(-28 8 8)" stroke="var(--fg-1)" stroke-width="1.5"/><circle cx="11.4" cy="3.1" r="2" fill="var(--fg-1)"/></svg><span class="marklabel">16 REDRAWN</span></div>
+          </div>
+        </div>
+
+        <div class="tile stack">
+          <span class="note">Astra must never read as the logo</span>
+          <div class="marks">
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--primary-soft)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--primary)"/><circle cx="12" cy="12" r="2.4" fill="var(--primary)"/></svg><span class="marklabel">ASTRA</span></div>
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
+          </div>
+          <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
+        </div>
+
+        <div class="miniapp">
+          <span class="note">In context, with done unbound from the accent</span>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
+          <button class="pill sm" style="width:100%">Registrar</button>
+          <div class="minitab"><span class="on">HOJE</span><span>METAS</span><span>ASTRA</span><span>PERFIL</span></div>
+        </div>
+
+        <p class="note">Strongest at thumbnail size and the one that survives a grey row of competitors. Its risk is internal: 20 degrees from both status hues, the tightest of the three.</p>
       </div>
     </div>
   </section>

@@ -27,6 +27,14 @@ Identity comes from three things and nothing else:
 2. the **Astra orbital glyph** (which replaces the sparkle icon),
 3. **ring-shaped status and progress indicators**.
 
+**The mark is an orbit in perspective with one body on the path**: a tilted ellipse at roughly 0.62 aspect, a single stroke, no track and no partial sweep. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its body, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`.
+
+**Astra is told apart from the mark by its core.** Astra is a circle with a filled centre; the mark is a tilted ellipse that is empty in the middle. The rule is that short: **anything with a core is Astra, anything empty in the middle is Orbit.**
+
+**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent.
+
+**The wordmark** is Space Grotesk 600 in natural case, `-0.02em`, `--fg-1`, carrying `translate="no"`. The horizontal lockup is a 28px mark, a 12px gap and a 22px wordmark.
+
 It does **not** come from a background gradient, a glow, decorative background orbit arcs, a texture, or a glass material. Hierarchy is bought with space first, then size, weight, and contrast. A surface step or a hairline is the last resort.
 
 **Warmth has exactly one source: the mark.** There is no warm palette, no texture, and no illustration set. If a surface feels cold, the answer is space and type, never a second warm element.
@@ -135,7 +143,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --primary-rgb     PENDING GRANT 1
 --primary-dim     PENDING GRANT 1             /* the fill at 18% over the canvas */
 --fg-on-primary   PENDING GRANT 1             /* white on a dark fill, the canvas ink on a light fill */
---status-done     var(--primary)
+--status-done     var(--fg-1)                 /* UNBOUND from the accent. The brightest neutral */
 --status-empty    var(--fg-4)                 /* ring track. 3.03:1 */
 --status-skip     var(--fg-3)
 --status-frozen   var(--fg-2)                 /* NEUTRAL. See the note below */
@@ -152,6 +160,8 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 
 **`--status-frozen` is retired as a hue.** Measured 2026-08-15: the old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
 
+**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--fg-4`, so three neutral statuses can share one column and stay distinguishable.
+
 ### Light mode (MANDATORY, ships with every surface)
 
 Light is first-class and dark is primary. After the scheme collapse the matrix is **two variants**.
@@ -160,6 +170,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg #FAFAFA · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
+--status-done var(--fg-1) · empty var(--fg-4) · skip var(--fg-3) · frozen var(--fg-2)   /* the five neutrals resolve through the fg ramp in BOTH variants */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
@@ -190,7 +201,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 
 | token | role | floor |
 |---|---|---|
-| `--primary` | **fill and graphic only**: CTA background, FAB, progress ring, done dots, level bar, active tab | `--fg-on-primary` on it >= 4.5 **and** it on canvas >= 3.0 |
+| `--primary` | **fill and graphic only, and only for what is NEXT**: CTA background, FAB, progress toward an unfinished goal, level bar, active tab, active nav | `--fg-on-primary` on it >= 4.5 **and** it on canvas >= 3.0 |
 | `--primary-soft` | **accent text only**: an accent-coloured word, link, or numeral on the canvas | it on canvas >= 4.5 |
 | `--fg-on-primary` | whatever sits on the fill | 4.5 on the fill |
 
@@ -199,10 +210,10 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 Consequences that hold either way:
 
 - **`--primary` is never small text on the canvas.** Use `--primary-soft` for an accent word, even where the two resolve to the same byte.
-- **A selected state may carry the accent on its glyph and label.** That is state, not emphasis, and it is the one exception to fill-only.
+- **A selected state may carry the accent on its glyph and label**, because selection is a live position rather than a finished one. **Completion is not selection**: a done row never takes the accent.
 - A future accent change re-measures all three floors. It never eyeballs them.
 
-**Accent rationing.** The accent appears on: the active tab, progress and ring indicators, done dots, the primary CTA, the FAB, and active nav. That is the whole list. It is **never** decorative on a card, a row, a border, a heading, or an icon that is not communicating state. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
+**Accent rationing.** The accent appears on: the active tab, active nav, progress toward something unfinished, the primary CTA, the FAB, and **one element inside the logo mark**. That is the whole list. **It never marks completion.** It is **never** decorative on a card, a row, a border, a heading, or an icon that is not communicating state. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
 
 **One colour, one meaning, in both directions.** Treat two hues within 15 degrees as the same colour. A status hue inside that band of the accent must move or be retired. Equally, an interactive element rendered neutral is as misleading as a static element rendered in the accent.
 
@@ -215,7 +226,7 @@ Consequences that hold either way:
 3. **Any surface that can sit over arbitrary content is authored opaque**, never as an alpha value. That is `--bg-elev`: the overlay panel, menus and popovers.
 4. **Opaque neutrals re-derive in OKLCH**: lock C per token, hold one hue across the ramp, and step L evenly in perceived lightness.
 5. **Both ends stop short of pure black and pure white.** Neither can carry hue.
-6. **Status colours are fixed per mode**, are never accent-tinted, and each stays more than 15 degrees from the accent hue.
+6. **Status colours are fixed per mode**, are never accent-tinted, and each stays more than 15 degrees from the accent hue. **`--status-done` is inside this rule, not an exception to it.** It was `var(--primary)`, which is zero degrees from the accent, and that was the same defect that retired `--status-frozen`.
 7. **Primary-derived tints** come from `--primary-rgb` (web) and `tintFromPrimary()` (mobile). Never hardcode an accent `rgba` in a component.
 8. **`color-scheme: light dark` is declared on the web document root**, with a matching `theme-color` meta. Web only.
 9. **`prefers-contrast: more` is a token-override layer, not a third variant.** Override only the tokens that carry the contrast: raise the surface ladder toward solid, give controls a defined border, and widen each foreground gap by at least 15 points of perceived lightness. Then remeasure against the preferred APCA thresholds. Widening without remeasuring is not a fix.
@@ -327,7 +338,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Satellite | 96px empty-state glyph, fg-4 strokes + primary arc | `ui/satellite-glyph.tsx` | same |
 | ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--fg-4` track | right rail / Today | same |
-| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px check ring, per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, frozen `--status-frozen` plus snowflake, skip `--status-skip`), per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 
 ## Overlay
 
@@ -414,6 +425,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Sub-habit rows:** indent, smaller well, dimmer text. **Zero connector or tree lines.**
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
+- **A row's status lives in its trailing ring, and never in the accent.** Done is an `--fg-1` disc with a filled check; empty is an `--status-empty` track; overdue takes `--status-overdue`; frozen is neutral plus the snowflake; skip is `--status-skip`. The accent enters this column only on progress toward something unfinished.
 - **Never animate the habit list's data while the user is reading or acting on it.**
 
 ## Listing
@@ -788,7 +800,7 @@ Blur the surface. Hierarchy and section boundaries must still read, and nothing 
 
 ### Scene-sentence test
 
-Describe the rendered screen in one sentence as if narrating a film scene. If it reads like every other SaaS app, the design is generic. It must name Orbit's character: a near-black canvas with real air around everything, quiet tonal panels, one rationed accent reserved for what is done and what is next, and the orbital ring language carrying the identity. If the only way to make the sentence specific is by describing decoration, the design has failed.
+Describe the rendered screen in one sentence as if narrating a film scene. If it reads like every other SaaS app, the design is generic. It must name Orbit's character: a near-black canvas with real air around everything, quiet tonal panels, one rationed accent reserved for what is next and never for what is finished, and the orbital ring language carrying the identity. If the only way to make the sentence specific is by describing decoration, the design has failed.
 
 ## Enforcement
 
@@ -800,7 +812,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 
 | rule (section) | mechanism | status |
 |---|---|---|
-| The accent split and its three floors (Tokens) | accent-AA token test: ink on `--primary` >= 4.5; `--primary` on canvas >= 3.0; `--primary-soft` on canvas >= 4.5 | **re-baseline after grant 1.** The pairing is ink-on-fill, not white-on-fill |
+| The accent split and its three floors (Tokens) | accent-AA token test: white on `--primary` >= 4.5; `--primary` on canvas >= 3.0; `--primary-soft` on canvas >= 4.5; **and `--status-done` is not `--primary`** | **re-baseline after grant 1** |
 | Byte-exact token acceptance | shared unit test on `createTokensV2` plus the resolved web CSS | re-baseline to the two variants |
 | No decorative glow (Bans) | `local/no-decorative-glow` | **flip to `error`** after grant 1 |
 | No gradient wash / gradient text (Bans) | `local/no-raw-gradient` + `local/no-gradient-text` | **flip to `error`** |
