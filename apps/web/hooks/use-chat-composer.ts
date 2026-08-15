@@ -309,7 +309,9 @@ export function useChatComposer() {
         ...finalFields,
       })
     }
-    setStreamingMessageId(null)
+    if (useChatStore.getState().streamingMessageId === draftMessageId) {
+      setStreamingMessageId(null)
+    }
 
     scrollToBottom()
 
@@ -494,7 +496,9 @@ export function useChatComposer() {
       )
     } finally {
       clearTimeout(idleTimer)
-      setStreamingMessageId(null)
+      if (useChatStore.getState().streamingMessageId === draftMessageId) {
+        setStreamingMessageId(null)
+      }
     }
   }, [
     addMessage,

@@ -392,7 +392,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         };
         addMessage(aiMessage);
       }
-      setStreamingMessageId(null);
+      if (useChatStore.getState().streamingMessageId === draftMessageId) {
+        setStreamingMessageId(null);
+      }
 
       scrollToBottom();
 
@@ -562,7 +564,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         );
       } finally {
         clearTimeout(idleTimer);
-        setStreamingMessageId(null);
+        if (useChatStore.getState().streamingMessageId === draftMessageId) {
+          setStreamingMessageId(null);
+        }
       }
     },
     [

@@ -231,21 +231,24 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().messages.filter((message) => message.role === 'user')).toHaveLength(1)
   })
 
-  it('ends streaming state before final-response invalidations settle', async () => {
+  it('keeps a newer stream active when the finalized request finishes invalidating', async () => {
     let resolveInvalidations!: () => void
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
     mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
-    const stream = controlledSseStreamResponse()
-    mocks.openChatStream.mockResolvedValue(stream.response)
+    const firstStream = controlledSseStreamResponse()
+    const secondStream = controlledSseStreamResponse()
+    mocks.openChatStream
+      .mockResolvedValueOnce(firstStream.response)
+      .mockResolvedValueOnce(secondStream.response)
     const composer = await renderComposer()
 
     let sendPromise!: Promise<void>
     await TestRenderer.act(() => {
       sendPromise = composer.current.sendMessage('finish this')
-      stream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
-      stream.enqueue(finalFrame(makeChatResponse({
+      firstStream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
+      firstStream.enqueue(finalFrame(makeChatResponse({
         aiMessage: 'Final list: [',
         operations: [{
           operationId: 'operation-1',
@@ -255,17 +258,33 @@ describe('mobile useChatComposer', () => {
           status: 'Succeeded',
         }],
       })))
-      stream.close()
+      firstStream.close()
     })
 
     await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Final list: ['))
     expect(useChatStore.getState().streamingMessageId).toBeNull()
     expect(composer.current.isSending).toBe(false)
 
+    let secondSendPromise!: Promise<void>
+    await TestRenderer.act(() => {
+      secondSendPromise = composer.current.sendMessage('start another')
+      secondStream.enqueue(frame('{"type":"delta","text":"Still [[or"}'))
+    })
+    await vi.waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+    const secondDraftId = useChatStore.getState().streamingMessageId
+
     await TestRenderer.act(async () => {
       resolveInvalidations()
       await sendPromise
     })
+    expect(useChatStore.getState().streamingMessageId).toBe(secondDraftId)
+
+    await TestRenderer.act(async () => {
+      secondStream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Second final' })))
+      secondStream.close()
+      await secondSendPromise
+    })
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {
