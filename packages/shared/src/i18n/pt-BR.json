@@ -2086,7 +2086,6 @@
     "api": {
       "noPermission": "Você não tem permissão para isso.",
       "sessionExpired": "Sua sessão expirou. Entre de novo.",
-      "duplicateFact": "A Astra já sabe algo parecido.",
       "duplicateTag": "Você já tem uma tag com esse nome.",
       "apiKeyLimit": "Você chegou ao número máximo de chaves de API.",
       "messageTooLong": "Essa mensagem é longa demais. Tente encurtar.",

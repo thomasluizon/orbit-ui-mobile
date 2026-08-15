@@ -2086,7 +2086,6 @@
     "api": {
       "noPermission": "You don't have permission to do that.",
       "sessionExpired": "Your session expired. Please sign in again.",
-      "duplicateFact": "Astra already knows something like that.",
       "duplicateTag": "You already have a tag with that name.",
       "apiKeyLimit": "You've reached the maximum number of API keys.",
       "messageTooLong": "That message is too long. Try shortening it.",
