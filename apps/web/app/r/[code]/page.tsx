@@ -15,7 +15,7 @@ export default async function ReferralRedirectPage({ params }: Readonly<Referral
 
   const session = await resolveServerSession()
   if (session.token) {
-    redirect('/today')
+    redirect('/')
   }
 
   redirect(`/login?ref=${code}`)
