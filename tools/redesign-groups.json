@@ -234,83 +234,12 @@
       "m-widget-orbit-widget"
     ]
   },
-  "excluded": [
-    {
-      "surfaceId": "route-public-profile",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "route-social",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "route-u-slug",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "not-found-public-u-slug",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "overlay-components-cheer-composer",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "overlay-components-edit-handle-sheet",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "overlay-components-friend-profile-view",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "overlay-components-friend-row",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "overlay-components-invite-confirm-sheet",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "overlay-settings-public-profile-settings",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-route-public-profile",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-route-social",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-overlay-components-cheer-composer",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-overlay-components-edit-handle-sheet",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-overlay-components-friend-profile-sheet",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-overlay-components-friend-row",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    },
-    {
-      "surfaceId": "m-overlay-components-invite-confirm-sheet",
-      "reason": "#65 canceled R13; #211 removes this still-present social or public-profile surface."
-    }
-  ],
+  "excluded": [],
   "notes": {
     "route-explore": "Web-only by the live inventory; no mobile counterpart exists.",
     "route-insights": "Web-only by the live inventory; retrospective and wrapped provide the related mobile screen coverage.",
     "overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
     "m-overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
-    "route-public-profile": "First-rule-wins assigned public profile to canceled R13 over R16; #211 removes it.",
-    "m-route-public-profile": "First-rule-wins assigned public profile to canceled R13 over R16; #211 removes it.",
     "m-widget-orbit-widget": "D66 adds the Android widget to the manifest and assigns it to #76 (R21)."
   }
 }

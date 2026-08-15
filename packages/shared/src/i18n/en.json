@@ -192,8 +192,7 @@
     "goals": "Goals",
     "insights": "Insights",
     "explore": "Explore",
-    "mainNavigation": "Main navigation",
-    "social": "Social"
+    "mainNavigation": "Main navigation"
   },
   "shell": {
     "collapseSidebar": "Collapse sidebar",
@@ -1002,72 +1001,6 @@
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
-    "publicProfile": {
-      "title": "Public profile",
-      "navHint": "Share your progress with a link",
-      "enable": {
-        "title": "Enable public profile",
-        "description": "Create a shareable link that shows your progress. You choose exactly what's visible."
-      },
-      "disabledHint": "Turning this off disables your link. Turning it back on creates a new one.",
-      "visibilityTitle": "What's visible",
-      "fields": {
-        "streak": {
-          "title": "Streak",
-          "description": "Your current and longest streak"
-        },
-        "level": {
-          "title": "Level",
-          "description": "Your level and title"
-        },
-        "achievements": {
-          "title": "Achievements",
-          "description": "The badges you've unlocked"
-        },
-        "topHabits": {
-          "title": "Top habits",
-          "description": "The names of your most-completed habits"
-        }
-      },
-      "link": {
-        "label": "Your public link",
-        "copy": "Copy",
-        "copied": "Copied!",
-        "share": "Share"
-      },
-      "regenerate": {
-        "button": "Generate a new link",
-        "hint": "Creating a new link breaks the old one.",
-        "confirmTitle": "Generate a new link?",
-        "confirmBody": "Your current link will stop working. Anyone who has it won't be able to see your profile.",
-        "confirm": "Generate new link",
-        "cancel": "Cancel"
-      },
-      "privacyHint": "Only the sections you turn on are visible. Your email and account details are never shared.",
-      "error": "Something went wrong. Please try again.",
-      "view": {
-        "tagline": "Habit tracking that keeps you in orbit.",
-        "dayStreakLabel": "Day streak",
-        "longestStreakLabel": "Best: {count}",
-        "level": "Level {level}",
-        "achievementsTitle": "Achievements",
-        "topHabitsTitle": "Top habits",
-        "ctaTitle": "Start your own streak",
-        "ctaBody": "Build habits, keep streaks, and level up with Orbit.",
-        "ctaButton": "Try Orbit free",
-        "backToOrbit": "Go to Orbit"
-      },
-      "meta": {
-        "title": "{name} on Orbit",
-        "titleFallback": "Public profile on Orbit",
-        "description": "See {name}'s streaks, level, and achievements on Orbit, the habit tracker that keeps you consistent."
-      },
-      "notFound": {
-        "title": "Profile not found",
-        "body": "This profile doesn't exist or is no longer public.",
-        "cta": "Discover Orbit"
-      }
-    },
     "editName": {
       "title": "Edit name",
       "label": "Name",
@@ -1719,7 +1652,6 @@
       "calendar": "Calendar",
       "astra": "Astra",
       "connect": "Connect",
-      "social": "Social",
       "rewards": "Rewards",
       "settings": "Settings",
       "goals": "Goals",
@@ -1814,20 +1746,6 @@
         "setupTitle": "Setting It Up",
         "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
       },
-      "socialSection": {
-        "optInTitle": "Opt In to Social",
-        "optInDesc": "The social layer is off by default. Turn it on in Settings to unlock friends and cheers. Your habits stay private until you choose to share. There are no leaderboards -- Orbit's social features are about support, not ranking.",
-        "cheersTitle": "Cheers",
-        "cheersDesc": "Send a quick cheer to celebrate a friend's streak or milestone. A small note of encouragement goes a long way toward keeping each other going.",
-        "friendsTitle": "Friends & Feed",
-        "friendsDesc": "Add friends by their handle, accept requests, and follow a shared feed of their milestones and wins. Find people by searching their public handle.",
-        "publicProfileTitle": "Public Profile",
-        "publicProfileDesc": "Claim a handle and share a public profile page showing your streaks and achievements. Anyone with the link can view it -- great for accountability or bragging rights.",
-        "milestoneShareTitle": "Milestone Sharing",
-        "milestoneShareDesc": "When you hit a big streak or achievement, share a milestone card with friends inside Orbit or anywhere else.",
-        "referralsTitle": "Invite Links & Referrals",
-        "referralsDesc": "Share your personal invite link to bring friends to Orbit. When they join and stick with it, referrals help the community grow -- find your link in your Profile."
-      },
       "calendarSection": {
         "colorsTitle": "Color Coding",
         "colorsDesc": "Green means all habits completed for that day. Orange means you missed some habits. Purple means habits are upcoming (today or future). Each day with habits shows a small dot indicator.",
@@ -1856,7 +1774,11 @@
         "insightsTitle": "Insights & Analytics",
         "insightsDesc": "Web only, Pro. A deep analytics dashboard with completion trends, goal velocity, and progress charts across custom time ranges.",
         "retrospectiveTitle": "AI Retrospective",
-        "retrospectiveDesc": "Yearly Pro. Generate AI-powered retrospectives that analyze your habits over any period (week, month, quarter, year) -- highlights, missed opportunities, trends, and actionable suggestions. Accessible from your Profile."
+        "retrospectiveDesc": "Yearly Pro. Generate AI-powered retrospectives that analyze your habits over any period (week, month, quarter, year) -- highlights, missed opportunities, trends, and actionable suggestions. Accessible from your Profile.",
+        "milestoneShareTitle": "Milestone Sharing",
+        "milestoneShareDesc": "When you hit a big streak or achievement, share a milestone card with friends inside Orbit or anywhere else.",
+        "referralsTitle": "Invite Links & Referrals",
+        "referralsDesc": "Share your personal invite link to bring friends to Orbit. When they join and stick with it, referrals help the community grow -- find your link in your Profile."
       },
       "settingsSection": {
         "colorSchemeTitle": "Color Scheme",
@@ -2964,164 +2886,6 @@
     "isAiLabel": "AI",
     "isAiTooltip": "Astra is an AI assistant. Responses are generated automatically.",
     "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
-  },
-  "social": {
-    "title": "Friends",
-    "profileNav": {
-      "title": "Friends",
-      "hint": "Cheer friends on and stay motivated together"
-    },
-    "tabs": {
-      "feed": "Feed",
-      "friends": "Friends"
-    },
-    "today": {
-      "entryTitle": "Connect with friends",
-      "entrySubtitle": "Cheer friends on and celebrate wins together",
-      "requestsTitle": "Friend requests",
-      "requestsSubtitle": "{count} request waiting for you | {count} requests waiting for you"
-    },
-    "feed": {
-      "emptyTitle": "No activity yet",
-      "emptyBody": "When your friends keep streaks or hit milestones, you'll see it here.",
-      "emptyCta": "Add friends",
-      "cheersForYou": "Cheers for you",
-      "loadMore": "Load more",
-      "loading": "Loading…",
-      "streakMilestone": "{name} kept a {count}-day streak",
-      "achievementUnlocked": "{name} unlocked {achievement}",
-      "habitCompletedMilestone": "{name} reached {count} completions",
-      "achievementGeneric": "an achievement",
-      "cheerAction": "Cheer",
-      "viewProfile": "View {name}'s profile",
-      "cheeredYouWithNote": "{name}: {note}",
-      "cheeredYou": "{name} cheered you on"
-    },
-    "friends": {
-      "sectionTitle": "Your friends",
-      "emptyTitle": "No friends yet",
-      "emptyBody": "Add a friend by their handle or referral code to start cheering each other on.",
-      "streakLabel": "{count}-day streak",
-      "cheer": "Cheer",
-      "viewProfile": "View profile",
-      "remove": "Remove",
-      "removeConfirmTitle": "Remove friend?",
-      "removeConfirmBody": "Remove {name} from your friends? You can always add them again later.",
-      "block": "Block",
-      "report": "Report",
-      "moreActions": "More actions",
-      "incomingTitle": "Friend requests",
-      "outgoingTitle": "Pending requests",
-      "accept": "Accept",
-      "decline": "Decline",
-      "cancel": "Cancel",
-      "requestedYou": "wants to be friends",
-      "youRequested": "Request sent"
-    },
-    "addFriend": {
-      "title": "Add a friend",
-      "handleLabel": "Handle",
-      "handlePlaceholder": "handle",
-      "handleHint": "3–20 letters, numbers, or underscores",
-      "referralLabel": "Referral code",
-      "referralPlaceholder": "Enter a referral code",
-      "or": "or",
-      "submit": "Send request",
-      "sending": "Sending…",
-      "success": "Friend request sent"
-    },
-    "invite": {
-      "title": "Invite friends to Orbit",
-      "subtitle": "Share your link, and you both get a Pro discount coupon.",
-      "scanHint": "Scan to join Orbit",
-      "copy": "Copy",
-      "copied": "Copied!",
-      "share": "Share link",
-      "shareText": "I've been using Orbit to build better habits. Join me!",
-      "confirmTitle": "Add friend",
-      "self": "This is your own invite link.",
-      "alreadyFriends": "You're already friends with @{handle}.",
-      "pending": "You already have a pending request with @{handle}.",
-      "unknownCode": "This invite link isn't valid or has expired.",
-      "loadError": "Couldn't load this invite. Please try again.",
-      "sendRequest": "Send request"
-    },
-    "friendProfile": {
-      "unavailable": "This profile isn't available.",
-      "loadError": "Couldn't load this profile.",
-      "longestStreakLabel": "Best streak",
-      "xpLabel": "XP",
-      "activityLabel": "Last 7 days",
-      "friendsSince": "Friends since {date}",
-      "noAchievements": "No achievements yet"
-    },
-    "cheer": {
-      "title": "Send a cheer",
-      "subtitle": "To {name}",
-      "notePlaceholder": "Add a note (optional)",
-      "send": "Send cheer",
-      "sending": "Sending…",
-      "success": "Cheer sent!",
-      "reactions": {
-        "clap": "Clap",
-        "fire": "Fire",
-        "muscle": "Strength",
-        "star": "Star",
-        "party": "Celebrate",
-        "heart": "Heart"
-      }
-    },
-    "optInGate": {
-      "title": "Connect with friends",
-      "body": "Turn on social to add friends, share your wins, and cheer each other on. Your habits stay private. Friends only see milestones you choose to celebrate.",
-      "handleLabel": "Choose your handle",
-      "handlePlaceholder": "handle",
-      "handleHint": "3–20 letters, numbers, or underscores. Friends use this to find you.",
-      "enable": "Enable social",
-      "enabling": "Enabling…",
-      "success": "Social enabled"
-    },
-    "identity": {
-      "caption": "Friends add you by this handle",
-      "edit": "Change",
-      "editAria": "Change your handle"
-    },
-    "editHandle": {
-      "title": "Change handle",
-      "label": "Your handle",
-      "placeholder": "handle",
-      "hint": "3–20 letters, numbers, or underscores. Friends use this to find you.",
-      "success": "Handle updated"
-    },
-    "block": {
-      "confirmTitle": "Block {name}?",
-      "confirmBody": "They won't be able to send you requests or cheers, and you won't see each other's activity.",
-      "success": "User blocked"
-    },
-    "report": {
-      "title": "Report {name}",
-      "reasonLabel": "Reason",
-      "detailsLabel": "Details (optional)",
-      "detailsPlaceholder": "Tell us what happened",
-      "submit": "Submit report",
-      "success": "Report submitted. Thank you for keeping Orbit safe.",
-      "reasons": {
-        "Spam": "Spam",
-        "Harassment": "Harassment",
-        "InappropriateContent": "Inappropriate content",
-        "Impersonation": "Impersonation",
-        "Other": "Other"
-      }
-    },
-    "errors": {
-      "rateLimited": "You're doing that a lot. Please try again in a moment.",
-      "generic": "Something went wrong. Please try again.",
-      "loadFailed": "Couldn't load this right now.",
-      "userNotFound": "We couldn't find anyone with that handle or code.",
-      "alreadyFriends": "You're already connected with this person.",
-      "handleTaken": "That handle is taken. Try another.",
-      "friendLimitReached": "You've reached the friend limit."
-    }
   },
   "milestoneShare": {
     "streakEyebrow": "Streak milestone",

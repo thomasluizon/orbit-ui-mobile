@@ -15,7 +15,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 type SectionKey =
   | 'astra'
   | 'connect'
-  | 'social'
   | 'habits'
   | 'goals'
   | 'calendar'
@@ -26,7 +25,6 @@ type SectionKey =
 const tabs: { key: SectionKey; labelKey: string }[] = [
   { key: 'astra', labelKey: 'onboarding.featureGuide.astra' },
   { key: 'connect', labelKey: 'onboarding.featureGuide.connect' },
-  { key: 'social', labelKey: 'onboarding.featureGuide.social' },
   { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
   { key: 'goals', labelKey: 'onboarding.featureGuide.goals' },
   { key: 'calendar', labelKey: 'onboarding.featureGuide.calendar' },
@@ -57,14 +55,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.connectSection.assistantCanDoTitle', descKey: 'onboarding.featureGuide.connectSection.assistantCanDoDesc' },
     { titleKey: 'onboarding.featureGuide.connectSection.apiKeysTitle', descKey: 'onboarding.featureGuide.connectSection.apiKeysDesc' },
     { titleKey: 'onboarding.featureGuide.connectSection.setupTitle', descKey: 'onboarding.featureGuide.connectSection.setupDesc' },
-  ],
-  social: [
-    { titleKey: 'onboarding.featureGuide.socialSection.optInTitle', descKey: 'onboarding.featureGuide.socialSection.optInDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.cheersTitle', descKey: 'onboarding.featureGuide.socialSection.cheersDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.friendsTitle', descKey: 'onboarding.featureGuide.socialSection.friendsDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.publicProfileTitle', descKey: 'onboarding.featureGuide.socialSection.publicProfileDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.milestoneShareTitle', descKey: 'onboarding.featureGuide.socialSection.milestoneShareDesc' },
-    { titleKey: 'onboarding.featureGuide.socialSection.referralsTitle', descKey: 'onboarding.featureGuide.socialSection.referralsDesc' },
   ],
   habits: [
     { titleKey: 'onboarding.featureGuide.habitsSection.creatingTitle', descKey: 'onboarding.featureGuide.habitsSection.creatingDesc' },
@@ -114,6 +104,8 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.rewardsSection.widgetTitle', descKey: 'onboarding.featureGuide.rewardsSection.widgetDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.insightsTitle', descKey: 'onboarding.featureGuide.rewardsSection.insightsDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.rewardsSection.retrospectiveDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.milestoneShareTitle', descKey: 'onboarding.featureGuide.rewardsSection.milestoneShareDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.referralsTitle', descKey: 'onboarding.featureGuide.rewardsSection.referralsDesc' },
   ],
   settings: [
     { titleKey: 'onboarding.featureGuide.settingsSection.colorSchemeTitle', descKey: 'onboarding.featureGuide.settingsSection.colorSchemeDesc' },

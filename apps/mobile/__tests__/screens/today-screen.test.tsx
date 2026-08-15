@@ -17,9 +17,6 @@ import { BackHandler } from "@/test-mocks/react-native";
 vi.mock("@/components/referral/referral-card", () => ({
   ReferralCard: () => null,
 }));
-vi.mock("@/components/social/social-entry-card", () => ({
-  SocialEntryCard: () => null,
-}));
 vi.mock("@/components/referral/referral-drawer", () => ({
   ReferralDrawer: () => null,
 }));
@@ -153,7 +150,7 @@ let mockProfile = createMockProfile({
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
-    getItem: vi.fn(async () => null),
+    getItem: vi.fn(() => Promise.resolve(null)),
   },
 }));
 
@@ -676,12 +673,12 @@ describe("TodayScreen", () => {
 
     const dateNav = tree.root.findByType("TodayDateNavigation");
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       (dateNav.props.onGoToPreviousDay as () => void)();
     });
     expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-06");
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       (dateNav.props.onGoToNextDay as () => void)();
     });
     expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-08");
@@ -694,7 +691,7 @@ describe("TodayScreen", () => {
 
     const dateNav = tree.root.findByType("TodayDateNavigation");
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       (dateNav.props.onGoToToday as () => void)();
     });
 
@@ -746,7 +743,7 @@ describe("TodayScreen", () => {
       throw new Error("Expected the retry pill to be rendered");
     }
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       (retryPill.props.onPress as () => void)();
     });
 
@@ -822,7 +819,7 @@ describe("TodayScreen", () => {
     expect(isBackToTopHiddenFromAccessibility(tree)).toBe(false);
 
     const button = findBackToTopButton(tree);
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       (button.props.onPress as () => void)();
     });
     expect(habitListHandle.scrollToOffset).toHaveBeenCalledWith(0);
@@ -915,7 +912,7 @@ describe("TodayScreen overdue bulk selection", () => {
 
     const bulkBar = tree.root.findByType("BulkActionBarV2");
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       (bulkBar.props.onSelectAll as () => void)();
     });
 

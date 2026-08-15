@@ -13,7 +13,6 @@ function eligibilityOf(
     trial: eligible.includes('trial'),
     setupChecklist: eligible.includes('setupChecklist'),
     referral: eligible.includes('referral'),
-    socialEntry: eligible.includes('socialEntry'),
   }
 }
 
@@ -23,7 +22,6 @@ describe('ENGAGEMENT_SLOT_PRIORITY', () => {
       'trial',
       'setupChecklist',
       'referral',
-      'socialEntry',
     ])
   })
 })
@@ -33,7 +31,7 @@ describe('resolveEngagementSlot', () => {
     expect(resolveEngagementSlot(eligibilityOf())).toBeNull()
   })
 
-  it('returns the sole eligible card for each of the four cards', () => {
+  it('returns the sole eligible card for each card', () => {
     for (const card of ENGAGEMENT_SLOT_PRIORITY) {
       expect(resolveEngagementSlot(eligibilityOf(card))).toBe(card)
     }
@@ -42,24 +40,18 @@ describe('resolveEngagementSlot', () => {
   it('picks trial over every other card', () => {
     expect(
       resolveEngagementSlot(
-        eligibilityOf('trial', 'setupChecklist', 'referral', 'socialEntry'),
+        eligibilityOf('trial', 'setupChecklist', 'referral'),
       ),
     ).toBe('trial')
   })
 
-  it('picks setupChecklist over referral and socialEntry', () => {
+  it('picks setupChecklist over referral', () => {
     expect(
-      resolveEngagementSlot(eligibilityOf('setupChecklist', 'referral', 'socialEntry')),
+      resolveEngagementSlot(eligibilityOf('setupChecklist', 'referral')),
     ).toBe('setupChecklist')
   })
 
-  it('picks referral over socialEntry', () => {
-    expect(resolveEngagementSlot(eligibilityOf('referral', 'socialEntry'))).toBe(
-      'referral',
-    )
-  })
-
-  it('resolves all 16 eligibility combinations to the highest-priority eligible card', () => {
+  it('resolves every eligibility combination to the highest-priority eligible card', () => {
     for (let mask = 0; mask < 1 << ENGAGEMENT_SLOT_PRIORITY.length; mask += 1) {
       const eligible = ENGAGEMENT_SLOT_PRIORITY.filter(
         (_, index) => (mask & (1 << index)) !== 0,

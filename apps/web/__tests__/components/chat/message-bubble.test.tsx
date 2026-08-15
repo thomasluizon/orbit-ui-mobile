@@ -272,6 +272,29 @@ describe('MessageBubble', () => {
     expect(markdown.textContent).not.toContain('orbit:habits')
   })
 
+  it('hides a partial directive only while the AI message is streaming', () => {
+    const message = makeMessage({ role: 'ai', content: 'Keep this literal [[or' })
+    const { rerender } = render(<MessageBubble message={message} isStreaming />)
+
+    expect(screen.getByTestId('markdown').textContent).toBe('Keep this literal')
+
+    rerender(<MessageBubble message={message} />)
+    expect(screen.getByTestId('markdown').textContent).toBe('Keep this literal [[or')
+  })
+
+  it('preserves user-authored directive text byte-for-byte', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'user',
+          content: '[[orbit:goals]]',
+        })}
+      />,
+    )
+
+    expect(screen.getByTestId('markdown').textContent).toBe('[[orbit:goals]]')
+  })
+
   it('does not render the habit-list card for user messages', () => {
     const { container } = render(
       <MessageBubble

@@ -4,6 +4,7 @@ import {
   getChatImageValidationError,
   getChatTextFileValidationError,
   resolveChatImageMimeType,
+  stripChatDirectives,
 } from '../chat'
 
 describe('resolveChatImageMimeType', () => {
@@ -95,5 +96,34 @@ describe('buildChatMessageWithFileContent', () => {
         fileContent: 'Meditate',
       }),
     ).toBe('Attached file "list.txt":\nMeditate')
+  })
+})
+
+describe('stripChatDirectives', () => {
+  it.each([
+    '[',
+    '[[',
+    '[[o',
+    '[[or',
+    '[[orb',
+    '[[orbi',
+    '[[orbit',
+    '[[orbit:',
+    '[[orbit:goals',
+    '[[orbit:goals]',
+    '[[orbit:goals]]',
+  ])('hides a trailing streamed directive prefix %j', (directivePrefix) => {
+    expect(stripChatDirectives(`Here are your goals:\n${directivePrefix}`, true)).toBe(
+      'Here are your goals:',
+    )
+  })
+
+  it('preserves a trailing partial prefix after streaming ends', () => {
+    expect(stripChatDirectives('Use a literal [')).toBe('Use a literal [')
+    expect(stripChatDirectives('Use a literal [[or')).toBe('Use a literal [[or')
+  })
+
+  it('leaves non-directive bracketed text visible', () => {
+    expect(stripChatDirectives('Use [square brackets] here')).toBe('Use [square brackets] here')
   })
 })

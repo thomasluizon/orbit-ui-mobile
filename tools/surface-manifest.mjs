@@ -519,6 +519,7 @@ function attachOwnershipAndStates(surfaces) {
 export function pixelEvidenceFor(surface, state) {
   if (surface.platform !== "web") return "none"
   if (state !== "default") return "none"
+  if (surface.surfaceId === "route-r-code") return "none"
   return "web-capture"
 }
 

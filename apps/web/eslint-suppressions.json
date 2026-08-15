@@ -159,56 +159,6 @@
       "count": 5
     }
   },
-  "app/(app)/social/_components/add-friend-form.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/social/_components/cheer-composer.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/social/_components/edit-handle-sheet.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/social/_components/feed-event-card.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/social/_components/friend-profile-view.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/(app)/social/_components/friend-row.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "app/(app)/social/_components/invite-hero.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/social/_components/social-feed.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/social/_components/social-identity-bar.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/social/_components/social-opt-in-gate.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(app)/streak/_components/streak-frozen-banner.tsx": {
     "local/spacing-scale": {
       "count": 2
@@ -307,11 +257,6 @@
   "app/(public)/terms/page.tsx": {
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "app/(public)/u/[slug]/not-found.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "app/global-error.tsx": {
@@ -803,11 +748,6 @@
       "count": 2
     }
   },
-  "components/profile/public-profile-view.tsx": {
-    "local/spacing-scale": {
-      "count": 13
-    }
-  },
   "components/referral/referral-card.tsx": {
     "local/spacing-scale": {
       "count": 4
@@ -816,11 +756,6 @@
   "components/referral/referral-drawer.tsx": {
     "local/spacing-scale": {
       "count": 7
-    }
-  },
-  "components/settings/public-profile-settings.tsx": {
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/share/share-card-sheet.tsx": {
@@ -856,11 +791,6 @@
   "components/shell/today-rail.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/social/social-entry-card.tsx": {
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/today/setup-checklist-card.tsx": {

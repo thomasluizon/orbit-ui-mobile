@@ -16,7 +16,6 @@ const PUBLIC_PATHS = [
   '/onboarding',
   '/auth-callback',
   '/r/',
-  '/u/',
   '/terms',
   '/privacy',
   '/delete-account',

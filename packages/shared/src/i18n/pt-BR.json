@@ -192,8 +192,7 @@
     "goals": "Metas",
     "insights": "Análises",
     "explore": "Explorar",
-    "mainNavigation": "Navegação principal",
-    "social": "Social"
+    "mainNavigation": "Navegação principal"
   },
   "shell": {
     "collapseSidebar": "Recolher menu",
@@ -1002,72 +1001,6 @@
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
-    "publicProfile": {
-      "title": "Perfil público",
-      "navHint": "Compartilhe seu progresso com um link",
-      "enable": {
-        "title": "Ativar perfil público",
-        "description": "Crie um link compartilhável que mostra seu progresso. Você escolhe exatamente o que fica visível."
-      },
-      "disabledHint": "Desativar isso desabilita seu link. Reativar cria um novo.",
-      "visibilityTitle": "O que fica visível",
-      "fields": {
-        "streak": {
-          "title": "Sequência",
-          "description": "Sua sequência atual e a maior"
-        },
-        "level": {
-          "title": "Nível",
-          "description": "Seu nível e título"
-        },
-        "achievements": {
-          "title": "Conquistas",
-          "description": "As medalhas que você desbloqueou"
-        },
-        "topHabits": {
-          "title": "Principais hábitos",
-          "description": "Os nomes dos seus hábitos mais concluídos"
-        }
-      },
-      "link": {
-        "label": "Seu link público",
-        "copy": "Copiar",
-        "copied": "Copiado!",
-        "share": "Compartilhar"
-      },
-      "regenerate": {
-        "button": "Gerar um novo link",
-        "hint": "Gerar um novo link quebra o antigo.",
-        "confirmTitle": "Gerar um novo link?",
-        "confirmBody": "Seu link atual vai parar de funcionar. Quem tiver ele não conseguirá mais ver seu perfil.",
-        "confirm": "Gerar novo link",
-        "cancel": "Cancelar"
-      },
-      "privacyHint": "Apenas as seções que você ativar ficam visíveis. Seu e-mail e os dados da conta nunca são compartilhados.",
-      "error": "Algo deu errado. Tente novamente.",
-      "view": {
-        "tagline": "Controle de hábitos que mantém você em órbita.",
-        "dayStreakLabel": "Dias de sequência",
-        "longestStreakLabel": "Recorde: {count}",
-        "level": "Nível {level}",
-        "achievementsTitle": "Conquistas",
-        "topHabitsTitle": "Principais hábitos",
-        "ctaTitle": "Comece sua própria sequência",
-        "ctaBody": "Crie hábitos, mantenha sequências e suba de nível com o Orbit.",
-        "ctaButton": "Experimente o Orbit grátis",
-        "backToOrbit": "Ir para o Orbit"
-      },
-      "meta": {
-        "title": "{name} no Orbit",
-        "titleFallback": "Perfil público no Orbit",
-        "description": "Veja as sequências, o nível e as conquistas de {name} no Orbit, o app de hábitos que mantém você consistente."
-      },
-      "notFound": {
-        "title": "Perfil não encontrado",
-        "body": "Este perfil não existe ou não é mais público.",
-        "cta": "Conheça o Orbit"
-      }
-    },
     "editName": {
       "title": "Editar nome",
       "label": "Nome",
@@ -1719,7 +1652,6 @@
       "calendar": "Calendário",
       "astra": "Astra",
       "connect": "Conectar",
-      "social": "Social",
       "rewards": "Recompensas",
       "settings": "Configurações",
       "goals": "Metas",
@@ -1814,20 +1746,6 @@
         "setupTitle": "Como configurar",
         "setupDesc": "Abra as Configurações de IA, crie uma chave de API e adicione o endpoint MCP do Orbit ao seu assistente. A conexão usa um handshake seguro por OAuth ou chave de API -- o passo a passo completo fica nas Configurações de IA."
       },
-      "socialSection": {
-        "optInTitle": "Ative o social",
-        "optInDesc": "A camada social vem desligada por padrão. Ative nas Configurações para liberar amigos e torcidas. Seus hábitos ficam privados até você escolher compartilhar. Não existem rankings -- o social do Orbit é sobre apoio, não sobre competição.",
-        "cheersTitle": "Torcidas",
-        "cheersDesc": "Mande uma torcida rápida para comemorar a sequência ou a conquista de um amigo. Um bilhetinho de incentivo faz toda a diferença para manter todo mundo firme.",
-        "friendsTitle": "Amigos e feed",
-        "friendsDesc": "Adicione amigos pelo @ deles, aceite pedidos e acompanhe um feed com as conquistas e vitórias deles. Encontre pessoas buscando pelo @ público.",
-        "publicProfileTitle": "Perfil público",
-        "publicProfileDesc": "Escolha um @ e compartilhe uma página de perfil público com suas sequências e conquistas. Qualquer pessoa com o link pode ver -- ótimo para responsabilidade ou para se gabar.",
-        "milestoneShareTitle": "Compartilhar marcos",
-        "milestoneShareDesc": "Quando você bate uma grande sequência ou conquista, compartilhe um cartão de marco com os amigos dentro do Orbit ou em qualquer outro lugar.",
-        "referralsTitle": "Links de convite e indicações",
-        "referralsDesc": "Compartilhe seu link de convite pessoal para trazer amigos ao Orbit. Quando eles entram e continuam firmes, as indicações ajudam a comunidade a crescer -- seu link fica no seu Perfil."
-      },
       "calendarSection": {
         "colorsTitle": "Código de cores",
         "colorsDesc": "Verde quer dizer todos os hábitos concluídos naquele dia. Laranja quer dizer que você deixou alguns passarem. Roxo quer dizer hábitos por vir (hoje ou no futuro). Todo dia com hábitos mostra um pontinho.",
@@ -1856,7 +1774,11 @@
         "insightsTitle": "Insights e análises",
         "insightsDesc": "Só na web, Pro. Um painel de análise completo com tendências de conclusão, ritmo das metas e gráficos de progresso em períodos personalizados.",
         "retrospectiveTitle": "Retrospectiva com IA",
-        "retrospectiveDesc": "Pro anual. Gere retrospectivas com IA que analisam seus hábitos em qualquer período (semana, mês, trimestre, ano) -- destaques, oportunidades perdidas, tendências e sugestões práticas. Acessível pelo seu Perfil."
+        "retrospectiveDesc": "Pro anual. Gere retrospectivas com IA que analisam seus hábitos em qualquer período (semana, mês, trimestre, ano) -- destaques, oportunidades perdidas, tendências e sugestões práticas. Acessível pelo seu Perfil.",
+        "milestoneShareTitle": "Compartilhar marcos",
+        "milestoneShareDesc": "Quando você bate uma grande sequência ou conquista, compartilhe um cartão de marco com os amigos dentro do Orbit ou em qualquer outro lugar.",
+        "referralsTitle": "Links de convite e indicações",
+        "referralsDesc": "Compartilhe seu link de convite pessoal para trazer amigos ao Orbit. Quando eles entram e continuam firmes, as indicações ajudam a comunidade a crescer -- seu link fica no seu Perfil."
       },
       "settingsSection": {
         "colorSchemeTitle": "Cor do tema",
@@ -2964,164 +2886,6 @@
     "isAiLabel": "IA",
     "isAiTooltip": "A Astra é uma assistente de IA. As respostas são geradas automaticamente.",
     "notMedicalAdvice": "A Astra é IA e pode errar. Isto não é aconselhamento médico ou profissional."
-  },
-  "social": {
-    "title": "Amigos",
-    "profileNav": {
-      "title": "Amigos",
-      "hint": "Incentive seus amigos e mantenham a motivação juntos"
-    },
-    "tabs": {
-      "feed": "Atividade",
-      "friends": "Amigos"
-    },
-    "today": {
-      "entryTitle": "Conecte-se com amigos",
-      "entrySubtitle": "Incentive amigos e comemorem conquistas juntos",
-      "requestsTitle": "Pedidos de amizade",
-      "requestsSubtitle": "{count} pedido esperando você | {count} pedidos esperando você"
-    },
-    "feed": {
-      "emptyTitle": "Nenhuma atividade ainda",
-      "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
-      "emptyCta": "Adicionar amigos",
-      "cheersForYou": "Incentivos para você",
-      "loadMore": "Carregar mais",
-      "loading": "Carregando…",
-      "streakMilestone": "{name} manteve uma sequência de {count} dias",
-      "achievementUnlocked": "{name} desbloqueou {achievement}",
-      "habitCompletedMilestone": "{name} chegou a {count} conclusões",
-      "achievementGeneric": "uma conquista",
-      "cheerAction": "Incentivar",
-      "viewProfile": "Ver o perfil de {name}",
-      "cheeredYouWithNote": "{name}: {note}",
-      "cheeredYou": "{name} torceu por você"
-    },
-    "friends": {
-      "sectionTitle": "Seus amigos",
-      "emptyTitle": "Nenhum amigo ainda",
-      "emptyBody": "Adicione um amigo pelo nome de usuário ou código de indicação para começarem a se incentivar.",
-      "streakLabel": "Sequência de {count} dias",
-      "cheer": "Incentivar",
-      "viewProfile": "Ver perfil",
-      "remove": "Remover",
-      "removeConfirmTitle": "Remover amigo?",
-      "removeConfirmBody": "Remover {name} dos seus amigos? Você pode adicioná-lo de novo depois.",
-      "block": "Bloquear",
-      "report": "Denunciar",
-      "moreActions": "Mais ações",
-      "incomingTitle": "Pedidos de amizade",
-      "outgoingTitle": "Pedidos pendentes",
-      "accept": "Aceitar",
-      "decline": "Recusar",
-      "cancel": "Cancelar",
-      "requestedYou": "quer ser seu amigo",
-      "youRequested": "Pedido enviado"
-    },
-    "addFriend": {
-      "title": "Adicionar amigo",
-      "handleLabel": "Nome de usuário",
-      "handlePlaceholder": "usuario",
-      "handleHint": "3 a 20 letras, números ou sublinhados",
-      "referralLabel": "Código de indicação",
-      "referralPlaceholder": "Digite um código de indicação",
-      "or": "ou",
-      "submit": "Enviar pedido",
-      "sending": "Enviando…",
-      "success": "Pedido de amizade enviado"
-    },
-    "invite": {
-      "title": "Convide amigos para o Orbit",
-      "subtitle": "Compartilhe seu link e vocês dois ganham um cupom de desconto no Pro.",
-      "scanHint": "Escaneie para entrar no Orbit",
-      "copy": "Copiar",
-      "copied": "Copiado!",
-      "share": "Compartilhar link",
-      "shareText": "Estou usando o Orbit para criar hábitos melhores. Venha comigo!",
-      "confirmTitle": "Adicionar amigo",
-      "self": "Este é o seu próprio link de convite.",
-      "alreadyFriends": "Você já é amigo de @{handle}.",
-      "pending": "Você já tem um pedido pendente com @{handle}.",
-      "unknownCode": "Este link de convite não é válido ou expirou.",
-      "loadError": "Não foi possível carregar este convite. Tente novamente.",
-      "sendRequest": "Enviar pedido"
-    },
-    "friendProfile": {
-      "unavailable": "Este perfil não está disponível.",
-      "loadError": "Não foi possível carregar este perfil.",
-      "longestStreakLabel": "Melhor sequência",
-      "xpLabel": "XP",
-      "activityLabel": "Últimos 7 dias",
-      "friendsSince": "Amigos desde {date}",
-      "noAchievements": "Nenhuma conquista ainda"
-    },
-    "cheer": {
-      "title": "Enviar incentivo",
-      "subtitle": "Para {name}",
-      "notePlaceholder": "Adicione uma mensagem (opcional)",
-      "send": "Enviar incentivo",
-      "sending": "Enviando…",
-      "success": "Incentivo enviado!",
-      "reactions": {
-        "clap": "Palmas",
-        "fire": "Fogo",
-        "muscle": "Força",
-        "star": "Estrela",
-        "party": "Comemorar",
-        "heart": "Coração"
-      }
-    },
-    "optInGate": {
-      "title": "Conecte-se com amigos",
-      "body": "Ative o social para adicionar amigos, compartilhar suas conquistas e se incentivarem. Seus hábitos continuam privados. Os amigos só veem os marcos que você escolhe comemorar.",
-      "handleLabel": "Escolha seu nome de usuário",
-      "handlePlaceholder": "usuario",
-      "handleHint": "3 a 20 letras, números ou sublinhados. Os amigos usam isso para te encontrar.",
-      "enable": "Ativar social",
-      "enabling": "Ativando…",
-      "success": "Social ativado"
-    },
-    "identity": {
-      "caption": "Seus amigos te adicionam por este nome de usuário",
-      "edit": "Alterar",
-      "editAria": "Alterar seu nome de usuário"
-    },
-    "editHandle": {
-      "title": "Alterar nome de usuário",
-      "label": "Seu nome de usuário",
-      "placeholder": "usuario",
-      "hint": "3 a 20 letras, números ou sublinhados. Os amigos usam isso para te encontrar.",
-      "success": "Nome de usuário atualizado"
-    },
-    "block": {
-      "confirmTitle": "Bloquear {name}?",
-      "confirmBody": "Vocês não poderão enviar pedidos ou incentivos um ao outro, nem ver a atividade um do outro.",
-      "success": "Usuário bloqueado"
-    },
-    "report": {
-      "title": "Denunciar {name}",
-      "reasonLabel": "Motivo",
-      "detailsLabel": "Detalhes (opcional)",
-      "detailsPlaceholder": "Conte o que aconteceu",
-      "submit": "Enviar denúncia",
-      "success": "Denúncia enviada. Obrigado por manter o Orbit seguro.",
-      "reasons": {
-        "Spam": "Spam",
-        "Harassment": "Assédio",
-        "InappropriateContent": "Conteúdo impróprio",
-        "Impersonation": "Falsidade ideológica",
-        "Other": "Outro"
-      }
-    },
-    "errors": {
-      "rateLimited": "Você está fazendo isso muitas vezes. Tente de novo em instantes.",
-      "generic": "Algo deu errado. Tente de novo.",
-      "loadFailed": "Não foi possível carregar agora.",
-      "userNotFound": "Não encontramos ninguém com esse nome de usuário ou código.",
-      "alreadyFriends": "Você já está conectado com essa pessoa.",
-      "handleTaken": "Esse nome de usuário já está em uso. Tente outro.",
-      "friendLimitReached": "Você atingiu o limite de amigos."
-    }
   },
   "milestoneShare": {
     "streakEyebrow": "Marco de sequência",

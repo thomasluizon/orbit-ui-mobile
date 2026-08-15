@@ -29,6 +29,8 @@ export default function ChatPage() {
     chatContainerRef,
     messages,
     isTyping,
+    isSending,
+    streamingMessageId,
     hasProAccess,
     atMessageLimit,
     showSuggestions,
@@ -152,6 +154,7 @@ export default function ChatPage() {
             key={msg.id}
             message={msg}
             animateEntry={!initialMessageIds.has(msg.id)}
+            isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
             onUpgradeClick={() => router.push('/upgrade')}
@@ -178,7 +181,7 @@ export default function ChatPage() {
         toggleRecording={composer.toggleRecording}
         recordingTime={composer.recordingTime}
         starterChips={composer.starterChips}
-        isTyping={isTyping}
+        isTyping={isSending}
         hasProAccess={hasProAccess}
         aiMessagesUsed={composer.aiMessagesUsed}
         aiMessagesLimit={composer.aiMessagesLimit}

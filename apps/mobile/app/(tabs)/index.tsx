@@ -44,7 +44,6 @@ import { TrialBanner } from "@/components/ui/trial-banner";
 import { DismissibleCard } from "@/components/today/dismissible-card";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReferralCard } from "@/components/referral/referral-card";
-import { SocialEntryCard } from "@/components/social/social-entry-card";
 import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
 import { useAnchoredMenu } from "@/components/ui/anchored-menu";
 import { createTokensV2 } from "@/lib/theme";
@@ -498,10 +497,6 @@ export default function TodayScreen() {
             onOpen={() => setShowReferral(true)}
             onDismiss={dismissHomeEntry}
           />
-        </DismissibleCard>
-
-        <DismissibleCard visible={engagementSlot === "socialEntry"}>
-          <SocialEntryCard />
         </DismissibleCard>
 
         <TodayTabs

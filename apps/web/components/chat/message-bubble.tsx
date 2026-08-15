@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import { getRelatedSurfaces, stripHabitListDirective } from '@orbit/shared/chat'
+import { getRelatedSurfaces, stripChatDirectives } from '@orbit/shared/chat'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
@@ -21,6 +21,7 @@ import { PendingOperationCard } from './pending-operation-card'
 interface MessageBubbleProps {
   message: ChatMessage
   animateEntry?: boolean
+  isStreaming?: boolean
   onBreakdownConfirmed?: () => void
   onActionChipClick?: (entityId: string, actionType: string) => void
   onPendingOperationConfirmExecute?: (
@@ -41,6 +42,7 @@ interface MessageBubbleProps {
 export function MessageBubble({
   message,
   animateEntry,
+  isStreaming = false,
   onBreakdownConfirmed,
   onActionChipClick,
   onPendingOperationConfirmExecute,
@@ -151,7 +153,9 @@ export function MessageBubble({
               style={{ border: '1px solid var(--hairline)' }}
             />
           )}
-          <Markdown content={stripHabitListDirective(message.content)} />
+          <Markdown
+            content={isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
+          />
         </div>
 
         {!isUser && message.habitList && (

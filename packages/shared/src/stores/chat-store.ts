@@ -8,16 +8,19 @@ type ChatStoreSet = {
 export interface ChatStoreState {
   messages: ChatMessage[]
   isTyping: boolean
+  streamingMessageId: string | null
   addMessage: (message: ChatMessage) => void
   updateMessage: (id: string, patch: Partial<Omit<ChatMessage, 'id'>>) => void
   appendToMessageContent: (id: string, text: string) => void
   setIsTyping: (value: boolean) => void
+  setStreamingMessageId: (value: string | null) => void
 }
 
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
   return {
     messages: [],
     isTyping: false,
+    streamingMessageId: null,
 
     addMessage: (message) =>
       set((state) => ({
@@ -39,5 +42,6 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
       })),
 
     setIsTyping: (value) => set({ isTyping: value }),
+    setStreamingMessageId: (value) => set({ streamingMessageId: value }),
   }
 }

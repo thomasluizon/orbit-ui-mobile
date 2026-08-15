@@ -3,7 +3,7 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User, Users } from 'lucide-react'
+import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User } from 'lucide-react'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import {
   AppSidebar,
@@ -150,13 +150,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         onSelect: openGoals,
       },
       {
-        id: 'social',
-        label: t('nav.social'),
-        icon: Users,
-        active: pathname.startsWith('/social'),
-        onSelect: () => navigateTab('/social'),
-      },
-      {
         id: 'insights',
         label: t('nav.insights'),
         icon: BarChart3,
@@ -210,7 +203,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       { id: 'general', label: t('habits.viewGeneral'), icon: InfinityIcon, onSelect: () => selectHabitView('general') },
       { id: 'calendar', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => navigateTab('/calendar') },
       { id: 'goals', label: t('nav.goals'), icon: Target, onSelect: openGoals },
-      { id: 'social', label: t('nav.social'), icon: Users, onSelect: () => navigateTab('/social') },
       { id: 'insights', label: t('nav.insights'), icon: BarChart3, onSelect: () => navigateTab('/insights') },
       {
         id: 'astra',

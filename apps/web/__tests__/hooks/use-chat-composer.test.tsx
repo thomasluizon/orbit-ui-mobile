@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ChangeEvent } from 'react'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 
@@ -82,13 +82,32 @@ function finalFrame(response: ChatResponse): string {
   return frame(JSON.stringify({ type: 'final', response }))
 }
 
+function controlledSseResponse() {
+  const encoder = new TextEncoder()
+  let streamController!: ReadableStreamDefaultController<Uint8Array>
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller
+    },
+  })
+  return {
+    response: new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    }),
+    enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
+    close: () => streamController.close(),
+  }
+}
+
 describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
-    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.invalidateQueries.mockReset()
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ messages: [], isTyping: false })
+    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
   })
@@ -120,6 +139,112 @@ describe('web useChatComposer streaming send', () => {
     })
     expect(useChatStore.getState().isTyping).toBe(false)
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it('rejects an overlapping send before a second request starts', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let firstSend!: Promise<void>
+    act(() => {
+      firstSend = result.current.sendMessage('first')
+      stream.enqueue(frame('{"type":"delta","text":"Working"}'))
+    })
+    await waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+
+    await act(async () => {
+      await result.current.sendMessage('second')
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await firstSend
+    })
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().messages.filter((message) => message.role === 'user')).toHaveLength(1)
+  })
+
+  it('preserves the active streamed message when the composer remounts', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const firstComposer = renderHook(() => useChatComposer())
+
+    let sendPromise!: Promise<void>
+    act(() => {
+      sendPromise = firstComposer.result.current.sendMessage('hello')
+      stream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
+    })
+    await waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+
+    const activeMessageId = useChatStore.getState().streamingMessageId
+    expect(activeMessageId).not.toBeNull()
+    firstComposer.unmount()
+
+    const remountedComposer = renderHook(() => useChatComposer())
+    expect(remountedComposer.result.current.streamingMessageId).toBe(activeMessageId)
+
+    await act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Done' })))
+      stream.close()
+      await sendPromise
+    })
+    expect(remountedComposer.result.current.streamingMessageId).toBeNull()
+  })
+
+  it('keeps a newer stream active when the finalized request finishes invalidating', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    const firstStream = controlledSseResponse()
+    const secondStream = controlledSseResponse()
+    mocks.fetch
+      .mockResolvedValueOnce(firstStream.response)
+      .mockResolvedValueOnce(secondStream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let sendPromise!: Promise<void>
+    act(() => {
+      sendPromise = result.current.sendMessage('finish this')
+      firstStream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
+      firstStream.enqueue(finalFrame(makeChatResponse({
+        aiMessage: 'Final list: [',
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      })))
+      firstStream.close()
+    })
+
+    await waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Final list: ['))
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
+    expect(result.current.isSending).toBe(false)
+
+    let secondSendPromise!: Promise<void>
+    act(() => {
+      secondSendPromise = result.current.sendMessage('start another')
+      secondStream.enqueue(frame('{"type":"delta","text":"Still [[or"}'))
+    })
+    await waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+    const secondDraftId = useChatStore.getState().streamingMessageId
+
+    await act(async () => {
+      resolveInvalidations()
+      await sendPromise
+    })
+    expect(useChatStore.getState().streamingMessageId).toBe(secondDraftId)
+
+    await act(async () => {
+      secondStream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Second final' })))
+      secondStream.close()
+      await secondSendPromise
+    })
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {
