@@ -1,7 +1,8 @@
 import { cpSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { TOOLS_DIR, root, stage, check } from "./_harness.mjs"
+import { unreachableReason } from "../capture-surfaces.mjs"
+import { TOOLS_DIR, T, root, stage, check } from "./_harness.mjs"
 
 const captureSurfacesCases = () => {
   const fixture = join(root, "capture-surfaces-origin")
@@ -20,6 +21,12 @@ const captureSurfacesCases = () => {
   check("capture-surfaces.mjs", "uses the linked worktree port when no base URL is supplied", ["none"], { status: 0, stdout: /^http:\/\/localhost:3286\s*$/ }, { path: probe, env: { ORBIT_CAPTURE_PORT: "3286" } })
   check("capture-surfaces.mjs", "keeps an explicit base URL over the assigned port", ["http://localhost:7777"], { status: 0, stdout: /^http:\/\/localhost:7777\s*$/ }, { path: probe, env: { ORBIT_CAPTURE_PORT: "3286" } })
   check("capture-surfaces.mjs", "refuses capture when a linked worktree has no assigned port", ["none"], { status: 1, stderr: /could not resolve this worktree's web port/ }, { path: probe, env: { ORBIT_CAPTURE_FAIL: "1" } })
+
+  const block = unreachableReason({ platform: "web", kind: "block", surfaceId: "block-chat-conditional", sourceFile: "conditional.tsx", href: "/chat" })
+  T("chat blocks without an exact capture plan cannot produce evidence", block?.reason === "needs-block-capture-plan", JSON.stringify(block))
+
+  const error = unreachableReason({ platform: "web", kind: "error", surfaceId: "error-root", sourceFile: "error.tsx", href: null })
+  T("web errors without a deterministic entrypoint cannot fall through to the home page", error?.reason === "needs-entrypoint", JSON.stringify(error))
 }
 
 export { captureSurfacesCases as cases }
