@@ -40,7 +40,7 @@ export type QueuedMutationStatus = z.infer<typeof queuedMutationStatusSchema>
 export const queuedMutationSchema = z.object({
   id: z.string(),
   timestamp: z.number(),
-  type: z.string(),
+  type: mutationTypeSchema,
   endpoint: z.string(),
   method: z.enum(['POST', 'PUT', 'DELETE']),
   payload: z.unknown(),
@@ -56,6 +56,7 @@ export const queuedMutationSchema = z.object({
   lastError: z.string().nullable().optional(),
 })
 export type QueuedMutation = z.infer<typeof queuedMutationSchema>
+export type PersistedQueuedMutation = Omit<QueuedMutation, 'type'> & { type: string }
 
 const syncBatchMutationSchema = z.object({
   entity: z.string(),

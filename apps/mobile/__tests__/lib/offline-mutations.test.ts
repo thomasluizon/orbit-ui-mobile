@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MutationType, QueuedMutation } from '@orbit/shared/types/sync'
+import type {
+  MutationType,
+  PersistedQueuedMutation,
+  QueuedMutation,
+} from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 
 import {
@@ -18,7 +22,7 @@ import {
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const mocks = vi.hoisted(() => {
-  const queued: QueuedMutation[] = []
+  const queued: PersistedQueuedMutation[] = []
   const resolvedIds = new Map<string, string>()
   let online = false
 
@@ -58,7 +62,7 @@ const mocks = vi.hoisted(() => {
     if (index >= 0) queued.splice(index, 1)
   })
 
-  const update = vi.fn((id: string, patch: Partial<QueuedMutation>) => {
+  const update = vi.fn((id: string, patch: Partial<PersistedQueuedMutation>) => {
     const mutation = queued.find((entry) => entry.id === id)
     if (!mutation) return
     Object.assign(mutation, patch)

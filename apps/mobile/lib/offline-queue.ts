@@ -4,6 +4,7 @@ import {
   mutationScopeSchema,
   type MutationEntityType,
   type MutationScope,
+  type PersistedQueuedMutation,
   type QueuedMutation,
   type QueuedMutationStatus,
 } from '@orbit/shared/types/sync'
@@ -86,7 +87,7 @@ function parseJson<T>(value: string | null): T | null {
   }
 }
 
-function buildMeta(mutation: QueuedMutation): QueueMetaRow {
+function buildMeta(mutation: PersistedQueuedMutation): QueueMetaRow {
   return {
     scope: mutation.scope,
     entityType: mutation.entityType,
@@ -99,7 +100,7 @@ function buildMeta(mutation: QueuedMutation): QueueMetaRow {
   }
 }
 
-function mapRow(row: QueueRow): QueuedMutation {
+function mapRow(row: QueueRow): PersistedQueuedMutation {
   const meta = parseJson<QueueMetaRow>(row.meta) ?? {}
   const scope = mutationScopeSchema.safeParse(meta.scope)
   const entityType = mutationEntityTypeSchema.safeParse(meta.entityType)
@@ -124,7 +125,7 @@ function mapRow(row: QueueRow): QueuedMutation {
   }
 }
 
-function upsert(database: SQLite.SQLiteDatabase, mutation: QueuedMutation): void {
+function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation): void {
   database.runSync(
     `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -142,7 +143,7 @@ function upsert(database: SQLite.SQLiteDatabase, mutation: QueuedMutation): void
   )
 }
 
-function replaceAll(mutations: QueuedMutation[]): void {
+function replaceAll(mutations: PersistedQueuedMutation[]): void {
   const database = getDb()
   database.withTransactionSync(() => {
     database.runSync('DELETE FROM mutation_queue')
@@ -202,9 +203,9 @@ function mergePayload(existing: unknown, incoming: unknown): unknown {
 }
 
 function compactQueuedMutations(
-  existing: QueuedMutation[],
+  existing: PersistedQueuedMutation[],
   incoming: QueuedMutation,
-): QueuedMutation[] {
+): PersistedQueuedMutation[] {
   let next = [...existing]
 
   if (incoming.dedupeKey && LAST_WRITE_WINS_TYPES.has(incoming.type)) {
@@ -279,21 +280,21 @@ export function enqueue(
   replaceAll(compacted)
 }
 
-export function dequeue(): QueuedMutation | null {
+export function dequeue(): PersistedQueuedMutation | null {
   return getAll()[0] ?? null
 }
 
-export function getAll(): QueuedMutation[] {
+export function getAll(): PersistedQueuedMutation[] {
   const database = getDb()
   const rows = database.getAllSync<QueueRow>('SELECT * FROM mutation_queue ORDER BY timestamp ASC')
   return rows.map(mapRow)
 }
 
-export function getById(id: string): QueuedMutation | null {
+export function getById(id: string): PersistedQueuedMutation | null {
   return getAll().find((mutation) => mutation.id === id) ?? null
 }
 
-export function update(id: string, patch: Partial<QueuedMutation>): void {
+export function update(id: string, patch: Partial<PersistedQueuedMutation>): void {
   const updated = getAll().map((mutation) =>
     mutation.id === id
       ? {
