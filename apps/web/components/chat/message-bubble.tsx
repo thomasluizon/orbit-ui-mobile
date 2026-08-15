@@ -21,6 +21,7 @@ import { PendingOperationCard } from './pending-operation-card'
 interface MessageBubbleProps {
   message: ChatMessage
   animateEntry?: boolean
+  isStreaming?: boolean
   onBreakdownConfirmed?: () => void
   onActionChipClick?: (entityId: string, actionType: string) => void
   onPendingOperationConfirmExecute?: (
@@ -41,6 +42,7 @@ interface MessageBubbleProps {
 export function MessageBubble({
   message,
   animateEntry,
+  isStreaming = false,
   onBreakdownConfirmed,
   onActionChipClick,
   onPendingOperationConfirmExecute,
@@ -151,7 +153,9 @@ export function MessageBubble({
               style={{ border: '1px solid var(--hairline)' }}
             />
           )}
-          <Markdown content={isUser ? message.content : stripChatDirectives(message.content)} />
+          <Markdown
+            content={isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
+          />
         </div>
 
         {!isUser && message.habitList && (

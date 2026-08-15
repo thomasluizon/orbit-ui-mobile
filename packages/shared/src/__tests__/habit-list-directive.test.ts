@@ -13,14 +13,14 @@ describe('stripChatDirectives', () => {
   })
 
   it('removes a partial directive still being streamed', () => {
-    expect(stripChatDirectives('Here you go:\n[[orbit:habits:tod')).toBe('Here you go:')
-    expect(stripChatDirectives('Here you go:\n[[orbit:habits')).toBe('Here you go:')
+    expect(stripChatDirectives('Here you go:\n[[orbit:habits:tod', true)).toBe('Here you go:')
+    expect(stripChatDirectives('Here you go:\n[[orbit:habits', true)).toBe('Here you go:')
   })
 
   it('removes complete and partial goals directives', () => {
     expect(stripChatDirectives('Here are your goals.\n[[orbit:goals]]')).toBe('Here are your goals.')
-    expect(stripChatDirectives('Here are your goals.\n[[orbit:goa')).toBe('Here are your goals.')
-    expect(stripChatDirectives('Here are your goals.\n[[orbit:')).toBe('Here are your goals.')
+    expect(stripChatDirectives('Here are your goals.\n[[orbit:goa', true)).toBe('Here are your goals.')
+    expect(stripChatDirectives('Here are your goals.\n[[orbit:', true)).toBe('Here are your goals.')
   })
 
   it('removes a generic directive without adding a per-directive rule', () => {

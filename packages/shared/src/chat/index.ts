@@ -156,11 +156,13 @@ const TRAILING_CHAT_DIRECTIVE =
 /**
  * Removes `[[orbit:...]]` directives Astra emits to request rendered cards. The
  * server strips them from the final message, but streamed deltas still carry them
- * mid-flight, so both chat surfaces also strip a partial trailing token.
+ * mid-flight. Complete directives are always removed; a partial trailing token is
+ * removed only while the message is actively streaming.
  */
-export function stripChatDirectives(content: string): string {
-  return content
-    .replace(COMPLETE_CHAT_DIRECTIVE, '')
-    .replace(TRAILING_CHAT_DIRECTIVE, '')
-    .trimEnd()
+export function stripChatDirectives(content: string, isStreaming = false): string {
+  const withoutCompleteDirectives = content.replace(COMPLETE_CHAT_DIRECTIVE, '')
+  return (isStreaming
+    ? withoutCompleteDirectives.replace(TRAILING_CHAT_DIRECTIVE, '')
+    : withoutCompleteDirectives
+  ).trimEnd()
 }

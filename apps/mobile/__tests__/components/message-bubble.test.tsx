@@ -221,6 +221,22 @@ describe('MessageBubble habit-list card (mobile)', () => {
     expect(strings.some((value) => value.includes('orbit:habits'))).toBe(false)
   })
 
+  it('hides a partial directive only while the AI message is streaming', async () => {
+    const message = makeMessage({ role: 'ai', content: 'Keep this literal [[or' })
+    let streamingTree!: TestInstance
+    await TestRenderer.act(() => {
+      streamingTree = TestRenderer.create(<MessageBubble message={message} isStreaming />)
+    })
+
+    expect(collectStrings(streamingTree.root)).toContain('Keep this literal')
+
+    let finalTree!: TestInstance
+    await TestRenderer.act(() => {
+      finalTree = TestRenderer.create(<MessageBubble message={message} />)
+    })
+    expect(collectStrings(finalTree.root)).toContain('Keep this literal [[or')
+  })
+
   it('preserves user-authored directive text byte-for-byte', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {

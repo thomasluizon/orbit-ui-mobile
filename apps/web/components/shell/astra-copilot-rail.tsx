@@ -189,6 +189,7 @@ function AstraRailMessages({ composer, onActionChipClick, onUpgradeClick }: Read
               key={message.id}
               message={message}
               animateEntry={!initialMessageIds.has(message.id)}
+              isStreaming={message.id === composer.streamingMessageId}
               onBreakdownConfirmed={handleBreakdownConfirmed}
               onActionChipClick={onActionChipClick}
               onUpgradeClick={onUpgradeClick}

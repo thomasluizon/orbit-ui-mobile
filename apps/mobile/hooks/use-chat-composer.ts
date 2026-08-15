@@ -138,6 +138,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const [sendError, setSendError] = useState<string | null>(null);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -414,13 +415,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       const invalidations = selectActionInvalidations(response.actions);
       if (invalidations.habits) {
-        queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
       }
       if (invalidations.goals) {
-        queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
       }
       if (invalidations.tags) {
-        queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
       }
 
       if (response.operations?.some((operation) => operation.status === "Succeeded")) {
@@ -482,6 +483,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const ensureDraftMessage = () => {
         if (draftMessageId) return draftMessageId;
         draftMessageId = `msg-${Date.now()}-ai`;
+        setStreamingMessageId(draftMessageId);
         setIsTyping(false);
         addMessage({
           id: draftMessageId,
@@ -556,6 +558,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         );
       } finally {
         clearTimeout(idleTimer);
+        setStreamingMessageId(null);
       }
     },
     [
@@ -656,13 +659,14 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   } = usePendingOperationExecution({ appendExecutionMessage });
 
   const handleBreakdownConfirmed = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   }, [queryClient]);
 
   return {
     flatListRef,
     messages,
     isTyping,
+    streamingMessageId,
     sendError,
     selectedImage,
     imagePreview,

@@ -137,6 +137,7 @@ export function useChatComposer() {
   })
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
@@ -416,6 +417,7 @@ export function useChatComposer() {
     const ensureDraftMessage = () => {
       if (draftMessageId) return draftMessageId
       draftMessageId = crypto.randomUUID()
+      setStreamingMessageId(draftMessageId)
       setIsTyping(false)
       addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date() })
       scrollToBottom()
@@ -489,6 +491,7 @@ export function useChatComposer() {
       )
     } finally {
       clearTimeout(idleTimer)
+      setStreamingMessageId(null)
     }
   }, [
     addMessage,
@@ -601,6 +604,7 @@ export function useChatComposer() {
     starterChips,
     messages,
     isTyping,
+    streamingMessageId,
     hasProAccess,
     aiMessagesUsed,
     aiMessagesLimit,

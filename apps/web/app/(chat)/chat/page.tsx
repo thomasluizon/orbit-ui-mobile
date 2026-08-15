@@ -29,6 +29,7 @@ export default function ChatPage() {
     chatContainerRef,
     messages,
     isTyping,
+    streamingMessageId,
     hasProAccess,
     atMessageLimit,
     showSuggestions,
@@ -152,6 +153,7 @@ export default function ChatPage() {
             key={msg.id}
             message={msg}
             animateEntry={!initialMessageIds.has(msg.id)}
+            isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
             onUpgradeClick={() => router.push('/upgrade')}
