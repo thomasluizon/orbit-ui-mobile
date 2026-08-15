@@ -42,7 +42,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }))
 
 vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal<typeof import('react-native')>()
   return {
     ...actual,
     Platform: {
