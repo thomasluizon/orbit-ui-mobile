@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-mode="dark" data-hue="emerald">
+<html lang="en" data-mode="dark" data-hue="orange">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -49,7 +49,6 @@
      each -lmtext value clears 4.5 on #FAFAFA.
      Rose sits at hue 350, not 15: at 15 it was 10 degrees from the
      destructive red, so the primary CTA and the delete button read alike. */
-  --p-emerald-dark:#008854; --p-emerald-text:#008B56; --p-emerald-rgb:0,136,84;   --p-emerald-lmtext:#008451;
   --p-rose-dark:#BF4D8A;    --p-rose-text:#C2508C;    --p-rose-rgb:191,77,138;    --p-rose-lmtext:#BB4986;
   --p-orange-dark:#C4530F;  --p-orange-text:#C85716;  --p-orange-rgb:196,83,15;   --p-orange-lmtext:#C15109;
   --p-on-fill:#FFFFFF;
@@ -80,10 +79,10 @@
   --hairline-strong:var(--p-hair-strong);
   --fg-1:var(--p-fg1); --fg-2:var(--p-fg2); --fg-3:var(--p-fg3); --fg-4:var(--p-fg4);
 
-  --hue-dark:var(--p-emerald-dark);
-  --hue-text:var(--p-emerald-text);
-  --hue-rgb:var(--p-emerald-rgb);
-  --hue-lmtext:var(--p-emerald-lmtext);
+  --hue-dark:var(--p-orange-dark);
+  --hue-text:var(--p-orange-text);
+  --hue-rgb:var(--p-orange-rgb);
+  --hue-lmtext:var(--p-orange-lmtext);
 
   --primary:var(--hue-dark);
   --primary-soft:var(--hue-text);
@@ -148,7 +147,6 @@
   --status-overdue:var(--p-l-overdue); --status-bad:var(--p-l-bad); --fg-on-bad:var(--p-l-on-bad);
   --sel-alpha:0.18;
 }
-[data-hue="emerald"]{--hue-dark:var(--p-emerald-dark); --hue-text:var(--p-emerald-text); --hue-rgb:var(--p-emerald-rgb); --hue-lmtext:var(--p-emerald-lmtext)}
 [data-hue="orange"] {--hue-dark:var(--p-orange-dark); --hue-text:var(--p-orange-text); --hue-rgb:var(--p-orange-rgb); --hue-lmtext:var(--p-orange-lmtext)}
 [data-hue="rose"]   {--hue-dark:var(--p-rose-dark); --hue-text:var(--p-rose-text); --hue-rgb:var(--p-rose-rgb); --hue-lmtext:var(--p-rose-lmtext)}
 
@@ -304,7 +302,6 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
    by side, independently of the accent selected in the bar. These blocks only
    repoint semantics; every literal still lives in :root.
    --------------------------------------------------------------------------- */
-.brandcol[data-c="emerald"]{--primary:var(--p-emerald-dark); --primary-soft:var(--p-emerald-text)}
 .brandcol[data-c="rose"]   {--primary:var(--p-rose-dark);    --primary-soft:var(--p-rose-text)}
 .brandcol[data-c="orange"] {--primary:var(--p-orange-dark);  --primary-soft:var(--p-orange-text)}
 .brandcol{display:flex;flex-direction:column;gap:var(--s-4)}
@@ -389,9 +386,8 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
     </div>
     <div class="grp"><span class="grp-l">Accent</span>
       <div class="seg" id="seg-hue">
-        <button data-v="emerald" aria-pressed="true"><i class="dot" style="background:var(--p-emerald-dark)"></i>Emerald</button>
         <button data-v="rose"    aria-pressed="false"><i class="dot" style="background:var(--p-rose-dark)"></i>Rose</button>
-        <button data-v="orange"  aria-pressed="false"><i class="dot" style="background:var(--p-orange-dark)"></i>Orange</button>
+        <button data-v="orange"  aria-pressed="true"><i class="dot" style="background:var(--p-orange-dark)"></i>Orange</button>
       </div>
     </div>
   </div>
@@ -409,13 +405,13 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       and the prose is the defect. Everything is hoverable: move the pointer over rows, cards, buttons
       and links to see the transition canon.
     </p>
-    <p class="note">Settled: spacing A &middot; no serif &middot; XP as a row &middot; a dark fill with white text &middot; slow hover, 240ms on a control and 380ms on a surface. Open: which of the three accents.</p>
+    <p class="note">Settled: spacing A &middot; no serif &middot; XP as a row &middot; a dark fill with white text &middot; slow hover, 240ms on a control and 380ms on a surface. Open: orange or rose, and the exact warm-orange byte, which is settled on the Claude Design canvas.</p>
   </header>
 
   <!-- ================= 1. THE ACCENT ================= -->
   <section class="sec">
-    <div class="sec-h"><span class="sec-n">01</span><h2 class="sec-t">The accent, three candidates</h2></div>
-    <p class="lede">Three candidates, one treatment: a dark fill with white on it. All three clear every
+    <div class="sec-h"><span class="sec-n">01</span><h2 class="sec-t">The accent, two candidates</h2></div>
+    <p class="lede">Two candidates, one treatment: a dark fill with white on it. Both clear every
       contrast floor, so this is a look question and not a correctness one. Rose sits at hue 350 rather than
       15, because at 15 it was 10 degrees from the destructive red and the primary CTA read like the delete
       button. Switch the accent in the bar above.</p>
@@ -484,60 +480,6 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       a neutral disc with a filled check, and the accent is reserved for what is next and what is
       interactive. That is why the accent survives a bad day instead of draining off the screen.</p>
     <div class="grid g3">
-      <div class="brandcol" data-c="emerald">
-        <div class="brandhead"><span class="brandname">Emerald</span><span class="badge">ACCENT</span></div>
-
-        <div class="tile stack" style="align-items:center">
-          <span class="note" style="align-self:flex-start">Store icon, 512 rendered at 200. The only pixels a browsing user sees.</span>
-          <div class="storetile lg"><svg width="120" height="120" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
-        </div>
-
-        <div class="tile stack">
-          <span class="note">Thumbnail row, at the size a store list actually shows</span>
-          <div class="marks" style="gap:var(--s-3)">
-            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
-            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
-            <div class="storetile sm"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg></div>
-          </div>
-        </div>
-
-        <div class="tile stack">
-          <span class="note">The two treatments. B ships; A is the monochrome lockup.</span>
-          <div class="marks">
-            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">B ACCENT BODY</span></div>
-            <div class="markbox"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--fg-1)"/></g></svg><span class="marklabel">A NEUTRAL</span></div>
-          </div>
-        </div>
-
-        <div class="tile stack">
-          <span class="note">Lockup, and the mark down to a favicon</span>
-          <div class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="wordmark" translate="no">Orbit</span></div>
-          <div class="marks">
-            <div class="markbox"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">48 APP</span></div>
-            <div class="markbox"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">24 NAV</span></div>
-            <div class="markbox"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><ellipse cx="8" cy="8" rx="7" ry="4.9" transform="rotate(-28 8 8)" stroke="var(--fg-1)" stroke-width="1.5"/><circle cx="11.4" cy="3.1" r="2" fill="var(--fg-1)"/></svg><span class="marklabel">16 REDRAWN</span></div>
-          </div>
-        </div>
-
-        <div class="tile stack">
-          <span class="note">Astra must never read as the logo</span>
-          <div class="marks">
-            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--fg-2)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--fg-2)"/><circle cx="12" cy="12" r="2.4" fill="var(--fg-1)"/></svg><span class="marklabel">ASTRA</span></div>
-            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
-          </div>
-          <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
-        </div>
-
-        <div class="miniapp">
-          <span class="note">In context, with done unbound from the accent</span>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
-          <button class="pill sm" style="width:100%">Registrar</button>
-          <div class="minitab"><span class="on">Hoje</span><span>Metas</span><span>Astra</span><span>Perfil</span></div>
-        </div>
-
-        <p class="note">Cleanest separation from every status hue. The risk is sameness: green plus a check is the most crowded space in this category, so it is legible and forgettable in a store list.</p>
-      </div>
       <div class="brandcol" data-c="rose">
         <div class="brandhead"><span class="brandname">Rose</span><span class="badge">ACCENT</span></div>
 

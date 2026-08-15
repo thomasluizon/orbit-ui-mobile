@@ -187,15 +187,16 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 
 ### The accent: the method is settled, the hue is open
 
-**The hue and the fill treatment are decided at human grant 1**, from `design/reference.html`, which renders ten hues against both treatments on real components. Everything below is settled regardless of which one wins.
+**The fill treatment is settled and the exact hue is not.** `design/reference.html` narrowed the field to two families; the final byte is chosen on the Claude Design canvas during the design-system build and written back here. Everything below holds whichever hue wins.
 
-**The shortlist, narrowed by Thomas on 2026-08-15**, is three schemes. The page presents them as presets and keeps the full grid for comparison:
+**The shortlist is two, narrowed by Thomas on 2026-08-15.** Both take a dark fill with white on it:
 
-| candidate | fill | on the fill | note |
-|---|---|---|---|
-| **Emerald** `#008854` | dark | white | clean: 93 degrees from overdue, 133 from bad |
-| **Rose** `#BF4D8A` | dark | white | **moved from hue 15 to 350.** At 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button read as the same colour. At 350 it clears it by 35 and stays a pink-red |
-| **Orange** `#C4530F` | dark | white | passes at 20 degrees from both overdue and bad, which is the tightest of the three |
+| candidate | value | note |
+|---|---|---|
+| **Warm orange** | `#C4530F` at hue 45, and neighbouring warm-orange values are still open | The tightest separation of any candidate: 20 degrees from both `--status-overdue` and `--status-bad`. It only clears because `--status-done` is unbound from the accent, which removed the frequent adjacency of a done ring beside an overdue chip |
+| **Rose** | `#BF4D8A` at hue 350, **moved from 15** | At 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button read as the same colour. At 350 it clears by 35 and stays a pink-red |
+
+**Emerald is discarded** (2026-08-15). Green binds the brand to a success verdict rather than to a state, and it places Orbit in the green-checkmark habit-tracker slot that `BRAND.md` names as a positioning failure.
 
 **Three roles, three floors, and every candidate clears all three:**
 
