@@ -996,7 +996,7 @@
       "accountActions": "Ações da conta",
       "subscription": "Assinatura",
       "preferencesHint": "Idioma, cores, notificações",
-      "aiFeaturesHint": "Memória, resumo diário",
+      "aiFeaturesHint": "Resumo diário, check-ins proativos",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
@@ -1757,7 +1757,7 @@
         "canDoTitle": "Criar e registrar",
         "canDoDesc": "Diga à Astra quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar conclusões. Ela também cria tarefas únicas, como 'comprar ovos amanhã'.",
         "toolsBreadthTitle": "61 ferramentas integradas",
-        "toolsBreadthDesc": "A Astra não é só conversa -- ela age. São 61 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário, memória e sua conta. Quase tudo que você faz tocando na tela, você faz pedindo. O plano grátis inclui 20 mensagens de IA por mês; o Pro sobe para 500.",
+        "toolsBreadthDesc": "A Astra não é só conversa -- ela age. São 61 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário e sua conta. Quase tudo que você faz tocando na tela, você faz pedindo. O plano grátis inclui 20 mensagens de IA por mês; o Pro sobe para 500.",
         "manageTitle": "Atualizar e excluir",
         "manageDesc": "Peça à Astra para mudar hábitos: 'passar minha academia para amanhã', 'renomear corrida para caminhada', 'mudar meditação para semanal' ou 'excluir meu hábito de leitura'. Ela também faz ações em massa.",
         "insightsTitle": "Progresso e análise",
@@ -2086,7 +2086,6 @@
     "api": {
       "noPermission": "Você não tem permissão para isso.",
       "sessionExpired": "Sua sessão expirou. Entre de novo.",
-      "factsLimit": "Você chegou ao limite de fatos salvos. Apague alguns para adicionar novos.",
       "duplicateFact": "A Astra já sabe algo parecido.",
       "duplicateTag": "Você já tem uma tag com esse nome.",
       "apiKeyLimit": "Você chegou ao número máximo de chaves de API.",

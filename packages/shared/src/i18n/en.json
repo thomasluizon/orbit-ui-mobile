@@ -996,7 +996,7 @@
       "accountActions": "Account actions",
       "subscription": "Subscription",
       "preferencesHint": "Language, colors, notifications",
-      "aiFeaturesHint": "Memory, daily summary",
+      "aiFeaturesHint": "Daily summary, proactive check-ins",
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
@@ -1757,7 +1757,7 @@
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "61 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, memory, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 20 AI messages per month; Pro raises it to 500.",
+        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 20 AI messages per month; Pro raises it to 500.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -2086,7 +2086,6 @@
     "api": {
       "noPermission": "You don't have permission to do that.",
       "sessionExpired": "Your session expired. Please sign in again.",
-      "factsLimit": "You've hit your saved-facts limit. Delete a few to add more.",
       "duplicateFact": "Astra already knows something like that.",
       "duplicateTag": "You already have a tag with that name.",
       "apiKeyLimit": "You've reached the maximum number of API keys.",

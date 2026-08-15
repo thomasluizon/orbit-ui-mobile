@@ -318,7 +318,6 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   NO_PERMISSION: 'errors.api.noPermission',
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',
-  USER_FACTS_LIMIT_REACHED: 'errors.api.factsLimit',
   DUPLICATE_FACT: 'errors.api.duplicateFact',
   DUPLICATE_TAG_NAME: 'errors.api.duplicateTag',
   MAX_API_KEYS: 'errors.api.apiKeyLimit',
