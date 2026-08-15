@@ -119,10 +119,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const messages = useChatStore((s) => s.messages);
   const isTyping = useChatStore((s) => s.isTyping);
+  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
   const addMessage = useChatStore((s) => s.addMessage);
   const updateMessage = useChatStore((s) => s.updateMessage);
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent);
   const setIsTyping = useChatStore((s) => s.setIsTyping);
+  const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId);
 
   const {
     isRecording,
@@ -151,6 +153,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
+  const isSending = isTyping || streamingMessageId !== null;
   const showSuggestions = messages.length === 0 && !isTyping;
 
   const starterChips = useMemo(
@@ -389,6 +392,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         };
         addMessage(aiMessage);
       }
+      if (useChatStore.getState().streamingMessageId === draftMessageId) {
+        setStreamingMessageId(null);
+      }
 
       scrollToBottom();
 
@@ -414,13 +420,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       const invalidations = selectActionInvalidations(response.actions);
       if (invalidations.habits) {
-        queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
       }
       if (invalidations.goals) {
-        queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
       }
       if (invalidations.tags) {
-        queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
       }
 
       if (response.operations?.some((operation) => operation.status === "Succeeded")) {
@@ -434,6 +440,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       router,
       scrollToBottom,
       setIsTyping,
+      setStreamingMessageId,
       shouldRouteToUpgrade,
       updateMessage,
     ],
@@ -482,6 +489,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const ensureDraftMessage = () => {
         if (draftMessageId) return draftMessageId;
         draftMessageId = `msg-${Date.now()}-ai`;
+        setStreamingMessageId(draftMessageId);
         setIsTyping(false);
         addMessage({
           id: draftMessageId,
@@ -556,6 +564,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         );
       } finally {
         clearTimeout(idleTimer);
+        if (useChatStore.getState().streamingMessageId === draftMessageId) {
+          setStreamingMessageId(null);
+        }
       }
     },
     [
@@ -566,6 +577,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       handleFailedSend,
       scrollToBottom,
       setIsTyping,
+      setStreamingMessageId,
       t,
       updateMessage,
     ],
@@ -599,7 +611,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const sendMessage = useCallback(
     async (content?: string) => {
       const typedContent = content?.trim() ?? "";
-      if ((!typedContent && !selectedImage && !selectedTextFile) || isTyping) return;
+      const sendState = useChatStore.getState();
+      if (
+        (!typedContent && !selectedImage && !selectedTextFile) ||
+        sendState.isTyping ||
+        sendState.streamingMessageId !== null
+      ) return;
       if (!isOnline) {
         setSendError(offlineTitle);
         return;
@@ -629,7 +646,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     [
       imagePreview,
       isOnline,
-      isTyping,
       offlineTitle,
       performSend,
       selectedImage,
@@ -639,15 +655,16 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const retryLastSend = useCallback(async () => {
-    if (!lastFailedSend || isTyping) return;
+    const sendState = useChatStore.getState();
+    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return;
     if (!isOnline) {
       setSendError(offlineTitle);
       return;
     }
     await performSend(lastFailedSend, true);
-  }, [isOnline, isTyping, lastFailedSend, offlineTitle, performSend]);
+  }, [isOnline, lastFailedSend, offlineTitle, performSend]);
 
-  const canRetryLastSend = lastFailedSend !== null && !isTyping;
+  const canRetryLastSend = lastFailedSend !== null && !isSending;
 
   const {
     confirmAndExecutePendingOperation,
@@ -656,13 +673,15 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   } = usePendingOperationExecution({ appendExecutionMessage });
 
   const handleBreakdownConfirmed = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   }, [queryClient]);
 
   return {
     flatListRef,
     messages,
     isTyping,
+    isSending,
+    streamingMessageId,
     sendError,
     selectedImage,
     imagePreview,

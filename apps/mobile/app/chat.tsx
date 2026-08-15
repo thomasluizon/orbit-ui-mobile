@@ -59,6 +59,8 @@ export default function ChatScreen() {
     flatListRef,
     messages,
     isTyping,
+    isSending,
+    streamingMessageId,
     sendError,
     retryLastSend,
     canRetryLastSend,
@@ -167,6 +169,7 @@ export default function ChatScreen() {
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}
+        isStreaming={item.id === streamingMessageId}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
         onUpgradeClick={() => router.push("/upgrade")}
@@ -182,6 +185,7 @@ export default function ChatScreen() {
       initialMessageIds,
       prepareStepUpForBubble,
       router,
+      streamingMessageId,
       verifyStepUpForBubble,
     ],
   );
@@ -263,7 +267,7 @@ export default function ChatScreen() {
           atMessageLimit={atMessageLimit}
           isRecording={isRecording}
           isTranscribing={isTranscribing}
-          isTyping={isTyping}
+          isTyping={isSending}
           selectedImagePresent={selectedImage !== null}
           selectedTextFileName={selectedTextFile?.name ?? null}
           selectedTextFilePresent={selectedTextFile !== null}

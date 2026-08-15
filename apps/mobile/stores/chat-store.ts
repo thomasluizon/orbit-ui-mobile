@@ -12,5 +12,6 @@ export const useChatStore = create<MobileChatStoreState>((set) => ({
     set({
       messages: [],
       isTyping: false,
+      streamingMessageId: null,
     }),
 }))

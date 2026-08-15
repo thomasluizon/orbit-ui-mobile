@@ -24,9 +24,9 @@ describe('shared chat store', () => {
     createStoreHarness()
   })
 
-  it('appends messages and toggles typing state', () => {
+  it('appends messages and tracks the active streamed message', () => {
     const store = createStoreHarness()
-    const { addMessage, setIsTyping } = store.getState()
+    const { addMessage, setIsTyping, setStreamingMessageId } = store.getState()
 
     addMessage({
       id: 'message-1',
@@ -35,9 +35,11 @@ describe('shared chat store', () => {
       timestamp: new Date('2026-04-06T00:00:00Z'),
     })
     setIsTyping(true)
+    setStreamingMessageId('message-1')
 
     expect(store.getState()).toMatchObject({
       isTyping: true,
+      streamingMessageId: 'message-1',
       messages: [
         expect.objectContaining({
           id: 'message-1',

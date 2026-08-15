@@ -12,5 +12,6 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
     set({
       messages: [],
       isTyping: false,
+      streamingMessageId: null,
     }),
 }))
