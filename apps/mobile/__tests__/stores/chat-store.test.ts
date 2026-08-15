@@ -6,6 +6,7 @@ describe('mobile chat store', () => {
     useChatStore.setState({
       messages: [],
       isTyping: false,
+      streamingMessageId: null,
     })
   })
 
@@ -36,6 +37,7 @@ describe('mobile chat store', () => {
         },
       ],
       isTyping: true,
+      streamingMessageId: 'message-1',
     })
 
     useChatStore.getState().clearMessages()
@@ -43,6 +45,7 @@ describe('mobile chat store', () => {
     expect(useChatStore.getState()).toMatchObject({
       messages: [],
       isTyping: false,
+      streamingMessageId: null,
     })
   })
 })

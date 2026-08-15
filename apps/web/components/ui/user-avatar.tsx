@@ -10,7 +10,7 @@ interface UserAvatarProps {
 
 /**
  * Generic initials avatar disc: a violet-tinted circle showing a person's initials, used for
- * friends and feed actors where no uploaded picture exists. Decorative — the name is rendered
+ * people without an uploaded picture. Decorative — the name is rendered
  * as text alongside it.
  */
 export function UserAvatar({ name, size = 44, className, style }: Readonly<UserAvatarProps>) {

@@ -33,9 +33,6 @@ export {
   validateApiResponse,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
-export { getSocialErrorKey } from './social-errors'
-export { resolveSocialTab } from './social-tabs'
-export type { SocialTab } from './social-tabs'
 export { stripInlineMarkdown } from './markdown'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'

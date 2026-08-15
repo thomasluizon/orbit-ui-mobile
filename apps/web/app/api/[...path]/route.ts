@@ -27,12 +27,27 @@ const ALLOWED_PREFIXES = [
   'checklist-templates/',
   'sync/',
   'habits/',
-  'friends/',
 ]
 
+const RETIRED_PROFILE_PATHS = new Set([
+  'profile/handle',
+  'profile/social-opt-in',
+  'profile/public',
+])
+
 function isAllowedPath(path: string): boolean {
+  const normalizedPath = path.toLowerCase()
+  if (
+    [...RETIRED_PROFILE_PATHS].some(
+      (retiredPath) =>
+        normalizedPath === retiredPath || normalizedPath.startsWith(`${retiredPath}/`)
+    )
+  ) {
+    return false
+  }
   return ALLOWED_PREFIXES.some(
-    (prefix) => path.startsWith(prefix) || path === prefix.slice(0, -1)
+    (prefix) =>
+      normalizedPath.startsWith(prefix) || normalizedPath === prefix.slice(0, -1)
   )
 }
 
@@ -51,6 +66,7 @@ function validatePath(path: string | undefined): string | null {
   if (
     path.includes('..') ||
     decoded.includes('..') ||
+    decoded.split('/').includes('.') ||
     path.includes('//') ||
     decoded.includes('//') ||
     path.includes('\\') ||
@@ -58,7 +74,7 @@ function validatePath(path: string | undefined): string | null {
   ) {
     return null
   }
-  if (!isAllowedPath(path)) return null
+  if (!isAllowedPath(decoded)) return null
   return path
 }
 

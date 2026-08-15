@@ -185,9 +185,7 @@ export {
   isValidVerificationCode,
   isVerificationCodeComplete,
   VERIFICATION_CODE_LENGTH,
-  resolveSocialTab,
 } from './utils/index'
-export type { SocialTab } from './utils/social-tabs'
 export * from './theme/index'
 export * from './api/index'
 export * from './chat/index'

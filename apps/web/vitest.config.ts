@@ -42,8 +42,6 @@ export default defineConfig({
         'app/(onboarding)/onboarding/page.tsx',
         'app/not-found.tsx',
         'app/(chat)/error.tsx',
-        'app/(app)/public-profile/page.tsx',
-        'app/(public)/u/[slug]/not-found.tsx',
         'components/motion/route-transition-shell.tsx',
         'components/navigation/navigation-history-tracker.tsx',
         'components/navigation/web-nav.tsx',

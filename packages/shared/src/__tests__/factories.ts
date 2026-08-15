@@ -5,12 +5,6 @@ import type { NotificationItem } from '../types/notification'
 import type { Achievement, GamificationProfile, Recap } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
-import type {
-  FriendSummary,
-  FriendRequestSummary,
-  Cheer,
-  FriendFeedItem,
-} from '../types/social'
 import type { SyncChangesV2Response } from '../types/sync'
 import type { RetrospectiveMetrics } from '../utils/retrospective'
 
@@ -237,61 +231,6 @@ export function createMockRecap(overrides: Partial<Recap> = {}): Recap {
     period: 'week',
     metrics: createMockRetrospectiveMetrics(),
     shareDeepLink: 'https://app.useorbit.org/r/ABC123?recap=week',
-    ...overrides,
-  }
-}
-
-
-export function createMockFriendSummary(overrides: Partial<FriendSummary> = {}): FriendSummary {
-  return {
-    userId: 'user-1',
-    handle: 'ada_lovelace',
-    displayName: 'Ada Lovelace',
-    currentStreak: 7,
-    ...overrides,
-  }
-}
-
-
-export function createMockCheer(overrides: Partial<Cheer> = {}): Cheer {
-  return {
-    id: 'cheer-1',
-    senderId: 'user-2',
-    recipientId: 'user-1',
-    habitId: 'habit-1',
-    note: 'Keep it up!',
-    createdAtUtc: '2026-01-01T00:00:00Z',
-    senderHandle: 'grace_h',
-    senderDisplayName: 'Grace Hopper',
-    ...overrides,
-  }
-}
-
-
-export function createMockFriendFeedItem(overrides: Partial<FriendFeedItem> = {}): FriendFeedItem {
-  return {
-    id: 'feed-1',
-    actorUserId: 'user-2',
-    actorHandle: 'grace_h',
-    actorDisplayName: 'Grace Hopper',
-    type: 'StreakMilestone',
-    value: 30,
-    achievementId: null,
-    createdAtUtc: '2026-01-01T00:00:00Z',
-    ...overrides,
-  }
-}
-
-
-export function createMockFriendRequestSummary(
-  overrides: Partial<FriendRequestSummary> = {},
-): FriendRequestSummary {
-  return {
-    id: 'friendship-1',
-    userId: 'user-3',
-    handle: 'katherine_j',
-    displayName: 'Katherine Johnson',
-    createdAtUtc: '2026-01-01T00:00:00Z',
     ...overrides,
   }
 }

@@ -46,7 +46,7 @@ describe('ExplorePage', () => {
     mockGamificationProfile = null
   })
 
-  it('renders the grouped sections with every feature row except Social', () => {
+  it('renders the grouped sections with every surviving feature row', () => {
     render(<ExplorePage />)
 
     expect(screen.getByText('explore.sections.discover')).toBeInTheDocument()
@@ -62,7 +62,6 @@ describe('ExplorePage', () => {
     expect(screen.getByText('profile.sections.aboutHelp')).toBeInTheDocument()
     expect(screen.getByText('profile.sections.advanced')).toBeInTheDocument()
 
-    expect(screen.queryByText('social.profileNav.title')).not.toBeInTheDocument()
   })
 
   it('describes every row with its hint line', () => {

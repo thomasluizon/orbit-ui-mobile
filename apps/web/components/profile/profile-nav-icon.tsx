@@ -4,11 +4,9 @@ import {
   CircleHelp,
   Compass,
   Gift,
-  Globe,
   Settings,
   Sparkles,
   Trophy,
-  Users,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
@@ -32,8 +30,6 @@ const ICON_BY_KEY: Record<ProfileNavIconKey, LucideIcon> = {
   info: CircleHelp,
   wrench: Wrench,
   compass: Compass,
-  friends: Users,
-  globe: Globe,
 }
 
 export function ProfileNavIcon({

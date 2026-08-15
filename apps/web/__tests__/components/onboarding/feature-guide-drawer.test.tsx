@@ -30,13 +30,12 @@ describe('FeatureGuideDrawer', () => {
     expect(screen.getByText('onboarding.featureGuide.title')).toBeInTheDocument()
   })
 
-  it('renders all nine tabs', () => {
+  it('renders all eight tabs', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByText('onboarding.featureGuide.astra')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.connect')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.social')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.habits')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.goals')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.calendar')).toBeInTheDocument()
@@ -68,7 +67,6 @@ describe('FeatureGuideDrawer', () => {
 
   it.each([
     { tab: 'connect', title: 'onboarding.featureGuide.connectSection.mcpTitle' },
-    { tab: 'social', title: 'onboarding.featureGuide.socialSection.optInTitle' },
     { tab: 'habits', title: 'onboarding.featureGuide.habitsSection.creatingTitle' },
     { tab: 'goals', title: 'onboarding.featureGuide.goalsSection.creatingTitle' },
     { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.colorsTitle' },
@@ -81,6 +79,19 @@ describe('FeatureGuideDrawer', () => {
     )
     fireEvent.click(screen.getByText(`onboarding.featureGuide.${tab}`))
     expect(document.body.textContent).toContain(title)
+  })
+
+  it('keeps milestone sharing and referrals in the rewards section', () => {
+    render(<FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('onboarding.featureGuide.rewards'))
+
+    expect(document.body.textContent).toContain(
+      'onboarding.featureGuide.rewardsSection.milestoneShareTitle',
+    )
+    expect(document.body.textContent).toContain(
+      'onboarding.featureGuide.rewardsSection.referralsTitle',
+    )
   })
 
   it('highlights active tab with aria-selected', () => {

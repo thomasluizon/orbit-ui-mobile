@@ -84,15 +84,27 @@ describe('i18n locale parity', () => {
     expect(mismatches).toEqual([])
   })
 
-  it('does not expose retired social translation groups', () => {
+  it('does not expose retired relationship translation groups', () => {
     const retiredRootKey = ['chall', 'enges'].join('')
-    const retiredSocialKey = ['budd', 'ies'].join('')
+    const removedRootKey = ['so', 'cial'].join('')
+    const removedProfileKey = ['public', 'Profile'].join('')
 
     for (const locale of [en, ptBR]) {
       const localeRecord = locale as Record<string, unknown>
-      const socialRecord = localeRecord.social as Record<string, unknown>
       expect(localeRecord).not.toHaveProperty(retiredRootKey)
-      expect(socialRecord).not.toHaveProperty(retiredSocialKey)
+      expect(localeRecord).not.toHaveProperty(removedRootKey)
+      expect(localeRecord.profile).not.toHaveProperty(removedProfileKey)
+      expect(localeRecord.nav).not.toHaveProperty(removedRootKey)
+      expect(
+        (localeRecord.onboarding as Record<string, Record<string, unknown>>).featureGuide,
+      ).not.toHaveProperty(removedRootKey)
+    }
+  })
+
+  it('keeps sharing and referral guide rows under rewards', () => {
+    for (const flat of [enFlat, ptFlat]) {
+      expect(flat.get('onboarding.featureGuide.rewardsSection.milestoneShareTitle')).toBeTruthy()
+      expect(flat.get('onboarding.featureGuide.rewardsSection.referralsTitle')).toBeTruthy()
     }
   })
 

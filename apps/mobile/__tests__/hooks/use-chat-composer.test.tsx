@@ -133,7 +133,27 @@ function sseStreamResponse(...frames: string[]) {
     ok: true,
     status: 200,
     body,
-    json: async () => null,
+    json: () => Promise.resolve(null),
+  }
+}
+
+function controlledSseStreamResponse() {
+  const encoder = new TextEncoder()
+  let streamController!: ReadableStreamDefaultController<Uint8Array>
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller
+    },
+  })
+  return {
+    response: {
+      ok: true,
+      status: 200,
+      body,
+      json: () => Promise.resolve(null),
+    },
+    enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
+    close: () => streamController.close(),
   }
 }
 
@@ -142,7 +162,7 @@ function httpErrorResponse(status: number, errorBody: { error?: string; errorCod
     ok: false,
     status,
     body: null,
-    json: async () => errorBody,
+    json: () => Promise.resolve(errorBody),
   }
 }
 
@@ -157,9 +177,10 @@ describe('mobile useChatComposer', () => {
     mocks.requestMediaLibraryPermissionsAsync.mockReset()
     mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
-    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.invalidateQueries.mockReset()
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ messages: [], isTyping: false })
+    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -185,6 +206,85 @@ describe('mobile useChatComposer', () => {
     })
     expect(useChatStore.getState().isTyping).toBe(false)
     expect(composer.current.canRetryLastSend).toBe(false)
+  })
+
+  it('rejects an overlapping send before a second request starts', async () => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+
+    let firstSend!: Promise<void>
+    await TestRenderer.act(() => {
+      firstSend = composer.current.sendMessage('first')
+      stream.enqueue(frame('{"type":"delta","text":"Working"}'))
+    })
+    await vi.waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('second')
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await firstSend
+    })
+
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().messages.filter((message) => message.role === 'user')).toHaveLength(1)
+  })
+
+  it('keeps a newer stream active when the finalized request finishes invalidating', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    const firstStream = controlledSseStreamResponse()
+    const secondStream = controlledSseStreamResponse()
+    mocks.openChatStream
+      .mockResolvedValueOnce(firstStream.response)
+      .mockResolvedValueOnce(secondStream.response)
+    const composer = await renderComposer()
+
+    let sendPromise!: Promise<void>
+    await TestRenderer.act(() => {
+      sendPromise = composer.current.sendMessage('finish this')
+      firstStream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
+      firstStream.enqueue(finalFrame(makeChatResponse({
+        aiMessage: 'Final list: [',
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      })))
+      firstStream.close()
+    })
+
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Final list: ['))
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
+    expect(composer.current.isSending).toBe(false)
+
+    let secondSendPromise!: Promise<void>
+    await TestRenderer.act(() => {
+      secondSendPromise = composer.current.sendMessage('start another')
+      secondStream.enqueue(frame('{"type":"delta","text":"Still [[or"}'))
+    })
+    await vi.waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+    const secondDraftId = useChatStore.getState().streamingMessageId
+
+    await TestRenderer.act(async () => {
+      resolveInvalidations()
+      await sendPromise
+    })
+    expect(useChatStore.getState().streamingMessageId).toBe(secondDraftId)
+
+    await TestRenderer.act(async () => {
+      secondStream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Second final' })))
+      secondStream.close()
+      await secondSendPromise
+    })
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {
@@ -435,7 +535,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.imagePreview).toBe('file:///pic.jpg')
     expect(composer.current.sendError).toBeNull()
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       composer.current.removeImage()
     })
     expect(composer.current.selectedImage).toBeNull()
@@ -502,7 +602,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBe('chat.fileSizeError')
     expect(composer.current.selectedTextFile).toBeNull()
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       composer.current.removeTextFile()
     })
     expect(composer.current.selectedTextFile).toBeNull()

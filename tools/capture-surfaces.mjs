@@ -30,12 +30,6 @@ as either ORBIT_AUTH_TOKEN (the auth_token cookie value) or a Playwright
 storageState file (--storage-state). There is no implicit session default: a
 wrong session silently captures 200 login screens.
 
-Optional: ORBIT_REFERRAL_PEER_TOKEN, the bearer of a second fixture account
-that is NOT a friend of the captured account. route-r-code resolves against
-its referral code instead of the captured account's own, so the surface shows
-the real invite-preview UI (inviter avatar/name/handle + send-request CTA)
-rather than the "this is your own invite link" self-invite edge case.
-
 Flags:
   --base-url        web origin (default: this worktree's assigned localhost port)
   --api-base        orbit-api origin (default http://localhost:5000)
@@ -156,11 +150,6 @@ const OPENERS = {
     await page.getByTestId("profile-tour-replay").click()
     await page.getByRole("dialog").waitFor({ state: "visible" })
   },
-  "overlay-edit-handle-sheet": async (page) => {
-    await gotoSameOrigin(page, "/social")
-    await page.getByTestId("edit-handle-open").click()
-    await page.getByRole("dialog").waitFor({ state: "visible" })
-  },
   "overlay-feature-guide-drawer": async (page) => {
     await gotoSameOrigin(page, "/about")
     await page.getByTestId("feature-guide-open").click()
@@ -192,32 +181,7 @@ const OPENERS = {
 // captured account, using the same bearer the harness already requires. A
 // resolver that gets no usable row returns null, which unreachableReason reports
 // honestly instead of silently skipping the surface (.claude/rules/visual-delivery.md rule 1).
-const DYNAMIC_ROUTE_RESOLVERS = {
-  "route-u-slug": async (apiBase, token) => {
-    const response = await fetch(`${apiBase}/api/profile`, {
-      headers: { authorization: `Bearer ${token}` },
-    })
-    if (!response.ok) return null
-    const profile = await response.json()
-    const slug = profile?.publicProfile?.enabled ? profile.publicProfile.slug : null
-    return slug ? `/u/${slug}` : null
-  },
-  // The captured account's OWN code always renders the self-invite edge case
-  // ("This is your own invite link"), never the real invite-preview UI a
-  // recipient sees. When a second fixture account's bearer is available (not
-  // a friend of the captured account), its code exercises the actual surface
-  // (inviter avatar/name/handle + send-request CTA) instead of the edge case.
-  "route-r-code": async (apiBase, token) => {
-    const peerToken = process.env.ORBIT_REFERRAL_PEER_TOKEN
-    const codeToken = peerToken ?? token
-    const response = await fetch(`${apiBase}/api/referrals/dashboard`, {
-      headers: { authorization: `Bearer ${codeToken}` },
-    })
-    if (!response.ok) return null
-    const dashboard = await response.json()
-    return dashboard?.code ? `/r/${dashboard.code}` : null
-  },
-}
+const DYNAMIC_ROUTE_RESOLVERS = {}
 
 async function resolveDynamicRouteHrefs(apiBase, token) {
   const resolved = new Map()
@@ -485,7 +449,11 @@ async function main() {
     return 2
   }
 
-  const inScope = manifest.cells.filter((cell) => !args.filter || cell.surfaceId.includes(args.filter))
+  const inScope = manifest.cells.filter(
+    (cell) =>
+      cell.pixelEvidence === "web-capture" &&
+      (!args.filter || cell.surfaceId.includes(args.filter)),
+  )
   if (inScope.length === 0) {
     process.stderr.write(`capture-surfaces: filter "${args.filter}" matched no cells.\n`)
     return 2

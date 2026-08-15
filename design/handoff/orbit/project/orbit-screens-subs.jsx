@@ -209,7 +209,7 @@ function SupportScreen({ scheme = "purple", dark = true, sent = false, error }) 
   );
 }
 
-function AISettingsScreen({ scheme = "purple", dark = true, isPro = false }) {
+function AISettingsScreen({ scheme = "purple", dark = true }) {
   return (
     <OrbitPhone scheme={scheme} dark={dark}>
       <AppBar back title="AI Settings" />
@@ -218,48 +218,9 @@ function AISettingsScreen({ scheme = "purple", dark = true, isPro = false }) {
         <SettingsRow label="Daily reflection prompts" accessory="none"><MonoToggle on /></SettingsRow>
         <div style={{ padding: "0 20px 14px", borderBottom: "1px solid var(--hairline)", fontFamily: "var(--font-sans)", fontSize: 13, fontStyle: "italic", color: "var(--fg-3)" }}>On the Today screen and in chat.</div>
 
-        <SectionLabel>Memory</SectionLabel>
-        <SettingsRow label="Remember facts you share" accessory="none"><MonoToggle on /></SettingsRow>
-        <div style={{ padding: "0 20px 14px", borderBottom: "1px solid var(--hairline)", fontFamily: "var(--font-sans)", fontSize: 13, fontStyle: "italic", color: "var(--fg-3)" }}>Orbit remembers a small set of facts you share.</div>
-
         <SectionLabel>Summary</SectionLabel>
         <SettingsRow label="AI summary on Today" accessory="none"><MonoToggle on={false} /></SettingsRow>
         <div style={{ padding: "0 20px 14px", borderBottom: "1px solid var(--hairline)", fontFamily: "var(--font-sans)", fontSize: 13, fontStyle: "italic", color: "var(--fg-3)" }}>A quiet line about today at the top of the screen.</div>
-
-        <SectionLabel trailing={isPro && <span style={{
-          fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-3)",
-          fontVariantNumeric: "tabular-nums",
-        }}>1 / 3 · <Icon name="chevron-left" size={12} color="var(--fg-3)" /> <Icon name="chevron-right" size={12} color="var(--fg-3)" /></span>}>
-          What Orbit knows
-        </SectionLabel>
-        {isPro ? (
-          <>
-            {[
-              ["PREFERENCE", "Reads literary fiction in the evenings."],
-              ["ROUTINE",    "Runs at 07:00 most weekdays."],
-              ["CONTEXT",    "Lives in São Paulo, time zone -03."],
-            ].map(([cat, fact]) => (
-              <div key={fact} style={{
-                padding: "12px 20px", borderBottom: "1px solid var(--hairline)",
-                display: "flex", flexDirection: "column", gap: 6,
-              }}>
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600,
-                  letterSpacing: "0.06em", color: "var(--fg-on-primary)",
-                  background: "var(--bg-elev)", padding: "2px 6px", borderRadius: 4,
-                  alignSelf: "flex-start", boxShadow: "inset 0 0 0 1px var(--hairline-strong)",
-                  color: "var(--fg-2)",
-                }}>{cat}</span>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ flex: 1, fontFamily: "var(--font-sans)", fontSize: 14, color: "var(--fg-1)" }}>{fact}</span>
-                  <Icon name="x" size={14} strokeWidth={1.6} color="var(--fg-4)" />
-                </div>
-              </div>
-            ))}
-          </>
-        ) : (
-          <div style={{ padding: "14px 20px" }}><LockedBlock /></div>
-        )}
       </div>
     </OrbitPhone>
   );
