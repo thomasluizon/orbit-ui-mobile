@@ -177,7 +177,8 @@ describe('mobile useChatComposer', () => {
     mocks.requestMediaLibraryPermissionsAsync.mockReset()
     mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
-    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.invalidateQueries.mockReset()
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
   })
@@ -228,6 +229,43 @@ describe('mobile useChatComposer', () => {
 
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
     expect(useChatStore.getState().messages.filter((message) => message.role === 'user')).toHaveLength(1)
+  })
+
+  it('ends streaming state before final-response invalidations settle', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+
+    let sendPromise!: Promise<void>
+    await TestRenderer.act(() => {
+      sendPromise = composer.current.sendMessage('finish this')
+      stream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
+      stream.enqueue(finalFrame(makeChatResponse({
+        aiMessage: 'Final list: [',
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      })))
+      stream.close()
+    })
+
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Final list: ['))
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
+    expect(composer.current.isSending).toBe(false)
+
+    await TestRenderer.act(async () => {
+      resolveInvalidations()
+      await sendPromise
+    })
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {

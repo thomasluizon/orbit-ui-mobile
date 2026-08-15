@@ -104,7 +104,8 @@ describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
-    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.invalidateQueries.mockReset()
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
     globalThis.localStorage.clear()
@@ -188,6 +189,43 @@ describe('web useChatComposer streaming send', () => {
       await sendPromise
     })
     expect(remountedComposer.result.current.streamingMessageId).toBeNull()
+  })
+
+  it('ends streaming state before final-response invalidations settle', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let sendPromise!: Promise<void>
+    act(() => {
+      sendPromise = result.current.sendMessage('finish this')
+      stream.enqueue(frame('{"type":"delta","text":"Working [[or"}'))
+      stream.enqueue(finalFrame(makeChatResponse({
+        aiMessage: 'Final list: [',
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      })))
+      stream.close()
+    })
+
+    await waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Final list: ['))
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
+    expect(result.current.isSending).toBe(false)
+
+    await act(async () => {
+      resolveInvalidations()
+      await sendPromise
+    })
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {

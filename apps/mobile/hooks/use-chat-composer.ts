@@ -392,6 +392,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         };
         addMessage(aiMessage);
       }
+      setStreamingMessageId(null);
 
       scrollToBottom();
 
@@ -437,6 +438,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       router,
       scrollToBottom,
       setIsTyping,
+      setStreamingMessageId,
       shouldRouteToUpgrade,
       updateMessage,
     ],

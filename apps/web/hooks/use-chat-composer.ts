@@ -309,6 +309,7 @@ export function useChatComposer() {
         ...finalFields,
       })
     }
+    setStreamingMessageId(null)
 
     scrollToBottom()
 
@@ -341,7 +342,7 @@ export function useChatComposer() {
       await invalidateAgentQueries(queryClient)
     }
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, updateMessage])
+  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, setStreamingMessageId, shouldRouteToUpgrade, updateMessage])
 
   useEffect(() => {
     const textarea = textareaRef.current
