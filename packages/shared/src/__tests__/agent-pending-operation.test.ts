@@ -12,9 +12,6 @@ describe('getAgentCapabilityLabelKey', () => {
     expect(getAgentCapabilityLabelKey('habits.delete')).toBe(
       'chat.pendingOp.capability.habits-delete',
     )
-    expect(getAgentCapabilityLabelKey('user-facts.delete')).toBe(
-      'chat.pendingOp.capability.user-facts-delete',
-    )
     expect(getAgentCapabilityLabelKey('account.manage')).toBe(
       'chat.pendingOp.capability.account-manage',
     )

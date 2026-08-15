@@ -143,38 +143,6 @@ describe('mobile offline queue', () => {
     expect(withTransactionSyncMock).toHaveBeenCalled()
   })
 
-  it('ignores the deleted user-facts scope when reading a persisted legacy deletion', () => {
-    storedRows.set('legacy-fact-delete', {
-      id: 'legacy-fact-delete',
-      timestamp: 1_723_650_000_000,
-      type: 'deleteUserFact',
-      endpoint: '/api/user-facts/fact-1',
-      method: 'DELETE',
-      payload: 'null',
-      retries: 0,
-      max_retries: 3,
-      meta: JSON.stringify({
-        scope: 'userFacts',
-        entityType: 'userFact',
-        status: 'pending',
-        dedupeKey: null,
-        targetEntityId: 'fact-1',
-        clientEntityId: null,
-        dependsOn: [],
-        lastError: null,
-      }),
-    })
-
-    const legacyMutation = getAll()[0]
-
-    expect(legacyMutation).toMatchObject({
-      id: 'legacy-fact-delete',
-      endpoint: '/api/user-facts/fact-1',
-      method: 'DELETE',
-      scope: undefined,
-    })
-  })
-
   it('merges updates into a pending create mutation for the same temp entity', () => {
     enqueue(makeMutation({
       id: 'create-1',

@@ -875,7 +875,6 @@
         "tags-delete": "Excluir tags",
         "notifications-delete": "Excluir notificações",
         "calendar-sync-manage": "Gerenciar sincronização de agenda",
-        "user-facts-delete": "Excluir memórias da IA",
         "subscriptions-manage": "Gerenciar assinatura",
         "api-keys-manage": "Gerenciar chaves de API",
         "sync-write": "Gravar dados de sincronização",
@@ -1177,7 +1176,7 @@
       "warning": "Esta ação não tem volta.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
       "warningPro": "Sua conta será desativada e apagada de vez 7 dias depois de o seu plano expirar, em {date}. Entre de novo antes disso para cancelar.",
-      "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Vamos enviar um código de confirmação para o seu e-mail.",
+      "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
       "sending": "Enviando...",
       "codeInstructions": "Digite o código de 6 dígitos que enviamos ao seu e-mail para confirmar a desativação da conta.",
@@ -1339,7 +1338,7 @@
       "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
-      "preferences": "Preferências: idioma, fuso horário, cor do tema, configurações de notificação e o que você ensina para a memória da IA",
+      "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
       "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes), o identificador de publicidade do seu dispositivo (usado pelo Google AdMob para exibir anúncios a usuários gratuitos) e diagnósticos de falhas com identificadores pessoais removidos"
     },
     "howWeUse": {
@@ -1375,7 +1374,7 @@
       "intro": "Guardamos seus dados só pelo tempo necessário para oferecer o serviço:",
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
       "sessions": "Sessões de autenticação e tokens de push: guardados enquanto estão ativos e removidos quando você sai, quando o token expira ou quando o aparelho é desinscrito.",
-      "ai": "Histórico do chat com a IA e a memória dela: guardados enquanto os recursos de IA estiverem ativos; excluir sua conta ou limpar a memória da IA remove tudo isso.",
+      "ai": "Histórico do chat com a IA: guardado enquanto os recursos de IA estiverem ativos e removido quando você exclui sua conta.",
       "reminderHistory": "Registros de lembretes enviados, alertas de deslize e congelamentos de sequência: guardados por 90 dias a partir da data do registro.",
       "syncRecords": "Registros excluídos mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
       "calendarSuggestions": "Sugestões de importação do Google Agenda que você não importa: guardadas por 14 dias.",
@@ -1403,7 +1402,7 @@
     },
     "export": {
       "title": "Seu direito de exportar os dados",
-      "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags, a memória da IA e as configurações) em um arquivo JSON, na página de Perfil, de acordo com o seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
+      "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags e configurações) em um arquivo JSON, na página de Perfil, de acordo com o seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
     },
     "deletion": {
       "title": "Exclusão de dados",
@@ -1411,7 +1410,7 @@
       "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
       "step2": "2. Enviamos um código de confirmação para o seu e-mail",
       "step3": "3. Digite o código para confirmar a exclusão",
-      "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
+      "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA e configurações. Esta ação não tem volta."
     },
     "contact": {
       "title": "Contato",
@@ -2911,7 +2910,7 @@
     },
     "data": {
       "title": "O que é excluído",
-      "body": "A exclusão remove seus hábitos, o histórico de conclusão, as metas, as tags, as conversas e a memória da IA, as configurações e o perfil da conta. Depois do fim do período de carência, esta ação não tem volta."
+      "body": "A exclusão remove seus hábitos, o histórico de conclusão, as metas, as tags, as conversas, as configurações e o perfil da conta. Depois do fim do período de carência, esta ação não tem volta."
     }
   },
   "dataExport": {
