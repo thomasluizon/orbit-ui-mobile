@@ -335,10 +335,11 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .otp{display:flex;gap:var(--s-2)}
 .otp span{width:44px;height:56px;border-radius:var(--r-well);background:var(--bg-field);box-shadow:inset 0 0 0 1px var(--border-control);display:grid;place-items:center;font-family:var(--font-mono);font-size:24px;color:var(--fg-1)}
 .otp span.on{box-shadow:inset 0 0 0 2px var(--primary)}
-.sw-toggle{width:48px;height:28px;border-radius:var(--r-pill);background:var(--bg-elev-2);position:relative;cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard);flex:0 0 auto}
+.sw-toggle{width:48px;height:28px;border:0;padding:0;border-radius:var(--r-pill);background:var(--bg-elev-2);position:relative;cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard);flex:0 0 auto}
 .sw-toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:var(--r-pill);background:var(--fg-1);transition:translate var(--dur-fast) var(--ease-out)}
 .sw-toggle.on{background:var(--primary)}
 .sw-toggle.on::after{translate:20px 0}
+.sw-toggle:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
 
 /* the rest of the kit */
@@ -776,8 +777,8 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       </div>
       <div class="tile stack">
         <span class="note">Switch, labelled for its ON state</span>
-        <div class="hstack" style="justify-content:space-between"><span style="font-size:var(--fs-sm)">Enviar lembretes</span><div class="sw-toggle on" role="switch" aria-checked="true" tabindex="0"></div></div>
-        <div class="hstack" style="justify-content:space-between"><span style="font-size:var(--fs-sm)">Resumo semanal</span><div class="sw-toggle" role="switch" aria-checked="false" tabindex="0"></div></div>
+        <div class="hstack" style="justify-content:space-between"><span id="sw1l" style="font-size:var(--fs-sm)">Enviar lembretes</span><button class="sw-toggle on" role="switch" aria-checked="true" aria-labelledby="sw1l"></button></div>
+        <div class="hstack" style="justify-content:space-between"><span id="sw2l" style="font-size:var(--fs-sm)">Resumo semanal</span><button class="sw-toggle" role="switch" aria-checked="false" aria-labelledby="sw2l"></button></div>
       </div>
     </div>
 
@@ -873,11 +874,11 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         </div>
       </div>
       <div class="tile stack">
-        <span class="note">ProgressRing: a true circle with a sweep over a track, which is why the logo is a tilted ellipse instead</span>
+        <span class="note">ProgressRing: a true circle with a sweep over a track, which is why the logo is a tilted ellipse instead. At 100% the sweep goes neutral, because the accent marks what is unfinished and never what is complete</span>
         <div class="marks">
           <div class="markbox"><svg width="72" height="72" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="37.0" transform="rotate(-90 18 18)"/></svg><span class="marklabel">62%</span></div>
           <div class="markbox"><svg width="72" height="72" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="97.4" transform="rotate(-90 18 18)"/></svg><span class="marklabel">0%</span></div>
-          <div class="markbox"><svg width="48" height="48" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="0.0" transform="rotate(-90 18 18)"/></svg><span class="marklabel">100%</span></div>
+          <div class="markbox"><svg width="48" height="48" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--status-done)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="0.0" transform="rotate(-90 18 18)"/></svg><span class="marklabel">100%, neutral</span></div>
         </div>
       </div>
     </div>
@@ -909,17 +910,17 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 
     <div class="grid g3">
       <div class="stack">
-        <span class="note">InfoCard, quiet and accent tones</span>
+        <span class="note">InfoCard. The accent tone is a focal call-out, which is the accent's selected-state role.</span>
         <div class="infocard quiet"><div class="ic" style="color:var(--fg-3)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-2)">Habitos arquivados nao contam para o limite.</p></div>
         <div class="infocard accent"><div class="ic" style="color:var(--primary-soft)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-1)">Astra pode criar varios habitos de uma vez.</p></div>
       </div>
       <div class="stack">
-        <span class="note">PlanCard, exactly one marked recommended</span>
+        <span class="note">PlanCard. The tint and ring on the chosen plan are a selected state, not decoration.</span>
         <div class="plancard"><span style="font-size:var(--fs-sm);color:var(--fg-2)">Mensal</span><span class="p">R$ 29,90</span></div>
         <div class="plancard sel"><div class="hstack" style="justify-content:space-between"><span style="font-size:var(--fs-sm)">Anual</span><span class="badge">2 MESES GRATIS</span></div><span class="p">R$ 199,00</span></div>
       </div>
       <div class="stack" style="align-items:center;text-align:center">
-        <span class="note" style="align-self:flex-start">Satellite, the empty half of the state triad</span>
+        <span class="note" style="align-self:flex-start">Satellite, the empty half of the state triad. Its single accent arc is the invitation to act, a next-action role.</span>
         <svg class="satellite" viewBox="0 0 96 96" fill="none" aria-hidden="true"><ellipse cx="48" cy="48" rx="38" ry="20" transform="rotate(-24 48 48)" stroke="var(--fg-4)" stroke-width="2"/><ellipse cx="48" cy="48" rx="38" ry="20" transform="rotate(52 48 48)" stroke="var(--fg-4)" stroke-width="2"/><path d="M 48 10 A 38 38 0 0 1 82 44" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"/><circle cx="48" cy="48" r="6" fill="var(--fg-3)"/></svg>
         <p style="font-weight:500">Nenhuma meta ainda</p>
         <button class="pill sm">Criar meta</button>
@@ -990,6 +991,13 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 </div>
 
 <script>
+for (const sw of document.querySelectorAll('.sw-toggle')) {
+  sw.addEventListener('click', () => {
+    const on = sw.getAttribute('aria-checked') !== 'true';
+    sw.setAttribute('aria-checked', String(on));
+    sw.classList.toggle('on', on);
+  });
+}
 for (const id of ['mode','hue']) {
   const seg = document.getElementById('seg-' + id);
   seg.addEventListener('click', (e) => {

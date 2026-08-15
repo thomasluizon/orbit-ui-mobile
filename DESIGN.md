@@ -214,7 +214,16 @@ Consequences that hold either way:
 - **A selected state may carry the accent on its glyph and label**, because selection is a live position rather than a finished one. **Completion is not selection**: a done row never takes the accent.
 - A future accent change re-measures all three floors. It never eyeballs them.
 
-**Accent rationing.** The accent appears on: the active tab, active nav, progress toward something unfinished, the primary CTA, the FAB, and **one element inside the logo mark**. That is the whole list. **It never marks completion.** It is **never** decorative on a card, a row, a border, a heading, a static badge or chip, an icon that is not communicating state, or a count of what has already happened. A streak total is a record, not a next action, so it takes no accent. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
+**Accent rationing.** The accent takes exactly **four roles**, and nothing outside them. The list is stated as roles rather than as components, because a component list reads as exhaustive and then silently contradicts the primitives table.
+
+| role | where it lands |
+|---|---|
+| **The next action** | the primary CTA, the FAB, an empty state's invitation arc |
+| **Current position** | the active tab, active nav, a selected card or option including its tint and ring, a focused field's ring |
+| **Progress toward something unfinished** | a progress bar or ring that has not completed |
+| **Identity** | one element inside the logo mark, and only there |
+
+**It never marks completion.** A progress ring at 100% goes neutral, a done row is neutral, and a streak total is a record rather than a next action. It is **never** decorative on a card, a row, a border, a heading, a static badge or chip, or an icon that is not communicating state. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
 
 **One colour, one meaning, in both directions.** Treat two hues within 15 degrees as the same colour. A status hue inside that band of the accent must move or be retired. Equally, an interactive element rendered neutral is as misleading as a static element rendered in the accent.
 
