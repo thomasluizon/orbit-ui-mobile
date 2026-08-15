@@ -37,11 +37,23 @@ jobs:
       - name: Skip when the integration branch does not exist
         id: exists
         run: |
-          if git ls-remote --exit-code --heads origin redesign/main >/dev/null 2>&1; then
+          # `git ls-remote --exit-code` returns 2 for "no matching ref" but 128 for an auth or
+          # transport failure. Collapsing every nonzero into "absent" would let an unreachable
+          # remote finish this job green, which is a verifier error reported as a clean pass.
+          # Only 2 means absent; anything else is unknown, and unknown fails loudly.
+          set +e
+          probe=$(git ls-remote --exit-code --heads origin redesign/main 2>&1)
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "$rc" -eq 2 ]; then
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "redesign/main does not exist yet; nothing to keep in sync."
+          else
+            echo "::error::git ls-remote failed with status $rc, so the state of redesign/main is unknown. Refusing to treat that as absent."
+            echo "$probe"
+            exit 1
           fi
 
       - name: Merge main into redesign/main
