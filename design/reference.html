@@ -343,6 +343,31 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .sw-toggle.on{background:var(--primary)}
 .sw-toggle.on::after{translate:20px 0}
 
+
+/* the rest of the kit */
+.navheader{height:56px;display:flex;align-items:center;justify-content:space-between;padding-inline:var(--s-4);border-bottom:1px solid var(--hairline)}
+.navheader .t{font-family:var(--font-mono);font-size:13px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-1)}
+.navheader .b{width:44px;height:44px;border-radius:var(--r-pill);display:grid;place-items:center;color:var(--fg-2);cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard)}
+.sectiontitle{font-size:var(--fs-lg);font-weight:500;letter-spacing:-.01em}
+.sgroup{border-radius:var(--r-card);overflow:hidden;background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline)}
+.sgroup .row{min-height:var(--row-h-compact);padding-block:var(--s-3)}
+.stattile{background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline);padding:var(--s-4);display:flex;flex-direction:column;gap:var(--s-2)}
+.stattile .v{font-family:var(--font-display);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.stattile .l{font-size:var(--fs-sm);color:var(--fg-2);line-height:1.3}
+.infocard{border-radius:var(--r-card);padding:var(--s-4);display:flex;gap:var(--s-3);align-items:flex-start}
+.infocard.quiet{background:var(--bg-elev)}
+.infocard.accent{background:var(--primary-dim)}
+.infocard .ic{width:24px;height:24px;flex:0 0 auto;display:grid;place-items:center;font-size:13px}
+.plancard{border-radius:var(--r-card);padding:var(--s-5);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline);display:flex;flex-direction:column;gap:var(--s-2)}
+.plancard.sel{background:var(--primary-dim);box-shadow:inset 0 0 0 1.5px var(--primary)}
+.plancard .p{font-family:var(--font-display);font-size:22px;font-weight:600}
+.fabrow{position:relative;height:130px;border-radius:var(--r-card);background:var(--bg);box-shadow:inset 0 0 0 1px var(--hairline);overflow:hidden}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:62px;border-top:1px solid var(--hairline);background:var(--bg);display:flex;align-items:center;justify-content:space-around;font-family:var(--font-sans);font-size:11px;color:var(--fg-4)}
+.tabbar .on{color:var(--primary-soft)}
+.fab{position:absolute;right:var(--s-4);bottom:44px;width:60px;height:60px;border-radius:var(--r-pill);background:var(--primary);color:var(--fg-on-primary);border:0;display:grid;place-items:center;font-size:26px;cursor:pointer;box-shadow:0 0 0 6px var(--bg);transition:background-color var(--dur-fast) var(--ease-standard)}
+.fab:hover{background:var(--primary-hover)}
+.satellite{width:96px;height:96px}
+
 /* misc */
 .warm{background:var(--bg-card);border-radius:var(--r-card);padding:var(--s-7);text-align:center;box-shadow:inset 0 0 0 1px var(--hairline)}
 .warm-h{font-family:var(--font-display);font-size:var(--fs-3xl);line-height:1.05;letter-spacing:-.02em;margin-bottom:var(--s-3)}
@@ -885,6 +910,77 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
             <div class="ovl-foot"><button class="pill ghost sm">Cancelar</button><button class="pill destructive sm">Recomeçar</button></div>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ================= THE REST OF THE KIT ================= -->
+  <section class="sec">
+    <div class="sec-h"><span class="sec-n">08</span><h2 class="sec-t">The rest of the kit</h2></div>
+    <p class="lede">The primitives the accent actually lands on, so a rationed accent is judged on the
+      surfaces that carry it rather than on a swatch. The FAB, the active tab and progress toward something
+      unfinished are three of the six sanctioned places.</p>
+
+    <div class="grid g2" style="margin-bottom:var(--s-6)">
+      <div class="tile stack">
+        <span class="note">TabBar and FAB, two of the six sanctioned accent surfaces</span>
+        <div class="fabrow">
+          <button class="fab" aria-label="Criar habito">+</button>
+          <div class="tabbar"><span class="on">Hoje</span><span>Metas</span><span>Astra</span><span>Perfil</span></div>
+        </div>
+      </div>
+      <div class="tile stack">
+        <span class="note">ProgressRing: a true circle with a sweep over a track, which is why the logo is a tilted ellipse instead</span>
+        <div class="marks">
+          <div class="markbox"><svg width="72" height="72" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="37.0" transform="rotate(-90 18 18)"/></svg><span class="marklabel">62%</span></div>
+          <div class="markbox"><svg width="72" height="72" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="97.4" transform="rotate(-90 18 18)"/></svg><span class="marklabel">0%</span></div>
+          <div class="markbox"><svg width="48" height="48" viewBox="0 0 36 36" fill="none" aria-hidden="true"><circle cx="18" cy="18" r="15.5" stroke="var(--status-empty)" stroke-width="3"/><circle cx="18" cy="18" r="15.5" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="0.0" transform="rotate(-90 18 18)"/></svg><span class="marklabel">100%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-bottom:var(--s-6)">
+      <div class="stack">
+        <span class="note">NavHeader and SectionTitle</span>
+        <div class="tile" style="padding:0;overflow:hidden">
+          <div class="navheader"><div class="b">‹</div><span class="t">Configuracoes</span><div class="b">?</div></div>
+          <div style="padding:var(--s-4)"><p class="sectiontitle">Notificacoes</p></div>
+        </div>
+      </div>
+      <div class="stack">
+        <span class="note">SettingsGroup owns the rule between rows, and never after the last</span>
+        <div class="sgroup">
+          <div class="row"><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Idioma</p></div><span class="mono" style="color:var(--fg-3)">pt-BR</span></div>
+          <div class="row"><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Tema</p></div><span class="mono" style="color:var(--fg-3)">Escuro</span></div>
+          <div class="row"><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Fuso</p></div><span class="mono" style="color:var(--fg-3)">GMT-3</span></div>
+        </div>
+      </div>
+      <div class="stack">
+        <span class="note">StatTile</span>
+        <div class="grid g2" style="gap:var(--s-3)">
+          <div class="stattile"><span class="v">12</span><span class="l">Sequencia</span></div>
+          <div class="stattile"><span class="v">4/6</span><span class="l">Hoje</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="stack">
+        <span class="note">InfoCard, quiet and accent tones</span>
+        <div class="infocard quiet"><div class="ic" style="color:var(--fg-3)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-2)">Habitos arquivados nao contam para o limite.</p></div>
+        <div class="infocard accent"><div class="ic" style="color:var(--primary-soft)">i</div><p style="font-size:var(--fs-sm);color:var(--fg-1)">Astra pode criar varios habitos de uma vez.</p></div>
+      </div>
+      <div class="stack">
+        <span class="note">PlanCard, exactly one marked recommended</span>
+        <div class="plancard"><span style="font-size:var(--fs-sm);color:var(--fg-2)">Mensal</span><span class="p">R$ 29,90</span></div>
+        <div class="plancard sel"><div class="hstack" style="justify-content:space-between"><span style="font-size:var(--fs-sm)">Anual</span><span class="badge">2 MESES GRATIS</span></div><span class="p">R$ 199,00</span></div>
+      </div>
+      <div class="stack" style="align-items:center;text-align:center">
+        <span class="note" style="align-self:flex-start">Satellite, the empty half of the state triad</span>
+        <svg class="satellite" viewBox="0 0 96 96" fill="none" aria-hidden="true"><ellipse cx="48" cy="48" rx="38" ry="20" transform="rotate(-24 48 48)" stroke="var(--fg-4)" stroke-width="2"/><ellipse cx="48" cy="48" rx="38" ry="20" transform="rotate(52 48 48)" stroke="var(--fg-4)" stroke-width="2"/><path d="M 48 10 A 38 38 0 0 1 82 44" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"/><circle cx="48" cy="48" r="6" fill="var(--fg-3)"/></svg>
+        <p style="font-weight:500">Nenhuma meta ainda</p>
+        <button class="pill sm">Criar meta</button>
       </div>
     </div>
   </section>
