@@ -64,8 +64,6 @@
 
   --p-scrim:rgba(0,0,0,0.55);
   --p-transparent:rgba(0,0,0,0);
-  --p-sel:rgba(0,188,238,0.32);
-  --p-l-sel:rgba(0,128,164,0.18);
 
   /* --- semantics: dark, space blue, dark fill ------------------------- */
   --bg:var(--p-canvas);
@@ -104,7 +102,8 @@
   --fg-on-bad:var(--p-on-status);
   --fg-on-overdue:var(--p-on-status);
   --scrim:var(--p-scrim);
-  --selection-bg:var(--p-sel);
+  --sel-alpha:0.32;
+  --selection-bg:rgba(var(--hue-rgb), var(--sel-alpha));
 
   /* --- type ---------------------------------------------------------- */
   --font-sans:'Geist Sans',system-ui,sans-serif;
@@ -118,9 +117,13 @@
   --s-6:32px; --s-7:48px; --s-8:64px; --s-9:96px;
   --pad-card:var(--s-5);   /* a card breathes: 24, not 16 */
   --pad-row:var(--s-4);
+  --row-h:68px;        /* the habit row, and a family's parent row */
+  --row-h-compact:52px;/* a settings row and a plain list row */
 
   /* --- radius -------------------------------------------------------- */
   --r-chip:8px; --r-well:12px; --r-md:16px; --r-card:20px; --r-sheet:28px; --r-pill:999px;
+  /* the platform icon mask is set by iOS and Android, not by this scale. The only exception. */
+  --r-platform-icon:22px; --r-platform-icon-lg:44px; --r-platform-icon-sm:13px;
 
   /* --- motion -------------------------------------------------------- */
   --dur-fast:240ms;    /* a small control: button, chip, icon */
@@ -143,7 +146,7 @@
   --fg-1:var(--p-l-fg1); --fg-2:var(--p-l-fg2); --fg-3:var(--p-l-fg3); --fg-4:var(--p-l-fg4);
   --primary-soft:var(--hue-lmtext);
   --status-overdue:var(--p-l-overdue); --status-bad:var(--p-l-bad); --fg-on-bad:var(--p-l-on-bad);
-  --selection-bg:var(--p-l-sel);
+  --sel-alpha:0.18;
 }
 [data-hue="emerald"]{--hue-dark:var(--p-emerald-dark); --hue-text:var(--p-emerald-text); --hue-rgb:var(--p-emerald-rgb); --hue-lmtext:var(--p-emerald-lmtext)}
 [data-hue="orange"] {--hue-dark:var(--p-orange-dark); --hue-text:var(--p-orange-text); --hue-rgb:var(--p-orange-rgb); --hue-lmtext:var(--p-orange-lmtext)}
@@ -221,7 +224,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .panel{background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:var(--pad-card)}
 .tile{background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline);padding:var(--pad-card)}
 .note{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);line-height:1.5}
-.ok{color:var(--primary-soft)}
+.ok{color:var(--fg-2)}
 .bad{color:var(--status-bad)}
 
 /* swatches */
@@ -245,20 +248,24 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* badge: chip radius, never a pill */
-.badge{display:inline-flex;align-items:center;height:22px;padding-inline:8px;border-radius:var(--r-chip);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;background:var(--primary-dim);color:var(--primary-soft)}
+.badge{display:inline-flex;align-items:center;height:22px;padding-inline:8px;border-radius:var(--r-chip);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;background:var(--bg-elev-2);color:var(--fg-2)}
 .badge.outline{background:var(--p-transparent);box-shadow:inset 0 0 0 1px var(--hairline-strong);color:var(--fg-2)}
 .badge.pillshape{border-radius:var(--r-pill)}
 
 /* rows */
 .rows{border-radius:var(--r-card);overflow:hidden;background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)}
-.row{display:flex;align-items:center;gap:var(--s-3);padding:var(--pad-row);min-height:68px;cursor:pointer}
+.row{display:flex;align-items:center;gap:var(--s-3);padding:var(--pad-row);min-height:var(--row-h);cursor:pointer}
+.row.compact{min-height:var(--row-h-compact);padding-block:var(--s-3)}
 .row+.row{box-shadow:inset 0 1px 0 var(--hairline)}
 .row-well{width:46px;height:46px;border-radius:var(--r-well);background:var(--bg-well);display:grid;place-items:center;font-size:22px;flex:0 0 auto}
 .row-body{min-width:0;flex:1}
 .row-t{font-size:var(--fs-base);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row-m{font-family:var(--font-mono);font-size:13px;color:var(--fg-3);letter-spacing:.02em}
 .ring{width:30px;height:30px;border-radius:var(--r-pill);flex:0 0 auto;box-shadow:inset 0 0 0 2px var(--status-empty)}
-.ring.done{background:var(--status-done);box-shadow:none;display:grid;place-items:center}
+.ring{display:grid;place-items:center;font-size:13px;line-height:1;font-family:var(--font-sans)}
+.ring.done{background:var(--status-done);box-shadow:none}
+.ring.frozen{box-shadow:inset 0 0 0 2px var(--status-frozen);color:var(--status-frozen)}
+.ring.overdue{box-shadow:inset 0 0 0 2px var(--status-overdue);color:var(--status-overdue)}
 .ring.done::after{content:"";width:11px;height:6px;border-left:2.4px solid var(--bg);border-bottom:2.4px solid var(--bg);transform:rotate(-45deg) translate(1px,-2px)}
 
 /* shells */
@@ -306,23 +313,42 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 .marks{display:flex;align-items:center;gap:var(--s-5);flex-wrap:wrap}
 .markbox{display:flex;flex-direction:column;align-items:center;gap:6px}
 .marklabel{font-family:var(--font-mono);font-size:10px;color:var(--fg-4);letter-spacing:.06em}
-.storetile{width:96px;height:96px;border-radius:22px;background:var(--bg);display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--hairline)}
-.storetile.lg{width:200px;height:200px;border-radius:44px}
-.storetile.sm{width:56px;height:56px;border-radius:13px}
+.storetile{width:96px;height:96px;border-radius:var(--r-platform-icon);background:var(--bg);display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--hairline)}
+.storetile.lg{width:200px;height:200px;border-radius:var(--r-platform-icon-lg)}
+.storetile.sm{width:56px;height:56px;border-radius:var(--r-platform-icon-sm)}
 
-.lockup{display:flex;align-items:center;gap:10px}
-.wordmark{font-family:var(--font-display);font-weight:600;font-size:26px;letter-spacing:-.02em;color:var(--fg-1)}
+.lockup{display:flex;align-items:center;gap:12px}
+.wordmark{font-family:var(--font-display);font-weight:600;font-size:22px;letter-spacing:-.02em;line-height:1.05;color:var(--fg-1)}
 .miniapp{border-radius:var(--r-card);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:var(--s-4);display:flex;flex-direction:column;gap:var(--s-3)}
 .minirow{display:flex;align-items:center;gap:var(--s-3)}
-.minitab{display:flex;gap:var(--s-4);padding-top:var(--s-3);border-top:1px solid var(--hairline);font-family:var(--font-mono);font-size:11px;color:var(--fg-4);letter-spacing:.06em}
+.minitab{display:flex;gap:var(--s-4);padding-top:var(--s-3);border-top:1px solid var(--hairline);font-family:var(--font-sans);font-size:11px;color:var(--fg-4)}
 .minitab .on{color:var(--primary-soft)}
+
+
+/* form primitives */
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)}
+.field input{min-height:54px;border-radius:var(--r-well);background:var(--bg-field);border:0;box-shadow:inset 0 0 0 1px var(--border-control);color:var(--fg-1);font-family:var(--font-sans);font-size:var(--fs-base);padding-inline:var(--s-4);transition:box-shadow var(--dur-fast) var(--ease-standard)}
+.field input::placeholder{color:var(--fg-4)}
+.field input:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--primary)}
+.field input[aria-invalid="true"]{box-shadow:inset 0 0 0 2px var(--status-bad)}
+.field input:disabled{opacity:.4;cursor:not-allowed}
+.field .msg{font-size:var(--fs-sm);color:var(--status-bad);display:flex;align-items:center;gap:6px}
+.field .msg::before{content:"";width:14px;height:14px;border-radius:var(--r-pill);background:var(--status-bad);flex:0 0 auto}
+.otp{display:flex;gap:var(--s-2)}
+.otp span{width:44px;height:56px;border-radius:var(--r-well);background:var(--bg-field);box-shadow:inset 0 0 0 1px var(--border-control);display:grid;place-items:center;font-family:var(--font-mono);font-size:24px;color:var(--fg-1)}
+.otp span.on{box-shadow:inset 0 0 0 2px var(--primary)}
+.sw-toggle{width:48px;height:28px;border-radius:var(--r-pill);background:var(--bg-elev-2);position:relative;cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard);flex:0 0 auto}
+.sw-toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:var(--r-pill);background:var(--fg-1);transition:translate var(--dur-fast) var(--ease-out)}
+.sw-toggle.on{background:var(--primary)}
+.sw-toggle.on::after{translate:20px 0}
 
 /* misc */
 .warm{background:var(--bg-card);border-radius:var(--r-card);padding:var(--s-7);text-align:center;box-shadow:inset 0 0 0 1px var(--hairline)}
 .warm-h{font-family:var(--font-display);font-size:var(--fs-3xl);line-height:1.05;letter-spacing:-.02em;margin-bottom:var(--s-3)}
 .xp-bar{height:8px;border-radius:var(--r-pill);background:var(--fg-4);overflow:hidden}
 .xp-fill{height:100%;width:62%;background:var(--primary);transition:width var(--dur-enter) var(--ease-out)}  /* progress toward something UNFINISHED keeps the accent */
-.spacer-demo{background:var(--primary-dim);border-radius:4px}
+.spacer-demo{background:var(--bg-elev-2);border-radius:4px}
 .hoverbox{padding:var(--s-5);border-radius:var(--r-card);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline);cursor:pointer}
 </style>
 </head>
@@ -379,13 +405,13 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <span class="note">Ring, done state, progress</span>
         <div class="hstack">
           <div class="ring done"></div><div class="ring"></div>
-          <div class="xp-bar" style="width:120px"><div class="xp-fill"></div></div>
+          <div class="xp-bar" style="width:var(--s-9)"><div class="xp-fill"></div></div>
         </div>
         <span class="note">Graphic use. Floor is 3:1 on the canvas.</span>
       </div>
       <div class="tile stack">
         <span class="note">Accent text, tint, chip</span>
-        <p style="color:var(--primary-soft);font-weight:500">7 day streak</p>
+        <p style="font-weight:500">7 day streak</p><span class="note">A record of what is finished, so it takes no accent.</span>
         <div class="hstack"><span class="badge">PRO</span><a class="lnk" href="#01">A link, hover it</a></div>
       </div>
     </div>
@@ -399,7 +425,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
           <div class="row"><div class="row-well">🏃</div><div class="row-body"><p class="row-t">Correr</p><p class="row-m">18:30 &middot; 3 dias</p></div><div class="ring"></div></div>
           <div class="row"><div class="row-well">📖</div><div class="row-body"><p class="row-t">Ler 20 páginas</p><p class="row-m">22:00</p></div><div class="ring"></div></div>
         </div>
-        <div style="margin-top:var(--s-5)"><button class="pill" style="width:100%">Registrar tudo</button></div>
+        <div style="margin-top:var(--s-5)"><button class="pill">Registrar</button></div>
       </div>
       <div style="flex:1;min-width:320px" class="stack">
         <div class="tile">
@@ -471,7 +497,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <div class="tile stack">
           <span class="note">Astra must never read as the logo</span>
           <div class="marks">
-            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--primary-soft)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--primary)"/><circle cx="12" cy="12" r="2.4" fill="var(--primary)"/></svg><span class="marklabel">ASTRA</span></div>
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--fg-2)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--fg-2)"/><circle cx="12" cy="12" r="2.4" fill="var(--fg-1)"/></svg><span class="marklabel">ASTRA</span></div>
             <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
           </div>
           <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
@@ -479,10 +505,10 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 
         <div class="miniapp">
           <span class="note">In context, with done unbound from the accent</span>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
           <button class="pill sm" style="width:100%">Registrar</button>
-          <div class="minitab"><span class="on">HOJE</span><span>METAS</span><span>ASTRA</span><span>PERFIL</span></div>
+          <div class="minitab"><span class="on">Hoje</span><span>Metas</span><span>Astra</span><span>Perfil</span></div>
         </div>
 
         <p class="note">Cleanest separation from every status hue. The risk is sameness: green plus a check is the most crowded space in this category, so it is legible and forgettable in a store list.</p>
@@ -525,7 +551,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <div class="tile stack">
           <span class="note">Astra must never read as the logo</span>
           <div class="marks">
-            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--primary-soft)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--primary)"/><circle cx="12" cy="12" r="2.4" fill="var(--primary)"/></svg><span class="marklabel">ASTRA</span></div>
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--fg-2)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--fg-2)"/><circle cx="12" cy="12" r="2.4" fill="var(--fg-1)"/></svg><span class="marklabel">ASTRA</span></div>
             <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
           </div>
           <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
@@ -533,10 +559,10 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 
         <div class="miniapp">
           <span class="note">In context, with done unbound from the accent</span>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
           <button class="pill sm" style="width:100%">Registrar</button>
-          <div class="minitab"><span class="on">HOJE</span><span>METAS</span><span>ASTRA</span><span>PERFIL</span></div>
+          <div class="minitab"><span class="on">Hoje</span><span>Metas</span><span>Astra</span><span>Perfil</span></div>
         </div>
 
         <p class="note">Reads as unowned among habit trackers, which is the point of a rationed accent. It buys distinctiveness against trackers and loses some against AI companion apps, which also use pink.</p>
@@ -579,7 +605,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <div class="tile stack">
           <span class="note">Astra must never read as the logo</span>
           <div class="marks">
-            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--primary-soft)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--primary)"/><circle cx="12" cy="12" r="2.4" fill="var(--primary)"/></svg><span class="marklabel">ASTRA</span></div>
+            <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="var(--fg-2)" stroke-width="1.75"/><circle cx="18" cy="6.9" r="2.1" fill="var(--fg-2)"/><circle cx="12" cy="12" r="2.4" fill="var(--fg-1)"/></svg><span class="marklabel">ASTRA</span></div>
             <div class="markbox"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g transform="translate(0,-0.5)"><ellipse cx="12" cy="12" rx="10.5" ry="6.5" transform="rotate(-28 12 12)" stroke="var(--fg-1)" stroke-width="1.75"/><circle cx="17.14" cy="4.54" r="2.6" fill="var(--primary)"/></g></svg><span class="marklabel">ORBIT</span></div>
           </div>
           <span class="note">Anything with a core is Astra. Anything empty in the middle is Orbit.</span>
@@ -587,10 +613,10 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 
         <div class="miniapp">
           <span class="note">In context, with done unbound from the accent</span>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
-          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:17px">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">💧</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Água da manhã</p></div><div class="ring done" style="width:24px;height:24px"></div></div>
+          <div class="minirow"><div class="row-well" style="width:34px;height:34px;font-size:var(--fs-md)">🏃</div><div class="row-body"><p class="row-t" style="font-size:var(--fs-sm)">Correr</p></div><div class="ring" style="width:24px;height:24px"></div></div>
           <button class="pill sm" style="width:100%">Registrar</button>
-          <div class="minitab"><span class="on">HOJE</span><span>METAS</span><span>ASTRA</span><span>PERFIL</span></div>
+          <div class="minitab"><span class="on">Hoje</span><span>Metas</span><span>Astra</span><span>Perfil</span></div>
         </div>
 
         <p class="note">Strongest at thumbnail size and the one that survives a grey row of competitors. Its risk is internal: 20 degrees from both status hues, the tightest of the three.</p>
@@ -611,8 +637,8 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
         <p style="font-weight:500">Surface, 380ms</p>
         <p class="note">Hover the rows. Background steps one level and the hairline strengthens.</p>
         <div class="rows">
-          <div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Notificações</p></div></div>
-          <div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Lembretes</p></div></div>
+          <div class="row compact"><div class="row-body"><p class="row-t">Notificações</p></div></div>
+          <div class="row compact"><div class="row-body"><p class="row-t">Lembretes</p></div></div>
         </div>
       </div>
       <div class="tile stack">
@@ -698,6 +724,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       <div><span class="note">secondary &middot; Geist Sans 14/400</span><p style="font-size:var(--fs-sm);color:var(--fg-2);line-height:1.55">Logged 4 of 6 today</p></div>
       <div><span class="note">meta &middot; Geist Mono 12/400 tabular</span><p class="mono" style="color:var(--fg-3);font-variant-numeric:tabular-nums">08:30 &middot; 12 dias &middot; 1.240 XP</p></div>
       <div><span class="note">eyebrow &middot; Geist Mono 12/500 uppercase</span><p class="mono" style="color:var(--fg-3);letter-spacing:.08em;text-transform:uppercase">Rotina da manhã</p></div>
+      <div><span class="note">num &middot; Space Grotesk inherit/500 tabular, inline in a sentence</span><p style="font-size:var(--fs-base)">Você registrou <span style="font-family:var(--font-display);font-weight:500;font-variant-numeric:tabular-nums">1 240</span> vezes este ano.</p></div>
       <div><span class="note">num-xl &middot; Space Grotesk 44/600 tabular</span><p style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.02em">1 240</p></div>
     </div>
   </section>
@@ -752,6 +779,39 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       <button class="pill" disabled>Disabled</button>
       <button class="pill loading">Saving</button>
       <button class="pill sm">Small</button>
+    </div>
+
+    <h3 style="font-size:var(--fs-md);margin-bottom:var(--s-3)">Fields, and the error state</h3>
+    <div class="grid g3" style="margin-bottom:var(--s-6)">
+      <div class="tile stack">
+        <span class="note">Default and focus. Tab into it.</span>
+        <div class="field"><label for="f1">Nome do hábito</label><input id="f1" placeholder="Água da manhã"></div>
+      </div>
+      <div class="tile stack">
+        <span class="note">Error, adjacent to its field, never a red border alone</span>
+        <div class="field">
+          <label for="f2">Email</label>
+          <input id="f2" aria-invalid="true" aria-describedby="f2e" value="thomas@" spellcheck="false">
+          <p class="msg" id="f2e">Use um email completo, como nome@exemplo.com</p>
+        </div>
+      </div>
+      <div class="tile stack">
+        <span class="note">Disabled, with the reason beside it</span>
+        <div class="field"><label for="f3">Plano</label><input id="f3" value="Pro" disabled></div>
+        <span class="note">Gerido pela sua assinatura.</span>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-bottom:var(--s-6)">
+      <div class="tile stack">
+        <span class="note">OTP. Pasting a whole code must work.</span>
+        <div class="otp"><span>4</span><span>1</span><span class="on">7</span><span></span><span></span><span></span></div>
+      </div>
+      <div class="tile stack">
+        <span class="note">Switch, labelled for its ON state</span>
+        <div class="hstack" style="justify-content:space-between"><span style="font-size:var(--fs-sm)">Enviar lembretes</span><div class="sw-toggle on" role="switch" aria-checked="true" tabindex="0"></div></div>
+        <div class="hstack" style="justify-content:space-between"><span style="font-size:var(--fs-sm)">Resumo semanal</span><div class="sw-toggle" role="switch" aria-checked="false" tabindex="0"></div></div>
+      </div>
     </div>
 
     <h3 style="font-size:var(--fs-md);margin-bottom:var(--s-3)">Badge is a chip, never a pill</h3>
@@ -854,14 +914,18 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
     <div class="sec-h"><span class="sec-n">09</span><h2 class="sec-t">Listing, at every size</h2></div>
     <p class="lede">A collection whose count can exceed 20 declares its "too many" behaviour before it
       ships. A wrapping pill row is never that behaviour.</p>
-    <div class="grid g3">
+    <div class="grid g2">
       <div class="tile stack" style="align-items:center;text-align:center"><span class="note">0</span><p style="font-weight:500">Nenhuma meta</p><button class="pill sm">Criar meta</button></div>
       <div class="tile stack"><span class="note">1 to 7, the normal list, no count</span>
-        <div class="rows"><div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Beber água</p></div></div><div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Correr</p></div></div></div>
+        <div class="rows"><div class="row compact"><div class="row-body"><p class="row-t">Beber água</p></div></div><div class="row compact"><div class="row-body"><p class="row-t">Correr</p></div></div></div>
+      </div>
+      <div class="tile stack"><span class="note">8 to 20, the list plus a count in meta</span>
+        <span class="mono" style="color:var(--fg-3)">12 hábitos</span>
+        <div class="rows"><div class="row compact"><div class="row-body"><p class="row-t">Alongar</p></div></div><div class="row compact"><div class="row-body"><p class="row-t">Meditar</p></div></div></div>
       </div>
       <div class="tile stack"><span class="note">21 or more, filter plus a count</span>
         <div class="hstack" style="justify-content:space-between"><span class="mono" style="color:var(--fg-3)">34 itens</span><button class="pill sm ghost">Filtrar</button></div>
-        <div class="rows"><div class="row" style="min-height:52px"><div class="row-body"><p class="row-t">Alongamento</p></div></div></div>
+        <div class="rows"><div class="row compact"><div class="row-body"><p class="row-t">Alongamento</p></div></div></div>
       </div>
     </div>
   </section>
@@ -873,8 +937,8 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       redundant with a shape.</p>
     <div class="rows" style="max-width:560px">
       <div class="row"><div class="row-well" style="box-shadow:inset 0 0 0 2px var(--p-hab-teal)">💧</div><div class="row-body"><p class="row-t">Água da manhã</p><p class="row-m">08:00 &middot; 12 dias</p></div><div class="ring done"></div></div>
-      <div class="row"><div class="row-well" style="box-shadow:inset 0 0 0 2px var(--p-hab-amber)">🏃</div><div class="row-body"><p class="row-t">Correr</p><p class="row-m">18:30 &middot; atrasado</p></div><div class="ring" style="box-shadow:inset 0 0 0 2px var(--status-overdue)"></div></div>
-      <div class="row"><div class="row-well" style="box-shadow:inset 0 0 0 2px var(--p-hab-indigo)">📖</div><div class="row-body"><p class="row-t">Ler 20 páginas</p><p class="row-m">❄ congelado</p></div><div class="ring" style="box-shadow:inset 0 0 0 2px var(--status-frozen)"></div></div>
+      <div class="row"><div class="row-well" style="box-shadow:inset 0 0 0 2px var(--p-hab-amber)">🏃</div><div class="row-body"><p class="row-t">Correr</p><p class="row-m">18:30 &middot; atrasado</p></div><div class="ring overdue" aria-label="atrasado">!</div></div>
+      <div class="row"><div class="row-well" style="box-shadow:inset 0 0 0 2px var(--p-hab-indigo)">📖</div><div class="row-body"><p class="row-t">Ler 20 páginas</p><p class="row-m">congelado</p></div><div class="ring frozen" aria-label="congelado">❄</div></div>
       <div class="row"><div class="row-well" style="box-shadow:inset 0 0 0 2px var(--p-hab-emerald)">🥗</div><div class="row-body"><p class="row-t">Almoço em casa</p><p class="row-m">12:30</p></div><div class="ring"></div></div>
     </div>
     <p class="note" style="margin-top:var(--s-3)">Frozen carries the snowflake glyph and a neutral ring. Its old cyan sat

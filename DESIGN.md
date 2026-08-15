@@ -213,7 +213,7 @@ Consequences that hold either way:
 - **A selected state may carry the accent on its glyph and label**, because selection is a live position rather than a finished one. **Completion is not selection**: a done row never takes the accent.
 - A future accent change re-measures all three floors. It never eyeballs them.
 
-**Accent rationing.** The accent appears on: the active tab, active nav, progress toward something unfinished, the primary CTA, the FAB, and **one element inside the logo mark**. That is the whole list. **It never marks completion.** It is **never** decorative on a card, a row, a border, a heading, or an icon that is not communicating state. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
+**Accent rationing.** The accent appears on: the active tab, active nav, progress toward something unfinished, the primary CTA, the FAB, and **one element inside the logo mark**. That is the whole list. **It never marks completion.** It is **never** decorative on a card, a row, a border, a heading, a static badge or chip, an icon that is not communicating state, or a count of what has already happened. A streak total is a record, not a next action, so it takes no accent. **Fill exactly one action per view.** Put the colour on the background, not the label: a filled button reads as primary, accent-coloured text on a neutral button reads as a link.
 
 **One colour, one meaning, in both directions.** Treat two hues within 15 degrees as the same colour. A status hue inside that band of the accent must move or be retired. Equally, an interactive element rendered neutral is as misleading as a static element rendered in the accent.
 
@@ -235,6 +235,7 @@ Consequences that hold either way:
 ### Shape, shadow, motion, icons
 
 - Radii, enumerated: **0 / 8 / 12 / 16 / 20 / 28**, pill 999. Cards and habit panels 20, wells 12, fields 12, chips and badges 8, overlay panel **28 top radius**, CTAs pill.
+- **The app and store icon radius is set by the platform mask** (the iOS superellipse, the Android adaptive mask) and is the one radius outside this scale. It never appears on a UI surface.
 - **The pill radius means interactive.** Radius 999 is reserved for something you can press. A static element never wears it, because a non-clickable shape identical to the buttons beside it collects dead clicks. Badges and status chips use radius 8.
 - **Nested rounded surfaces use concentric radii: outer = inner + padding.** A parent and its inset child never share a radius. Where the padding exceeds 24, treat the layers as separate surfaces and choose each radius independently.
 - Shadows: sh-1 `0 1px 2px rgba(0,0,0,.20)`, sh-2 `0 4px 16px rgba(0,0,0,.28)`, sh-3 `0 12px 40px rgba(0,0,0,.45)`. **There is no glow.** Shadows model occlusion under a lifted surface and never carry a hue.
