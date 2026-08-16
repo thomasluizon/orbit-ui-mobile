@@ -122,6 +122,13 @@ The **periodic retrospective is delivered here**, on a cadence, and has no navig
 there is nothing worth saying, nothing fires, which is what deletes its empty and no-data states
 structurally rather than by designing them.
 
+**The line replaces itself. It never dismisses and it never persists** (decided 2026-08-16). The slot
+carries the single most relevant thing Astra noticed, and acting on it advances the slot to the next
+thing. There is no dismiss control, because the audience is a person who is already overwhelmed and a
+dismiss control makes the top of the busiest screen one more chore. There is no persistence either,
+because a line whose action the person will not take parks there and stops being read. **When Astra
+noticed nothing, the slot is absent**, not empty: the line collapses and Hoje starts at the date.
+
 ### Generative blocks
 
 **The assistant almost never answers with plain prose.** A read-only card is a screenshot of the app

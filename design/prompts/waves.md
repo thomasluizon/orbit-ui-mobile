@@ -110,8 +110,10 @@ the returning state, a person who has been away for days, which is the state thi
 handle well. **At capacity is not a habit count any more**, because the ceiling is now an abuse guard
 at 1000 identical for every plan, so draw it as the daily Astra limit instead.
 
-Open, so ask Thomas rather than decide: whether the proactive line dismisses, persists until acted on,
-or replaces itself with the next thing Astra notices.
+**Answered 2026-08-16: the proactive line replaces itself.** No dismiss control and no persistence.
+The slot carries the single most relevant thing Astra noticed, acting on it advances the slot, and
+when Astra noticed nothing the slot is absent rather than empty. `DESIGN.md` section
+`### The proactive line` carries the reasoning.
 
 ---
 
