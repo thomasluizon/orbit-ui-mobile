@@ -16,6 +16,8 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **Provenance.** The direction is the 2026-08-05 direction ADR, amended by D66 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and a rendered `design/reference.html` disagree, **the page wins and this prose is the defect** (D42).
 
+**D42 is scoped to `design/reference.html` and to nothing else** (clarified 2026-08-16). A rendered page outranks this prose only when it is the artefact Thomas granted. **A Claude Design export in `design/canvas/` carries no authority until Thomas grants that specific export**, and `## Information architecture` outranks every export on whether a surface should exist at all. The eleven documents currently in `design/canvas/` are granted by nobody: they are a record of what the canvas produces from a prompt that described the old screens, and one of them ships a habit-limit figure that exists nowhere in the code.
+
 **Every sentence below changes an implementation choice.** Nothing here is advice.
 
 ## Information architecture
@@ -624,6 +626,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Sub-habit rows:** indent, smaller well, dimmer text. **Zero connector or tree lines.**
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
+- **There is no habit colour system. Colour-as-data is dead** (decided 2026-08-16). D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its ring, and by nothing else.
 - **A row's status lives in its trailing ring, and never in the accent.** Done is an `--fg-1` disc with a filled check; empty is an `--status-empty` track; overdue takes `--status-overdue`; frozen is neutral plus the snowflake; skip is `--status-skip`. The accent enters this column only on progress toward something unfinished.
 - **Never animate the habit list's data while the user is reading or acting on it.**
 
@@ -945,6 +948,7 @@ The same test governs any future external component, from any source. Nothing en
 - **No default component-library theme and no default white accent** on any surface, marketing included.
 - **No decorative background orbit arcs.**
 - No accent outside the rationed list.
+- **No habit colour palette and no colour-as-data.** A habit does not carry a colour field in the interface.
 - No coloured side-stripe border.
 - No raw `--slate-*` references. Semantic tokens only.
 - No hardcoded accent `rgba`. Tints come from `--primary-rgb` / `tintFromPrimary`.
