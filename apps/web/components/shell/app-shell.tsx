@@ -3,7 +3,7 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User } from 'lucide-react'
+import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User } from '@/components/ui/icons'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import {
   AppSidebar,

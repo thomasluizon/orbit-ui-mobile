@@ -96,6 +96,29 @@ export default [
       "local/no-comments": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: false }],
       "no-console": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "lucide-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+          ],
+        },
+      ],
 
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",
@@ -141,6 +164,10 @@ export default [
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "local/spacing-scale": "error",
     },
+  },
+  {
+    files: ["components/ui/icons.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: ["**/*.{ts,tsx}"],

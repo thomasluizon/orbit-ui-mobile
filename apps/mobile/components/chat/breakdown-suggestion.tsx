@@ -5,7 +5,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native'
-import { Check, Plus } from 'lucide-react-native'
+import { Check, Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import {

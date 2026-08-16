@@ -1,6 +1,6 @@
 'use client'
 
-import { User } from 'lucide-react'
+import { User } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'

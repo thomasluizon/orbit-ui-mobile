@@ -14,7 +14,7 @@ import {
   Check,
   Link as LinkIcon,
   WifiOff,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,

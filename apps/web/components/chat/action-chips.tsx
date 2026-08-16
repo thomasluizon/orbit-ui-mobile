@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle, XCircle, Info } from 'lucide-react'
+import { CheckCircle, XCircle, Info } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ActionResult } from '@orbit/shared/types/chat'
 import { ConflictWarning } from './conflict-warning'

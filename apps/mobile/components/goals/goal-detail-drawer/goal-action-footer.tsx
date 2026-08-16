@@ -6,15 +6,15 @@ import {
   PencilLine,
   RotateCw,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react-native'
+  type Icon,
+} from '@/components/ui/icons'
 import type { createStyles } from './styles'
 
 type GoalDetailStyles = ReturnType<typeof createStyles>
 
 interface GoalActionRowProps {
   label: string
-  icon: LucideIcon
+  icon: Icon
   iconColor: string
   onPress: () => void
   disabled?: boolean

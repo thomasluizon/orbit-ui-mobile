@@ -8,7 +8,7 @@ import {
 } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
-import { Sparkles } from "lucide-react-native";
+import { Sparkles } from "@/components/ui/icons";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { coalesceFormText } from "@orbit/shared/utils";

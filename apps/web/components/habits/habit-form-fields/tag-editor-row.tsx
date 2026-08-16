@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { X } from '@/components/ui/icons'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {

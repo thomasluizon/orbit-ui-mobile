@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'

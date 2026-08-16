@@ -8,8 +8,8 @@ import {
   RefreshCw,
   Star,
   TrendingUp,
-  type LucideProps,
-} from 'lucide-react'
+  type IconProps,
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type {
   RetrospectiveHabitStat,
@@ -198,7 +198,7 @@ function NarrativeSection({
   body,
   accent = false,
 }: Readonly<{
-  icon: ComponentType<LucideProps>
+  icon: ComponentType<IconProps>
   title: string
   body: string
   accent?: boolean

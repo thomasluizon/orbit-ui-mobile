@@ -1,6 +1,6 @@
 'use client'
 
-import { Gift } from 'lucide-react'
+import { Gift } from '@/components/ui/icons'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 

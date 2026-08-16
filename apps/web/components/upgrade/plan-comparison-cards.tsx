@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Fragment } from 'react'
-import { BarChart3, Check, Flame, MessageSquare, Palette, ShieldCheck } from 'lucide-react'
+import { BarChart3, Check, Flame, MessageSquare, Palette, ShieldCheck } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { UPGRADE_FEATURE_CATEGORIES } from '@orbit/shared/utils/upgrade'
 import type {

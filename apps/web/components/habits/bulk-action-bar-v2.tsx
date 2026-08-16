@@ -6,8 +6,8 @@ import {
   FastForward,
   Trash2,
   X,
-  type LucideIcon,
-} from 'lucide-react'
+  type Icon,
+} from '@/components/ui/icons'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
@@ -40,7 +40,7 @@ export interface BulkActionBarV2Props {
 }
 
 interface BulkBtnProps {
-  icon: LucideIcon
+  icon: Icon
   label: string
   color: string
   onClick: () => void

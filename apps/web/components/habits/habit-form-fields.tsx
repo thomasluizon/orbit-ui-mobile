@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, TrendingUp, TrendingDown, ChevronDown, Sparkles, Loader2 } from 'lucide-react'
+import { X, Plus, TrendingUp, TrendingDown, ChevronDown, Sparkles, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, SuggestedTag } from '@orbit/shared/types/habit'
 import {

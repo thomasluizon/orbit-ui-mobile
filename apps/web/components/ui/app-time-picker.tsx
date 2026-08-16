@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Clock3, X } from 'lucide-react'
+import { Clock3, X } from '@/components/ui/icons'
 import { useTranslations, useLocale } from 'next-intl'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'

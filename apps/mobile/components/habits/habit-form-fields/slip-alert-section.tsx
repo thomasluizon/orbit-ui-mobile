@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
-import { ShieldAlert } from "lucide-react-native";
+import { ShieldAlert } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { ProBadge } from "@/components/ui/pro-badge";
 import { Switch } from "@/components/ui/settings-row";

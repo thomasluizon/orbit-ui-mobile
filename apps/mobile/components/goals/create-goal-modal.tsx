@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'

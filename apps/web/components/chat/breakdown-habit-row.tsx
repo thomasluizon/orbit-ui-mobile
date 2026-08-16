@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { BreakdownEditableHabit } from '@orbit/shared/utils'
 import { BreakdownFrequencyPicker } from './breakdown-frequency-picker'

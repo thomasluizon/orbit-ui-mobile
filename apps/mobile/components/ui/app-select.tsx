@@ -9,7 +9,7 @@ import {
   StyleSheet,
   type ListRenderItem,
 } from 'react-native'
-import { ChevronDown, Check } from 'lucide-react-native'
+import { ChevronDown, Check } from '@/components/ui/icons'
 import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'

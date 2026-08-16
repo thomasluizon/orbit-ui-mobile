@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ChevronLeft, ChevronRight, CalendarCheck, Repeat, Shuffle, Infinity } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarCheck, Repeat, Shuffle, Infinity } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 const FREQUENCY_TYPE_CARDS = [

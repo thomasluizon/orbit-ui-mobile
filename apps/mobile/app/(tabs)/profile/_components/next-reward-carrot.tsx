@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Lock, Sparkles } from 'lucide-react-native'
+import { Lock, Sparkles } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
 import { createTokensV2, primaryGlow, tintFromPrimary } from '@/lib/theme'

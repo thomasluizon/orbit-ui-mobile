@@ -11,7 +11,7 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated'
-import { ChevronUp, ChevronDown, X, Copy, Check, Plus, RotateCcw } from 'lucide-react-native'
+import { ChevronUp, ChevronDown, X, Copy, Check, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { usePrefersReducedMotion } from '@/lib/motion'

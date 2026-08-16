@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
-import { Plus, Sparkles } from "lucide-react-native";
+import { Plus, Sparkles } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { SuggestedTag } from "@orbit/shared/types/habit";
 import { getFriendlyErrorMessage } from "@orbit/shared/utils";

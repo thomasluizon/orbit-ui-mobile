@@ -1,5 +1,5 @@
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native'
-import { CheckCheck, SquareX } from 'lucide-react-native'
+import { CheckCheck, SquareX } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { createStyles } from './calendar-sync-styles'
 

@@ -1,8 +1,8 @@
-import { Sparkles, type LucideIcon } from 'lucide-react'
+import { Sparkles, type Icon } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 
 interface InfoCardProps {
-  icon?: LucideIcon
+  icon?: Icon
   title: string
   desc?: string
   trailing?: ReactNode

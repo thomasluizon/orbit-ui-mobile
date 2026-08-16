@@ -1,6 +1,6 @@
 'use client'
 
-import { Play } from 'lucide-react'
+import { Play } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { RingMotif } from '@/components/gamification/ring-motif'

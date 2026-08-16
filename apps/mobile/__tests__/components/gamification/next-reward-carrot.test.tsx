@@ -34,7 +34,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-vi.mock('lucide-react-native', () => ({
+vi.mock('@/components/ui/icons', () => ({
   Lock: () => null,
   Sparkles: () => null,
 }))

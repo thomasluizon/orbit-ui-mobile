@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useMutation } from '@tanstack/react-query'
-import { Mail } from 'lucide-react'
+import { Mail } from '@/components/ui/icons'
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'

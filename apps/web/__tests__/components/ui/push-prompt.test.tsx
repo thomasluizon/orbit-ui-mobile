@@ -6,8 +6,8 @@ vi.mock('next-intl', () => ({
 }))
 
 
-vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('lucide-react')>()
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
   return {
     ...actual,
     BellRing: (props: Record<string, unknown>) => <svg data-testid="bell-ring" {...props} />,

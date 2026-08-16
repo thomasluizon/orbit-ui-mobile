@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Check, ChevronRight, Loader2 } from 'lucide-react'
+import { Check, ChevronRight, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   buildBulkItemsFromPack,

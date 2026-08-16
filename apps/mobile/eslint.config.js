@@ -107,6 +107,29 @@ module.exports = defineConfig([
       "local/no-gorhom-sheet": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: true }],
       "no-console": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "lucide-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+          ],
+        },
+      ],
 
       // The cross-platform half of the #539 gate set. Rules absent here are web-only by
       // scope, not by oversight: the Tailwind/CSS-string rules (no-space-x-y,
@@ -135,6 +158,10 @@ module.exports = defineConfig([
       "local/no-decorative-glow": "warn",
       "local/no-raw-gradient": "warn",
     },
+  },
+  {
+    files: ["components/ui/icons.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: [

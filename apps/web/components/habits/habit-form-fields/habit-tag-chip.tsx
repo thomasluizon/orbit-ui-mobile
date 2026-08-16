@@ -1,4 +1,4 @@
-import { X, PenSquare } from 'lucide-react'
+import { X, PenSquare } from '@/components/ui/icons'
 
 interface HabitTagChipProps {
   tag: { id: string; name: string; color: string }

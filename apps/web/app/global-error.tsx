@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react'
 import * as Sentry from '@sentry/nextjs'
-import { TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from '@/components/ui/icons'
 import Link from 'next/link'
 import { Rubik } from 'next/font/google'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'

@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { Sparkles, type LucideIcon } from 'lucide-react-native'
+import { Sparkles, type Icon } from '@/components/ui/icons'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface InfoCardProps {
-  icon?: LucideIcon
+  icon?: Icon
   title: string
   desc?: string
   trailing?: ReactNode

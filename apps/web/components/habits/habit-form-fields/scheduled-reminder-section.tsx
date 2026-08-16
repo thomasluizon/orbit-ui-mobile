@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Plus, Bell } from 'lucide-react'
+import { X, Plus, Bell } from '@/components/ui/icons'
 import { useTranslations, useLocale } from 'next-intl'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { formatLocaleTime } from '@orbit/shared/utils'

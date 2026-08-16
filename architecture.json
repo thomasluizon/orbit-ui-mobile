@@ -25646,7 +25646,8 @@
         "apps/web/__tests__/components/ui/verified-badge.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-card.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-comparison-cards.test.tsx",
-        "apps/web/__tests__/components/upgrade/plan-selection.test.tsx"
+        "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
+        "apps/web/__tests__/pages/error.test.tsx"
       ],
       "apps/web/hooks": [
         "apps/web/__tests__/components/habits/habit-form-fields.test.tsx",

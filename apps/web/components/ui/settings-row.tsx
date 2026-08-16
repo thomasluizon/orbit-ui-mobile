@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRight, type LucideIcon } from 'lucide-react'
+import { ChevronRight, type Icon } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 
 /** Kit ListRow: flat row — leading icon/dot · title (+ desc) · value · trailing slot · chevron.
@@ -15,8 +15,8 @@ interface SettingsRowProps {
   onClick?: () => void
   mono?: boolean
   leadingDot?: string
-  /** Leading lucide icon, rendered 22/1.8 centered in a 26px slot. */
-  icon?: LucideIcon
+  /** Leading Tabler icon, rendered 22/1.8 centered in a 26px slot. */
+  icon?: Icon
   /** Destructive row: title and icon render in status-bad. */
   danger?: boolean
   children?: ReactNode

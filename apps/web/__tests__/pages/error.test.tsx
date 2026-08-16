@@ -14,8 +14,8 @@ vi.mock('next/font/google', () => ({
   Rubik: () => ({ variable: 'font-rubik', className: 'font-rubik' }),
 }))
 
-vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('lucide-react')>()
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
   return {
     ...actual,
     TriangleAlert: (props: Record<string, unknown>) => <svg data-testid="triangle-alert" {...props} />,

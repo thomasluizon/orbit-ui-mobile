@@ -9,8 +9,8 @@ import {
   Pencil,
   Plus,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react-native'
+  type Icon,
+} from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { HabitRowActions } from './habit-row'
@@ -123,7 +123,7 @@ export function HabitRowMenuBody({
 }
 
 interface MenuItemProps {
-  icon: LucideIcon
+  icon: Icon
   label: string
   color: string
   onPress: () => void

@@ -8,8 +8,8 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Bell, Check, Clock, X } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import { Bell, Check, Clock, X } from '@/components/ui/icons'
+import type { Icon } from '@/components/ui/icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { schemes } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
@@ -33,7 +33,7 @@ const ACTION_TOAST_DURATION_MS = 6000
 type Variant = 'success' | 'error' | 'info' | 'queued'
 
 interface VariantStyle {
-  icon: LucideIcon
+  icon: Icon
   tint: string
   discBg: string
 }

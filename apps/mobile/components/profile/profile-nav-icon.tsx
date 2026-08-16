@@ -8,7 +8,7 @@ import {
   CircleHelp,
   Wrench,
   Trophy,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 export function ProfileNavIcon({

@@ -6,7 +6,7 @@ import {
   PencilLine,
   RotateCw,
   Trash2,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { GoalActionRow } from '../goal-detail-sections'
 

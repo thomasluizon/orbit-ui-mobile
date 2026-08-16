@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Animated, Pressable, StyleSheet, Text } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, X } from 'lucide-react-native'
+import { ChevronRight, X } from '@/components/ui/icons'
 import { motionEasings } from '@orbit/shared/theme'
 import {
   useProfile,

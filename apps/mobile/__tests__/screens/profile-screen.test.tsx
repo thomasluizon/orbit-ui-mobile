@@ -223,7 +223,7 @@ vi.mock('@/components/ui/settings-group', () => ({
   }) => React.createElement('SettingsRowStub', { label, hint, onPress }),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => () => React.createElement(name)
   return {
     LogOut: createIcon('LogOut'),

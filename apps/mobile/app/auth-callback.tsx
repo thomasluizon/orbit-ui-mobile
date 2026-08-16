@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
-import { TriangleAlert } from 'lucide-react-native'
+import { TriangleAlert } from '@/components/ui/icons'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'

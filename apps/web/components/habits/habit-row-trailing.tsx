@@ -1,6 +1,6 @@
 'use client'
 
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'

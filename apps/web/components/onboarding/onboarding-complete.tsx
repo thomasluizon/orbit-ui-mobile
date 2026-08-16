@@ -2,7 +2,7 @@
 
 import { useMemo, type CSSProperties } from 'react'
 import { parseISO } from 'date-fns'
-import { Check } from 'lucide-react'
+import { Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingIsLive } from '@/components/onboarding/onboarding-actions-context'

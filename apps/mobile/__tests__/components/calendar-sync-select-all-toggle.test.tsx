@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const ReactModule = require('react')
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     ReactModule.createElement(name, props)

@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native'
 import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'

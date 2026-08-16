@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { Zap } from 'lucide-react'
+import { Zap } from '@/components/ui/icons'
 import { InfoCard } from '@/components/ui/info-card'
 
 describe('InfoCard', () => {

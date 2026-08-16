@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native'
-import { Lock } from 'lucide-react-native'
+import { Lock } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { tintFromPrimary } from '@/lib/theme'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'

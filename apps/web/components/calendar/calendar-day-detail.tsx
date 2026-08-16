@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowRight, Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'

@@ -7,7 +7,7 @@ import {
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'

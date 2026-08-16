@@ -7,15 +7,15 @@ import {
   ListTree,
   Orbit,
   Trophy,
-} from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+} from '@/components/ui/icons'
+import type { Icon } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FeatureItem {
-  Icon: LucideIcon
+  Icon: Icon
   titleKey: string
   descKey: string
 }

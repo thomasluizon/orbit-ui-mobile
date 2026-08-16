@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
-import { TriangleAlert } from 'lucide-react-native'
+import { TriangleAlert } from '@/components/ui/icons'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'

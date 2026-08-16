@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Share2 } from 'lucide-react'
+import { Download, Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   AnimatePresence,

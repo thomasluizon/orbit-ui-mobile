@@ -4,7 +4,7 @@ import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-nativ
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Crown } from 'lucide-react-native'
+import { Crown } from '@/components/ui/icons'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { PillButton } from '@/components/ui/pill-button'

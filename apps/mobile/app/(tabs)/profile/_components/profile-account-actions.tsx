@@ -1,5 +1,5 @@
 import { StyleSheet, Text } from 'react-native'
-import { Download, LogOut, RotateCcw, UserX } from 'lucide-react-native'
+import { Download, LogOut, RotateCcw, UserX } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'

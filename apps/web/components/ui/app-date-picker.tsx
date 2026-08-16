@@ -14,7 +14,7 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'

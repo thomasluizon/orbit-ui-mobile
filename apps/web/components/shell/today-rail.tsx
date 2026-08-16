@@ -2,7 +2,7 @@
 
 import { useMemo, type ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
-import { Flame, ListChecks, Sparkles, Trophy, type LucideProps } from 'lucide-react'
+import { Flame, ListChecks, Sparkles, Trophy, type IconProps } from '@/components/ui/icons'
 import { computeDayProgress } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useToday } from '@/app/(app)/today-provider'
@@ -18,7 +18,7 @@ function RailStatRow({
   value,
   meter,
 }: Readonly<{
-  icon: ComponentType<LucideProps>
+  icon: ComponentType<IconProps>
   label: string
   value: string
   /** 0–100 fill for an optional thin progress meter under the label (XP). */

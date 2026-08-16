@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/ui/icons'
 
 export function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   return (

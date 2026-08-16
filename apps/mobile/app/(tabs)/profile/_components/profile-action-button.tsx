@@ -1,16 +1,16 @@
 import type { ComponentType } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import type { LucideProps } from 'lucide-react-native'
+import type { IconProps } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type LucideIcon = ComponentType<LucideProps>
+type IconComponent = ComponentType<IconProps>
 
 interface ProfileActionButtonProps {
   label: string
   onPress: () => void
-  /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
-  icon?: LucideIcon
+  /** Leading Tabler icon rendered 22/1.8 in the kit ListRow 26px slot. */
+  icon?: IconComponent
   tone?: 'default' | 'danger'
   /** Draw the bottom hairline divider. Set `false` on the last row so no stray rule renders. */
   showDivider?: boolean
