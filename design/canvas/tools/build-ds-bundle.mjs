@@ -116,8 +116,15 @@ parts.push('})();');
 writeFileSync(join(outDir, '_ds_bundle.js'), parts.join('\n'));
 
 // ---- emit the manifest, carrying every field the old one had that is not derived here ----
+// The carried fields go stale too. `tokens` is the one that bites: a token deleted from the css
+// keeps its swatch in the pane forever. So drop any token whose file no longer defines it.
 const old = JSON.parse(readFileSync(join(root, '_ds_manifest.json'), 'utf8'));
-const manifest = { ...old, components, cards };
+const cssByPath = {};
+const tokens = (old.tokens || []).filter((token) => {
+  cssByPath[token.definedIn] ??= readFileSync(join(root, token.definedIn), 'utf8');
+  return cssByPath[token.definedIn].includes(`${token.name}:`);
+});
+const manifest = { ...old, components, cards, tokens };
 writeFileSync(join(outDir, '_ds_manifest.json'), JSON.stringify(manifest));
 
 console.log('components', components.length);
