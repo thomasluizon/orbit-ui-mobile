@@ -31,14 +31,14 @@ and the fallback is near white `#F4F4F6`. That is correct, not a broken file.
 
 Generated on Recraft with a paid Basic plan, so both carry full commercial rights and were generated
 privately. Free tier output would have been Recraft owned, public and unlicensed, and could not have
-shipped. This is D66's decision 10 pipeline, with one correction recorded below.
+shipped. This is D68's decision 10 pipeline, with one correction recorded below.
 
 The Orbit mark needed one repair. Its source art carried a thin white crescent inside the planet, and
 the fix merges that sliver into the planet's interior and emits a single hole boundary. Cutting it as
 a second even-odd subpath does not work: overlapping holes XOR back to filled and the sliver returns
 as a hairline.
 
-**D66 names the wrong package.** Its pipeline calls for "the free `logo-generator` Claude skill",
+**D68 names the wrong package.** Its pipeline calls for "the free `logo-generator` Claude skill",
 but the package with that name requires a `GEMINI_API_KEY` and is not free. The zero cost native SVG
 skill is `rknall/claude-skills@svg-logo-designer`. Neither was used in the end, because a diffusion
 model cannot hold exact geometry and Recraft's native vector model can.

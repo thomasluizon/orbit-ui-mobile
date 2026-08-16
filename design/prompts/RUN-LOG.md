@@ -18,7 +18,7 @@ correct output for the prompt it was given.
 What happened next, in one line each:
 
 1. The information architecture was settled with Thomas in an attended session, six rounds and 26
-   questions, recorded as **D67** and **D68** in the brain vault.
+   questions, recorded as **D69** and **D70** in the brain vault.
 2. `DESIGN.md` gained a `## Information architecture` section, which is now read first and outranks
    every other section on whether a surface should exist.
 3. `waves.md` beside this file was **rewritten from scratch**. Every prompt now states the job of the

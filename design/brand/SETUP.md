@@ -47,7 +47,7 @@ repository still carries the exact system that `DESIGN.md` deletes. Read live fr
 | what the file still holds | what `DESIGN.md` says |
 |---|---|
 | six colour schemes, `.scheme-purple` through `.scheme-cyan` | ONE scheme. The six are dead |
-| `--primary: #7f46f7`, violet | the accent moved off violet under D66 |
+| `--primary: #7f46f7`, violet | the accent moved off violet under D68 |
 | `--primary-glow` and `--primary-glow-hover` | no decorative glow, at any strength |
 | `--gradient-header-from` per scheme | no gradient wash anywhere |
 | `--status-done: var(--primary)` | done is unbound from the accent. It is an `--fg-1` disc |

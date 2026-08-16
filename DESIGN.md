@@ -1,5 +1,5 @@
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
-> - Anchor (D66, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent (the hue is decided at human grant 1). **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
+> - Anchor (D68, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent (the hue is decided at human grant 1). **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
@@ -14,7 +14,7 @@
 
 It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for the `orbit-landing-page` mirror. A rule is cross-platform unless it names a platform.
 
-**Provenance.** The direction is the 2026-08-05 direction ADR, amended by D66 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and a rendered `design/reference.html` disagree, **the page wins and this prose is the defect** (D42).
+**Provenance.** The direction is the 2026-08-05 direction ADR, amended by D68 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and a rendered `design/reference.html` disagree, **the page wins and this prose is the defect** (D42).
 
 **D42 is scoped to `design/reference.html` and to nothing else** (clarified 2026-08-16). A rendered page outranks this prose only when it is the artefact Thomas granted. **A Claude Design export in `design/canvas/` carries no authority until Thomas grants that specific export**, and `## Information architecture` outranks every export on whether a surface should exist at all. The eleven documents currently in `design/canvas/` are granted by nobody: they are a record of what the canvas produces from a prompt that described the old screens, and one of them ships a habit-limit figure that exists nowhere in the code.
 
@@ -24,7 +24,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 Every other section says how a surface looks. **This one says what a surface is for**, and it wins
 when the two disagree about whether a surface should exist at all. Decided with Thomas in the
-attended session of 2026-08-16, recorded in the vault as D67 and D68.
+attended session of 2026-08-16, recorded in the vault as D69 and D70.
 
 ### The positioning, written as a test
 
@@ -249,7 +249,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 - **`text-box: trim-both cap alphabetic` on badges, chips and pill labels**, so text sits optically centred rather than low. Progressive enhancement; unsupported browsers keep the default leading. Web only.
 - **Light text on a dark surface is compensated on three axes**: add `0.01em` tracking, add `0.05` to the line-height, and add one weight step where the face needs it. This is the legibility check that the maximum-contrast target requires, and it answers the halation risk the direction ADR recorded.
 
-**There is no serif. Cut by Thomas against the rendered reference, 2026-08-15.** Instrument Serif was carried as D66 decision 9's provisional fourth family on warm surfaces. It is dropped, so **the direction ADR's ban on a display serif as a second warmth source stands unamended**, and D66 decision 9 resolves to "cut". Three families is the whole system. A warm surface gets its warmth from space, size and the mark, never from a second face.
+**There is no serif. Cut by Thomas against the rendered reference, 2026-08-15.** Instrument Serif was carried as D68 decision 9's provisional fourth family on warm surfaces. It is dropped, so **the direction ADR's ban on a display serif as a second warmth source stands unamended**, and D68 decision 9 resolves to "cut". Three families is the whole system. A warm surface gets its warmth from space, size and the mark, never from a second face.
 
 ### Spacing (base 4)
 
@@ -422,7 +422,7 @@ Consequences that hold either way:
 ### Derivation rules
 
 1. **Alpha tokens are constants.** The surface ladder and the hairlines are white-alpha on dark and ink-alpha on light. They inherit tint optically from the canvas beneath. This is what makes the ladder cost nothing.
-2. **The ladder steps must be two visible surfaces.** Adjacent steps sit at least 0.02 alpha apart. The pre-D66 ladder ran 0.04 / 0.05 / 0.06 / 0.06, and `#151517` against `#171719` is not a step.
+2. **The ladder steps must be two visible surfaces.** Adjacent steps sit at least 0.02 alpha apart. The pre-D68 ladder ran 0.04 / 0.05 / 0.06 / 0.06, and `#151517` against `#171719` is not a step.
 3. **Any surface that can sit over arbitrary content is authored opaque**, never as an alpha value. That is `--bg-elev`: the overlay panel, menus and popovers.
 4. **Opaque neutrals re-derive in OKLCH**: lock C per token, hold one hue across the ramp, and step L evenly in perceived lightness.
 5. **Both ends stop short of pure black and pure white.** Neither can carry hue.
@@ -730,7 +730,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 - At the desktop breakpoint, content composes **horizontally**. A single stretched mobile column is a defect, not a layout.
 - **The main content column caps at about 740px and is centred.**
-- **The right stats rail is deleted** (2026-08-16, D67). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
+- **The right stats rail is deleted** (2026-08-16, D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
 - **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
@@ -746,7 +746,7 @@ Exactly these three, and nothing more. Everything below the shell stays parity-b
 2. The command palette and keyboard shortcuts.
 3. Hover affordances on that shell chrome.
 
-**The desktop stats rail was the fourth and is deleted** (D67). The list got shorter, which is the
+**The desktop stats rail was the fourth and is deleted** (D69). The list got shorter, which is the
 only direction it is allowed to move without a decision.
 
 **The conversation panel is not on this list.** A side panel at the wide breakpoint and an overlay on
@@ -775,7 +775,7 @@ Every sub-screen shows a visible back affordance, on both platforms and at every
 
 ## Motion
 
-Motion is governed on two axes: **whether** to animate, then **how**. The first axis subtracts. **This section carries verbatim from the pre-D66 spec (D66 decision 11). Spacious argues for less motion, not different rules.**
+Motion is governed on two axes: **whether** to animate, then **how**. The first axis subtracts. **This section carries verbatim from the pre-D68 spec (D68 decision 11). Spacious argues for less motion, not different rules.**
 
 ### Whether (the gate)
 
@@ -1016,7 +1016,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 
 **Prose is not enforcement.** The rules above split three ways.
 
-**The `eslint-rules/` re-derivation lands in the PR immediately after human grant 1**, because D66 decision 12 sets the spacing step values at that grant and several rules encode them. Until then the table below states the target, and the existing rules stay as they are.
+**The `eslint-rules/` re-derivation lands in the PR immediately after human grant 1**, because D68 decision 12 sets the spacing step values at that grant and several rules encode them. Until then the table below states the target, and the existing rules stay as they are.
 
 ### Gate-backed
 
