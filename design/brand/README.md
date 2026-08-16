@@ -1,87 +1,60 @@
 # Orbit brand assets
 
-> **At a glance** - the real files behind the mark, the Astra glyph, the lockup and the three type
-> families, extracted from `design/reference.html` for the Claude Design import. `SETUP.md` beside
-> this file holds the five setup fields and the import checklist.
+> **At a glance** - the two real marks and the three type families. `SETUP.md` beside this file holds
+> the Claude Design setup fields and the import checklist.
 
-## The mark is a DRAFT
+## The marks are FINAL
 
-**This mark is not the final Orbit logo.** It exists for one reason: the accent decision needs a
-surface that carries the accent, and the mark is that surface. Ticket `#79` owns the real mark, and
-`#79` may replace every SVG in this directory.
-
-Treat the geometry here as the current best draft, not as a locked asset. Do not build a store
-listing, a press kit, or a favicon deploy on it.
-
-## Provenance
-
-Every path comes from `design/reference.html` on `redesign/main`, copied value for value. The page is
-the authority over the prose in `DESIGN.md` (D42), so the page is what these files reproduce.
-
-| geometry | source |
-|---|---|
-| mark, 24 grid | ellipse `cx 12 cy 12 rx 10.5 ry 6.5`, `rotate(-28)`, stroke 1.75, inside `translate(0,-0.5)`. Body circle `cx 17.14 cy 4.54 r 2.6` |
-| mark, 16 native redraw | ellipse `cx 8 cy 8 rx 7 ry 4.9`, `rotate(-28)`, stroke 1.5. Body circle `cx 11.4 cy 3.1 r 2` |
-| Astra glyph | ring `r 8.5` stroke 1.75, body `cx 18 cy 6.9 r 2.1`, core `r 2.4` |
-| lockup | 28px mark, 12px gap, 22px wordmark, Space Grotesk 600, tracking `-0.02em` |
-
-The ellipse aspect is `6.5 / 10.5 = 0.62`, which is the ratio `DESIGN.md` states. The 16 redraw sits
-at `4.9 / 7 = 0.70`, because a flatter ellipse closes up at that size. That difference is the reason
-`DESIGN.md` demands a native redraw at 16 rather than a scale.
-
-## Colour
-
-Each SVG carries a CSS custom property with a literal fallback, for example
-`stroke="var(--fg-1, #F4F4F6)"`. A standalone viewer resolves the fallback, which is the dark value,
-and dark is the primary mode. An inline copy inside the app resolves the live token instead, so light
-mode works from the same file with no second asset.
-
-The two icon files are the exception. `icon-512-*.svg` bakes literal hex, because a platform icon
-sits on its own canvas and must never follow a page mode.
-
-| token | dark | light |
-|---|---|---|
-| `--fg-1` | `#F4F4F6` | `#1A1A1D` |
-| `--fg-2` | `#C9C9CC` | `#424247` |
-| canvas | `#09090B` | `#FAFAFA` |
-| accent, warm orange candidate | `#C4530F` | `#C4530F` |
-| accent, rose candidate | `#BF4D8A` | `#BF4D8A` |
-
-**The accent is not decided.** Thomas picks the exact byte on the Claude Design canvas. Both
-candidates ship here so the decision has real assets on both sides.
-
-## Files
-
-### Vector
+`orbit-mark.svg` and `astra-mark.svg` replace the draft assets that PR `#735` shipped. Those drafts
+existed only to make the accent decidable and every one of them is deleted. Ticket `#79` owns the
+mark, and these are its output.
 
 | file | what it is |
 |---|---|
-| `mark-24-neutral.svg` | treatment A. The whole mark in `--fg-1`. This is the monochrome lockup mark |
-| `mark-24-orange.svg` | treatment B, warm orange body. Treatment B ships |
-| `mark-24-rose.svg` | treatment B, rose body |
-| `mark-16.svg` | the native 16 redraw. Monochrome, no accent, per `DESIGN.md` |
-| `astra-24.svg` | the Astra glyph. It keeps a centre core, so it can never read as the Orbit mark |
-| `lockup-horizontal-orange.svg` | mark plus wordmark, warm orange body |
-| `lockup-horizontal-rose.svg` | mark plus wordmark, rose body |
-| `lockup-horizontal-neutral.svg` | the monochrome lockup |
-| `icon-512-orange.svg` | platform icon. Mark at 60% on the `#09090B` canvas, full bleed |
-| `icon-512-rose.svg` | the same in rose |
+| `orbit-mark.svg` | the Orbit mark. A planet drawn as a ring with an open centre, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right |
+| `astra-mark.svg` | the Astra glyph. A letter A carrying the same orbital band and the same solid dot |
 
-The platform mask supplies the icon corner radius, so the icon files stay square. That mask is the one
-radius outside the Orbit scale.
+**They are told apart by silhouette, not by a detail.** Orbit is a hollow ring; Astra is a solid
+letterform. That distinction survives at 16px, which the old glyph's "circle with a core" did not.
+It supersedes `DESIGN.md`'s "anything with a core is Astra, anything empty in the middle is Orbit",
+which was written for the draft geometry.
 
-### Raster, in `png/`
+Each file is one `fill-rule="evenodd"` path plus, on Orbit, the moon. Both carry
+`fill="var(--fg-1, #F4F4F6)"`, so a standalone viewer resolves the dark value, which is the primary
+mode, and an inlined copy resolves the live token, so light mode needs no second asset. Neither
+carries a background rectangle, so both are transparent. Neither carries C2PA metadata.
 
-| file | size | note |
-|---|---|---|
-| `orbit-mark-16.png` | 16 | from `mark-16.svg`, transparent |
-| `orbit-mark-48-{orange,rose}.png` | 48 | transparent |
-| `orbit-mark-128-{orange,rose}.png` | 128 | transparent |
-| `orbit-mark-512-{orange,rose}.png` | 512 | transparent |
-| `orbit-icon-512-{orange,rose}.png` | 512 | opaque `#09090B`, the store icon |
-| `orbit-lockup-{orange,rose,neutral}.png` | 364x112 | the lockup at 4x, transparent |
+**Expect them to look washed out in a browser opened on a white page.** Orbit is a dark first brand
+and the fallback is near white `#F4F4F6`. That is correct, not a broken file.
 
-### Type, in `fonts/`
+## Provenance
+
+Generated on Recraft with a paid Basic plan, so both carry full commercial rights and were generated
+privately. Free tier output would have been Recraft owned, public and unlicensed, and could not have
+shipped. This is D66's decision 10 pipeline, with one correction recorded below.
+
+The Orbit mark needed one repair. Its source art carried a thin white crescent inside the planet, and
+the fix merges that sliver into the planet's interior and emits a single hole boundary. Cutting it as
+a second even-odd subpath does not work: overlapping holes XOR back to filled and the sliver returns
+as a hairline.
+
+**D66 names the wrong package.** Its pipeline calls for "the free `logo-generator` Claude skill",
+but the package with that name requires a `GEMINI_API_KEY` and is not free. The zero cost native SVG
+skill is `rknall/claude-skills@svg-logo-designer`. Neither was used in the end, because a diffusion
+model cannot hold exact geometry and Recraft's native vector model can.
+
+## Still to build
+
+These are not done and nothing here should be treated as a complete asset set:
+
+- the 24 grid viewBox variant, for the icon scale
+- the accent treatment, the mark carrying `--primary` on the moon only
+- the native 16px redraw, since a stroke scaled down from 1024 renders soft
+- the horizontal lockup, 28px mark, 12px gap, 22px wordmark in Space Grotesk 600 at `-0.02em`
+- the platform icon at 512 on the `#09090B` canvas
+- the PNG set at 16, 48, 128 and 512
+
+## Type, in `fonts/`
 
 | file | family | version | axis |
 |---|---|---|---|
@@ -104,42 +77,3 @@ other weight is legal.
 
 The three `woff2` files inside `design/reference.html` are **subsets**, so they do not carry the whole
 character set. Use the TTF files here for anything that renders new copy, and keep pt-BR in mind.
-
-## How to rebuild the PNG files
-
-The PNG files derive from the SVG files with `sharp`, which the repo already installs. Each render is
-vector native at its target size, so no step scales a raster.
-
-```bash
-node -e "
-const sharp=require('sharp');const fs=require('fs');
-const jobs=[
-  ['mark-16.svg',16,'png/orbit-mark-16.png',16],
-  ['mark-24-orange.svg',24,'png/orbit-mark-48-orange.png',48],
-  ['mark-24-orange.svg',24,'png/orbit-mark-128-orange.png',128],
-  ['mark-24-orange.svg',24,'png/orbit-mark-512-orange.png',512],
-  ['mark-24-rose.svg',24,'png/orbit-mark-48-rose.png',48],
-  ['mark-24-rose.svg',24,'png/orbit-mark-128-rose.png',128],
-  ['mark-24-rose.svg',24,'png/orbit-mark-512-rose.png',512],
-  ['icon-512-orange.svg',512,'png/orbit-icon-512-orange.png',512],
-  ['icon-512-rose.svg',512,'png/orbit-icon-512-rose.png',512],
-];
-(async()=>{for(const [src,intrinsic,out,target] of jobs){
-  const buf=fs.readFileSync('design/brand/'+src);
-  await sharp(buf,{density:Math.round(72*target/intrinsic)}).png({compressionLevel:9}).toFile('design/brand/'+out);
-  console.log(out);
-}})();
-"
-```
-
-The lockup PNG files need a real text render, because `sharp` does not load the Space Grotesk file.
-Chrome does that job. Write one HTML page per variant that declares `@font-face` against
-`fonts/SpaceGrotesk%5Bwght%5D.ttf`, inlines the lockup SVG markup, and then run:
-
-```bash
-chrome --headless --disable-gpu --hide-scrollbars --default-background-color=00000000 \
-  --force-device-scale-factor=4 --window-size=91,28 --virtual-time-budget=6000 \
-  --screenshot=orbit-lockup-orange.png file:///<the page>
-```
-
-An `<img src="...svg">` tag cannot see the page fonts, so the SVG markup must sit inline in the page.
