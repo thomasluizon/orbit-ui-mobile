@@ -4,7 +4,8 @@
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
-> - Sections (exact `##` names, so this line is greppable): Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Overlay · Buttons · Surface rules · Habit list · Listing · States · Voice · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces · External component sources · Bans · Working model · Enforcement.
+> - **Read `## Information architecture` FIRST.** It says what each surface IS, and it decides whether a surface should exist before any other section decides how it looks.
+> - Sections (exact `##` names, so this line is greppable): Information architecture · Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Overlay · Buttons · Surface rules · Habit list · Listing · States · Voice · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces · External component sources · Bans · Working model · Enforcement.
 > - Read the whole doc before shaping, reviewing, or theming any surface. `## Enforcement` says which rules are gate-backed and which are reviewer judgment.
 
 # Orbit Design System
@@ -16,6 +17,184 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 **Provenance.** The direction is the 2026-08-05 direction ADR, amended by D66 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and a rendered `design/reference.html` disagree, **the page wins and this prose is the defect** (D42).
 
 **Every sentence below changes an implementation choice.** Nothing here is advice.
+
+## Information architecture
+
+Every other section says how a surface looks. **This one says what a surface is for**, and it wins
+when the two disagree about whether a surface should exist at all. Decided with Thomas in the
+attended session of 2026-08-16, recorded in the vault as D67 and D68.
+
+### The positioning, written as a test
+
+`BRAND.md` states it: **Orbit is an AI that tracks habits, not a habit tracker with an AI.** Applied
+to a screen, that sentence is this test, and it runs before any visual work on that screen:
+
+> Delete Astra from the design. If a person can still start a routine, change one, understand one and
+> restart after a miss in the same number of steps, the screen has failed the positioning.
+
+**The inverse is also a failure, and it is the more common one.** Routing a fast, deterministic
+action through the assistant to make the AI look central makes the product worse for the person it is
+for. A design that fails either direction is wrong. Both tests are applied, never one.
+
+### Astra is a layer with a front door, never a destination
+
+**Astra is not a place.** There is no Astra tab, no Astra screen in the navigation, and no bubble.
+
+1. **The front door** is ONE persistent composer in the shell, present on every primary screen. Above
+   it sit **3 to 6 suggestion chips built from live state**, never from a static list: what is
+   overdue, which streak is at risk, which habit has no goal.
+2. **The layer** is an inline AI affordance on every object it can improve. Schedule, breakdown,
+   emoji, reschedule and goal link are all **proposals a person accepts or edits**, never silent
+   writes.
+3. **The conversation** is a full-height overlay opened from the composer. It is not a navigation
+   destination and it never earns a tab.
+4. **Astra speaks first.** Proactive check-ins are part of the architecture, not a preference buried
+   in settings. See **The proactive line** below.
+
+**The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
+notifications, metrics and feature explanation. **Billing, API-key management and account deletion
+are not reachable from the chat surface.** They are the only step-up operations in the product, they
+are settings a person taps once, and an assistant that can sell a subscription contradicts the voice
+pillar "describe, never sell". They stay available on the MCP surface, where an external client asks
+for them deliberately.
+
+### The shell
+
+| platform | navigation | Astra |
+|---|---|---|
+| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on all four |
+| **web** | sidebar, the same four | composer in the sidebar shell, on all four |
+
+**No drawer and no hamburger on either platform.** Material 3's own guidance is to swap the drawer
+for a navigation bar at compact breakpoints, Apple's tab-bar guidance says five or fewer, and the
+measured evidence against hidden navigation has been one-directional since 2016. A composer present
+on every screen is strictly more discoverable than one tab out of four, which is the whole reason
+Astra does not take a slot.
+
+**The conversation renders as an overlay on mobile and as a side panel at the wide breakpoint.** That
+is one feature in two presentations, which the responsive rules already govern. It is **not** a new
+shell divergence.
+
+### What each surface IS
+
+The middle column is the surface's whole job. The right column is the thing it is most often mistaken
+for, and building that instead is the defect.
+
+| surface | its job | what it is NOT |
+|---|---|---|
+| **Hoje** | what do I do now | not a dashboard, not a summary, not a feed |
+| **Calendário** | where did the time actually go | not a second habit list, not a data view |
+| **Progresso** | am I moving | not a trophy cabinet, not a chart gallery |
+| **Perfil** | change one setting and get out | not a profile, not a home for anything else |
+| **Habit detail** | is this one holding, and change it without leaving | not a read-only record |
+| **Habit create and edit** | describe a habit in as few decisions as possible | not a schedule configuration form |
+| **Goal** | what a set of habits adds up to | **not an object you create from a menu** |
+| **The conversation** | say what you did or what you want, and have it happen | not a transcript, not a help desk |
+| **Onboarding** | produce one real habit the person typed | not a tour, not a quiz, not a preference survey |
+| **Upgrade** | Astra without the daily ceiling | not a feature matrix |
+| **Auth** | get in without friction | not a place to explain the product |
+| **Wrapped** | close a period and feel it was worth it | not a report |
+
+### The core loop is never mediated
+
+**Marking a habit done is one tap, optimistic, deterministic and offline tolerant.** No model call, no
+network wait, no confirmation. This is the single interaction the product may never make slower, and
+no future surface may re-route it.
+
+Saying "I did X, Y and Z" to Astra is a **different** interaction with the same outcome, and it does
+go through the model as a bulk operation. Both exist. Neither replaces the other.
+
+**Confirmation is decided by reversibility, never by item count.** Bulk log and bulk skip are
+reversible and therefore carry no confirmation. Bulk create, bulk delete and anything that removes
+data carry a confirmation. **A reversible action without a working undo is not reversible**, so the
+gate cannot be dropped before undo exists.
+
+### The proactive line
+
+Astra reaches the person before the person opens the app. The push is a **pointer**, never the only
+copy: the same content sits as one line at the top of Hoje with one action. Two consequences are
+deliberate. The proactive layer has a visible place to be audited instead of only firing into the
+void, and a person who denies notification permission still gets the whole mechanism.
+
+The **periodic retrospective is delivered here**, on a cadence, and has no navigation entry. When
+there is nothing worth saying, nothing fires, which is what deletes its empty and no-data states
+structurally rather than by designing them.
+
+### Generative blocks
+
+**The assistant almost never answers with plain prose.** A read-only card is a screenshot of the app
+pasted into a chat. Every block is interactive.
+
+The first block set, in build order: the **preview** block for anything Astra is about to do, the
+**habit list** with in-place logging, the **clarification** block asking one short question with
+tappable answers, the **metrics** block, and the **breakdown proposal** with its rows and its
+frequency control.
+
+Six rules govern all of them:
+
+1. **Three-way state split.** Business data is server owned and re-fetched. UI state, meaning
+   selection, expansion and sort, is client owned and is **never** sent back as though it were data.
+   Durable state is declared explicitly.
+2. **The client withholds the payload.** A write action's arguments do not reach the block until the
+   person approves. The gate is structural, so no prompt can talk past it.
+3. **One batch preview, per-item edit, one accept.** Never N separate confirmations. Irreversible rows
+   are visually distinguished, the preview never auto-dismisses, and the actions are approve, edit and
+   reject rather than a single OK. A partial failure reuses the same per-item rows with a status glyph
+   per row.
+4. **Text streams, the block arrives whole.** Never animate a block's own reveal, and never gate the
+   screen-reader announcement on a visual typing effect.
+5. **A stale block says so.** When the record's `updatedAt` is newer than the block's snapshot, the
+   block states it and offers a refresh.
+6. **Announcements are card-scoped.** The message list is an ARIA feed, each block's own state change
+   lives in a `polite` live region local to that block, and `aria-busy` is set on the feed for the
+   duration of a batch operation.
+
+Rules 5 and 6 have no published precedent anywhere. They are Orbit's, and they are stated here because
+the alternative is that every block invents its own answer.
+
+### The proposed state
+
+**A value the machine inferred looks different from a value the person entered**, until it is accepted
+or edited. This is the tenth state, and it applies in the create form, in a reschedule proposal, and
+in every generative block.
+
+It renders as the same field or row at `--fg-3` with an inset **dashed** hairline, and it resolves to
+the normal state the instant the person accepts or edits it. **It never takes the accent**: a proposal
+is not one of the four accent roles, and it is certainly not what is next. No new hue, no new radius,
+no new family, no glow.
+
+### Expressing repetition without the model leaking
+
+**The four internal type names never render, in either locale.** Not "recorrente", not "flexível", not
+"tarefa única", not "geral". The domain stores flags; the interface asks a person about their life.
+
+Creation is **one input plus a live preview sentence**. The person types or speaks. The recognised
+words are highlighted **inside** the input, so it is visible which words the parser consumed. A plain
+sentence beneath states what Orbit understood, for example "3 times a week, any days" or "every Monday
+and Thursday at 08:00". Correction is tappable, day pills or a count stepper, never a re-typed syntax.
+Exact time, reminders, end date and description sit behind ONE disclosure.
+
+**A parser that cannot resolve a phrase says so and offers the two controls.** It never guesses
+silently.
+
+**The form shows an immutable start date, never the mutating next-due date.** Today's "Começar em" is
+a moving cursor wearing a fixed label, and it is a structural defect rather than a copy one.
+
+### Surfaces that no longer exist
+
+Designing any of these is the defect, not the omission.
+
+- **The `/insights` route.** Its charts fold into the streak surface and Wrapped.
+- **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
+  unreachable.
+- **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
+  completing, a level up, and everything due today being done. **Never an individual habit
+  completion**, which the motion frequency gate already rules out at that frequency.
+- **The separate onboarding, tour, feature guide and push prompt.** One system.
+- **A create-goal entry in navigation.** A goal is created from a habit, or by asking.
+- **The desktop stats rail.** Progresso owns the question it was answering, and the width goes to the
+  conversation panel.
+- **The social layer, the colour-scheme picker and AI memory**, per the deletions already decided.
 
 ## Identity & anchor (locked)
 
@@ -466,6 +645,8 @@ A collection whose item count can exceed 20 declares its "too many" behaviour be
 
 **Every component ships its full state set before it is done: default, hover, focus, active, disabled, loading, error, empty, at capacity.** A missing state is an unfinished interface, not a follow-up.
 
+**Anything that can carry an inferred value ships a tenth state, `proposed`.** Its rules live in `## Information architecture`. A form field, a row or a block that renders a machine-suggested value identically to a typed one is a defect, because the person cannot tell what they decided from what was decided for them.
+
 **Every data surface ships the loading / empty / error triad.**
 
 - **Loading:** a skeleton for any operation expected to exceed about 300ms. Below that, show nothing rather than a flashing spinner. The skeleton is **shaped like the final layout** and occupies the final dimensions, so nothing shifts when data lands. Set `aria-busy="true"` on the updating region.
@@ -546,7 +727,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 - At the desktop breakpoint, content composes **horizontally**. A single stretched mobile column is a defect, not a layout.
 - **The main content column caps at about 740px and is centred.**
-- **The right rail's contents are re-decided on the Claude Design canvas.** Its existence is a sanctioned divergence; its module list is not frozen here.
+- **The right stats rail is deleted** (2026-08-16, D67). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
 - **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
@@ -556,12 +737,17 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 ### The allowed shell divergences, enumerated
 
-Exactly these four, and nothing more. Everything below the shell stays parity-bound.
+Exactly these three, and nothing more. Everything below the shell stays parity-bound.
 
 1. Navigation chrome: sidebar (web) versus tab bar (mobile).
-2. The desktop stats rail.
-3. The command palette and keyboard shortcuts.
-4. Hover affordances on that shell chrome.
+2. The command palette and keyboard shortcuts.
+3. Hover affordances on that shell chrome.
+
+**The desktop stats rail was the fourth and is deleted** (D67). The list got shorter, which is the
+only direction it is allowed to move without a decision.
+
+**The conversation panel is not on this list.** A side panel at the wide breakpoint and an overlay on
+mobile are two presentations of one feature, governed by the responsive rules, not a divergence.
 
 **Any new divergence found during canvas work comes back as a request, never as a judgement call.**
 

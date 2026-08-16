@@ -1,8 +1,22 @@
 # The canvas documents
 
 > **At a glance** - the screens built on the Claude Design canvas for ticket `#36`, exported so the
-> canvas is never the only copy. Twelve of the eighteen documents. `RUN-LOG.md` in
-> `design/prompts/` says what was verified and what is left.
+> canvas is never the only copy. Eleven documents survive of the twelve exported.
+> **They are token-correct and product-wrong**, and they are kept as a record rather than as a target.
+> `RUN-LOG.md` in `design/prompts/` says what was verified.
+
+## Superseded by the information architecture, 2026-08-16
+
+These documents reskin the app that exists. They were built before the information architecture was
+written, so every one of them draws a habit tracker with a chat tab. `DESIGN.md` section
+`## Information architecture` now says what each screen IS, and the prompts in `design/prompts/`
+were rewritten against it.
+
+**Do not build from these documents.** They are evidence of what the canvas produces when the
+prompt describes the screen that exists instead of the job the screen does.
+
+`Orbit Insights.dc.html` was deleted on 2026-08-16: the `/insights` route is cut, and its charts
+fold into the streak and wrapped surfaces. The canvas built it by mistake.
 
 ## What these are
 
@@ -18,7 +32,6 @@ build. That convention is `guidelines/screen-contract.md` inside the design syst
 | `Orbit Calendar.dc.html` | calendário, the month grid and the selected day |
 | `Orbit Goals.dc.html` | metas |
 | `Orbit Goal Detail.dc.html` | one goal, its habits and its form |
-| `Orbit Insights.dc.html` | insights |
 | `Orbit Retrospective.dc.html` | retrospectiva and the wrapped variant |
 | `Orbit Astra Chat.dc.html` | Astra, the conversation |
 | `Orbit Astra Cards.dc.html` | Astra, the generative cards |

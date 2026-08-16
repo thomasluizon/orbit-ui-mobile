@@ -1,172 +1,230 @@
-# The canvas work queue: every remaining screen
+# The canvas work queue, rewritten against the information architecture
 
-> **At a glance** - the seventeen screen documents that finish the app on the canvas, derived from
-> `tools/redesign-coverage.mjs` groups rather than guessed. Each block below is a ready prompt built
-> on `_screen-template.md`. The `m-` mirrored surfaces are covered by the width axis, so they are not
-> separate documents.
+> **At a glance** - the prompts that build Orbit on the Claude Design canvas, rewritten on 2026-08-16
+> after the first run produced a faithful reskin. Every prompt below states **the job of the screen**.
+> None of them lists the content of the screen that exists today, because that is exactly what
+> produced the wrong output the first time.
 
-**Run one wave per prompt block, in order.** Every prompt assumes `guidelines/screen-contract.md` in
-the design system, so none of them restate the canon.
+## Why the previous prompts failed
 
-| wave | documents | coverage groups | state |
-|---|---|---|---|
-| 1 | habit detail, habit form, calendar | R7, R8 | **done 2026-08-16** |
-| 2 | goals, goal detail, insights, retrospective | R6, R12 | **done 2026-08-16** |
-| 3 | Astra conversation, Astra cards | R11 | **done 2026-08-16** |
-| 4 | onboarding, auth | R14, R15 | **done 2026-08-16** |
-| 5 | settings, monetization, streak and achievements, celebrations, static and errors, overlay primitives | R16, R17, R9, R10, R4, R18, R1, R2, R21 | **blocked on the usage limit, resets 2026-08-20** |
+The first run built twelve documents that were token correct and product wrong. The cause is in the
+prompts, not in the canvas: they described the screens Orbit already had, so the canvas rebuilt those
+screens in the new tokens. A prompt that says "content: the habit name, the streak, a month of
+history, the linked goals" can only ever return the current app in a new skin.
 
-**Waves 1 to 4 are built and exported to `design/canvas/`.** `RUN-LOG.md` beside this file records
-what was verified. Wave 5 is queued inside the canvas chat as a todo list: open the project and press
-Resume, or paste the wave 5 block below again.
+The old prompts are gone rather than edited. `RUN-LOG.md` records what they produced.
+
+**The rule for every prompt below: say what the screen is FOR and what it must not become. Never
+enumerate what is on it today.**
 
 ---
 
-## Wave 1
+## The standing preamble
 
-Build three screen documents for Orbit, each following `guidelines/screen-contract.md`. Build them in
-order and report after each. Compose `Shell412` and `ShellWide`, switched by `CanvasControls`.
+Paste this once at the start of the project, and reference it rather than repeating it. It is the
+same contract as `DESIGN.md` section `## Information architecture`, which is authoritative if the two
+ever disagree.
 
-**1. Hábito, detalhe.** Its job: see whether this habit is actually holding, and change it without
-leaving. Content: the habit name with its emoji well leading, the streak and the completion rate as
-mono meta, a month of history as a ring or dot grid, the linked goals, and the description, which is
-long enough to need its own reading treatment. The trailing actions are edit, reschedule, freeze,
-archive. States: empty is a habit logged zero times, `Nenhum registro ainda`; error is
-`Não foi possível carregar este hábito. Verifique sua conexão e tente de novo.`; at capacity does not
-apply here, so say so rather than inventing one.
-
-**2. Criar e editar hábito.** Its job: describe a habit in as few decisions as possible. Content: the
-name field, the emoji selector, the frequency, the time, the optional goal link, and the optional
-description. Editing is the same surface with values in it and a delete action. Keep simultaneously
-considered options at four or fewer per group. States: the error state is a real validation failure
-on the name field with the message beside it, not a red border alone; at capacity is
-`Limite de 10 hábitos. Arquive um hábito para criar outro.` with the submit unavailable and its
-reason beside it. The emoji selector and the reschedule sheet are sub sheets of this document, so
-build them here and not as separate screens.
-
-**3. Calendário.** Its job: see which days held and which did not. Content: a month grid where each
-day carries its completion as a ring, the selected day expanded into its habit list below, and the
-calendar sync entry. Never encode a day's state in colour alone. States: empty is a month with no
-logs; loading is the grid shaped and dimensionally stable, never a spinner over it.
-
-Open, so ask Thomas rather than decide: whether the month grid shows one ring per day or one ring per
-habit per day at the wide width.
-
----
-
-## Wave 2
-
-Build four screen documents, same contract, same shells, report after each.
-
-**4. Metas.** Its job: see which goals are moving and open the one that is not. Content: five goals,
-each a panel with its title, a mono meta line of progress in real units, and a `ProgressRing`. One
-goal sits at 100 percent, so its ring is neutral. Two are part way and keep the accent. One has not
-started. One is overdue. States: empty is `Nenhuma meta ainda` with `Criar meta`; at capacity is
-`Limite de 5 metas. Arquive uma meta para criar outra.`
-
-**5. Meta, detalhe e formulário.** Its job: see what a goal is made of and change it. Content: the
-goal title, its progress in real units, the habits linked to it as rows, the target date, and the
-history. The create and edit form is the same document behind the state axis: title, target, unit,
-date, and the habit links. States: the error state is a validation failure on the target field.
-
-**6. Insights.** Its job: understand the last month without reading numbers twice. Content: at most
-four modules, each answering one question, built from `StatTile`, `ProgressBar` and `ProgressRing`.
-Every figure carries `data-mock`. No chart library and no new shape: if a module genuinely needs a
-chart the system cannot draw, stop and ask Thomas. States: empty is a person with too little history
-to summarise, and it says what is missing rather than showing zeros.
-
-**7. Retrospectiva e wrapped.** Its job: close a period and feel it was worth it. Content: a
-retrospective of the period with its three real figures, and the wrapped variant which is the shared,
-celebratory presentation of the same data. This is the one surface where the delight budget exists,
-so it may carry motion, under one second, skippable, and never blocking. Quiet celebration and no
-exclamation mark. States: empty is a period with nothing in it, and it says so plainly without shame
-language.
+> **Orbit is an AI that tracks habits, not a habit tracker with an AI.** Astra is the AI.
+>
+> **Astra is a layer with a front door, never a destination.** There is no Astra tab and no bubble.
+> One persistent composer lives in the shell on every primary screen, carrying 3 to 6 suggestion chips
+> built from live state. The conversation is a full height overlay opened from that composer, and a
+> side panel at the wide breakpoint. Every object also carries an inline AI affordance where the
+> machine can propose something.
+>
+> **The shell is four destinations on both platforms: Hoje, Calendário, Progresso, Perfil.** Bottom
+> tab bar on mobile, sidebar on web. No drawer and no hamburger anywhere.
+>
+> **Two tests run on every screen before it is drawn.** Delete Astra from the design: if the person
+> can still start, change, understand and restart a routine in the same number of steps, the screen
+> has failed the positioning. Then the inverse: if a fast deterministic action was routed through the
+> assistant to make the AI look central, the screen has also failed. Both, every time.
+>
+> **Marking a habit done is one tap**, optimistic, deterministic, no model call, ever.
+>
+> **A value the machine inferred looks different from a value the person typed.** That is the tenth
+> state, `proposed`: the same field or row at `--fg-3` with an inset dashed hairline, resolving to
+> normal the moment it is accepted or edited. It never takes the accent.
+>
+> **The four internal schedule type names never render, in either locale.** Not "recorrente", not
+> "flexível", not "tarefa única", not "geral".
+>
+> Compose `Shell412` and `ShellWide`, switched by `CanvasControls`, and follow
+> `guidelines/screen-contract.md`. Mark every figure `data-mock`. When a question is a product or
+> taste call, render both options, label the proposal, and never stall.
 
 ---
 
-## Wave 3
+## Wave order
 
-Build two screen documents for Astra, same contract, same shells. Astra is the AI on the primary
-path, and its presentation is generative UI: the server sends directives and the client renders real
-components, never a wall of text. The Astra glyph is the AI marker and a sparkle is banned.
-
-**8. Astra, conversa.** Its job: say what you did or what you want, and have it happen. Content: the
-message list with both roles, the composer bar, the suggestion chips before the first message, the
-action chips under a reply, and the typing indicator. The empty state is the first run: it says what
-Astra can do in one line and offers three concrete openers rather than a blank field. States:
-streaming is a real state on the state axis, so add it, and it never animates text the reader is
-trying to read; error is a failed send with a retry beside the message that failed, never a toast
-alone.
-
-**9. Astra, cartões generativos.** Its job: turn what Astra proposes into something you can accept in
-one tap. Content: the habit list card, the goal list card, the breakdown suggestion with its habit
-rows and its frequency picker, the clarification card that asks one short question, the conflict
-warning when a proposal collides with an existing habit, and the pending operation card that shows
-what is about to happen with an accept and a cancel. Every one of these composes the existing rows
-and rings, never a new card shape. States: the pending card carries loading, error and a confirmed
-resting state.
-
-Open, so ask Thomas rather than decide: whether an accepted proposal collapses into a summary row or
-disappears into the habit list.
+| wave | what it builds | why it is in this position |
+|---|---|---|
+| 0 | design system additions: the composer, the `proposed` state, the block primitives | nothing below can be drawn without them |
+| 1 | the shell and Hoje | the shell decides the frame every later screen sits in |
+| 2 | the conversation and the five blocks | the most important surface in the product |
+| 3 | habit creation, habit detail | the intent-forward input is the second most important |
+| 4 | Calendário, Progresso | the two remaining destinations |
+| 5 | onboarding and auth | onboarding reuses wave 3's input, so it cannot run before it |
+| 6 | Perfil, upgrade | settled but low risk |
+| 7 | celebrations, overlay primitives, static and errors | the long tail |
 
 ---
 
-## Wave 4
+## Wave 0: what the design system is missing
 
-Build two screen documents, same contract, same shells.
+Three additions to the existing Orbit design system. Do not restate what is already in it.
 
-**10. Onboarding.** Its job: get one habit created and understood in under a minute. Content: the
-flow as a short sequence of steps, each asking one thing, with visible progress and a way back. Then
-the feature guide drawer, the tour spotlight, the tour tooltip and the replay entry. This is
-first-run, so the delight budget applies once, at the end, and never between steps. States: the
-error state is a failed first save that does not lose the typed input.
+**1. The composer.** Its job: let a person say anything to Astra from anywhere, without leaving where
+they are. It is a single input bar living in the shell, above the tab bar on mobile and in the sidebar
+on web. Above it sit 3 to 6 suggestion chips. Build the chips as a component that takes its labels as
+data, because they are generated from live state and are never a fixed list. States: resting, focused,
+composing, sending, offline, and **at the daily limit**, which states the limit and when it returns
+and carries **no upgrade call to action**.
 
-**11. Auth.** Its job: get in without friction. Content: the sign in screen with the Google path
-leading, the email path beside it, the six box code entry with paste working, the callback waiting
-state, and the auth error. Never block paste, never disable zoom, and the code field carries
-`autocomplete` for a one time code. States: error is a wrong code with the message beside the field
-and the input preserved.
+**2. The `proposed` state.** Its job: show that the machine suggested this and the person has not
+accepted it yet. Apply it to a field, a list row and a whole block. Render it as the normal component
+at `--fg-3` with an inset dashed hairline. It resolves to normal on accept or edit. It never takes the
+accent, because a proposal is not what is next.
+
+**3. The block frame.** Its job: be the container every generative block inherits, so the rules are
+enforced once. It carries a header, a body, an action row that never scrolls with the body, a stale
+banner, and a per-row status glyph slot. Show it in five states: loading, resting, acting, partially
+failed, and stale.
 
 ---
 
-## Wave 5
+## Wave 1: the shell and Hoje
 
-Build six screen documents, same contract, same shells. These are the long tail, so keep each one
-tight and do not invent surfaces the list does not name.
+**1. The shell.** Its job: put the person one tap from the four things they do, and one tap from
+Astra, at both widths. Show the mobile tab bar with four destinations and the composer above it, and
+the web sidebar with the same four and the composer inside it. Show the conversation open, as an
+overlay at 412 and as a side panel at the wide width, so the same feature in two presentations is
+visible side by side. **There is no right stats rail.** Do not draw one.
 
-**12. Perfil e configurações.** Its job: change one setting and get out. Content: the profile screen,
-then preferences, then advanced, each a settings group of rows. Include the preference picker sheet,
-the edit name sheet, the notification bell with its detail, the API key creation, the Astra settings,
-and the delete account path, which is destructive and confirms with the consequence named. A toggle
-is labelled for its on state.
+**2. Hoje.** Its job: answer "what do I do now", and nothing else. It is not a dashboard, not a
+summary and not a feed. Three things live on it above the list: Astra's proactive line at the top,
+carrying what Astra noticed and one action; the date; and nothing else. The list is the habits due.
+The composer and its chips sit at the bottom. States: loading as a shaped skeleton, empty, error, and
+the returning state, a person who has been away for days, which is the state this product exists to
+handle well. **At capacity is not a habit count any more**, because the ceiling is now an abuse guard
+at 1000 identical for every plan, so draw it as the daily Astra limit instead.
 
-**13. Assinatura e indicações.** Its job: understand what Pro costs and what it gives. Content: the
-upgrade screen with at most three plans, exactly one marked recommended, outcomes rather than feature
-names, the same CTA verb on every tier, and the monthly to annual toggle with the arithmetic visible.
-Then the referral drawer, the referral prompt, the code screen, the trial expired modal, the
-marketing consent prompt and the milestone share prompt. Never a dark pattern: the decline path is as
-reachable as the accept path.
+Open, so ask Thomas rather than decide: whether the proactive line dismisses, persists until acted on,
+or replaces itself with the next thing Astra notices.
 
-**14. Sequência e conquistas.** Its job: see the record without being sold to. Content: the streak
-screen with the current and best streak and the freeze state, and the achievements screen as a grid
-where earned and unearned read differently by shape as well as colour. A record is not a next action,
-so none of this takes the accent.
+---
 
-**15. Celebrações.** Its job: mark a real moment and get out of the way. Content: level up, all done
-for the day, goal completed, streak milestone, streak freeze used, fresh start, the achievement toast
-and the welcome back toast. Every one is under a second, skippable, never blocking, and carries a
-static cue as well as motion. Quiet celebration, no exclamation mark, no confetti wall.
+## Wave 2: the conversation and the blocks
 
-**16. Estático e erros.** Its job: answer a question or explain a failure. Content: about, support,
-privacy, terms, then the application error, the global error, the not found screen and the chat
-error. Every error says how to fix it, in plain language, with one action. No "Oops".
+This is the most important surface in the product. It carries the positioning or it fails it.
 
-**17. Primitivas de overlay.** Its job: prove the overlay canon once so every caller inherits it.
-Content: the confirm dialog, the context menu, the popover, the date picker, the time picker, the
-share card sheet, the command palette and the rail drawer, plus the home screen widget at its real
-size. Content height by default, one scroll container, the action row never scrolling, focus moving
-into the panel on open and back to the trigger on close, and the least destructive action focused in
-a destructive confirmation.
+**3. The conversation.** Its job: say what you did or what you want, and have it happen. It is not a
+transcript and not a help desk. The first run state is the one that matters most: it states Astra's
+scope in one line and offers concrete openers, never a blank field. **The assistant almost never
+answers with prose.** States on the axis: first run, streaming, acting, error with a retry beside the
+message that failed, and at the daily limit. Never animate text the reader is trying to read.
+
+**4. The five blocks.** Build all five, each interactive, each on the wave 0 block frame.
+
+- **Preview.** Its job: show exactly what is about to happen and let the person change it before it
+  does. One batch preview, per-item edit controls, one accept. Irreversible rows read differently.
+  It never auto-dismisses. Actions are approve, edit and reject, never a single OK. Show it with 7
+  rows, and show its partial-failure state reusing the same rows with a status glyph each.
+- **Habit list.** Its job: act on what you just asked about, without leaving the reply. The trailing
+  ring logs in place. The row body opens the habit.
+- **Clarification.** Its job: ask exactly one short question with tappable answers, so Astra never
+  guesses a schedule.
+- **Metrics.** Its job: answer "how am I doing" without a paragraph of numbers.
+- **Breakdown proposal.** Its job: turn a vague intention into habits you can accept in one tap, with
+  the rows and the frequency control inline, every row in the `proposed` state until accepted.
+
+---
+
+## Wave 3: creating and holding a habit
+
+**5. Creating a habit.** Its job: describe a habit in as few decisions as possible. **One input plus
+one live preview sentence.** The person types or speaks. The recognised words are highlighted inside
+the input, so it is visible which words were consumed. Beneath it a plain sentence states what Orbit
+understood, for example "3 times a week, any days" or "every Monday and Thursday at 08:00". Correction
+is tappable: day pills, a count stepper. Everything else, time, reminders, end date, description, sits
+behind ONE disclosure. Show the state where the parser cannot resolve the phrase and says so rather
+than guessing. Show the form carrying an **immutable start date**, never a next-due date. Editing is
+the same surface with values in it. **Do not draw a type picker.**
+
+**6. Habit detail.** Its job: see whether this one is holding, and change it without leaving. The
+composer on this screen is scoped to this habit, so "why do I keep missing this" needs no name.
+Rescheduling is a proposal carrying its reason, in the `proposed` state, that the person accepts. The
+goal row is a **creation** path, not a display of links.
+
+---
+
+## Wave 4: the two remaining destinations
+
+**7. Calendário.** Its job: answer "where did the time actually go". It is not a second habit list.
+One ring per day in the month grid, because this is an orientation view rather than a data view. The
+imported calendar events render **beside** the habits on a selected day, so the integration is visible
+by existing rather than by a settings row. Never encode a day's state in colour alone.
+
+**8. Progresso.** Its job: answer "am I moving". It is not a trophy cabinet and not a chart gallery.
+It carries goals, the streak, achievements and the figures that used to live on the deleted insights
+route. A goal renders as the behaviour of the habits under it, not as a bar somebody typed a number
+into. **There is no create-goal button**, because a goal is created from a habit or by asking. The
+streak section shows the **repair**: a person returning after a gap sees the gap and is offered a
+freeze to spend on it, as an action they take. A record is not a next action, so none of this takes
+the accent.
+
+---
+
+## Wave 5: the first minute, and getting in
+
+**9. Onboarding.** Its job: produce one real habit the person typed, in **at most three decisions**.
+It is not a tour, not a quiz and not a preference survey. The three: what do you want to keep doing,
+when does it happen, may we remind you. It **reuses wave 3's input** rather than inventing a second
+one, so the flow and the form are one surface. Notification permission is asked after the habit
+exists. **There is no paywall anywhere in it.** The last step hands over to Hoje with that habit
+already on it and Astra's first line above it. This is the one place the delight budget applies, once,
+at the end.
+
+**10. Auth.** Its job: get in without friction. Google leading, email beside it, six box code entry
+with paste working and `autocomplete` for a one time code, the callback wait, and the error with the
+input preserved. Never block paste, never disable zoom. This screen does not explain the product.
+
+---
+
+## Wave 6: settings and the one thing being sold
+
+**11. Perfil.** Its job: change one setting and get out. **Three groups and nothing else.** You: name,
+language, timezone, week start, plan. Astra: the daily allowance and what is left of it, proactive
+check ins, the daily summary, API keys and MCP. Notifications: reminders, slip alerts, product email.
+Everything destructive sits at the bottom under a plain heading rather than disguised as an ordinary
+row. A toggle is labelled for its on state. There is no colour scheme picker, no AI memory and no
+public profile.
+
+**12. Upgrade.** Its job: say what Pro is in one sentence. That sentence is **Astra without the daily
+ceiling**. Show the honest arithmetic, 5 a day against 50 a day, as a comparison rather than a table,
+plus three outcomes: the calendar, the periodic retrospective, and Astra noticing things without being
+asked. **No feature matrix.** At most three plans, exactly one marked recommended, the same CTA verb
+on every tier, and the monthly to annual arithmetic visible. The decline path is as reachable as the
+accept path.
+
+---
+
+## Wave 7: the long tail
+
+**13. Celebration.** ONE component, four triggers: a streak milestone, a goal completing, a level up,
+and everything due today being done. **Never an individual habit completion.** Under a second,
+skippable, never blocking, carrying a static cue as well as motion. Quiet, and no exclamation mark.
+
+**14. Overlay primitives.** Prove the overlay canon once so all 83 callers inherit it: the confirm
+dialog, the context menu, the popover, the date and time pickers, the share sheet, the command
+palette, and the Android home screen widget at its real size. Content height by default, one scroll
+container, the action row never scrolling, focus moving in on open and back to the trigger on close,
+and the least destructive action focused in a destructive confirmation.
+
+**15. Static and errors.** About, support, privacy, terms, plus the application error, the not found
+screen and the chat error. Every error says how to fix it, in plain language, with one action. No
+"Oops".
 
 ---
 
@@ -174,4 +232,7 @@ a destructive confirmation.
 
 1. Verify with `DesignSync` `list_files` and read the new document, rather than trusting the report.
 2. Pull the wave into the repository so the canvas is never the only copy.
-3. Record what landed and what was asked in `design/prompts/RUN-LOG.md`.
+3. Record what landed and what was asked in `RUN-LOG.md`.
+4. Run the two tests from the preamble on the finished document, in both directions, and write the
+   verdict in the log. A document that passes the mechanical check and fails those two tests is the
+   failure this rewrite exists to prevent.

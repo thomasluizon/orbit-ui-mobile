@@ -2,9 +2,39 @@
 
 > **At a glance** - what was actually built on the Claude Design canvas, in order, with what was
 > verified rather than reported. The unattended run of the night of 2026-08-16, stopped by the
-> account usage limit with six documents left.
+> account usage limit with six documents left, and then **superseded the same day** by the
+> information architecture.
 
-## Where it stopped
+## Halted and superseded, 2026-08-16
+
+**Thomas read the twelve documents and stopped the run.** They are token correct and **product
+wrong**: they faithfully reskin the app that exists, which is a habit tracker with a chat tab, and
+`BRAND.md` has said since 2026-08-05 that exactly that reads as a failure of the positioning.
+
+**The cause is the prompts, not the canvas.** The old wave prompts described the content of each
+screen as it exists today, so the canvas rebuilt those screens in the new tokens. That was the
+correct output for the prompt it was given.
+
+What happened next, in one line each:
+
+1. The information architecture was settled with Thomas in an attended session, six rounds and 26
+   questions, recorded as **D67** and **D68** in the brain vault.
+2. `DESIGN.md` gained a `## Information architecture` section, which is now read first and outranks
+   every other section on whether a surface should exist.
+3. `waves.md` beside this file was **rewritten from scratch**. Every prompt now states the job of the
+   screen and what it must not become. The old prompts are gone rather than edited.
+4. `Orbit Insights.dc.html` was deleted: the route is cut and its charts fold into the streak surface
+   and Wrapped.
+5. The eleven surviving documents are kept as a record, not as a target. `design/canvas/README.md`
+   says so at the top.
+
+**The canvas rebuild starts after 2026-08-20**, when the account usage limit resets, and it runs from
+the rewritten prompts.
+
+**The operating notes below are still true and still worth reading.** They are about driving the
+tool, not about what to build, and nothing in this supersession touches them.
+
+## Where the first run stopped
 
 **Twelve of eighteen documents are built and exported to `design/canvas/`.** The account hit its
 usage limit part way through wave 5, before the first of its six documents started. The limit resets
