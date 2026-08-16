@@ -165,6 +165,23 @@ the normal state the instant the person accepts or edits it. **It never takes th
 is not one of the four accent roles, and it is certainly not what is next. No new hue, no new radius,
 no new family, no glow.
 
+### A derived value is not a proposed value
+
+**There is no eleventh state, and this is why.** A goal with linked habits derives its progress from
+their real logs. That value is neither typed by the person nor proposed by the machine: it is never
+accepted and never edited, it recomputes. Rendering it in `proposed` would say "the machine guessed,
+confirm it", which is the opposite of "this is your real logs and you cannot type over them".
+
+**A derived value renders exactly like a typed one**, at full weight, in normal tokens, because it is
+real. Two things change instead:
+
+1. **It carries no edit control.** The manual input for a derived value is **hidden, not disabled**. A
+   goal with linked habits has one source of truth, and offering an override beside it recreates the
+   drift this architecture removed. The manual input survives only where nothing is linked, for
+   example "lose 5 kg", where it is the only source.
+2. **The surface names what it is derived from.** A number whose origin is invisible reads as a number
+   somebody typed.
+
 ### Expressing repetition without the model leaking
 
 **The four internal type names never render, in either locale.** Not "recorrente", not "flexível", not
