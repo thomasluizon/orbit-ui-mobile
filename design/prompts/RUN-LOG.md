@@ -8,9 +8,15 @@
 | 0 | design system, wave 0 | Fable 5 | done | six items present, zero tokens added, checked against the manifest |
 | 0b | design system, wave 0 patch | Fable 5 | done | all five fixes present in the live project files |
 | 1 | `Orbit Today.dc.html` batch 2 | Fable 5 | done | rendered and clicked: wide shell, at capacity, all four axes |
-| 2 | `Orbit Habit Detail.dc.html` | Opus 4.8 | running | |
-| 3 | `Orbit Habit Form.dc.html` | Opus 4.8 | queued | |
-| 4 | `Orbit Calendar.dc.html` | Opus 4.8 | queued | |
+| 2 | `Orbit Habit Detail.dc.html` | Opus 4.8 | done | rendered: nav header, mono meta, 30 day ring grid, state axis correctly drops at capacity |
+| 3 | `Orbit Habit Form.dc.html` | Opus 4.8 | done | created, visual check deferred to the export pass |
+| 4 | `Orbit Calendar.dc.html` | Opus 4.8 | done | rendered: month grid of rings, today carries the accent, future days dimmed |
+| 5 | `Orbit Goals.dc.html` | Opus 4.8 | done | created |
+| 6 | `Orbit Goal Detail.dc.html` | Opus 4.8 | done | created |
+| 7 | `Orbit Insights.dc.html` | Opus 4.8 | done | created |
+| 8 | `Orbit Retrospective.dc.html` | Opus 4.8 | done | created |
+| 9 | `Orbit Astra Chat.dc.html` | Opus 4.8 | running | |
+| 10 | `Orbit Astra Cards.dc.html` | Opus 4.8 | queued | |
 
 ## Budget
 
@@ -27,6 +33,12 @@ Everything from wave 1 onward runs on `claude-opus-4-8` so a document is never c
 - **The first click into the canvas only focuses the iframe.** The second click registers. Click
   twice when driving a control.
 - **A browser batch longer than about 60 seconds times out.** Keep polling batches to five waits.
+- **The canvas builds one document per turn**, whatever the prompt asks for, so a wave needs a nudge
+  between documents. Confirm a send landed by checking the composer is empty, not by the click.
+- **Switching documents inside the app renders them without a reload** and does not disturb a running
+  generation, so a finished wave can be spot checked while the next one builds.
+- **The canvas asks its open questions as an interactive card on the canvas.** The standing answer
+  given this run: render both options and label the proposal, never stall.
 
 ## Verified on Today, batch 2
 
