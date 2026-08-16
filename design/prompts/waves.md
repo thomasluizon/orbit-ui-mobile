@@ -228,6 +228,26 @@ screen and the chat error. Every error says how to fix it, in plain language, wi
 
 ---
 
+## The surface list, and when it stops being true
+
+`node tools/redesign-coverage.mjs` maps **195 surfaces across 19 groups** and is the list 17 R tickets
+cite as authoritative. It validates against the live surface manifest, so it is **correct today**: it
+maps what the code actually has.
+
+**It goes stale as the information architecture lands in code, not before.** Do not edit it ahead of
+the deletions; it would then disagree with the manifest and fail its own validation. Regenerate it
+after each deletion merges. The groups that shrink or disappear:
+
+* `R12-screen-insights` (6 surfaces) goes to zero. The route is cut.
+* `R4-motion-celebration` (18) collapses toward one component with four triggers.
+* `R2-primitive-shell` (8) loses the desktop stats rail and gains the composer.
+* `R6-screen-goals` (8) loses the create-goal entry and moves inside Progresso.
+* `R13-screen-social` is already zero.
+
+**Progresso is not in the list at all**, because it does not exist yet. It absorbs `R9-screen-streak`,
+`R10-screen-achievements`, `R12-screen-insights` and the goal surfaces, and it needs its own ticket
+before wave 4 draws it.
+
 ## After every wave
 
 1. Verify with `DesignSync` `list_files` and read the new document, rather than trusting the report.
