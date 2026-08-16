@@ -28,8 +28,9 @@ What happened next, in one line each:
 5. The eleven surviving documents are kept as a record, not as a target. `design/canvas/README.md`
    says so at the top.
 
-**The canvas rebuild starts after 2026-08-20**, when the account usage limit resets, and it runs from
-the rewritten prompts.
+**The canvas can rebuild immediately.** Read live on 2026-08-16 from the usage panel: the weekly
+**all-models** bucket was **72 percent** used and the **session** bucket **1 percent**. Only the
+**Fable** bucket was near its ceiling at **96 percent**. See the corrected operating note below.
 
 **The operating notes below are still true and still worth reading.** They are about driving the
 tool, not about what to build, and nothing in this supersession touches them.
@@ -86,9 +87,18 @@ Two findings, one real:
 ## Budget
 
 Fable 5 was at 83% of its weekly allowance before the run and carried the Today batch 2 build. Waves
-1 to 4 ran on `claude-opus-4-8`. The usage limit that stopped wave 5 is account wide, not per model,
-and resets Thursday 20 August. The Fable banner is what the model itself misread as its own quota
-once, pausing until told the banner did not gate it.
+1 to 4 ran on `claude-opus-4-8`.
+
+**CORRECTED 2026-08-16: the claim that the limit is "account wide, not per model" is FALSE**, and it
+cost four days of assumed waiting. The usage panel shows **three separate buckets**: a rolling
+**session** limit, a weekly **all models** limit, and a weekly **Fable** limit. Read live on
+2026-08-16: session **1 percent**, all models **72 percent**, Fable **96 percent**, the last two
+resetting Thursday 03:59.
+
+So what actually stopped wave 5 was the **session** bucket, which resets every few hours, and the only
+bucket anywhere near exhaustion is **Fable**. `claude-opus-4-8` draws on the all-models bucket, which
+had 28 percent left. **Check the usage panel rather than reading a pause banner as an account-wide
+stop.**
 
 ## Operating notes, learned live
 

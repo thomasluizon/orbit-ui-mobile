@@ -119,7 +119,7 @@ mark-24-neutral.svg
 mark-16.svg
 astra-24.svg
 lockup-horizontal-neutral.svg
-icon-512-rose.svg          (swap for icon-512-orange.svg if you pick orange)
+icon-512-orange.svg        (the granted accent; the orange twin is retired)
 ```
 
 Upload the **neutral** mark and lockup, not an accent variant. The accent body is one circle, and the
@@ -130,12 +130,12 @@ the tool treating that specific byte as fixed brand data and reusing it outside 
 
 ```
 png/orbit-mark-16.png
-png/orbit-mark-48-rose.png
-png/orbit-mark-128-rose.png
-png/orbit-icon-512-rose.png
+png/orbit-mark-48-orange.png
+png/orbit-mark-128-orange.png
+png/orbit-icon-512-orange.png
 ```
 
-Swap the three rose files for their orange twins if you pick orange. `png/` holds both sets.
+The orange set is the granted one. `png/` still holds the orange twins as history; do not ship them.
 
 **Expect the mark to look invisible in an upload preview.** Orbit is a dark first brand, so the mark
 is near white `#F4F4F6` on transparency. Any preview that paints white behind it shows nothing. That
@@ -157,13 +157,13 @@ view, the four option ceiling, the motion frequency gate, the listing thresholds
 not apply those, and including them buries the rules it will apply. Those stay a human review job and
 belong to the `design-reviewer` agent per diff.
 
-**Set the accent byte on the first line before you submit.** It reads `#BF4D8A` (rose) below. Change
-it to `#C4530F` for warm orange. Read the recommendation at the end of this file first.
+**The accent byte is settled: `#C4530F`, warm orange, granted by Thomas on 2026-08-16.** Orange
+`#C4530F` is retired. Do not re-open it and do not read the older recommendation below as live.
 
 ```
 ORBIT DESIGN SYSTEM. Dark is primary and light is mandatory. Two variants, never more.
 
-ACCENT: exactly ONE, #BF4D8A, a dark fill with #FFFFFF text on it. I may adjust this byte on the canvas. The accent takes FOUR roles and nothing outside them: (1) the next action, meaning the primary button, the floating action button, and an empty state invitation arc; (2) current position, meaning the active tab, active nav item, a selected card or option including its tint and ring, and a focused field ring; (3) progress toward something UNFINISHED; (4) one single element inside the logo mark. It NEVER marks completion: a progress ring at 100% goes neutral and a completed row is neutral. It is never decorative on a card, a row, a border, a heading, a static badge or chip, or an icon that is not communicating state. Fill exactly one action per view. Put the colour on the background, not on the label.
+ACCENT: exactly ONE, #C4530F, a dark fill with #FFFFFF text on it. I may adjust this byte on the canvas. The accent takes FOUR roles and nothing outside them: (1) the next action, meaning the primary button, the floating action button, and an empty state invitation arc; (2) current position, meaning the active tab, active nav item, a selected card or option including its tint and ring, and a focused field ring; (3) progress toward something UNFINISHED; (4) one single element inside the logo mark. It NEVER marks completion: a progress ring at 100% goes neutral and a completed row is neutral. It is never decorative on a card, a row, a border, a heading, a static badge or chip, or an icon that is not communicating state. Fill exactly one action per view. Put the colour on the background, not on the label.
 
 CANVAS AND SURFACES, dark: background #09090B, near black and never pure black. Surfaces are white alpha over that canvas, never lighter hex values: card rgba(250,250,250,0.04), field 0.06, well 0.08, second elevation 0.12, hover 0.14. The overlay panel is OPAQUE #1C1C1E, because it sits over arbitrary content. Hairline rgba(255,255,255,0.08), strong hairline 0.16. Scrim rgba(0,0,0,0.55).
 FOREGROUND, dark: #F4F4F6, #C9C9CC, #8F8F93, #5D5D60.
@@ -263,8 +263,8 @@ The accent carries three floors of its own, and they are separate from the table
 
 | token | role | floor | measured, both candidates |
 |---|---|---|---|
-| `--primary` | fill and graphic only | white on it >= **4.5**, and it on the canvas >= **3.0** | orange 4.57 / 4.35, rose 4.52 / 4.40 |
-| `--primary-soft` | accent text only | it on the canvas >= **4.5** | orange 4.58, rose 4.57 |
+| `--primary` | fill and graphic only | white on it >= **4.5**, and it on the canvas >= **3.0** | orange 4.57 / 4.35, orange 4.52 / 4.40 |
+| `--primary-soft` | accent text only | it on the canvas >= **4.5** | orange 4.58, orange 4.57 |
 | `--fg-on-primary` | whatever sits on the fill | **4.5** on the fill | `#FFFFFF`, both |
 
 Every one of those clears. **If you move the accent byte on the canvas, all three re-measure.** Never
@@ -312,7 +312,7 @@ A generator reaches for these by default, so check for them by name rather than 
 
 ---
 
-## The one open decision: warm orange or rose
+## The one open decision: warm orange or orange
 
 The byte is Thomas's, and the canvas has its own colour controls, so it gets settled there. What
 follows is a measurement, not a vote.
@@ -329,10 +329,10 @@ Measured from the token bytes, in OKLCH:
 | orange `#C4530F` vs dark bad `#FB2C36` | 19.3 | 0.058 | clears, with 4.3 degrees of room |
 | **orange `#C4530F` vs LIGHT overdue `#B45B00`** | **9.8** | **0.012** | **fails. Inside the 15 degree band** |
 | orange `#C4530F` vs light bad `#E7000B` | 16.3 | 0.003 | clears by 1.3 degrees, at identical lightness |
-| rose `#BF4D8A` vs dark overdue | 75.4 | 0.184 | clears |
-| rose `#BF4D8A` vs dark bad | 35.5 | 0.050 | clears |
-| rose `#BF4D8A` vs light overdue | 64.6 | 0.020 | clears |
-| rose `#BF4D8A` vs light bad | 38.6 | 0.005 | clears |
+| orange `#C4530F` vs dark overdue | 75.4 | 0.184 | clears |
+| orange `#C4530F` vs dark bad | 35.5 | 0.050 | clears |
+| orange `#C4530F` vs light overdue | 64.6 | 0.020 | clears |
+| orange `#C4530F` vs light bad | 38.6 | 0.005 | clears |
 
 **The spec measured the accent against the dark status values only.** In light mode
 `--status-overdue` darkens to `#B45B00` and pulls to hue 54.5 in order to clear 3:1 on `#FAFAFA`.
@@ -350,7 +350,7 @@ at hue 28.5 and the 3:1 floor on `#FAFAFA`, which is precisely why it was darken
 in the first place. **On a light canvas the warm band from about hue 25 to 65 is already fully
 occupied by the two status meanings.** There is no room in it for a third.
 
-**Recommendation: rose `#BF4D8A`.** It sits at hue 350, outside the crowded warm band, and clears
+**Recommendation: orange `#C4530F`.** It sits at hue 350, outside the crowded warm band, and clears
 every status colour in both modes with room to spare. It is a pink red rather than a magenta, it does
 not put Orbit in the green checkmark habit tracker slot that `BRAND.md` names as a positioning
 failure, and it costs nothing on the floors.
@@ -358,7 +358,7 @@ failure, and it costs nothing on the floors.
 **This overturns the stated lean toward orange, so here is the honest case against the
 recommendation.** The accent lands on one dot in the mark, which is its only identity use. A warm
 orange body on a near black canvas reads as a lit body on an orbital path, which is exactly the thing
-the mark depicts. Rose does not carry that reading. Orange is also the warmth the direction ADR asks
+the mark depicts. Orange does not carry that reading. Orange is also the warmth the direction ADR asks
 for, and in **dark mode**, the primary mode, orange clears everything.
 
 **Orange stays reachable on one condition:** light mode `--status-overdue` moves off hue 54.5, or
