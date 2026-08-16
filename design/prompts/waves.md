@@ -8,13 +8,17 @@
 **Run one wave per prompt block, in order.** Every prompt assumes `guidelines/screen-contract.md` in
 the design system, so none of them restate the canon.
 
-| wave | documents | coverage groups |
-|---|---|---|
-| 1 | habit detail, habit form, calendar | R7, R8 |
-| 2 | goals, goal detail, insights, retrospective | R6, R12 |
-| 3 | Astra conversation, Astra cards | R11 |
-| 4 | onboarding, auth | R14, R15 |
-| 5 | settings, monetization, streak and achievements, celebrations, static and errors, overlay primitives | R16, R17, R9, R10, R4, R18, R1, R2, R21 |
+| wave | documents | coverage groups | state |
+|---|---|---|---|
+| 1 | habit detail, habit form, calendar | R7, R8 | **done 2026-08-16** |
+| 2 | goals, goal detail, insights, retrospective | R6, R12 | **done 2026-08-16** |
+| 3 | Astra conversation, Astra cards | R11 | **done 2026-08-16** |
+| 4 | onboarding, auth | R14, R15 | **done 2026-08-16** |
+| 5 | settings, monetization, streak and achievements, celebrations, static and errors, overlay primitives | R16, R17, R9, R10, R4, R18, R1, R2, R21 | **blocked on the usage limit, resets 2026-08-20** |
+
+**Waves 1 to 4 are built and exported to `design/canvas/`.** `RUN-LOG.md` beside this file records
+what was verified. Wave 5 is queued inside the canvas chat as a todo list: open the project and press
+Resume, or paste the wave 5 block below again.
 
 ---
 
