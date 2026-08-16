@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 3 · meta, detalhe e formulário</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Meta, detalhe · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ backToDetail }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px" aria-busy="true">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,140px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n2 }}" label="{{ tLoading }}" hint-size="100%,150px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,240px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding-bottom:8px">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tGoalTitle }}</h1>
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ progressLine }}</p>
+                </div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ pct }}" max="{{ n100 }}" label="{{ barLabel }}" hint-size="100%,8px"></x-import>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tLinked }}</x-import>
+                <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyLinked }}" action="{{ linkAction }}" hint-size="100%,240px"></x-import>
+                </sc-if>
+                <sc-if value="{{ hasLinks }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                      <sc-for list="{{ linked }}" as="h" hint-placeholder-count="2">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" meta="{{ h.meta }}" trailing="{{ h.trailing }}" on-click="{{ h.onClick }}" on-menu="{{ h.onMenu }}" menu-label="{{ h.menuLabel }}" hint-size="100%,64px"></x-import>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tLink }}</x-import>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tHistory }}</x-import>
+                <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tEmptyHist }}</p>
+                </sc-if>
+                <sc-if value="{{ hasLinks }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <sc-for list="{{ hist }}" as="h" hint-placeholder-count="5">
+                      <div style="display:flex;align-items:baseline;gap:16px">
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums;flex:0 0 auto">{{ h.date }}</span>
+                        <span style="font-size:var(--fs-sm);color:var(--fg-2);min-width:0">{{ h.habit }}</span>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-1);font-variant-numeric:tabular-nums;margin-left:auto">{{ h.delta }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ tEditGoal }}" on-click="{{ goEdit }}" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="archive" title="{{ tArchGoal }}" description="{{ tArchDesc }}" chevron="{{ false }}" on-click="{{ openArch }}" hint-size="100%,64px"></x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showForm }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-bottom:8px">
+              <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              </sc-if>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tTitleLabel }}" placeholder="{{ tTitlePh }}" value="{{ fTitle }}" on-change="{{ setTitle }}" hint-size="100%,80px"></x-import>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tTargetLabel }}" placeholder="{{ tTargetPh }}" value="{{ fTarget }}" on-change="{{ setTarget }}" error="{{ targetErr }}" hint-size="100%,80px"></x-import>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tUnitLabel }}" placeholder="{{ tUnitPh }}" value="{{ fUnit }}" on-change="{{ setUnit }}" disabled="{{ unitDisabled }}" hint-size="100%,80px"></x-import>
+                  <sc-if value="{{ unitDisabled }}" hint-placeholder-val="{{ false }}">
+                    <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tUnitReason }}</p>
+                  </sc-if>
+                </div>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tDateLabel }}" placeholder="{{ tDatePh }}" value="{{ fDate }}" on-change="{{ setDate }}" hint-size="100%,80px"></x-import>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tLinked }}</p>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <sc-for list="{{ linkOpts }}" as="o" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:8px 16px">
+                      <span style="font-size:var(--fs-md)">{{ o.label }}</span>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Switch" checked="{{ o.checked }}" on-change="{{ o.onChange }}" label="{{ o.label }}" hint-size="120px,28px"></x-import>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ isCap }}" on-click="{{ submit }}" hint-size="auto,44px">{{ tSubmit }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ backToDetail }}" hint-size="auto,44px">{{ tCancel }}</x-import>
+                <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReasonPre }}<span data-mock="true">5</span> {{ tCapReasonPost }}</span>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Meta, detalhe · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="metas" on-create="{{ wideCreate }}" create-label="{{ tCreateGoal }}" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ backToDetail }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px" aria-busy="true">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,140px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n2 }}" label="{{ tLoading }}" hint-size="100%,150px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,240px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tGoalTitle }}</h1>
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ progressLine }}</p>
+                </div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ pct }}" max="{{ n100 }}" label="{{ barLabel }}" hint-size="100%,8px"></x-import>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tLinked }}</x-import>
+                <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyLinked }}" action="{{ linkActionWide }}" hint-size="100%,240px"></x-import>
+                </sc-if>
+                <sc-if value="{{ hasLinks }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                      <sc-for list="{{ linked }}" as="h" hint-placeholder-count="2">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" meta="{{ h.meta }}" trailing="{{ h.trailing }}" on-click="{{ h.onClick }}" on-menu="{{ h.onMenu }}" menu-label="{{ h.menuLabel }}" hint-size="100%,64px"></x-import>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tLink }}</x-import>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tHistory }}</x-import>
+                <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tEmptyHist }}</p>
+                </sc-if>
+                <sc-if value="{{ hasLinks }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <sc-for list="{{ hist }}" as="h" hint-placeholder-count="5">
+                      <div style="display:flex;align-items:baseline;gap:16px">
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums;flex:0 0 auto">{{ h.date }}</span>
+                        <span style="font-size:var(--fs-sm);color:var(--fg-2);min-width:0">{{ h.habit }}</span>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-1);font-variant-numeric:tabular-nums;margin-left:auto">{{ h.delta }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showForm }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              </sc-if>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tTitleLabel }}" placeholder="{{ tTitlePh }}" value="{{ fTitle }}" on-change="{{ setTitle }}" hint-size="100%,80px"></x-import>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tTargetLabel }}" placeholder="{{ tTargetPh }}" value="{{ fTarget }}" on-change="{{ setTarget }}" error="{{ targetErr }}" hint-size="100%,80px"></x-import>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tUnitLabel }}" placeholder="{{ tUnitPh }}" value="{{ fUnit }}" on-change="{{ setUnit }}" disabled="{{ unitDisabled }}" hint-size="100%,80px"></x-import>
+                  <sc-if value="{{ unitDisabled }}" hint-placeholder-val="{{ false }}">
+                    <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tUnitReason }}</p>
+                  </sc-if>
+                </div>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tDateLabel }}" placeholder="{{ tDatePh }}" value="{{ fDate }}" on-change="{{ setDate }}" hint-size="100%,80px"></x-import>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tLinked }}</p>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <sc-for list="{{ linkOpts }}" as="o" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:8px 16px">
+                      <span style="font-size:var(--fs-md)">{{ o.label }}</span>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Switch" checked="{{ o.checked }}" on-change="{{ o.onChange }}" label="{{ o.label }}" hint-size="120px,28px"></x-import>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ isCap }}" on-click="{{ submit }}" hint-size="auto,44px">{{ tSubmit }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ backToDetail }}" hint-size="auto,44px">{{ tCancel }}</x-import>
+                <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReasonPre }}<span data-mock="true">5</span> {{ tCapReasonPost }}</span>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+      {{ sheetsEl }}
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    menuFor:null, archOpen:false,
+    fTitle:'Correr 100 km', fTarget:'100', fUnit:'km', fDate:'30/09/2026',
+    links:{run:true, walk:true, ride:false},
+    cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  };
+  componentDidMount(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  componentDidUpdate(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  prefill(next){
+    const s = next.state;
+    if (s==='editing') return {fTitle:'Correr 100 km', fTarget:'100', fUnit:'km', fDate:'30/09/2026', links:{run:true,walk:true,ride:false}};
+    if (s==='error') return {fTitle:'Correr 100 km', fTarget:'0', fUnit:'km', fDate:'30/09/2026', links:{run:true,walk:true,ride:false}};
+    if (s==='creating' || s==='at capacity') return {fTitle:'', fTarget:'', fUnit:'', fDate:'', links:{run:false,walk:false,ride:false}};
+    return null;
+  }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      navDetail:'Goal', navCreate:'Create goal', navEdit:'Edit goal',
+      goalTitle:'Run 100 km', of:'of', by:'by ', dateVal:'Sep 30',
+      linked:'Linked habits', link:'Link habit', history:'History',
+      emptyLinked:'No linked habits', emptyHist:'Nothing logged yet.',
+      openHabit:'Open habit', unlink:'Unlink', more:'More options for',
+      everyDay:'every day', threeWeek:'3x a week',
+      editGoal:'Edit goal', archGoal:'Archive goal', archDesc:'You can restore it at any time.',
+      archTitle:'Archive goal', archBody:'Run 100 km leaves Goals. Progress and history are kept. You can restore it at any time.',
+      cancel:'Cancel', createGoal:'Create goal',
+      titleLabel:'Title', titlePh:'Run 100 km',
+      targetLabel:'Target', targetPh:'100', targetErr:'Use a number greater than zero, like 100.',
+      unitLabel:'Unit', unitPh:'km', unitReason:'The unit does not change after the first log.',
+      dateLabel:'Deadline', datePh:'dd/mm/yyyy',
+      submitNew:'Create goal', submitEdit:'Save',
+      capMsg:['Limit of ',' goals. Archive a goal to create another.'], capPre:'Limit of ', capPost:'goals.',
+      archive:'Archive', loading:'Loading', tabs:['Today','Goals','Astra','Profile'],
+      habits:{run:'Run', walk:'Walk', ride:'Cycle'},
+      hist:[
+        {date:'Aug 16', habit:'Run', delta:'+6 km'},
+        {date:'Aug 14', habit:'Run', delta:'+8 km'},
+        {date:'Aug 12', habit:'Walk', delta:'+3 km'},
+        {date:'Aug 9', habit:'Run', delta:'+10 km'},
+        {date:'Aug 6', habit:'Walk', delta:'+4 km'}]
+    } : {
+      navDetail:'Meta', navCreate:'Criar meta', navEdit:'Editar meta',
+      goalTitle:'Correr 100 km', of:'de', by:'até ', dateVal:'30 de set',
+      linked:'Hábitos vinculados', link:'Vincular hábito', history:'Histórico',
+      emptyLinked:'Nenhum hábito vinculado', emptyHist:'Nada registrado ainda.',
+      openHabit:'Abrir hábito', unlink:'Desvincular', more:'Mais opções de',
+      everyDay:'todos os dias', threeWeek:'3x por semana',
+      editGoal:'Editar meta', archGoal:'Arquivar meta', archDesc:'Você pode restaurar a qualquer momento.',
+      archTitle:'Arquivar meta', archBody:'Correr 100 km sai de Metas. O progresso e o histórico ficam guardados. Você pode restaurar a qualquer momento.',
+      cancel:'Cancelar', createGoal:'Criar meta',
+      titleLabel:'Título', titlePh:'Correr 100 km',
+      targetLabel:'Alvo', targetPh:'100', targetErr:'Use um número maior que zero, como 100.',
+      unitLabel:'Unidade', unitPh:'km', unitReason:'A unidade não muda depois do primeiro registro.',
+      dateLabel:'Prazo', datePh:'dd/mm/aaaa',
+      submitNew:'Criar meta', submitEdit:'Salvar',
+      capMsg:['Limite de ',' metas. Arquive uma meta para criar outra.'], capPre:'Limite de ', capPost:'metas.',
+      archive:'Arquivar', loading:'Carregando', tabs:['Hoje','Metas','Astra','Perfil'],
+      habits:{run:'Correr', walk:'Caminhada', ride:'Pedalar'},
+      hist:[
+        {date:'16 de ago', habit:'Correr', delta:'+6 km'},
+        {date:'14 de ago', habit:'Correr', delta:'+8 km'},
+        {date:'12 de ago', habit:'Caminhada', delta:'+3 km'},
+        {date:'9 de ago', habit:'Correr', delta:'+10 km'},
+        {date:'6 de ago', habit:'Caminhada', delta:'+4 km'}]
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty',
+      isCap = cstate==='at capacity', isEditing = cstate==='editing' || cstate==='error',
+      isForm = isEditing || cstate==='creating' || isCap;
+    const isWide = cv.width==='wide';
+    const showDetail = !isLoading && !isForm;
+    const hasLinks = showDetail && !isEmpty;
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const noop = () => {};
+    const pct = isEmpty ? 0 : 72;
+    const progressLine = E(React.Fragment,null,
+      mockEl(String(pct===0?'0':'72')),' '+T.of+' ',mockEl('100'),' km · '+T.by,mockEl(T.dateVal));
+    const trail = v => E('span',{style:{fontFamily:'var(--font-mono)',fontSize:'var(--fs-xs)',color:'var(--fg-3)',fontVariantNumeric:'tabular-nums'}}, mockEl(v));
+    const openMenu = t => () => this.setState({menuFor:t});
+    const linked = [
+      {icon:'🏃', title:T.habits.run, meta:T.everyDay, trailing:trail('+52 km'), onClick:noop, onMenu:openMenu(T.habits.run), menuLabel:T.more+' '+T.habits.run},
+      {icon:'🚶', title:T.habits.walk, meta:T.threeWeek, trailing:trail('+20 km'), onClick:noop, onMenu:openMenu(T.habits.walk), menuLabel:T.more+' '+T.habits.walk}];
+    const closeMenu = ()=>this.setState({menuFor:null});
+    const openArch = ()=>this.setState({archOpen:true});
+    const closeArch = ()=>this.setState({archOpen:false});
+    const menuSheet = DS.Sheet ? E(DS.Sheet,{open:!!st.menuFor,title:st.menuFor||'',onClose:closeMenu},
+      E('div',{style:{display:'flex',flexDirection:'column',paddingBottom:24}},
+        E(DS.ListRow,{icon:'arrow-up-right',title:T.openHabit,chevron:false,onClick:closeMenu}),
+        E(DS.ListRow,{icon:'unlink',title:T.unlink,chevron:false,onClick:closeMenu}))) : null;
+    const archSheet = (DS.Sheet && DS.Button) ? E(DS.Sheet,{open:st.archOpen,title:T.archTitle,onClose:closeArch,
+      actions:E(React.Fragment,null,
+        E(DS.Button,{variant:'ghost',size:'sm',onClick:closeArch},T.cancel),
+        E(DS.Button,{size:'sm',onClick:closeArch},T.archive))},
+      E('p',{style:{fontSize:'var(--fs-base)',color:'var(--fg-2)',lineHeight:1.5,paddingBottom:8,maxWidth:'65ch'}}, T.archBody)) : null;
+    const sheetsEl = E(React.Fragment,null,menuSheet,archSheet);
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'metas'}) : null;
+    const goState = (s)=>()=>this.setState(prev=>Object.assign({cv:{...prev.cv,state:s},menuFor:null,archOpen:false}, this.prefill({state:s})));
+    const goEdit = goState('editing');
+    const backToDetail = goState('default');
+    const linkAction = DS.Button ? E(DS.Button,{size:'sm',onClick:noop}, T.link) : null;
+    const linkActionWide = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.link) : null;
+    const railEl = (isWide && hasLinks && DS.ListRow) ? E('div',{style:{background:'var(--bg-card)',borderRadius:'var(--r-card)',boxShadow:'inset 0 0 0 1px var(--hairline-ghost)',overflow:'hidden'}},
+      E(DS.ListRow,{icon:'pencil',title:T.editGoal,onClick:goEdit}),
+      E(DS.ListRow,{icon:'archive',title:T.archGoal,description:T.archDesc,chevron:false,onClick:openArch})) : null;
+    const targetVal = parseFloat(String(st.fTarget).replace(',','.'));
+    const targetErr = (cstate==='error' && !(targetVal>0)) ? T.targetErr : undefined;
+    const linkOpts = ['run','walk','ride'].map(k => ({
+      label:T.habits[k], checked:st.links[k],
+      onChange:v=>this.setState(s=>({links:{...s.links,[k]:v}}))
+    }));
+    const capAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.archive) : null;
+    const capMsgEl = E('span',null,T.capMsg[0],mockEl('5'),T.capMsg[1]);
+    return {
+      mode:cv.mode, cv,
+      setCv:next=>this.setState(Object.assign({cv:next,menuFor:null,archOpen:false},
+        (next.state!==cv.state || next.locale!==cv.locale) ? this.prefill(next) : null)),
+      cvStates:['default','editing','creating','loading','empty','error','at capacity'],
+      is412:!isWide, isWide, tabs, tabBarEl, noop, sheetsEl, railEl,
+      wideCreate:isForm?undefined:goState('creating'), tCreateGoal:T.createGoal,
+      isLoading, isEmpty, isCap, showDetail, hasLinks, showForm:isForm && !isLoading,
+      tNav:isForm ? (isEditing?T.navEdit:T.navCreate) : T.navDetail,
+      tGoalTitle:T.goalTitle, progressLine, pct, barLabel:pct+'%',
+      tLinked:T.linked, tLink:T.link, tHistory:T.history,
+      tEmptyLinked:T.emptyLinked, tEmptyHist:T.emptyHist,
+      linked, hist:T.hist, linkAction, linkActionWide,
+      tEditGoal:T.editGoal, tArchGoal:T.archGoal, tArchDesc:T.archDesc,
+      goEdit, openArch, backToDetail,
+      tTitleLabel:T.titleLabel, tTitlePh:T.titlePh, fTitle:st.fTitle, setTitle:e=>this.setState({fTitle:e.target.value}),
+      tTargetLabel:T.targetLabel, tTargetPh:T.targetPh, fTarget:st.fTarget, setTarget:e=>this.setState({fTarget:e.target.value}),
+      tUnitLabel:T.unitLabel, tUnitPh:T.unitPh, fUnit:st.fUnit, setUnit:e=>this.setState({fUnit:e.target.value}),
+      unitDisabled:isEditing, tUnitReason:T.unitReason,
+      tDateLabel:T.dateLabel, tDatePh:T.datePh, fDate:st.fDate, setDate:e=>this.setState({fDate:e.target.value}),
+      targetErr, linkOpts,
+      tSubmit:isEditing?T.submitEdit:T.submitNew, tCancel:T.cancel,
+      submit:()=>{ const v = parseFloat(String(this.state.fTarget).replace(',','.'));
+        if (!(v>0)) this.setState(s=>({cv:{...s.cv,state:'error'}}));
+        else this.setState(s=>({cv:{...s.cv,state:'default'}})); },
+      tCapReasonPre:T.capPre, tCapReasonPost:T.capPost, capMsgEl, capAction,
+      n1:1, n2:2, n4:4, n100:100
+    };
+  }
+}
+</script>
+</body>
+</html>

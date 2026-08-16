@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 3 · metas · a matriz completa</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Metas · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" fab="{{ fabEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:24px 16px 0">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase"><span data-mock="true">{{ goalCount }}</span> {{ tCountWord }}</p>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tTitle }}</h1>
+          </div>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n5 }}" label="{{ tLoading }}" hint-size="100%,380px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" disabled="{{ true }}" hint-size="auto,36px">{{ tCreate }}</x-import>
+                <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReasonPre }}<span data-mock="true">5</span> {{ tCapReasonPost }}</span>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ goals }}" as="g" hint-placeholder-count="5">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" title="{{ g.title }}" meta="{{ g.meta }}" trailing="{{ g.ring }}" on-click="{{ g.onClick }}" on-menu="{{ g.onMenu }}" menu-label="{{ g.menuLabel }}" hint-size="100%,64px"></x-import>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Metas · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="metas" on-create="{{ wideCreate }}" create-label="{{ tCreate }}" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase"><span data-mock="true">{{ goalCount }}</span> {{ tCountWord }}</p>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tTitle }}</h1>
+          </div>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n5 }}" label="{{ tLoading }}" hint-size="100%,380px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" disabled="{{ true }}" hint-size="auto,36px">{{ tCreate }}</x-import>
+                <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReasonPre }}<span data-mock="true">5</span> {{ tCapReasonPost }}</span>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ goals }}" as="g" hint-placeholder-count="5">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" title="{{ g.title }}" meta="{{ g.meta }}" trailing="{{ g.ring }}" on-click="{{ g.onClick }}" on-menu="{{ g.onMenu }}" menu-label="{{ g.menuLabel }}" hint-size="100%,64px"></x-import>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+      {{ sheetsEl }}
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    menuFor:null, createOpen:false, name:'',
+    cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  };
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      title:'Goals', countWord:'goals, one done', of:'of', create:'Create goal',
+      name:'Goal name', ph:'Run 100 km', cancel:'Cancel', doCreate:'Create',
+      edit:'Edit', archive:'Archive', more:'More options for',
+      emptyTitle:'No goals yet',
+      errMsg:'Could not load your goals. Check your connection and try again.',
+      retry:'Try again', capPre:'Limit of ', capPost:'goals.',
+      capMsg:['Limit of ',' goals. Archive a goal to create another.'],
+      loading:'Loading', tabs:['Today','Goals','Astra','Profile'],
+      proposal:'proposal · accept or cut each module',
+      deadline:'next deadline · English, 40 hours', deadlineVal:'Aug 10',
+      r1:'the goal that needs you first', doneTiles:'goals done', r2:'cut if the list already says it',
+      goals:[
+        {title:'English, 40 hours', pct:65, m:[['m','26'],['t',' of '],['m','40'],['t',' hours · '],['o','overdue since '],['om','Aug 10']]},
+        {title:'Run 100 km', pct:72, m:[['m','72'],['t',' of '],['m','100'],['t',' km · by '],['m','Sep 30']]},
+        {title:'Read 12 books', pct:42, m:[['m','5'],['t',' of '],['m','12'],['t',' books · by '],['m','Dec 31']]},
+        {title:'Save R$ 1,200', pct:0, m:[['t','R$ '],['m','0'],['t',' of R$ '],['m','1,200'],['t',' · by '],['m','Dec 20']]},
+        {title:'Meditate 30 days', pct:100, m:[['m','30'],['t',' of '],['m','30'],['t',' days · done']]}
+      ]
+    } : {
+      title:'Metas', countWord:'metas, uma concluída', of:'de', create:'Criar meta',
+      name:'Nome da meta', ph:'Correr 100 km', cancel:'Cancelar', doCreate:'Criar',
+      edit:'Editar', archive:'Arquivar', more:'Mais opções de',
+      emptyTitle:'Nenhuma meta ainda',
+      errMsg:'Não foi possível carregar suas metas. Verifique sua conexão e tente de novo.',
+      retry:'Tentar de novo', capPre:'Limite de ', capPost:'metas.',
+      capMsg:['Limite de ',' metas. Arquive uma meta para criar outra.'],
+      loading:'Carregando', tabs:['Hoje','Metas','Astra','Perfil'],
+      proposal:'proposta · aceite ou corte cada módulo',
+      deadline:'próximo prazo · Inglês, 40 horas', deadlineVal:'10 de ago',
+      r1:'a meta que precisa de você primeiro', doneTiles:'metas concluídas', r2:'corte se a lista já diz isso',
+      goals:[
+        {title:'Inglês, 40 horas', pct:65, m:[['m','26'],['t',' de '],['m','40'],['t',' horas · '],['o','venceu '],['om','10 de ago']]},
+        {title:'Correr 100 km', pct:72, m:[['m','72'],['t',' de '],['m','100'],['t',' km · até '],['m','30 de set']]},
+        {title:'Ler 12 livros', pct:42, m:[['m','5'],['t',' de '],['m','12'],['t',' livros · até '],['m','31 de dez']]},
+        {title:'Economizar R$ 1.200', pct:0, m:[['t','R$ '],['m','0'],['t',' de R$ '],['m','1.200'],['t',' · até '],['m','20 de dez']]},
+        {title:'Meditar 30 dias', pct:100, m:[['m','30'],['t',' de '],['m','30'],['t',' dias · concluída']]}
+      ]
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty',
+      isError = cstate==='error', isCap = cstate==='at capacity';
+    const isWide = cv.width==='wide';
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const seg = (s,i) => {
+      if (s[0]==='m') return E('span',{key:i,'data-mock':'true'}, s[1]);
+      if (s[0]==='o') return E('span',{key:i,style:{color:'var(--status-overdue)'}}, s[1]);
+      if (s[0]==='om') return E('span',{key:i,'data-mock':'true',style:{color:'var(--status-overdue)'}}, s[1]);
+      return s[1];
+    };
+    const openMenu = t => () => this.setState({menuFor:t});
+    const goals = T.goals.map(g => ({
+      title:g.title,
+      meta:E('span',null, ...g.m.map(seg)),
+      ring:(DS.ProgressRing ? E(DS.ProgressRing,{value:g.pct,size:36,label:g.pct+'%'}) : null),
+      onClick:()=>{}, onMenu:openMenu(g.title), menuLabel:T.more+' '+g.title
+    }));
+    const closeMenu = ()=>this.setState({menuFor:null});
+    const closeCreate = ()=>this.setState({createOpen:false});
+    const openCreate = ()=>this.setState({createOpen:true});
+    const menuSheet = DS.Sheet ? E(DS.Sheet,{open:!!st.menuFor,title:st.menuFor||'',onClose:closeMenu},
+      E('div',{style:{display:'flex',flexDirection:'column',paddingBottom:24}},
+        E(DS.ListRow,{icon:'pencil',title:T.edit,chevron:false,onClick:closeMenu}),
+        E(DS.ListRow,{icon:'archive',title:T.archive,chevron:false,onClick:closeMenu}))) : null;
+    const createSheet = (DS.Sheet && DS.Button && DS.Input) ? E(DS.Sheet,{open:st.createOpen,title:T.create,onClose:closeCreate,
+      actions:E(React.Fragment,null,
+        E(DS.Button,{variant:'ghost',size:'sm',onClick:closeCreate},T.cancel),
+        E(DS.Button,{size:'sm',onClick:()=>this.setState({createOpen:false,name:''})},T.doCreate))},
+      E('div',{style:{paddingBottom:8}},
+        E(DS.Input,{label:T.name,placeholder:T.ph,value:st.name,onChange:e=>this.setState({name:e.target.value})}))) : null;
+    const sheetsEl = E(React.Fragment,null,menuSheet,createSheet);
+    const fabEl = (cstate==='default' && DS.Fab) ? E(DS.Fab,{label:T.create,onClick:openCreate}) : null;
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'metas'}) : null;
+    const reason = t => E('span',{style:{fontSize:12,color:'var(--fg-4)',lineHeight:1.4}}, t);
+    const skel = k => E(DS.Skeleton,{key:k,variant:'stat-tile',rows:1,label:T.loading});
+    const showData = cstate==='default' || isCap;
+    const railEl = (isLoading && DS.Skeleton)
+      ? E('div',{style:{display:'flex',flexDirection:'column',gap:12}}, skel(1), skel(2))
+      : (showData && DS.StatTile)
+      ? E('div',{'data-proposal':'true',style:{display:'flex',flexDirection:'column',gap:12}},
+          E('p',{style:{fontFamily:'var(--font-mono)',fontSize:'var(--fs-xs)',color:'var(--fg-4)',letterSpacing:'.06em',textTransform:'uppercase'}}, T.proposal),
+          E('div',{style:{display:'flex',flexDirection:'column',gap:4}},
+            E(DS.StatTile,{value:mockEl(T.deadlineVal),label:T.deadline}), reason(T.r1)),
+          E('div',{style:{display:'flex',flexDirection:'column',gap:4}},
+            E(DS.StatTile,{value:E('span',null,mockEl('1'),' '+T.of+' ',mockEl('5')),label:T.doneTiles}), reason(T.r2)))
+      : null;
+    const emptyAction = DS.Button ? E(DS.Button,{size:'sm',variant:isWide?'ghost':'primary',onClick:openCreate}, T.create) : null;
+    const errAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{
+      this.setState(s=>({cv:{...s.cv,state:'loading'}}));
+      setTimeout(()=>this.setState(s=>s.cv.state==='loading'?{cv:{...s.cv,state:'default'}}:null), 900);
+    }}, T.retry) : null;
+    const capAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{}}, T.archive) : null;
+    const capMsgEl = E('span',null,T.capMsg[0],mockEl('5'),T.capMsg[1]);
+    return {
+      mode:cv.mode, cv, setCv:next=>this.setState({cv:next,menuFor:null,createOpen:false}),
+      cvStates:['default','loading','empty','error','at capacity'],
+      is412:!isWide, isWide, tabs, wideCreate:isCap?undefined:openCreate,
+      tTitle:T.title, tCountWord:T.countWord, goalCount:'5',
+      tCreate:T.create, tLoading:T.loading, tEmptyTitle:T.emptyTitle, tErrMsg:T.errMsg,
+      tCapReasonPre:T.capPre, tCapReasonPost:T.capPost,
+      isLoading, isEmpty, isError, isCap, showList:showData,
+      goals, sheetsEl, fabEl, tabBarEl, railEl,
+      emptyAction, errAction, capAction, capMsgEl,
+      n5:5
+    };
+  }
+}
+</script>
+</body>
+</html>

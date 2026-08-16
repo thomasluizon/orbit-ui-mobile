@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+  <style>
+    @keyframes wrapRise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { [data-wrapfig] { animation:none !important; } }
+  </style>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 3 · retrospectiva e wrapped</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Retrospectiva · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px" aria-busy="true">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n3 }}" label="{{ tLoading }}" hint-size="100%,330px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,280px">
+              <p style="font-size:var(--fs-sm);color:var(--fg-3);max-width:65ch;text-wrap:pretty">{{ tEmptyBody }}</p>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{ showRetro }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-bottom:8px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tMonth }} · <span data-mock="true">{{ tRange }}</span></p>
+                <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tNav }}</h1>
+              </div>
+              <p style="font-size:var(--fs-md);color:var(--fg-2);line-height:1.5;max-width:65ch;text-wrap:pretty">{{ tCalm }}</p>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ fig1Val }}" label="{{ tFig1 }}" hint-size="100%,96px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ fig2Val }}" label="{{ tFig2 }}" hint-size="100%,96px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ fig3Val }}" label="{{ tFig3 }}" hint-size="100%,96px"></x-import>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ goWrapped }}" hint-size="auto,44px">{{ tSeeWrapped }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showWrapped }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding:24px 8px 8px;align-items:center;text-align:center">
+              <div style="display:flex;flex-direction:column;gap:16px;align-items:center">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n28 }}" hint-size="28px,28px"></x-import>
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tWrapEyebrow }}</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:32px;align-items:center">
+                <div data-wrapfig="1" style="{{ anim1 }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+                    <span style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:var(--track-display);font-variant-numeric:tabular-nums"><span data-mock="true">25</span></span>
+                    <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tWrap1 }}</span>
+                  </div>
+                </div>
+                <div data-wrapfig="2" style="{{ anim2 }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+                    <span style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:var(--track-display);font-variant-numeric:tabular-nums"><span data-mock="true">12</span></span>
+                    <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tWrap2 }}</span>
+                  </div>
+                </div>
+                <div data-wrapfig="3" style="{{ anim3 }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+                    <span style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:var(--track-display);font-variant-numeric:tabular-nums"><span data-mock="true">1</span></span>
+                    <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tWrap3 }}</span>
+                  </div>
+                </div>
+              </div>
+              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);font-variant-numeric:tabular-nums">{{ tMonth }} · <span data-mock="true">{{ tRange }}</span> · Orbit</p>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ noop }}" hint-size="auto,44px">{{ tShare }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ goRetro }}" hint-size="auto,44px">{{ tBack }}</x-import>
+                <sc-if value="{{ animOn }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ skipAnim }}" hint-size="auto,36px">{{ tSkip }}</x-import>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Retrospectiva · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="perfil" account="Thomas" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px" aria-busy="true">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n3 }}" label="{{ tLoading }}" hint-size="100%,330px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyActionWide }}" hint-size="100%,280px">
+              <p style="font-size:var(--fs-sm);color:var(--fg-3);max-width:65ch;text-wrap:pretty">{{ tEmptyBody }}</p>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{ showRetro }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tMonth }} · <span data-mock="true">{{ tRange }}</span></p>
+                <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tNav }}</h1>
+              </div>
+              <p style="font-size:var(--fs-md);color:var(--fg-2);line-height:1.5;max-width:65ch;text-wrap:pretty">{{ tCalm }}</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ fig1Val }}" label="{{ tFig1 }}" hint-size="100%,96px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ fig2Val }}" label="{{ tFig2 }}" hint-size="100%,96px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ fig3Val }}" label="{{ tFig3 }}" hint-size="100%,96px"></x-import>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ goWrapped }}" hint-size="auto,44px">{{ tSeeWrapped }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showWrapped }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding:24px 0;align-items:center;text-align:center">
+              <div style="display:flex;flex-direction:column;gap:16px;align-items:center">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n28 }}" hint-size="28px,28px"></x-import>
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tWrapEyebrow }}</p>
+              </div>
+              <div style="display:flex;gap:64px;align-items:flex-start;justify-content:center">
+                <div data-wrapfig="1" style="{{ anim1 }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+                    <span style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:var(--track-display);font-variant-numeric:tabular-nums"><span data-mock="true">25</span></span>
+                    <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tWrap1 }}</span>
+                  </div>
+                </div>
+                <div data-wrapfig="2" style="{{ anim2 }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+                    <span style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:var(--track-display);font-variant-numeric:tabular-nums"><span data-mock="true">12</span></span>
+                    <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tWrap2 }}</span>
+                  </div>
+                </div>
+                <div data-wrapfig="3" style="{{ anim3 }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+                    <span style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:var(--track-display);font-variant-numeric:tabular-nums"><span data-mock="true">1</span></span>
+                    <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tWrap3 }}</span>
+                  </div>
+                </div>
+              </div>
+              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);font-variant-numeric:tabular-nums">{{ tMonth }} · <span data-mock="true">{{ tRange }}</span> · Orbit</p>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ noop }}" hint-size="auto,44px">{{ tShare }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ goRetro }}" hint-size="auto,44px">{{ tBack }}</x-import>
+                <sc-if value="{{ animOn }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ skipAnim }}" hint-size="auto,36px">{{ tSkip }}</x-import>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    animOn:true,
+    cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  };
+  componentDidMount(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  componentDidUpdate(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      nav:'Retrospective', month:'august', range:'Aug 1 to 31', of:'of',
+      calm:'Six blank days, and you kept going. This is what August looked like.',
+      fig1:'days with at least one log', fig2:'longest streak, in days · Morning water', fig3:'goal completed · Meditate 30 days',
+      seeWrapped:'See the wrapped', wrapEyebrow:'your august on Orbit',
+      wrap1:'days you showed up', wrap2:'days in your longest streak', wrap3:'goal completed',
+      share:'Share', back:'Back', skip:'Skip animation',
+      emptyTitle:'August stayed blank', emptyBody:'Nothing to make up. The next summary appears when there are logs.',
+      goToday:'Go to today',
+      errMsg:'Could not load your retrospective. Check your connection and try again.',
+      retry:'Try again', loading:'Loading', tabs:['Today','Goals','Astra','Profile']
+    } : {
+      nav:'Retrospectiva', month:'agosto', range:'1 a 31 de ago', of:'de',
+      calm:'Seis dias em branco, e você continuou. Foi assim que agosto ficou.',
+      fig1:'dias com pelo menos um registro', fig2:'maior sequência, em dias · Água da manhã', fig3:'meta concluída · Meditar 30 dias',
+      seeWrapped:'Ver o wrapped', wrapEyebrow:'seu agosto no Orbit',
+      wrap1:'dias em que você apareceu', wrap2:'dias na maior sequência', wrap3:'meta concluída',
+      share:'Compartilhar', back:'Voltar', skip:'Pular animação',
+      emptyTitle:'Agosto ficou em branco', emptyBody:'Nada a repor. O próximo resumo aparece quando houver registros.',
+      goToday:'Ir para hoje',
+      errMsg:'Não foi possível carregar sua retrospectiva. Verifique sua conexão e tente de novo.',
+      retry:'Tentar de novo', loading:'Carregando', tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty', isError = cstate==='error';
+    const isWrapped = cstate==='wrapped';
+    const isWide = cv.width==='wide';
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const noop = () => {};
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'perfil'}) : null;
+    const anim = i => st.animOn
+      ? {animation:'wrapRise 280ms cubic-bezier(0.16,1,0.3,1) both', animationDelay:(i*160)+'ms'}
+      : {};
+    const fig1Val = E('span',null,mockEl('25'),' '+T.of+' ',mockEl('31'));
+    const fig2Val = E('span',null,mockEl('12'));
+    const fig3Val = E('span',null,mockEl('1'));
+    const errAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{
+      this.setState(s=>({cv:{...s.cv,state:'loading'}}));
+      setTimeout(()=>this.setState(s=>s.cv.state==='loading'?{cv:{...s.cv,state:'default'}}:null), 900);
+    }}, T.retry) : null;
+    const emptyAction = DS.Button ? E(DS.Button,{size:'sm',onClick:noop}, T.goToday) : null;
+    const emptyActionWide = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.goToday) : null;
+    const goState = s => () => this.setState(prev=>({cv:{...prev.cv,state:s}, animOn:s==='wrapped'}));
+    return {
+      mode:cv.mode, cv,
+      setCv:next=>this.setState({cv:next, animOn:next.state==='wrapped'}),
+      cvStates:['default','wrapped','loading','empty','error'],
+      is412:!isWide, isWide, tabs, tabBarEl, noop,
+      isLoading, isEmpty, isError,
+      showRetro:cstate==='default', showWrapped:isWrapped,
+      tNav:T.nav, tMonth:T.month, tRange:T.range, tCalm:T.calm,
+      fig1Val, fig2Val, fig3Val, tFig1:T.fig1, tFig2:T.fig2, tFig3:T.fig3,
+      tSeeWrapped:T.seeWrapped, goWrapped:goState('wrapped'), goRetro:goState('default'),
+      tWrapEyebrow:T.wrapEyebrow, tWrap1:T.wrap1, tWrap2:T.wrap2, tWrap3:T.wrap3,
+      tShare:T.share, tBack:T.back, tSkip:T.skip,
+      animOn:st.animOn, skipAnim:()=>this.setState({animOn:false}),
+      anim1:anim(0), anim2:anim(1), anim3:anim(2),
+      tEmptyTitle:T.emptyTitle, tEmptyBody:T.emptyBody, emptyAction, emptyActionWide,
+      tErrMsg:T.errMsg, tLoading:T.loading, errAction,
+      n3:3, n28:28
+    };
+  }
+}
+</script>
+</body>
+</html>

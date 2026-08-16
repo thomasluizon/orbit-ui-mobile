@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 2 · criar e editar hábito</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Criar e editar hábito · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n6 }}" label="{{ tLoading }}" hint-size="100%,420px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-bottom:8px">
+              <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              </sc-if>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tNameLabel }}" placeholder="{{ tNamePh }}" value="{{ name }}" on-change="{{ setName }}" error="{{ nameErr }}" hint-size="100%,80px"></x-import>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tEmojiLabel }}</p>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div aria-hidden="true" style="width:54px;height:54px;flex:0 0 auto;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-well);font-size:24px">{{ emoji }}</div>
+                  <div style="flex:1;background:var(--bg-field);border-radius:var(--r-well);box-shadow:inset 0 0 0 1px var(--border-control);overflow:hidden">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ tChangeEmoji }}" on-click="{{ openEmoji }}" hint-size="100%,54px"></x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tFreqLabel }}</p>
+                <div role="radiogroup" aria-label="{{ tFreqLabel }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <sc-for list="{{ freqOpts }}" as="o" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ o.label }}" selected="{{ o.selected }}" on-select="{{ o.onSelect }}" hint-size="100%,54px"></x-import>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tTimeLabel }}</p>
+                <div style="background:var(--bg-field);border-radius:var(--r-well);box-shadow:inset 0 0 0 1px var(--border-control);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="clock" title="{{ timeTitle }}" value="{{ timeVal }}" on-click="{{ openSched }}" hint-size="100%,54px"></x-import>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tGoalLabel }}</p>
+                <div role="radiogroup" aria-label="{{ tGoalLabel }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <sc-for list="{{ goalOpts }}" as="o" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ o.label }}" selected="{{ o.selected }}" on-select="{{ o.onSelect }}" hint-size="100%,54px"></x-import>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <label for="ob-desc" style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tDescLabel }}</label>
+                <textarea id="ob-desc" rows="4" placeholder="{{ tDescPh }}" value="{{ desc }}" onChange="{{ setDesc }}" style="min-height:96px;resize:vertical;border:0;border-radius:var(--r-well);background:var(--bg-field);box-shadow:inset 0 0 0 1px var(--border-control);color:var(--fg-1);font-family:var(--font-sans);font-size:var(--fs-base);line-height:1.5;padding:16px;transition:box-shadow 240ms cubic-bezier(0.2,0,0,1)" style-hover="box-shadow:inset 0 0 0 1px var(--hairline-strong)" style-focus-visible="outline:none;box-shadow:inset 0 0 0 2px var(--primary)"></textarea>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ isCap }}" on-click="{{ submit }}" hint-size="auto,44px">{{ tSubmit }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ noop }}" hint-size="auto,44px">{{ tCancel }}</x-import>
+                <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                  <span data-mock="true" style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReason }}</span>
+                </sc-if>
+              </div>
+              <sc-if value="{{ isEditing }}" hint-placeholder-val="{{ false }}">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="trash" title="{{ tDelete }}" description="{{ tDeleteDesc }}" danger="{{ true }}" chevron="{{ false }}" on-click="{{ openDel }}" hint-size="100%,64px"></x-import>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Criar e editar hábito · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="hoje" account="Thomas" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n6 }}" label="{{ tLoading }}" hint-size="100%,420px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
+              <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              </sc-if>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tNameLabel }}" placeholder="{{ tNamePh }}" value="{{ name }}" on-change="{{ setName }}" error="{{ nameErr }}" hint-size="100%,80px"></x-import>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tEmojiLabel }}</p>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div aria-hidden="true" style="width:54px;height:54px;flex:0 0 auto;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-well);font-size:24px">{{ emoji }}</div>
+                  <div style="flex:1;background:var(--bg-field);border-radius:var(--r-well);box-shadow:inset 0 0 0 1px var(--border-control);overflow:hidden">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ tChangeEmoji }}" on-click="{{ openEmoji }}" hint-size="100%,54px"></x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tFreqLabel }}</p>
+                <div role="radiogroup" aria-label="{{ tFreqLabel }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <sc-for list="{{ freqOpts }}" as="o" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ o.label }}" selected="{{ o.selected }}" on-select="{{ o.onSelect }}" hint-size="100%,54px"></x-import>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tTimeLabel }}</p>
+                <div style="background:var(--bg-field);border-radius:var(--r-well);box-shadow:inset 0 0 0 1px var(--border-control);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="clock" title="{{ timeTitle }}" value="{{ timeVal }}" on-click="{{ openSched }}" hint-size="100%,54px"></x-import>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tGoalLabel }}</p>
+                <div role="radiogroup" aria-label="{{ tGoalLabel }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <sc-for list="{{ goalOpts }}" as="o" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ o.label }}" selected="{{ o.selected }}" on-select="{{ o.onSelect }}" hint-size="100%,54px"></x-import>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <label for="ob-desc-w" style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2)">{{ tDescLabel }}</label>
+                <textarea id="ob-desc-w" rows="4" placeholder="{{ tDescPh }}" value="{{ desc }}" onChange="{{ setDesc }}" style="min-height:96px;resize:vertical;border:0;border-radius:var(--r-well);background:var(--bg-field);box-shadow:inset 0 0 0 1px var(--border-control);color:var(--fg-1);font-family:var(--font-sans);font-size:var(--fs-base);line-height:1.5;padding:16px;transition:box-shadow 240ms cubic-bezier(0.2,0,0,1)" style-hover="box-shadow:inset 0 0 0 1px var(--hairline-strong)" style-focus-visible="outline:none;box-shadow:inset 0 0 0 2px var(--primary)"></textarea>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ isCap }}" on-click="{{ submit }}" hint-size="auto,44px">{{ tSubmit }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ noop }}" hint-size="auto,44px">{{ tCancel }}</x-import>
+                <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                  <span data-mock="true" style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReason }}</span>
+                </sc-if>
+              </div>
+              <sc-if value="{{ isEditing }}" hint-placeholder-val="{{ false }}">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="trash" title="{{ tDelete }}" description="{{ tDeleteDesc }}" danger="{{ true }}" chevron="{{ false }}" on-click="{{ openDel }}" hint-size="100%,64px"></x-import>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+      {{ sheetsEl }}
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    name:'', emoji:'🌱', freq:'daily', time:'morning', goal:'none', desc:'',
+    emojiOpen:false, schedOpen:false, delOpen:false, hoverEm:null, focusEm:null,
+    cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  };
+  componentDidMount(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  componentDidUpdate(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  emojis = ['💧','🏃','📖','🧘','🥗','🛏️','💊','🚶','🧹','💤','🎧','☕','✍️','🌱','📵','🤸','🪥','🧴'];
+  prefill(cv){
+    const en = cv.locale==='en';
+    if (cv.state==='editing') return {
+      name: en?'Morning water':'Água da manhã', emoji:'💧', freq:'daily', time:'morning', goal:'g1',
+      desc: en?'A tall glass of water right after waking, before coffee and before the phone.':'Um copo grande de água logo depois de acordar, antes do café e antes do celular.'
+    };
+    return {name:'', emoji:'🌱', freq:'daily', time:'morning', goal:'none', desc:''};
+  }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      navNew:'New habit', navEdit:'Edit habit', nameLabel:'Name', namePh:'Morning water',
+      nameErr:'Give the habit a name, like Morning water.',
+      emojiLabel:'Emoji', changeEmoji:'Choose emoji', emojiTitle:'Choose emoji',
+      freqLabel:'Frequency', freqs:{daily:'Every day', weekdays:'Weekdays', weekends:'Weekends', weekly:'Once a week'},
+      timeLabel:'Time', times:{morning:'Morning', noon:'Midday', evening:'Evening', none:'No fixed time'},
+      schedTitle:'Reschedule', remindPre:'Reminder at', remindNone:'No reminder.',
+      goalLabel:'Goal (optional)', goals:{none:'None', g1:'Drink more water', g2:'Calmer mornings', g3:'Read more'},
+      descLabel:'Description (optional)', descPh:'What does this habit look like on a good day?',
+      submitNew:'Create habit', submitEdit:'Save', cancel:'Cancel',
+      del:'Delete habit', delDesc:'Deletes the habit and all of its history. This cannot be undone.',
+      delTitle:'Delete habit', delBody:'Morning water and all of its history leave your account. This cannot be undone.',
+      capMsg:'Limit of 10 habits. Archive a habit to create another.', capReason:'Limit of 10 habits.',
+      archive:'Archive', loading:'Loading', tabs:['Today','Goals','Astra','Profile']
+    } : {
+      navNew:'Novo hábito', navEdit:'Editar hábito', nameLabel:'Nome', namePh:'Água da manhã',
+      nameErr:'Dê um nome ao hábito, como Água da manhã.',
+      emojiLabel:'Emoji', changeEmoji:'Escolher emoji', emojiTitle:'Escolher emoji',
+      freqLabel:'Frequência', freqs:{daily:'Todos os dias', weekdays:'Dias úteis', weekends:'Fins de semana', weekly:'Uma vez por semana'},
+      timeLabel:'Horário', times:{morning:'Manhã', noon:'Meio-dia', evening:'Noite', none:'Sem horário fixo'},
+      schedTitle:'Reagendar', remindPre:'Lembrete às', remindNone:'Sem lembrete.',
+      goalLabel:'Meta (opcional)', goals:{none:'Nenhuma', g1:'Beber mais água', g2:'Manhãs sem pressa', g3:'Ler mais'},
+      descLabel:'Descrição (opcional)', descPh:'Como é esse hábito num dia bom?',
+      submitNew:'Criar hábito', submitEdit:'Salvar', cancel:'Cancelar',
+      del:'Excluir hábito', delDesc:'Apaga o hábito e todo o histórico. Não dá para desfazer.',
+      delTitle:'Excluir hábito', delBody:'Água da manhã e todo o histórico saem da sua conta. Não dá para desfazer.',
+      capMsg:'Limite de 10 hábitos. Arquive um hábito para criar outro.', capReason:'Limite de 10 hábitos.',
+      archive:'Arquivar', loading:'Carregando', tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isCap = cstate==='at capacity', isEditing = cstate==='editing';
+    const isWide = cv.width==='wide';
+    const showBody = !isLoading;
+    const noop = () => {};
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const timeHours = {morning:'08:00', noon:'12:30', evening:'21:00'};
+    const nameErr = (cstate==='error' && !st.name.trim()) ? T.nameErr : undefined;
+    const mkOpts = (keys, sel, labels, field) => keys.map(k => ({
+      label: labels[k], selected: sel===k, onSelect: () => this.setState({[field]:k})
+    }));
+    const freqOpts = mkOpts(['daily','weekdays','weekends','weekly'], st.freq, T.freqs, 'freq');
+    const goalOpts = mkOpts(['none','g1','g2','g3'], st.goal, T.goals, 'goal');
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'hoje'}) : null;
+    const close = k => () => this.setState({[k]:false});
+    const emojiBtn = em => E('button',{key:em,type:'button','aria-pressed':st.emoji===em,
+      onClick:()=>this.setState({emojiOpen:false,emoji:em}),
+      onMouseEnter:()=>this.setState({hoverEm:em}),
+      onMouseLeave:()=>this.setState(s=>s.hoverEm===em?{hoverEm:null}:null),
+      onFocus:e=>{ if(e.target.matches(':focus-visible')) this.setState({focusEm:em}); },
+      onBlur:()=>this.setState(s=>s.focusEm===em?{focusEm:null}:null),
+      style:{width:44,height:44,display:'grid',placeItems:'center',fontSize:22,cursor:'pointer',border:0,
+        borderRadius:'var(--r-well)',
+        background: st.hoverEm===em ? 'var(--bg-hover)' : 'var(--bg-well)',
+        boxShadow: st.emoji===em ? 'inset 0 0 0 2px var(--primary)' : 'none',
+        outline: st.focusEm===em ? '2px solid var(--primary)' : 'none', outlineOffset:2,
+        transition:'background-color 240ms cubic-bezier(0.2,0,0,1)'}}, em);
+    const emojiSheet = DS.Sheet ? E(DS.Sheet,{open:st.emojiOpen, title:T.emojiTitle, onClose:close('emojiOpen')},
+      E('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,44px)',gap:8,paddingBottom:24}}, this.emojis.map(emojiBtn))) : null;
+    const schedSheet = (DS.Sheet && DS.RadioRow) ? E(DS.Sheet,{open:st.schedOpen, title:T.schedTitle, onClose:close('schedOpen')},
+      E('div',{style:{display:'flex',flexDirection:'column',gap:12,paddingBottom:24}},
+        E('div',{role:'radiogroup','aria-label':T.timeLabel,style:{background:'var(--bg-well)',borderRadius:'var(--r-well)',overflow:'hidden'}},
+          ['morning','noon','evening','none'].map(k => E(DS.RadioRow,{key:k,label:T.times[k],selected:st.time===k,onSelect:()=>this.setState({time:k})}))),
+        E('p',{style:{fontFamily:'var(--font-mono)',fontSize:'var(--fs-xs)',color:'var(--fg-3)',fontVariantNumeric:'tabular-nums'}},
+          st.time==='none' ? T.remindNone : [T.remindPre+' ', mockEl(timeHours[st.time])]))) : null;
+    const delSheet = (DS.Sheet && DS.Button) ? E(DS.Sheet,{open:st.delOpen, title:T.delTitle, onClose:close('delOpen'),
+      actions:E(React.Fragment,null,
+        E(DS.Button,{variant:'ghost',size:'sm',onClick:close('delOpen')},T.cancel),
+        E(DS.Button,{variant:'destructive',size:'sm',onClick:close('delOpen')},T.del))},
+      E('p',{style:{fontSize:'var(--fs-base)',color:'var(--fg-2)',lineHeight:1.5,paddingBottom:8,maxWidth:'65ch'}}, T.delBody)) : null;
+    const capAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.archive) : null;
+    return {
+      mode:cv.mode, cv,
+      setCv: next => this.setState(Object.assign({cv:next, emojiOpen:false, schedOpen:false, delOpen:false},
+        (next.state!==cv.state || next.locale!==cv.locale) ? this.prefill(next) : null)),
+      cvStates:['default','editing','loading','error','at capacity'],
+      is412:!isWide, isWide, tabs, tabBarEl, noop,
+      isLoading, showBody, isCap, isEditing,
+      tNav: isEditing ? T.navEdit : T.navNew,
+      tNameLabel:T.nameLabel, tNamePh:T.namePh, name:st.name, nameErr,
+      setName: e => this.setState({name:e.target.value}),
+      tEmojiLabel:T.emojiLabel, tChangeEmoji:T.changeEmoji, emoji:st.emoji,
+      openEmoji: () => this.setState({emojiOpen:true}),
+      tFreqLabel:T.freqLabel, freqOpts,
+      tTimeLabel:T.timeLabel, timeTitle:T.times[st.time],
+      timeVal: st.time==='none' ? undefined : mockEl(timeHours[st.time]),
+      openSched: () => this.setState({schedOpen:true}),
+      tGoalLabel:T.goalLabel, goalOpts,
+      tDescLabel:T.descLabel, tDescPh:T.descPh, desc:st.desc,
+      setDesc: e => this.setState({desc:e.target.value}),
+      tSubmit: isEditing ? T.submitEdit : T.submitNew, tCancel:T.cancel,
+      submit: () => { if(!st.name.trim()) this.setState(s=>({cv:{...s.cv,state:'error'}})); },
+      tCapReason:T.capReason, capMsgEl:mockEl(T.capMsg), capAction,
+      tDelete:T.del, tDeleteDesc:T.delDesc,
+      openDel: () => this.setState({delOpen:true}),
+      sheetsEl: E(React.Fragment,null,emojiSheet,schedSheet,delSheet),
+      tLoading:T.loading, n6:6
+    };
+  }
+}
+</script>
+</body>
+</html>

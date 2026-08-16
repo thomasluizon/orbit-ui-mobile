@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 4 · astra · cartões generativos</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Astra cartões · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:32px;padding:24px 16px 0">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:flex;color:var(--fg-1)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n28 }}" hint-size="28px,28px"></x-import></span>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">Astra</h1>
+          </div>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n6 }}" label="{{ tLoading }}" hint-size="100%,420px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showCards }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s1Eyebrow }}" hint-size="100%,48px">{{ s1Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s1AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c1Rows }}" as="r" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.metaEl }}" status="empty" hint-size="100%,64px"></x-import>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 24px 16px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capActionEl }}" hint-size="100%,88px"></x-import></div>
+                  </sc-if>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 24px 24px;justify-content:flex-end">
+                    <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}"><span style="font-size:var(--fs-sm);color:var(--fg-3);margin-right:auto">{{ tCapReason }}</span></sc-if>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tAdjust }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" disabled="{{ isCap }}" on-click="{{ noop }}" hint-size="auto,36px">{{ s1AcceptEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s2Eyebrow }}" hint-size="100%,48px">{{ s2Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s2AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c2Rows }}" as="r" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ r.icon }}" title="{{ r.titleEl }}" description="{{ r.desc }}" value="{{ r.valueEl }}" chevron="{{ bFalse }}" hint-size="100%,64px"></x-import>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:0 24px 24px;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tAdjust }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s2AcceptEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s3Eyebrow }}" hint-size="100%,48px">{{ s3Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s3AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c3Rows }}" as="r" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.metaEl }}" status="empty" hint-size="100%,64px"></x-import>
+                    </sc-for>
+                  </div>
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase;padding:8px 24px 0">{{ tFreqLabel }}</p>
+                  <div role="radiogroup" aria-label="{{ tFreqLabel }}" style="display:flex;flex-direction:column;padding:0 8px 8px">
+                    <sc-for list="{{ c3Freq }}" as="f" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ f.label }}" description="{{ f.desc }}" selected="{{ f.selected }}" on-select="{{ f.onSelect }}" hint-size="100%,56px"></x-import>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:0 24px 24px;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tAdjust }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s3AcceptEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s4Eyebrow }}" hint-size="100%,48px">{{ s4Title }}</x-import>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:24px;display:flex;flex-direction:column;gap:16px">
+                  <div style="display:flex;gap:12px;align-items:flex-start">
+                    <span style="flex:0 0 auto;margin-top:2px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                    <p style="font-size:17px;font-weight:500;line-height:1.4">{{ s4Q }}</p>
+                  </div>
+                  <sc-if value="{{ clarUnanswered }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ pickManha }}" hint-size="auto,36px">{{ s4OptA }}</x-import>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ pickNoite }}" hint-size="auto,36px">{{ s4OptB }}</x-import>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ clarAnswered }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                      <p style="font-size:16px;line-height:1.55;color:var(--fg-2)">{{ s4AnsweredEl }}</p>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ clarReset }}" hint-size="auto,36px">{{ tChange }}</x-import>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s5Eyebrow }}" hint-size="100%,48px">{{ s5Title }}</x-import>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:24px;display:flex;flex-direction:column;gap:16px">
+                  <div style="display:flex;gap:12px;align-items:flex-start">
+                    <span style="flex:0 0 auto;margin-top:2px;display:flex"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-triangle" size="{{ n20 }}" color="var(--status-overdue)" hint-size="20px,20px"></x-import></span>
+                    <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s5TextEl }}</p>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s5KeepEl }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s5MoveEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s6Eyebrow }}" hint-size="100%,48px">{{ s6Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s6AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c6Rows }}" as="r" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ r.icon }}" title="{{ r.titleEl }}" value="{{ r.valueEl }}" chevron="{{ bFalse }}" hint-size="100%,56px"></x-import>
+                    </sc-for>
+                  </div>
+                  <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:12px">
+                    <sc-if value="{{ opActionable }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+                        <sc-if value="{{ opApplying }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);margin-right:auto">{{ tApplying }}</span></sc-if>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ opApplying }}" on-click="{{ onCancel }}" hint-size="auto,36px">{{ tCancel }}</x-import>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" loading="{{ opApplying }}" on-click="{{ onConfirm }}" hint-size="auto,36px">{{ tConfirm }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ opConfirmed }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
+                        <span style="display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--fg-1)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="check" size="{{ n16 }}" color="var(--fg-1)" hint-size="16px,16px"></x-import>{{ tApplied }}</span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onUndo }}" hint-size="auto,36px">{{ tUndo }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ opError }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <span style="display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--status-bad)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-circle" size="{{ n16 }}" color="var(--status-bad)" hint-size="16px,16px"></x-import>{{ tOpError }}</span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onRetryOp }}" hint-size="auto,36px">{{ tRetry }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ opCancelled }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
+                        <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tCancelled }}</span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onRedo }}" hint-size="auto,36px">{{ tRedo }}</x-import>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Astra cartões · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="astra" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:32px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:flex;color:var(--fg-1)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n28 }}" hint-size="28px,28px"></x-import></span>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">Astra</h1>
+          </div>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n6 }}" label="{{ tLoading }}" hint-size="100%,420px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showCards }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s1Eyebrow }}" hint-size="100%,48px">{{ s1Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s1AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c1Rows }}" as="r" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.metaEl }}" status="empty" hint-size="100%,64px"></x-import>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 24px 16px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capActionEl }}" hint-size="100%,88px"></x-import></div>
+                  </sc-if>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 24px 24px;justify-content:flex-end">
+                    <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}"><span style="font-size:var(--fs-sm);color:var(--fg-3);margin-right:auto">{{ tCapReason }}</span></sc-if>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tAdjust }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" disabled="{{ isCap }}" on-click="{{ noop }}" hint-size="auto,36px">{{ s1AcceptEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s2Eyebrow }}" hint-size="100%,48px">{{ s2Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s2AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c2Rows }}" as="r" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ r.icon }}" title="{{ r.titleEl }}" description="{{ r.desc }}" value="{{ r.valueEl }}" chevron="{{ bFalse }}" hint-size="100%,64px"></x-import>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:0 24px 24px;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tAdjust }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s2AcceptEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s3Eyebrow }}" hint-size="100%,48px">{{ s3Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s3AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c3Rows }}" as="r" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.metaEl }}" status="empty" hint-size="100%,64px"></x-import>
+                    </sc-for>
+                  </div>
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase;padding:8px 24px 0">{{ tFreqLabel }}</p>
+                  <div role="radiogroup" aria-label="{{ tFreqLabel }}" style="display:flex;flex-direction:column;padding:0 8px 8px">
+                    <sc-for list="{{ c3Freq }}" as="f" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ f.label }}" description="{{ f.desc }}" selected="{{ f.selected }}" on-select="{{ f.onSelect }}" hint-size="100%,56px"></x-import>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:0 24px 24px;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tAdjust }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s3AcceptEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s4Eyebrow }}" hint-size="100%,48px">{{ s4Title }}</x-import>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:24px;display:flex;flex-direction:column;gap:16px">
+                  <div style="display:flex;gap:12px;align-items:flex-start">
+                    <span style="flex:0 0 auto;margin-top:2px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                    <p style="font-size:17px;font-weight:500;line-height:1.4">{{ s4Q }}</p>
+                  </div>
+                  <sc-if value="{{ clarUnanswered }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ pickManha }}" hint-size="auto,36px">{{ s4OptA }}</x-import>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ pickNoite }}" hint-size="auto,36px">{{ s4OptB }}</x-import>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ clarAnswered }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                      <p style="font-size:16px;line-height:1.55;color:var(--fg-2)">{{ s4AnsweredEl }}</p>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ clarReset }}" hint-size="auto,36px">{{ tChange }}</x-import>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s5Eyebrow }}" hint-size="100%,48px">{{ s5Title }}</x-import>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);padding:24px;display:flex;flex-direction:column;gap:16px">
+                  <div style="display:flex;gap:12px;align-items:flex-start">
+                    <span style="flex:0 0 auto;margin-top:2px;display:flex"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-triangle" size="{{ n20 }}" color="var(--status-overdue)" hint-size="20px,20px"></x-import></span>
+                    <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s5TextEl }}</p>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s5KeepEl }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ s5MoveEl }}</x-import>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" eyebrow="{{ s6Eyebrow }}" hint-size="100%,48px">{{ s6Title }}</x-import>
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <p style="font-size:16px;line-height:1.55;max-width:65ch">{{ s6AstraEl }}</p>
+                </div>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);display:flex;flex-direction:column;overflow:hidden">
+                  <div style="display:flex;flex-direction:column;padding:8px 0">
+                    <sc-for list="{{ c6Rows }}" as="r" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ r.icon }}" title="{{ r.titleEl }}" value="{{ r.valueEl }}" chevron="{{ bFalse }}" hint-size="100%,56px"></x-import>
+                    </sc-for>
+                  </div>
+                  <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:12px">
+                    <sc-if value="{{ opActionable }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+                        <sc-if value="{{ opApplying }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);margin-right:auto">{{ tApplying }}</span></sc-if>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ opApplying }}" on-click="{{ onCancel }}" hint-size="auto,36px">{{ tCancel }}</x-import>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" loading="{{ opApplying }}" on-click="{{ onConfirm }}" hint-size="auto,36px">{{ tConfirm }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ opConfirmed }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
+                        <span style="display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--fg-1)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="check" size="{{ n16 }}" color="var(--fg-1)" hint-size="16px,16px"></x-import>{{ tApplied }}</span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onUndo }}" hint-size="auto,36px">{{ tUndo }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ opError }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <span style="display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--status-bad)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-circle" size="{{ n16 }}" color="var(--status-bad)" hint-size="16px,16px"></x-import>{{ tOpError }}</span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onRetryOp }}" hint-size="auto,36px">{{ tRetry }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ opCancelled }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
+                        <span style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tCancelled }}</span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onRedo }}" hint-size="auto,36px">{{ tRedo }}</x-import>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}, freq:'3x', clar:null, op:null};
+  clearTimers(){ clearTimeout(this.t1); }
+  componentWillUnmount(){ this.clearTimers(); }
+  mp(s){ return s.split(/(\d[\d:]*)/).filter(Boolean).map(t => /^\d/.test(t) ? {text:t, mock:true} : {text:t, plain:true}); }
+  apply(){
+    this.setState({op:'applying'});
+    this.t1 = setTimeout(() => this.setState({op:'confirmed'}), 1100);
+  }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      loading:'Loading', emptyTitle:'No proposals yet', emptyAction:'Ask for a suggestion',
+      adjust:'Adjust', change:'Change', freqLabel:'Frequency',
+      capMsg:'Limit of 10 habits. Archive a habit to create another.', capAction:'Archive a habit', capReason:'Limit of 10 habits.',
+      s1Eyebrow:'card · habit proposal', s1Title:'Habit list', s1Astra:'A small morning routine. Three habits, nothing more.',
+      c1Rows:[['💧','Morning water','07:00'],['🤸','Stretch','07:10 · 5 min'],['📖','Read 10 pages','07:20']],
+      s1Accept:'Accept all three',
+      s2Eyebrow:'card · goal proposal', s2Title:'Goal list', s2Astra:'Two goals would give structure to what you asked.',
+      c2Rows:[['target','Consistent mornings','water, stretching and reading','3 habits'],['run','Run 5 km nonstop','running three times a week','1 habit']],
+      s2Accept:'Create both goals',
+      s3Eyebrow:'card · breakdown', s3Title:'Break down a goal', s3Astra:'Run 5 km nonstop becomes this each week.',
+      c3Rows:[['🏃','Easy run','20 min'],['🚶','Brisk walk','30 min']],
+      freq:[['3x','Three times a week','Mon, Wed and Fri'],['uteis','Weekdays',''],['todos','Every day','']],
+      s3Accept:'Accept plan',
+      s4Eyebrow:'card · clarification', s4Title:'Clarification',
+      s4Q:'Do you run better in the morning or at night?', s4OptA:'In the morning', s4OptB:'At night',
+      s4AnsM:'In the morning. I will set the run for 07:00.', s4AnsN:'At night. I will set the run for 20:00.',
+      s5Eyebrow:'card · conflict', s5Title:'Schedule conflict',
+      s5Text:'Run at 07:00 conflicts with Brisk walk at 07:00 on Tuesday.',
+      s5Keep:'Keep both', s5Move:'Move the walk to 07:40',
+      s6Eyebrow:'card · pending operation', s6Title:'Pending operation', s6Astra:'Nothing changes before you confirm.',
+      c6Rows:[['plus','Create Morning water','07:00'],['arrow-right','Move Run','18:30 → 07:00'],['snowflake','Freeze Read 10 pages','7 days']],
+      confirm:'Confirm', cancel:'Cancel', applying:'Applying',
+      applied:'Applied. You can undo.', undo:'Undo',
+      opError:'Could not apply. Nothing was changed.', retry:'Try again',
+      cancelled:'Cancelled. Nothing was changed.', redo:'Redo',
+      proposal:'proposal · action log', railTitle:'Recent actions',
+      railRows:[['Run moved to 07:00','today'],['Read 10 pages lowered from 20','today'],['Coffee without sugar created','Fri']],
+      railReason:'every Astra action stays auditable outside the conversation',
+      tabs:['Today','Goals','Astra','Profile']
+    } : {
+      loading:'Carregando', emptyTitle:'Nenhuma proposta ainda', emptyAction:'Pedir uma sugestão',
+      adjust:'Ajustar', change:'Mudar', freqLabel:'Frequência',
+      capMsg:'Limite de 10 hábitos. Arquive um hábito para criar outro.', capAction:'Arquivar um hábito', capReason:'Limite de 10 hábitos.',
+      s1Eyebrow:'cartão · proposta de hábitos', s1Title:'Lista de hábitos', s1Astra:'Uma rotina de manhã pequena. Três hábitos, nada além.',
+      c1Rows:[['💧','Água da manhã','07:00'],['🤸','Alongar','07:10 · 5 min'],['📖','Ler 10 páginas','07:20']],
+      s1Accept:'Aceitar os três',
+      s2Eyebrow:'cartão · proposta de metas', s2Title:'Lista de metas', s2Astra:'Duas metas dariam estrutura ao que você pediu.',
+      c2Rows:[['target','Manhãs consistentes','água, alongamento e leitura','3 hábitos'],['run','Correr 5 km sem parar','corrida três vezes por semana','1 hábito']],
+      s2Accept:'Criar as duas metas',
+      s3Eyebrow:'cartão · desdobramento', s3Title:'Desdobrar uma meta', s3Astra:'Correr 5 km sem parar vira isto por semana.',
+      c3Rows:[['🏃','Corrida leve','20 min'],['🚶','Caminhada rápida','30 min']],
+      freq:[['3x','Três vezes por semana','seg, qua e sex'],['uteis','Dias úteis',''],['todos','Todos os dias','']],
+      s3Accept:'Aceitar plano',
+      s4Eyebrow:'cartão · esclarecimento', s4Title:'Esclarecimento',
+      s4Q:'Você corre melhor de manhã ou à noite?', s4OptA:'De manhã', s4OptB:'À noite',
+      s4AnsM:'De manhã. Vou marcar a corrida às 07:00.', s4AnsN:'À noite. Vou marcar a corrida às 20:00.',
+      s5Eyebrow:'cartão · conflito', s5Title:'Conflito de horário',
+      s5Text:'Correr às 07:00 conflita com Caminhada rápida às 07:00 na terça.',
+      s5Keep:'Manter as duas', s5Move:'Mover a caminhada para as 07:40',
+      s6Eyebrow:'cartão · operação pendente', s6Title:'Operação pendente', s6Astra:'Nada muda antes de você confirmar.',
+      c6Rows:[['plus','Criar Água da manhã','07:00'],['arrow-right','Mover Correr','18:30 → 07:00'],['snowflake','Congelar Ler 10 páginas','7 dias']],
+      confirm:'Confirmar', cancel:'Cancelar', applying:'Aplicando',
+      applied:'Aplicado. Você pode desfazer.', undo:'Desfazer',
+      opError:'Não foi possível aplicar. Nada foi alterado.', retry:'Tentar de novo',
+      cancelled:'Cancelado. Nada foi alterado.', redo:'Refazer',
+      proposal:'proposta · registro de ações', railTitle:'Ações recentes',
+      railRows:[['Correr movido para as 07:00','hoje'],['Ler 10 páginas reduzido de 20','hoje'],['Café sem açúcar criado','sex']],
+      railReason:'toda ação da Astra fica auditável fora da conversa',
+      tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty', isCap = cstate==='at capacity';
+    const isWide = cv.width==='wide';
+    const showCards = cstate==='default' || cstate==='confirmed' || cstate==='error' || isCap;
+    const noop = () => {};
+    const el = s => E(React.Fragment, null, ...this.mp(s).map((p,i) => p.mock
+      ? E('span', {key:i, 'data-mock':'true', style:{fontVariantNumeric:'tabular-nums'}}, p.text)
+      : E('span', {key:i}, p.text)));
+    const c1Rows = T.c1Rows.map(r => ({icon:r[0], title:r[1], metaEl:el(r[2])}));
+    const c2Rows = T.c2Rows.map(r => ({icon:r[0], titleEl:el(r[1]), desc:r[2], valueEl:el(r[3])}));
+    const c3Rows = T.c3Rows.map(r => ({icon:r[0], title:r[1], metaEl:el(r[2])}));
+    const c3Freq = T.freq.map(f => ({label:f[1], desc:f[2] || undefined, selected:st.freq===f[0], onSelect:()=>this.setState({freq:f[0]})}));
+    const c6Rows = T.c6Rows.map(r => ({icon:r[0], titleEl:el(r[1]), valueEl:el(r[2])}));
+    let op = st.op;
+    if (!op) op = cstate==='confirmed' ? 'confirmed' : cstate==='error' ? 'error' : 'pending';
+    const tabs = [
+      {id:'hoje', label:T.tabs[0], icon:'home'},
+      {id:'metas', label:T.tabs[1], icon:'target'},
+      {id:'astra', label:T.tabs[2], astra:true},
+      {id:'perfil', label:T.tabs[3], icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar, {items:tabs, activeId:'astra'}) : null;
+    const reason = t => E('span', {style:{fontSize:12, color:'var(--fg-4)', lineHeight:1.4}}, t);
+    const railEl = (isLoading && DS.Skeleton)
+      ? E('div', {style:{display:'flex', flexDirection:'column', gap:12}},
+          E(DS.Skeleton, {variant:'stat-tile', rows:1, label:T.loading}))
+      : E('div', {'data-proposal':'true', style:{display:'flex', flexDirection:'column', gap:12}},
+          E('p', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', color:'var(--fg-4)', letterSpacing:'.06em', textTransform:'uppercase'}}, T.proposal),
+          E('div', {style:{display:'flex', flexDirection:'column', gap:4}},
+            E('div', {style:{background:'var(--bg-card)', borderRadius:'var(--r-card)', boxShadow:'inset 0 0 0 1px var(--hairline)', padding:16, display:'flex', flexDirection:'column', gap:12}},
+              E('p', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', fontWeight:500, color:'var(--fg-3)', letterSpacing:'var(--track-label)', textTransform:'uppercase'}}, T.railTitle),
+              ...T.railRows.map((r,i) => E('div', {key:i, style:{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12}},
+                E('span', {style:{fontSize:'var(--fs-sm)', lineHeight:1.4}}, el(r[0])),
+                E('span', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', color:'var(--fg-3)', whiteSpace:'nowrap'}}, E('span', {'data-mock':'true'}, r[1]))))),
+            reason(T.railReason)));
+    const emptyAction = DS.Button ? E(DS.Button, {size:'sm', onClick:noop}, T.emptyAction) : null;
+    const capMsgEl = el(T.capMsg);
+    const capActionEl = DS.Button ? E(DS.Button, {variant:'ghost', size:'sm', onClick:noop}, T.capAction) : null;
+    return {
+      mode:cv.mode, cv,
+      setCv: next => { this.clearTimers(); this.setState({cv:next, clar:null, op:null}); },
+      cvStates:['default','loading','confirmed','error','empty','at capacity'],
+      is412:!isWide, isWide, tabs, tabBarEl, railEl, noop, bFalse:false,
+      isLoading, isEmpty, isCap, showCards,
+      tLoading:T.loading, tEmptyTitle:T.emptyTitle, emptyAction,
+      tAdjust:T.adjust, tChange:T.change, tFreqLabel:T.freqLabel,
+      capMsgEl, capActionEl, tCapReason:T.capReason,
+      s1Eyebrow:T.s1Eyebrow, s1Title:T.s1Title, s1AstraEl:el(T.s1Astra), c1Rows, s1AcceptEl:el(T.s1Accept),
+      s2Eyebrow:T.s2Eyebrow, s2Title:T.s2Title, s2AstraEl:el(T.s2Astra), c2Rows, s2AcceptEl:el(T.s2Accept),
+      s3Eyebrow:T.s3Eyebrow, s3Title:T.s3Title, s3AstraEl:el(T.s3Astra), c3Rows, c3Freq, s3AcceptEl:el(T.s3Accept),
+      s4Eyebrow:T.s4Eyebrow, s4Title:T.s4Title, s4Q:T.s4Q, s4OptA:T.s4OptA, s4OptB:T.s4OptB,
+      clarUnanswered:!st.clar, clarAnswered:!!st.clar,
+      s4AnsweredEl:el(st.clar==='n' ? T.s4AnsN : T.s4AnsM),
+      pickManha:()=>this.setState({clar:'m'}), pickNoite:()=>this.setState({clar:'n'}), clarReset:()=>this.setState({clar:null}),
+      s5Eyebrow:T.s5Eyebrow, s5Title:T.s5Title, s5TextEl:el(T.s5Text), s5KeepEl:el(T.s5Keep), s5MoveEl:el(T.s5Move),
+      s6Eyebrow:T.s6Eyebrow, s6Title:T.s6Title, s6AstraEl:el(T.s6Astra), c6Rows,
+      opActionable:op==='pending' || op==='applying', opApplying:op==='applying',
+      opConfirmed:op==='confirmed', opError:op==='error', opCancelled:op==='cancelled',
+      onConfirm:()=>{ if (op==='pending') this.apply(); },
+      onCancel:()=>this.setState({op:'cancelled'}),
+      onRetryOp:()=>this.apply(),
+      onUndo:()=>this.setState({op:'pending'}),
+      onRedo:()=>this.setState({op:'pending'}),
+      tConfirm:T.confirm, tCancel:T.cancel, tApplying:T.applying, tApplied:T.applied, tUndo:T.undo,
+      tOpError:T.opError, tRetry:T.retry, tCancelled:T.cancelled, tRedo:T.redo,
+      n6:6, n16:16, n20:20, n28:28
+    };
+  }
+}
+</script>
+</body>
+</html>
