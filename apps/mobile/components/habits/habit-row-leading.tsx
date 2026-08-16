@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown } from 'lucide-react-native'
+import { ChevronDown } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { createTokensV2, easings } from '@/lib/theme'
 import { SelectCheck } from '@/components/ui/select-check'

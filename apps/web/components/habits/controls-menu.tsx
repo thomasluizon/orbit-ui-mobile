@@ -9,7 +9,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   MoreHorizontal,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { Popover } from '@/components/ui/popover'
 

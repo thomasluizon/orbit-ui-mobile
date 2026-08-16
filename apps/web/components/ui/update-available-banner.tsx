@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { RefreshCw, X } from 'lucide-react'
+import { RefreshCw, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 

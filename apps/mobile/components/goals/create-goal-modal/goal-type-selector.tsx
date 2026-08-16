@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
-import { Target, Flame } from 'lucide-react-native'
+import { Target, Flame } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { GoalType } from '@orbit/shared/types/goal'
 import type { CreateGoalStyles, CreateGoalTokens } from './styles'

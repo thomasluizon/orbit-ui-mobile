@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Crown } from 'lucide-react'
+import { Crown } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'

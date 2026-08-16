@@ -1,5 +1,5 @@
 import { View } from 'react-native'
-import { Orbit } from 'lucide-react-native'
+import { Orbit } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'

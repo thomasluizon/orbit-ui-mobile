@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRight, Orbit } from 'lucide-react'
+import { ChevronRight, Orbit } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 interface GoalAskAstraRowProps {

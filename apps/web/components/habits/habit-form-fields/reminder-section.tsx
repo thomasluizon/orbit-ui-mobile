@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { X, Plus, Bell } from 'lucide-react'
+import { X, Plus, Bell } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { AppSelect } from '@/components/ui/app-select'

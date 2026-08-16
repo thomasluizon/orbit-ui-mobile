@@ -1,6 +1,6 @@
 'use client'
 
-import { WifiOff } from 'lucide-react'
+import { WifiOff } from '@/components/ui/icons'
 
 interface OfflineUnavailableStateProps {
   title: string

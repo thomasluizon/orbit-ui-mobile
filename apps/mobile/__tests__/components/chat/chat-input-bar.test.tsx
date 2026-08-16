@@ -6,7 +6,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const React = require('react')
   const icon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props)

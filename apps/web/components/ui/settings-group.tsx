@@ -2,7 +2,7 @@
 
 import type { ReactNode, MouseEvent } from 'react'
 import React from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from '@/components/ui/icons'
 
 const PRO_BADGE_STYLE: React.CSSProperties = {
   fontFamily: 'var(--font-sans)',

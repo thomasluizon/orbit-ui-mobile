@@ -8,7 +8,7 @@ import {
   Palette,
   ShieldCheck,
   Tag,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import {
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,

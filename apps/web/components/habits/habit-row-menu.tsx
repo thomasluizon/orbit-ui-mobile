@@ -8,8 +8,8 @@ import {
   Pencil,
   Plus,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react'
+  type Icon,
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 interface HabitRowMenuProps {
@@ -74,7 +74,7 @@ export function HabitRowMenu({
 }
 
 interface MenuItemProps {
-  icon: LucideIcon
+  icon: Icon
   label: string
   onClick: () => void
   tone?: 'default' | 'warning' | 'danger'

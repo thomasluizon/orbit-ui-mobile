@@ -3,7 +3,7 @@
 import { useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from '@/components/ui/icons'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from 'cmdk'
 import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
 import { useUIStore } from '@/stores/ui-store'

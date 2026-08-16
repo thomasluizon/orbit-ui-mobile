@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Repeat, type LucideIcon } from 'lucide-react'
+import { Repeat, type Icon } from '@/components/ui/icons'
 import type { Goal } from '@orbit/shared/types/goal'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -261,7 +261,7 @@ export function GoalLinkedHabitsSection({
 
 interface GoalActionRowProps {
   label: string
-  icon: LucideIcon
+  icon: Icon
   onClick: () => void
   disabled?: boolean
   destructive?: boolean

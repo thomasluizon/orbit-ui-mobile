@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet } from 'react-native'
-import { Moon, Sun } from 'lucide-react-native'
+import { Moon, Sun } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'

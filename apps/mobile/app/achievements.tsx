@@ -8,7 +8,7 @@ import {
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Lock } from 'lucide-react-native'
+import { Lock } from '@/components/ui/icons'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useEffectEvent } from 'react'
-import { Loader2, Check, Settings2 } from 'lucide-react'
+import { Loader2, Check, Settings2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'

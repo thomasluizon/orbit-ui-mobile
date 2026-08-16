@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import type { ReactNode } from 'react'
-import { Plus } from 'lucide-react-native'
+import { Plus } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'

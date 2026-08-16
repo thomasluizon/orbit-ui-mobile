@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
+import { Check, Copy, Gift, Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'

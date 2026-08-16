@@ -6,7 +6,7 @@ import Animated, {
   useAnimatedProps,
   withTiming,
 } from 'react-native-reanimated'
-import { Plus } from 'lucide-react-native'
+import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'

@@ -1,6 +1,6 @@
 'use client'
 
-import { BellRing, Lock, Satellite } from 'lucide-react'
+import { BellRing, Lock, Satellite } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'

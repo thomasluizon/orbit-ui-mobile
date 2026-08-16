@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Lock, Sparkles } from 'lucide-react'
+import { Lock, Sparkles } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
 

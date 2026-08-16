@@ -10,7 +10,7 @@ import {
   format,
 } from 'date-fns'
 import type { Locale } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import {
   DndContext,
   PointerSensor,

@@ -1,6 +1,6 @@
 'use client'
 
-import { Snowflake } from 'lucide-react'
+import { Snowflake } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 export function StreakFrozenBanner() {

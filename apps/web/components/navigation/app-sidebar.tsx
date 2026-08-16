@@ -6,8 +6,8 @@ import {
   PanelLeft,
   PanelLeftClose,
   Plus,
-  type LucideProps,
-} from 'lucide-react'
+  type IconProps,
+} from '@/components/ui/icons'
 import { AppLogo } from '@/components/ui/app-logo'
 import { PillButton } from '@/components/ui/pill-button'
 import { resolveSidebarSectionRowPresentation } from '@/components/navigation/app-sidebar-presentation'
@@ -15,7 +15,7 @@ import { resolveSidebarSectionRowPresentation } from '@/components/navigation/ap
 export interface SidebarNavItem {
   id: string
   label: string
-  icon: ComponentType<LucideProps>
+  icon: ComponentType<IconProps>
   onSelect: () => void
 }
 
@@ -29,7 +29,7 @@ export interface SidebarLeaf {
 export interface SidebarSection {
   id: string
   label: string
-  icon: ComponentType<LucideProps>
+  icon: ComponentType<IconProps>
   active: boolean
   onSelect: () => void
   /** Present only for the expandable Hábitos parent; absent makes the row a leaf. */

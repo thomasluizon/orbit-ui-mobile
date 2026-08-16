@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'

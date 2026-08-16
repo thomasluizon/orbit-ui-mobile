@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowUpRight, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Sparkles } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'

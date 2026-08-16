@@ -70,7 +70,7 @@ vi.mock('@/lib/theme', () => ({
   }),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
    
   const React = require('react')
   return {

@@ -5,13 +5,13 @@ import {
   HelpCircle,
   Share2,
   X,
-  type LucideProps,
-} from 'lucide-react-native'
+  type IconProps,
+} from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type LucideIcon = ComponentType<LucideProps>
+type IconComponent = ComponentType<IconProps>
 
 type AppBarRightVariant = 'help' | 'close' | 'share'
 
@@ -73,7 +73,7 @@ function AppBarRightAction({
 
 interface AppBarLeadingProps {
   back: boolean
-  LeadingIcon?: LucideIcon
+  LeadingIcon?: IconComponent
   onBack?: () => void
   resolvedBackLabel: string
   tokens: AppBarTokens
@@ -117,8 +117,8 @@ interface AppBarProps {
   back?: boolean
   /** Callback for the back / leading button. */
   onBack?: () => void
-  /** Leading lucide-react-native icon (ignored when `back` is true). */
-  LeadingIcon?: LucideIcon
+  /** Leading Tabler icon (ignored when `back` is true). */
+  LeadingIcon?: IconComponent
   /** Mark rendered immediately before the centered title (e.g. Astra's avatar). */
   titleIcon?: ReactNode
   /** Centered uppercase label. Omit for bars whose content carries its own heading. */

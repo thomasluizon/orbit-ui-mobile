@@ -5,7 +5,7 @@ import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-mo
 const replace = vi.fn()
 const queryClientClear = vi.fn()
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const icon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props)
   return { Check: icon('Check'), RotateCcw: icon('RotateCcw'), X: icon('X') }

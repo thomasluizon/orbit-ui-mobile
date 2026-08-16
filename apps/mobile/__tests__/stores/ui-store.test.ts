@@ -43,7 +43,7 @@ vi.mock("@/hooks/use-tour-mock-data", () => ({
   useTourMockData: () => ({ inject: vi.fn(), restore: vi.fn() }),
 }));
 
-vi.mock("lucide-react-native", () => {
+vi.mock("@/components/ui/icons", () => {
   const Icon = () => null;
   return {
     Check: Icon,

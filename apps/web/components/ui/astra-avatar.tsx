@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import type { LucideProps } from 'lucide-react'
+import type { IconProps } from '@/components/ui/icons'
 
 const RING_RADIUS = 8.25
 const CORE_RADIUS = 3
@@ -8,14 +8,14 @@ const SATELLITE_X = 17.83
 const SATELLITE_Y = 6.17
 const TRAIL_PATH = 'M9.18 4.24 A8.25 8.25 0 0 1 17.83 6.17'
 
-interface AstraMarkProps extends LucideProps {
+interface AstraMarkProps extends IconProps {
   /** Slowly orbit the satellite around the core. Reduced-motion is honored globally. */
   animate?: boolean
 }
 
 /**
  * Astra's identity glyph: a violet core with a single satellite tracing a hairline orbit.
- * Token-driven and `LucideProps`-compatible, so it drops into icon slots like a lucide icon.
+ * Token-driven and `IconProps`-compatible, so it drops into Tabler icon slots.
  * Passing `color` renders it monochrome (icon contexts); omitting it keeps the violet/hairline duotone.
  */
 export function AstraMark({

@@ -1,6 +1,6 @@
 'use client'
 
-import { Orbit, ChevronRight } from 'lucide-react'
+import { Orbit, ChevronRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 interface HabitAskAstraButtonProps {

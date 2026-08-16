@@ -174,8 +174,8 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-native-safe-area-context.ts'),
       },
       {
-        find: 'lucide-react-native',
-        replacement: path.resolve(__dirname, './test-mocks/lucide-react-native.ts'),
+        find: '@/components/ui/icons',
+        replacement: path.resolve(__dirname, './test-mocks/icons.ts'),
       },
       {
         find: 'react-native-svg',

@@ -8,8 +8,8 @@ import {
   Sparkles,
   Trophy,
   Wrench,
-  type LucideIcon,
-} from 'lucide-react'
+  type Icon,
+} from '@/components/ui/icons'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
@@ -20,7 +20,7 @@ interface ProfileNavIconProps {
   size?: number
 }
 
-const ICON_BY_KEY: Record<ProfileNavIconKey, LucideIcon> = {
+const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
   settings: Settings,
   orbit: Sparkles,
   retrospective: ChartLine,

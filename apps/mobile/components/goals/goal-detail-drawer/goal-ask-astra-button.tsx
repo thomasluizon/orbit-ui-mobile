@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
-import { ChevronRight, Orbit } from 'lucide-react-native'
+import { ChevronRight, Orbit } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { AppTokens, createStyles } from './styles'
 

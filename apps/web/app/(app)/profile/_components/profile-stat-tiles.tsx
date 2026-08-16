@@ -1,6 +1,6 @@
 'use client'
 
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { StatTile } from '@/components/ui/stat-tile'
 import { plural } from '@/lib/plural'

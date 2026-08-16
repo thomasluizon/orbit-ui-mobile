@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { CreditCard } from 'lucide-react'
+import { CreditCard } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import type { Profile } from '@orbit/shared/types/profile'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'

@@ -1,4 +1,4 @@
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'

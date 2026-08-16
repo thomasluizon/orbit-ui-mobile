@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver spins the avatar on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
-import type { LucideProps } from 'lucide-react-native'
+import type { IconProps } from '@/components/ui/icons'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -15,14 +15,14 @@ const SATELLITE_Y = 6.17
 const TRAIL_PATH = 'M9.18 4.24 A8.25 8.25 0 0 1 17.83 6.17'
 const ORBIT_DURATION_MS = 14000
 
-interface AstraMarkProps extends LucideProps {
+interface AstraMarkProps extends IconProps {
   /** Slowly orbit the satellite around the core (reduced-motion gated). */
   animate?: boolean
 }
 
 /**
  * Astra's identity glyph: a violet core with a single satellite tracing a hairline orbit.
- * Token-driven and `LucideProps`-compatible, so it drops into icon slots like a lucide icon.
+ * Token-driven and `IconProps`-compatible, so it drops into Tabler icon slots.
  * Passing `color` renders it monochrome (icon contexts); omitting it keeps the violet/hairline duotone.
  */
 export function AstraMark({

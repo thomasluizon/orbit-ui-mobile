@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
-import { Check, ChevronRight } from 'lucide-react-native'
+import { Check, ChevronRight } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import {
   buildBulkItemsFromPack,

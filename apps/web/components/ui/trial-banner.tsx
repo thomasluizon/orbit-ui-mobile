@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ChevronRight, X } from 'lucide-react'
+import { ChevronRight, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'

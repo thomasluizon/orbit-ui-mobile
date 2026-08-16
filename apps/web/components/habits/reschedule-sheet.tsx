@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarClock, Loader2, Sparkles } from 'lucide-react'
+import { CalendarClock, Loader2, Sparkles } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   computeHabitFrequencyLabel,

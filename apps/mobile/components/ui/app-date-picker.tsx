@@ -20,7 +20,7 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { Calendar, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'

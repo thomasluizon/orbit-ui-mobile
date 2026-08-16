@@ -463,7 +463,7 @@ Consequences that hold either way:
 
 #### Icons
 
-- **Tabler**, always through the per-platform barrel `@/components/ui/icons`. Never a direct `@tabler/*` or `lucide-*` import: the barrel wraps Tabler to one prop shape so a future set swap is one file. `no-restricted-imports` enforces this and **lands with #210**, which migrates the callsites as one sweep.
+- **Tabler**, always through the per-platform barrel `@/components/ui/icons`. Never a direct `@tabler/*` or `lucide-*` import: the barrel wraps Tabler to one prop shape so a future set swap is one file. `no-restricted-imports` enforces this.
 - **Sizes are the set's native grid: 16, 20, 24. The default is 24.** Tabler is drawn on a 24 grid (`width="24" height="24"`, read from the source 2026-08-15), so an off-grid size such as 22 renders with fractional scaling and looks soft. Inline with text, size to about 1em to 1.25em so the pair scales together.
 - **Stroke matches the optical weight of the adjacent text**, on the 24 grid: `1.5` beside 400-weight text at 14 to 16, `2` beside 500 and 600, `2.5` beside 700 or an emphasised standalone glyph. Tabler's own default is 2. One stroke strategy per surface; never mix icon sets on one toolbar.
 - **One SVG, recoloured per state.** Icons use `currentColor` and take their states from colour and opacity, never from separate assets. Strip any hardcoded `fill` on import.
@@ -1061,7 +1061,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 | Banned-word set (Voice) | `tools/check-copy.mjs --check` | **extend to the 25 enumerated entries, with the scope column** |
 | No UPPERCASE typed into a string | `tools/check-copy.mjs --check` | shipping |
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | shipping, web only |
-| Icons only through the barrel | `no-restricted-imports` | **lands with #210**, as one sweep |
+| Icons only through the barrel | `no-restricted-imports` | shipping |
 | No gorhom sheet (Overlay) | `local/no-gorhom-sheet` | keep |
 | No `oklch()` in a shared token or mobile style (Tokens) | **new rule** | after grant 1 |
 | No sparkle icon as an AI marker (Bans) | **new rule** | after grant 1 |

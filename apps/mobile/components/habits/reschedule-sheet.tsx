@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import { CalendarClock, Sparkles } from 'lucide-react-native'
+import { CalendarClock, Sparkles } from '@/components/ui/icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {

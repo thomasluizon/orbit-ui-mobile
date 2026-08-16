@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { ChevronRight, UserPlus, X } from 'lucide-react'
+import { ChevronRight, UserPlus, X } from '@/components/ui/icons'
 import { useReferral } from '@/hooks/use-referral'
 
 interface ReferralCardProps {

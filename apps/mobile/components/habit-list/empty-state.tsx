@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Plus, Sparkles } from 'lucide-react-native'
+import { Plus, Sparkles } from '@/components/ui/icons'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'

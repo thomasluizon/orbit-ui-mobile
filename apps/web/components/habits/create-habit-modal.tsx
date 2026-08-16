@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
-import { Check, Loader2 } from 'lucide-react'
+import { Check, Loader2 } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppOverlay } from '@/components/ui/app-overlay'

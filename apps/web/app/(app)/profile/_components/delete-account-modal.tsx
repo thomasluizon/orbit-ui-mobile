@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { parseISO } from 'date-fns'
-import { TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from '@/components/ui/icons'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { AppOverlay } from '@/components/ui/app-overlay'

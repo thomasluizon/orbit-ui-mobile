@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
+import { Sparkles } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'

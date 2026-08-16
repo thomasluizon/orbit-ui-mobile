@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react'
+import { ChevronDown, Maximize2, Minimize2 } from '@/components/ui/icons'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AstraAvatar, AstraMark } from '@/components/ui/astra-avatar'

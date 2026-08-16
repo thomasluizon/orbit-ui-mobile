@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search, X, Filter, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, Filter, Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Popover } from '@/components/ui/popover'

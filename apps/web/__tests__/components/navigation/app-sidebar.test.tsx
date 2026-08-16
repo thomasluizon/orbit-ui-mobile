@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ComponentProps, ComponentType } from 'react'
-import type { LucideProps } from 'lucide-react'
+import type { IconProps } from '@/components/ui/icons'
 import {
   AppSidebar,
   type SidebarSection,
 } from '@/components/navigation/app-sidebar'
 
-const StubIcon: ComponentType<LucideProps> = () => <svg data-testid="nav-icon" />
+const StubIcon: ComponentType<IconProps> = () => <svg data-testid="nav-icon" />
 
 type SidebarProps = ComponentProps<typeof AppSidebar>
 

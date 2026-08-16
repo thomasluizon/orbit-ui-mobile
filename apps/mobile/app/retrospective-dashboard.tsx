@@ -7,8 +7,8 @@ import {
   RefreshCw,
   Star,
   TrendingUp,
-  type LucideIcon,
-} from 'lucide-react-native'
+  type Icon,
+} from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type {
   RetrospectiveHabitStat,
@@ -70,7 +70,7 @@ function renderNarrativeInline(text: string, tokens: Tokens) {
 interface DashboardCardProps {
   tokens: Tokens
   title: string
-  icon?: LucideIcon
+  icon?: Icon
   accent?: boolean
   children: React.ReactNode
 }
@@ -206,7 +206,7 @@ function HabitStatList({
 
 interface NarrativeSectionProps {
   tokens: Tokens
-  icon: LucideIcon
+  icon: Icon
   title: string
   body: string
   accent?: boolean

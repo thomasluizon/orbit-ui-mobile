@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Gift } from 'lucide-react-native'
+import { Gift } from '@/components/ui/icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'

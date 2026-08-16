@@ -43,7 +43,7 @@ vi.mock('@/lib/theme', () => ({
   primaryGlow: () => ({}),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const React = require('react')
   return {
     ShieldAlert: (props: any) => React.createElement('ShieldAlert', props),

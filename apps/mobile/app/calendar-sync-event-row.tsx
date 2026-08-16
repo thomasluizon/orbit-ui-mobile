@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Bell, X } from 'lucide-react-native'
+import { Bell, X } from '@/components/ui/icons'
 import type { TFunction } from 'i18next'
 import {
   formatCalendarSyncRecurrenceLabel,

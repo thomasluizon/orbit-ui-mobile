@@ -13,7 +13,7 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { User as UserIcon } from 'lucide-react-native'
+import { User as UserIcon } from '@/components/ui/icons'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import {
   useProfile,

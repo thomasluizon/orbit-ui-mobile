@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { Mail } from 'lucide-react-native'
+import { Mail } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'

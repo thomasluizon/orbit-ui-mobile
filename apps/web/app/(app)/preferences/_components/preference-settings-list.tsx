@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, Languages, Moon, Palette } from 'lucide-react'
+import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'

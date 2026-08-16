@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
-import { Bell, CheckCheck, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react'
+import { Bell, CheckCheck, Flame, Sparkles, Trash2, Trophy, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,

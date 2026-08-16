@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import {
   CalendarDays,
   Home,
-  type LucideProps,
+  type IconProps,
   Plus,
   User,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { createTokensV2, primaryGlow } from '@/lib/theme'
@@ -14,7 +14,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 export type BottomTabId = 'today' | 'chat' | 'calendar' | 'profile'
 
-type LucideIcon = ComponentType<LucideProps>
+type IconComponent = ComponentType<IconProps>
 
 interface BottomTabBarProps {
   active: BottomTabId
@@ -30,7 +30,7 @@ interface BottomTabBarProps {
 interface TabDef {
   id: BottomTabId
   labelKey: string
-  Icon: LucideIcon
+  Icon: IconComponent
 }
 
 const TABS: readonly TabDef[] = [

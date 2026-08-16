@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, X } from 'lucide-react'
+import { Bell, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { subscribePush } from '@/app/actions/notifications'
 import { PillButton } from '@/components/ui/pill-button'

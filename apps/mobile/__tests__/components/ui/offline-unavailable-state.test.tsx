@@ -19,7 +19,7 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props)
 

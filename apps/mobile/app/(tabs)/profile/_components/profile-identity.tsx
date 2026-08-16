@@ -1,7 +1,7 @@
 import { Text, Pressable } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { Pencil } from 'lucide-react-native'
+import { Pencil } from '@/components/ui/icons'
 import type { createTokensV2 } from '@/lib/theme'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { SkeletonLine } from '@/components/ui/skeleton'

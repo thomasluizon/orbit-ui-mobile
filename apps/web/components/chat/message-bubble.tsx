@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'

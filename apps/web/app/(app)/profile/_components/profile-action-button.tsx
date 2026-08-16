@@ -1,12 +1,12 @@
 'use client'
 
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@/components/ui/icons'
 
 interface ProfileActionButtonProps {
   label: string
   onClick: () => void
-  /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
-  icon?: LucideIcon
+  /** Leading Tabler icon rendered 22/1.8 in the kit ListRow 26px slot. */
+  icon?: Icon
   tone?: 'default' | 'danger'
   /** Draw the bottom hairline divider. Set `false` on the last row so no stray rule renders. */
   showDivider?: boolean

@@ -1,4 +1,4 @@
-import { BellRing, Lock, Satellite } from 'lucide-react-native'
+import { BellRing, Lock, Satellite } from '@/components/ui/icons'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'

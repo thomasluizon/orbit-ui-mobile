@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 /** Route-level Pro gate shown on the Insights surface when the user lacks Pro access. */
