@@ -1,5 +1,5 @@
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
-> - Anchor (D68, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent (the hue is decided at human grant 1). **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
+> - Anchor (D68, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**, granted 2026-08-16. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
@@ -334,13 +334,13 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
 --fg-3 #8F8F93   /*  6.18:1 */   --fg-4 #5D5D60   /*  3.03:1, clears the 3:1 non-text floor */
---primary         PENDING GRANT 1             /* fill and graphic ONLY. See "The accent" */
---primary-soft    PENDING GRANT 1             /* accent TEXT on the canvas */
---primary-pressed PENDING GRANT 1             /* the fill, 16% toward the canvas */
---primary-hover   PENDING GRANT 1             /* the fill, 12% toward its own foreground */
---primary-rgb     PENDING GRANT 1
---primary-dim     PENDING GRANT 1             /* the fill at 18% over the canvas */
---fg-on-primary   PENDING GRANT 1             /* white on a dark fill, the canvas ink on a light fill */
+--primary         #C4530F                     /* fill and graphic ONLY. hue 45. White on it clears 4.5 */
+--primary-soft    #C85716                     /* accent TEXT on the canvas */
+--primary-pressed #A24716                     /* the fill, 16% toward the canvas */
+--primary-hover   #CD6939                     /* the fill, 12% toward its own foreground */
+--primary-rgb     196,83,15
+--primary-dim     #261611                     /* the fill at 18% over the canvas */
+--fg-on-primary   #FFFFFF                     /* always white: the fill is dark in both modes */
 --status-done     var(--fg-1)                 /* UNBOUND from the accent. The brightest neutral */
 --status-empty    var(--fg-4)                 /* ring track. 3.03:1 */
 --status-skip     var(--fg-3)
@@ -370,7 +370,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
 --status-done var(--fg-1) · empty var(--fg-4) · skip var(--fg-3) · frozen var(--fg-2)   /* the five neutrals resolve through the fg ramp in BOTH variants */
---status-overdue #B45B00   /* 4.53:1 on #FAFAFA, hue 54.5 */
+--status-overdue #946A00   /* 4.66:1 on #FAFAFA, hue 81.2. White on it 4.86:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
 --fg-on-overdue  #FFFFFF   /* 4.73:1 on the fill */
@@ -378,13 +378,13 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
---primary        PENDING GRANT 1   /* light mode always takes the DARK fill, with white on it */
---primary-soft   PENDING GRANT 1   /* derived against #FAFAFA, not against the canvas */
+--primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
+--primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
 --fg-on-primary  #FFFFFF
 --selection-bg   the fill at alpha 0.18
 ```
 
-**The two status hues move in light mode, and that is load-bearing for the accent.** Both are darkened to clear the floor on `#FAFAFA`, which drags `--status-overdue` from hue 65.4 down to **54.5** and `--status-bad` from 25.4 up to **28.5**. The warm band from roughly hue 25 to 65 is therefore fully occupied on a light canvas, so **derivation rule 6's 15-degree separation is tighter in light mode than in dark and must be measured there too.** Measured 2026-08-15: a hue 45 warm-orange accent sits 9.8 degrees from light `--status-overdue`, inside the band, while a hue 350 rose sits 64.6 degrees away.
+**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. It is now `#946A00` at **hue 81.2**, which clears the accent by **36.4 degrees**, measures 4.66:1 on `#FAFAFA` and carries white at 4.86:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
 
 **`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** `design/reference.html` never repoints it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. The page is incomplete here rather than authoritative, so the floor decides.
 
@@ -392,18 +392,24 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 
 **One switching mechanism.** A class (or the mobile mode value) is the switch, and `prefers-color-scheme` only sets the initial value. Never let a media query own some tokens and a class own others.
 
-### The accent: the method is settled, the hue is open
+### The accent: warm orange `#C4530F`, granted
 
-**The fill treatment is settled and the exact hue is not.** `design/reference.html` narrowed the field to two families; the final byte is chosen on the Claude Design canvas during the design-system build and written back here. Everything below holds whichever hue wins.
+**Granted by Thomas on 2026-08-16: warm orange `#C4530F`, hue 45.** Rose `#BF4D8A` is **retired**, and
+emerald was discarded earlier the same week. There is one accent and no shortlist.
 
-**The shortlist is two, narrowed by Thomas on 2026-08-15.** Both take a dark fill with white on it:
+The treatment is **a dark fill with white on it**, in both modes. `--primary` is the lightest value at
+which white still clears 4.5 on it, so `--fg-on-primary` is always `#FFFFFF`. The light-fill
+alternative, a bright fill carrying the canvas ink, was rendered and rejected by looking.
 
-| candidate | value | note |
-|---|---|---|
-| **Warm orange** | `#C4530F` at hue 45, and neighbouring warm-orange values are still open | The tightest separation of any candidate: 20 degrees from both `--status-overdue` and `--status-bad`. It only clears because `--status-done` is unbound from the accent, which removed the frequent adjacency of a done ring beside an overdue chip |
-| **Rose** | `#BF4D8A` at hue 350, **moved from 15** | At 15 it sat 10 degrees from the destructive red, so the primary CTA and the delete button read as the same colour. At 350 it clears by 35 and stays a pink-red |
+**What choosing hue 45 cost, recorded because it is the kind of thing that gets re-litigated.** Warm
+orange has the tightest separation of any candidate considered: 20 degrees from `--status-bad` in dark
+mode. It only clears because `--status-done` was unbound from the accent, which removed the frequent
+adjacency of a done ring beside an overdue chip. It also forced `--status-overdue` off `#B45B00` in
+light mode, because that value sat 9.8 degrees away. Both consequences are already applied above.
 
-**Emerald is discarded** (2026-08-15). Green binds the brand to a success verdict rather than to a state, and it places Orbit in the green-checkmark habit-tracker slot that `BRAND.md` names as a positioning failure.
+**Emerald was discarded** because green binds the brand to a success verdict rather than to a state,
+and it places Orbit in the green-checkmark habit-tracker slot `BRAND.md` names as a positioning
+failure.
 
 **Three roles, three floors, and every candidate clears all three:**
 
@@ -1033,20 +1039,20 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 
 **Prose is not enforcement.** The rules above split three ways.
 
-**The `eslint-rules/` re-derivation lands in the PR immediately after human grant 1**, because D68 decision 12 sets the spacing step values at that grant and several rules encode them. Until then the table below states the target, and the existing rules stay as they are.
+**Grant 1 landed on 2026-08-16**, so every row below marked "after grant 1" is now unblocked and owes a pull request. The accent bytes and the spacing scale are both settled, which is what those rules encode.
 
 ### Gate-backed
 
 | rule (section) | mechanism | status |
 |---|---|---|
-| The accent split and its three floors (Tokens) | accent-AA token test: white on `--primary` >= 4.5; `--primary` on canvas >= 3.0; `--primary-soft` on canvas >= 4.5; **and `--status-done` is not `--primary`** | **re-baseline after grant 1** |
+| The accent split and its three floors (Tokens) | accent-AA token test: white on `--primary` >= 4.5; `--primary` on canvas >= 3.0; `--primary-soft` on canvas >= 4.5; **and `--status-done` is not `--primary`** | **re-baseline now: grant 1 landed** |
 | Byte-exact token acceptance | shared unit test on `createTokensV2` plus the resolved web CSS | re-baseline to the two variants |
-| No decorative glow (Bans) | `local/no-decorative-glow` | **flip to `error`** after grant 1 |
+| No decorative glow (Bans) | `local/no-decorative-glow` | **flip to `error`**, unblocked |
 | No gradient wash / gradient text (Bans) | `local/no-raw-gradient` + `local/no-gradient-text` | **flip to `error`** |
 | No coloured side-stripe (Bans) | `local/no-side-stripe-border` | keep |
 | No bounce or elastic easing (Motion) | `local/no-overshoot-easing` | keep |
 | No `space-x-*` / `space-y-*` (Spacing) | `local/no-space-x-y` | **wire on mobile** |
-| Off-scale spacing (Spacing) | `local/spacing-scale` | **re-enumerate to the chosen scale after grant 1** |
+| Off-scale spacing (Spacing) | `local/spacing-scale` | **re-enumerate to the chosen scale**, unblocked |
 | No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex` | keep. `app-overlay.tsx:235` is a live violation the Base UI adoption removes |
 | Focus outline never removed bare (A11y) | `local/require-focus-replacement` | **wire on mobile** |
 | Never disable zoom (A11y) | `local/no-user-scalable-no` | keep, web only |
@@ -1063,10 +1069,10 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | shipping, web only |
 | Icons only through the barrel | `no-restricted-imports` | **lands with #210**, as one sweep |
 | No gorhom sheet (Overlay) | `local/no-gorhom-sheet` | keep |
-| No `oklch()` in a shared token or mobile style (Tokens) | **new rule** | after grant 1 |
-| No sparkle icon as an AI marker (Bans) | **new rule** | after grant 1 |
-| Off-grid icon size (Icons) | **new rule**: size outside 16 / 20 / 24 | after grant 1 |
-| Pill radius on a static element (Shape) | **new rule**: radius 999 outside `PillButton` and the interactive kit | after grant 1 |
+| No `oklch()` in a shared token or mobile style (Tokens) | **new rule** | unblocked |
+| No sparkle icon as an AI marker (Bans) | **new rule** | unblocked |
+| Off-grid icon size (Icons) | **new rule**: size outside 16 / 20 / 24 | unblocked |
+| Pill radius on a static element (Shape) | **new rule**: radius 999 outside `PillButton` and the interactive kit | unblocked |
 
 ### Reviewer-judgment (the `design-reviewer` agent enforces these per diff)
 
