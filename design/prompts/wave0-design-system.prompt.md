@@ -138,3 +138,37 @@ under Components, and put `screen-contract.md` under whichever group the guideli
 
 Then report: the files you added, each component's props, and one line confirming that no token,
 colour, radius, font or spacing value was added.
+
+---
+
+# Patch, run after the prompt above lands
+
+Verified on the 2026-08-16 re-export: all six items landed and zero tokens were added. Five defects
+came with them. Paste this in the same design system project.
+
+Fix five things in the system. Change nothing else, and still add no token.
+
+**1. `CanvasControls` hardcodes its state options.** A screen with an extra state, for example a list
+that needs `many` and `too many`, or Astra which needs a streaming state, cannot express it without
+forking the component. Take the state values as a prop, defaulting to the five you already ship. Do
+the same for the locale values.
+
+**2. Nothing in the system honours `prefers-reduced-motion`.** Every screen currently patches it
+locally, which means each screen gets it slightly differently. Put the layer in `tokens/base.css`
+once, and use `0.01ms` rather than `none`, so a `transitionend` listener still fires.
+
+**3. `Skeleton` loops a pulse animation forever with no guard.** An indefinite blink with no pause
+control fails the accessibility rule for anything that moves automatically past five seconds. Keep
+the shape and kill the loop under reduced motion, and pause it when the element is off screen.
+
+**4. `Shell412` hardcodes the tab bar's 62px height** inside the FAB offset calculation. The FAB
+drifts the day `TabBar` changes height. Position the FAB against the chrome element itself rather
+than a literal copy of its height. While you are there, the `.scr>*` rule puts 96px on **every**
+direct child of the scroller, so a screen with two children gets it twice: move that padding onto the
+scroll container and express it as `var(--s-9)`.
+
+**5. `ShellWide` carries two things that should not ship in a system component.** The `account` prop
+defaults to a real person's name, so make it required with no default. The command palette hint is
+hardcoded to the mac glyph, and Orbit runs on Android and the web, so take the hint as a prop.
+
+Then report the five fixes, one line each, and confirm again that no token was added.
