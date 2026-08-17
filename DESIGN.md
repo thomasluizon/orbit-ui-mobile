@@ -356,7 +356,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --primary         #C4530F                     /* fill and graphic ONLY. hue 45. White on it clears 4.5 */
 --primary-soft    #C85716                     /* accent TEXT on the canvas */
 --primary-pressed #A24716                     /* the fill, 16% toward the canvas */
---primary-hover   #CD6939                     /* the fill, 12% toward its own foreground */
+--primary-hover   #B74E12                     /* the fill, 6% toward the canvas. It DARKENS, see below */
 --primary-rgb     196,83,15
 --primary-dim     #261611                     /* the fill at 18% over the canvas */
 --fg-on-primary   #FFFFFF                     /* always white: the fill is dark in both modes */
@@ -370,6 +370,14 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --selection-bg    the fill at alpha 0.32
 --scrim           rgba(0,0,0,0.55)            /* THE overlay backdrop. Theme-independent */
 ```
+
+**The accent fill darkens on hover, and it has to.** `--primary-hover` was `#CD6939`, the fill mixed
+12 percent toward white. Measured 2026-08-17: white on `#CD6939` is **3.70:1**, under the 4.5 text
+floor, on the primary button, which always carries a white label. The fill itself is only **4.57:1**
+with white, so there is no headroom to lighten it by any amount. The hover therefore moves the other
+way, `#B74E12`, and the ladder reads monotonically: rest **4.57**, hover **5.11**, pressed **6.09**.
+This is the one place the design system's own "one step" hover rule was applied without measuring the
+step, and the measurement reversed its direction.
 
 **The canvas is near-black, not pure black.** `#09090B` is the measured Pierre value; Linear sits at `#08090a`. White on `#09090B` is 19.90:1 against 21.00:1 on pure black, so the contrast cost is 5% and the halation cost is real. Maximum contrast is a floor plus a legibility check, never "as much as possible".
 
@@ -399,9 +407,17 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
+--primary-dim    #F4DDD3   /* the fill at 18% over #FAFAFA. fg-1 on it 13.34:1, fg-2 7.67:1 */
 --fg-on-primary  #FFFFFF
 --selection-bg   the fill at alpha 0.18
 ```
+
+**Only `--primary-dim` moves. `--primary`, `--primary-pressed`, `--primary-hover` and
+`--fg-on-primary` are mode-independent**, because the fill is dark and its label is white in both
+variants, so nothing about a white page changes how that button should darken. `--primary-dim` is
+different in kind: it is a mix **with the canvas**, so leaving it unrepointed gave light mode the
+dark-mode value `#261611`, a near-black wash painted onto a white card. That is what a selected
+`PlanCard` rendered in light until 2026-08-17.
 
 **The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. It is now `#946A00` at **hue 81.2**, which clears the accent by **36.4 degrees**, measures 4.66:1 on `#FAFAFA` and carries white at 4.86:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
 
