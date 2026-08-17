@@ -56,6 +56,19 @@ ever disagree.
 
 ---
 
+## The screen prompts are paste ready in `screens.md`
+
+`waves.md` is the reasoning: what each wave is for and why it sits where it does.
+**`design/prompts/screens.md` is the operating file**, eight prompts written to be copied into the
+screens project one per turn, with nothing left to compose. Read the wave here, paste from there.
+
+Decided 2026-08-17: **build screens next and fix the design system on demand.** Every real defect
+found so far came from drawing something rather than reading the system, three of them only once light
+mode was rendered for the first time, and the system's own checker stayed green while a dozen cards
+broke the spacing rule. Alignment, hover and taste are only judgeable at real size on a real surface.
+
+---
+
 ## Two projects, and never mix them
 
 This is the mistake that cost wave 1 a rebuild on 2026-08-16, so it is written here rather than
