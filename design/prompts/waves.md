@@ -56,6 +56,31 @@ ever disagree.
 
 ---
 
+## Two projects, and never mix them
+
+This is the mistake that cost wave 1 a rebuild on 2026-08-16, so it is written here rather than
+learned again.
+
+**The design system project holds only the reusable parts**: the tokens, the primitives, the
+components in isolation with all of their states, and the guidelines that govern them. A specimen
+card shows a component and its states. It never pretends to be the app.
+
+**The screens project holds the composed surfaces.** A screen is one interactive document that
+composes `Shell412` or `ShellWide` and renders the whole mode, width, state and locale matrix from
+one build. It never rebuilds a shell inline.
+
+The tell that the boundary broke: a card in the design system rendered a whole Hoje screen with named
+habits and times, and a whole conversation with real messages, so the system was documenting a
+product instead of a kit. A shell IS a legitimate system member, but it is documented as **structural
+anatomy**: every region drawn as a labelled empty slot carrying its name and its size rule, with no
+product content in it at all.
+
+The same rule kills invented product data anywhere in the system. A field specimen is labelled
+`Nome do hábito`; it does not carry a fake habit. A sheet specimen shows a neutral placeholder behind
+the scrim; it does not paint a fake Perfil screen at 45 percent.
+
+---
+
 ## Wave order
 
 | wave | what it builds | why it is in this position |
