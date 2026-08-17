@@ -131,3 +131,68 @@ Answered by Thomas, never decided on the canvas.
    are rendered in `Orbit Calendar.dc.html`, the second labelled as the proposal.
 3. The onboarding replay entry: in the Perfil rows, or opened by the last tour step. Both rendered
    and labelled in `Orbit Onboarding.dc.html`.
+
+---
+
+## Design system run, 2026-08-16 into 2026-08-17
+
+Not a wave. This run repaired the design system project itself, after Thomas looked at wave 1 and
+found it was documenting a product rather than a kit.
+
+### What was wrong
+
+* `components/shell/shell.card.html` rendered a whole Hoje screen with named habits and times, and a
+  whole Astra conversation with real messages. A design system holds reusable parts; a specimen shows
+  a component and its states and never pretends to be the app.
+* `components/overlay/overlay.card.html` painted a fake Perfil screen at 45 percent behind the sheet.
+* The `ShellWide` sidebar carried the composer. A 232px rail cannot hold an input, 3 to 6 chips and a
+  send control without every one of them dropping under its own minimum.
+* The composer had no visible way into the conversation. Focus is not an affordance.
+* `components/navigation/navigation.card.html` still demoed the pre-D69 tabs, Hoje Metas Astra Perfil.
+
+### What the run changed
+
+Six prompt rounds on `claude-opus-4-8`, which is the strongest model that surface offers; there is no
+Opus 5 entry in its picker and the only alternative is Fable 5.
+
+1. The shell card became structural anatomy: every region a labelled empty slot carrying its name and
+   its size rule, no product content anywhere.
+2. The composer left the sidebar and pins to the bottom of the 740 column, the same position it holds
+   on mobile. The sidebar carries navigation and identity only.
+3. The Astra glyph became a real 44px button labelled `Abrir conversa`.
+4. Every card audited for pretending to be the app. Two were; ten were already legitimate.
+5. The `sidebar` variant deleted from `Composer`, since task 2 killed its only caller.
+6. Every Components card now renders dark AND light side by side. Light was previously unproven for
+   almost every component in the kit, and proving it found real defects.
+7. Usage notes written for every card that had none.
+
+### The defects that only appeared once light mode was drawn
+
+* **A `var()` inside a custom property resolves where the property is DECLARED.** Every semantic alias
+  declared only at `:root` locked to the dark value and never re-resolved under `[data-mode="light"]`.
+  `--primary-dim` gave light mode `#261611`, a near-black wash on a white card, which is what a
+  selected `PlanCard` rendered. The status aliases had the same leak.
+* **`--primary-hover` failed its own label.** It was the fill mixed 12 percent toward white, `#CD6939`,
+  and white on it measures 3.70:1, under the 4.5 floor, on the primary button. The fill itself is only
+  4.57:1 with white, so there was no headroom to lighten it at all. Hover now darkens, `#B74E12`, and
+  the ladder reads 4.57 rest, 5.11 hover, 6.09 pressed.
+
+### Measured and left open, because each one is Thomas's call
+
+The full table is in `DESIGN.md` under `### Measured contrast, and three limits that are open`.
+`--primary-soft` was closed by scoping it to the canvas rather than by changing the colour. The other
+three trade against rules Thomas set: fixing the hovered-row miss moves the surface ladder, and
+fixing the empty ring collapses the four-step neutral status ranking to three.
+
+### Operating facts learned this run
+
+* **The `DesignSync` write API never rebuilds `_ds_bundle.js` or `_ds_manifest.json`.** Those two are
+  what the Design System pane actually reads, and the app rebuilds them only when the APP edits.
+  Writing sources over the API leaves new cards invisible and deleted cards rendering `file not found`.
+  `unregister_assets` returns success and changes nothing. `design/canvas/tools/build-ds-bundle.mjs`
+  regenerates both by hand when that happens.
+* **A prompt sent through the browser can be silently truncated.** One five-task message arrived with
+  only two tasks. Send in smaller messages and read back what the canvas says it received.
+* **Reloading the page fixes a wedged viewport.** A resize left the window at 270x112 and
+  `resize_window` reported success while changing nothing; a reload restored it.
+* **The weekly usage limit was at 75 percent when this run ended.**
