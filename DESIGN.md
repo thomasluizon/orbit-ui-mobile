@@ -65,7 +65,7 @@ for them deliberately.
 | platform | navigation | Astra |
 |---|---|---|
 | **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on all four |
-| **web** | sidebar, the same four | composer in the sidebar shell, on all four |
+| **web** | sidebar, the same four | composer pinned at the bottom of the 740 column, on all four |
 
 **No drawer and no hamburger on either platform.** Material 3's own guidance is to swap the drawer
 for a navigation bar at compact breakpoints, Apple's tab-bar guidance says five or fewer, and the
@@ -76,6 +76,18 @@ Astra does not take a slot.
 **The conversation renders as an overlay on mobile and as a side panel at the wide breakpoint.** That
 is one feature in two presentations, which the responsive rules already govern. It is **not** a new
 shell divergence.
+
+**The composer sits in the same place on both platforms: pinned to the bottom of the content column**
+(corrected 2026-08-16). It was briefly specified into the web sidebar, and drawn that way it is
+wrong twice over. A 232px rail cannot hold an input, 3 to 6 chips and a send control without every
+one of them shrinking below its own minimum, and putting the front door somewhere the mobile build
+has no equivalent for manufactures a divergence the parity contract does not allow. The sidebar
+carries navigation and identity only: the lockup, the search control, the four destinations, the one
+filled create action, and the account row.
+
+**The way in must be visible.** Focus alone is not an affordance, so the Astra glyph at the head of
+the composer is a real button with a 44px target, a hover state and a focus ring, labelled
+`Abrir conversa`. A person who never types into the bar can still find the conversation.
 
 ### What each surface IS
 
