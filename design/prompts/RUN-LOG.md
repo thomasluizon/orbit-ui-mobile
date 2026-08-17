@@ -196,3 +196,28 @@ fixing the empty ring collapses the four-step neutral status ranking to three.
 * **Reloading the page fixes a wedged viewport.** A resize left the window at 270x112 and
   `resize_window` reported success while changing nothing; a reload restored it.
 * **The weekly usage limit was at 75 percent when this run ended.**
+
+### Card harness cleanup, 2026-08-17
+
+Thomas reported misalignments and hover not working. Read from the fresh export rather than guessed:
+
+* **12 of 12 rewritten cards used a sibling margin.** The light and dark mode panels put
+  `marginBottom:16` on the mode label. `DESIGN.md` bans sibling margins outright: gap, never margin.
+  The panel is now a flex column with `gap:16`. This is the misalignment: a margin that does not
+  participate in the column's gap.
+* **`gap:20` appeared twice** in the generative card. 20 is not on the spacing scale, and the system's
+  own `Spacing scale` card says in words that 20, 28, 40 and 56 must not appear. Now 24.
+* **The shell diagram used `margin:8` and `margin:'0 8px 8px'` as insets**, plus a `14px` padding.
+  Both slots now carry the inset as padding on a wrapper, and 14 became 12.
+* Every rewritten card was re-parsed through Babel afterwards: 12 checked, 0 failing.
+
+**`check_design_system` passed clean through all of this.** It validates tokens and manifest sync; it
+does not read the specimen harness, so a card can break three written rules and still report no
+issues. That is worth remembering before trusting it as a completion signal.
+
+**Hover is correct in the source and cannot be judged in the Design System pane.** Every interactive
+component carries a `:hover` inside `@media (hover:hover) and (pointer:fine)` with the transition on
+the base rule, 21 such blocks compile into `_ds_bundle.js`, and the only `pointer-events:none` in the
+project is on the `Proposed` dashed outline, a decorative pseudo-element. The pane makes each card
+clickable to open it, which is what eats the hover. Judge hover in the expanded card view or on a real
+screen document.
