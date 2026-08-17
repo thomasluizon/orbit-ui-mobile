@@ -423,6 +423,40 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 
 **`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** `design/reference.html` never repoints it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. The page is incomplete here rather than authoritative, so the floor decides.
 
+### Measured contrast, and three limits that are open
+
+Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
+the misses are. Two independent implementations agree on every number below.
+
+| on | canvas | card | field | well | elev-2 | hover | overlay |
+|---|---|---|---|---|---|---|---|
+| dark `--fg-1` | 18.11 | 16.95 | 16.23 | 15.44 | 13.77 | 12.91 | 15.49 |
+| dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.59 | 10.30 |
+| dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | **4.40** | 5.28 |
+| dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.16** | **2.59** |
+| dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.26** | **3.91** |
+| light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
+| light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
+| light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
+
+**`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
+is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
+scope, not a colour that needs changing. **Accent text never appears on a card, a field, a well, an
+elevated panel or a hovered surface.** On a raised surface, emphasis is a weight step, not a hue.
+
+**Three limits are measured, open, and Thomas's call**, because each one trades against a rule set
+elsewhere in this document. They are written down with their numbers rather than left to be
+rediscovered:
+
+1. **`--fg-3` on a hovered row, dark: 4.40.** Meta text clears every resting surface and misses the
+   4.5 floor only while the row is hovered. Cheapest fix: take `--p-hover` from alpha 0.14 to 0.12,
+   which moves the whole surface ladder.
+2. **`--fg-4` as a graphic above the canvas: 2.16 to 2.84 dark, 2.94 light on hover.** `--fg-4` is
+   specified at exactly the 3:1 non-text floor and reaches it **on the canvas alone**. The empty
+   `StatusRing` sits on a card, so it is under the floor everywhere it actually renders. Cheapest fix:
+   the empty ring takes `--fg-3`, which collapses the four-step neutral status ranking to three.
+3. **Light `--fg-4` on hover: 2.94.** The same defect on the light side, and the same fix.
+
 **Dark is not light reversed.** Reversal is the starting point. Vividness comes down, the dark end needs more separation than the light end, and every pair is remeasured, because contrast is not symmetric.
 
 **One switching mechanism.** A class (or the mobile mode value) is the switch, and `prefers-color-scheme` only sets the initial value. Never let a media query own some tokens and a class own others.
