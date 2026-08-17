@@ -29,7 +29,23 @@ words: "i dont want these misconceptions to happen anymore".
 
 ## Phase 1: research, and go deep
 
-Use subagents freely; this is exactly what they are for. Read, do not skim.
+**Run this phase as ONE workflow, and write nothing else with one.** Thomas will say "use a workflow";
+that is the explicit opt-in. Two reasons, and neither is speed. The reading is 32 tickets with their
+comments plus two repos plus the whole decision register, and read inline that fills the context and
+reproduces the exact bloat that ended the previous session, whereas a workflow returns conclusions and
+leaves the dumps outside. And the research needs an adversarial stage whose only job is to try to
+FALSIFY each traced state, which is the failure mode being fixed here.
+
+Fan out by source, one agent per slice, then a verify stage over the assembled inventory, then a
+completeness critic asking what surface, state or gate was never checked.
+
+**Phase 3 is written solo, by you, in one voice.** Do not fan out the rewrite. Eight prompts written by
+eight agents give eight registers, and a single consistent voice is most of that file's value.
+
+Effort stays at high. Depth of reasoning was never the bottleneck: the previous session reasoned
+plenty and simply did not run the grep. Raise it only if the vault contradictions turn out tangled.
+
+Read, do not skim.
 
 1. **The whole app, from source.** Both repos. For every surface a screen prompt will describe, answer
    from code, never from a document:
