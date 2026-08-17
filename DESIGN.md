@@ -222,7 +222,7 @@ a moving cursor wearing a fixed label, and it is a structural defect rather than
 
 Designing any of these is the defect, not the omission.
 
-- **The `/insights` route.** Its charts fold into the streak surface and Wrapped.
+- **The `/insights` route.** Its figures fold into **Progresso**, at most four of them, each answering one question and built only from `StatTile`, `ProgressBar` and `ProgressRing`. The streak surface is itself no longer a destination, so it cannot receive them.
 - **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
   unreachable.
 - **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
@@ -244,9 +244,11 @@ Identity comes from three things and nothing else:
 2. the **Astra orbital glyph** (which replaces the sparkle icon),
 3. **ring-shaped status and progress indicators**.
 
-**The mark is an orbit in perspective with one body on the path**: a tilted ellipse at roughly 0.62 aspect, a single stroke, no track and no partial sweep. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its body, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`.
+**The mark is a planet drawn as a ring with an open centre**, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its moon, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`. The accent treatment is listed as still to build, so the shipped asset is monochrome today and a surface that needs the accent version must wait rather than tint the file itself.
 
-**Astra is told apart from the mark by its core.** Astra is a circle with a filled centre; the mark is a tilted ellipse that is empty in the middle. The rule is that short: **anything with a core is Astra, anything empty in the middle is Orbit.**
+**`design/brand/README.md` is authoritative for the assets.** The two marks are final and merged; this section describes how they are used, not what they are.
+
+**The two are told apart by silhouette, not by a detail.** Orbit is a hollow ring. Astra is a solid letterform, a letter A carrying the same orbital band and the same solid dot. The rule is that short: **a solid letterform is Astra, a hollow ring is Orbit.** Silhouette survives at 16px, which the draft geometry's "circle with a core" did not, and that is why the earlier core rule was retired.
 
 **Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent.
 
@@ -383,7 +385,7 @@ step, and the measurement reversed its direction.
 
 **The neutral ramp is effectively hueless and stays that way.** Every neutral carries chroma at or below 0.006, which is below the nameable threshold, and holds one hue end to end. A ramp that does not lean on the accent hue does not have to be re-derived the next time the accent moves, which is the cost this redesign just paid.
 
-**`--status-frozen` is retired as a hue.** Measured 2026-08-15: the old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
+**`--status-frozen` is retired as a hue.** Measured 2026-08-15: the old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph, on a DAY and never on a habit.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
 
 **`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--fg-4`, so three neutral statuses can share one column and stay distinguishable.
 
@@ -449,7 +451,7 @@ elsewhere in this document. They are written down with their numbers rather than
 rediscovered:
 
 1. **`--fg-3` on a hovered row, dark: 4.40.** Meta text clears every resting surface and misses the
-   4.5 floor only while the row is hovered. Cheapest fix: take `--p-hover` from alpha 0.14 to 0.12,
+   4.5 floor only while the row is hovered. Cheapest fix: take `--bg-hover` from alpha 0.14 to 0.12,
    which moves the whole surface ladder.
 2. **`--fg-4` as a graphic above the canvas: 2.16 to 2.84 dark, 2.94 light on hover.** `--fg-4` is
    specified at exactly the 3:1 non-text floor and reaches it **on the canvas alone**. The empty
@@ -500,7 +502,7 @@ Consequences that hold either way:
 
 | role | where it lands |
 |---|---|
-| **The next action** | the primary CTA, the FAB, an empty state's invitation arc |
+| **The next action** | the primary CTA, the FAB, an empty state's one filled action |
 | **Current position** | the active tab, active nav, a selected card or option including its tint and ring, a focused field's ring |
 | **Progress toward something unfinished** | a progress bar or ring that has not completed |
 | **Identity** | one element inside the logo mark, and only there |
@@ -628,10 +630,10 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | OTP | 6 boxes, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
 | Overlay | see **Overlay** | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
 | TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
-| Satellite | 96px empty-state glyph, fg-4 strokes + primary arc | `ui/satellite-glyph.tsx` | same |
+| EmptyState mark | 96px, the real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned empty state takes `AstraGlyph` instead, via a prop | `ui/empty-state.tsx` | same |
 | ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--fg-4` track | right rail / Today | same |
-| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, frozen `--status-frozen` plus snowflake, skip `--status-skip`), per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 
 ## Overlay
 
@@ -719,7 +721,8 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
 - **There is no habit colour system. Colour-as-data is dead** (decided 2026-08-16). D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its ring, and by nothing else.
-- **A row's status lives in its trailing ring, and never in the accent.** Done is an `--fg-1` disc with a filled check; empty is an `--status-empty` track; overdue takes `--status-overdue`; frozen is neutral plus the snowflake; skip is `--status-skip`. The accent enters this column only on progress toward something unfinished.
+- **A row's status lives in its trailing ring, and never in the accent.** Done is an `--fg-1` disc with a filled check; empty is an `--status-empty` track; overdue takes `--status-overdue`; a bad habit takes `--status-bad`. A day the person cannot log renders the dot dimmed and not tappable, and a parent renders a done-over-total ring instead of a dot. The accent enters this column only on progress toward something unfinished.
+- **A habit row is never frozen and never skipped** (traced from source 2026-08-17). `StreakFreeze` is `(UserId, UsedOnDate)`, so a freeze marks a **day** for a **user** and `Habit` carries no freeze member at all. Frozen renders on the streak day strip inside Progresso and nowhere else. Skipping advances the schedule, so the row leaves the day rather than taking a status; only a flexible habit even writes a log row for it. `--status-frozen` therefore serves the day strip only, and `--status-skip` binds to no habit-row state. This is the specification that produced a frozen habit on the first composed screen, so it is stated as a prohibition rather than an omission.
 - **Never animate the habit list's data while the user is reading or acting on it.**
 
 ## Listing
@@ -728,7 +731,7 @@ How a collection renders at every size. This is checkable, not a taste call.
 
 | count | rendering |
 |---|---|
-| **0** | The empty state: Satellite glyph, one line naming what belongs here, one primary CTA. Never a blank region and never bare text. |
+| **0** | The empty state: the `OrbitMark` at 96px, one line naming what belongs here, one primary CTA. An Astra-owned empty state uses `AstraGlyph`. Never a blank region and never bare text. |
 | **1** | The normal row treatment. Never a special "only one" layout. |
 | **few (2 to 7)** | The normal list. No pagination, no search, no count. |
 | **many (8 to 20)** | The normal list plus a count in `meta`. Add search only if the item names are user-authored. |
