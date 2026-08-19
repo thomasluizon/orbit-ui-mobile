@@ -109,6 +109,20 @@ for, and building that instead is the defect.
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
 
+### The month completion rate has one definition
+
+Decided 2026-08-18, because Calendario computed it and correctly flagged that no endpoint states the
+window, which means the next surface would compute a different number from the same data.
+
+**The rate is completions divided by scheduled OCCURRENCES, counting only days that had something
+scheduled**, up to and including today in the current month, and the whole month for a past month
+because every day in it has been lived.
+
+Not every day in the month, which makes the current month read low until the last day. Not every
+elapsed day, which counts days with nothing scheduled as successes. The month response carries
+`(Habits, Logs)` and no per day status, so this figure is a client computation and the rule has to live
+here rather than in the server.
+
 ### The core loop is never mediated
 
 **Marking a habit done is one tap, optimistic, deterministic and offline tolerant.** No model call, no

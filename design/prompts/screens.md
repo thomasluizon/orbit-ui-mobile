@@ -6,8 +6,13 @@
 
 **Project**: `https://claude.ai/design/p/87c2d1c5-d02d-4840-98e8-3abc270d2928`
 
-**Model**: `claude-opus-4-8`. It is the strongest that surface offers. There is no Opus 5 entry and the
-only alternative is Fable 5.
+**Model**: **Opus 5 Max**. Verified in the project's own model selector on 2026-08-17. The earlier note
+in this file said there was no Opus 5 entry and that `claude-opus-4-8` was the strongest option. That
+is out of date, so pick Opus 5 Max.
+
+**Pasting**: a block longer than about 5,000 characters does not land as inline text. Claude converts
+it to a `Pasted text, N lines` attachment. That still works, but add one short line above it telling
+the canvas the attachment is the brief and to follow it. Paste D is short enough to go inline.
 
 ## Why this file was rewritten
 
@@ -50,6 +55,37 @@ produces it.** Two more states died in the same pass, for the same reason: a **s
 | **11** | screens | the Android home screen widget | new |
 
 `Orbit Insights.dc.html` is deleted in paste 0, because the route no longer exists.
+
+## Run status: COMPLETE, 2026-08-18
+
+Every paste in this file has run. The screens project holds **20 documents and 21 pages**, all new
+canon, with no document surviving from the first run:
+
+| document | from |
+|---|---|
+| `Orbit Hoje` | paste 1, corrected by 1C |
+| `Orbit Habit Create`, `Orbit Habit Detail` | paste 3 |
+| `Orbit Calendario` | paste 4, corrected by ANSWERS |
+| `Orbit Progresso` | paste 5 |
+| `Orbit Astra Conversation` | paste 2, rewired by 2B, corrected by ANSWERS |
+| `Orbit Onboarding`, `Orbit Entrar` | paste 6 |
+| `Orbit Perfil`, `Orbit Avisos` | paste 7 |
+| `Orbit Pro`, `Orbit Assinatura` | paste 8 |
+| `Orbit Celebracao`, `Orbit Estados`, `Orbit Offline`, `Orbit Busca`, `Orbit Verificacao`, `Orbit Sobreposicoes` | paste 9 |
+| `Orbit Wrapped`, `Orbit Sobre` | paste 10 |
+| `Orbit Widget Android` | paste 11 |
+
+Three design system rounds ran alongside: **D** (the four first-Hoje defects), **D2** (DayStrip,
+Checkbox, header slot, TimeField, StatTile states, Menu) and **D3** (BlockFrame, Composer busy and
+atLimit, the authorable conversation slot).
+
+Four API tickets were filed from what the screens reported they needed: `#331` the streak repair
+endpoint, `#332` the achievements payload, `#333` the Astra metrics schema, `#334` the notification
+urls.
+
+**Still open, and worth a fourth system round before any code is written:** the month grid and day
+cell, a `Skeleton` grid variant, a read only list row, `CapacityNotice` taking more than one message,
+an event row, `Sheet` stating that it mounts fresh per open, and `OtpInput` being display only.
 
 **One paste per turn.** The canvas builds one document per turn whatever the prompt asks for, so give
 each paste its own turn and check the result before the next. Pastes 9, 10 and 11 are the lowest
@@ -420,6 +456,12 @@ a habit linked to a goal. Only a STREAK type goal derives its progress, from the
   it derives from. Every other goal keeps its manual input however many habits are linked to it.
   Getting this wrong removes the only control that can move the goal.
 delete, with its confirmation. There is no archive and no restore shelf, so do not draw one.
+
+A FREEZE NEVER APPEARS ON A HABIT'S OWN HISTORY. The Hoje build drew a 14 day strip on the detail
+carrying a snowflake, and called it the one place the snowflake appears. That is wrong and it is the
+original defect in a new form: StreakFreeze is (UserId, UsedOnDate), so a freeze marks a USER day.
+A snowflake inside one habit's own strip says that habit was frozen, which cannot happen. Draw the
+per habit strip with completions only. The freeze lives on Progresso.
 
 DO NOT DRAW: a colour swatch row, a habit colour palette, a note field on a log. The colour system is
 dead, and no live write path sends a note.
@@ -800,3 +842,360 @@ the divergence in your reply.
 4. Collect what each paste reports back as needing an API change. The run so far names five: the
    streak repair endpoint, the metrics block schema, removing the achievements Pro gate, removing the
    goals Pro gate, and dropping the social achievement categories.
+
+---
+
+## Paste 1C: correct Hoje's interaction model, and build creation
+
+Written 2026-08-18 after Thomas reviewed the first build and found the screen unusable: the create
+button was inert, the overflow menu did not exist, and tapping a habit logged it. Every claim below was
+read from `apps/*/components/habits/` and from the built document itself. Paste this into the screens
+project.
+
+```
+Correct Hoje. Edit "Orbit Hoje.dc.html" in place. Do not rebuild it and do not create a second
+document. Keep all thirteen states.
+
+The screen looks right and behaves wrong. Every interaction below is wired to the wrong thing, and I
+checked the real app to say what each one should be. File paths are from the Orbit repo so you can
+trust these as facts rather than preferences.
+
+PART 1. THE INTERACTION MODEL. This is the important part.
+
+What the document does now, read from its own source:
+  onClick on the row body  -> this.toggleStatus(...)     it LOGS the habit
+  onMenu on the 3 dot      -> this.enterSelect(key)      it enters SELECT mode
+  onClick on the Fab       -> () => {}                   it does NOTHING
+
+What the shipping app does, and what you must draw instead:
+  ROW BODY TAP opens the habit detail. apps/mobile/components/habits/habit-row.tsx:146: handlePress
+    calls actions.onDetail(). It only toggles selection when already in select mode. Web is identical:
+    habit-row.tsx:145, rowPrimaryAction = selectMode ? onToggleSelection : onDetail.
+  THE TRAILING STATUS RING is the only thing that logs. Tapping it toggles: log when undone, unlog
+    when done. It is a separate control from the row body and it always has been.
+  THE 3 DOT OPENS AN OVERFLOW MENU. It never enters select mode. The menu has seven items and they
+    are these, in this order, from habit-row-context-menu-items.ts:
+      log (only when not done and the day is loggable), skip, view details, edit, duplicate,
+      add sub habit, delete (destructive, last, visually separated)
+  SELECT MODE IS ENTERED BY LONG PRESS on a row, never by the 3 dot.
+    apps/mobile/components/habits/habit-row.tsx:192, onLongPress -> onLongPressCard.
+  THE DISCLOSURE CHEVRON expands a parent in place. Keep what you have. It is the only control that
+    expands, so the row body must not also expand: a parent row's body opens its detail like any
+    other row.
+
+Draw the overflow menu open, as one of the states, so the seven items are visible.
+
+PART 2. THE FAB WORKS, AND CREATION IS A REAL SURFACE.
+The Fab is present and its onClick is an empty function, so the screen has no way to create anything.
+Wire it, and build what it opens.
+
+CREATION, exactly as decided. Its job: describe a habit in as few decisions as possible.
+It is NOT a schedule configuration form.
+  ONE INPUT plus ONE live preview sentence. The person types or speaks what they want.
+  The RECOGNISED WORDS ARE HIGHLIGHTED INSIDE THE INPUT, so it is visible which words the parser
+    consumed. Beneath it, a plain sentence states what Orbit understood, for example
+    "3 vezes por semana, qualquer dia" or "toda segunda e quinta as 08:00".
+  CORRECTION IS TAPPABLE: day pills and a count stepper. Never a re typed syntax.
+  ONE DISCLOSURE holds everything else: exact time, reminders, end date, description.
+  A PARSER THAT CANNOT RESOLVE A PHRASE SAYS SO and offers the two controls. It never guesses
+    silently. Draw that state.
+  INFERRED VALUES USE THE PROPOSED STATE: the same field at --fg-3 with an inset dashed hairline,
+    resolving to normal the instant the person accepts or edits it. It never takes the accent.
+  THE FORM SHOWS AN IMMUTABLE START DATE, never the mutating next due date.
+
+NEVER DRAW, because these are deleted or never render:
+  A frequency type picker, and the four internal type names in either locale: not "recorrente", not
+    "flexivel", not "tarefa unica", not "geral". The current app ships frequency-type-cards.tsx and it
+    is dead.
+  A colour swatch row. The current app ships color-swatches.tsx and it is dead. Colour as data is
+    dead and a habit is told apart by its emoji, its name and its ring.
+
+WHAT THE MACHINE CAN ACTUALLY PROPOSE. This needs no API work. HabitSetupSuggestion already returns
+exactly this and its own doc comment says it maps 1:1 onto the create request:
+  Emoji, FrequencyUnit, FrequencyQuantity, Days, IsFlexible, FlexibleTarget, DueTime,
+  and EITHER SubHabits OR ChecklistItems, never both.
+So the preview can propose an emoji, a cadence, fixed weekdays, a flexible "N times per period", a
+time, and one breakdown. Nothing else. Do not propose a field outside that list.
+An AI assisted creation path SPENDS an Astra message, so creation can fail at the daily ceiling. Draw
+that at limit state on this surface.
+
+Show creation reached three ways: from the Fab, from a sentence in the conversation, and from Astra
+proposing it unasked.
+
+PART 3. THE HABIT DETAIL OPENS FROM THE ROW.
+Since the row body now opens it, draw it. Its job: is this one holding, and change it without leaving.
+It is NOT a read only record: every fact on it that can be changed is changed in place.
+It carries a composer scoped to that habit, and rescheduling is a PROPOSAL carrying its reason that
+the person accepts, not a form they fill.
+There is no archive and no restore, so do not draw one. Delete is a confirmed action.
+
+PART 4. THREE THINGS FROM THE LAST ROUND THAT ARE STILL WRONG.
+
+4a. THE PROACTIVE LINE IS A LINE, NOT A CARD.
+It is a two sentence block of large text with a filled accent pill, and it dominates the top of the
+screen. The decision says the content sits as ONE LINE at the top of Hoje with one action. It should
+occupy less vertical space than the date below it. Its action is NOT a filled accent button, because
+the Fab is the one filled action on this view. Make it a quiet text action. One clause, then the
+action.
+
+4b. THE DATE CONTROL MUST MOVE FORWARD. THIS ONE WAS MY ERROR, NOT YOURS.
+My earlier brief said "7 days back and no further" and you correctly removed the forward chevron. That
+sentence describes the LOGGING boundary and I wrongly applied it to NAVIGATION.
+  AppConstants.MaxInstanceHorizonDays = 90: the schedule read returns instances up to 90 days AHEAD.
+    Seeing tomorrow is a shipping capability. Restore the forward chevron.
+  LogHabitCommand.ValidateTargetDate refuses a log more than 7 days back, and refuses a future log
+    only when FrequencyUnit is not null, so a one time task CAN be logged ahead.
+Navigation is free in both directions. The boundary is a ROW treatment, never a navigation treatment.
+
+4c. OVERDUE IS A TRIANGLE.
+The overdue row draws an exclamation mark inside a ring. The repaired design system maps overdue to
+IconAlertTriangle in --status-overdue and reserves IconAlertCircle for a bad habit in --status-bad. If
+your pinned copy still carries the old map, say so rather than redrawing the icon locally.
+
+A STANDING RULE FROM THIS ROUND. Apply it to every screen from here on.
+Never invent an interaction, and never remove one the app already has. Before you wire a control, say
+what the real app does with it. A constraint on WRITING is not a constraint on READING. If a brief
+seems to delete an existing behaviour, say so before you draw it.
+
+Report back: what the Fab opens, how the overflow menu is dismissed, and how select mode is entered
+and left.
+```
+
+---
+
+## Paste D2: the second design system round
+
+Written 2026-08-18 from the gaps the Hoje and Habit Detail builds reported, each one verified against
+the design system source before it was written down. **Goes to the design system project
+`918bd5d7-839c-4dd0-811b-4a8781f60507`, not to screens.** Run it before paste 5, because two of the six
+are about to be composed by hand a second time inside Progresso.
+
+```
+Six components are missing and two screens have already worked around them by hand. Add them here so
+nothing composes them locally again. Do not build or change a screen.
+
+Add no new token, colour, radius, shadow or font. Every one of these is buildable from what exists. If
+one genuinely is not, stop and tell me which and why.
+
+1. DayStrip. THE MOST IMPORTANT ONE, and it must be built so a known bug cannot come back.
+Two surfaces need a row of day cells and neither can have it: the habit detail composed a 14 day strip
+from 20px cells, and Progresso needs the same shape for the streak.
+They are NOT the same data, and that is the whole point:
+  scope="habit"    the history of ONE habit. Values: done, missed, not scheduled. There is NO frozen
+                   value in this scope and the type must not offer one.
+  scope="account"  the person's streak. Values: active, frozen, missed, today. Frozen renders
+                   IconSnowflake in --status-frozen.
+A freeze is stored as (UserId, UsedOnDate), so it marks a DAY for the WHOLE ACCOUNT and never a habit.
+A snowflake inside one habit's strip asserts something the product cannot produce. Make that
+impossible in the .d.ts rather than in a comment: the two scopes take two different value unions, so
+passing frozen to a habit strip is a type error.
+Props: scope, days (the values), length, and a label per cell for the accessible name.
+
+2. Checkbox, and a CheckRow that uses it.
+The checklist on the habit detail is composed from a button, a 24 box and a neutral check, because the
+system has no checkbox. Build it. The check is neutral, never the accent, because a ticked item is a
+completion and the accent never marks completion. Ship all nine states.
+
+3. Shell412 needs a header slot, and so does ShellWide.
+Shell412Props is children, tabBar, composer, fab, conversation, sheets. There is no header, so the
+habit detail put NavHeader as the first child of the scroller and it scrolls away with the content. A
+detail screen that loses its own title and its back control on scroll is broken, and Calendario,
+Progresso and Perfil will all hit this next.
+Add a header slot that PINS above the scroller. NavHeader already exists, so this is a slot, not a new
+component. Say in the .d.ts that a screen with no header passes nothing and the scroller takes the
+full height, which is what Hoje does.
+
+4. A time field, and a read only date row.
+The create form has no date field, so the start date is stated as text and the time is a plain text
+input. The start date is deliberately IMMUTABLE and is never the mutating next due date, so it needs a
+read only presentation rather than a picker. The time does need a real input.
+Build: DateRow, read only, label plus value, no control. TimeField, a real 24 hour input that respects
+the person's 12 or 24 hour setting.
+
+5. StatTile ships its states.
+StatTileProps is exactly { value, label } today, so the habit detail had to replace the whole tile row
+to show loading. DESIGN.md requires every component to ship its full state set. Add at minimum loading
+as a skeleton shaped like the final tile and holding its dimensions, and empty for a figure that has
+no data yet. A tile that has no data says so; it never renders a zero that reads as a real measurement.
+
+6. Menu, the anchored overflow.
+Hoje's row overflow had to be a Sheet at BOTH widths because the system has no anchored popover. A
+bottom sheet is right at 412 and wrong at the wide width, where a row menu should sit against the
+control that opened it.
+Build one Menu that presents as a Sheet at 412 and as an anchored popover at the wide width: one
+component, two presentations, the same pattern the conversation already uses. It must support a
+destructive item, separated and last, and dismissal by scrim or Escape that changes nothing.
+
+For each of the six, ship the .d.ts, the prompt.md and a specimen card rendering dark AND light. A
+card is a SPECIMEN: no named habits, no real times, no product copy.
+
+Reply with what you added, and name anything you could not build without a new token.
+```
+
+---
+
+## Paste D3: the third design system round
+
+Run 2026-08-18 from the gaps the Astra conversation build reported. Goes to the design system project
+`918bd5d7-839c-4dd0-811b-4a8781f60507`. **Landed.** `BlockFrameItem` gained `control`, `proposed` and
+`irreversible`; `BlockFrameProps` gained `risk`, `irreversibleLabel` and `confirmNote`; `Composer`
+gained a `busy` state and a discriminated `atLimit` that cannot render without `limitReason`; both
+shells gained an authorable conversation slot with `conversationOpen`.
+
+```
+Five component defects, found by the Astra conversation build. Fix them here, in the system. Do not
+build or change a screen.
+
+Add no new token, colour, radius, shadow or font.
+
+1. BlockFrame IS THE WRONG SHAPE. This is the important one.
+BlockFrameItem is { label, meta, status, statusLabel } and nothing else. A block therefore cannot
+express a row that carries its own control, a row the machine proposed, or a row whose action cannot be
+undone. Three of the five generative blocks are currently authored against BlockFrame's own class names
+instead of its props, which is the component failing at its stated job of enforcing the rules once.
+Give BlockFrameItem what the five blocks actually need:
+  children or a control slot per row, so the habit row can carry its logging ring and the breakdown row
+    can carry its frequency pill, instead of the screen reaching around the component.
+  proposed, a per row boolean. A proposed row renders --fg-3 inside an inset dashed hairline and never
+    takes the accent. This is the tenth state and it already exists as a component; a row must be able
+    to say it is in that state.
+  irreversible, a per row boolean. Confirmation is decided by reversibility, never by item count, so
+    the frame must be able to show WHICH rows are the reason a confirmation exists. A batch of ten
+    reversible rows and a batch of ten with one deletion in it look identical today.
+Keep the existing five states, the pinned action row and the body scoped live region. They are right.
+
+2. BlockFrame HAS NO RISK SLOT.
+The operation card renders five typed outcomes (PendingConfirmation, StepUp, Denied,
+UnsupportedByPolicy, Succeeded or Failed) and each carries a risk class of Low, Destructive or High.
+With no slot for it, the risk badge is composed above the actions by hand. Add a risk slot to the
+header, beside the count.
+
+3. Composer's CONTRACT MANDATES AN INVENTED VALUE. Fix the contract, not just the string.
+Composer.d.ts says atLimit "states the allowance and when it returns", and its own example is
+"Voce usou as 5 mensagens de hoje. Elas voltam amanha."
+No endpoint returns that moment. AiMessagesResetAt exists on User and reaches no DTO, so any time the
+component states is invented by whoever writes the string. A component contract that instructs the
+caller to invent a value is a defect in the contract.
+Change the doc to: atLimit states the allowance ONLY, and carries no upgrade call to action. Make the
+message a required prop when state is atLimit, with no default, so nothing can render a fabricated
+return time by omission.
+
+4. Composer HAS NO BUSY STATE.
+Its states are resting, focused, composing, sending, offline, atLimit. The concurrent chat limit is
+exactly one, so a second message while one is in flight is REFUSED, not queued. That is not sending:
+sending means the person's message is on its way, busy means it was not accepted. Drawing them the
+same tells the person their message is on its way when it is not.
+Add busy: the send control is inactive and the refusal is stated inline. There is no queue and no draft
+buffer.
+
+5. ShellWide's CONVERSATION SLOT CANNOT BE AUTHORED.
+Both shells take conversation as a node, which is right for a screen that merely has the panel open.
+It is wrong for the screen whose SUBJECT is the conversation: that screen cannot author the panel as
+markup and has to pass a pre built node. Let the slot take markup as well as a node, the way the other
+slots do.
+
+For each of the five, ship the updated .d.ts, the prompt.md and a specimen card rendering dark AND
+light. A card is a SPECIMEN: no named habits, no real times, no product copy.
+
+Reply with what you changed, and name anything you could not build without a new token.
+```
+
+---
+
+## Paste 2B: rewire the conversation to the repaired components
+
+Run 2026-08-18 after D3. **Landed**: the document fell from 64 KB to 51 KB with the same 21 states, and
+reported that no block reaches for a frame class name any more.
+
+```
+Rewire "Orbit Astra Conversation.dc.html" to the design system's new props. Edit it in place. Do not
+rebuild it, do not change the layout, and keep all twenty one states.
+
+You reported that BlockFrame took items as label, meta and status only, so three of the five blocks were
+authored against its class names instead of its props. The system has been fixed. Use the real props
+now, and delete every local workaround they replace.
+
+BlockFrameItem gained three fields:
+  control       the row's own control, at the trailing edge before the status glyph. The habit block's
+                logging ring and the breakdown block's frequency pill both belong here.
+  proposed      the machine proposed this row. It renders through the Proposed component, at --fg-3
+                inside an inset dashed hairline, and never takes the accent. The breakdown block's rows
+                use this instead of drawing the dashed hairline themselves.
+  irreversible  this row cannot be undone. The row carries a neutral mark, default DEFINITIVO.
+
+BlockFrameProps gained three:
+  risk              a node in the header beside the count. The operation card's risk badge goes here
+                    instead of being composed above the actions.
+  irreversibleLabel the mark's text.
+  confirmNote       the line in the action row shown when ANY row is irreversible.
+
+Composer changed in two ways:
+  busy is now a real state, separate from sending. Use it. sending means the message was accepted and
+    is in flight, with the accent send button. busy means it was refused because the concurrent limit is
+    one, with a NEUTRAL inactive control and the refusal inline. Pass busyReason.
+  atLimit now REQUIRES limitReason and it has no default. It states the allowance only. It must not
+    state when the allowance returns, because no endpoint provides that moment.
+
+ShellWide's conversation slot now takes authored markup plus a conversationOpen flag, so this document
+can write the panel inline instead of handing over a pre built node.
+
+One rule while you do it: if any block still reaches for a frame class name after this, say which and
+why, rather than leaving it. That is the thing this round exists to remove.
+
+Reply with which workarounds you deleted, and confirm no block authors against a frame class name.
+```
+
+---
+
+## Paste ANSWERS: the six open questions, decided
+
+Run 2026-08-18. Thomas answered all six. **Landed**, both documents edited in one turn.
+
+```
+Six open questions are answered. Apply them to the two documents that raised them. Edit both in
+place, keep every state, and do not rebuild either one.
+
+IN "Orbit Calendario.dc.html":
+
+1. AN EMPTY ACCOUNT STILL PAGES.
+You asked whether a month with no habits should page. It should. Keep the grid and its chevrons on an
+account with zero habits, and keep the empty state's message inside the grid rather than replacing it.
+The chrome stays consistent and a person can still move through the months.
+
+2. THE MONTH RATE NOW HAS A DEFINITION. State it and hold it.
+You computed the rate over the days that had something scheduled up to today, and flagged that as a
+reading rather than a documented rule. It is now the rule:
+  completions divided by scheduled OCCURRENCES
+  counting only days that had something scheduled
+  up to and including today in the CURRENT month
+  the whole month for a PAST month, because every day in it has been lived
+Do not divide by every day in the month, which makes the current month read low until the last day, and
+do not divide by every elapsed day, which counts days with nothing scheduled as successes.
+Write the definition into the document's report block so the next surface computes the same number.
+
+3. THE DAY ARC IS THE EXACT FRACTION.
+You asked whether to round. Do not round. The arc sweeps the true completed over scheduled proportion,
+because a ring can draw any angle, so rounding buys no legibility and only loses the difference between
+one of three and two of three.
+
+IN "Orbit Astra Conversation.dc.html":
+
+4. A REJECTED PREVIEW COLLAPSES TO ONE LINE.
+When a person rejects a preview, replace the block in place with a single line naming what was
+declined. Do not keep the block with spent actions, because a block whose actions are dead reads as
+broken rather than as finished. Do not remove it entirely either, because a person scrolling back
+cannot then tell a decline from a failure. Draw that collapsed line as part of the preview state.
+
+5. STEP UP STAYS A HAND OFF. Confirmed, no change needed.
+Your reasoning was right and it is now the decision: a credential field inside a chat is the shape of a
+phishing screen. It also matches D69, which removed managing the subscription, the API keys and the
+account from the chat surface entirely, so the block is an unsupported by policy outcome with one
+action that opens Perfil, never a challenge.
+
+6. A PARTIALLY FAILED BULK CREATE KEEPS WHAT IT CREATED. Confirmed, no change needed.
+The created rows are real habits and they stay. The block marks them done and the retry is scoped to
+the failed rows only. Offer no undo of the whole batch: bulk create carries a confirmation precisely
+because it is not reversible, and an undo would contradict the reason that confirmation exists.
+
+Reply with what you changed in each document, and nothing else.
+```
