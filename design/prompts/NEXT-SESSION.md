@@ -2,148 +2,145 @@
 
 Copy the fenced block below into a fresh Claude Code session started in `orbit-ui-mobile`.
 
-Written 2026-08-17, at the end of a long session that produced good artefacts and two bad prompts.
-The reason this handoff exists: **`screens.md` was written from `DESIGN.md` alone, without checking a
-single claim against the API's real data model, and it told the canvas to draw a state that cannot
-exist.** That is the defect to remove, not just the symptom.
+Written 2026-08-18, at the end of the session that built the whole canvas. The previous handoff existed
+because two prompts were written from documents instead of from code. That defect is closed. This
+handoff exists for a different reason: **the design is complete and Thomas does not like all of it**,
+and the weekly Claude Design budget ran out before it could be reviewed screen by screen.
+
+**Do not start this before Thursday 2026-08-20, 04:00.** The weekly limit sat at 90 percent when this
+was written and the canvas itself refused to start a nine component build at that level.
 
 ---
 
 ```
-Continue Orbit ticket #36, the canvas-first redesign. Do NOT write app code and do NOT open the
-Claude Design canvas in this session. This session RESEARCHES, then rewrites one file.
-
-## Why you exist
-
-design/prompts/screens.md holds eight paste-ready prompts for the Claude Design screens project. Paste
-1 has already run and produced "Orbit Hoje.dc.html". Thomas reviewed it and found four defects, and
-the root cause of the worst one is the prompt itself: it was written from DESIGN.md without checking
-one claim against the API, so it instructed the canvas to draw a habit in a "frozen" state.
-
-There is no such thing. StreakFreeze in orbit-api is (UserId, UsedOnDate): it freezes a DAY for a
-USER's streak. Habit has no freeze and no pause member at all. So the prompt asked for a state the
-product cannot produce, the canvas obediently drew it, and Thomas had to ask what it meant.
-
-**Your job is to make that class of mistake impossible, then rewrite screens.md.** Thomas said, in his
-words: "i dont want these misconceptions to happen anymore".
-
-## Phase 1: research, and go deep
-
-**Run this phase as ONE workflow, and write nothing else with one.** Thomas will say "use a workflow";
-that is the explicit opt-in. Two reasons, and neither is speed. The reading is 32 tickets with their
-comments plus two repos plus the whole decision register, and read inline that fills the context and
-reproduces the exact bloat that ended the previous session, whereas a workflow returns conclusions and
-leaves the dumps outside. And the research needs an adversarial stage whose only job is to try to
-FALSIFY each traced state, which is the failure mode being fixed here.
-
-Fan out by source, one agent per slice, then a verify stage over the assembled inventory, then a
-completeness critic asking what surface, state or gate was never checked.
-
-**Phase 3 is written solo, by you, in one voice.** Do not fan out the rewrite. Eight prompts written by
-eight agents give eight registers, and a single consistent voice is most of that file's value.
-
-Effort stays at high. Depth of reasoning was never the bottleneck: the previous session reasoned
-plenty and simply did not run the grep. Raise it only if the vault contradictions turn out tangled.
-
-Read, do not skim.
-
-1. **The whole app, from source.** Both repos. For every surface a screen prompt will describe, answer
-   from code, never from a document:
-   - what states can that surface actually be in, and what field or row proves each one
-   - what the API returns, field by field, and what it does NOT return
-   - which values are derived and which are typed, because a derived value renders differently
-   - what is gated, by which config key, with which compiled-in default
-   `architecture.json` is the map; read it instead of exploring blindly, then confirm the specifics in
-   the source it points at.
-2. **The brain vault**, especially every decision touching the redesign. Read the register
-   `2 Areas/20-29 Orbit Engineering/Decisions/` in full, and D69 and D70 word for word:
-   - "Astra is a layer with a front door, not a fourth tab"
-   - "Pro is Astra without the daily ceiling, and goals leave the paywall"
-   Also read the price ADR and hot.md. Some notes contradict each other; when they do, the later one
-   wins and you say so explicitly rather than quietly picking.
-3. **Every redesign ticket on the board.** 32 are open in the "539 Redesign" milestone as of
-   2026-08-17. Read them WITH THEIR COMMENTS, because several carry decisions that supersede their own
-   bodies. The ones that own screens: #42 #44 #46 #47 #50 #53 #55 #56 #57 #58 #61 #63 #67 #69 #71 #72
-   #73 #74 #75 #76, plus #217 #318 #320 #329. Note especially that #46's title still says
-   "colour-as-data", which D69 killed, so its title lies.
-4. **The repo's own design record**: DESIGN.md in full, design/prompts/waves.md,
-   design/prompts/RUN-LOG.md, design/prompts/screens.md, BRAND.md, FEATURES.md.
-
-Build one artefact from all of it before you write any prompt: **a state inventory**, per surface,
-where every state names the code that produces it. A state you cannot trace to code does not go in a
-prompt. Put it in the scratchpad, not in the repo.
-
-## Phase 2: ask me everything
-
-Batch your questions and ask them. Do not guess and do not soften them. I would rather answer twelve
-questions once than find twelve wrong screens later. For each question give me your recommended answer
-so I can just say yes.
-
-Two I already know you will need to ask, so start there:
-- Frozen: it is a user-day, not a habit. Where does it render? My instinct is Calendario's day cells
-  and the streak repair in Progresso, and nowhere on Hoje.
-- The Astra proactive line on Hoje: Thomas said the summary "looks weird". Decide what it should be
-  before redrawing it, and show me the shape.
-
-## Phase 3: rewrite design/prompts/screens.md
-
-Same format: paste-ready fenced blocks, one per screen, nothing left to compose. Keep what works about
-it, which is the standing brief carrying every settled decision so no prompt repeats one, and each
-brief saying what the screen is FOR and what it must not become rather than listing what is on it today.
-
-Change what does not work:
-- **Every state named in a prompt must be traceable to code.** Cite the file where it is not obvious.
-- **Never name a status, field or gate that the API cannot produce.**
-- Fold in the four defects found on the first Hoje (below), so the rewrite does not reproduce them.
-
-## The four defects already found on Orbit Hoje.dc.html
-
-These are diagnosed and NOT yet fixed. Three are design system bugs, so they are fixed in the design
-system project `918bd5d7-839c-4dd0-811b-4a8781f60507`, not in a screen. Confirm each one yourself
-before you act on it.
-
-1. **The tab bar icon is not aligned with its label.** `components/brand/Icon.jsx` renders a Tabler
-   webfont glyph in an `<i>`, and `TabBar` gives it `display:block;width:22px;height:22px`. The glyph is
-   TEXT inside that block, so it sits at the text origin rather than centred, and any glyph narrower
-   than 22px reads as shifted left. Fix it in `Icon` itself, so every consumer benefits: make it a
-   self-centring square, `display:inline-flex` with both axes centred and width and height equal to
-   `size`. Inline styles beat the class rule, so nothing else needs touching.
-2. **StatusRing uses emoji and punctuation as iconography.** Its glyph map is `❄`, `!` and `→`.
-   DESIGN.md says Tabler only, and says emoji appear only as a user-chosen habit icon inside a row
-   well, never as UI iconography. That is three violations in one line. Replace them with Tabler icons
-   and verify each name against `@tabler/icons-react` at ^3.46.0 rather than assuming it; note that the
-   webfont on the canvas is 3.31.0, so a name added after 3.31 will not render there.
-3. **`frozen` is not a habit status.** Remove it from anything habit-shaped and say in the `.d.ts` what
-   it actually marks. `HabitRow` must not offer it.
-4. **EmptyState hand-draws the retired mark.** It inlines a tilted ellipse with an accent arc. That
-   draft mark was replaced on 2026-08-16 and its assets deleted, and a hand-drawn ellipse is a fourth
-   identity carrier where DESIGN.md allows exactly three: the orbital mark, the Astra glyph, ring
-   indicators. Thomas asked for the real logo. Use `OrbitMark`, with a prop so an Astra-owned empty
-   state can use `AstraGlyph` instead. The accent then lives only on the one filled action, which is
-   already there, so DESIGN.md's "empty-state invitation arc" phrasing in accent role 1 needs updating
-   too.
-
-## Standing rules
-
-- Never write an em dash or an en dash, anywhere, including the vault and ticket bodies. The gate is
-  `node tools/check-dashes.mjs --files <paths>`.
-- Work on `redesign/main`. It has no CI and no Pullfrog, so a green PR is not a reviewed PR.
-- Ask Thomas on any product or taste call. Make mechanical choices yourself. He is terse: assert the
-  obvious option and ask for confirmation, never present a menu.
-- Take every identifier from live output in this run, never from memory. Reading a stale local register
-  cost this project a duplicate ADR number on 2026-08-16.
-- Thomas's Claude Design weekly limit was at 75 percent on 2026-08-17. Research is cheap here; canvas
-  turns are not. Spend the research budget in Claude Code and hand him prompts.
+Continue Orbit ticket #36, the canvas-first redesign. The canvas is BUILT. This session finishes the
+four components it could not afford, then reviews every screen WITH Thomas and fixes what he does not
+like.
 
 ## What is already true, so do not redo it
 
-- The design system project is a design system again: no composed screens in it, both shells rebuilt,
-  Composer, Proposed and BlockFrame built, every Components card rendering dark and light.
-- Two colour derivation bugs fixed: light mode never repointed `--primary-dim`, and `--primary-hover`
-  put white at 3.70:1 on the primary button. Hover now darkens to `#B74E12`.
-- Contrast is measured against every surface, in DESIGN.md, with three limits deliberately left open
-  for Thomas. Do not "fix" those three.
-- The screens project's pinned copy of the design system is current and syncs automatically.
-- `design/canvas/tools/build-ds-bundle.mjs` exists for when the write API leaves `_ds_bundle.js` and
-  `_ds_manifest.json` stale, which it does whenever the app itself did not do the editing.
+The screens project holds 20 documents covering every surface, and nothing from the first run survives:
+https://claude.ai/design/p/87c2d1c5-d02d-4840-98e8-3abc270d2928
+
+  Orbit Hoje              Orbit Habit Create      Orbit Habit Detail
+  Orbit Calendario        Orbit Progresso         Orbit Astra Conversation
+  Orbit Onboarding        Orbit Entrar            Orbit Perfil
+  Orbit Avisos            Orbit Pro               Orbit Assinatura
+  Orbit Celebracao        Orbit Estados           Orbit Offline
+  Orbit Busca             Orbit Verificacao       Orbit Sobreposicoes
+  Orbit Wrapped           Orbit Widget Android
+
+Four design system rounds ran alongside them (D, D2, D3, D4 part one), all recorded in
+design/prompts/screens.md, which is the file of record for every prompt this project has run.
+
+Nine API tickets are filed: #331 the streak repair endpoint, #332 the achievements payload, #333 the
+Astra metrics schema, #334 the notification urls, #335 the notification list, #336 search results, #337
+the step up screen, #338 the error surfaces, #339 offline. Twenty one older tickets carry a comment
+naming the document that defines their surface.
+
+## Phase 1: finish the four components the canvas could not afford
+
+They go to the DESIGN SYSTEM project, not screens:
+https://claude.ai/design/p/918bd5d7-839c-4dd0-811b-4a8781f60507
+
+The canvas already holds these four on its own todo list with their constraints, so open that chat and
+say to continue rather than restating the brief. In priority order:
+
+1. DayCell and MonthGrid. The largest, and it has TWO consumers waiting. Four outcomes: nothing
+   scheduled draws no ring at all (an absence, not a failure), partially logged draws an arc at the
+   EXACT fraction, fully logged draws a filled neutral disc, today is current position. The cell states
+   loggable versus read only BEFORE it is tapped, and its accessible name carries the date and the
+   outcome. MonthGrid takes the week start as DATA.
+2. OtpInput gains onChange, an error state and disabled. It is display only today, so Entrar and the
+   step up screen both compose the typing beside it.
+3. Pager, for Wrapped: segments, back and forward, the last page swapping forward for the closing
+   action, and never auto advancing.
+4. Columns, for Wrapped's weekday page. State in the component that a column set is NOT a timeline.
+
+The canvas confirmed none of the four needs a new token.
+
+THEN rewire the two screens that are still composing them by hand, the way paste 2B rewired the
+conversation after D3: Calendario for DayCell, MonthGrid, the Skeleton grid variant, the read only
+ListRow and EventRow; Wrapped for Pager and Columns. Tell each to DELETE the local workaround and
+report which ones it removed.
+
+## Phase 2: the review pass, WITH Thomas, one screen at a time
+
+This is the reason the session exists. Thomas said there is a lot in the canvas he does not like and he
+has not had a chance to go through it.
+
+**Run it as a loop, one screen per round, and do not batch.**
+
+For each screen, in this order (a person's path through the product, not alphabetical):
+  Onboarding, Hoje, Habit Create, Habit Detail, Astra Conversation, Calendario, Progresso, Pro,
+  Assinatura, Wrapped, Perfil, Avisos, Entrar, Verificacao, Busca, Celebracao, Estados, Offline,
+  Sobreposicoes, Widget Android
+
+do this:
+
+1. Read the document through the claude_design MCP (DesignSync, method get_file) rather than opening a
+   canvas turn. Reading is free; canvas turns are not. Its report block states what it drew and why,
+   and is the fastest way to know its intent.
+2. Tell Thomas in a few lines what the screen is, what states it carries, and the two or three calls it
+   made that he might disagree with. Name them specifically. Do not summarise the report block back at
+   him; he can read.
+3. Ask him what he wants changed. Use the ask-user tool, and give him your recommendation on each
+   point so he can say yes. He is terse. Never present a menu.
+4. Turn his answer into ONE corrective paste and run it. Edit in place, keep the state axis, never
+   rebuild.
+5. Verify through the MCP that the change landed, then move to the next screen.
+
+**Watch the budget on every canvas turn.** Read the usage banner after each send. Stop at 98 percent,
+and tell him where you stopped. The canvas will also refuse work it cannot finish cleanly, which it did
+correctly on 2026-08-18: treat that refusal as sound and split the work rather than pushing it.
+
+## Phase 3: what comes after, and it is the real work
+
+The canvas is a design, not a product. Everything below is still open.
+
+**The API tickets block the screens.** #331 to #334 exist because three screens each reported server
+work they need. Nothing drawn on Progresso can ship until #332 ungates achievements, and the Astra
+metrics block cannot ship at all until #333 gives it a schema. `/orchestrate <ticket>` is how they get
+built.
+
+**Three things are recorded and unresolved**, each needing Thomas rather than a worker:
+  - `#329`'s body still specifies the Satellite glyph for the Progresso empty state, which now
+    contradicts DESIGN.md. The document was never corrected.
+  - `--status-skip` binds to nothing since skip stopped being a row state. Deleting a token is a design
+    system contraction, so it is his call.
+  - The titles of `#44`, `#46` and `#50` still describe the pre-D69 app. A hook blocks title edits, so
+    each carries a correction erratum in its body instead.
+
+**Two open questions Wrapped raised and nobody answered**: whether a period a person never opened stays
+reachable afterwards and for how long, which nothing currently stores, and whether the copy may ever use
+the full weekday form, since "quarta-feira" is the stress case that would break the widest line on the
+share card.
+
+## Operational notes that will save you an hour
+
+**Read documents through the MCP, never by opening a canvas turn.** `DesignSync` with
+`method: "get_file"` and the project id. `list_files` first if you need the names. A document runs 50 to
+100 KB, so it saves to a file rather than your context; grep that file.
+
+**Driving the canvas through claude-in-chrome**, because the composer has two traps:
+  - The page has TWO contenteditable elements. The composer is `eds[0]`; the second is the document
+    editor. `find` returns the composer's ref but clicking it can focus the wrong one, so ALWAYS assert
+    `document.activeElement === eds[0]` before pasting. Pasting into the wrong one edits the project's
+    readme, which happened on 2026-08-18 and had to be undone.
+  - The composer sends on Enter, so never type multi line text. Set the text on `window`, then dispatch
+    a synthetic `ClipboardEvent('paste')` at the editor.
+  - Anything over about 5,000 characters becomes a `Pasted text` attachment rather than inline text.
+    That works, but add one short line above it saying the attachment is the brief.
+
+## Standing rules
+
+- Never write an em dash or an en dash, anywhere. The gate is `node tools/check-dashes.mjs --files <paths>`.
+- Work on `redesign/main`. It has no CI and no Pullfrog, so a green PR is not a reviewed PR.
+- Never name a state, field or gate the code cannot produce. That rule closed the defect that started
+  this run, and it held: `frozen` came back twice under different disguises and is now a TYPE ERROR in
+  `DayStrip`, not a review note. Prefer enforcing a rule in a contract over stating it in prose.
+- Never remove a capability the app has today unless a decision removed it. A constraint on WRITING is
+  not a constraint on READING.
+- Ask Thomas on any product or taste call. Make mechanical choices yourself and say what you chose.
+- Take every identifier from live output in this run, never from memory.
 ```
