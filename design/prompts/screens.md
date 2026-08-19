@@ -101,7 +101,28 @@ becomes a file. **How Wrapped is reached is settled too**: the notification for 
 primary way in, matching how the periodic retrospective is already delivered, and Progresso carries an
 entry for the period that just closed as the fallback. Neither is a nav row.
 
-**Still open, and worth a fourth system round before any code is written:** the month grid and day
+## The tickets now point at the canvas, 2026-08-18
+
+Twenty one existing tickets carry a comment naming the document that defines their surface: `#42` `#44`
+`#46` `#47` `#50` `#53` `#55` `#56` `#57` `#58` `#61` `#63` `#67` `#69` `#71` `#72` `#73` `#76` `#217`
+`#318` `#329`. Their bodies were already corrected against D69 on 2026-08-16, so the comment adds the
+drawing rather than re-stating the job.
+
+Five surfaces gained a document in this run and had no ticket at all. They are now filed, all
+`repo:ui`, all `parity:yes`, all in `539 Redesign`:
+
+| ticket | surface | document |
+|---|---|---|
+| `#335` | the notification bell and its list | `Orbit Avisos` |
+| `#336` | search results, including which field matched | `Orbit Busca` |
+| `#337` | the step up code screen | `Orbit Verificacao` |
+| `#338` | the error and static surfaces | `Orbit Estados` |
+| `#339` | offline, including the dropped change that loses data | `Orbit Offline` |
+
+`#335` is ordered behind `#334`, because rewriting the client while the server still writes `/streak`
+leaves the two disagreeing.
+
+**Still open after D4's partial round:** the month grid and day
 cell, a `Skeleton` grid variant, a read only list row, `CapacityNotice` taking more than one message,
 an event row, `Sheet` stating that it mounts fresh per open, and `OtpInput` being display only.
 
@@ -1216,4 +1237,103 @@ the failed rows only. Offer no undo of the whole batch: bulk create carries a co
 because it is not reversible, and an undo would contradict the reason that confirmation exists.
 
 Reply with what you changed in each document, and nothing else.
+```
+
+---
+
+## Paste D4: the fourth design system round
+
+Run 2026-08-18 from the gaps the Calendario, Wrapped, overlays and auth builds reported. Goes to the
+design system project `918bd5d7-839c-4dd0-811b-4a8781f60507`.
+
+**Partially landed.** The canvas read the whole brief, judged it did not have the headroom to build nine
+components plus their cards without stopping mid way and leaving the system half edited, and wrote
+NOTHING that round rather than risk it. That was the right call. It then took its own split.
+
+**Done:** item 3 the `Sheet` mount contract, item 4 `CapacityNotice` gaining a body, item 5 the
+`Skeleton` grid variant, item 6 the `ListRow` read only variant, item 9 `EventRow`.
+
+**Still on its todo list, for after the Thursday reset:** item 1 `DayCell` and `MonthGrid`, which is by
+far the largest and has two consumers waiting; item 2 `OtpInput` gaining `onChange`, an error state and
+disabled; item 7 `Pager`; item 8 `Columns`.
+
+```
+Nine components are still composed by hand inside individual screens. Every one was reported by a
+build, not guessed. Fix them here so nothing composes them locally again. Do not build or change a
+screen.
+
+Add no new token, colour, radius, shadow or font. If one genuinely needs a new value, stop and tell me
+which and why.
+
+1. DayCell and MonthGrid. THE BIGGEST, because it has two consumers already.
+Calendario composed a month grid and a day cell from an SVG arc, a disc and a ring, and said it belongs
+in the system if a second surface ever needs it. A second surface does: Progresso.
+Build DayCell with the four outcomes Calendario proved are the real ones:
+  nothing scheduled  no ring at all, and no mark. This is an absence, not a state, and it must not
+                     read as a failure.
+  partially logged   an arc at the EXACT completed over scheduled fraction. Never rounded: a ring can
+                     draw any angle, so rounding only loses the difference between one of three and
+                     two of three.
+  fully logged       a filled neutral disc. Completion is never the accent.
+  today              current position, which is the accent's role 2.
+Two more facts the cell must carry, both traced:
+  loggable versus read only. Only the last seven days can be logged, so for most of a month the day is
+    read only. The cell states that BEFORE it is tapped, never after.
+  the accessible name carries the date and the outcome, because the ring alone is colour and shape.
+MonthGrid lays DayCell out, takes the week start as DATA rather than assuming Monday, and never encodes
+a day's state in colour alone.
+
+2. OtpInput is display only, and two screens work around it.
+OtpInputProps is { length, value, activeIndex } with no onChange, no error and no disabled, so both
+Entrar and the step up screen compose the typing and the error beside it. That is the component failing
+at its only job.
+Give it onChange, an error state, and disabled. Its own doc already says pasting a whole code must
+work, so state that the paste handler belongs to the component and not to each caller. The error is
+stated beside the cells, never as a colour on them alone.
+
+3. Sheet must say that it mounts fresh per open.
+The overlays build fixed an overlay that opened scrolled away from its own first line, and reported
+that the fix depends on the component being mounted fresh per open rather than kept mounted and hidden.
+SheetProps carries `open`, which invites exactly the wrong implementation.
+Say it in the .d.ts: a Sheet is MOUNTED WHEN OPEN and unmounted when closed, so its body always opens
+at its first line and its scroll position can never survive a close. A caller that keeps it mounted and
+toggles `open` reintroduces the defect this rule exists to close.
+
+4. CapacityNotice takes one message and needs more.
+Calendario had to pass a two line paywall as one node because CapacityNoticeProps is { message, action }.
+Let it take a body as well as the message: the message states the limit, the body explains it when the
+limit is not self evident. Keep every existing rule. It is a boundary and never an error, it uses
+neutral tokens and never --status-bad, and it carries no upgrade call to action.
+
+5. Skeleton has no grid variant.
+Calendario composed its loading cells from a well and one keyframe. Add a grid variant that takes rows
+and columns and holds the final dimensions, so the month does not reflow when the data lands. The
+existing rule stands: shaped like the final layout, opacity pulse, never a shimmer and never a spinner.
+
+6. ListRow has no read only variant.
+Calendario needed rows for a day that cannot be logged and could not use CheckRow, because switching
+everything off still draws a control that is not there. Add a read only variant to ListRow that draws
+no control at all rather than a disabled one. A control that cannot be used should be absent, not
+greyed.
+
+7. A pager, for Wrapped.
+Wrapped composed its segment row and its paging by hand. Build Pager: the segment row, the forward and
+back controls, and the rule that the last page swaps the forward control for the closing action. It
+never auto advances, because Wrapped is a close rather than a broadcast.
+
+8. A column chart, for Wrapped's weekday page.
+Wrapped composed seven columns from divs at radius 999 over a track. Build Columns: n labelled columns
+over a track, values as a fraction, the label under each. One constraint belongs in the component and
+must be stated: a column set is NOT a timeline, so it takes labels rather than dates and it must not be
+drawn or read as a series over time.
+
+9. An event row, for Calendario.
+Imported calendar events were composed from a well, the calendar glyph and text. Build EventRow: a time,
+a title, and the fact that it came from outside Orbit. It is not a habit row and must not be mistaken
+for one, so it never carries a status ring and it is never loggable.
+
+For each of the nine, ship the .d.ts, the prompt.md and a specimen card rendering dark AND light. A
+card is a SPECIMEN: no named habits, no real times, no product copy.
+
+Reply with what you added, and name anything you could not build without a new token.
 ```
