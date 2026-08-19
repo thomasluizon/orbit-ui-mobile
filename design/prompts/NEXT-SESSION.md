@@ -38,6 +38,68 @@ Astra metrics schema, #334 the notification urls, #335 the notification list, #3
 the step up screen, #338 the error surfaces, #339 offline. Twenty one older tickets carry a comment
 naming the document that defines their surface.
 
+## Phase 0: read the record before you touch anything
+
+The vault at `C:/Users/thoma/Documents/Programming/Projects/brain` holds the reasoning behind every
+decision this redesign rests on. Read it FIRST. A prompt written without it is how this run produced a
+habit in a "frozen" state, and how it later stripped the share action off Wrapped: both times the code
+or the vault already held the answer and nobody looked.
+
+Read in full, in `2 Areas/20-29 Orbit Engineering/Decisions/`:
+
+  Astra is a layer with a front door, not a fourth tab.md          D69, the information architecture
+  Pro is Astra without the daily ceiling, and goals leave the paywall.md   D70, pricing and gating
+  Price Orbit at 9.99 USD and gate depth never the core loop.md    the gating principle
+  Design spacious black and maximum contrast ... .md               direction 3, the visual canon
+  The Orbit workflow decision register (D1 to D42).md              it runs past D70 now, read it all
+  Tabler is the icon library, Lucide is the bug.md                 D54
+
+Then, outside Decisions:
+
+  2 Areas/10-19 Orbit Business/14 Growth/Growth blow-up strategy (2026-06-18 research).md
+  2 Areas/20-29 Orbit Engineering/Orbit debloat and redesign master plan 2026-08-05.md
+  2 Areas/20-29 Orbit Engineering/20-29 Orbit Engineering.md       the MOC, and its dated entries
+  hot.md
+
+**Those last two matter more than they look.** The growth research is the only note that says WHY
+Wrapped exists: a shareable recap card, client side, which it calls the minimum viable viral loop. The
+debloat plan keeps Wrapped for exactly that word. This session shipped Wrapped without a share action
+because the canvas reasoned that the deleted social layer meant there was nowhere to share to. That is
+wrong twice over: the social layer is INTERNAL (friends, cheers, challenges) and sharing OUTWARD ships
+today in `apps/web/hooks/use-share-card.ts` and its mobile twin. Read the vault so you catch that class
+of error before it reaches the canvas.
+
+When two notes disagree, the later one wins and you say so explicitly rather than quietly picking.
+
+## Phase 0b: the vault does not yet know about 2026-08-18
+
+Confirmed at the end of that session: `grep -rn "2026-08-18"` over the Engineering MOC and `hot.md`
+returns NOTHING. The whole canvas run is unrecorded, so a future session reading only the vault would
+not know the redesign is drawn.
+
+Write what is missing. Use `/brain-decide` for anything decision shaped and the brain skill for the
+rest, and check for an existing note before creating a duplicate. What needs recording:
+
+1. **The canvas run completed.** 20 documents covering every surface, four design system rounds, and
+   no document from the first run surviving. Pushed to `redesign/main` across commits `f6c970f2`,
+   `d335d880`, `9bb6fd56` and `35ff7264`.
+2. **Six product questions were answered on 2026-08-18** and exist only in `screens.md` today: a
+   rejected preview collapses to one line; step up is a hand off and never a credential field inside a
+   chat; a partially failed bulk create keeps what it created and retries only the failures; a day
+   arc shows the exact fraction and is never rounded; Calendario keeps paging on an empty account; and
+   the month completion rate is completions over scheduled OCCURRENCES counting only scheduled days,
+   to date in the current month and the whole month for a past one.
+3. **Two route decisions**: `/progress` replaces `/streak` on both platforms, and `/chat` survives D69.
+   Both are load bearing strings under standing rule 5.
+4. **The Wrapped correction**, which is the most reusable of these: the deleted social layer is
+   internal and has no bearing on sharing outward. Record it so nobody deletes the share action again.
+5. **A methodological decision worth its own ADR: enforce a design rule in the CONTRACT, not in prose.**
+   `frozen` was killed in `DESIGN.md`, then came back on a habit row, was killed again, then came back
+   as a snowflake inside a per habit history strip. It only stopped when `DayStrip` was built as a
+   discriminated union where passing `frozen` to a habit scope is a type error. `Composer` got the same
+   treatment: `atLimit` cannot render without `limitReason`. Prose has a losing record against this
+   class of defect and the vault should say so.
+
 ## Phase 1: finish the four components the canvas could not afford
 
 They go to the DESIGN SYSTEM project, not screens:
