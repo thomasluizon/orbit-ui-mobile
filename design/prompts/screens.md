@@ -83,6 +83,24 @@ Four API tickets were filed from what the screens reported they needed: `#331` t
 endpoint, `#332` the achievements payload, `#333` the Astra metrics schema, `#334` the notification
 urls.
 
+**One correction after the run, 2026-08-18.** Wrapped shipped without a share action, because the
+build reasoned that "the social layer is deleted" meant there was "nowhere outside to lead". That
+conflated two different things. The **social layer** is internal (friends, cheers, challenges,
+accountability) and D69 deleted it. **Sharing outward** was never deleted, and it is the reason Wrapped
+survived the cut at all: the growth research of 2026-06-18 calls the shareable recap card the minimum
+viable viral loop, and the debloat plan of 2026-08-05 keeps Wrapped for exactly that word.
+
+It also ships today, which settles it: `apps/web/hooks/use-share-card.ts` and
+`apps/mobile/hooks/use-share-card.ts` render the card client side with `toBlob` at `pixelRatio: 3` into
+`orbit-recap.png`, call `navigator.share`, and fire `card_shared`, which the API whitelists at
+`AchievementEventMap.cs:10` and which grants the `show_off` achievement.
+
+Wrapped now carries ten states, the last three being `share card`, `share sheet` and
+`share unavailable`. The shared artefact is one composed 9 by 16 image carrying no controls, because it
+becomes a file. **How Wrapped is reached is settled too**: the notification for the closed period is the
+primary way in, matching how the periodic retrospective is already delivered, and Progresso carries an
+entry for the period that just closed as the fallback. Neither is a nav row.
+
 **Still open, and worth a fourth system round before any code is written:** the month grid and day
 cell, a `Skeleton` grid variant, a read only list row, `CapacityNotice` taking more than one message,
 an event row, `Sheet` stating that it mounts fresh per open, and `OtpInput` being display only.
