@@ -2,207 +2,228 @@
 
 Copy the fenced block below into a fresh Claude Code session started in `orbit-ui-mobile`.
 
-Written 2026-08-18, at the end of the session that built the whole canvas. The previous handoff existed
-because two prompts were written from documents instead of from code. That defect is closed. This
-handoff exists for a different reason: **the design is complete and Thomas does not like all of it**,
-and the weekly Claude Design budget ran out before it could be reviewed screen by screen.
-
-**Do not start this before Thursday 2026-08-20, 04:00.** The weekly limit sat at 90 percent when this
-was written and the canvas itself refused to start a nine component build at that level.
+Written 2026-08-20, during the review pass. The previous handoff existed because the design was
+complete and Thomas had not gone through it. That review is now **11 of 21 screens done** and the four
+missing components are built. This handoff exists to finish the remaining screens without re-deriving
+what the last session already traced to code.
 
 ---
 
 ```
-Continue Orbit ticket #36, the canvas-first redesign. The canvas is BUILT. This session finishes the
-four components it could not afford, then reviews every screen WITH Thomas and fixes what he does not
-like.
+Continue Orbit ticket #36, the canvas-first redesign. The four components are BUILT and the review
+pass with Thomas is 11 of 21 screens through. Finish it.
 
-## What is already true, so do not redo it
+## Read these first, in this order
 
-The screens project holds 20 documents covering every surface, and nothing from the first run survives:
-https://claude.ai/design/p/87c2d1c5-d02d-4840-98e8-3abc270d2928
+1. `design/prompts/screens.md` - the file of record for every prompt this project has run. Its last
+   section, "The review pass with Thomas, 2026-08-20", is the most recent state.
+2. The vault at `C:/Users/thoma/Documents/Programming/Projects/brain`:
+   - `2 Areas/20-29 Orbit Engineering/20-29 Orbit Engineering.md`, the "Shipped (2026-08-20)" section
+   - `2 Areas/20-29 Orbit Engineering/Decisions/Enforce a design rule in the contract, not in prose.md` (D71)
+   - `2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md` (D69)
+   - `2 Areas/20-29 Orbit Engineering/Decisions/Pro is Astra without the daily ceiling, and goals leave the paywall.md` (D70, AMENDED 2026-08-20)
+   - `hot.md`
 
-  Orbit Hoje              Orbit Habit Create      Orbit Habit Detail
-  Orbit Calendario        Orbit Progresso         Orbit Astra Conversation
-  Orbit Onboarding        Orbit Entrar            Orbit Perfil
-  Orbit Avisos            Orbit Pro               Orbit Assinatura
-  Orbit Celebracao        Orbit Estados           Orbit Offline
-  Orbit Busca             Orbit Verificacao       Orbit Sobreposicoes
-  Orbit Wrapped           Orbit Widget Android
+Do NOT re-read the full decision register unless something below is unclear. The last session read it
+end to end and everything load bearing is carried here.
 
-Four design system rounds ran alongside them (D, D2, D3, D4 part one), all recorded in
-design/prompts/screens.md, which is the file of record for every prompt this project has run.
+## Thomas's standing instructions. These bind every turn.
 
-Nine API tickets are filed: #331 the streak repair endpoint, #332 the achievements payload, #333 the
-Astra metrics schema, #334 the notification urls, #335 the notification list, #336 search results, #337
-the step up screen, #338 the error surfaces, #339 offline. Twenty one older tickets carry a comment
-naming the document that defines their surface.
+1. **"my answer is always the same: the best approach, no unfinished features, nothing to reduce
+   time, its the best implementation always."** Never offer him a cheaper or partial option. Take the
+   best one and say what you took. A question only earns his time when both paths ARE the best
+   implementation and they differ in what the product should be, or in taste.
+2. **Plain words, not design jargon.** He stopped a round to say it. Jargon makes him answer "i dont
+   know", which costs a round rather than saving one.
+3. **Ask one question per decision.** Never bundle.
+4. He wants you to keep working without stopping to report. Continue until you have a real question
+   or the work is done.
 
-## Phase 0: read the record before you touch anything
+## What is DONE, so do not redo it
 
-The vault at `C:/Users/thoma/Documents/Programming/Projects/brain` holds the reasoning behind every
-decision this redesign rests on. Read it FIRST. A prompt written without it is how this run produced a
-habit in a "frozen" state, and how it later stripped the share action off Wrapped: both times the code
-or the vault already held the answer and nobody looked.
+**Phase 1 is complete.** `DayCell`, `MonthGrid`, `Pager`, `Columns` built, `OtpInput` rebuilt around
+one real input with a REQUIRED `onChange` and no `activeIndex`. No new token was added. Both shells
+now discriminate on `nav`. `SegmentedControl` and `StepUp` are new. The design system readme's market
+claim is corrected.
 
-Read in full, in `2 Areas/20-29 Orbit Engineering/Decisions/`:
+**Calendario and Wrapped are rewired** onto the new components, verified: Calendario uses DayCell 16
+times, MonthGrid 6, EventRow 4, Skeleton 9; Wrapped uses Pager and Columns and its hand-built segment
+row and column divs are gone. Wrapped's share action is intact.
 
-  Astra is a layer with a front door, not a fourth tab.md          D69, the information architecture
-  Pro is Astra without the daily ceiling, and goals leave the paywall.md   D70, pricing and gating
-  Price Orbit at 9.99 USD and gate depth never the core loop.md    the gating principle
-  Design spacious black and maximum contrast ... .md               direction 3, the visual canon
-  The Orbit workflow decision register (D1 to D42).md              it runs past D70 now, read it all
-  Tabler is the icon library, Lucide is the bug.md                 D54
+**Screens reviewed and corrected with Thomas**: Onboarding, Hoje, Habit Create, Habit Detail.
+**Read and diagnosed but corrections NOT ALL SENT**: Astra Conversation, Progresso, Pro, Assinatura,
+Perfil, Avisos, Verificacao, Sobre.
+**Not read at all**: Entrar, Busca, Celebracao, Estados, Offline, Sobreposicoes, Widget Android.
 
-Then, outside Decisions:
+**Note: there are 21 documents, not 20.** `Orbit Sobre.dc.html` covers about, privacy, terms and
+support. The previous handoff's list of 20 missed it. Review it too.
 
-  2 Areas/10-19 Orbit Business/14 Growth/Growth blow-up strategy (2026-06-18 research).md
-  2 Areas/20-29 Orbit Engineering/Orbit debloat and redesign master plan 2026-08-05.md
-  2 Areas/20-29 Orbit Engineering/20-29 Orbit Engineering.md       the MOC, and its dated entries
-  hot.md
+## FIRST: verify what was in flight when the last session ended
 
-**Those last two matter more than they look.** The growth research is the only note that says WHY
-Wrapped exists: a shareable recap card, client side, which it calls the minimum viable viral loop. The
-debloat plan keeps Wrapped for exactly that word. This session shipped Wrapped without a share action
-because the canvas reasoned that the deleted social layer meant there was nowhere to share to. That is
-wrong twice over: the social layer is INTERNAL (friends, cheers, challenges) and sharing OUTWARD ships
-today in `apps/web/hooks/use-share-card.ts` and its mobile twin. Read the vault so you catch that class
-of error before it reaches the canvas.
+Two canvas turns were still running. Read both through the MCP and confirm they landed before doing
+anything else. If either did not, resend it from `screens.md`.
 
-When two notes disagree, the later one wins and you say so explicitly rather than quietly picking.
+1. **Screens project**: a correction to `Orbit Verificacao.dc.html` and `Orbit Perfil.dc.html`
+   (the step-up numbers and the operation set, detailed below).
+2. **Design system project**: `StepUp` narrowed to two operations, plus closing the i18n audit across
+   thirteen components.
 
-## Phase 0b: the vault does not yet know about 2026-08-18
+## The remaining corrections, with their evidence already traced
 
-Confirmed at the end of that session: `grep -rn "2026-08-18"` over the Engineering MOC and `hot.md`
-returns NOTHING. The whole canvas run is unrecorded, so a future session reading only the vault would
-not know the redesign is drawn.
+Every finding below was verified against code by the last session. Do not re-derive them; do check
+that the file and line still say what is quoted, because that is the rule that catches drift.
 
-Write what is missing. Use `/brain-decide` for anything decision shaped and the brain skill for the
-rest, and check for an existing note before creating a duplicate. What needs recording:
+### Orbit Wrapped
+- **Weekday copy: use the short form everywhere.** Thomas's decision, 2026-08-20. `quarta-feira` is
+  the widest line the share card holds and it breaks first. Three letters always fit in both
+  languages. The `days` array currently holds full names and is used by `p4Body` and by `cardBest` on
+  the share card.
+- **The `open` item about an unopened period is ANSWERED**: every past period stays reachable,
+  permanently. Thomas, 2026-08-20. Delete the open item and name ticket **`#341`**.
+- **The `figures` paragraph is FALSE and must be corrected.** It claims all four figures exist and
+  "nothing is derived from a field the API does not return". Two problems: goal completions is NOT in
+  `RetrospectiveMetrics` (`GetRetrospectiveQuery.cs:21-31`), and the calendar-month framing cannot be
+  served at all, because `RetrospectivePeriodRange.Resolve` returns `(dateFrom, today)` for every
+  period and `"month"` is `today.AddDays(-30)`, a rolling window. The screen says "Fechamento do mês"
+  and "agosto de 2026". Record `#341` as the blocker.
 
-1. **The canvas run completed.** 20 documents covering every surface, four design system rounds, and
-   no document from the first run surviving. Pushed to `redesign/main` across commits `f6c970f2`,
-   `d335d880`, `9bb6fd56` and `35ff7264`.
-2. **Six product questions were answered on 2026-08-18** and exist only in `screens.md` today: a
-   rejected preview collapses to one line; step up is a hand off and never a credential field inside a
-   chat; a partially failed bulk create keeps what it created and retries only the failures; a day
-   arc shows the exact fraction and is never rounded; Calendario keeps paging on an empty account; and
-   the month completion rate is completions over scheduled OCCURRENCES counting only scheduled days,
-   to date in the current month and the whole month for a past one.
-3. **Two route decisions**: `/progress` replaces `/streak` on both platforms, and `/chat` survives D69.
-   Both are load bearing strings under standing rule 5.
-4. **The Wrapped correction**, which is the most reusable of these: the deleted social layer is
-   internal and has no bearing on sharing outward. Record it so nobody deletes the share action again.
-5. **A methodological decision worth its own ADR: enforce a design rule in the CONTRACT, not in prose.**
-   `frozen` was killed in `DESIGN.md`, then came back on a habit row, was killed again, then came back
-   as a snowflake inside a per habit history strip. It only stopped when `DayStrip` was built as a
-   discriminated union where passing `frozen` to a habit scope is a type error. `Composer` got the same
-   treatment: `atLimit` cannot render without `limitReason`. Prose has a losing record against this
-   class of defect and the vault should say so.
+### Orbit Pro
+- **The price fixture is wrong.** The document hardcodes `monthlyAmount: '19,90'`,
+  `annualAmount: '159,00'`, `savingsPercent: '33'`. Live Brazilian prices since `#144` shipped on
+  2026-08-17 are **R$29,90/month and R$199/year**, which is R$16,58 a month and a **44%** saving.
+- **The headline changes.** It reads "O Astra sem o limite do dia" / "Astra without the daily
+  ceiling" at display size, directly above the card that says Pro is 50 a day. Thomas ruled the
+  headline moves to the real arithmetic, something of the shape *ten times more Astra*. His reasoning
+  is the rule: **a paywall is the worst place in the product to say something the next line
+  contradicts.** D70 is already amended in the vault to record this.
 
-## Phase 1: finish the four components the canvas could not afford
+### Orbit Assinatura
+- **Same wrong price**: `SUB.annualAmount: '159,00'` should be R$199.
+- **The lapsed-reason open item is decided**: name the reason when it is actionable, phrased as a
+  circumstance and never as blame. A declined card is something the person can fix, so telling them is
+  kinder than hiding it. This follows D69's standing copy rule, "copy names the circumstance, never the
+  person".
+- **The Play deep-link open item is decided**: deep link to the specific subscription rather than the
+  dashboard. The implementing ticket must confirm the URL shape against Google's own documentation
+  rather than assume it, per the never-assume-an-external-interface rule.
 
-They go to the DESIGN SYSTEM project, not screens:
-https://claude.ai/design/p/918bd5d7-839c-4dd0-811b-4a8781f60507
+### Orbit Sobre
+- **The nav row order is wrong, and its own report claims otherwise.** The report says the labels and
+  order are "kept as given and in the given order". Both platforms ship **feature guide, support,
+  terms, privacy** (`apps/web/app/(app)/about/page.tsx:60-79`,
+  `apps/mobile/app/about.tsx:65-81`). The canvas drew privacy, terms, support: reversed. Correct it to
+  **support, terms, privacy**, and correct the false claim. Dropping the feature guide row IS right,
+  because D69 deleted the feature guide.
+- **Drop "Feito no Brasil" / "Made in Brazil".** Thomas's call, 2026-08-20.
 
-The canvas already holds these four on its own todo list with their constraints, so open that chat and
-say to continue rather than restating the brief. In priority order:
+### Orbit Astra Conversation
+- **Two `open` items are already answered** by the 2026-08-18 ANSWERS paste and should be deleted:
+  step up is a hand off and never a credential field in a chat, and a partially failed bulk create
+  keeps what it created and retries only the failures. The `open` list also starts at item 2, so a
+  removed item left a hole in the numbering.
+- **`needs api` should name ticket `#333`** rather than "the follow up ticket".
 
-1. DayCell and MonthGrid. The largest, and it has TWO consumers waiting. Four outcomes: nothing
-   scheduled draws no ring at all (an absence, not a failure), partially logged draws an arc at the
-   EXACT fraction, fully logged draws a filled neutral disc, today is current position. The cell states
-   loggable versus read only BEFORE it is tapped, and its accessible name carries the date and the
-   outcome. MonthGrid takes the week start as DATA.
-2. OtpInput gains onChange, an error state and disabled. It is display only today, so Entrar and the
-   step up screen both compose the typing beside it.
-3. Pager, for Wrapped: segments, back and forward, the last page swapping forward for the closing
-   action, and never auto advancing.
-4. Columns, for Wrapped's weekday page. State in the component that a column set is NOT a timeline.
+### Orbit Progresso
+- **The `flag` is answered by D69 item 12.** It asks whether deleting the retrospective loses a
+  surface. It does not: the retrospective survives, delivered by Astra on a cadence into the proactive
+  line, with no navigation entry. Only its dedicated screen and its three dead states go.
+- **`open` item 2 is answered by code.** It says no endpoint states the window for the four figures.
+  `HabitMetricsCalculator.cs:28,29` computes a weekly rate over 7 days and a monthly one over 30. The
+  document drew 30 and guessed right. Cite it and close the item.
+- **The `derived` paragraph should name ticket `#340`**, and `needs api` items 2 and 3 are `#332`.
 
-The canvas confirmed none of the four needs a new token.
+### Orbit Entrar
+Not read yet. It needs the same **OtpInput rewire** Verificacao needed: Verificacao's own gaps
+paragraph said the transparent-input workaround is "the same workaround the sign in screen needs".
+OtpInput now takes a required `onChange`, an error state and disabled, so delete the local workaround.
 
-THEN rewire the two screens that are still composing them by hand, the way paste 2B rewired the
-conversation after D3: Calendario for DayCell, MonthGrid, the Skeleton grid variant, the read only
-ListRow and EventRow; Wrapped for Pager and Columns. Tell each to DELETE the local workaround and
-report which ones it removed.
+## The Verificacao correction, in case it needs resending
 
-## Phase 2: the review pass, WITH Thomas, one screen at a time
+This was the sharpest finding of the review and it is worth restating precisely.
 
-This is the reason the session exists. Thomas said there is a lot in the canvas he does not like and he
-has not had a chance to go through it.
+The step-up screen printed three numbers and **all three came from the wrong subsystem**. It read
+`AgentPlatformSettings.cs:9-11` (5 minute TTL, 60 second cooldown, 5 attempts), which governs the
+**MCP agent** step-up for a pending agent operation. That is not this flow. The human confirming
+something from Perfil hits the account-deletion challenge, whose real numbers are:
 
-**Run it as a loop, one screen per round, and do not batch.**
+- **10 minutes**, not 5. `RequestAccountDeletionCommand.cs:44`, `TimeSpan.FromMinutes(10)`.
+- **3 attempts**, not 5. `AppConstants.cs:42` `MaxVerificationAttempts`, checked at
+  `ConfirmAccountDeletionCommand.cs:27`.
+- **60 second cooldown**, which it had right. `RequestAccountDeletionCommand.cs:33`.
+- **6 digits**, which it had right. `RandomNumberGenerator.GetInt32(100000, 1000000)`.
 
-For each screen, in this order (a person's path through the product, not alphabetical):
-  Onboarding, Hoje, Habit Create, Habit Detail, Astra Conversation, Calendario, Progresso, Pro,
-  Assinatura, Wrapped, Perfil, Avisos, Entrar, Verificacao, Busca, Celebracao, Estados, Offline,
-  Sobreposicoes, Widget Android
+And the operation set is **two, not three**:
+- **Account deletion** keeps it. Real and shipping: `AuthController.cs:295-325`.
+- **API keys** keep it. Today `ApiKeysController.cs` creates a key behind ordinary session auth with
+  no re-check. Thomas ruled it should ask for a code; backend is ticket **`#342`**.
+- **Billing loses it entirely.** It hands off to the Stripe customer portal, which authenticates the
+  person itself, so a code before opening it is friction that buys no security.
 
-do this:
+## Tickets filed this session, all in the 539 Redesign milestone
 
-1. Read the document through the claude_design MCP (DesignSync, method get_file) rather than opening a
-   canvas turn. Reading is free; canvas turns are not. Its report block states what it drew and why,
-   and is the fastest way to know its intent.
-2. Tell Thomas in a few lines what the screen is, what states it carries, and the two or three calls it
-   made that he might disagree with. Name them specifically. Do not summarise the report block back at
-   him; he can read.
-3. Ask him what he wants changed. Use the ask-user tool, and give him your recommendation on each
-   point so he can say yes. He is terse. Never present a menu.
-4. Turn his answer into ONE corrective paste and run it. Edit in place, keep the state axis, never
-   rebuild.
-5. Verify through the MCP that the change landed, then move to the next screen.
+- **`#340`** (api) - a `Standard` goal ignores its linked habits, so D69's derive rule is only half
+  implemented. `GoalType` has exactly two values and only `Streak` has a sync path. No design is
+  blocked; the canvas drew today's behaviour correctly.
+- **`#341`** (api) - **Wrapped has no endpoint.** The retrospective is Pro-gated
+  (`PayGateService.cs:141`, `RetrospectiveProOnly` defaults true), every window is rolling and ends
+  today, and `"month"` is 30 rolling days rather than a calendar month. A Pro-gated viral loop is not
+  a viral loop: the growth research is the only note that says why Wrapped exists, and it calls a
+  client-side shareable recap card the minimum viable viral loop. **This blocks Wrapped shipping at
+  all.**
+- **`#342`** (api) - creating an API key needs no re-authentication while deleting the account does.
 
-**Watch the budget on every canvas turn.** Read the usage banner after each send. Stop at 98 percent,
-and tell him where you stopped. The canvas will also refuse work it cannot finish cleanly, which it did
-correctly on 2026-08-18: treat that refusal as sound and split the work rather than pushing it.
+`#331` to `#339` were filed by earlier sessions and still stand.
 
-## Phase 3: what comes after, and it is the real work
+## Still open, and each needs Thomas rather than a worker
 
-The canvas is a design, not a product. Everything below is still open.
+- `#329`'s body still specifies the deleted Satellite glyph for the Progresso empty state, which
+  contradicts `DESIGN.md`. Never corrected.
+- `--status-skip` binds to nothing since skip stopped being a row state. Deleting a token is a design
+  system contraction, so it is his call.
+- The titles of `#44`, `#46` and `#50` still describe the pre-D69 app. A hook blocks title edits, so
+  each carries a correction erratum in its body instead. `#42` also needs repointing.
 
-**The API tickets block the screens.** #331 to #334 exist because three screens each reported server
-work they need. Nothing drawn on Progresso can ship until #332 ungates achievements, and the Astra
-metrics block cannot ship at all until #333 gives it a schema. `/orchestrate <ticket>` is how they get
-built.
+## How to work
 
-**Three things are recorded and unresolved**, each needing Thomas rather than a worker:
-  - `#329`'s body still specifies the Satellite glyph for the Progresso empty state, which now
-    contradicts DESIGN.md. The document was never corrected.
-  - `--status-skip` binds to nothing since skip stopped being a row state. Deleting a token is a design
-    system contraction, so it is his call.
-  - The titles of `#44`, `#46` and `#50` still describe the pre-D69 app. A hook blocks title edits, so
-    each carries a correction erratum in its body instead.
+**Read documents through the MCP, never by opening a canvas turn.** `DesignSync`, `method:
+"get_file"`, project `87c2d1c5-d02d-4840-98e8-3abc270d2928` for screens and
+`918bd5d7-839c-4dd0-811b-4a8781f60507` for the design system. Reading is free; canvas turns are not. A
+document runs 50 to 100 KB, so grep the report block rather than reading the whole file into context.
 
-**Two open questions Wrapped raised and nobody answered**: whether a period a person never opened stays
-reachable afterwards and for how long, which nothing currently stores, and whether the copy may ever use
-the full weekday form, since "quarta-feira" is the stress case that would break the widest line on the
-share card.
+**The two projects can run in parallel** in two browser tabs. The last session did, and it roughly
+halved the wall clock.
 
-## Operational notes that will save you an hour
+**Driving the canvas through claude-in-chrome**, with the traps that cost the last session time:
+- Assert the composer before pasting. `eds[0]` is the composer at `left: 21`; a second contenteditable
+  at `left: 670` is the document editor. Pasting into the wrong one edits the project readme.
+- Never type multi line text; the composer sends on Enter. Set the text and dispatch a synthetic
+  `ClipboardEvent('paste')`.
+- **Anything over about 2,500 characters becomes a `Pasted text` attachment**, not inline text. That
+  works, but add one short line above it saying the attachment is the brief. The 5,000 figure in the
+  older notes is wrong.
+- **The model picker will not apply a change while a generation is running**, and it raises a
+  **"Switch model?" confirm dialog** that silently swallows the click if nothing answers it, so the
+  label keeps reading the old model and the change looks like it failed. Answer the dialog, then
+  re-read the label.
+- The document viewer's phone frame has its own inner scroller inside an iframe that does not respond
+  to synthetic scroll. To show Thomas something below the fold, send him the URL with
+  `?file=Orbit+Name.dc.html` rather than fighting it.
 
-**Read documents through the MCP, never by opening a canvas turn.** `DesignSync` with
-`method: "get_file"` and the project id. `list_files` first if you need the names. A document runs 50 to
-100 KB, so it saves to a file rather than your context; grep that file.
-
-**Driving the canvas through claude-in-chrome**, because the composer has two traps:
-  - The page has TWO contenteditable elements. The composer is `eds[0]`; the second is the document
-    editor. `find` returns the composer's ref but clicking it can focus the wrong one, so ALWAYS assert
-    `document.activeElement === eds[0]` before pasting. Pasting into the wrong one edits the project's
-    readme, which happened on 2026-08-18 and had to be undone.
-  - The composer sends on Enter, so never type multi line text. Set the text on `window`, then dispatch
-    a synthetic `ClipboardEvent('paste')` at the editor.
-  - Anything over about 5,000 characters becomes a `Pasted text` attachment rather than inline text.
-    That works, but add one short line above it saying the attachment is the brief.
+**Both canvases are on Fable 5 Max**, at Thomas's instruction. The composer warns it draws down the
+weekly Claude Design budget **2x faster than Opus 5**. Read the usage banner after each send, stop at
+98 percent, and tell him where you stopped.
 
 ## Standing rules
 
-- Never write an em dash or an en dash, anywhere. The gate is `node tools/check-dashes.mjs --files <paths>`.
-- Work on `redesign/main`. It has no CI and no Pullfrog, so a green PR is not a reviewed PR.
-- Never name a state, field or gate the code cannot produce. That rule closed the defect that started
-  this run, and it held: `frozen` came back twice under different disguises and is now a TYPE ERROR in
-  `DayStrip`, not a review note. Prefer enforcing a rule in a contract over stating it in prose.
-- Never remove a capability the app has today unless a decision removed it. A constraint on WRITING is
-  not a constraint on READING.
+- Never write an em dash or an en dash. The gate is `node tools/check-dashes.mjs --files <paths>`.
+- Work on `redesign/main`. It has no CI and no Pullfrog, so a green push is not a reviewed push.
+- **Never name a state, field, number or gate the code cannot produce.** This session caught seven,
+  including three numbers read off the wrong subsystem. Every claim about cost, storage or what an
+  endpoint returns gets traced to a file and a line, or it does not go in.
+- **Never remove a capability the app has today unless a decision removed it.** The canvas dropped
+  `Select` from the habit menu even though both platforms ship it. Thomas caught that, not the review.
+- **Prefer enforcing a rule in a contract over stating it in prose.** That is D71, and it is why
+  `DayCell` is a discriminated union rather than a review note.
 - Ask Thomas on any product or taste call. Make mechanical choices yourself and say what you chose.
 - Take every identifier from live output in this run, never from memory.
 ```
