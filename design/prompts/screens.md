@@ -6,9 +6,14 @@
 
 **Project**: `https://claude.ai/design/p/87c2d1c5-d02d-4840-98e8-3abc270d2928`
 
-**Model**: **Opus 5 Max**. Verified in the project's own model selector on 2026-08-17. The earlier note
-in this file said there was no Opus 5 entry and that `claude-opus-4-8` was the strongest option. That
-is out of date, so pick Opus 5 Max.
+**Model**: **Fable 5 Max** since 2026-08-20, at Thomas's instruction. The selector offers Fable 5,
+Opus 5, Sonnet 5 and Haiku 4.5, with Effort as a separate control already set to Max. Two traps when
+changing it: the picker will not apply a change **while a generation is running**, and it raises a
+**"Switch model?" confirm dialog** that silently swallows the click if nothing answers it, so the
+label keeps reading the old model and the change looks like it simply failed. Answer the dialog, then
+re-read the label to confirm. **Fable draws down the weekly Claude Design budget 2x faster than
+Opus 5**, which the composer states in its own banner; that budget is what ended the 2026-08-18
+session.
 
 **Pasting**: a block longer than about 5,000 characters does not land as inline text. Claude converts
 it to a `Pasted text, N lines` attachment. That still works, but add one short line above it telling
@@ -1337,3 +1342,134 @@ card is a SPECIMEN: no named habits, no real times, no product copy.
 
 Reply with what you added, and name anything you could not build without a new token.
 ```
+
+---
+
+# The review pass with Thomas, 2026-08-20
+
+Run after the four remaining D4 components landed. Every paste below is a CORRECTION to a document
+that already exists: edit in place, keep the state axis, never rebuild. Thomas answers per screen
+through the ask-user tool, one screen per round.
+
+**Two standing instructions he gave during this run, both binding on every later paste:**
+
+1. **"my answer is always the same: the best approach, no unfinished features, nothing to reduce
+   time, its the best implementation always."** Never offer him a cheaper or partial option. Take the
+   best one and say what you took. A question only earns his time when both paths are the best
+   implementation and they differ in what the product should be.
+2. **Plain words, not design jargon.** He stopped a round to say it. Jargon makes him answer "i dont
+   know" instead of deciding, so it costs a round rather than saving one.
+
+## Paste D4-rest: the four components the previous round could not afford
+
+Run 2026-08-20 into the design-system project `918bd5d7`. Landed: `DayCell`, `MonthGrid`, `OtpInput`
+gaining a required `onChange`, `Pager`, `Columns`, plus the cards `lists/calendar.card.html` and
+`forms/flow.card.html`. **The todo list is empty.** None needed a new token.
+
+```
+Continue with item 1, DayCell and MonthGrid. Then item 2 OtpInput, item 7 Pager, item 8 Columns, in
+that order. The brief for all four is unchanged from the D4 paste you already have, so do not restate
+it back to me. If this round only holds item 1 cleanly, build item 1 alone and say so rather than
+starting item 2 half way. Two rules apply to all four. First, put the constraint in the .d.ts where a
+type can carry it, not only in the prompt.md: DayStrip's scope union is the model, because it made a
+frozen habit a type error instead of a review note. So DayCell's loggable versus read only, and the
+fact that a Columns set is not a timeline, belong in the types. Second, add no new token, colour,
+radius, shadow or font. If one genuinely needs a new value, stop and name it and why. Reply with what
+you built and what is still on the todo list.
+```
+
+`DayCell` came back as a discriminated union on `loggable`, so a read-only cell takes
+`onPress?: never` and a loggable one cannot omit it. That is **D71** applied rather than stated.
+
+## Paste SHELL: navigation presence belongs in the shell, not in a screen's stylesheet
+
+Run 2026-08-20 into `918bd5d7`, from a defect the Onboarding correction hit. Landed: both shells now
+discriminate on `nav`, and with the sidebar off every sidebar prop is rejected.
+
+```
+One more, and it comes from a real defect the Onboarding document just hit.
+
+Onboarding needs the navigation absent while the person makes the three decisions, and back at the
+last step. Shell412 handles it: the tab bar is a slot, so passing nothing is enough. ShellWide does
+not: it draws its sidebar unconditionally, so that document had to reach in from outside with a CSS
+rule that hides a child by class name. That works and it is wrong: a screen is suppressing a shell's
+own chrome by knowing its internals.
+
+Whether navigation is present is a behaviour, and both platforms have to agree on it, so it belongs in
+the shells as one prop rather than in a stylesheet.
+
+Give ShellWide a way to render with no sidebar at all. Not a disabled sidebar and not an empty one:
+absent, the same rule ListRow's read only variant follows. Then make it impossible to get wrong the
+way DayCell does it: if the sidebar is off, items, activeId, onSelect, account and onPalette should
+not be accepted, because none of them can do anything. If the sidebar is on, items and activeId stay
+required. Do the same on Shell412 so the two shells state the rule the same way rather than one
+stating it and the other relying on a caller passing null.
+
+Say in both prompt.md files that a screen must never hide shell chrome from outside, and name this as
+the reason.
+
+Reply with what you changed.
+```
+
+## Round 1: Onboarding
+
+Thomas's calls: drop the mic; restore the dead exit action; strip navigation during the flow. The
+mic's label also claimed voice spends an Astra message, which is **false**: `ChatController.cs:107`
+transcribes with no `TryConsumeAiMessage`. The canvas additionally caught a hole the paste created,
+adding a `CapacityNotice` to the when step, since the removed composer had been carrying the at-limit
+message.
+
+## Round 2: Hoje
+
+**The important one.** The canvas drew a seven-item overflow menu and dropped **Select**, which both
+platforms ship: `apps/web/components/habits/habit-row-menu.tsx:57` and
+`apps/mobile/components/habits/habit-row-menu.tsx:95` both render `common.select` calling
+`onEnterSelectMode`. Thomas caught it, not the review. Restored as the eighth item, hidden while
+selection is already on. Nothing in any decision removed it, so drawing the menu without it removed a
+capability the app has.
+
+The returning state also moved from nine days to **three**, which the report block had itself flagged
+as a number with no code behind it.
+
+## Round 3: Habit Create
+
+**The collision between two of Thomas's own decisions.** D69 asked for a live preview as the person
+types; D70 set the free allowance at five Astra messages a day. The canvas called Astra on every
+sentence, so making five habits emptied the day. It was also a change from what ships:
+`create-habit-modal.tsx:256`, `handleSuggest`, only runs on a button press, so creating a habit costs
+nothing today.
+
+Resolved as **local first**: the document's own regex parser runs on every keystroke and costs
+nothing, Astra becomes an explicit fallback for a sentence the device could not read, and only that
+fallback spends a message. A value the phone read is resolved; a value Astra read still wears the
+proposed state.
+
+Two more false claims fixed in the same paste: voice spending a message again, and a sentence saying
+the end date and description have no live write path. Both are writable, at
+`packages/shared/src/types/habit.ts:236,255` and `CreateHabitCommand.cs:15,162`.
+
+## Round 4: Habit Detail, plus the Wrapped rewire
+
+Three of the document's five recorded gaps were **stale**, written before design round D2 shipped the
+parts that fill them: `forms/Checkbox` and `forms/CheckRow` exist, `lists/DayStrip` exists with the
+`HabitDayValue` scope built exactly for a habit strip, and `Shell412` has a header slot.
+
+The completion rate was drawn at 14 days against no endpoint. `HabitMetricsCalculator.cs:28,29`
+computes 7 and 30. Thomas picked **30**, with the strip stretched to match so the number and the
+picture describe the same period.
+
+**Goals: the canvas was right and D69's wording is wrong.** `GoalType` has exactly two values and only
+`Streak` derives, through `SyncStreakProgress`. A `Standard` goal has no derivation path, so its
+number only moves by hand. The drawing stands; the gap is now ticket **`#340`** on the api.
+
+## The XP and levels ruling
+
+`Design spacious black and maximum contrast...` said whether XP and levels survive is "a RENDERING
+question, decided by looking, not by argument", and it had sat deferred since 2026-08-05 because
+nothing had rendered it. Progresso rendered it. Thomas looked, 2026-08-20, verbatim: **"i like it,
+keep it."**
+
+They survive as drawn: one row on Progresso, directly above the achievements grid and below the four
+figures, in small type. The level number and its title on one line, the XP figure on the other end,
+one bar beneath. No ring, and no cap past level 10, so past that the number keeps climbing and the
+title stays the one level 10 carries. The achievements grid remains the last thing on the screen.
