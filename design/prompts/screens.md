@@ -1473,3 +1473,110 @@ They survive as drawn: one row on Progresso, directly above the achievements gri
 figures, in small type. The level number and its title on one line, the XP figure on the other end,
 one bar beneath. No ring, and no cap past level 10, so past that the number keeps climbing and the
 title stays the one level 10 carries. The achievements grid remains the last thing on the screen.
+
+## The review pass finishes, 2026-08-20 (session 2)
+
+The first session reviewed 11 of 21 documents. This one read the other 10 against the code, found ten
+more defects, and sent the corrections. Two of the ten are the same class Thomas caught on Hoje: a
+capability the app ships that the drawing dropped.
+
+### The systemic one: every screen called a Composer that no longer exists
+
+D2 and D3 replaced `Composer`'s `label` and `busyReason` props with one required `words` vocabulary
+object. The design system shipped it. **No screen was ever rewired.** Seven call sites across six
+documents still passed `label:`, two still passed `busyReason:`, and not one of the 21 documents
+contained the string `words:`. The mirrored `_ds/` bundle inside the screens project predates the
+change, so the preview still drew a placeholder and nothing looked wrong from the canvas.
+
+Then the i18n audit closed in the design system and widened it. **Thirteen** components now take every
+word they render from the caller, required, with no default in either language: `StatTile`, `EventRow`,
+`NavHeader`, `BlockFrame`, `DayStrip`, `Composer`, `Pager`, `StatusRing`, `Skeleton`, `OtpInput`,
+`Columns`, `HabitRow`, and both shells' own chrome words (`navLabel`, `paletteLabel`, `createLabel`,
+`conversationLabel`). So the carry is not one prop on six screens, it is every screen, and each review
+turn does its documents' words carry in the same pass.
+
+The lesson is D71 from the other side. The type was right and the callers were stale, and nothing
+checked. **A contract change needs its caller sweep in the same run**, not in a later one.
+
+### The other nine
+
+**Avisos dropped a capability the app ships.** Its `open` paragraph said a mark-all-read action is
+something "no endpoint exposes today". `NotificationController.cs:44` is `[HttpPut("read-all")]`, and
+both platforms ship the control: `apps/web/components/navigation/notification-bell.tsx:278-282` and
+`apps/mobile/components/navigation/notification-bell.tsx:66,278`.
+
+**Sobreposicoes drew the seven-item overflow menu Hoje already had corrected**, without `select`.
+
+**Busca invents a fragment for two of its four match kinds.** The API returns
+`SearchMatchField(string Field, string? Value)` and `HabitScheduleFilters.cs:255,257` pass **null** for
+`title` and `description`. Only `tag` (`:260`) and `child` (`:284`) carry a value. The document quotes
+a fragment on all four.
+
+**Estados' `mock` paragraph is false.** It claims the version numbers and the reference code carry
+`data-mock`. Only the countdown does; the versions are baked into a plain sentence.
+
+**Pro and Assinatura both carried the pre-`#144` price**, 19,90 and 159,00 against the live 29,90 and
+199, and both called billing a step up after the ruling that it is not one. **Pro's segmented-control
+gap was stale** since `SegmentedControl` shipped.
+
+**Celebracao and Offline both evict the composer**, riding the `composer` slot because nothing else was
+pinned to the bottom, on screens where D69 says the composer is present.
+
+**The widget and the habit list disagree on what overdue means.** `GetHabitWidgetQuery.cs:151-176`
+keeps a private rule capped at `MaxRangeDays`; `HabitScheduleFilters.cs:99-100` delegates to
+`HabitScheduleService.IsOverdueOnDate`, whose own comment says the point is a single definition. The
+widget document was right to flag it.
+
+### The design system closed three more gaps
+
+- **`Toast` is built**, discriminated on `kind`. `lost` cannot be constructed without both its detail
+  line and its action, because a toast that says a change was dropped and offers no way back is the
+  worst state in the product. `working` draws its own three-dot mark so no caller passes a glyph,
+  `done` is the only kind that leaves on its own, and only `lost` may carry `--status-bad`. Four
+  screens had been composing one by hand.
+- **`Sheet.open` accepts only the literal `true`.** The mount rule had been prose in the type comment
+  and Sobreposicoes' own gaps paragraph asked for it to become a contract. Now `open={false}` on a
+  kept instance is a type error and the only way to hide a sheet is to unmount it.
+- **Both shells gained a `notice` slot**, pinned above the composer, so transient chrome never takes
+  Astra's front door.
+
+### Decisions recorded this session
+
+- The Pro headline is the arithmetic, not the claim: **"Dez vezes mais Astra."** Thomas's reasoning is
+  the rule: a paywall is the worst place in the product to say something the next line contradicts.
+- **Billing is not a step up.** Two operations are: account deletion and API keys. The Stripe customer
+  portal authenticates the person itself, so a code before opening it buys no security.
+- **The weekday short form everywhere**, three letters, in both the page-4 sentence and the share card.
+  The card's weekday line is its widest and breaks first.
+- **Every past period stays reachable, permanently** (Wrapped).
+- **A lapsed subscription names its reason when the reason is actionable**, phrased as a circumstance
+  and never as blame; withheld entirely when it is not actionable.
+- **The Play variant deep links to the specific subscription**, and the implementing ticket confirms
+  the URL shape against Google's own documentation rather than assuming it.
+- **The about screen drops "Feito no Brasil" / "Made in Brazil".**
+- `--status-skip` **is kept, not deleted**, because three shipping components read it
+  (`habit-row-check-circle.tsx:12`, `status-dot.tsx:28`, `bulk-action-bar-v2.tsx:163`). It dies with
+  the row work in `#46` and `#50`, and no new surface may use it. Written into `DESIGN.md`.
+
+### Tickets filed this session
+
+- **`#343`** (api) the widget and the habit list disagree on what overdue means.
+- **`#344`** (api) a lapsed subscription cannot say why it lapsed.
+  `HandleWebhookCommand.cs:207-210` runs one `CancelStripeSubscription()` for both `"canceled"` and
+  `"unpaid"`, `User.cs:249-254` keeps nothing, `SubscriptionDtos.cs:7-18` returns no reason, and there
+  is no `invoice.payment_failed` handler anywhere.
+
+### Tickets repointed at the canvas
+
+`#42`, `#44`, `#46` and `#50` each carry a 2026-08-20 erratum naming its canvas document as the
+authority over its own scope bullets. `#46` needed it most: its erratum said the title was stale, but
+its scope section still instructed a worker to add `Habit.Color`, append a `color` field to the Zod
+schema and tint the emoji, all of which D69 deleted. `#329`'s acceptance line naming the deleted
+Satellite glyph is corrected to the orbital mark.
+
+### Operational note
+
+**Closing a browser tab kills the generation running in it**, and the server then holds a lock that
+answers "your other tab is working on a request" for a minute or so. Two tabs pointed at the same
+project also show the same chat rather than two, so a second tab buys no parallelism. Work one tab at
+a time and never close it mid-run.
