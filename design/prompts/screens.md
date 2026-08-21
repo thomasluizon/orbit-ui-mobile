@@ -2010,3 +2010,87 @@ a list of what the app has and the drawing does not, each item with its file and
 short list of what stays and why, then the rules. Put the mirror sentence at the top. Run
 `node tools/check-dashes.mjs --files <brief>` before sending and read the document back through the
 MCP afterwards rather than trusting the self check, which reported nothing three times on 2026-08-21.
+
+## The last nine screens, 2026-08-21 (session 3)
+
+The same pass over the nine documents session 2 left: Onboarding, Wrapped, Entrar, Verificacao,
+Sobre, Estados, Celebracao, Offline and Widget Android. Read each surface against the real shipping
+component and raise it.
+
+### The design system first: two contracts the screens needed and did not have
+
+**`Input` gained its multiline half.** Three screen documents needed a multiline field and none
+could ask for one, so each composed a raw `<textarea>` with hand written token styles: Hoje, Habit
+Create and Onboarding, twice each, six hand built fields for one missing prop. Two of them also draw
+the words the schedule parser consumed, marked inside the person's own sentence, by painting an
+aria-hidden `<p>` under a transparent `<textarea>` with every font, size, line height, padding,
+radius and wrap declaration duplicated so the marks land under the right characters. One divergent
+value slides the marks off the words silently. That is D71 again: the rule lived in nobody's
+contract.
+
+`multiline` is a `true` only literal, the way `Sheet.open` is. `rows` and `marks` are valid ONLY
+with it, and `marks` without `multiline` is a TYPE ERROR. `marks` takes `[start, end]` ranges into
+`value` and requires `marksLabel`, because the mirror is aria-hidden and without a name the marks
+exist for a sighted person and for nobody else. A range past the end of `value` is clamped rather
+than thrown. `maxLength` sits on the base, with the app's own `MAX_HABIT_TITLE_LENGTH` cited beside
+it and no counter drawn. The mirror and the field are ONE box from one style declaration, laid out
+from inside the component, so no caller can set one and not the other. The scripted sweep found 8
+`Input` call sites and 0 broke.
+
+**Both shells typed their pinned bottom slot for the two shapes it really has.** The `composer` slot
+said "the composer and nothing else" in prose, and Onboarding already broke it at both widths,
+because a flow with no composer still needs a pinned forward action and the shells offered no other
+way to pin one. D69 says the composer is present on every DESTINATION, and `nav: false` already
+means "a flow that owns the whole screen". So with `nav` on the slot is `composer` and `action` is
+rejected; with `nav` off the slot is `action` and `composer` is rejected, because a flow that owns
+the screen has no front door to pin. `notice` keeps working on both, which is what it exists for.
+The scripted sweep found 6 shell call sites and 0 broke.
+
+### Wrapped
+
+**The entry screen was missing entirely.** `wrapped/page.tsx:32-41` renders a cover BEFORE the
+player and `wrapped-cover.tsx` is the whole of it: the ring motif, the title, the period chips, one
+Start action, and four states around it, loading, failed with a retry, empty, and ready. The drawing
+opened straight on page 1, so it could not show the load failing, could not show a period with
+nothing in it, and had nowhere to choose the period. **The period was pinned to one month** and
+`RECAP_SHARE_PERIODS` is week, month and year, chosen on the cover, so the eyebrow, the period line
+and every page's words now follow the choice. The API knows FIVE periods, adding quarter and
+semester, and two have no chip anywhere in the app; that is now an open question rather than an
+invented chip.
+
+**Two real pages were missing and the page count was a constant.** `buildWrappedSlides:28-46` builds
+intro, completions, active days, consistency, streak, the top habit when the period has one, and
+share. Active days carries the completion rate in its line. The top habit is the only page in the
+whole screen that names one of the person's own habits, and it exists only when the period has one,
+so the count is seven or eight rather than five and `Pager` takes the real one. The streak page
+draws TWO numbers, the best streak as the figure and the current one in the line.
+
+**The player could not be driven the way the app drives it.** Tap zones over the page, a left zone
+disabled on the first page and a right zone twice its width, both gone on the last page so the share
+is never under an invisible button; the arrow keys and Escape; and focus landing on close when the
+player opens. `Pager` stays at the foot carrying the same paging, which is the recorded decision, and
+the zones and the keys sit on top of it as one action.
+
+**The save is not a fallback.** `wrapped-slide.tsx:236-260` draws share and download SIDE BY SIDE,
+with download becoming the filled action where the platform cannot share files. The drawing had
+treated saving as a state reached only when the share sheet was unavailable.
+
+**The share IS the referral loop and the drawing never said so.** `GetRecapQuery.cs:57` builds the
+shared link as `{BaseUrl}/r/{referralCode}?recap={period}` and generates the code if the person has
+none. The card carries a picture and the share carries an invitation.
+
+**One sentence in the report was false and it decided the plan axis.** It said the retrospective's
+Pro gate stood between people and Wrapped. That gate is real, `PayGateService.cs:141`, and it has
+exactly ONE caller, `GetRetrospectiveQuery.cs:58`. Wrapped calls the recap, whose handler carries no
+gate at all and whose own comment says "Free / ungated", `GetRecapQuery.cs:28`. Wrapped is free
+today, so it carries NO plan axis, and access outside the Pro gate came off the `#341` list because
+it is already true. That is the fourth false claim of the run.
+
+**Empty and thin are two different things.** `isRecapShareEmpty` is no completions AND no active
+days, and the app refuses to start the player at all in that case, so empty lives on the cover and
+thin runs the player.
+
+**Three documents disagreed about how a person reaches it.** This report said it had no entry; the
+Perfil round added a row on the grounds that it had no route anywhere; the app reaches it from the
+retrospective surface with its back going to the profile. All three routes are stated now, with the
+2026-08-20 decision named as the authority for which is primary.
