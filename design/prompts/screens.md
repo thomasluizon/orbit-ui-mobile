@@ -1580,3 +1580,95 @@ Satellite glyph is corrected to the orbital mark.
 answers "your other tab is working on a request" for a minute or so. Two tabs pointed at the same
 project also show the same chat rather than two, so a second tab buys no parallelism. Work one tab at
 a time and never close it mid-run.
+
+## Hoje's surfaces stop being thin, 2026-08-21
+
+Thomas looked at the rendered Hoje surfaces the last round added and said the move habit drawer is
+very simple, and the one in the shipping code is much better. He was right, and it was not only that
+one. This round read every surface Hoje opens against its real component and raised each to what the
+app already does. Two rounds ran, the design system first and the screens rewire second.
+
+### The design system: two components could not draw the shipping overlay
+
+**`RadioRow` became the system's one single-choice row.** A move target is a single choice, so it is
+this component rather than a second one. It gained `leading` (a 30px slot the caller styles),
+`depth` (20px of indent per level), `meta` (a mono tabular child count), `tag` (one uppercase word,
+so the current parent says so on its own row), and a selected treatment of a 10 percent primary tint
+plus a 1.5px primary ring.
+
+**`disabled` without `reason` is now a type error.** A refused choice that does not say why is the
+defect the round existed to remove, so the contract enforces it rather than the prose asking. That is
+D71 applied a second time. A disabled row renders as a `div`, at 50 percent, with its reason under the
+label.
+
+**The shipping dashed border on the root row was NOT carried across.** In this system an inset dashed
+hairline means `proposed`, and a destination a person picks by hand is not an inferred value. The root
+row stays distinct by its Home glyph, its position above the eyebrow, and its words.
+
+**`Input` gained `trailing`**, because the search field puts a glyph inside the field and there was no
+slot for one.
+
+### The mirrored `_ds` bundle went stale a THIRD time
+
+The brief told the screens round to check the mirror before using the new props and to say so rather
+than work around it. It did: the mirror lacked every new `RadioRow` prop and `Input.trailing`, both
+already live in the source. **The whole mirror was re-synced from source rather than patched.** This
+has now broken or nearly broken three rounds. Treat the mirror as stale by default and check it in the
+same turn that uses a new prop.
+
+### The fourteen surface gaps
+
+**The move sheet** was the worked example and had the most missing: a search field once there are more
+than eight destinations (`SEARCH_THRESHOLD = 8`) with its own no-results line, the root row as its own
+thing above a destinations eyebrow, a real pre-order tree at 20px per level with a child count, a
+current-parent tag, **selection that works at all**, all three refusals from `validateMoveTarget` each
+on its own disabled row, completed one-time habits omitted unless a descendant is still active, and a
+cancel plus confirm footer with a busy confirm. The fixture could not produce a depth refusal, so it
+gained a third level (`house > bath > pia`, `estudos > ingles > anki`) and now produces a real one at
+`maxHabitDepth = 5`.
+
+**The reschedule sheet did not exist.** The document had a comment saying the instance date picker was
+not drawn; there is no date picker in the app. `reschedule-sheet.tsx` is an Astra sheet that proposes a
+whole new plan, in four states, and all four are drawn now.
+
+**Three of five confirm dialogs were missing**, and a fourth had no entry point. Duplicate asks once
+and copies everything the habit holds, rather than opening creation with the name filled in. Skip is
+two questions and three bodies, decided by the habit: a one-off postpones to tomorrow, a flexible habit
+spends a weekly slot, everything else advances the due date. **Log anyway** was unreachable because the
+parent ring was inert; the parent ring is now a control, as `habit-row-trailing.tsx` has it.
+
+**Open the sub habits was an expand, not a drill.** In the app it replaces the list with that parent's
+own list, as a stack, with a back button, a mono done count, a back-to-all-habits line once the stack
+is deeper than one, an add action, and its own loading, failed and empty states.
+
+**Rows reorder by dragging** (`habit-list.tsx:443`) and the drawing had none. The two gestures are now
+separated in words: hold and move reorders, hold still for 500ms selects.
+
+**Both empty states had lost their actions.** No habits shows a body line and two actions, ask Astra and
+create manually. Everything done shows a title, a line, and a route to tomorrow's habits.
+
+**The detail had lost five things**: the interactive checklist with its progress, reset, clear and the
+two questions those raise; the three numbers from `HabitDetailStatsGrid`; the reminders it actually
+holds, read only; the end date; the linked goals; and the month calendar, which answers a different
+question from the fourteen day strip and does not replace it.
+
+**Templates are the person's own**, not a fixed four: save the current items under a name, delete one.
+**Checklist items are editable text** and can be duplicated, not just removed.
+
+**The last offset reminder cannot be removed**, because reminders on with nothing set is a lie. A fixed
+time is added through a form with two chips and a time field, and the duplicate refusal says so.
+
+**Two caps were not drawn**: twenty sub habits and five tags.
+
+### What the round still admits
+
+Two real component defects, both filed in the document's own gaps paragraph rather than worked around:
+`HabitRow` nests its trailing slot inside the row body button, so the ring that logs is a button inside
+a button and the component needs a real trailing action slot; and `ListRow`'s trailing slot rightly
+refuses interactive controls, so the template sheet's per-row delete is composed by hand.
+
+The state axis is now: default, no notice, read only, returning, select, batch failed, loading, no
+habits, all done, error, offline, at limit, conversation, menu, list controls, move parent, parent
+prompt, drill, drill failed, reschedule free, reschedule working, reschedule failed, reschedule plan,
+duplicate, skip, postpone, log anyway, detail, create, create from chat, create proposed, create
+unclear, create at limit.
