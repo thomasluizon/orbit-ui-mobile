@@ -1672,3 +1672,49 @@ habits, all done, error, offline, at limit, conversation, menu, list controls, m
 prompt, drill, drill failed, reschedule free, reschedule working, reschedule failed, reschedule plan,
 duplicate, skip, postpone, log anyway, detail, create, create from chat, create proposed, create
 unclear, create at limit.
+
+### The plan becomes a switch, 2026-08-21 (later)
+
+Thomas opened the reschedule sheet and said: reschedule requires Pro, but there is no selector to tell
+it I am Pro, so I cannot see the real thing.
+
+He was right, and the defect was structural. `CanvasControls` carried four fixed axes, mode, width,
+state and locale, and no way to add a fifth. So a plan gated surface could only ever draw one side of
+its own gate. `menuNode` hardcoded `phase: 'free'`, which meant the only reschedule reachable by using
+the screen was the upsell; working, failed and the plan sat on the state axis where a reviewer had to
+jump to them cold, never arriving through the flow that produces them. The document's own report said
+it "draws the free account throughout", and that sentence was the defect.
+
+**`CanvasControls` gained an optional `plans` axis.** No default: omit it and no segment renders, so a
+screen with no plan gate does not grow a dead switch. It sits after `state` and before `locale`,
+because state and plan are both about the account. The option words are the caller's, and "Pro" is
+never translated.
+
+Hoje passes `plans={['free', 'Pro']}`, defaults to free, and carries `plan` through like locale. Three
+gates now draw from both sides, each traced: **reschedule** (`reschedule-sheet.tsx`) opens on the
+upsell for free and on working for Pro, settling on the plan after a beat, the same transition retry
+takes; **slip alert** (`slip-alert-section.tsx:21`) is the Pro badge row for free and the real switch
+with its shield glyph for Pro; **add a sub habit** (`habit-list.tsx:702`) routes to the upgrade for
+free and opens creation for Pro, in both the row menu and the drill. **The goal link stays ungated**,
+because D70 moved goals out of the paywall and a gate a decision removed does not come back.
+
+### The dead control the axis exposed
+
+With the switch in, the row menu's add a sub habit rendered identically to every other item on a free
+account and swallowed the tap. That is worse than the gate it models. The drill's own add action had
+it right, because `ListRow` has a `trailing` slot and put the Pro badge there; a `Menu` item had
+nowhere to put one.
+
+**`Menu` items gained an optional `badge`**, one short word through the neutral `Badge` at the row's
+inline end. The contract states it: a badged item is a **route, never a dead control**, so it stays a
+real button, fires `onSelect`, and `disabled` is ignored when a badge is present.
+
+All four plan gated taps now leave for `Orbit Pro.dc.html` through one shared route rather than three
+different silences. **A gated tap that does nothing is a dead control** is now a rule the report
+states.
+
+### The mirror went stale twice more
+
+Fourth and fifth time running. Both were caught only because the brief said to check the mirrored
+`_ds` bundle before using a new prop and to say so rather than work around it. Keep that sentence in
+every brief that depends on a contract change.
