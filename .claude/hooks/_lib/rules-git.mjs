@@ -102,16 +102,31 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
    * carried the word and `main` came later on the line (2026-08-22).
    */
   /**
-   * The segment is raw shell text, so a token can arrive quoted. `git "push" origin main` is a
-   * perfectly ordinary push, and comparing the quoted token would read it as a different subcommand
-   * and wave the push through. Strip the quotes git itself never sees.
+   * The segment is raw shell text, but git sees argv. The shell removes quoting and escapes before
+   * git ever runs, so `git "push"`, `git p''ush` and `git \push` are all the same command, and a
+   * guard comparing the raw token reads them as some other subcommand and waves the push through.
+   *
+   * Undo the two transforms that change argv without changing meaning: a backslash escape, then a
+   * quote character ANYWHERE in the token, not only at its boundaries. This is not a shell parser
+   * and does not pretend to be one; it closes the quoting and escaping class, which is what stands
+   * between this guard and an accidental push to main.
    */
-  const unquoteToken = (token) => token.replace(/^["']+/, "").replace(/["']+$/, "")
+  const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
 
-  const gitSubcommand = (segment) => {
+  /** Everything after `git`, normalized to what argv would carry. */
+  const gitTokens = (segment) => {
     const match = segment.match(/\bgit\b(.*)$/s)
-    if (!match) return null
-    const tokens = match[1].split(/\s+/).filter(Boolean).map(unquoteToken).filter(Boolean)
+    if (!match) return []
+    return match[1].split(/\s+/).map(unquoteToken).filter(Boolean)
+  }
+
+  /**
+   * The subcommand and everything after it. Both come from ONE normalized tokenization, because
+   * re-scanning the raw segment for the word `push` misses `git p''ush`, whose quotes sit inside
+   * the token rather than around it.
+   */
+  const gitCommandParts = (segment) => {
+    const tokens = gitTokens(segment)
     for (let index = 0; index < tokens.length; index++) {
       const token = tokens[index]
       if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
@@ -119,10 +134,12 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
         continue
       }
       if (token.startsWith("-")) continue
-      return token
+      return { subcommand: token, rest: tokens.slice(index + 1) }
     }
-    return null
+    return { subcommand: null, rest: [] }
   }
+
+  const gitSubcommand = (segment) => gitCommandParts(segment).subcommand
 
   /**
    * A push lands on the protected branch only when the pushed REF is itself main or master.
@@ -133,12 +150,10 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
    * `origin redesign/main:refs/heads/main` still blocks, because its DESTINATION is main.
    */
   const pushesProtectedRef = (segment) => {
-    if (gitSubcommand(segment) !== "push") return false
-    const pushIndex = segment.search(/\bpush\b/)
-    if (pushIndex === -1) return false
-    for (const raw of segment.slice(pushIndex + 4).split(/\s+/)) {
-      const token = unquoteToken(raw)
-      if (!token || token.startsWith("-")) continue
+    const { subcommand, rest } = gitCommandParts(segment)
+    if (subcommand !== "push") return false
+    for (const token of rest) {
+      if (token.startsWith("-")) continue
       const parts = token.replace(/^\+/, "").split(":")
       const destination = parts.length > 1 ? parts[parts.length - 1] : parts[0]
       if (/^(?:main|master)$/.test(destination.replace(/^refs\/heads\//, ""))) return true
@@ -162,8 +177,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     // A bare push (no explicit main/master ref) issued while HEAD is on the
     // protected branch still lands on main. Resolve HEAD via the injected resolver.
     if (typeof resolveHeadBranch !== "function") continue
-    const afterPush = segment.slice(segment.search(/\bpush\b/) + 4)
-    const positional = afterPush.split(/\s+/).map(unquoteToken).filter((token) => token && !token.startsWith("-"))
+    const positional = gitCommandParts(segment).rest.filter((token) => !token.startsWith("-"))
     if (positional.length > 1) continue
     let branch = null
     try {

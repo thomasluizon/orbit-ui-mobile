@@ -101,6 +101,13 @@ T("git: a quoted push subcommand still blocks", blocks(checkGitCommand('git "pus
 T("git: a quoted main ref still blocks", blocks(checkGitCommand('git push origin "main"')), true)
 T("git: single-quoted push still blocks", blocks(checkGitCommand("git 'push' origin main")), true)
 T("git: quoted bare push while HEAD is on main blocks", blocks(checkGitCommand('git "push" origin', { resolveHeadBranch: () => "main", cwd: "." })), true)
+// The shell removes escapes and embedded quotes before git sees argv, so these are all one command.
+T("git: backslash-escaped push still blocks", blocks(checkGitCommand("git \\push origin main")), true)
+T("git: embedded quotes in the subcommand still block", blocks(checkGitCommand("git p''ush origin main")), true)
+T("git: embedded quotes in the ref still block", blocks(checkGitCommand('git push origin "ma"in')), true)
+T("git: an escaped ref still blocks", blocks(checkGitCommand("git push origin ma\\in")), true)
+// And normalizing must not invent a match where none exists.
+T("git: escaped redesign/main still allows", checkGitCommand("git push origin redesign/\\main"), null)
 T("git: bare push while HEAD is on main blocks", blocks(checkGitCommand("git push", { resolveHeadBranch: () => "main", cwd: "." })), true)
 T("git: bare push while HEAD is on a feature branch allows", checkGitCommand("git push", { resolveHeadBranch: () => "feature/x", cwd: "." }), null)
 T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)
