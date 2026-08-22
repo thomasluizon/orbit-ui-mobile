@@ -113,11 +113,24 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
    */
   const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
 
-  /** Everything after `git`, normalized to what argv would carry. */
+  /** A leading `NAME=value` is an environment assignment, not the command word. */
+  const isEnvironmentAssignment = (token) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
+
+  /**
+   * The git BINARY as a whole token, so `git`, `/usr/bin/git` and `git.exe` all count and
+   * `FOO=git` does not. Matching the first textual `git` instead let an environment assignment
+   * stand in for the command word: `FOO=git git push origin main` read its subcommand as `git`
+   * and the push went unjudged (Pullfrog, PR #743).
+   */
+  const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
+
+  /** Everything after the git command word, normalized to what argv would carry. */
   const gitTokens = (segment) => {
-    const match = segment.match(/\bgit\b(.*)$/s)
-    if (!match) return []
-    return match[1].split(/\s+/).map(unquoteToken).filter(Boolean)
+    const tokens = segment.split(/\s+/).map(unquoteToken).filter(Boolean)
+    let index = 0
+    while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index++
+    while (index < tokens.length && !isGitBinary(tokens[index])) index++
+    return index < tokens.length ? tokens.slice(index + 1) : []
   }
 
   /**

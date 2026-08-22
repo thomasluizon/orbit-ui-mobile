@@ -108,6 +108,12 @@ T("git: embedded quotes in the ref still block", blocks(checkGitCommand('git pus
 T("git: an escaped ref still blocks", blocks(checkGitCommand("git push origin ma\\in")), true)
 // And normalizing must not invent a match where none exists.
 T("git: escaped redesign/main still allows", checkGitCommand("git push origin redesign/\\main"), null)
+// An environment assignment is not the command word. Matching the first textual `git` let one
+// stand in for it and the push went unjudged (Pullfrog, PR #743).
+T("git: env assignment naming git still blocks", blocks(checkGitCommand("FOO=git git push origin main")), true)
+T("git: a PATH prefix naming git still blocks", blocks(checkGitCommand("PATH=/opt/git/bin:$PATH git push origin main")), true)
+T("git: an absolute git path still blocks", blocks(checkGitCommand("/usr/bin/git push origin main")), true)
+T("git: a wrapper before git still blocks", blocks(checkGitCommand("sudo git push origin main")), true)
 T("git: bare push while HEAD is on main blocks", blocks(checkGitCommand("git push", { resolveHeadBranch: () => "main", cwd: "." })), true)
 T("git: bare push while HEAD is on a feature branch allows", checkGitCommand("git push", { resolveHeadBranch: () => "feature/x", cwd: "." }), null)
 T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)
