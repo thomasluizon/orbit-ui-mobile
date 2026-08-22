@@ -60,7 +60,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listLabels,listMilestones,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setStatus,updateBody",
+      "addComment,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listLabels,listMilestones,listProjectViews,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody",
     Object.keys(githubIssues).sort().join(","),
   )
 

@@ -78,6 +78,29 @@ T("git: push to main blocks", blocks(checkGitCommand("git push origin main")), t
 T("git: force push to main blocks", blocks(checkGitCommand("git push --force origin main")), true)
 T("git: force-with-lease to main blocks", blocks(checkGitCommand("git push --force-with-lease origin main")), true)
 T("git: push to a feature branch allows", checkGitCommand("git push origin feature/x"), null)
+// A ref ENDING in /main is a different branch. redesign/main takes direct pushes by convention,
+// and blocking it produced a refusal indistinguishable from a real one (2026-08-22).
+T("git: push to redesign/main allows", checkGitCommand("git push origin redesign/main"), null)
+T("git: push to refs/heads/redesign/main allows", checkGitCommand("git push origin refs/heads/redesign/main"), null)
+T("git: push to refs/heads/main still blocks", blocks(checkGitCommand("git push origin refs/heads/main")), true)
+T("git: HEAD:main still blocks", blocks(checkGitCommand("git push origin HEAD:main")), true)
+T("git: deleting main still blocks", blocks(checkGitCommand("git push origin :main")), true)
+T("git: +main force syntax still blocks", blocks(checkGitCommand("git push origin +main")), true)
+// The destination decides, not the source: this one really does land on main.
+T("git: redesign/main:refs/heads/main still blocks", blocks(checkGitCommand("git push origin redesign/main:refs/heads/main")), true)
+// And the reverse lands on redesign/main, so it is ordinary work.
+T("git: main:refs/heads/redesign/main allows", checkGitCommand("git push origin main:refs/heads/redesign/main"), null)
+// The rule reads the git SUBCOMMAND, not the word push anywhere on the line. A branch name carrying
+// that word blocked its own checkout while `main` sat later on the same command (2026-08-22).
+T("git: checkout of a branch named for push allows", checkGitCommand("git checkout -b chore/x-push-guard main"), null)
+T("git: log naming a push branch allows", checkGitCommand("git log --oneline main..chore/push-guard"), null)
+T("git: -C before push still blocks", blocks(checkGitCommand("git -C . push origin main")), true)
+// The segment is raw shell text, so a token can arrive quoted. Reading `"push"` as a different
+// subcommand would wave a shell-valid push straight through (Pullfrog, PR #743).
+T("git: a quoted push subcommand still blocks", blocks(checkGitCommand('git "push" origin main')), true)
+T("git: a quoted main ref still blocks", blocks(checkGitCommand('git push origin "main"')), true)
+T("git: single-quoted push still blocks", blocks(checkGitCommand("git 'push' origin main")), true)
+T("git: quoted bare push while HEAD is on main blocks", blocks(checkGitCommand('git "push" origin', { resolveHeadBranch: () => "main", cwd: "." })), true)
 T("git: bare push while HEAD is on main blocks", blocks(checkGitCommand("git push", { resolveHeadBranch: () => "main", cwd: "." })), true)
 T("git: bare push while HEAD is on a feature branch allows", checkGitCommand("git push", { resolveHeadBranch: () => "feature/x", cwd: "." }), null)
 T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)

@@ -95,16 +95,67 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // actually have it.
   const segments = scannable.split(/[&|;\n]/)
 
+  /**
+   * The git SUBCOMMAND, read the way git reads it: skip the global options that take a value, then
+   * the remaining flags, and take the first bare word. Keying off the word `push` appearing anywhere
+   * in the segment instead blocked `git checkout -b chore/x-push-guard main`, because the branch name
+   * carried the word and `main` came later on the line (2026-08-22).
+   */
+  /**
+   * The segment is raw shell text, so a token can arrive quoted. `git "push" origin main` is a
+   * perfectly ordinary push, and comparing the quoted token would read it as a different subcommand
+   * and wave the push through. Strip the quotes git itself never sees.
+   */
+  const unquoteToken = (token) => token.replace(/^["']+/, "").replace(/["']+$/, "")
+
+  const gitSubcommand = (segment) => {
+    const match = segment.match(/\bgit\b(.*)$/s)
+    if (!match) return null
+    const tokens = match[1].split(/\s+/).filter(Boolean).map(unquoteToken).filter(Boolean)
+    for (let index = 0; index < tokens.length; index++) {
+      const token = tokens[index]
+      if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
+        index++
+        continue
+      }
+      if (token.startsWith("-")) continue
+      return token
+    }
+    return null
+  }
+
+  /**
+   * A push lands on the protected branch only when the pushed REF is itself main or master.
+   * Matching a bare `/main` substring also caught `redesign/main`, which is an ordinary branch
+   * this repo pushes to by convention, and the refusal was indistinguishable from a real one.
+   * So each positional token is read as git reads it: strip a leading `+` (force), take the
+   * destination of a `src:dst` pair, drop a `refs/heads/` prefix, then compare the whole ref.
+   * `origin redesign/main:refs/heads/main` still blocks, because its DESTINATION is main.
+   */
+  const pushesProtectedRef = (segment) => {
+    if (gitSubcommand(segment) !== "push") return false
+    const pushIndex = segment.search(/\bpush\b/)
+    if (pushIndex === -1) return false
+    for (const raw of segment.slice(pushIndex + 4).split(/\s+/)) {
+      const token = unquoteToken(raw)
+      if (!token || token.startsWith("-")) continue
+      const parts = token.replace(/^\+/, "").split(":")
+      const destination = parts.length > 1 ? parts[parts.length - 1] : parts[0]
+      if (/^(?:main|master)$/.test(destination.replace(/^refs\/heads\//, ""))) return true
+    }
+    return false
+  }
+
   // Each push in a chained command is judged on its own target. An early push to
   // an unprotected sibling repo must never vouch for a later push to a protected
   // main, and a protected push must not be blamed for a `main` ref belonging to a
   // different segment.
   for (const [index, segment] of segments.entries()) {
-    if (!/\bgit\b[\s\S]*\bpush\b/.test(segment)) continue
+    if (gitSubcommand(segment) !== "push") continue
     const targetDir = pushTargetDir(segments, index, cwd)
     if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
 
-    if (/\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+|-\S+\s+)*push\b[^&|;\n]*[\s:/](?:main|master)(?=$|[\s:])/.test(segment)) {
+    if (pushesProtectedRef(segment)) {
       return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
     }
 
@@ -112,7 +163,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     // protected branch still lands on main. Resolve HEAD via the injected resolver.
     if (typeof resolveHeadBranch !== "function") continue
     const afterPush = segment.slice(segment.search(/\bpush\b/) + 4)
-    const positional = afterPush.split(/\s+/).filter((token) => token && !token.startsWith("-"))
+    const positional = afterPush.split(/\s+/).map(unquoteToken).filter((token) => token && !token.startsWith("-"))
     if (positional.length > 1) continue
     let branch = null
     try {

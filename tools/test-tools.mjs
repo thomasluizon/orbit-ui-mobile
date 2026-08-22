@@ -72,6 +72,7 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
 const CASE_MODULES = [
   ["android-emulator.mjs", "android-emulator"],
   ["arch-map.mjs", "arch-map"],
+  ["board-view.mjs", "board-view"],
   ["capture-surfaces.mjs", "capture-surfaces"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-push-target.mjs", "check-push-target"],
@@ -128,6 +129,7 @@ const INVALID_INPUT = {
   "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "board-view.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
