@@ -1718,3 +1718,563 @@ states.
 Fourth and fifth time running. Both were caught only because the brief said to check the mirrored
 `_ds` bundle before using a new prop and to say so rather than work around it. Keep that sentence in
 every brief that depends on a contract change.
+
+## The other twenty screens, 2026-08-21 (session 2)
+
+Hoje's surfaces were raised in the last session. This one runs the same pass over the other twenty
+documents: read each surface against the real shipping component and raise it to what the app already
+does. A surface that exists but is thinner than the shipped one is the same defect as a missing one.
+
+### The design system first: the two row defects the last round filed and did not fix
+
+**`HabitRow` now has a real trailing action slot.** Its `trailing` node used to render INSIDE the row
+body button, so the ring that logs a habit was a button inside a button and every screen composed
+around it. The node now renders as a SIBLING of the body button, so a caller can never nest a control
+in a button again, and `onLog` makes the ring a real 44px button with the same treatment the overflow
+menu has. `logLabel` is REQUIRED with `onLog` at the TYPE level, a three way union on the props, not
+a `console.warn`: that is D71 a third time. `onMenu` and `menuLabel` became the same kind of pair in
+the same edit. `habit-row-trailing.tsx` in the app had it right all along, with the check circle a
+sibling of the row body.
+
+**`ListRow` now has a per row action.** Its `trailing` slot rightly refuses interactive controls, so
+a list whose rows each need a delete had nowhere to put one and composed it by hand, twice. `action`
+takes one object of `icon`, `label`, `onPress` and `danger`, renders as a real 44px sibling button
+after `trailing` and before the chevron, and `label` is required by the object's own type so an
+unnamed icon button cannot be constructed. `readOnly` with `action` is a type error: an action beside
+a row that says it cannot be acted on contradicts the only thing `readOnly` says.
+
+The caller sweep ran in the same turn, by script: 10 call sites, 2 `HabitRow` and 8 `ListRow`, none
+broken by the new contracts.
+
+### Habit Detail and Habit Create, reconciled with Hoje
+
+These two ran first and together, because Hoje now draws its own detail and create states and the two
+standalone documents draw the same surfaces. The standalone is the authority for the whole surface;
+Hoje's state is that same surface reached from Hoje. Eleven disagreements were settled on the detail,
+and the create document turned out to be drastically the thinner of its pair: four fields in its
+disclosure against Hoje's ten real sections.
+
+**The strip is 30 days on both.** Hoje drew 14, which has nothing behind it; Thomas ruled 30 on
+2026-08-20 so the picture and the rate beside it describe one window.
+
+**The frozen day left the habit's strip.** Hoje's detail drew a snowflake cell, composed by hand
+precisely because `DayStrip`'s habit scope refuses `frozen`. `StreakFreeze.Create(Guid userId,
+DateOnly date)` marks a user and a date and carries no habit id, so a snowflake inside one habit's
+history asserts something the code cannot produce.
+
+**The three numbers are the shipping three**, `HabitDetailStatsGrid`: the current streak or days free
+on a habit to avoid, the longest streak, and the 30 day rate, which IS `monthlyCompletionRate`
+(`HabitMetricsCalculator.cs:29`). The detail document had drawn the last logged day, a real field the
+app does not show here. All three of the grid's states carry across, including the one centred no
+data line rather than three zeros, and the whole grid renders only when the habit has a frequency or
+is a general one.
+
+**Two capabilities were found lost, the seventh and eighth of this run.** The shipping detail header
+draws every TAG (`habit-detail-header.tsx`) and neither document drew any; they come back as plain
+word pills with no colour dot, because colour as data is dead (`DESIGN.md:737`) and that half is a
+decision. And `habit-form-fields.tsx:242` renders `HabitEmojiSelector`, which no document in the
+project drew at all: the emoji well is now the control, opening a search that clears, the eleven
+categories from `habit-emoji-options.ts` and a grid, on the detail and on creation.
+
+**The detail's editable half is creation's field set.** `edit-habit-modal.tsx:262` renders the same
+`HabitFormFields` creation renders, so the redesign's merge of detail and edit means one disclosure
+holding creation's ten sections, not a smaller second version of four of them. The checklist is ONE
+list with two jobs: interactive in the open part, creation's editable one while the disclosure is
+open, never both drawn at once.
+
+**The goal progress stepper is deleted from the habit detail.** The app shows linked goals as plain
+rows here and D69 item 8 gave goals to Progresso. The reasoning that produced the stepper, only
+`GoalType.Streak` derives and everything else moves by hand, moved to Progresso's round with `#340`.
+
+**The reset rule got its condition.** `Habit.cs:186-190` resets the checklist on a log only when the
+habit has a frequency, is not flexible, and the due date advances. A flexible habit's list does not
+reset, and the line now says so only where it is true.
+
+**Creation lost the microphone and gained the fallback ask.** The create field reserved 60px for a
+mic; `use-speech-to-text.ts` is imported by the chat composer, the copilot rail and the composer
+hook, and by nothing under `components/habits`, so the control was drawn for a capability this screen
+does not have. Hoje's create, meanwhile, had no explicit ask Astra fallback and no cost line, which
+is the round 3 ruling about what actually spends a message; it has both now.
+
+Both screens carry the plan axis. The detail has three gates (reschedule, add a sub habit, the slip
+alert), creation has one (the slip alert), and the goal link stays ungated on both sides.
+
+### Perfil
+
+Five capabilities were lost and three documents were unreachable. **The display name is editable**
+(`edit-name-sheet.tsx`) and the report had written its absence up as if a decision caused it; nothing
+did. **Theme is a real setting**, `themePreference` written through `/api/profile/theme-preference`,
+with exactly two values (`themeModeSchema`), so without it nobody could choose light or dark
+anywhere. **Show general habits on Hoje**, **export my data** and **fresh start** were all real and
+all missing, and the export was already named in the screen's own composer chips.
+
+**The API keys row was one row where the app has a section.** `advanced/page.tsx:81-110`: a Pro badged
+heading, a lock row that routes for a free account, and for a Pro account the step up, the key list
+with a per row revoke and its confirmation, create, scoped create and the MCP connection line. The
+per row revoke is the first caller of `ListRow`'s new `action`.
+
+**Three documents stopped being dead ends.** `PROFILE_NAV_ITEMS` is the app's own list of where
+Perfil goes. Preferences and ai-settings fold into Perfil, achievements went to Progresso and the
+retrospective into Astra's line, which accounts for four; the other four, Wrapped, about, the Android
+widget and calendar sync, had no route anywhere in the project. A fifth group holds them, plus
+support, which routes to the conversation because support runs through Astra's own tool.
+
+`free` and `pro` came OFF the state axis in the same edit that added the plan axis.
+
+### Progresso
+
+It composes three screens and was thinner than all three.
+
+**The streak gained the shipping figures**: the longest streak and the tier beside the current
+number, the timeline's three word legend, and the freeze bank as `FreezeProgressCard` draws it,
+banked over the ceiling of 3, used this month, and the days toward the next freeze as a bar. The
+protected days list and the frozen banner came with them. The automatic freeze explainer stays
+deleted, because D69 item 10 replaced it with a repair.
+
+**One of the document's own claims was false.** Its open question said an abandoned goal cannot be
+reopened because no restore path exists. `goal-action-footer.tsx:55` renders
+`goals.detail.reactivate`, `UpdateGoalStatusCommand.cs:44` runs `goal.Reactivate()`, and
+`RestoreGoalCommand.cs` is its own command. That is the second time this run a document asserted an
+absence that was not real, and both were caught by checking rather than by reading the document. It
+also claimed today can never be frozen, which contradicted the frozen banner the app mounts.
+
+Goals gained their four status views, the filter empty case, reordering by dragging, the goal's own
+progress history, the linked habits section, and the rest of the footer. Achievements are grouped by
+category, as `achievements/page.tsx:96-99` groups them, rather than one flat grid. XP and levels stay
+exactly as Thomas ruled on 2026-08-20.
+
+### Calendario
+
+**One view where the app has four.** `apps/web/app/(app)/calendar/page.tsx:56` declares
+`'month' | 'week' | 'range' | 'agenda'` and `:253-260` builds the switcher; the drawing had month.
+Week over the time grid, range with its own header, and agenda are all real components. **The agenda
+is drawn at both widths**, against the app, which folds it back to month below the breakpoint
+(`:77,:259`): a whole view is not one of the three sanctioned layout shell divergences, so that gate
+is a parity defect the code should lose, and the report says so.
+
+Also missing and now drawn: the three shipping tiles (best streak, total logs, missed, `:244-251`)
+against the two the drawing had invented, the recurring toggle, paging by swipe as well as by the
+chevrons, the day panel's route into Hoje (`calendar.goToDay`), the inline day panel at the wide
+width, and **the bad habit vocabulary**: `calendar-day-detail.tsx:74-79` reads a completed bad habit
+as indulged and a missed one as resisted, so the drawing's day panel had been saying the opposite of
+what the app says for those rows.
+
+The gaps paragraph also carried a stale claim, that neither `ListRow` nor `DayCell` has a trailing
+status slot. `ListRow` has one and its contract names this exact case.
+
+### The composer gains the half it was missing
+
+A second design system round, because the conversation uses the same `Composer` the shell does and
+the shipping `chat-composer-bar.tsx` does three things it could not.
+
+**Voice**, as `onVoice` with a required `voiceWords` pairing and two new states, `recording` (the
+field replaced by a live row, a running mono time, the stop control carrying the accent) and
+`transcribing` (the same row, the stop inactive and neutral). The contract states that **speaking
+spends nothing from the daily allowance**, with `ChatController.cs:107` beside it, so no caller
+writes a cost line next to a microphone the way two screens did before.
+
+**Attachments**, as `onAttach` with a required `attachWords` pairing, a file and an image control
+that go unavailable while offline, and a pending tray with a named remove per item. `attachments`
+without `onAttach` is a type error.
+
+**Offline gains its way back**, `onRetry`, valid only in the offline state, and passing it narrows
+`words` to require the retry word.
+
+Every new vocabulary is its own object tied to its own handler, so no existing caller broke and no
+sweep was forced.
+
+### Astra Conversation
+
+**A whole block was missing.** `goal-list-card.tsx` is real, rendered by `message-bubble.tsx:165-166`
+off `message.goalList`, and `[[orbit:goals]]` is D69's third directive token. The document drew five
+blocks and not the sixth. It now draws goals through the same `BlockFrame`, with its percentage, its
+progress line, its deadline and its own empty line, and a goal row opens the goal exactly as a habit
+row opens the habit (`chat/page.tsx:208,214`).
+
+The composer gained all three shipping capabilities above, and **the empty state arrived**: the
+title, the prompt over the suggestions, and `aiDisclosure.notMedicalAdvice`, the one line saying what
+Astra is not, at `--fg-4` and never styled as a warning.
+
+**At limit free and at limit Pro came off the state axis**, replaced by the plan axis and one at
+limit state that reads its ceiling from the plan. The report states why this screen carries a plan
+axis and still has no upgrade route anywhere: Astra never pitches the paywall, so the axis exists to
+draw the two ceilings honestly and not to add a gate.
+
+### Busca
+
+**The palette has a second page and the drawing had none.** `command-menu.tsx:15` declares
+`type CommandPage = 'log' | 'skip'`: choosing log or skip does not act, it opens a second page
+listing the habits to act on, with a back out of it (`:155`) and the page's own label in the field's
+chrome (`:113`). The drawing's single "log everything for today" was an action the palette never
+performs.
+
+Four groups, not three (`:194,:209,:224,:122`), with the habit group's loading skeleton; the row of
+keyboard hints rather than one escape line; and the empty line the app draws when nothing matches at
+all. **Create goal does not come across**, because D69 item 9 removed the create goal entry, and that
+half is a decision.
+
+The search field is now `Input` with its `trailing` slot on both surfaces, so the search field is one
+object across the product and the gap claiming forms has no search field is gone.
+
+### Avisos
+
+The drawing could read a notification and do nothing else with it. Three capabilities came back.
+**A notification opens into its own sheet** (`notification-detail-modal.tsx:54-64`): the timestamp
+eyebrow, the body in full, and view, mark as read and delete. **A row can be deleted and the delete
+can be undone**: `notification-bell.tsx:186-192` does not delete, it queues through
+`lib/pending-notification-deletes.ts`, hides the row at once and raises a toast whose undo cancels
+it, which is exactly the shape `Toast` exists for. **The whole list can be cleared**, asking first.
+
+### Sobreposicoes
+
+Its row menu was the old eight item list, two rounds behind Hoje's, which had been corrected against
+both platforms. It now draws Hoje's menu item for item, including **move parent**, **reschedule**
+only on an overdue row (`habit-list.tsx:906`) and **open sub habits**, with log and view details
+still absent because the ring logs and the row body opens the detail. Add a sub habit carries
+`Menu`'s `badge` and routes on a free account, so the document gained the plan axis.
+
+### Assinatura
+
+**One line in it was false.** It said the receipts stay with the provider.
+`upgrade/billing-dashboard.tsx:190-238` lists the invoice history IN the app, with a download on each
+row, four reasons (created, cycle, updated, manual) and three statuses (paid, open, void). The
+history is drawn now, with the download as `ListRow`'s per row action.
+
+Also lost and now drawn: the payment method with its card, expiry and change action (`:133-159`), the
+**canceled** and **past due** plan states with their badges and their own line (`:105,:108,:115`),
+the usage figure the subscription buys (`upgrade/usage-stats.tsx`), a billing LOAD failure with its
+retry (`:81-89`) which the document's own report said was a different thing from a failed portal and
+then did not draw, and the Play variant's renewal date.
+
+The lapsed state's subscribe again button was wired to a no-op. It leaves for `Orbit Pro.dc.html`
+now, and the report says plainly that Pro and Assinatura are the two halves of one route
+(`upgrade/page.tsx:95` against `:123`), which is why neither grows a plan axis.
+
+### Pro
+
+**The trial state said something the line above it contradicted.** The trial notice states that the
+50 messages a day are already on, and the display headline directly under it offered ten times more
+Astra. That is exactly the defect Thomas ruled on for the headline on 2026-08-20. The app has two
+headings for this reason (`pricing-section.tsx:49`), and the trial state now carries its own: the
+arithmetic from the other direction, what happens when the trial ends.
+
+The eyebrow has three variants in the app and one in the drawing (`:40-47`), and the missing one is
+**the last day**, its own string rather than a count of one. It is now on the state axis.
+
+Five reassurance lines were simply lost, and two of them are what a person looks for before they pay:
+the promise, the trust line (shown only outside a trial), **cancel anytime**, **the renewal note**,
+and the annual tier's hero line.
+
+Three places where the app and the drawing disagree stay as drawn, because a decision put them there:
+one CTA verb on every tier, free as a link rather than a card, and no feature matrix.
+
+### What the mirror did this session
+
+It went stale a **sixth** time (both row contracts) and a **seventh** time (the whole composer voice,
+attachment and retry contract). Both were caught only because every brief carried the sentence
+telling the round to check the mirror before using a new prop and to say what it found. Five later
+rounds checked and found it clean. Keep the sentence in every brief that depends on a contract
+change.
+
+### Three false absences, all found by checking rather than by reading
+
+A document asserting that the code cannot do something has now been wrong three times in this run:
+Avisos claimed no endpoint exposes mark all read, Progresso claimed no restore path exists for an
+abandoned goal (there are two) and that today can never be frozen (the app mounts a banner for it),
+and Assinatura claimed the receipts live with the provider (the app lists them in the app). None of
+the three was caught by reading the document. All three were caught by opening the file the sentence
+was about. **Treat every "the code does not do this" sentence as a claim to verify, not as context.**
+
+### Where this session stopped
+
+Twelve documents landed, plus two design system rounds: Habit Detail, Habit Create, Hoje, Perfil,
+Progresso, Calendario, Astra Conversation, Busca, Avisos, Sobreposicoes, Assinatura and Pro.
+
+**Nine documents still need the pass**, in this order:
+
+1. **Onboarding, Wrapped.** Wrapped is blocked as a feature by `#341` but its drawing can still be
+   raised. Onboarding was corrected in round 1 and is the least likely to be thin.
+2. **Entrar, Verificacao, Sobre, Estados, Celebracao, Offline, Widget Android.** Estados carries a
+   known false claim already recorded: it says the version numbers and the reference code carry
+   `data-mock` when only the countdown does.
+
+Two component defects were closed this session (`HabitRow`'s trailing action slot, `ListRow`'s per
+row action) and one whole contract was added (`Composer`'s voice, attachments and retry). No
+component defect is open. That is not a reason to assume the nine remaining documents need none: the
+pattern all session has been that a screen needs a contract the system does not have yet, and the fix
+belongs in the design system project first, as its own turn.
+
+**The recipe that worked**, for whoever runs the next session: read the screen document through the
+MCP, list every surface it draws, open the shipping component behind each one, and write the brief as
+a list of what the app has and the drawing does not, each item with its file and its line. Then a
+short list of what stays and why, then the rules. Put the mirror sentence at the top. Run
+`node tools/check-dashes.mjs --files <brief>` before sending and read the document back through the
+MCP afterwards rather than trusting the self check, which reported nothing three times on 2026-08-21.
+
+## The last nine screens, 2026-08-21 (session 3)
+
+The same pass over the nine documents session 2 left: Onboarding, Wrapped, Entrar, Verificacao,
+Sobre, Estados, Celebracao, Offline and Widget Android. Read each surface against the real shipping
+component and raise it.
+
+### The design system first: two contracts the screens needed and did not have
+
+**`Input` gained its multiline half.** Three screen documents needed a multiline field and none
+could ask for one, so each composed a raw `<textarea>` with hand written token styles: Hoje, Habit
+Create and Onboarding, twice each, six hand built fields for one missing prop. Two of them also draw
+the words the schedule parser consumed, marked inside the person's own sentence, by painting an
+aria-hidden `<p>` under a transparent `<textarea>` with every font, size, line height, padding,
+radius and wrap declaration duplicated so the marks land under the right characters. One divergent
+value slides the marks off the words silently. That is D71 again: the rule lived in nobody's
+contract.
+
+`multiline` is a `true` only literal, the way `Sheet.open` is. `rows` and `marks` are valid ONLY
+with it, and `marks` without `multiline` is a TYPE ERROR. `marks` takes `[start, end]` ranges into
+`value` and requires `marksLabel`, because the mirror is aria-hidden and without a name the marks
+exist for a sighted person and for nobody else. A range past the end of `value` is clamped rather
+than thrown. `maxLength` sits on the base, with the app's own `MAX_HABIT_TITLE_LENGTH` cited beside
+it and no counter drawn. The mirror and the field are ONE box from one style declaration, laid out
+from inside the component, so no caller can set one and not the other. The scripted sweep found 8
+`Input` call sites and 0 broke.
+
+**Both shells typed their pinned bottom slot for the two shapes it really has.** The `composer` slot
+said "the composer and nothing else" in prose, and Onboarding already broke it at both widths,
+because a flow with no composer still needs a pinned forward action and the shells offered no other
+way to pin one. D69 says the composer is present on every DESTINATION, and `nav: false` already
+means "a flow that owns the whole screen". So with `nav` on the slot is `composer` and `action` is
+rejected; with `nav` off the slot is `action` and `composer` is rejected, because a flow that owns
+the screen has no front door to pin. `notice` keeps working on both, which is what it exists for.
+The scripted sweep found 6 shell call sites and 0 broke.
+
+### Wrapped
+
+**The entry screen was missing entirely.** `wrapped/page.tsx:32-41` renders a cover BEFORE the
+player and `wrapped-cover.tsx` is the whole of it: the ring motif, the title, the period chips, one
+Start action, and four states around it, loading, failed with a retry, empty, and ready. The drawing
+opened straight on page 1, so it could not show the load failing, could not show a period with
+nothing in it, and had nowhere to choose the period. **The period was pinned to one month** and
+`RECAP_SHARE_PERIODS` is week, month and year, chosen on the cover, so the eyebrow, the period line
+and every page's words now follow the choice. The API knows FIVE periods, adding quarter and
+semester, and two have no chip anywhere in the app; that is now an open question rather than an
+invented chip.
+
+**Two real pages were missing and the page count was a constant.** `buildWrappedSlides:28-46` builds
+intro, completions, active days, consistency, streak, the top habit when the period has one, and
+share. Active days carries the completion rate in its line. The top habit is the only page in the
+whole screen that names one of the person's own habits, and it exists only when the period has one,
+so the count is seven or eight rather than five and `Pager` takes the real one. The streak page
+draws TWO numbers, the best streak as the figure and the current one in the line.
+
+**The player could not be driven the way the app drives it.** Tap zones over the page, a left zone
+disabled on the first page and a right zone twice its width, both gone on the last page so the share
+is never under an invisible button; the arrow keys and Escape; and focus landing on close when the
+player opens. `Pager` stays at the foot carrying the same paging, which is the recorded decision, and
+the zones and the keys sit on top of it as one action.
+
+**The save is not a fallback.** `wrapped-slide.tsx:236-260` draws share and download SIDE BY SIDE,
+with download becoming the filled action where the platform cannot share files. The drawing had
+treated saving as a state reached only when the share sheet was unavailable.
+
+**The share IS the referral loop and the drawing never said so.** `GetRecapQuery.cs:57` builds the
+shared link as `{BaseUrl}/r/{referralCode}?recap={period}` and generates the code if the person has
+none. The card carries a picture and the share carries an invitation.
+
+**One sentence in the report was false and it decided the plan axis.** It said the retrospective's
+Pro gate stood between people and Wrapped. That gate is real, `PayGateService.cs:141`, and it has
+exactly ONE caller, `GetRetrospectiveQuery.cs:58`. Wrapped calls the recap, whose handler carries no
+gate at all and whose own comment says "Free / ungated", `GetRecapQuery.cs:28`. Wrapped is free
+today, so it carries NO plan axis, and access outside the Pro gate came off the `#341` list because
+it is already true. That is the fourth false claim of the run.
+
+**Empty and thin are two different things.** `isRecapShareEmpty` is no completions AND no active
+days, and the app refuses to start the player at all in that case, so empty lives on the cover and
+thin runs the player.
+
+**Three documents disagreed about how a person reaches it.** This report said it had no entry; the
+Perfil round added a row on the grounds that it had no route anywhere; the app reaches it from the
+retrospective surface with its back going to the profile. All three routes are stated now, with the
+2026-08-20 decision named as the authority for which is primary.
+
+### Onboarding
+
+**Three ways out of the flow were missing.** `onboarding-flow.tsx:299-301` renders a back link on
+every step after the first and `:83-95` walks the flow backward. `:265-267` renders a skip on every
+step except the last, and `:130-134` sends it to the end. `:248-264` draws the mono position
+counter, `:289` the dots and `:290-296` an sr-only `progress` element. The drawing had none of the
+three, and its own test 1 asserted the flow could not end without a habit, which described a trap:
+the first step's action is disabled while the field is empty, so a person who did not want to type a
+habit had no way out of the app's first screen. All three came back, with the counter over three
+steps rather than eight, and test 1 was replaced by one the app can pass.
+
+**The flow has two entrances and two endings and the drawing had one of each.** Signed in it is an
+overlay over the app (`(app)/layout.tsx:380`); signed out it is a route (`onboarding/page.tsx:13`)
+where every answer is buffered on the device (`onboarding-actions-context.tsx:96,133`), the last
+step's words become the save your plan words (`onboarding-complete.tsx:102-109`), it routes to
+`/login?from=onboarding` (`:134`), the habit is written to the account after sign in
+(`use-onboarding-flush.ts:38`), and the first step carries a sign in link
+(`onboarding-welcome.tsx:141-145`). That is the whole path from the landing page. It is a state now,
+and its ring is not a control, because no habit exists on the server yet.
+
+**Signed out, Astra cannot read the sentence at all.** `ChatController.cs:18` is `[Authorize]` for
+the whole controller, so the pre auth flow has no model call and the schedule is not proposed: the
+day pills and the time field carry the second decision, which is the shape the drawing already had
+for `at limit`. Two different reasons reach one drawing.
+
+**Creating the habit can fail and the permission ask has four outcomes, not two.**
+`onboarding-create-habit.tsx:95-99` catches the failure, `:74-85` validates, `:182` caps the title.
+`apps/mobile/hooks/use-push-notifications.ts:418-440` is the real permission shape: granted,
+refused, `canAskAgain === false` where the system will not ask again, and a registration that fails
+after permission was given; `push-prompt.tsx:46` does not ask at all once the browser has denied and
+`:101-103` sets a retry hint. Three states were added, and in two of them the drawing's allow button
+had been a control that could not do anything.
+
+**The shell was drawn by reaching into it, twice.** The document hid the sidebar with a stylesheet
+rule matching a class name, and rode the composer slot with each step's forward action. Both shell
+contracts now cover it: `nav={false}` for the three decisions and `action` for the pinned forward
+action, with `items`, `activeId`, `navLabel`, `account` and `onPalette` rejected rather than passed
+as null. At the last step navigation returns, which makes it a destination, so its action moves into
+the content column: the type is what settles that, not prose.
+
+The report's mock line undercounted by one, and its claim that the feature guide was deleted was
+taken out, because the guide is About's surface and not onboarding's. No plan axis: D69 item 17 says
+there is no paywall in onboarding at all.
+
+### Entrar and Verificacao
+
+Both had their numbers right and both were missing whole halves of what ships.
+
+**Entrar gained the referral banner** (`use-login-flow.ts:60`, `login-sections.tsx:93-133`), which is
+where a shared Wrapped link lands, with words that promise nothing to an existing account because
+the referral applies only to a new one (`VerifyCodeCommand.cs:100-101`). It gained **the arrival from
+onboarding**, where the heading, the subtitle, the waiting habit count and the button's word all
+swap; **the arrival from a link**, which opens on the code step with the six digits already filled
+(`use-login-flow.ts:78-86`); **the legal line** (`email-step.tsx:91-110`); **the confirmation that a
+code was sent** (`:117,:174`); **the returning deleted account** being told it is back
+(`login-form-helpers.ts:110-112`); **a send failure** that is one shape for a rate limit, a server
+error and a network error alike; and **a Google failure**.
+
+**One open question was answerable and its answer changed the drawing.** It asked whether the lock is
+per identity or per device and withheld the change of address while locked. `VerifyCodeCommand.cs:90`
+keys the counter `verify-attempts:{email}` and nothing else, with the 15 minute window at `:87`. The
+lock is per email address, so changing it works and the action stays. That is the fifth false
+absence of the run. The report also records a defect that stays in the code rather than the drawing:
+`use-login-flow.ts:96-99` shows one failure twice, inline and as a toast.
+
+**Verificacao had no success state, and success is the whole point of the screen.** The confirm does
+not delete: `ConfirmAccountDeletionCommand.cs:41-51` deactivates with a date seven days out, or seven
+days after the plan expires for Pro (`:44-46`), capped at 30 (`AppConstants.cs:44`), and returns that
+date. Two states now carry it, with the date, the fact that signing in before then brings the account
+back, and the sign out the app performs.
+
+**Its exhausted state offered the one action that cannot work.** The attempt counter is
+`delete-attempts:{email}` over a rolling 15 minutes (`ConfirmAccountDeletionCommand.cs:68,:64`), so a
+new challenge does not restore the attempts and starting again from Perfil inside that window hits
+the same wall. The state now states the wait and offers no action that would be refused. Its open
+question, whether the attempts are per challenge or per hour, was answerable and the answer is
+neither: per email address, over 15 minutes. That is the sixth. Two dead controls, the cancel link
+and the route back, became real routes, and the challenge now arrives with its 60 second cooldown
+already running, because the screen is opened by the send.
+
+### Sobre
+
+**The feature guide was deleted citing a decision that does not exist.** The report said D69 deleted
+it. D69 does not mention the feature guide anywhere; its item 17 deletes the onboarding tour, the
+preference quiz and the goal survey. The guide is About's own drawer, opened from About's first row
+on both platforms (`about/page.tsx:58-63,:84`; `apps/mobile/app/about.tsx:63-68,:87`). That is the
+seventh false claim of the run, and the row is back, first, restoring the shipping order.
+
+**Two facts had no producer.** The app shows the version and nothing else, from `packageJson.version`
+and `Constants.expoConfig?.version`; there is no build number on either platform, so the build line
+is gone. **The support success invented a reference number**, and nothing returns one, so it is gone
+too. The support screen gained the draft that survives leaving the screen
+(`support/page.tsx:46-54,:23-39,:75`) and the offline refusal (`:57`), and its message field became
+`Input` with `multiline` and six rows, which is exactly what the app uses.
+
+A second pass fixed two more: one guide entry said tapping the widget's ring logs the habit, which
+contradicts both the widget's code and Thomas's 2026-08-20 decision, and two guide subjects had been
+dropped whose surfaces are alive, the MCP and API keys subject and the XP, achievements and streak
+freeze subject.
+
+### Estados
+
+**The recorded false mock claim was already fixed**, and checking said so rather than changing
+anything: all four numbers carry `data-mock`.
+
+**The update gate has two independent sources and the drawing knew one.** The server gate is the one
+it had: `MinimumVersionMiddleware.cs:26,:41,:53-63` answers 426 with `minVersion`, web draws a
+dismissible banner and mobile a non dismissible blocker. The store check never touches the API:
+`use-version-check.ts:41` asks Google Play and `:49` the iTunes lookup, and two more mobile shapes
+come from it, a forced update at Play priority 4 or higher (`:88`) which is Play's own screen, and a
+**soft update** that is dismissible (`version-update-drawer.tsx:77`), now its own state. The report
+also records that the server gate is fail safe and currently OPEN: an unparseable header is allowed
+and the floor defaults to `0.0.0`.
+
+**The throttle response says more than the report claimed.** `DistributedRateLimitAttribute.cs:73-97`
+sends `Retry-After`, `retryAfterUtc`, `limit`, `count` and `requestId`. The screen still shows only
+the countdown, but now as a choice with its producer named, and the open question about backgrounding
+is answered by `retryAfterUtc` being absolute. The reference code's producer is named, the not found
+mark divergence from the shipping satellite glyph is stated, and every dead action became a real
+route or a real state change.
+
+### Celebracao and Offline
+
+Both confirmed the `notice` slot fix held: the panel and the toasts ride `notice` and the composer
+stays beside them.
+
+**Celebracao said the celebrations never queue, and they do.**
+`packages/shared/src/stores/celebration-queue.ts:70-80` gives every kind a priority, `:82` orders by
+it, and `:184` queues behind whatever is active. Its open question said the event stream cannot order
+them; the order has been in shared code all along. That is the eighth. A `queued next` state draws
+it, and closing the first panel promotes the second. **Four triggers is confirmed as a decision**, not
+an omission: `CelebrationKind` has five and D69 item 11 names four, so the achievement panel stays
+out and the report says so, with `StreakMilestoneTiers` named as 7, 14, 30, 90, 100 and 365.
+
+**Offline called every queued change a log, and the queue holds about fifty mutation types**
+(`packages/shared/src/types/sync.ts:3-13`), from creating a habit to changing the time zone. The
+toasts count changes now. A missing state came back: `sync.ts:37` has `pending`, `syncing` and
+`failed`, and a failed change stays IN the queue and retries, which is the common case and must never
+read like the dropped one. **Its open question about how long a change is held is answered in the
+client**: `maxRetries` is 3 and `offline-mutations.ts:342-346` drops on the third failure. That is the
+ninth. One refusal sentence is now marked web only, because `createHabit` is a queued type on mobile.
+
+### Widget Android
+
+`#343` stays flagged exactly as it was. Six things the widget does were missing: **the header's second
+line**, the completed over total figure that is the surface's only progress number and is empty until
+the first sync (`OrbitWidgetProvider.kt:102-107`); **the tomorrow day label**
+(`OrbitWidgetService.kt:368-372`); **a bad habit row**, which is drawn and never counted, because a
+slip is not a completion (`:377-386`); **the whole card as one tap target**, not only a row
+(`OrbitWidgetProvider.kt:150-155`); and **the refresh failing** (`OrbitWidgetService.kt:340-348`).
+The signed out state had a Sign in button the widget does not have and cannot honour; the app's own
+words are "Open Orbit to sign in" and the card is the only control.
+
+**The document's central claim was half wrong.** RemoteViews cannot read a CSS custom property, but
+the widget still FOLLOWS Orbit's tokens: the app syncs the resolved colours into shared preferences
+and the widget reads them back per scheme and mode (`OrbitWidgetService.kt:148-153`). The literals are
+the flattened results of that sync, and the hardcoded map is only the first paint, which is STALE: it
+still carries the pre redesign purple, so a freshly added widget paints the old brand until the app
+syncs. That is recorded as work the implementation owes.
+
+### What the mirror did this session
+
+It went stale an **eighth** time, and the sentence telling each round to check it before using a new
+prop and to say what it found caught it again. The round re-synced the whole bundle and verified both
+new contracts before use. Five later rounds checked and found it clean.
+
+### Six more false claims, all found by opening the file
+
+The count is now nine across the run. This session added: Wrapped's Pro gate (the gate's one caller
+is the retrospective), Entrar's per device lock (it is per email), Verificacao's unanswerable attempt
+window (per email over 15 minutes), Sobre's D69 deletion of the feature guide (D69 never mentions
+it), Celebracao's unordered event stream (there is a priority queue in shared code), and Offline's
+unbounded queue (three retries, then dropped). None was caught by reading the document.
+
+### Where this run stands
+
+All 21 screen documents have now had the pass. Three design system contracts landed this session:
+`Input`'s multiline half, and both shells' pinned bottom slot typed for a destination and for a flow.
+No component defect is open.
+
+**Verification:** every one of the nine was read back through the MCP after its round. The canvas
+self check stayed silent on Onboarding and on Entrar, which is why the read back is the protocol and
+not the self check.
