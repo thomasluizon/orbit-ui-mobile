@@ -396,6 +396,55 @@ export const editLabels = async (number, { add = [], remove = [] } = {}) => {
 }
 
 /**
+ * Adds or removes blocked-by relations on one EXISTING ticket. createTicket writes blockers only at
+ * creation, and nothing could change them afterwards: the raw-mutation hook blocks `gh issue edit`
+ * from a session and update-ticket deliberately touches only the body. That is the same gap
+ * label-ticket exists to close, one field over. Measured 2026-08-22: seventeen redesign tickets
+ * needed an edge onto the design system tickets that block them and there was no sanctioned path.
+ *
+ * Every added blocker is RESOLVED and then READ, so a reference that does not exist fails here rather
+ * than writing an edge onto a stranger's issue number.
+ */
+export const editBlockers = async (number, { add = [], remove = [] } = {}) => {
+  positiveIssueNumber(number)
+  const wanted = [...add, ...remove]
+  if (wanted.length === 0) throw new Error("editBlockers needs at least one blocker to add or remove")
+  if (wanted.some((reference) => typeof reference !== "string" || reference.trim().length === 0)) {
+    throw new Error("Ticket blockers must be non-empty strings")
+  }
+  const tickets = ticketConfiguration()
+  const resolveAll = async (references, prove) => {
+    const numbers = []
+    for (const reference of [...new Set(references)]) {
+      const resolved = resolveTicket(reference)
+      if (resolved.number === number) throw new Error(`Ticket #${number} cannot block itself`)
+      if (prove) await readTicket(resolved.number, { withProjectItem: false })
+      numbers.push(resolved.number)
+    }
+    return numbers
+  }
+  const added = await resolveAll(add, true)
+  const removed = await resolveAll(remove, false)
+  const both = added.filter((value) => removed.includes(value))
+  if (both.length > 0) throw new Error(`Blocker(s) both added and removed: ${both.map((value) => `#${value}`).join(", ")}`)
+  /**
+   * GitHub refuses an edge that already exists ("Target issue has already been taken") and fails the
+   * WHOLE call, so one duplicate would drop every new edge beside it. Read the current relations and
+   * send only the real change, which also makes a re-run a no-op instead of an error.
+   */
+  const current = await readTicket(number, { withProjectItem: false })
+  const existing = new Set(current.blockedBy.map((blocker) => blocker.number))
+  const toAdd = added.filter((value) => !existing.has(value))
+  const toRemove = removed.filter((value) => existing.has(value))
+  if (toAdd.length === 0 && toRemove.length === 0) return { number, added: [], removed: [], changed: false }
+  const args = ["issue", "edit", String(number), "--repo", tickets.repository]
+  if (toAdd.length > 0) args.push("--add-blocked-by", toAdd.join(","))
+  if (toRemove.length > 0) args.push("--remove-blocked-by", toRemove.join(","))
+  await runGh(args)
+  return { number, added: toAdd, removed: toRemove, changed: true }
+}
+
+/**
  * Verified live on 2026-08-08. This exact read returned one title per line for every milestone:
  * gh api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title
  */
@@ -524,6 +573,67 @@ export const completeTicket = async (number, preflighted = null) => {
   await writeStatus(number, tickets.states.done, { allowDone: true })
   await runGh(["issue", "close", String(number), "--repo", tickets.repository, "--reason", "completed"])
   return { number: ticket.number, url: ticket.url, title: ticket.title }
+}
+
+/**
+ * Closes a ticket whose WORK IS GONE rather than done, which the completion path cannot express: it
+ * closes as completed and sets Done, and reporting deleted work as finished corrupts the only record
+ * of what shipped. The reason is required and posted BEFORE the close, on the same rule completion
+ * follows, because a cancelled ticket with no account of why is the state a reader cannot recover from.
+ */
+export const cancelTicket = async (number, { reason } = {}) => {
+  positiveIssueNumber(number)
+  if (typeof reason !== "string" || reason.trim().length === 0) {
+    throw new Error("Cancelling a ticket requires a written reason naming the decision that removed the work")
+  }
+  const tickets = ticketConfiguration()
+  if (!Object.hasOwn(tickets.statusOptions, "Canceled")) throw new Error("The configured project has no Canceled status")
+  const ticket = await readTicket(number)
+  if (ticket.state !== "OPEN") throw new Error(`Ticket #${number} is ${ticket.state}; only an open ticket can be cancelled`)
+  if (!ticket.projectItemId) throw new Error(`Ticket #${number} is absent from the configured project`)
+  await addComment(number, reason)
+  await writeStatus(number, "Canceled")
+  await runGh(["issue", "close", String(number), "--repo", tickets.repository, "--reason", "not planned"])
+  return { number: ticket.number, url: ticket.url, title: ticket.title, status: "Canceled" }
+}
+
+/** How a closed ticket's reason maps onto the board column that reports it. */
+const REPAIRED_STATUS_FOR_REASON = { COMPLETED: "Done", NOT_PLANNED: "Canceled", DUPLICATE: "Duplicate" }
+
+/**
+ * Reconciles the board Status of an ALREADY CLOSED ticket with the reason it closed. This is the
+ * exact inverse of preflightTicketCompletion, which refuses a closed ticket; this refuses an open
+ * one, so neither path can do the other's job by accident.
+ *
+ * It exists because GitHub closes an issue itself when a merge commit names it, which leaves the
+ * issue closed and the board Status wherever the worker left it. complete-ticket then refuses the
+ * ticket for being closed, so the row strands. On 2026-08-22 eleven rows were stranded that way and
+ * the only remaining route was a raw project mutation, which the ticket-write guard blocks.
+ *
+ * `allowDone` is passed because the guard behind it protects the readiness loop from targeting Done
+ * before a merge. A ticket that is already closed has no merge left to precede.
+ */
+export const repairTicketStatus = async (number) => {
+  positiveIssueNumber(number)
+  const tickets = ticketConfiguration()
+  const ticket = await readTicket(number)
+  if (ticket.state !== "CLOSED") {
+    throw new Error(`Ticket #${number} is ${ticket.state}; only a closed ticket has a Status to reconcile`)
+  }
+  if (!ticket.projectItemId) throw new Error(`Ticket #${number} is absent from the configured project`)
+  const status = REPAIRED_STATUS_FOR_REASON[ticket.stateReason]
+  if (!status) {
+    throw new Error(
+      `Ticket #${number} closed as ${JSON.stringify(ticket.stateReason)}, which names no board Status. ` +
+        `Reopen it or close it again with a reason, rather than guessing a column.`,
+    )
+  }
+  if (!Object.hasOwn(tickets.statusOptions, status)) throw new Error(`The configured project has no ${status} status`)
+  if (ticket.status === status) {
+    return { number: ticket.number, url: ticket.url, title: ticket.title, status, changed: false }
+  }
+  await writeStatus(number, status, { allowDone: true })
+  return { number: ticket.number, url: ticket.url, title: ticket.title, status, changed: true, previousStatus: ticket.status }
 }
 
 export const listTickets = async ({ labels = [], state = "open", milestone = null } = {}) => {
