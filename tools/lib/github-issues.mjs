@@ -597,6 +597,72 @@ export const cancelTicket = async (number, { reason } = {}) => {
   return { number: ticket.number, url: ticket.url, title: ticket.title, status: "Canceled" }
 }
 
+const PROJECT_VIEWS_QUERY = `query($o:String!,$n:Int!){
+  user(login:$o){ projectV2(number:$n){ id views(first:50){ nodes{ id name number layout filter } } } }
+}`
+
+const SET_VIEW_FILTER_MUTATION = `mutation($v:ID!,$f:String!){
+  updateProjectV2View(input:{viewId:$v,filter:$f}){ projectV2View{ id name number layout filter } }
+}`
+
+/** Every saved view on the configured board, with its current filter. */
+export const listProjectViews = async () => {
+  const tickets = ticketConfiguration()
+  const output = await runGh([
+    "api", "graphql",
+    "-F", `o=${tickets.projectOwner}`,
+    "-F", `n=${tickets.projectNumber}`,
+    "-f", `query=${PROJECT_VIEWS_QUERY}`,
+  ])
+  const response = parseGhJson("gh api graphql for project views", output)
+  const nodes = response?.data?.user?.projectV2?.views?.nodes
+  if (!Array.isArray(nodes)) throw new Error("gh api graphql returned no project views array")
+  return nodes.map((view) => ({
+    id: view?.id,
+    name: view?.name,
+    number: view?.number,
+    layout: view?.layout,
+    filter: typeof view?.filter === "string" ? view.filter : "",
+  }))
+}
+
+/**
+ * Sets one saved view's filter. Views are the only part of the board no other tool reaches, so a
+ * lost filter could previously be repaired only by hand: the write guard blocks a raw
+ * updateProjectV2View, correctly, because a mutation cannot prove which board it targets.
+ *
+ * The view is resolved by name from the live list before the write, so a typo fails here rather
+ * than silently doing nothing, and the resulting filter is read back from the mutation's own
+ * response rather than assumed.
+ */
+export const setProjectViewFilter = async (name, filter) => {
+  if (typeof name !== "string" || name.trim().length === 0) throw new Error("A view name is required")
+  if (typeof filter !== "string") throw new Error("A view filter must be a string, empty to clear it")
+  const views = await listProjectViews()
+  const view = views.find((candidate) => candidate.name === name)
+  if (!view) {
+    throw new Error(`The configured project has no view named ${JSON.stringify(name)}; it has: ${views.map((v) => v.name).join(", ")}`)
+  }
+  if (view.filter === filter) return { ...view, changed: false }
+  const output = await runGh([
+    "api", "graphql",
+    "-f", `v=${view.id}`,
+    "-f", `f=${filter}`,
+    "-f", `query=${SET_VIEW_FILTER_MUTATION}`,
+  ])
+  const written = parseGhJson("gh api graphql for the view filter write", output)?.data?.updateProjectV2View?.projectV2View
+  if (!written || written.id !== view.id) throw new Error(`The view filter write returned no matching view for ${JSON.stringify(name)}`)
+  return {
+    id: written.id,
+    name: written.name,
+    number: written.number,
+    layout: written.layout,
+    filter: typeof written.filter === "string" ? written.filter : "",
+    changed: true,
+    previousFilter: view.filter,
+  }
+}
+
 /** How a closed ticket's reason maps onto the board column that reports it. */
 const REPAIRED_STATUS_FOR_REASON = { COMPLETED: "Done", NOT_PLANNED: "Canceled", DUPLICATE: "Duplicate" }
 
