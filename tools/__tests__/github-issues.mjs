@@ -60,7 +60,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,completeTicket,createMilestone,createTicket,editLabels,listLabels,listMilestones,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,resolveTicket,setStatus,updateBody",
+      "addComment,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listLabels,listMilestones,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setStatus,updateBody",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -269,6 +269,17 @@ export const cases = async () => {
     T(
       `${TOOL}: duplicate items on the configured project are refused`,
       /appears more than once/.test(await messageOf(() => (freshGithubIssues()).then((module) => module.readTicket(221))) ?? ""),
+    )
+
+    /**
+     * The safety property of the repair path: a close reason that names no column must refuse rather
+     * than fall back to Done. Guessing Done here would report work as finished that nobody finished,
+     * which is the whole class of defect the completion gate exists to prevent.
+     */
+    applyEnvironment(environmentFor(JSON.stringify(issue({ state: "CLOSED", stateReason: "REOPENED" }))))
+    T(
+      `${TOOL}: repairTicketStatus refuses a close reason that names no board Status`,
+      /names no board Status/.test(await messageOf(() => githubIssues.repairTicketStatus(221)) ?? ""),
     )
 
     applyEnvironment(
