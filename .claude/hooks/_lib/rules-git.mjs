@@ -95,24 +95,102 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // actually have it.
   const segments = scannable.split(/[&|;\n]/)
 
+  /**
+   * The git SUBCOMMAND, read the way git reads it: skip the global options that take a value, then
+   * the remaining flags, and take the first bare word. Keying off the word `push` appearing anywhere
+   * in the segment instead blocked `git checkout -b chore/x-push-guard main`, because the branch name
+   * carried the word and `main` came later on the line (2026-08-22).
+   */
+  /**
+   * The segment is raw shell text, but git sees argv. The shell removes quoting and escapes before
+   * git ever runs, so `git "push"`, `git p''ush` and `git \push` are all the same command, and a
+   * guard comparing the raw token reads them as some other subcommand and waves the push through.
+   *
+   * Undo the two transforms that change argv without changing meaning: a backslash escape, then a
+   * quote character ANYWHERE in the token, not only at its boundaries. This is not a shell parser
+   * and does not pretend to be one; it closes the quoting and escaping class, which is what stands
+   * between this guard and an accidental push to main.
+   */
+  const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
+
+  /** A leading `NAME=value` is an environment assignment, not the command word. */
+  const isEnvironmentAssignment = (token) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
+
+  /**
+   * The git BINARY as a whole token, so `git`, `/usr/bin/git` and `git.exe` all count and
+   * `FOO=git` does not. Matching the first textual `git` instead let an environment assignment
+   * stand in for the command word: `FOO=git git push origin main` read its subcommand as `git`
+   * and the push went unjudged (Pullfrog, PR #743).
+   */
+  const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
+
+  /** Everything after the git command word, normalized to what argv would carry. */
+  const gitTokens = (segment) => {
+    const tokens = segment.split(/\s+/).map(unquoteToken).filter(Boolean)
+    let index = 0
+    while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index++
+    while (index < tokens.length && !isGitBinary(tokens[index])) index++
+    return index < tokens.length ? tokens.slice(index + 1) : []
+  }
+
+  /**
+   * The subcommand and everything after it. Both come from ONE normalized tokenization, because
+   * re-scanning the raw segment for the word `push` misses `git p''ush`, whose quotes sit inside
+   * the token rather than around it.
+   */
+  const gitCommandParts = (segment) => {
+    const tokens = gitTokens(segment)
+    for (let index = 0; index < tokens.length; index++) {
+      const token = tokens[index]
+      if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
+        index++
+        continue
+      }
+      if (token.startsWith("-")) continue
+      return { subcommand: token, rest: tokens.slice(index + 1) }
+    }
+    return { subcommand: null, rest: [] }
+  }
+
+  const gitSubcommand = (segment) => gitCommandParts(segment).subcommand
+
+  /**
+   * A push lands on the protected branch only when the pushed REF is itself main or master.
+   * Matching a bare `/main` substring also caught `redesign/main`, which is an ordinary branch
+   * this repo pushes to by convention, and the refusal was indistinguishable from a real one.
+   * So each positional token is read as git reads it: strip a leading `+` (force), take the
+   * destination of a `src:dst` pair, drop a `refs/heads/` prefix, then compare the whole ref.
+   * `origin redesign/main:refs/heads/main` still blocks, because its DESTINATION is main.
+   */
+  const pushesProtectedRef = (segment) => {
+    const { subcommand, rest } = gitCommandParts(segment)
+    if (subcommand !== "push") return false
+    for (const token of rest) {
+      if (token.startsWith("-")) continue
+      const parts = token.replace(/^\+/, "").split(":")
+      const destination = parts.length > 1 ? parts[parts.length - 1] : parts[0]
+      if (/^(?:main|master)$/.test(destination.replace(/^refs\/heads\//, ""))) return true
+    }
+    return false
+  }
+
   // Each push in a chained command is judged on its own target. An early push to
   // an unprotected sibling repo must never vouch for a later push to a protected
   // main, and a protected push must not be blamed for a `main` ref belonging to a
   // different segment.
   for (const [index, segment] of segments.entries()) {
-    if (!/\bgit\b[\s\S]*\bpush\b/.test(segment)) continue
+    if (gitSubcommand(segment) !== "push") continue
     const targetDir = pushTargetDir(segments, index, cwd)
     if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
 
-    if (/\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+|-\S+\s+)*push\b[^&|;\n]*[\s:/](?:main|master)(?=$|[\s:])/.test(segment)) {
+    if (pushesProtectedRef(segment)) {
       return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
     }
 
     // A bare push (no explicit main/master ref) issued while HEAD is on the
     // protected branch still lands on main. Resolve HEAD via the injected resolver.
     if (typeof resolveHeadBranch !== "function") continue
-    const afterPush = segment.slice(segment.search(/\bpush\b/) + 4)
-    const positional = afterPush.split(/\s+/).filter((token) => token && !token.startsWith("-"))
+    const positional = gitCommandParts(segment).rest.filter((token) => !token.startsWith("-"))
     if (positional.length > 1) continue
     let branch = null
     try {
