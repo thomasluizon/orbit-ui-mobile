@@ -2094,3 +2094,187 @@ thin runs the player.
 Perfil round added a row on the grounds that it had no route anywhere; the app reaches it from the
 retrospective surface with its back going to the profile. All three routes are stated now, with the
 2026-08-20 decision named as the authority for which is primary.
+
+### Onboarding
+
+**Three ways out of the flow were missing.** `onboarding-flow.tsx:299-301` renders a back link on
+every step after the first and `:83-95` walks the flow backward. `:265-267` renders a skip on every
+step except the last, and `:130-134` sends it to the end. `:248-264` draws the mono position
+counter, `:289` the dots and `:290-296` an sr-only `progress` element. The drawing had none of the
+three, and its own test 1 asserted the flow could not end without a habit, which described a trap:
+the first step's action is disabled while the field is empty, so a person who did not want to type a
+habit had no way out of the app's first screen. All three came back, with the counter over three
+steps rather than eight, and test 1 was replaced by one the app can pass.
+
+**The flow has two entrances and two endings and the drawing had one of each.** Signed in it is an
+overlay over the app (`(app)/layout.tsx:380`); signed out it is a route (`onboarding/page.tsx:13`)
+where every answer is buffered on the device (`onboarding-actions-context.tsx:96,133`), the last
+step's words become the save your plan words (`onboarding-complete.tsx:102-109`), it routes to
+`/login?from=onboarding` (`:134`), the habit is written to the account after sign in
+(`use-onboarding-flush.ts:38`), and the first step carries a sign in link
+(`onboarding-welcome.tsx:141-145`). That is the whole path from the landing page. It is a state now,
+and its ring is not a control, because no habit exists on the server yet.
+
+**Signed out, Astra cannot read the sentence at all.** `ChatController.cs:18` is `[Authorize]` for
+the whole controller, so the pre auth flow has no model call and the schedule is not proposed: the
+day pills and the time field carry the second decision, which is the shape the drawing already had
+for `at limit`. Two different reasons reach one drawing.
+
+**Creating the habit can fail and the permission ask has four outcomes, not two.**
+`onboarding-create-habit.tsx:95-99` catches the failure, `:74-85` validates, `:182` caps the title.
+`apps/mobile/hooks/use-push-notifications.ts:418-440` is the real permission shape: granted,
+refused, `canAskAgain === false` where the system will not ask again, and a registration that fails
+after permission was given; `push-prompt.tsx:46` does not ask at all once the browser has denied and
+`:101-103` sets a retry hint. Three states were added, and in two of them the drawing's allow button
+had been a control that could not do anything.
+
+**The shell was drawn by reaching into it, twice.** The document hid the sidebar with a stylesheet
+rule matching a class name, and rode the composer slot with each step's forward action. Both shell
+contracts now cover it: `nav={false}` for the three decisions and `action` for the pinned forward
+action, with `items`, `activeId`, `navLabel`, `account` and `onPalette` rejected rather than passed
+as null. At the last step navigation returns, which makes it a destination, so its action moves into
+the content column: the type is what settles that, not prose.
+
+The report's mock line undercounted by one, and its claim that the feature guide was deleted was
+taken out, because the guide is About's surface and not onboarding's. No plan axis: D69 item 17 says
+there is no paywall in onboarding at all.
+
+### Entrar and Verificacao
+
+Both had their numbers right and both were missing whole halves of what ships.
+
+**Entrar gained the referral banner** (`use-login-flow.ts:60`, `login-sections.tsx:93-133`), which is
+where a shared Wrapped link lands, with words that promise nothing to an existing account because
+the referral applies only to a new one (`VerifyCodeCommand.cs:100-101`). It gained **the arrival from
+onboarding**, where the heading, the subtitle, the waiting habit count and the button's word all
+swap; **the arrival from a link**, which opens on the code step with the six digits already filled
+(`use-login-flow.ts:78-86`); **the legal line** (`email-step.tsx:91-110`); **the confirmation that a
+code was sent** (`:117,:174`); **the returning deleted account** being told it is back
+(`login-form-helpers.ts:110-112`); **a send failure** that is one shape for a rate limit, a server
+error and a network error alike; and **a Google failure**.
+
+**One open question was answerable and its answer changed the drawing.** It asked whether the lock is
+per identity or per device and withheld the change of address while locked. `VerifyCodeCommand.cs:90`
+keys the counter `verify-attempts:{email}` and nothing else, with the 15 minute window at `:87`. The
+lock is per email address, so changing it works and the action stays. That is the fifth false
+absence of the run. The report also records a defect that stays in the code rather than the drawing:
+`use-login-flow.ts:96-99` shows one failure twice, inline and as a toast.
+
+**Verificacao had no success state, and success is the whole point of the screen.** The confirm does
+not delete: `ConfirmAccountDeletionCommand.cs:41-51` deactivates with a date seven days out, or seven
+days after the plan expires for Pro (`:44-46`), capped at 30 (`AppConstants.cs:44`), and returns that
+date. Two states now carry it, with the date, the fact that signing in before then brings the account
+back, and the sign out the app performs.
+
+**Its exhausted state offered the one action that cannot work.** The attempt counter is
+`delete-attempts:{email}` over a rolling 15 minutes (`ConfirmAccountDeletionCommand.cs:68,:64`), so a
+new challenge does not restore the attempts and starting again from Perfil inside that window hits
+the same wall. The state now states the wait and offers no action that would be refused. Its open
+question, whether the attempts are per challenge or per hour, was answerable and the answer is
+neither: per email address, over 15 minutes. That is the sixth. Two dead controls, the cancel link
+and the route back, became real routes, and the challenge now arrives with its 60 second cooldown
+already running, because the screen is opened by the send.
+
+### Sobre
+
+**The feature guide was deleted citing a decision that does not exist.** The report said D69 deleted
+it. D69 does not mention the feature guide anywhere; its item 17 deletes the onboarding tour, the
+preference quiz and the goal survey. The guide is About's own drawer, opened from About's first row
+on both platforms (`about/page.tsx:58-63,:84`; `apps/mobile/app/about.tsx:63-68,:87`). That is the
+seventh false claim of the run, and the row is back, first, restoring the shipping order.
+
+**Two facts had no producer.** The app shows the version and nothing else, from `packageJson.version`
+and `Constants.expoConfig?.version`; there is no build number on either platform, so the build line
+is gone. **The support success invented a reference number**, and nothing returns one, so it is gone
+too. The support screen gained the draft that survives leaving the screen
+(`support/page.tsx:46-54,:23-39,:75`) and the offline refusal (`:57`), and its message field became
+`Input` with `multiline` and six rows, which is exactly what the app uses.
+
+A second pass fixed two more: one guide entry said tapping the widget's ring logs the habit, which
+contradicts both the widget's code and Thomas's 2026-08-20 decision, and two guide subjects had been
+dropped whose surfaces are alive, the MCP and API keys subject and the XP, achievements and streak
+freeze subject.
+
+### Estados
+
+**The recorded false mock claim was already fixed**, and checking said so rather than changing
+anything: all four numbers carry `data-mock`.
+
+**The update gate has two independent sources and the drawing knew one.** The server gate is the one
+it had: `MinimumVersionMiddleware.cs:26,:41,:53-63` answers 426 with `minVersion`, web draws a
+dismissible banner and mobile a non dismissible blocker. The store check never touches the API:
+`use-version-check.ts:41` asks Google Play and `:49` the iTunes lookup, and two more mobile shapes
+come from it, a forced update at Play priority 4 or higher (`:88`) which is Play's own screen, and a
+**soft update** that is dismissible (`version-update-drawer.tsx:77`), now its own state. The report
+also records that the server gate is fail safe and currently OPEN: an unparseable header is allowed
+and the floor defaults to `0.0.0`.
+
+**The throttle response says more than the report claimed.** `DistributedRateLimitAttribute.cs:73-97`
+sends `Retry-After`, `retryAfterUtc`, `limit`, `count` and `requestId`. The screen still shows only
+the countdown, but now as a choice with its producer named, and the open question about backgrounding
+is answered by `retryAfterUtc` being absolute. The reference code's producer is named, the not found
+mark divergence from the shipping satellite glyph is stated, and every dead action became a real
+route or a real state change.
+
+### Celebracao and Offline
+
+Both confirmed the `notice` slot fix held: the panel and the toasts ride `notice` and the composer
+stays beside them.
+
+**Celebracao said the celebrations never queue, and they do.**
+`packages/shared/src/stores/celebration-queue.ts:70-80` gives every kind a priority, `:82` orders by
+it, and `:184` queues behind whatever is active. Its open question said the event stream cannot order
+them; the order has been in shared code all along. That is the eighth. A `queued next` state draws
+it, and closing the first panel promotes the second. **Four triggers is confirmed as a decision**, not
+an omission: `CelebrationKind` has five and D69 item 11 names four, so the achievement panel stays
+out and the report says so, with `StreakMilestoneTiers` named as 7, 14, 30, 90, 100 and 365.
+
+**Offline called every queued change a log, and the queue holds about fifty mutation types**
+(`packages/shared/src/types/sync.ts:3-13`), from creating a habit to changing the time zone. The
+toasts count changes now. A missing state came back: `sync.ts:37` has `pending`, `syncing` and
+`failed`, and a failed change stays IN the queue and retries, which is the common case and must never
+read like the dropped one. **Its open question about how long a change is held is answered in the
+client**: `maxRetries` is 3 and `offline-mutations.ts:342-346` drops on the third failure. That is the
+ninth. One refusal sentence is now marked web only, because `createHabit` is a queued type on mobile.
+
+### Widget Android
+
+`#343` stays flagged exactly as it was. Six things the widget does were missing: **the header's second
+line**, the completed over total figure that is the surface's only progress number and is empty until
+the first sync (`OrbitWidgetProvider.kt:102-107`); **the tomorrow day label**
+(`OrbitWidgetService.kt:368-372`); **a bad habit row**, which is drawn and never counted, because a
+slip is not a completion (`:377-386`); **the whole card as one tap target**, not only a row
+(`OrbitWidgetProvider.kt:150-155`); and **the refresh failing** (`OrbitWidgetService.kt:340-348`).
+The signed out state had a Sign in button the widget does not have and cannot honour; the app's own
+words are "Open Orbit to sign in" and the card is the only control.
+
+**The document's central claim was half wrong.** RemoteViews cannot read a CSS custom property, but
+the widget still FOLLOWS Orbit's tokens: the app syncs the resolved colours into shared preferences
+and the widget reads them back per scheme and mode (`OrbitWidgetService.kt:148-153`). The literals are
+the flattened results of that sync, and the hardcoded map is only the first paint, which is STALE: it
+still carries the pre redesign purple, so a freshly added widget paints the old brand until the app
+syncs. That is recorded as work the implementation owes.
+
+### What the mirror did this session
+
+It went stale an **eighth** time, and the sentence telling each round to check it before using a new
+prop and to say what it found caught it again. The round re-synced the whole bundle and verified both
+new contracts before use. Five later rounds checked and found it clean.
+
+### Six more false claims, all found by opening the file
+
+The count is now nine across the run. This session added: Wrapped's Pro gate (the gate's one caller
+is the retrospective), Entrar's per device lock (it is per email), Verificacao's unanswerable attempt
+window (per email over 15 minutes), Sobre's D69 deletion of the feature guide (D69 never mentions
+it), Celebracao's unordered event stream (there is a priority queue in shared code), and Offline's
+unbounded queue (three retries, then dropped). None was caught by reading the document.
+
+### Where this run stands
+
+All 21 screen documents have now had the pass. Three design system contracts landed this session:
+`Input`'s multiline half, and both shells' pinned bottom slot typed for a destination and for a flow.
+No component defect is open.
+
+**Verification:** every one of the nine was read back through the MCP after its round. The canvas
+self check stayed silent on Onboarding and on Entrar, which is why the read back is the protocol and
+not the self check.
