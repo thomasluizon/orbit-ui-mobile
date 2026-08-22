@@ -597,33 +597,55 @@ export const cancelTicket = async (number, { reason } = {}) => {
   return { number: ticket.number, url: ticket.url, title: ticket.title, status: "Canceled" }
 }
 
-const PROJECT_VIEWS_QUERY = `query($o:String!,$n:Int!){
-  user(login:$o){ projectV2(number:$n){ id views(first:50){ nodes{ id name number layout filter } } } }
+const PROJECT_VIEWS_QUERY = `query($o:String!,$n:Int!,$c:String){
+  user(login:$o){ projectV2(number:$n){ id views(first:50, after:$c){
+    pageInfo{ hasNextPage endCursor }
+    nodes{ id name number layout filter }
+  } } }
 }`
 
 const SET_VIEW_FILTER_MUTATION = `mutation($v:ID!,$f:String!){
   updateProjectV2View(input:{viewId:$v,filter:$f}){ projectV2View{ id name number layout filter } }
 }`
 
-/** Every saved view on the configured board, with its current filter. */
+/**
+ * Every saved view on the configured board, with its current filter.
+ *
+ * `views` is a paginated connection, so the pages are walked to exhaustion. Reading only the first
+ * would make a listing silently incomplete and, worse, make a view on a later page look like it does
+ * not exist, which is the one answer a caller must never get wrong before a write.
+ */
 export const listProjectViews = async () => {
   const tickets = ticketConfiguration()
-  const output = await runGh([
-    "api", "graphql",
-    "-F", `o=${tickets.projectOwner}`,
-    "-F", `n=${tickets.projectNumber}`,
-    "-f", `query=${PROJECT_VIEWS_QUERY}`,
-  ])
-  const response = parseGhJson("gh api graphql for project views", output)
-  const nodes = response?.data?.user?.projectV2?.views?.nodes
-  if (!Array.isArray(nodes)) throw new Error("gh api graphql returned no project views array")
-  return nodes.map((view) => ({
-    id: view?.id,
-    name: view?.name,
-    number: view?.number,
-    layout: view?.layout,
-    filter: typeof view?.filter === "string" ? view.filter : "",
-  }))
+  const views = []
+  let cursor = null
+  for (let page = 0; page < 20; page++) {
+    const args = [
+      "api", "graphql",
+      "-F", `o=${tickets.projectOwner}`,
+      "-F", `n=${tickets.projectNumber}`,
+      ...(cursor === null ? [] : ["-F", `c=${cursor}`]),
+      "-f", `query=${PROJECT_VIEWS_QUERY}`,
+    ]
+    const connection = parseGhJson("gh api graphql for project views", await runGh(args))?.data?.user?.projectV2?.views
+    if (!Array.isArray(connection?.nodes)) throw new Error("gh api graphql returned no project views array")
+    for (const view of connection.nodes) {
+      views.push({
+        id: view?.id,
+        name: view?.name,
+        number: view?.number,
+        layout: view?.layout,
+        filter: typeof view?.filter === "string" ? view.filter : "",
+      })
+    }
+    if (typeof connection?.pageInfo?.hasNextPage !== "boolean") throw new Error("gh api graphql returned no views hasNextPage boolean")
+    if (!connection.pageInfo.hasNextPage) return views
+    if (typeof connection.pageInfo.endCursor !== "string" || connection.pageInfo.endCursor.length === 0) {
+      throw new Error("gh api graphql returned an invalid views endCursor")
+    }
+    cursor = connection.pageInfo.endCursor
+  }
+  throw new Error("gh api graphql returned more project view pages than this tool will walk")
 }
 
 /**
@@ -639,10 +661,22 @@ export const setProjectViewFilter = async (name, filter) => {
   if (typeof name !== "string" || name.trim().length === 0) throw new Error("A view name is required")
   if (typeof filter !== "string") throw new Error("A view filter must be a string, empty to clear it")
   const views = await listProjectViews()
-  const view = views.find((candidate) => candidate.name === name)
-  if (!view) {
+  const matches = views.filter((candidate) => candidate.name === name)
+  if (matches.length === 0) {
     throw new Error(`The configured project has no view named ${JSON.stringify(name)}; it has: ${views.map((v) => v.name).join(", ")}`)
   }
+  /**
+   * GitHub does not make a view name unique, and the mutation targets a view id. Picking the first
+   * of two views sharing a name would silently reshape whichever one happened to come back first,
+   * so an ambiguous name is refused and reported with the view numbers that disambiguate it.
+   */
+  if (matches.length > 1) {
+    throw new Error(
+      `The configured project has ${matches.length} views named ${JSON.stringify(name)} (numbers ${matches.map((v) => v.number).join(", ")}). ` +
+        `Rename one so the target is unambiguous, rather than letting this pick for you.`,
+    )
+  }
+  const view = matches[0]
   if (view.filter === filter) return { ...view, changed: false }
   const output = await runGh([
     "api", "graphql",

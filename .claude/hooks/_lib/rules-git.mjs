@@ -101,10 +101,17 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
    * in the segment instead blocked `git checkout -b chore/x-push-guard main`, because the branch name
    * carried the word and `main` came later on the line (2026-08-22).
    */
+  /**
+   * The segment is raw shell text, so a token can arrive quoted. `git "push" origin main` is a
+   * perfectly ordinary push, and comparing the quoted token would read it as a different subcommand
+   * and wave the push through. Strip the quotes git itself never sees.
+   */
+  const unquoteToken = (token) => token.replace(/^["']+/, "").replace(/["']+$/, "")
+
   const gitSubcommand = (segment) => {
     const match = segment.match(/\bgit\b(.*)$/s)
     if (!match) return null
-    const tokens = match[1].split(/\s+/).filter(Boolean)
+    const tokens = match[1].split(/\s+/).filter(Boolean).map(unquoteToken).filter(Boolean)
     for (let index = 0; index < tokens.length; index++) {
       const token = tokens[index]
       if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
@@ -129,7 +136,8 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     if (gitSubcommand(segment) !== "push") return false
     const pushIndex = segment.search(/\bpush\b/)
     if (pushIndex === -1) return false
-    for (const token of segment.slice(pushIndex + 4).split(/\s+/)) {
+    for (const raw of segment.slice(pushIndex + 4).split(/\s+/)) {
+      const token = unquoteToken(raw)
       if (!token || token.startsWith("-")) continue
       const parts = token.replace(/^\+/, "").split(":")
       const destination = parts.length > 1 ? parts[parts.length - 1] : parts[0]
@@ -155,7 +163,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     // protected branch still lands on main. Resolve HEAD via the injected resolver.
     if (typeof resolveHeadBranch !== "function") continue
     const afterPush = segment.slice(segment.search(/\bpush\b/) + 4)
-    const positional = afterPush.split(/\s+/).filter((token) => token && !token.startsWith("-"))
+    const positional = afterPush.split(/\s+/).map(unquoteToken).filter((token) => token && !token.startsWith("-"))
     if (positional.length > 1) continue
     let branch = null
     try {

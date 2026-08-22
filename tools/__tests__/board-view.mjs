@@ -4,12 +4,14 @@ import { T, check, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "board-view.mjs"
 
-const views = (filter = "") => JSON.stringify({
-  data: { user: { projectV2: { id: "PVT_board", views: { nodes: [
-    { id: "PVTV_board", name: "Board", number: 1, layout: "BOARD_LAYOUT", filter: "" },
-    { id: "PVTV_orca", name: "Orca", number: 2, layout: "TABLE_LAYOUT", filter },
-  ] } } } },
+const page = (nodes, hasNextPage = false, endCursor = "MQ") => JSON.stringify({
+  data: { user: { projectV2: { id: "PVT_board", views: { pageInfo: { hasNextPage, endCursor }, nodes } } } },
 })
+
+const views = (filter = "") => page([
+  { id: "PVTV_board", name: "Board", number: 1, layout: "BOARD_LAYOUT", filter: "" },
+  { id: "PVTV_orca", name: "Orca", number: 2, layout: "TABLE_LAYOUT", filter },
+])
 
 const written = (filter) => JSON.stringify({
   data: { updateProjectV2View: { projectV2View: { id: "PVTV_orca", name: "Orca", number: 2, layout: "TABLE_LAYOUT", filter } } },
@@ -59,4 +61,55 @@ export const cases = () => {
     { env: orcaEnv([readEntry("is:open"), { match: "api graphql -f v=", stdout: written("is:open"), ignoreTicketShape: true, removePath: settled }]) },
   )
   T(`${TOOL}: a settled filter never reached the mutation`, existsSync(settled))
+
+  /**
+   * views is a paginated connection. Reading only the first page would make a view on a later page
+   * look like it does not exist, which is the one answer that must never be wrong before a write
+   * (Pullfrog, PR #743).
+   */
+  const firstPage = page([{ id: "PVTV_board", name: "Board", number: 1, layout: "BOARD_LAYOUT", filter: "" }], true, "CURSOR1")
+  const secondPage = page([{ id: "PVTV_late", name: "Late", number: 9, layout: "TABLE_LAYOUT", filter: "" }])
+  const paged = [
+    { match: "api graphql -F o=thomasluizon -F n=2 -f query=", stdout: firstPage, ignoreTicketShape: true },
+    { match: "api graphql -F o=thomasluizon -F n=2 -F c=CURSOR1", stdout: secondPage, ignoreTicketShape: true },
+  ]
+  check(TOOL, "walks every page of the views connection", ["--list"], { status: 0, stdout: /"name": "Late"/ }, { env: orcaEnv(paged) })
+
+  const lateWrite = stage("board-view/late-page-write", "pending")
+  check(
+    TOOL,
+    "finds a view that only exists on a later page",
+    ["--view", "Late", "--filter", "is:open"],
+    { status: 0, stdout: /"changed": true/ },
+    {
+      env: orcaEnv([
+        ...paged,
+        { match: "api graphql -f v=PVTV_late", stdout: JSON.stringify({ data: { updateProjectV2View: { projectV2View: { id: "PVTV_late", name: "Late", number: 9, layout: "TABLE_LAYOUT", filter: "is:open" } } } }), ignoreTicketShape: true, removePath: lateWrite },
+      ]),
+    },
+  )
+  T(`${TOOL}: the later-page view was written`, !existsSync(lateWrite))
+
+  /**
+   * GitHub does not make a view name unique and the mutation targets an id, so picking the first of
+   * two would silently reshape whichever came back first (Pullfrog, PR #743).
+   */
+  const ambiguous = stage("board-view/ambiguous", "must remain")
+  const twins = page([
+    { id: "PVTV_one", name: "Orca", number: 2, layout: "TABLE_LAYOUT", filter: "" },
+    { id: "PVTV_two", name: "Orca", number: 5, layout: "TABLE_LAYOUT", filter: "" },
+  ])
+  check(
+    TOOL,
+    "refuses a name two views share rather than picking one",
+    ["--view", "Orca", "--filter", "is:open"],
+    { status: 1, stderr: /2 views named "Orca" \(numbers 2, 5\)/ },
+    {
+      env: orcaEnv([
+        { match: "api graphql -F o=thomasluizon -F n=2 -f query=", stdout: twins, ignoreTicketShape: true },
+        { match: "api graphql -f v=", stdout: written("is:open"), ignoreTicketShape: true, removePath: ambiguous },
+      ]),
+    },
+  )
+  T(`${TOOL}: an ambiguous name ran no mutation`, existsSync(ambiguous))
 }

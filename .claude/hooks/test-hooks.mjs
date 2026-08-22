@@ -95,6 +95,12 @@ T("git: main:refs/heads/redesign/main allows", checkGitCommand("git push origin 
 T("git: checkout of a branch named for push allows", checkGitCommand("git checkout -b chore/x-push-guard main"), null)
 T("git: log naming a push branch allows", checkGitCommand("git log --oneline main..chore/push-guard"), null)
 T("git: -C before push still blocks", blocks(checkGitCommand("git -C . push origin main")), true)
+// The segment is raw shell text, so a token can arrive quoted. Reading `"push"` as a different
+// subcommand would wave a shell-valid push straight through (Pullfrog, PR #743).
+T("git: a quoted push subcommand still blocks", blocks(checkGitCommand('git "push" origin main')), true)
+T("git: a quoted main ref still blocks", blocks(checkGitCommand('git push origin "main"')), true)
+T("git: single-quoted push still blocks", blocks(checkGitCommand("git 'push' origin main")), true)
+T("git: quoted bare push while HEAD is on main blocks", blocks(checkGitCommand('git "push" origin', { resolveHeadBranch: () => "main", cwd: "." })), true)
 T("git: bare push while HEAD is on main blocks", blocks(checkGitCommand("git push", { resolveHeadBranch: () => "main", cwd: "." })), true)
 T("git: bare push while HEAD is on a feature branch allows", checkGitCommand("git push", { resolveHeadBranch: () => "feature/x", cwd: "." }), null)
 T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)
