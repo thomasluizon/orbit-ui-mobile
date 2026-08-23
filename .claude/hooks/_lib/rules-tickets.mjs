@@ -28,7 +28,10 @@ const API_BOOLEAN_FLAGS = new Set(["--allow-escape-sequences", "--include", "-i"
 // Names confirmed from the live GitHub Mutation schema. Pull-request review mutations are absent.
 const GRAPHQL_TICKET_WRITE = /\b(?:addComment|addLabelsToLabelable|clearLabelsFromLabelable|removeLabelsFromLabelable|lockLockable|unlockLockable|minimizeComment|unminimizeComment|addSubIssue|removeSubIssue|reprioritizeSubIssue|(?:close|create|delete|pin|reopen|set|transfer|unmark|unpin|update)Issue(?:AsDuplicate|Comment|Field|FieldValue|IssueType|Type)?|(?:add|archive|clear|convert|copy|create|delete|link|mark|unarchive|unlink|unmark|update)ProjectV2\w*|(?:create|delete|update)Label|(?:create|delete|update)Milestone)\b/
 
-const unquote = (word) => word?.replace(/^(?:"|')|(?:"|')$/g, "") ?? ""
+// The shell removes backslash escapes and quote characters before gh sees argv, so `g''h`,
+// `g"h"` and `\gh` all execute gh. Mirror that here, as _lib/rules-git.mjs already does, or a
+// concatenated spelling walks past the word scan.
+const unquote = (word) => word?.replace(/\\(.)/g, "$1").replace(/["']/g, "") ?? ""
 
 /** Segments plus whether the parse ended inside a quote, which means it could not be trusted. */
 function shellSegments(command) {
@@ -110,6 +113,47 @@ function projectVerdict(words, command) {
   return null
 }
 
+/**
+ * gh clusters short flags the POSIX way: `-iX DELETE` is `-i` plus `-X DELETE`, and `-iFtitle=x`
+ * is `-i` plus `-F title=x`. Resolving flags against the raw words read `-iX` as one unknown token,
+ * the method then defaulted to GET, and the guard allowed a real DELETE. Expand clusters into their
+ * canonical spellings first; a character the arity tables do not know poisons the whole word, since
+ * nothing after it can be attributed.
+ */
+function expandApiShortFlags(words) {
+  const expanded = []
+  let unknown = false
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index]
+    if (word === "--") {
+      expanded.push(...words.slice(index))
+      break
+    }
+    if (word.startsWith("--") || word === "-" || !/^-[A-Za-z]/.test(word)) {
+      expanded.push(word)
+      continue
+    }
+    let rest = word.slice(1)
+    while (rest.length > 0) {
+      const flag = `-${rest[0]}`
+      rest = rest.slice(1)
+      if (API_BOOLEAN_FLAGS.has(flag)) {
+        expanded.push(flag)
+        continue
+      }
+      if (API_VALUE_FLAGS.has(flag)) {
+        expanded.push(flag)
+        if (rest.length > 0) expanded.push(rest)
+        rest = ""
+        continue
+      }
+      unknown = true
+      rest = ""
+    }
+  }
+  return { expanded, unknown }
+}
+
 function apiMethod(words, apiIndex) {
   const explicit = valueOf(words.slice(apiIndex + 1), ["--method", "-X"])
   if (explicit) return explicit.toUpperCase()
@@ -159,9 +203,13 @@ function apiPositionals(words, apiIndex) {
 }
 
 function apiVerdict(words, apiIndex, command) {
-  const { positionals, unknownArity } = apiPositionals(words, apiIndex)
+  const cluster = expandApiShortFlags(words.slice(apiIndex + 1))
+  if (cluster.unknown) {
+    return blocked(command, "The command carries a flag this guard cannot classify, so neither its method nor its endpoint can be proved.")
+  }
+  const { positionals, unknownArity } = apiPositionals(cluster.expanded, -1)
   const endpoint = positionals[0] ?? ""
-  const method = apiMethod(words, apiIndex)
+  const method = apiMethod(cluster.expanded, -1)
   if (method === "GET") return null
   if (endpoint.toLowerCase() === "graphql") {
     const typedField = valueOf(words.slice(apiIndex + 1), ["-F", "--field"])
@@ -221,7 +269,10 @@ function scanSegments(segments, command) {
 
 /** Verdict for a shell command or source text about to be written, or null to allow. */
 export function checkTicketMutation(command) {
-  if (typeof command !== "string" || !/\bgh(?:\.exe|\.cmd)?\b/i.test(command)) return null
+  // The cheap pre-filter runs on a flattened copy: the shell turns `g''h` and `\gh` into gh, so
+  // testing the raw text would bail out before the word normalization ever sees the invocation.
+  if (typeof command !== "string") return null
+  if (!/\bgh(?:\.exe|\.cmd)?\b/i.test(command.replace(/\\(.)/g, "$1").replace(/["']/g, ""))) return null
   const { segments, unbalanced } = shellSegments(command)
   const verdict = scanSegments(segments, command)
   if (verdict) return verdict
@@ -229,5 +280,7 @@ export function checkTicketMutation(command) {
   // The quote never closed, so a gh invocation can sit inside an unterminated blob and never be
   // parsed as its own segment. Re-split with the quotes neutralised and judge what surfaces: an
   // unparseable command has to fail closed, and this reaches the accurate reason for doing so.
-  return scanSegments(shellSegments(command.replaceAll(String.fromCharCode(34), " ").replaceAll(String.fromCharCode(39), " ")).segments, command)
+  // Quotes are DELETED, never replaced with spaces: the shell concatenates `g''h` into `gh`, and a
+  // space would split it back apart and miss the invocation.
+  return scanSegments(shellSegments(command.replaceAll(String.fromCharCode(34), "").replaceAll(String.fromCharCode(39), "")).segments, command)
 }

@@ -420,6 +420,18 @@ T("tickets: a ticket API write after an unbalanced quote blocks", blocks(checkTi
 T("tickets: a balanced-quote ticket write still blocks", blocks(checkTicketMutation(`gh issue edit 5 --repo ${TICKET_REPO} --title "X"`)), true)
 T("tickets: an unbalanced quote around a code-repository write still allows", checkTicketMutation(`echo " ; gh issue edit 5 --repo ${CODE_REPO} --title "X"`), null)
 T("tickets: an unbalanced quote around a sanctioned tool still allows", checkTicketMutation(`echo " ; node tools/comment-ticket.mjs --issue "#5" --body-file -`), null)
+
+/** gh clusters short flags the POSIX way, so `-iX` is `-i` plus `-X` and `-iFtitle=x` is `-i` plus
+ * `-F title=x`. Read raw, `-iX` matched no flag, the method defaulted to GET, and a real DELETE was
+ * allowed. The shell also concatenates `g''h` and `\gh` into gh before gh ever runs. */
+T("tickets: a clustered short method flag no longer reads as GET", blocks(checkTicketMutation(`gh api -iX DELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a clustered short field flag no longer reads as GET", blocks(checkTicketMutation(`gh api -iFtitle=x repos/${TICKET_REPO}/issues/215`)), true)
+T("tickets: a clustered write against a code repository still allows", checkTicketMutation(`gh api -iX DELETE repos/${CODE_REPO}/issues/1`), null)
+T("tickets: a cluster carrying an unclassifiable character fails closed", blocks(checkTicketMutation(`gh api -iZ repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a lone boolean short flag before a read still allows", checkTicketMutation(`gh api -i repos/${TICKET_REPO}/issues/1`), null)
+T("tickets: a quote-concatenated gh api write blocks", blocks(checkTicketMutation(`g''h api -X DELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a quote-concatenated gh issue write blocks", blocks(checkTicketMutation(`g"h" issue edit 5 --repo ${TICKET_REPO} --title X`)), true)
+T("tickets: a backslash-escaped gh write blocks", blocks(checkTicketMutation(`\\gh api -X DELETE repos/${TICKET_REPO}/issues/1`)), true)
 // A gate that fires on prose gets switched off, so its false-positive rate remains part of its contract.
 const tracked = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
 const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : [])
