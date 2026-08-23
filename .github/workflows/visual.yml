@@ -79,9 +79,12 @@ jobs:
           if git diff --cached --quiet; then
             echo "Baselines already up to date — nothing to commit."
           else
-            # No [skip ci]: main requires 21 status checks per head, so a baseline commit that
-            # skips CI strands its pull request unmergeable. The guard above already prevents a
-            # seed loop, since re-seeding an unchanged rendering stages nothing.
+            # This push uses the workflow's GITHUB_TOKEN, and GitHub never starts workflow runs
+            # for events that token causes, so the bot head gets NO required checks either way.
+            # [skip ci] stays out because it overstated intent while adding nothing the token
+            # suppression does not already do. main requires 21 checks per head, so after a
+            # labeled re-seed the operator's next real push (or a checks re-run) is what puts the
+            # required contexts on the head. The staged-diff guard above is the seed-loop stop.
             git commit -m "test(web): update hermetic visual baselines (#461 B1)"
             git push origin "HEAD:${{ github.head_ref || github.ref_name }}"
           fi
