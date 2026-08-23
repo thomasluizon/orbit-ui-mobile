@@ -70,7 +70,9 @@ jobs:
         if: steps.mode.outputs.seed == 'true'
         run: |
           set -euo pipefail
-          git lfs install --local
+          # --skip-repo: lefthook owns .git/hooks, and a plain install exits 2 refusing to
+          # overwrite them. This step only needs the LFS clean filter for the PNG add.
+          git lfs install --local --skip-repo
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/web/e2e/visual/__screenshots__
