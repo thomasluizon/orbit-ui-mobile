@@ -432,6 +432,8 @@ T("tickets: a lone boolean short flag before a read still allows", checkTicketMu
 T("tickets: a quote-concatenated gh api write blocks", blocks(checkTicketMutation(`g''h api -X DELETE repos/${TICKET_REPO}/issues/1`)), true)
 T("tickets: a quote-concatenated gh issue write blocks", blocks(checkTicketMutation(`g"h" issue edit 5 --repo ${TICKET_REPO} --title X`)), true)
 T("tickets: a backslash-escaped gh write blocks", blocks(checkTicketMutation(`\\gh api -X DELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: an opaque GraphQL payload hidden in a cluster fails closed", blocks(checkTicketMutation("gh api graphql -iFquery=@payload.graphql")), true)
+T("tickets: an opaque GraphQL payload behind an attached short flag fails closed", blocks(checkTicketMutation("gh api graphql -Fquery=@payload.graphql")), true)
 // A gate that fires on prose gets switched off, so its false-positive rate remains part of its contract.
 const tracked = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
 const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : [])

@@ -212,8 +212,10 @@ function apiVerdict(words, apiIndex, command) {
   const method = apiMethod(cluster.expanded, -1)
   if (method === "GET") return null
   if (endpoint.toLowerCase() === "graphql") {
-    const typedField = valueOf(words.slice(apiIndex + 1), ["-F", "--field"])
-    const opaquePayload = valueOf(words.slice(apiIndex + 1), ["--input"]) !== null || /^query=@/.test(typedField ?? "")
+    // Read the EXPANDED words here too: `-iFquery=@payload.graphql` hides `-F` inside a cluster,
+    // and reading the raw words let exactly that opaque payload through.
+    const typedField = valueOf(cluster.expanded, ["-F", "--field"])
+    const opaquePayload = valueOf(cluster.expanded, ["--input"]) !== null || /^query=@/.test(typedField ?? "")
     if (opaquePayload) return blocked(command, "The GraphQL request body is opaque, so the ticket target cannot be proved safe.")
     if (!/\bmutation\b/.test(command) || !GRAPHQL_TICKET_WRITE.test(command)) return null
     const namesTicketRepository = command.toLowerCase().includes(TICKET_REPOSITORY)
