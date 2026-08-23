@@ -118,7 +118,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
-node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f>
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
@@ -501,13 +501,17 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 ## Steps 5 and 6. Spawn the worker
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f>
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
 
-`launch-worker.mjs` runs in the FOREGROUND as its own watchdog and owns both clocks: a hard 45
-minute cap and a 10 minute no-progress cap, killing the whole process tree on either.
+`launch-worker.mjs` runs in the FOREGROUND as its own watchdog and owns both clocks: the hard
+ceiling and the no-progress cap from `.claude/orchestrator.json` (currently 45 and 10 minutes),
+killing the whole process tree on either. Pass `--hard-ceiling-minutes` at launch for a ticket the
+plan already shows outrunning the fleet-wide ceiling: a large migration, a subsystem ticket, or one
+whose test matrix is the work. Three finished workers died at the fixed 45 on 2026-08-22 for
+exactly that shape.
 
 The orchestrator launches it as a **background shell task and ends its turn.** Zero tokens burn
 while the worker runs, and the process exiting is what wakes the session.

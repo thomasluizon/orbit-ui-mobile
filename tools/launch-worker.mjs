@@ -32,15 +32,20 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      legitimately writes no file for long stretches. Uses
                      timeouts.measurementNoProgressMinutes instead of noProgressMinutes. The hard
                      ceiling is unchanged, so a measurement worker that really is hung still dies
+  --hard-ceiling-minutes <n>
+                     this ticket's hard ceiling, replacing timeouts.hardCeilingMinutes for this one
+                     launch. For a ticket that legitimately outruns the fleet-wide default
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
   --help, -h         print this usage and exit 0
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, pid, logFile,
-startedAt, endedAt, exitCode, outcome. Progress goes to stderr, so stdout stays pipeable.
+startedAt, endedAt, exitCode, outcome, plus what the run left in the tree: commitsSinceLaunch,
+commits and treeClean. Progress goes to stderr, so stdout stays pipeable.
 outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
-            2 usage or config error, 3 the worker executable could not be resolved`
+            2 usage or config error, 3 the worker executable could not be resolved,
+            4 this launcher killed it but the tree holds commits it made, so the work may be salvageable`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -60,6 +65,7 @@ const argOf = (flag) => {
 const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
+const hardCeilingArg = argOf("--hard-ceiling-minutes")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
 
@@ -103,6 +109,9 @@ const gitIn = (args) => {
 }
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
 if (!branch) fail(2, `${runDirectory} is not a git worktree`)
+/** Where the worker starts from, so a kill can report what the run added rather than make the
+ * orchestrator re-derive it from git on every exit. */
+const startHead = gitIn(["rev-parse", "HEAD"])
 const engineName = config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
@@ -114,7 +123,13 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
+/** Per-launch override for a ticket that legitimately outruns the fleet-wide default: three of the
+ * six 2026-08-22 kills were the 45-minute cap on tickets whose work simply takes longer (#358). */
+const hardCeilingMinutes = hardCeilingArg === null ? config.timeouts.hardCeilingMinutes : Number(hardCeilingArg)
+if (hardCeilingArg !== null && !(Number.isFinite(hardCeilingMinutes) && hardCeilingMinutes > 0)) {
+  fail(2, `${USAGE}\n\n--hard-ceiling-minutes must be a positive number, got "${hardCeilingArg}"`)
+}
+const hardCeilingMs = hardCeilingMinutes * 60 * 1000
 
 /**
  * THE no-progress cap punished work whose whole job is measurement.
@@ -125,13 +140,13 @@ const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
  * second attempt, after those measurements were recovered by hand and injected into the work order.
  * Lighthouse, benchmarks, profiling and bundle-size tickets all share that shape.
  *
- * The fix is a longer cap for those tickets, NOT a new progress signal. Counting log growth was the
- * obvious alternative and it is the wrong one: a genuinely hung worker writes log too. ORB-201's log
- * reached 61.73 MB in 37 minutes while delivering nothing, so a log-growth signal would have made
- * the no-progress clock unable to fire for exactly the runaway it exists to catch.
- *
- * Raising the cap cannot be gamed, because the signal is unchanged and the hard ceiling still bounds
- * everything: a measurement worker that really is hung dies at hardCeilingMinutes, same as any other.
+ * The first fix was a longer cap for those tickets, and log growth was rejected as a signal then
+ * because ORB-201's runaway wrote 61.73 MB in 37 minutes while delivering nothing. That objection
+ * died when caps.workerLogMegabytes started killing exactly that flood by byte count: with the
+ * runaway bounded, log growth became an honest liveness signal, and the sampler now counts it, next
+ * to process-tree CPU, after six FINISHED workers were killed in one night for running long test
+ * suites (#358, 2026-08-22). The measurement cap stays for work that is silent on every signal,
+ * and the hard ceiling still bounds everything: a worker that really is hung dies at the ceiling.
  */
 const measurementNoProgressMinutes = config.timeouts.measurementNoProgressMinutes
 if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
@@ -206,7 +221,7 @@ mkdirSync(logDirectory, { recursive: true })
 const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -258,9 +273,19 @@ const finish = (outcome, exitCode) => {
   finishing = true
   clearWakeSource(process.pid)
   closeSync(logFd)
-  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
+  /**
+   * What the run left in the tree, read once here so the orchestrator does not have to call git to
+   * tell a kill that discarded nothing from one that discarded nine finished commits (#358). The
+   * exit code carries the same distinction: on 2026-08-22 six killed workers all exited identically
+   * while every one of them held complete, committed work.
+   */
+  const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
+  const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
+  const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
+  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome, commitsSinceLaunch: commits.length, commits, treeClean }
   console.log(JSON.stringify(result, null, 2))
-  process.exit(outcome === "EXITED" ? 0 : 1)
+  if (outcome === "EXITED") process.exit(0)
+  process.exit(commits.length > 0 ? 4 : 1)
 }
 
 /** The worker spawns its own children (git, npm, subagents), and killing the parent alone leaves
@@ -306,10 +331,72 @@ const newestMtimeUnder = (directory) => {
  */
 const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(runDirectory)}`
 
+/**
+ * Cumulative CPU milliseconds burned by a process and every currently running descendant, or null
+ * when the probe cannot answer. One CIM query returns the whole table; KernelModeTime and
+ * UserModeTime are 100 ns units. Confirmed against the live output of this exact command on this
+ * machine (2026-08-23), whose first rows were, verbatim:
+ *   [{"ProcessId":0,"ParentProcessId":0,"KernelModeTime":47697331093750,"UserModeTime":0},
+ *    {"ProcessId":4,"ParentProcessId":0,"KernelModeTime":826359375000,"UserModeTime":0},
+ *    {"ProcessId":140,"ParentProcessId":4,"KernelModeTime":0,"UserModeTime":0}]
+ *
+ * The number is a snapshot of LIVE processes, not an account of the whole tree's history: a child
+ * that starts and exits between two polls contributes nothing, a child exiting mid-window makes the
+ * total DROP, and a dead intermediate breaks the parent-pid chain, so live grandchildren behind it
+ * are unreachable from the root. Windows does not re-parent orphans, and following a dead pid's key
+ * would count strangers under a recycled pid, so a single snapshot cannot see across that break
+ * without native job objects, complexity this harness does not warrant. The sampler clamps on a
+ * drop rather than demanding a re-climb, and the shapes this blindness leaves, short-lived children
+ * and an orphaned burner, are what the log signal covers, since the worker narrates work to its
+ * log; a kill still requires every signal silent for the whole cap.
+ *
+ * Windows only, deliberately: this launcher runs on one Windows machine, and a POSIX `ps` parser
+ * written here could not be confirmed against any real system (code standard 8). A null probe fails
+ * toward the historical signals, never toward keeping a worker alive.
+ */
+const cpuMillisecondsOfTree = (rootPid) => {
+  if (process.platform !== "win32" || !Number.isInteger(rootPid)) return null
+  const query = "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,KernelModeTime,UserModeTime | ConvertTo-Json -Compress"
+  const result = spawnSync("powershell", ["-NoProfile", "-Command", query], { encoding: "utf8", windowsHide: true })
+  if (result.status !== 0) return null
+  let rows
+  try {
+    rows = JSON.parse(result.stdout)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(rows)) return null
+  const childrenOf = new Map()
+  const cpuOf = new Map()
+  for (const row of rows) {
+    cpuOf.set(row.ProcessId, ((row.KernelModeTime ?? 0) + (row.UserModeTime ?? 0)) / 10_000)
+    if (!childrenOf.has(row.ParentProcessId)) childrenOf.set(row.ParentProcessId, [])
+    childrenOf.get(row.ParentProcessId).push(row.ProcessId)
+  }
+  let total = 0
+  const queue = [rootPid]
+  const seen = new Set()
+  while (queue.length > 0) {
+    const pid = queue.pop()
+    if (seen.has(pid)) continue
+    seen.add(pid)
+    total += cpuOf.get(pid) ?? 0
+    for (const childPid of childrenOf.get(pid) ?? []) queue.push(childPid)
+  }
+  return total
+}
+
+/**
+ * 1.5% of one core across the probe window. A wedged or deadlocked tree sits at zero; a tree
+ * driving a test suite or a build sits far above. The floor exists so a process that is merely
+ * alive, timer ticks and nothing else, cannot hold the stall clock open forever.
+ */
+const CPU_PROGRESS_FRACTION = 0.015
+
 let outcome = "EXITED"
 const ceiling = setTimeout(() => {
   outcome = "KILLED_HARD_CEILING"
-  console.error(`${issue} passed the ${config.timeouts.hardCeilingMinutes} minute ceiling; killing the worker process tree`)
+  console.error(`${issue} passed the ${hardCeilingMinutes} minute ceiling; killing the worker process tree`)
   killTree(child.pid)
 }, hardCeilingMs)
 
@@ -332,31 +419,71 @@ const ceiling = setTimeout(() => {
 const logMegabyteCap = config.caps?.workerLogMegabytes
 const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMegabyteCap * 1024 * 1024 : null
 
+/**
+ * Progress is any of three signals, tested cheapest first (#358, after six workers holding
+ * finished, committed work were killed in one night as "stalled"):
+ *   1. HEAD moved or a file changed under the run directory, the original fingerprint.
+ *   2. The worker log grew. The worker streams to it continuously, so a long `dotnet test`, a CI
+ *      wait, or a model turn all show up here while writing nothing to the tree. Safe to count only
+ *      because KILLED_LOG_RUNAWAY bounds a flood by byte count, which is what answers ORB-201.
+ *   3. The process tree burned real CPU since the last silent sample. This is the honest signal for
+ *      a child that computes without writing, and the probe enumerates every process on the
+ *      machine, so it runs only when both cheap signals are static, which is exactly the situation
+ *      that used to count toward a kill.
+ * A tree that is idle on all three for noProgressMinutes is still killed, as it must be.
+ */
 let progress = progressFingerprint()
 let lastProgressAt = Date.now()
+let lastLogSize = 0
+let cpuBaseline = null
 const sampler = setInterval(() => {
-  if (logByteCap !== null) {
-    try {
-      const written = statSync(logFile).size
-      if (written > logByteCap) {
-        outcome = "KILLED_LOG_RUNAWAY"
-        console.error(`${issue} wrote ${(written / 1048576).toFixed(2)} MB of worker log, past the ${logMegabyteCap} MB cap; killing the worker process tree`)
-        killTree(child.pid)
-        return
-      }
-    } catch {
-      /* a log that cannot be stat'd is not evidence of a runaway */
-    }
+  let logSize = null
+  try {
+    logSize = statSync(logFile).size
+  } catch {
+    /* a log that cannot be stat'd is neither a runaway nor progress */
+  }
+  if (logByteCap !== null && logSize !== null && logSize > logByteCap) {
+    outcome = "KILLED_LOG_RUNAWAY"
+    console.error(`${issue} wrote ${(logSize / 1048576).toFixed(2)} MB of worker log, past the ${logMegabyteCap} MB cap; killing the worker process tree`)
+    killTree(child.pid)
+    return
+  }
+  const noteProgress = () => {
+    lastProgressAt = Date.now()
+    if (logSize !== null) lastLogSize = logSize
+    cpuBaseline = null
   }
   const sampled = progressFingerprint()
   if (sampled !== progress) {
     progress = sampled
-    lastProgressAt = Date.now()
+    noteProgress()
     return
   }
-  if (Date.now() - lastProgressAt < noProgressMs) return
+  // Log growth counts ONLY while the byte cap bounds it. Without a configured cap there is no
+  // KILLED_LOG_RUNAWAY, so a flooding hung worker could hold this signal open to the ceiling, which
+  // is the exact ORB-201 objection. An uncapped config keeps the historical signals instead.
+  if (logByteCap !== null && logSize !== null && logSize > lastLogSize) {
+    noteProgress()
+    return
+  }
+  const cpuMs = cpuMillisecondsOfTree(child.pid)
+  const now = Date.now()
+  if (cpuMs !== null) {
+    if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
+      // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
+      // rather than compare: measuring against the higher pre-exit total would demand the survivors
+      // re-earn a dead child's whole history before any burn counted again.
+      cpuBaseline = { cpuMs, at: now }
+    } else if (cpuMs - cpuBaseline.cpuMs >= (now - cpuBaseline.at) * CPU_PROGRESS_FRACTION) {
+      cpuBaseline = { cpuMs, at: now }
+      lastProgressAt = now
+      return
+    }
+  }
+  if (now - lastProgressAt < noProgressMs) return
   outcome = "KILLED_NO_PROGRESS"
-  console.error(`${issue} has not moved HEAD or written a file for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
+  console.error(`${issue} has not moved HEAD, written a file, grown its log or burned CPU for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
   killTree(child.pid)
 }, config.timeouts.pollSeconds * 1000)
 
