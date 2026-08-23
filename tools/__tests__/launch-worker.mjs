@@ -215,6 +215,23 @@ export const cases = () => {
   )
   discardLog(dripped.stdout)
 
+  /** Without a byte cap there is no KILLED_LOG_RUNAWAY to bound a flood, so log growth must NOT
+   * count as progress in that configuration: a flooding hung worker would otherwise hold the stall
+   * clock open all the way to the ceiling, the exact ORB-201 shape. */
+  const uncapped = launch("log-uncapped", (() => {
+    const config = launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
+    delete config.caps.workerLogMegabytes
+    return config
+  })())
+  const uncappedKill = check(
+    TOOL,
+    "without a log byte cap, log growth alone does not hold the stall clock open",
+    ["--issue", "ORB-201", "--worktree", uncapped.worktree, "--prompt", uncapped.prompt],
+    { status: 1, stdout: /"outcome": "KILLED_NO_PROGRESS"/ },
+    { path: uncapped.path, env: githubAuthEnv() },
+  )
+  discardLog(uncappedKill.stdout)
+
   /**
    * A worker that floods its own log is a runaway, and it used to die unexplained. Measured on the
    * 2026-08-08 night: ORB-201 wrote 61.73 MB in 36.9 minutes, 28.6 KB/s, eight times the next

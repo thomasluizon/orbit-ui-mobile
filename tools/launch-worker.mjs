@@ -341,10 +341,14 @@ const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtime
  *    {"ProcessId":140,"ParentProcessId":4,"KernelModeTime":0,"UserModeTime":0}]
  *
  * The number is a snapshot of LIVE processes, not an account of the whole tree's history: a child
- * that starts and exits between two polls contributes nothing, and a child exiting mid-window makes
- * the total DROP. The sampler clamps on a drop rather than demanding a re-climb, and the shape this
- * blindness leaves uncovered, a worker driving many short-lived children, is exactly what the log
- * signal covers, since the worker narrates that work to its log.
+ * that starts and exits between two polls contributes nothing, a child exiting mid-window makes the
+ * total DROP, and a dead intermediate breaks the parent-pid chain, so live grandchildren behind it
+ * are unreachable from the root. Windows does not re-parent orphans, and following a dead pid's key
+ * would count strangers under a recycled pid, so a single snapshot cannot see across that break
+ * without native job objects, complexity this harness does not warrant. The sampler clamps on a
+ * drop rather than demanding a re-climb, and the shapes this blindness leaves, short-lived children
+ * and an orphaned burner, are what the log signal covers, since the worker narrates work to its
+ * log; a kill still requires every signal silent for the whole cap.
  *
  * Windows only, deliberately: this launcher runs on one Windows machine, and a POSIX `ps` parser
  * written here could not be confirmed against any real system (code standard 8). A null probe fails
@@ -456,7 +460,10 @@ const sampler = setInterval(() => {
     noteProgress()
     return
   }
-  if (logSize !== null && logSize > lastLogSize) {
+  // Log growth counts ONLY while the byte cap bounds it. Without a configured cap there is no
+  // KILLED_LOG_RUNAWAY, so a flooding hung worker could hold this signal open to the ceiling, which
+  // is the exact ORB-201 objection. An uncapped config keeps the historical signals instead.
+  if (logByteCap !== null && logSize !== null && logSize > lastLogSize) {
     noteProgress()
     return
   }
