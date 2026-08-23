@@ -79,7 +79,10 @@ jobs:
           if git diff --cached --quiet; then
             echo "Baselines already up to date — nothing to commit."
           else
-            git commit -m "test(web): update hermetic visual baselines (#461 B1) [skip ci]"
+            # No [skip ci]: main requires 21 status checks per head, so a baseline commit that
+            # skips CI strands its pull request unmergeable. The guard above already prevents a
+            # seed loop, since re-seeding an unchanged rendering stages nothing.
+            git commit -m "test(web): update hermetic visual baselines (#461 B1)"
             git push origin "HEAD:${{ github.head_ref || github.ref_name }}"
           fi
 
