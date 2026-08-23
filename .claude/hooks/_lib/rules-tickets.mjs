@@ -10,8 +10,19 @@ const ISSUE_WRITES = new Set(["close", "comment", "create", "delete", "edit", "l
 const LABEL_WRITES = new Set(["create", "delete", "edit"])
 const PROJECT_ITEM_WRITES = new Set(["item-add", "item-archive", "item-create", "item-delete", "item-edit"])
 const API_RESOURCES = /(?:^|\/)(?:issues?|labels?|milestones?|projects?)(?:\/|$)/i
-// `gh api` flag arity, read from `gh api --help` on gh 2.97.0 and confirmed against gh itself: a
-// value flag answers "flag needs an argument", a boolean answers "accepts 1 arg(s), received 0".
+/**
+ * `gh api` flag arity for gh 2.97.0 (2026-07-31), from `gh api --help`'s FLAGS block plus the
+ * inherited --help. Reproduce credential-free, since argument parsing rejects before any request:
+ *
+ *   for f in <every flag below>; do gh api $f; echo exit=$?; done
+ *
+ * Probed 2026-08-23, all 24 spellings, every probe exit 1: each value flag answers
+ * "flag needs an argument: <flag>" (short flags as "flag needs an argument: 'X' in -X"), and each
+ * boolean flag answers "accepts 1 arg(s), received 0", because with the flag consumed nothing
+ * remains for the required <endpoint> positional. The classification below is gh's own answer per
+ * spelling, not a reading of the docs. Re-run the loop after a gh upgrade; a new flag these sets do
+ * not know fails closed in apiPositionals via unknownArity.
+ */
 const API_VALUE_FLAGS = new Set(["--cache", "--field", "-F", "--header", "-H", "--hostname", "--input", "--jq", "-q", "--method", "-X", "--preview", "-p", "--raw-field", "-f", "--template", "-t"])
 const API_BOOLEAN_FLAGS = new Set(["--allow-escape-sequences", "--include", "-i", "--paginate", "--silent", "--slurp", "--verbose", "--help"])
 // Names confirmed from the live GitHub Mutation schema. Pull-request review mutations are absent.
