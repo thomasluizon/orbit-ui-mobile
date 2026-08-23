@@ -65,14 +65,11 @@ export const cases = () => {
   const options = { path: fixture.path }
 
   /**
-   * The no-progress clock samples HEAD and file mtimes, so a ticket whose work IS measurement looks
-   * byte for byte like a hung worker. ORB-225 was killed mid-Lighthouse on 2026-08-08 with real
-   * measurements in its log and zero commits, and only succeeded once they were recovered by hand.
-   *
-   * The cap is raised for those tickets; the SIGNAL is deliberately unchanged. Counting log growth
-   * was the obvious alternative and it is the wrong one: ORB-201's log reached 61.73 MB in 37
-   * minutes while delivering nothing, so a log-growth signal could not fire for the exact runaway
-   * the clock exists to catch.
+   * The no-progress clock once sampled only HEAD and file mtimes, so a ticket whose work IS
+   * measurement looked byte for byte like a hung worker. ORB-225 was killed mid-Lighthouse on
+   * 2026-08-08 with real measurements in its log and zero commits, and only succeeded once they
+   * were recovered by hand. The raised cap for measurement tickets predates the log and CPU
+   * signals (#358) and stays: it is the bound for work that is silent on every signal.
    */
   const measured = check(TOOL, "--measurement resolves the longer no-progress cap", [...argv, "--measurement", "--dry-run"], { status: 0 }, options)
   const measuredPlan = JSON.parse(measured.stdout)
@@ -176,12 +173,42 @@ export const cases = () => {
   const noProgress = launch("no-progress", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 5, noProgressMinutes: 0.02, pollSeconds: 0.2 } }))
   const stalled = check(
     TOOL,
-    "a worker that writes nothing is killed on the configured no-progress clock",
+    "a worker idle on every signal is killed on the configured no-progress clock",
     ["--issue", "ORB-201", "--worktree", noProgress.worktree, "--prompt", noProgress.prompt],
-    { status: 1, stdout: /"outcome": "KILLED_NO_PROGRESS"/, stderr: /has not moved HEAD or written a file for 0\.02 minutes/ },
+    { status: 1, stdout: /"outcome": "KILLED_NO_PROGRESS"/, stderr: /has not moved HEAD, written a file, grown its log or burned CPU for 0\.02 minutes/ },
     { path: noProgress.path, env: githubAuthEnv() },
   )
   discardLog(stalled.stdout)
+
+  /**
+   * Six workers holding finished, committed work were killed as "stalled" in one night on
+   * 2026-08-22, because progress was defined as HEAD moving or a file changing and a worker inside
+   * one long child process (a full test suite, a CI wait) changes neither (#358). CPU burned by the
+   * process tree and growth of the worker's own log are both progress now. Each script below is
+   * silent on the OLD signals, so with the tiny no-progress cap it survives to the hard ceiling
+   * only if its one live signal is being counted.
+   */
+  const BURNER = stage("launch-worker/burning-worker.js", "const stop = Date.now() + 60000\nwhile (Date.now() < stop) {}\n")
+  const cpuProgress = launch("cpu-progress", launchConfig({ ...stubEngine(BURNER), timeouts: { hardCeilingMinutes: 0.15, noProgressMinutes: 0.05, pollSeconds: 0.2 } }))
+  const burned = check(
+    TOOL,
+    "a worker burning CPU while writing nothing anywhere is NOT killed as stalled",
+    ["--issue", "ORB-201", "--worktree", cpuProgress.worktree, "--prompt", cpuProgress.prompt],
+    { status: 1, stdout: /"outcome": "KILLED_HARD_CEILING"/ },
+    { path: cpuProgress.path, env: githubAuthEnv() },
+  )
+  discardLog(burned.stdout)
+
+  const DRIP = stage("launch-worker/dripping-worker.js", "setInterval(() => process.stdout.write('heartbeat\\n'), 250)\n")
+  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } }))
+  const dripped = check(
+    TOOL,
+    "a worker only appending to its own log is NOT killed as stalled",
+    ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
+    { status: 1, stdout: /"outcome": "KILLED_HARD_CEILING"/ },
+    { path: logProgress.path, env: githubAuthEnv() },
+  )
+  discardLog(dripped.stdout)
 
   /**
    * A worker that floods its own log is a runaway, and it used to die unexplained. Measured on the
@@ -223,6 +250,46 @@ export const cases = () => {
     { path: ceiling.path, env: githubAuthEnv() },
   )
   discardLog(killed.stdout)
+  /** A kill that leaves nothing must say so in the result itself, without anyone calling git (#358). */
+  let emptyKill = null
+  try {
+    emptyKill = JSON.parse(killed.stdout)
+  } catch {
+    emptyKill = null
+  }
+  T(
+    `${TOOL}: a kill that leaves no commits reports zero, distinguishably, in the result JSON`,
+    emptyKill !== null && emptyKill.commitsSinceLaunch === 0 && Array.isArray(emptyKill.commits) && emptyKill.commits.length === 0,
+    killed.stdout,
+  )
+
+  /**
+   * The other half of the #358 report: a kill that leaves committed work must not exit with the
+   * same code and shape as a kill that leaves nothing. On 2026-08-22 a killed worker whose three
+   * commits later merged to main unchanged reported identically to one that produced nothing.
+   */
+  const COMMITTER = stage(
+    "launch-worker/committing-worker.js",
+    'const { spawnSync } = require("node:child_process")\nconst { writeFileSync } = require("node:fs")\nwriteFileSync("delivered.txt", "the work\\n")\nspawnSync("git", ["add", "delivered.txt"], { stdio: "ignore" })\nspawnSync("git", ["commit", "-q", "-m", "deliver the work"], { stdio: "ignore" })\nsetInterval(() => {}, 60000)\n',
+  )
+  const committedKill = launch("kill-with-commits", launchConfig({ ...stubEngine(COMMITTER), timeouts: { hardCeilingMinutes: 0.08, noProgressMinutes: 5, pollSeconds: 0.2 } }))
+  const salvageable = check(
+    TOOL,
+    "a kill that leaves commits exits 4 and NAMES them in the result",
+    ["--issue", "ORB-201", "--worktree", committedKill.worktree, "--prompt", committedKill.prompt],
+    { status: 4, stdout: /"outcome": "KILLED_HARD_CEILING"[\s\S]*"commitsSinceLaunch": 1[\s\S]*deliver the work/ },
+    { path: committedKill.path, env: githubAuthEnv() },
+  )
+  discardLog(salvageable.stdout)
+
+  /** Three of the six 2026-08-22 kills were the fleet-wide 45-minute cap on tickets that
+   * legitimately take longer, so the ceiling is per-launch overridable (#358). */
+  const ceilingOverride = check(TOOL, "--hard-ceiling-minutes overrides the configured ceiling for one launch", [...argv, "--hard-ceiling-minutes", "90", "--dry-run"], { status: 0, stdout: /"hardCeilingMinutes": 90/ }, options)
+  discardLog(ceilingOverride.stdout)
+  const ceilingDefault = check(TOOL, "without the flag the ceiling comes from .claude/orchestrator.json", [...argv, "--dry-run"], { status: 0, stdout: new RegExp(`"hardCeilingMinutes": ${realOrchestratorConfig().timeouts.hardCeilingMinutes}\\b`) }, options)
+  discardLog(ceilingDefault.stdout)
+  check(TOOL, "--hard-ceiling-minutes refuses a non-positive value", [...argv, "--hard-ceiling-minutes", "0", "--dry-run"], { status: 2, stderr: /--hard-ceiling-minutes must be a positive number/ }, options)
+  check(TOOL, "--hard-ceiling-minutes refuses a non-numeric value", [...argv, "--hard-ceiling-minutes", "soon", "--dry-run"], { status: 2, stderr: /--hard-ceiling-minutes must be a positive number/ }, options)
 
   const descendantPidFile = stage("launch-worker/descendant.pid", "")
   const treeWorker = stage(
