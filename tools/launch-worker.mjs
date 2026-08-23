@@ -332,9 +332,19 @@ const newestMtimeUnder = (directory) => {
 const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(runDirectory)}`
 
 /**
- * Cumulative CPU milliseconds burned by a process and every descendant, or null when the probe
- * cannot answer. One CIM query returns the whole table; KernelModeTime and UserModeTime are 100 ns
- * units, confirmed against the live output of this exact command on this machine (2026-08-23).
+ * Cumulative CPU milliseconds burned by a process and every currently running descendant, or null
+ * when the probe cannot answer. One CIM query returns the whole table; KernelModeTime and
+ * UserModeTime are 100 ns units. Confirmed against the live output of this exact command on this
+ * machine (2026-08-23), whose first rows were, verbatim:
+ *   [{"ProcessId":0,"ParentProcessId":0,"KernelModeTime":47697331093750,"UserModeTime":0},
+ *    {"ProcessId":4,"ParentProcessId":0,"KernelModeTime":826359375000,"UserModeTime":0},
+ *    {"ProcessId":140,"ParentProcessId":4,"KernelModeTime":0,"UserModeTime":0}]
+ *
+ * The number is a snapshot of LIVE processes, not an account of the whole tree's history: a child
+ * that starts and exits between two polls contributes nothing, and a child exiting mid-window makes
+ * the total DROP. The sampler clamps on a drop rather than demanding a re-climb, and the shape this
+ * blindness leaves uncovered, a worker driving many short-lived children, is exactly what the log
+ * signal covers, since the worker narrates that work to its log.
  *
  * Windows only, deliberately: this launcher runs on one Windows machine, and a POSIX `ps` parser
  * written here could not be confirmed against any real system (code standard 8). A null probe fails
@@ -453,7 +463,10 @@ const sampler = setInterval(() => {
   const cpuMs = cpuMillisecondsOfTree(child.pid)
   const now = Date.now()
   if (cpuMs !== null) {
-    if (cpuBaseline === null) {
+    if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
+      // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
+      // rather than compare: measuring against the higher pre-exit total would demand the survivors
+      // re-earn a dead child's whole history before any burn counted again.
       cpuBaseline = { cpuMs, at: now }
     } else if (cpuMs - cpuBaseline.cpuMs >= (now - cpuBaseline.at) * CPU_PROGRESS_FRACTION) {
       cpuBaseline = { cpuMs, at: now }

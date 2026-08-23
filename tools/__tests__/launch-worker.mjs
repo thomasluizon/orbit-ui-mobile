@@ -188,13 +188,18 @@ export const cases = () => {
    * silent on the OLD signals, so with the tiny no-progress cap it survives to the hard ceiling
    * only if its one live signal is being counted.
    */
+  /** The CPU probe is deliberately Windows-only (its POSIX shape could never be confirmed against a
+   * real system), so off Windows the burner is INVISIBLE to every signal and the correct outcome is
+   * the no-progress kill. The branch here asserts that contract instead of skipping the case. */
   const BURNER = stage("launch-worker/burning-worker.js", "const stop = Date.now() + 60000\nwhile (Date.now() < stop) {}\n")
   const cpuProgress = launch("cpu-progress", launchConfig({ ...stubEngine(BURNER), timeouts: { hardCeilingMinutes: 0.15, noProgressMinutes: 0.05, pollSeconds: 0.2 } }))
   const burned = check(
     TOOL,
-    "a worker burning CPU while writing nothing anywhere is NOT killed as stalled",
+    process.platform === "win32"
+      ? "a worker burning CPU while writing nothing anywhere is NOT killed as stalled"
+      : "without the Windows CPU probe, a silent CPU burner still dies on the no-progress clock",
     ["--issue", "ORB-201", "--worktree", cpuProgress.worktree, "--prompt", cpuProgress.prompt],
-    { status: 1, stdout: /"outcome": "KILLED_HARD_CEILING"/ },
+    { status: 1, stdout: process.platform === "win32" ? /"outcome": "KILLED_HARD_CEILING"/ : /"outcome": "KILLED_NO_PROGRESS"/ },
     { path: cpuProgress.path, env: githubAuthEnv() },
   )
   discardLog(burned.stdout)
