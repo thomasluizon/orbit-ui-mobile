@@ -400,6 +400,26 @@ T("tickets: the sanctioned milestone creator allows", checkTicketMutation("node 
 T("tickets: the sanctioned ticket creator allows", checkTicketMutation("node tools/create-ticket.mjs --title x --body-file draft.md --label repo:ui --label Improvement"), null)
 T("tickets: the post-merge completion preflight allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221" --preflight'), null)
 T("tickets: the post-merge completion write allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221"'), null)
+
+/** The endpoint used to be read as the single word after `api`, so any flag placed first made that
+ * word `--method` and the guard allowed the mutation. `gh` accepts every one of these shapes. */
+T("tickets: a leading long method flag no longer hides the endpoint", blocks(checkTicketMutation(`gh api --method DELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a leading short method flag no longer hides the endpoint", blocks(checkTicketMutation(`gh api -X DELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a leading boolean flag no longer hides the endpoint", blocks(checkTicketMutation(`gh api --silent -X PATCH repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: an attached leading method flag no longer hides the endpoint", blocks(checkTicketMutation(`gh api -XDELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a leading flag before a read is still allowed", checkTicketMutation(`gh api --method GET repos/${TICKET_REPO}/issues/1`), null)
+T("tickets: a leading flag before a code-repository write is still allowed", checkTicketMutation(`gh api -X DELETE repos/${CODE_REPO}/issues/1`), null)
+T("tickets: an API write with no endpoint at all fails closed", blocks(checkTicketMutation("gh api -X DELETE")), true)
+T("tickets: an API write behind a flag of unknown arity fails closed", blocks(checkTicketMutation(`gh api --newflag -X DELETE repos/${CODE_REPO}/issues/1`)), true)
+T("tickets: a leading flag before a GraphQL mutation still fails closed", blocks(checkTicketMutation("gh api --silent graphql -f query='mutation { closeIssue(input: {issueId: $i}) { issue { id } } }'")), true)
+
+/** The second fail-open: quote state never recovered, so an unbalanced quote absorbed the rest of
+ * the command and the gh invocation inside it was never parsed as its own segment. */
+T("tickets: a ticket write after an unbalanced quote blocks", blocks(checkTicketMutation(`echo " ; gh issue edit 5 --repo ${TICKET_REPO} --title "X"`)), true)
+T("tickets: a ticket API write after an unbalanced quote blocks", blocks(checkTicketMutation(`echo ' && gh api -X DELETE repos/${TICKET_REPO}/issues/1`)), true)
+T("tickets: a balanced-quote ticket write still blocks", blocks(checkTicketMutation(`gh issue edit 5 --repo ${TICKET_REPO} --title "X"`)), true)
+T("tickets: an unbalanced quote around a code-repository write still allows", checkTicketMutation(`echo " ; gh issue edit 5 --repo ${CODE_REPO} --title "X"`), null)
+T("tickets: an unbalanced quote around a sanctioned tool still allows", checkTicketMutation(`echo " ; node tools/comment-ticket.mjs --issue "#5" --body-file -`), null)
 // A gate that fires on prose gets switched off, so its false-positive rate remains part of its contract.
 const tracked = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
 const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : [])

@@ -10,11 +10,16 @@ const ISSUE_WRITES = new Set(["close", "comment", "create", "delete", "edit", "l
 const LABEL_WRITES = new Set(["create", "delete", "edit"])
 const PROJECT_ITEM_WRITES = new Set(["item-add", "item-archive", "item-create", "item-delete", "item-edit"])
 const API_RESOURCES = /(?:^|\/)(?:issues?|labels?|milestones?|projects?)(?:\/|$)/i
+// `gh api` flag arity, read from `gh api --help` on gh 2.97.0 and confirmed against gh itself: a
+// value flag answers "flag needs an argument", a boolean answers "accepts 1 arg(s), received 0".
+const API_VALUE_FLAGS = new Set(["--cache", "--field", "-F", "--header", "-H", "--hostname", "--input", "--jq", "-q", "--method", "-X", "--preview", "-p", "--raw-field", "-f", "--template", "-t"])
+const API_BOOLEAN_FLAGS = new Set(["--allow-escape-sequences", "--include", "-i", "--paginate", "--silent", "--slurp", "--verbose", "--help"])
 // Names confirmed from the live GitHub Mutation schema. Pull-request review mutations are absent.
 const GRAPHQL_TICKET_WRITE = /\b(?:addComment|addLabelsToLabelable|clearLabelsFromLabelable|removeLabelsFromLabelable|lockLockable|unlockLockable|minimizeComment|unminimizeComment|addSubIssue|removeSubIssue|reprioritizeSubIssue|(?:close|create|delete|pin|reopen|set|transfer|unmark|unpin|update)Issue(?:AsDuplicate|Comment|Field|FieldValue|IssueType|Type)?|(?:add|archive|clear|convert|copy|create|delete|link|mark|unarchive|unlink|unmark|update)ProjectV2\w*|(?:create|delete|update)Label|(?:create|delete|update)Milestone)\b/
 
 const unquote = (word) => word?.replace(/^(?:"|')|(?:"|')$/g, "") ?? ""
 
+/** Segments plus whether the parse ended inside a quote, which means it could not be trusted. */
 function shellSegments(command) {
   const segments = []
   let current = ""
@@ -38,7 +43,7 @@ function shellSegments(command) {
     current += character
   }
   if (current.trim()) segments.push(current)
-  return segments
+  return { segments, unbalanced: quote !== "" }
 }
 
 const wordsOf = (segment) => (segment.match(SHELL_WORD) ?? []).map(unquote)
@@ -106,8 +111,45 @@ function restRepository(endpoint) {
   return match ? `${match[1]}/${match[2]}` : null
 }
 
+/**
+ * Positional arguments of `gh api`, resolved the way gh parses flags rather than by position.
+ * `unknownArity` records a flag whose arity these tables do not know, which leaves the endpoint
+ * unproved. Reading the endpoint as the word after `api` allowed every mutation that put a flag
+ * first, because that word was `--method` and matched no ticket resource.
+ */
+function apiPositionals(words, apiIndex) {
+  const positionals = []
+  let unknownArity = false
+  for (let index = apiIndex + 1; index < words.length; index++) {
+    const word = words[index]
+    if (word === "--") {
+      positionals.push(...words.slice(index + 1))
+      break
+    }
+    if (word === "-" || !word.startsWith("-")) {
+      positionals.push(word)
+      continue
+    }
+    if (word.startsWith("--")) {
+      const name = word.includes("=") ? word.slice(0, word.indexOf("=")) : word
+      if (!API_VALUE_FLAGS.has(name) && !API_BOOLEAN_FLAGS.has(name)) unknownArity = true
+      else if (API_VALUE_FLAGS.has(name) && !word.includes("=")) index++
+      continue
+    }
+    const short = word.slice(0, 2)
+    if (API_VALUE_FLAGS.has(short)) {
+      if (word.length === 2) index++
+      continue
+    }
+    if (API_BOOLEAN_FLAGS.has(short) && word.length === 2) continue
+    unknownArity = true
+  }
+  return { positionals, unknownArity }
+}
+
 function apiVerdict(words, apiIndex, command) {
-  const endpoint = words[apiIndex + 1] ?? ""
+  const { positionals, unknownArity } = apiPositionals(words, apiIndex)
+  const endpoint = positionals[0] ?? ""
   const method = apiMethod(words, apiIndex)
   if (method === "GET") return null
   if (endpoint.toLowerCase() === "graphql") {
@@ -118,12 +160,20 @@ function apiVerdict(words, apiIndex, command) {
     const namesTicketRepository = command.toLowerCase().includes(TICKET_REPOSITORY)
     return blocked(command, namesTicketRepository ? "The GraphQL mutation names the ticket repository." : "The GraphQL mutation does not prove that its ticket object belongs to a different repository.")
   }
+  // Every positional is tested, not only the endpoint, so a wrong arity guess above cannot let a
+  // ticket target through: it can only add a candidate, never hide one.
+  for (const candidate of positionals) {
+    if (!API_RESOURCES.test(candidate)) continue
+    if (restRepository(candidate)?.toLowerCase() === TICKET_REPOSITORY) {
+      return blocked(command, `The API mutation targets ticket objects in ${TICKET_REPOSITORY}.`)
+    }
+  }
+  if (!endpoint || unknownArity) return blocked(command, "The API mutation does not prove which endpoint it will call.")
   if (!API_RESOURCES.test(endpoint)) return null
   const repository = restRepository(endpoint)
   if (!repository) return blocked(command, "The API mutation does not prove which repository owns the ticket object.")
   if (/[{}]/.test(repository)) return blocked(command, "The API mutation uses an unresolved repository placeholder.")
-  if (repository.toLowerCase() !== TICKET_REPOSITORY) return null
-  return blocked(command, `The API mutation targets ticket objects in ${TICKET_REPOSITORY}.`)
+  return null
 }
 
 function sanctionedTool(words) {
@@ -140,10 +190,8 @@ function blocked(command, detail) {
   }
 }
 
-/** Verdict for a shell command or source text about to be written, or null to allow. */
-export function checkTicketMutation(command) {
-  if (typeof command !== "string" || !/\bgh(?:\.exe|\.cmd)?\b/i.test(command)) return null
-  for (const segment of shellSegments(command)) {
+function scanSegments(segments, command) {
+  for (const segment of segments) {
     const words = wordsOf(segment)
     if (sanctionedTool(words)) continue
     const index = ghIndex(words)
@@ -158,4 +206,17 @@ export function checkTicketMutation(command) {
     if (verdict) return verdict
   }
   return null
+}
+
+/** Verdict for a shell command or source text about to be written, or null to allow. */
+export function checkTicketMutation(command) {
+  if (typeof command !== "string" || !/\bgh(?:\.exe|\.cmd)?\b/i.test(command)) return null
+  const { segments, unbalanced } = shellSegments(command)
+  const verdict = scanSegments(segments, command)
+  if (verdict) return verdict
+  if (!unbalanced) return null
+  // The quote never closed, so a gh invocation can sit inside an unterminated blob and never be
+  // parsed as its own segment. Re-split with the quotes neutralised and judge what surfaces: an
+  // unparseable command has to fail closed, and this reaches the accurate reason for doing so.
+  return scanSegments(shellSegments(command.replaceAll(String.fromCharCode(34), " ").replaceAll(String.fromCharCode(39), " ")).segments, command)
 }
