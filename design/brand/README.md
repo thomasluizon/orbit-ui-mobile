@@ -59,7 +59,7 @@ model cannot hold exact geometry and Recraft's native vector model can.
 |---|---|
 | `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
 | `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
-| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 91.52 by 28 |
+| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 90.6 by 17.9 |
 
 **There is no 24 grid variant, and there will not be one.** `#365` originally ordered one and this
 list originally promised one. `DESIGN.md:267` overrules both: "Asset sizes are enumerated: 16, 48,
@@ -75,6 +75,14 @@ to survive at 16 and nothing else.
 fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
 violation, not a variation. The moon's fill falls back to `currentColor`, so a viewer or an upload
 preview that defines no `--primary` still renders the whole mark rather than dropping the moon.
+
+**The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
+art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
+height and the word swamps the mark. Sized on the ink it stands 15.1px and the pair reads as one
+lockup.
+
+**The lockup's viewBox IS its ink**, 90.6 by 17.9, with no baked margin. Clear space is the
+consumer's to add. A logo file that carries its own padding cannot be aligned to anything.
 
 **The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
 carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
