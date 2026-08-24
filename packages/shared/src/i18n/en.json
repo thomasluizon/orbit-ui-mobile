@@ -249,8 +249,8 @@
   },
   "reviewMoment": {
     "eyebrow": "A word from Astra",
-    "streakTitle": "{count} days straight!",
-    "levelTitle": "Level {level}!",
+    "streakTitle": "{count} days straight",
+    "levelTitle": "Level {level}",
     "streakBody": "You showed up {count} days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.",
     "levelBody": "You just reached level {level}. That took consistency. Mind rating Orbit on Google Play? It helps more people find their orbit.",
     "cta": "Rate Orbit",
@@ -280,7 +280,7 @@
     "email": "Email",
     "emailPlaceholder": "you@example.com",
     "sendCode": "Send code",
-    "codeSent": "Verification code sent! Check your email.",
+    "codeSent": "Verification code sent. Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
     "verify": "Verify",
     "resendCode": "Resend code",
@@ -358,13 +358,13 @@
     "expandAll": "Expand all",
     "refresh": "Refresh",
     "noDueToday": "No habits due today",
-    "noHabitsYet": "No habits yet. Create your first one!",
+    "noHabitsYet": "No habits yet. Create your first one",
     "reorderFailed": "Couldn't save the new order. Please try again.",
     "loadError": "Couldn't load your habits.",
     "emptyGeneral": "No general habits yet",
-    "allDoneToday": "All done for today!",
-    "allDoneHint": "You've completed all your habits. Great job!",
-    "allDoneCelebrationTitle": "All done!",
+    "allDoneToday": "All done for today",
+    "allDoneHint": "You've completed all your habits.",
+    "allDoneCelebrationTitle": "All done",
     "allDoneCelebrationSubtitle": "You crushed every habit today.",
     "seeUpcoming": "See tomorrow's habits",
     "noSubHabits": "No sub-habits yet",
@@ -412,26 +412,26 @@
     "postponeConfirmMessage": "This will move the task to tomorrow.",
     "postponeConfirmButton": "Postpone",
     "deleteConfirmTitle": "Delete Habit",
-    "deleteConfirmMessage": "Are you sure you want to delete this habit? This action cannot be undone.",
+    "deleteConfirmMessage": "This deletes the habit. It cannot be undone.",
     "duplicateConfirmTitle": "Duplicate habit?",
     "duplicateConfirmMessage": "A copy of \"{name}\" will be created with all its settings (frequency, tags, reminders, checklist).",
     "duplicateConfirm": "Duplicate",
     "forceLogTitle": "Log with incomplete sub-habits",
-    "forceLogMessage": "Some sub-habits haven't been completed yet. Are you sure you want to log this habit anyway?",
+    "forceLogMessage": "Some sub-habits are not complete yet. Logging this habit marks it done anyway.",
     "forceLogConfirm": "Log",
-    "autoLogParentTitle": "All sub-habits complete!",
+    "autoLogParentTitle": "All sub-habits complete",
     "autoLogParentMessage": "Would you like to log \"{name}\" as complete?",
     "autoLogParentConfirm": "Log",
-    "autoSkipParentTitle": "All sub-habits skipped!",
+    "autoSkipParentTitle": "All sub-habits skipped",
     "autoSkipParentMessage": "Would you like to skip \"{name}\" too?",
     "autoSkipParentConfirm": "Skip",
-    "checklistCompleteTitle": "Checklist complete!",
+    "checklistCompleteTitle": "Checklist complete",
     "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
     "checklistCompleteConfirm": "Log",
     "checklistClearTitle": "Clear checklist?",
     "checklistClearMessage": "This removes every item from this habit's checklist.",
     "bulkDeleteTitle": "Delete Habits",
-    "bulkDeleteMessage": "Are you sure you want to delete {count} habit? This action cannot be undone. | Are you sure you want to delete {count} habits? This action cannot be undone.",
+    "bulkDeleteMessage": "This deletes {count} habit. It cannot be undone. | This deletes {count} habits. It cannot be undone.",
     "bulkDeleteConfirm": "Delete",
     "bulkLogTitle": "Log Habits",
     "bulkLogMessage": "Log {count} selected habit as complete? Already completed habits will be skipped. | Log {count} selected habits as complete? Already completed habits will be skipped.",
@@ -748,7 +748,7 @@
     "deselectAll": "Deselect all",
     "importButton": "Import {count} event | Import {count} events",
     "importing": "Importing events...",
-    "importDone": "Import complete!",
+    "importDone": "Import complete",
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
     "goToHabits": "Go to Habits",
@@ -796,7 +796,7 @@
       "reconnectBody": "Auto-sync paused. Reconnect to resume.",
       "reconnectCta": "Reconnect",
       "reviewModeTitle": "Review new events",
-      "reviewModeEmpty": "No new events to review. All caught up!",
+      "reviewModeEmpty": "No new events to review.",
       "dismissSuggestion": "Dismiss",
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
@@ -813,7 +813,7 @@
     "empty": "Not enough data yet. Keep logging habits to see your insights.",
     "loading": "Loading insights...",
     "error": "Couldn't load your insights.",
-    "lockedTitle": "Unlock Insights",
+    "lockedTitle": "Insights with Pro",
     "lockedDescription": "Upgrade to Pro to see trends and patterns across your habits.",
     "trendUp": "Up",
     "trendDown": "Down",
@@ -830,7 +830,7 @@
       "xpOverTimeDesc": "XP you've earned across the period",
       "streakHistoryDesc": "Your streak length day by day",
       "monthlyHeatmapDesc": "Habits you completed each day",
-      "achievementsTimelineDesc": "Badges you've unlocked, newest first",
+      "achievementsTimelineDesc": "Badges you've earned, newest first",
       "multiHabitComparisonDesc": "Your habits ranked by current streak",
       "heatmapCell": "{date}: {count} completed",
       "heatmapLess": "Less",
@@ -914,7 +914,7 @@
     "operationFailed": "That didn't work. Try again.",
     "proGate": {
       "title": "Pro feature",
-      "body": "This action needs Orbit Pro. Upgrade to unlock it."
+      "body": "This action needs Orbit Pro. Upgrade to use it."
     },
     "suggestion": {
       "prompt": "I can recap, plan, or help you adjust a habit.",
@@ -1068,7 +1068,7 @@
       "pro": "Orbit Pro",
       "proHint": "Manage your subscription",
       "free": "Free Plan",
-      "freeHint": "Upgrade to unlock all features",
+      "freeHint": "Upgrade for every feature",
       "trial": "Pro Trial",
       "trialDaysLeft": "{days} day remaining | {days} days remaining",
       "trialEnded": "Trial Ended",
@@ -1078,10 +1078,10 @@
     "freshStart": {
       "button": "Fresh Start",
       "heading": "Fresh Start",
-      "confirmHeading": "Are you sure?",
+      "confirmHeading": "This erases everything",
       "willDelete": "What will be deleted",
       "willKeep": "What stays",
-      "description": "Start your journey over with a clean slate. This will permanently delete all your data.",
+      "description": "Start over with a clean slate. This permanently deletes all your data.",
       "deleteHabits": "All habits, sub-habits, and completion history",
       "deleteGoals": "All goals and progress logs",
       "deleteChat": "AI chat conversations",
@@ -1103,7 +1103,7 @@
     "deleteAccount": {
       "button": "Delete account",
       "title": "Delete Account",
-      "headingAreYouSure": "Are you sure?",
+      "headingAreYouSure": "This deletes your account",
       "headingConfirmCode": "Confirm with code",
       "headingDeactivated": "Account deactivated",
       "warning": "This action is irreversible.",
@@ -1116,7 +1116,7 @@
       "confirmDelete": "Deactivate my account",
       "deleting": "Processing...",
       "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
-      "reactivated": "Welcome back! Your account deletion has been cancelled.",
+      "reactivated": "Your account deletion is cancelled.",
       "errorGeneric": "Something went wrong. Please try again.",
       "offlineTitle": "You're offline",
       "offlineDescription": "Connect to the internet to deactivate your account."
@@ -1135,29 +1135,29 @@
       "yourLink": "Your referral link",
       "copy": "Copy",
       "copyLink": "Copy link",
-      "copied": "Copied!",
+      "copied": "Copied",
       "linkCopied": "Link copied",
       "share": "Share link",
       "completed": "Successful referrals",
       "pending": "Pending",
       "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
-      "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends!",
+      "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends",
       "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change."
     },
     "share": {
       "title": "Join me on Orbit",
-      "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon!"
+      "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon"
     },
     "prompt": {
       "eyebrow": "You're on a roll",
-      "streakTitle": "{count}-day streak!",
-      "levelTitle": "You reached level {level}!",
+      "streakTitle": "{count}-day streak",
+      "levelTitle": "You reached level {level}",
       "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
       "cta": "Invite friends",
       "later": "Maybe later"
     },
-    "loginBanner": "You're invited! 10% off Pro when you sign up"
+    "loginBanner": "You're invited. 10% off Pro when you sign up"
   },
   "marketingConsent": {
     "prompt": {
@@ -1175,7 +1175,7 @@
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
-    "shareText": "I'm building better habits with Orbit. Join me!",
+    "shareText": "I'm building better habits with Orbit. Join me",
     "loading": "Preparing your card…",
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
@@ -1208,7 +1208,7 @@
     "previous": "Previous",
     "progressLabel": "Slide {current} of {total}",
     "loading": "Preparing your Wrapped…",
-    "empty": "Log a few habits first to unlock your Wrapped.",
+    "empty": "Log a few habits first to see your Wrapped.",
     "error": "Couldn't load your Wrapped. Please try again.",
     "retry": "Try again",
     "periods": {
@@ -1355,7 +1355,7 @@
     "banner": {
       "trialEyebrow": "Pro Trial",
       "daysLeft": "{days} day left | {days} days left",
-      "lastDay": "Trial ends today!",
+      "lastDay": "Trial ends today",
       "upgrade": "Upgrade"
     },
     "expired": {
@@ -1388,9 +1388,9 @@
   "retrospective": {
     "title": "Retrospective",
     "locked": "Retrospectives are a Pro feature",
-    "lockedHint": "Upgrade to Pro to unlock AI-powered retrospectives that analyze your habit data over time.",
+    "lockedHint": "Upgrade to Pro for AI retrospectives that analyze your habit data over time.",
     "lockedYearly": "Available on Yearly Plan",
-    "lockedYearlyHint": "Retrospectives are an exclusive feature for yearly Pro subscribers. Switch to the yearly plan to unlock AI-powered insights.",
+    "lockedYearlyHint": "Retrospectives are an exclusive feature for yearly Pro subscribers. Switch to the yearly plan for AI insights.",
     "changePlan": "Change Plan",
     "generate": "Generate Retrospective",
     "generating": "Analyzing your habits...",
@@ -1437,7 +1437,7 @@
         "createCtaOne": "Add 1 habit",
         "createOwn": "Create my own instead",
         "skip": "Skip for now",
-        "created": "Your habits are ready!",
+        "created": "Your habits are ready",
         "packs": {
           "morningRoutine": {
             "name": "Morning Routine",
@@ -1528,7 +1528,7 @@
         "placeholder": "e.g., Drink water, Read, Exercise",
         "create": "Create habit",
         "creating": "Creating...",
-        "success": "Habit created!",
+        "success": "Habit created",
         "useForm": "Use a form",
         "starters": "Or try one",
         "frequency": {
@@ -1547,7 +1547,7 @@
         "title": "Now complete it",
         "instruction": "Tap the circle to mark it done",
         "tapHint": "Tap the circle to complete",
-        "success": "Your streak starts now!"
+        "success": "Your streak starts now"
       },
       "createGoal": {
         "title": "Set a goal",
@@ -1559,7 +1559,7 @@
         "unitPlaceholder": "Unit (km, books...)",
         "create": "Create goal",
         "creating": "Creating...",
-        "success": "Goal created!",
+        "success": "Goal created",
         "skipStep": "Skip for now",
         "suggestions": {
           "run": "Run 100km",
@@ -1584,7 +1584,7 @@
         },
         "achievements": {
           "title": "Achievements",
-          "desc": "Earn XP, level up, and unlock badges as you build streaks."
+          "desc": "Earn XP, level up, and collect badges as you build streaks."
         },
         "notifications": {
           "title": "Notifications",
@@ -1592,7 +1592,7 @@
         }
       },
       "complete": {
-        "title": "You're all set!",
+        "title": "You're all set",
         "subtitle": "Everything is real. Your habit and progress are already saved.",
         "start": "Start using Orbit",
         "recap": {
@@ -1703,7 +1703,7 @@
         "cannotDoTitle": "Limitations",
         "cannotDoDesc": "Astra is focused on habits and routines. It can't answer general knowledge questions, help with homework, or do things unrelated to your habits.",
         "tipsTitle": "Tips",
-        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback!"
+        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback"
       },
       "connectSection": {
         "mcpTitle": "Connect Your AI Assistant",
@@ -1711,7 +1711,7 @@
         "assistantCanDoTitle": "What Your Assistant Can Do",
         "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 79 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
         "apiKeysTitle": "API Keys (Pro)",
-        "apiKeysDesc": "MCP access is unlocked with Orbit Pro. Create and manage scoped API keys in AI Settings, then paste one into your assistant to link it. Keys can be read-only or full-access, and you can revoke them anytime.",
+        "apiKeysDesc": "MCP access comes with Orbit Pro. Create and manage scoped API keys in AI Settings, then paste one into your assistant to link it. Keys can be read-only or full-access, and you can revoke them anytime.",
         "setupTitle": "Setting It Up",
         "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
       },
@@ -1731,13 +1731,13 @@
         "xpLevelsTitle": "XP & Levels",
         "xpLevelsDesc": "Earn XP every time you complete habits and goals, and level up as you go. Free for everyone -- no Pro needed.",
         "achievementsTitle": "Achievements & Badges",
-        "achievementsDesc": "Unlock achievement badges for streaks, consistency, and milestones. Track everything you've earned on the Achievements page from your Profile.",
+        "achievementsDesc": "Earn achievement badges for streaks, consistency, and milestones. Track everything you've earned on the Achievements page from your Profile.",
         "streaksTitle": "Streaks",
         "streaksDesc": "Every habit tracks a current and best streak. Keep the chain going day after day to watch your streaks climb.",
         "streakFreezeTitle": "Streak Freeze",
         "streakFreezeDesc": "Miss a day without losing your streak. Streak freezes shield your progress when life gets in the way -- you earn a limited number each month.",
         "wrappedTitle": "Orbit Wrapped",
-        "wrappedDesc": "A shareable recap of your habit journey -- your best streaks, biggest wins, and standout stats, wrapped up to look back on and share.",
+        "wrappedDesc": "A shareable recap of your habits -- your best streaks, biggest wins, and standout stats, wrapped up to look back on and share.",
         "widgetTitle": "Home Screen Widget",
         "widgetDesc": "Android only. Add the Orbit widget to your home screen to see today's habits at a glance -- completion status, due times, and checklist progress. When nothing is scheduled for today, it shows tomorrow's habits instead.",
         "insightsTitle": "Insights & Analytics",
@@ -1763,7 +1763,7 @@
         "pushNotificationsTitle": "Push Notifications",
         "pushNotificationsDesc": "Enable or disable push notifications in Settings. Use the 'Send test notification' button to verify they work. Reminders are sent as push notifications based on each habit's due time.",
         "subscriptionTitle": "Subscription & Pro",
-        "subscriptionDesc": "The free tier includes up to 10 habits and 20 AI messages per month. Orbit Pro unlocks unlimited habits, 500 AI messages, daily summaries, sub-habits, calendar sync, and all color schemes.",
+        "subscriptionDesc": "The free tier includes up to 10 habits and 20 AI messages per month. Orbit Pro adds unlimited habits, 500 AI messages, daily summaries, sub-habits, calendar sync, and all color schemes.",
         "weekStartDayTitle": "Week Start Day",
         "weekStartDayDesc": "Choose whether your week starts on Monday or Sunday. This affects all calendars, day pickers, and weekly frequency displays throughout the app.",
         "showGeneralTodayTitle": "Show General on Today",
@@ -1781,7 +1781,7 @@
   },
   "upgrade": {
     "title": "Upgrade to Pro",
-    "alreadyPro": "You're on the Pro plan!",
+    "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
     "free": "Free",
@@ -1856,7 +1856,7 @@
         "label": "Achievements & XP",
         "free": "No",
         "pro": "Included",
-        "tooltip": "Earn XP for completing habits, level up, and unlock achievements that celebrate your consistency and milestones."
+        "tooltip": "Earn XP for completing habits, level up, and earn achievements that celebrate your consistency and milestones."
       },
       "slipAlerts": {
         "label": "Slip Alerts",
@@ -1983,14 +1983,14 @@
       "alreadyOwned": "You already own this subscription. Try restoring your purchase.",
       "serviceUnavailable": "Google Play is unavailable right now. Please try again.",
       "deviceNotSupported": "This device doesn't support Google Play billing.",
-      "pending": "Your purchase is pending. We'll unlock Pro once it's confirmed.",
+      "pending": "Your purchase is pending. We'll enable Pro once it's confirmed.",
       "notSignedIn": "Please sign in again before purchasing.",
       "nothingToRestore": "No previous purchase found to restore."
     }
   },
   "ads": {
     "watchForMessages": "Watch ad for +5 AI messages",
-    "rewardGranted": "+5 AI messages added!",
+    "rewardGranted": "+5 AI messages added",
     "rewardFailed": "Ad not completed",
     "dailyLimitReached": "daily rewards"
   },
@@ -2052,7 +2052,7 @@
     "failedToStop": "Failed to stop recording."
   },
   "goals": {
-    "completedCelebrationTitle": "Goal achieved!",
+    "completedCelebrationTitle": "Goal achieved",
     "completedCelebrationLabel": "Goal · {name}",
     "completedCelebrationFiled": "Filed.",
     "tab": "Goals",
@@ -2112,7 +2112,7 @@
       "markAbandoned": "Abandon Goal",
       "reactivate": "Reactivate",
       "delete": "Delete Goal",
-      "deleteConfirm": "Are you sure you want to delete this goal? This cannot be undone.",
+      "deleteConfirm": "This deletes the goal. It cannot be undone.",
       "edit": "Edit Goal",
       "loadError": "Could not load full details. Showing cached data.",
       "showAllHistory": "Show all",
@@ -2163,15 +2163,15 @@
     "profileCard": {
       "title": "Achievements & Level",
       "tileLabel": "Achievements",
-      "hint": "Track your progress and unlock achievements",
+      "hint": "Track your progress and earn achievements",
       "level": "Level {level}",
       "xp": "{current} / {next} XP",
       "totalXp": "{total} XP",
       "earned": "{count}/{total} achievements"
     },
     "page": {
-      "lockedTitle": "Unlock Achievements",
-      "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and unlock achievements.",
+      "lockedTitle": "Achievements with Pro",
+      "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and collect achievements.",
       "upgradeButton": "Upgrade to Pro"
     },
     "tile": {
@@ -2181,7 +2181,7 @@
       "title": "Next reward",
       "toNextLevel": "{xp} XP to Level {level}",
       "proTeaser": {
-        "title": "Unlock with Pro",
+        "title": "Included with Pro",
         "achievements": "Achievements & badges"
       }
     },
@@ -2378,25 +2378,25 @@
     "celebration": {
       "eyebrow": "Streak",
       "subtitle": "1 day. | {count} days.",
-      "milestone": "Amazing milestone!",
-      "keepGoing": "Keep it going!"
+      "milestone": "Milestone reached",
+      "keepGoing": "Keep it going"
     },
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
     },
     "profile": {
       "currentStreak": "1 day streak | {count} day streak",
-      "encouragement1": "Great start!",
-      "encouragement7": "One week strong!",
-      "encouragement14": "Two weeks of dedication!",
-      "encouragement30": "A full month! Incredible!",
-      "encouragement100": "Triple digits! Legendary!",
-      "encouragement365": "A whole year! You are unstoppable!"
+      "encouragement1": "Day one done",
+      "encouragement7": "One week",
+      "encouragement14": "Two weeks",
+      "encouragement30": "A full month",
+      "encouragement100": "Triple digits",
+      "encouragement365": "A whole year"
     },
     "freeze": {
       "title": "Streak freeze",
       "activeToday": "Freeze active today",
-      "celebrationTitle": "Streak saved!",
+      "celebrationTitle": "Streak saved",
       "celebrationSubtitle": "Your streak holds.",
       "eyebrow": "Frozen · {date}",
       "auto": {
@@ -2459,11 +2459,11 @@
     "lastUsed": "Last used",
     "never": "Never",
     "revoke": "Revoke",
-    "revokeConfirm": "Are you sure? Any tools using this key will lose access.",
+    "revokeConfirm": "Any tool using this key loses access.",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "keyCreatedWarning": "Copy this key now. It will not be shown again.",
-    "copied": "Copied!",
+    "copied": "Copied",
     "done": "Done",
     "connectionInstructions": "Connection Instructions",
     "claudeWeb": "Claude Web",
@@ -2549,7 +2549,7 @@
         "tryAstra": "Ask Astra anything"
       },
       "progress": "{done} of {total} done",
-      "complete": "You're all set. Nice work!",
+      "complete": "You're all set.",
       "dismiss": "Dismiss"
     }
   },
@@ -2666,7 +2666,7 @@
       },
       "streak": {
         "title": "Streak Counter",
-        "description": "Your streak tracks consecutive days where you completed all scheduled habits. Keep it going to earn achievements and build momentum!"
+        "description": "Your streak tracks consecutive days where you completed all scheduled habits. Keep it going to earn achievements and build momentum"
       },
       "notifications": {
         "title": "Notifications",
@@ -2680,7 +2680,7 @@
       },
       "card": {
         "title": "Goal Card",
-        "description": "Each goal shows its progress bar, deadline, and linked habits. Track your journey from start to completion."
+        "description": "Each goal shows its progress bar, deadline, and linked habits. Track it from start to completion."
       },
       "progress": {
         "title": "Goal Progress",
@@ -2712,7 +2712,7 @@
       },
       "legend": {
         "title": "Color Legend",
-        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days!"
+        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days"
       },
       "monthNav": {
         "title": "Month Navigation",
@@ -2734,7 +2734,7 @@
       },
       "subscription": {
         "title": "Subscription",
-        "description": "View your current plan and manage your subscription. Pro unlocks unlimited habits, AI chat, goals, achievements, and more."
+        "description": "View your current plan and manage your subscription. Pro adds unlimited habits, AI chat, goals, achievements, and more."
       },
       "retrospective": {
         "title": "AI Retrospective",
@@ -2742,7 +2742,7 @@
       },
       "achievements": {
         "title": "Achievements & Levels",
-        "description": "Earn XP and level up as you build habits. Unlock achievements for milestones like streak records, completion rates, and more."
+        "description": "Earn XP and level up as you build habits. Earn achievements for milestones like streak records, completion rates, and more."
       }
     }
   },
@@ -2846,14 +2846,14 @@
   },
   "milestoneShare": {
     "streakEyebrow": "Streak milestone",
-    "achievementEyebrow": "Achievement unlocked",
-    "streakTitle": "{count}-day streak!",
+    "achievementEyebrow": "Achievement earned",
+    "streakTitle": "{count}-day streak",
     "body": "Share your milestone and invite a friend. You both get a discount coupon for Pro.",
     "share": "Share",
     "download": "Download",
     "later": "Maybe later",
     "shareTitle": "My Orbit milestone",
-    "shareText": "I'm building better habits with Orbit. Join me!",
+    "shareText": "I'm building better habits with Orbit. Join me",
     "shareError": "Couldn't share your card. Please try again.",
     "rarity": {
       "Rare": "Rare",

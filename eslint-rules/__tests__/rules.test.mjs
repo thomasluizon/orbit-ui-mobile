@@ -385,11 +385,15 @@ ruleTester.run('no-draggable-onscroll', rule('no-draggable-onscroll'), {
 })
 
 ruleTester.run('react19-api', rule('react19-api'), {
-  valid: ['const v = use(ThemeContext)', 'function Row({ ref }) { return <li ref={ref} /> }'],
+  valid: [
+    'const v = use(ThemeContext)',
+    'function Row({ ref }) { return <li ref={ref} /> }',
+    'const v = useContext(ThemeContext)',
+    'const v = React.useContext(ThemeContext)',
+  ],
   invalid: [
     { code: 'const C = forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
-    { code: 'const v = useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
-    { code: 'const v = React.useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
+    { code: 'const C = React.forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
   ],
 })
 
@@ -400,12 +404,13 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     '<div style={{ padding: "24px" }} />',
     '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
     '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
-    '<div className="flex gap-3 px-4 pb-10" />',
+    '<div style={{ gap: 96, padding: 64 }} />',
+    '<div className="flex gap-3 px-4 pb-12" />',
     '<div className="absolute inset-0 top-0 md:mt-6" />',
     '<div className="p-px w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
     '<div className="gap-[16px] mt-[1.5rem]" />',
     '<div style={{ top: 1, right: -1 }} />',
-    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 20 } })',
+    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 24 } })',
     {
       code: 'const s = StyleSheet.create({ row: { gap: 9, paddingX: 26 } })',
       filename: 'packages/shared/src/theme/button.ts',
@@ -414,6 +419,12 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving
+    // steps, so isUnambiguous() refuses to autofix and a human picks the direction.
+    { code: '<div style={{ gap: 20 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 28 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 40 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 56 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     {
       code: '<div style={{ gap: 13 }} />',
       output: '<div style={{ gap: 12 }} />',
@@ -492,5 +503,30 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       output: '<div style={{ top: 4 }} />',
       errors: [{ messageId: 'offScaleStyle' }],
     },
+  ],
+})
+
+ruleTester.run('no-oklch-outside-web-tokens', rule('no-oklch-outside-web-tokens'), {
+  valid: [
+    'const c = "#C4530F"',
+    'const c = "rgb(196 83 15)"',
+    'const label = "oklchophobia"',
+  ],
+  invalid: [
+    { code: 'const c = "oklch(0.6 0.15 45)"', errors: [{ messageId: 'noOklch' }] },
+    { code: 'const c = `oklch(${l} 0.15 45)`', errors: [{ messageId: 'noOklch' }] },
+  ],
+})
+
+ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
+  valid: [
+    "import { AstraGlyph } from '@/components/ui/astra-glyph'",
+    '<AstraGlyph size={16} />',
+    '<span>Ask Astra</span>',
+  ],
+  invalid: [
+    { code: "import { Sparkles } from '@/components/ui/icons'", errors: [{ messageId: 'noSparkle' }] },
+    { code: '<Sparkles size={16} />', errors: [{ messageId: 'noSparkle' }] },
+    { code: '<span>✨ Astra</span>', errors: [{ messageId: 'noSparkle' }] },
   ],
 })

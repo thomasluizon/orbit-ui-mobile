@@ -25,7 +25,12 @@
  * https://github.com/thomasluizon/orbit-ui-mobile/issues/539
  */
 
-const DEFAULT_SCALE = [0, 4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64]
+// DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
+// (chosen by Thomas against the rendered reference, 2026-08-15). It drops 20, 28, 40
+// and 56, which are the values the existing violations cluster around, so there is
+// less to choose wrongly between, and its jumps widen at the top to serve the
+// spacious direction. https://github.com/thomasluizon/orbit-tickets/issues/36
+const DEFAULT_SCALE = [0, 4, 8, 12, 16, 24, 32, 48, 64, 96]
 
 const INSET_PROPS = new Set([
   'top', 'right', 'bottom', 'left', 'start', 'end',

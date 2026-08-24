@@ -33,7 +33,11 @@ function collectStaticStrings(node) {
     return node.elements.flatMap((element) => collectStaticStrings(element))
   }
   if (node.type === 'CallExpression') {
-    return node.arguments.flatMap((argument) => collectStaticStrings(argument))
+    // Also walk the member chain, not only the arguments: the canonical class builder in this
+    // repository is `[...].filter(Boolean).join(' ')`, where every static class sits in the
+    // callee's object and the arguments hold none of them.
+    const chain = node.callee?.type === 'MemberExpression' ? collectStaticStrings(node.callee.object) : []
+    return [...chain, ...node.arguments.flatMap((argument) => collectStaticStrings(argument))]
   }
   if (node.type === 'ObjectExpression') {
     return node.properties.flatMap((property) =>

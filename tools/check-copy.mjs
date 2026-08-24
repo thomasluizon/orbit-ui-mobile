@@ -34,19 +34,41 @@ const BRAND_COLOR_EXEMPT = [
   /\.(test|spec)\.(ts|tsx)$/,
 ]
 
-const CLICHES = [
-  /\belevat(?:e|es|ed|ing)\b/i,
-  /\bseamless(?:ly)?\b/i,
-  /\bunleash(?:es|ed|ing)?\b/i,
-  /\bnext-gen(?:eration)?\b/i,
-  /\bgame-?chang(?:er|ers|ing)\b/i,
-  /\bdelv(?:e|es|ed|ing)\b/i,
-  /\btapestry\b/i,
-  /\brevolutioni[sz](?:e|es|ed|ing)\b/i,
-  /\bsupercharg(?:e|es|ed|ing)\b/i,
-  /\bstreamlin(?:e|es|ed|ing)\b/i,
-  /\bin the world of\b/i,
+// DESIGN.md "Voice" enumerates 25 banned entries, each with a scope column:
+//   microcopy = i18n string values (what this scanner reads)
+//   long-form = the landing page, ADRs and store copy (a different corpus, not scanned here)
+//   both      = everywhere
+// Only the microcopy-visible entries live here. Entry 17 (em/en dash) ships in
+// tools/check-dashes.mjs. Entries 2-6, 12-14 and 16 are long-form structural tells with no
+// microcopy surface. Entries 11, 15 and 24 need cross-string or layout context a per-string
+// scanner cannot see, and stay with the design-reviewer agent.
+// https://github.com/thomasluizon/orbit-tickets/issues/36
+const BANNED_COPY = [
+  { entry: 7, kind: "puffery", pattern: /\b(?:crucial|pivotal|vital|essential|game-?chang(?:er|ers|ing))(?!\p{L})/iu },
+  { entry: 8, kind: "ai-cliche", pattern: /\b(?:delv(?:e|es|ed|ing)|harness(?:es|ed|ing)?|unlock(?:s|ed|ing)?|elevat(?:e|es|ed|ing)|empower(?:s|ed|ing)?|supercharg(?:e|es|ed|ing)|seamless(?:ly)?|robust|cutting-edge|revolutionar(?:y|ily)|revolutioni[sz](?:e|es|ed|ing))\b/i },
+  { entry: 8, kind: "ai-cliche", pattern: /\bleverag(?:e|es|ed|ing)\b/i },
+  { entry: 9, kind: "weasel-attribution", pattern: /\b(?:experts agree|studies show|science says)\b/i },
+  { entry: 10, kind: "fake-strong-verb", pattern: /\b(?:utiliz(?:e|es|ed|ing)|commenc(?:e|es|ed|ing))\b/i },
+  { entry: 18, kind: "cutesy-error", pattern: /\b(?:oops|uh[ -]oh|whoops)\b/i },
+  { entry: 20, kind: "dead-link-label", pattern: /\b(?:click here|read more|learn more)\b/i },
+  { entry: 21, kind: "the-user", pattern: /\bthe user\b/i },
+  // "maximizar" is dropped from entry 22: it is also the panel-control verb ("Maximizar"),
+  // and the puffery sense cannot be told apart from the control sense in a single string.
+  { entry: 22, kind: "pt-br-puffery", pattern: /\b(?:otimiz|potencializ)(?:e|es|ar|ando|ado|ada)?(?!\p{L})/iu },
+  { entry: 23, kind: "journey-framing", pattern: /\b(?:jornada|journey)\b/i },
+  { entry: 25, kind: "medical-claim", pattern: /\b(?:treats ADHD|cure[sd]?\b|fixes your brain)\b/i },
+  // Legacy entries kept: they predate the enumeration and are still banned by entry 8 in spirit.
+  { entry: 8, kind: "ai-cliche", pattern: /\b(?:unleash(?:es|ed|ing)?|next-gen(?:eration)?|tapestry|streamlin(?:e|es|ed|ing)|in the world of)\b/i },
 ]
+
+// Entry 1, read as DESIGN.md "Voice" states it: "Zero exclamation marks. Confidence, not
+// euphoria." No key-name heuristic: it is every locale string, because any heuristic leaves
+// the register unenforced on the keys it did not think of.
+
+// Entry 19: "Are you sure?" as a confirmation body. microcopy scope.
+const ARE_YOU_SURE = /\bare you sure\b/i
+const TEM_CERTEZA = /\btem certeza\b/i
+
 const PLACEHOLDERS = [/\bjohn doe\b/i, /\bjane doe\b/i, /\bacme\b/i, /\blorem ipsum\b/i]
 
 const proseOf = (value) => value.replace(/\{[^}]*\}/g, " ").replace(/<[^>]*>/g, " ")
@@ -71,9 +93,15 @@ const localeFindings = () => {
     const entries = flattenValues(JSON.parse(readFileSync(absolute, "utf8")))
     for (const [key, value] of entries) {
       const prose = proseOf(value)
-      for (const pattern of CLICHES) {
+      for (const { entry, kind, pattern } of BANNED_COPY) {
         const hit = pattern.exec(prose)
-        if (hit) findings.push({ file, key, kind: "ai-cliche", detail: `"${hit[0]}" in ${JSON.stringify(value)}` })
+        if (hit) findings.push({ file, key, kind, detail: `entry ${entry}: "${hit[0]}" in ${JSON.stringify(value)}` })
+      }
+      if (prose.includes("!")) {
+        findings.push({ file, key, kind: "exclamation", detail: `entry 1: ${JSON.stringify(value)}` })
+      }
+      if (ARE_YOU_SURE.test(prose) || TEM_CERTEZA.test(prose)) {
+        findings.push({ file, key, kind: "are-you-sure", detail: `entry 19: ${JSON.stringify(value)}` })
       }
       for (const pattern of PLACEHOLDERS) {
         const hit = pattern.exec(prose)
