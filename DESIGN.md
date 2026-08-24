@@ -1157,8 +1157,8 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 | No gorhom sheet (Overlay) | `local/no-gorhom-sheet` | keep |
 | No `oklch()` in a shared token or mobile style (Tokens) | **new rule** | unblocked |
 | No sparkle icon as an AI marker (Bans) | **new rule** | unblocked |
-| Off-grid icon size (Icons) | **new rule**: size outside 16 / 20 / 24 | unblocked |
-| Pill radius on a static element (Shape) | **new rule**: radius 999 outside `PillButton` and the interactive kit | unblocked |
+| Off-grid icon size (Icons) | **new rule**: size outside 16 / 20 / 24 | blocked on #368: needs type information, not AST heuristics |
+| Pill radius on a static element (Shape) | **new rule**: radius 999 outside `PillButton` and the interactive kit | blocked on #368: a style key cannot prove its consumer is static |
 
 ### Reviewer-judgment (the `design-reviewer` agent enforces these per diff)
 

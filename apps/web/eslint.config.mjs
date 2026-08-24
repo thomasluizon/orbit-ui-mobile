@@ -30,8 +30,6 @@ import react19Api from "../../eslint-rules/react19-api.cjs"
 import requireDialogTitle from "../../eslint-rules/require-dialog-title.cjs"
 import requireFocusReplacement from "../../eslint-rules/require-focus-replacement.cjs"
 import noSparkleAiMarker from "../../eslint-rules/no-sparkle-ai-marker.cjs"
-import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
-import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
 
 export default [
@@ -92,8 +90,6 @@ export default [
           "require-dialog-title": requireDialogTitle,
           "require-focus-replacement": requireFocusReplacement,
           "no-sparkle-ai-marker": noSparkleAiMarker,
-          "icon-size-grid": iconSizeGrid,
-          "no-pill-radius-on-static": noPillRadiusOnStatic,
           "will-change-discipline": willChangeDiscipline,
         },
       },
@@ -172,8 +168,6 @@ export default [
       "local/react19-api": "error",
       "local/require-focus-replacement": "error",
       "local/no-sparkle-ai-marker": "error",
-      "local/icon-size-grid": "error",
-      "local/no-pill-radius-on-static": "error",
 
       // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
       // committed eslint-suppressions.json baseline (regenerated against main, 2026-07-24),
