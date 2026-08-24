@@ -56,7 +56,8 @@ export {
   IconMicrophone as Mic,
   IconMoon as Moon,
   IconDotsVertical as MoreVertical,
-  IconAtom2 as Orbit,
+  // Provisional, deleted by #351: https://github.com/thomasluizon/orbit-tickets/issues/210
+  IconCircleDot as Orbit,
   IconPalette as Palette,
   IconPaperclip as Paperclip,
   IconEdit as PenSquare,

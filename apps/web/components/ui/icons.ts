@@ -64,7 +64,8 @@ export {
   IconMoon as Moon,
   IconDots as MoreHorizontal,
   IconDotsVertical as MoreVertical,
-  IconAtom2 as Orbit,
+  // Provisional, deleted by #351: https://github.com/thomasluizon/orbit-tickets/issues/210
+  IconCircleDot as Orbit,
   IconPalette as Palette,
   IconLayoutSidebar as PanelLeft,
   IconLayoutSidebarLeftCollapse as PanelLeftClose,
