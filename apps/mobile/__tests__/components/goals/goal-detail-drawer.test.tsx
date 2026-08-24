@@ -297,6 +297,24 @@ describe('GoalDetailDrawer', () => {
     ).toBeGreaterThan(0)
   })
 
+  it('does not offer manual progress editing for a derived goal', () => {
+    detailGoal = {
+      ...listGoal,
+      isProgressDerived: true,
+      progressHistory: [],
+    }
+
+    const tree = renderDrawer()
+    const updateProgressButtons = tree.root.findAll(
+      (node: any) =>
+        node.props.accessibilityLabel === 'goals.updateProgress' &&
+        typeof node.props.onPress === 'function',
+    )
+
+    expect(updateProgressButtons).toHaveLength(0)
+    expect(tree.root.findAllByType('BottomSheetAppTextInput')).toHaveLength(0)
+  })
+
   it('renders the action footer (status, edit, delete)', () => {
     let tree: any
 

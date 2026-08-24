@@ -203,13 +203,13 @@ export function GoalDetailDrawer({
               progressFillColor={progressFillColor}
               progressText={progressText}
               progressPercentage={goal.progressPercentage}
-              showEdit={isActive && !showProgressForm}
+              showEdit={isActive && !goal.isProgressDerived && !showProgressForm}
               onEdit={openProgressForm}
               styles={styles}
               tokens={tokens}
             />
 
-            {showProgressForm && isActive ? (
+            {showProgressForm && isActive && !goal.isProgressDerived ? (
               <GoalProgressForm
                 isStreak={isStreak}
                 progressValue={progressValue}

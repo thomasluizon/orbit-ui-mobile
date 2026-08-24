@@ -49,6 +49,7 @@ export const goalSchema = z.object({
   completedAtUtc: z.string().nullable(),
   progressPercentage: z.number(),
   trackingStatus: z.string().nullable().optional(),
+  isProgressDerived: z.boolean().optional(),
   linkedHabits: z.array(linkedHabitInfoSchema),
 })
 

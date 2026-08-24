@@ -257,6 +257,18 @@ describe('goal schemas', () => {
       expect(result.success).toBe(true)
     })
 
+    it('preserves derived progress while accepting payloads without the field', () => {
+      const legacyResult = goalSchema.safeParse(createMockGoal())
+      const derivedResult = goalSchema.safeParse(
+        createMockGoal({ isProgressDerived: true }),
+      )
+
+      expect(legacyResult.success).toBe(true)
+      expect(derivedResult.success).toBe(true)
+      if (!derivedResult.success) return
+      expect(derivedResult.data.isProgressDerived).toBe(true)
+    })
+
     it('rejects a goal without linkedHabits', () => {
       const goal = createMockGoal()
       const { linkedHabits: _, ...rest } = goal
@@ -1415,7 +1427,17 @@ describe('sync schemas', () => {
     })
 
     it('parses a populated response and preserves nested entity values', () => {
-      const result = syncChangesV2ResponseSchema.safeParse(createMockSyncChangesV2Response())
+      const response = createMockSyncChangesV2Response()
+      const [goal] = response.goals.updated
+      expect(goal).toBeDefined()
+      if (!goal) return
+      const result = syncChangesV2ResponseSchema.safeParse({
+        ...response,
+        goals: {
+          ...response.goals,
+          updated: [{ ...goal, isProgressDerived: true }],
+        },
+      })
 
       expect(result.success).toBe(true)
       if (!result.success) return
@@ -1442,7 +1464,15 @@ describe('sync schemas', () => {
         habitLogs: {
           updated: [{ habitId: '11111111-1111-4111-8111-111111111111', value: 1 }],
         },
-        goals: { updated: [{ status: 'Active', type: 'Standard' }] },
+        goals: {
+          updated: [
+            {
+              status: 'Active',
+              type: 'Standard',
+              isProgressDerived: true,
+            },
+          ],
+        },
         goalProgressLogs: { updated: [{ previousValue: 2 }] },
         tags: { updated: [{ color: '#22c55e' }] },
         notifications: { updated: [{ isRead: false }] },
