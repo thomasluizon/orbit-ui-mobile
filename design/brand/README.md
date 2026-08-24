@@ -19,13 +19,23 @@ letterform. That distinction survives at 16px, which the old glyph's "circle wit
 It supersedes `DESIGN.md`'s "anything with a core is Astra, anything empty in the middle is Orbit",
 which was written for the draft geometry.
 
-Each file is one `fill-rule="evenodd"` path plus, on Orbit, the moon. Both carry
-`fill="var(--fg-1, #F4F4F6)"`, so a standalone viewer resolves the dark value, which is the primary
-mode, and an inlined copy resolves the live token, so light mode needs no second asset. Neither
-carries a background rectangle, so both are transparent. Neither carries C2PA metadata.
+Each file is one `fill-rule="evenodd"` path plus, on Orbit, the moon. Both paint with
+`fill="currentColor"` and carry no hex at all, so one file serves every colour the mark is drawn
+in: the `--fg-1` ink, white on an accent tile, and the warm orange itself. The consumer sets
+`color`. Neither carries a background rectangle, so both are transparent. Neither carries C2PA
+metadata.
 
-**Expect them to look washed out in a browser opened on a white page.** Orbit is a dark first brand
-and the fallback is near white `#F4F4F6`. That is correct, not a broken file.
+**Set `color` on whatever renders the mark.** `DESIGN.md` puts the mark in `--fg-1` everywhere
+except the accent treatment, so a component renders it with `color: var(--fg-1)`. A standalone
+viewer that sets no `color` falls back to the browser default, which is black on white.
+
+**Inline these files. Never load one through an image primitive.** `currentColor` resolves against
+the render tree the SVG participates in, and an `<img src>`, a CSS `background-image` or a React
+Native `<Image source>` puts the file in its own document, where the surrounding `color` does not
+reach it and the mark renders black. That is why `DESIGN.md` states the rule as "one SVG, recoloured
+per state ... strip any hardcoded `fill` on import": a mark that has to take `--fg-1`, white on an
+accent tile, and the accent itself cannot be an external image. A surface that genuinely needs a
+flat file takes a baked raster from `#80` instead, not one of these two.
 
 ## Provenance
 
