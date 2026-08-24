@@ -79,12 +79,22 @@ jobs:
           if git diff --cached --quiet; then
             echo "Baselines already up to date — nothing to commit."
           else
-            # This push uses the workflow's GITHUB_TOKEN, and GitHub never starts workflow runs
-            # for events that token causes, so the bot head gets NO required checks either way.
-            # [skip ci] stays out because it overstated intent while adding nothing the token
-            # suppression does not already do. main requires 21 checks per head, so after a
-            # labeled re-seed the operator's next real push (or a checks re-run) is what puts the
-            # required contexts on the head. The staged-diff guard above is the seed-loop stop.
+            # MEASURED 2026-08-23 on PR #748, bot head 353d1cb5, with no [skip ci].
+            # Ticket: thomasluizon/orbit-tickets#363.
+            # This push uses the workflow's GITHUB_TOKEN. GitHub DOES create the pull_request runs
+            # for it: 8 were created, and every one landed completed/action_required, held for
+            # approval. Held runs publish no contexts, so the head still reads as missing checks.
+            # App checks that are not gated on approval (CodeQL, Vercel, GitGuardian) ran normally.
+            # main requires 21 contexts per head, so after a labeled re-seed the operator approves
+            # EVERY held run, not one. The 'Approve and run' control in the pull request's checks
+            # section releases them together. The REST call takes a single run id, so by API it is
+            # one call per held run; enumerate them first:
+            #   gh api "repos/OWNER/REPO/actions/runs?head_sha=SHA" \
+            #     --jq '.workflow_runs[]|select(.conclusion=="action_required")|.id'
+            #   gh api --method POST repos/OWNER/REPO/actions/runs/RUN_ID/approve
+            # Verified on one run: approving flipped it from completed/action_required to in_progress.
+            # NOT a checks re-run. A re-run retains the original GITHUB_SHA, so its contexts land on
+            # the pre-baseline commit. The staged-diff guard above is the seed-loop stop.
             git commit -m "test(web): update hermetic visual baselines (#461 B1)"
             git push origin "HEAD:${{ github.head_ref || github.ref_name }}"
           fi
@@ -96,7 +106,7 @@ jobs:
       - name: Explain a red gate
         if: failure() && steps.mode.outputs.seed != 'true'
         run: |
-          echo "::error::Visual regression detected. Download the 'visual-diff' artifact for the *-diff.png overlays. If the change is intentional, add the 'visual:update' label to this PR (or run the Visual Regression workflow with update=true) to re-seed the Linux baselines; otherwise fix the drift."
+          echo "::error::Visual regression detected. Download the 'visual-diff' artifact for the *-diff.png overlays. If the change is intentional, add the 'visual:update' label to this PR (or run the Visual Regression workflow with update=true) to re-seed the Linux baselines; otherwise fix the drift. The re-seed pushes a baseline commit whose workflow runs are created but held for approval, so approve them from this PR's checks section once that commit lands, or the required contexts never appear on it. Do not re-run checks: a re-run keeps the original commit SHA."
 
       - name: Upload diff report
         if: failure() && steps.mode.outputs.seed != 'true'
