@@ -557,6 +557,16 @@ ruleTester.run('icon-size-grid', rule('icon-size-grid'), {
       code: "import { Check } from '@/components/ui/icons'; const Icon = Check; const a = <Icon size={22} />",
       errors: [{ messageId: 'offGridIconSize' }],
     },
+    // an icon map written with `as const`, which both apps use
+    {
+      code: "import { Check } from '@/components/ui/icons'; const M = { a: Check } as const; const Icon = M[k]; const el = <Icon size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // a descriptor array carrying the icon under a key
+    {
+      code: "import { Check } from '@/components/ui/icons'; const CARDS = [{ key: 'a', icon: Check }]; const Icon = CARDS[0].icon; const el = <Icon size={18} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
     // an icon reached through a lookup map indexed at render time
     {
       code: "import { Check, Trash2 } from '@/components/ui/icons'; const map = { a: Check, b: Trash2 }; const Icon = map[key]; const el = <Icon size={18} />",
@@ -587,11 +597,7 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
       code: "const a = <div className={['rounded-full', tone].filter(Boolean).join(' ')}>Pro</div>",
       errors: [{ messageId: 'pillOnStatic' }],
     },
-    // React Native reaches the radius through a StyleSheet reference, so the definition is checked
-    {
-      code: "const styles = StyleSheet.create({ badge: { borderRadius: 999 } })",
-      errors: [{ messageId: 'pillOnStatic' }],
-    },
+
     { code: '<View style={{ borderRadius: 999 }}><Text>Pro</Text></View>', errors: [{ messageId: 'pillOnStatic' }] },
   ],
 })

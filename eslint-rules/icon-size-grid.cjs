@@ -59,21 +59,46 @@ module.exports = {
       VariableDeclarator(node) {
         const name = node.id?.type === 'Identifier' ? node.id.name : null
         if (!name || MARKS.has(name)) return
-        const init = node.init
+        // `as const` wraps the initializer in a TSAsExpression, which both apps use on their
+        // icon maps, and some maps are arrays of descriptor objects rather than a flat map.
+        const unwrap = (n) => (n && (n.type === 'TSAsExpression' || n.type === 'TSSatisfiesExpression') ? unwrap(n.expression) : n)
+        const init = unwrap(node.init)
         if (!init) return
         if (init.type === 'Identifier' && iconNames.has(init.name)) {
           iconNames.add(name)
           return
         }
-        if (init.type === 'MemberExpression' && init.object?.type === 'Identifier' && iconMaps.has(init.object.name)) {
+        // `CARDS[0].icon` nests two member accesses, so walk down to the root identifier.
+        const rootOf = (n) => {
+          let current = n
+          while (current?.type === 'MemberExpression') current = unwrap(current.object)
+          return current?.type === 'Identifier' ? current.name : null
+        }
+        if (init.type === 'MemberExpression' && iconMaps.has(rootOf(init))) {
           iconNames.add(name)
           return
         }
+        // A flat map: every value is a barrel icon.
         if (init.type === 'ObjectExpression') {
-          const values = init.properties.filter((p) => p.type === 'Property').map((p) => p.value)
+          const values = init.properties.filter((p) => p.type === 'Property').map((p) => unwrap(p.value))
           if (values.length > 0 && values.every((v) => v.type === 'Identifier' && iconNames.has(v.name))) {
             iconMaps.add(name)
           }
+          return
+        }
+        // A descriptor array: objects carrying an icon under some key, which is how both apps
+        // build their card and section lists.
+        if (init.type === 'ArrayExpression') {
+          const carriesIcon = init.elements.some((element) => {
+            const object = unwrap(element)
+            return (
+              object?.type === 'ObjectExpression' &&
+              object.properties.some(
+                (p) => p.type === 'Property' && unwrap(p.value)?.type === 'Identifier' && iconNames.has(unwrap(p.value).name),
+              )
+            )
+          })
+          if (carriesIcon) iconMaps.add(name)
         }
       },
       JSXOpeningElement(node) {

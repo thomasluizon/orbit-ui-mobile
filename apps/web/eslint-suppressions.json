@@ -1480,7 +1480,7 @@
   },
   "components/tour/tour-replay-modal.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 4
     },
     "local/no-space-x-y": {
       "count": 1

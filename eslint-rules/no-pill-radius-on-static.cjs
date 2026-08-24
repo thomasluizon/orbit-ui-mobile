@@ -13,6 +13,12 @@
  * an avatar, a dot, a ring indicator and a skeleton bar are all round by design and
  * promise nothing. DESIGN.md wants those round.
  *
+ * A radius reached through a StyleSheet reference (`style={styles.badge}`) is deliberately NOT
+ * checked. The definition alone cannot say whether its consumer is static: the same `chip` style
+ * is applied to a Pressable in one file and a View in another, so keying on the style name
+ * reports interactive controls. That case stays with the design-reviewer agent, which is where
+ * DESIGN.md already puts radius judgement it cannot mechanise.
+ *
  * Badge is deliberately NOT exempt. DESIGN.md gives a badge radius 8 and reserves
  * 999 to the interactive kit, so a fully-rounded badge is the defect this catches,
  * not an exception to it.
@@ -34,14 +40,24 @@ const ROUND_BY_NATURE = new Set([
   'Spinner', 'Skeleton', 'OrbitMark', 'AstraGlyph', 'AstraMark',
 ])
 
-const isInteractive = (node) => {
-  if (node.attributes.some((a) => a.type === 'JSXAttribute' && /^on[A-Z]/.test(a.name?.name ?? ''))) return true
-  return node.attributes.some((a) => a.type === 'JSXAttribute' && (a.name?.name === 'href' || a.name?.name === 'role'))
-}
+// Only a real activation handler or a link target proves a control. Every `onX` prop is too
+// broad (onLayout, onLoad, onChange on a wrapper are lifecycle, not activation), and a bare
+// `role` is often static semantics such as role="status".
+const ACTIVATION = new Set([
+  'onClick', 'onPress', 'onPressIn', 'onLongPress', 'onKeyDown', 'onKeyUp', 'onMouseDown', 'onTouchEnd',
+])
+const INTERACTIVE_ROLE = new Set(['button', 'link', 'tab', 'menuitem', 'checkbox', 'radio', 'switch', 'option'])
+const isInteractive = (node) =>
+  node.attributes.some((a) => {
+    if (a.type !== 'JSXAttribute') return false
+    const name = a.name?.name
+    if (name === 'href') return true
+    if (ACTIVATION.has(name)) return true
+    if (name !== 'role') return false
+    const value = a.value?.type === 'Literal' ? a.value.value : null
+    return typeof value === 'string' && INTERACTIVE_ROLE.has(value)
+  })
 
-// React Native passes a radius through a StyleSheet reference (`style={styles.badge}`), which no
-// per-element scan can resolve. So the DEFINITION is checked instead: a StyleSheet entry whose key
-// names a static content element must not carry a pill radius.
 // A pill radius arrives three ways: a number, a '999px' string, and the token member the mobile
 // styles use, `radius.full` / `radii.pill`.
 const PILL_TOKEN = /^(?:radius|radii|borderRadius)$/i
@@ -59,9 +75,7 @@ function isPillRadius(value) {
 
 // Equal source text only proves a circle for an ABSOLUTE size. width: '100%' and height: '100%'
 // fill a rectangular parent, so they are not evidence of roundness.
-const RELATIVE_SIZE = /%|v[wh]|auto|inherit|100%/i
-
-const STATIC_STYLE_KEY = /^(?:badge|chip|tag|pill|label|eyebrow|caption|status)[A-Z0-9_]*$|^(?:badge|chip|tag|pill|label|eyebrow)$/i
+const RELATIVE_SIZE = /%|v[wh]|auto|inherit/i
 
 module.exports = {
   meta: {
@@ -77,18 +91,6 @@ module.exports = {
   },
   create(context) {
     return {
-      Property(node) {
-        const key = node.key?.name ?? node.key?.value
-        if (typeof key !== 'string' || !STATIC_STYLE_KEY.test(key)) return
-        if (node.value?.type !== 'ObjectExpression') return
-        for (const property of node.value.properties) {
-          if (property.type !== 'Property') continue
-          const name = property.key?.name ?? property.key?.value
-          if (name !== 'borderRadius') continue
-          const value = property.value
-          if (isPillRadius(value)) context.report({ node: property, messageId: 'pillOnStatic' })
-        }
-      },
       JSXOpeningElement(node) {
         const name = getElementName(node)
         if (!name || INTERACTIVE.has(name) || ROUND_BY_NATURE.has(name)) return
