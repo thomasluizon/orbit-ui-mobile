@@ -195,6 +195,18 @@ const pathBounds = (d) => {
 // The asset is machine-generated and deliberately tiny, so a scanner is enough. What matters is
 // that anything outside this shape is refused rather than skipped.
 const ELEMENTS_WITHOUT_INK = new Set(["svg", "title", "desc"])
+
+// Every attribute this gate understands, per element. Absent from the set means the gate cannot
+// say what it does to the ink, so it refuses rather than measuring around it.
+const ALLOWED_ATTRIBUTES = {
+  svg: new Set(["xmlns", "xmlns:xlink", "viewBox", "width", "height", "fill", "role", "aria-labelledby"]),
+  title: new Set(["id"]),
+  desc: new Set(["id"]),
+  // `translate` is the HTML attribute that keeps a wordmark out of machine translation. It is
+  // not a transform and does not move anything.
+  g: new Set(["transform", "translate"]),
+  path: new Set(["d", "fill", "fill-rule"]),
+}
 const TRANSFORM = /^translate\(\s*(-?[\d.eE+-]+)[\s,]+(-?[\d.eE+-]+)\s*\)(?:\s*scale\(\s*(-?[\d.eE+-]+)\s*\))?$/
 
 const svg = readFileSync(file, "utf8")
@@ -234,11 +246,28 @@ for (const match of svg.matchAll(TAG)) {
          `  Every attribute must be name="value" or name='value'. An unread attribute could paint.`)
   }
 
-  // stroke widens ink past the path's own bounds, and this gate measures fill geometry only.
-  if (attrs.stroke && attrs.stroke !== "none") {
-    fail(`<${name}> carries stroke="${attrs.stroke}"; a stroke widens the ink beyond the path bounds this gate solves`)
+  // The element has to be known before its attributes can be judged against a per-element set.
+  if (!ALLOWED_ATTRIBUTES[name]) {
+    fail(`<${name}> is not a construct this gate can measure.\n` +
+         `  It paints, or may paint, and omitting it would report a crop over geometry never checked.\n` +
+         `  Supported: ${Object.keys(ALLOWED_ATTRIBUTES).sort().join(", ")}.`)
   }
-  if (attrs.style) fail(`<${name}> carries a style attribute, which can move or stroke it in ways this gate does not read`)
+
+  // A CLOSED set, not a list of known-bad names. Refusing stroke and style one at a time left
+  // filter, mask, clip-path, marker, paint-order and vector-effect accepted and unmodelled, so
+  // the gate could still report exact ink over geometry something else had moved or widened.
+  const allowed = ALLOWED_ATTRIBUTES[name]
+  for (const attribute of Object.keys(attrs)) {
+    if (!allowed.has(attribute)) {
+      fail(`<${name}> carries ${attribute}="${attrs[attribute]}", which this gate does not model.\n` +
+           `  Allowed on <${name}>: ${[...allowed].sort().join(", ")}.\n` +
+           `  Anything else can move, clip, widen or hide the ink, and reporting an exact crop\n` +
+           `  without modelling it would be a clean result over geometry never measured.`)
+    }
+  }
+  if (name === "path" && attrs.fill !== undefined && attrs.fill === "none") {
+    fail("a <path> is fill=\"none\", so it paints nothing or paints only a stroke this gate cannot measure")
+  }
 
   if (name === "path") {
     const parent = stack[stack.length - 1]

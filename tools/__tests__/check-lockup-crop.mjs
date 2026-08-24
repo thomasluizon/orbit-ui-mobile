@@ -128,14 +128,14 @@ export const cases = () => {
     "check-lockup-crop.mjs",
     "rejects a transform on the path itself",
     ["--file", stage("path-transform", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path transform="translate(5 5)" fill="currentColor" d="${SQUARE}"/>\n</g>`))],
-    { status: 1, stderr: /own transform/ },
+    { status: 1, stderr: /does not model/ },
   )
 
   check(
     "check-lockup-crop.mjs",
     "rejects a style attribute it does not read",
     ["--file", stage("style", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path style="stroke:red" fill="currentColor" d="${SQUARE}"/>\n</g>`))],
-    { status: 1, stderr: /style attribute/ },
+    { status: 1, stderr: /does not model/ },
   )
 
   // The tag scanner accepts single quotes, so the attribute reader must too. Reading only the
@@ -144,7 +144,7 @@ export const cases = () => {
     "check-lockup-crop.mjs",
     "rejects a single-quoted style attribute",
     ["--file", stage("style-single", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path style='stroke:red' fill="currentColor" d="${SQUARE}"/>\n</g>`))],
-    { status: 1, stderr: /style attribute/ },
+    { status: 1, stderr: /does not model/ },
   )
 
   check(
@@ -152,6 +152,32 @@ export const cases = () => {
     "rejects a single-quoted stroke attribute",
     ["--file", stage("stroke-single", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path stroke='currentColor' fill="none" d="${SQUARE}"/>\n</g>`))],
     { status: 1, stderr: /stroke/ },
+  )
+
+  // The attribute set is closed, so a paint attribute the gate does not model is refused whether
+  // or not anyone thought to name it. Refusing stroke and style one at a time left all of these
+  // accepted and unmodelled.
+  for (const [label, attribute] of [
+    ["opacity", 'opacity="0.5"'],
+    ["a filter", 'filter="url(#f)"'],
+    ["a mask", 'mask="url(#m)"'],
+    ["a clip path", 'clip-path="url(#c)"'],
+    ["paint-order", 'paint-order="stroke"'],
+    ["vector-effect", 'vector-effect="non-scaling-stroke"'],
+  ]) {
+    check(
+      "check-lockup-crop.mjs",
+      `rejects ${label}, which it does not model`,
+      ["--file", stage(`attr-${label.replaceAll(/[^a-z]/g, "-")}`, wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path ${attribute} fill="currentColor" d="${SQUARE}"/>\n</g>`))],
+      { status: 1, stderr: /does not model/ },
+    )
+  }
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a fill=none path, which paints nothing or only a stroke",
+    ["--file", stage("fill-none", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path fill="none" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /paints nothing/ },
   )
 
   check(
