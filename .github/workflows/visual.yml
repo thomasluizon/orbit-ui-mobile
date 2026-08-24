@@ -79,15 +79,20 @@ jobs:
           if git diff --cached --quiet; then
             echo "Baselines already up to date — nothing to commit."
           else
-            # MEASURED 2026-08-23 on PR #748, bot head 353d1cb5, with no [skip ci] (#363).
+            # MEASURED 2026-08-23 on PR #748, bot head 353d1cb5, with no [skip ci].
+            # Ticket: thomasluizon/orbit-tickets#363.
             # This push uses the workflow's GITHUB_TOKEN. GitHub DOES create the pull_request runs
             # for it: 8 were created, and every one landed completed/action_required, held for
             # approval. Held runs publish no contexts, so the head still reads as missing checks.
             # App checks that are not gated on approval (CodeQL, Vercel, GitGuardian) ran normally.
-            # main requires 21 contexts per head, so after a labeled re-seed the operator APPROVES
-            # the held runs. Either the 'Approve and run' control in the PR's checks section, or:
-            #   gh api --method POST repos/{owner}/{repo}/actions/runs/{run_id}/approve
-            # Verified: approving flipped a held run from completed/action_required to in_progress.
+            # main requires 21 contexts per head, so after a labeled re-seed the operator approves
+            # EVERY held run, not one. The 'Approve and run' control in the pull request's checks
+            # section releases them together. The REST call takes a single run id, so by API it is
+            # one call per held run; enumerate them first:
+            #   gh api "repos/OWNER/REPO/actions/runs?head_sha=SHA" \
+            #     --jq '.workflow_runs[]|select(.conclusion=="action_required")|.id'
+            #   gh api --method POST repos/OWNER/REPO/actions/runs/RUN_ID/approve
+            # Verified on one run: approving flipped it from completed/action_required to in_progress.
             # NOT a checks re-run. A re-run retains the original GITHUB_SHA, so its contexts land on
             # the pre-baseline commit. The staged-diff guard above is the seed-loop stop.
             git commit -m "test(web): update hermetic visual baselines (#461 B1)"
