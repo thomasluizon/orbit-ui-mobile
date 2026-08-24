@@ -138,6 +138,29 @@ export const cases = () => {
     { status: 1, stderr: /style attribute/ },
   )
 
+  // The tag scanner accepts single quotes, so the attribute reader must too. Reading only the
+  // double-quoted form let this exact file pass with a stroke painting outside the viewBox.
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a single-quoted style attribute",
+    ["--file", stage("style-single", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path style='stroke:red' fill="currentColor" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /style attribute/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a single-quoted stroke attribute",
+    ["--file", stage("stroke-single", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path stroke='currentColor' fill="none" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /stroke/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects an unquoted attribute value it cannot read",
+    ["--file", stage("unquoted", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path opacity=1 fill="currentColor" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /cannot parse/ },
+  )
+
   check(
     "check-lockup-crop.mjs",
     "rejects a file with no paths rather than passing vacuously",

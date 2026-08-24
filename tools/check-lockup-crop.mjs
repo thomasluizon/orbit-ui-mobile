@@ -220,8 +220,19 @@ for (const match of svg.matchAll(TAG)) {
     continue
   }
 
+  // Read BOTH quoting styles, then prove the whole attribute text was consumed. Reading only the
+  // double-quoted form let style='stroke:red' through the refusals below while the tag scanner
+  // happily matched it, so the gate passed a stroked path that painted outside the viewBox.
   const attrs = {}
-  for (const a of attrText.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)) attrs[a[1]] = a[2]
+  let residue = attrText
+  for (const a of attrText.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+    attrs[a[1]] = a[2] !== undefined ? a[2] : a[3]
+    residue = residue.replace(a[0], "")
+  }
+  if (residue.trim() !== "") {
+    fail(`<${name}> carries attribute text this gate cannot parse: ${JSON.stringify(residue.trim())}\n` +
+         `  Every attribute must be name="value" or name='value'. An unread attribute could paint.`)
+  }
 
   // stroke widens ink past the path's own bounds, and this gate measures fill geometry only.
   if (attrs.stroke && attrs.stroke !== "none") {
