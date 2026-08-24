@@ -29,6 +29,14 @@ metadata.
 except the accent treatment, so a component renders it with `color: var(--fg-1)`. A standalone
 viewer that sets no `color` falls back to the browser default, which is black on white.
 
+**Inline these files. Never load one through an image primitive.** `currentColor` resolves against
+the render tree the SVG participates in, and an `<img src>`, a CSS `background-image` or a React
+Native `<Image source>` puts the file in its own document, where the surrounding `color` does not
+reach it and the mark renders black. That is why `DESIGN.md` states the rule as "one SVG, recoloured
+per state ... strip any hardcoded `fill` on import": a mark that has to take `--fg-1`, white on an
+accent tile, and the accent itself cannot be an external image. A surface that genuinely needs a
+flat file takes a baked raster from `#80` instead, not one of these two.
+
 ## Provenance
 
 Generated on Recraft with a paid Basic plan, so both carry full commercial rights and were generated

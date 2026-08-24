@@ -112,39 +112,36 @@ fonts/GeistMono[wght].ttf
 fonts/SpaceGrotesk[wght].ttf
 ```
 
-**Vector brand, 5 files.**
+**Vector brand, 2 files.** These are the only brand vectors that exist.
 
 ```
-mark-24-neutral.svg
-mark-16.svg
-astra-24.svg
-lockup-horizontal-neutral.svg
-icon-512-orange.svg        (the granted accent; the orange twin is retired)
+orbit-mark.svg
+astra-mark.svg
 ```
 
-Upload the **neutral** mark and lockup, not an accent variant. The accent body is one circle, and the
-tool applies the accent itself once the notes field tells it to. Uploading a pre coloured mark risks
-the tool treating that specific byte as fixed brand data and reusing it outside the four accent roles.
+Both are drawn on a 1024 grid, one `fill-rule="evenodd"` path each plus Orbit's moon, and both paint
+with `fill="currentColor"` and carry no hex. Upload them as they are. There is no accent variant to
+choose between, because the accent treatment is not built yet.
 
-**Raster, 4 files.** These are the four sizes the tool may want for a favicon or an app icon.
+**Raster: none.** No PNG set exists. `#80` owns the app icons, store graphics, OG images, splash and
+notification icon, and it derives them from the two files above.
 
-```
-png/orbit-mark-16.png
-png/orbit-mark-48-orange.png
-png/orbit-mark-128-orange.png
-png/orbit-icon-512-orange.png
-```
+**Do not look for the nine files an earlier revision of this document listed.** `mark-24-neutral.svg`,
+`mark-16.svg`, `astra-24.svg`, `lockup-horizontal-neutral.svg`, `icon-512-orange.svg` and the four
+`png/` files were the drafts PR #735 shipped to make the accent decidable. Every one of them is
+deleted and `png/` no longer exists. The 24 grid variant, the native 16px redraw, the horizontal
+lockup and the accent treatment are still to build, so a tool that asks for them gets nothing.
 
-The orange set is the granted one. `png/` still holds the orange twins as history; do not ship them.
+**Expect the mark to render BLACK in an upload preview, not near white.** `currentColor` resolves
+against the SVG document's own root when the file is loaded as an image, and that document sets no
+`color`, so it falls back to the browser default. Nothing inherits from the page around it. That is
+correct, not a broken file. To see the mark in its real ink, inline the SVG and set
+`color: var(--fg-1)` on the element that carries it.
 
-**Expect the mark to look invisible in an upload preview.** Orbit is a dark first brand, so the mark
-is near white `#F4F4F6` on transparency. Any preview that paints white behind it shows nothing. That
-is correct, not a broken file. `png/orbit-icon-512-*.png` bakes the `#09090B` canvas, so use that one
-to confirm the upload landed.
-
-**Say this in the first chat turn, because no field carries it:** the mark is a draft that exists to
-make the accent decidable. Ticket `#79` owns the real mark. Do not let the tool build a brand
-identity on top of it.
+**Say this in the first chat turn, because no field carries it:** the mark is final, not a draft.
+Thomas granted `orbit-mark.svg` and `astra-mark.svg` on 2026-08-23 under ticket `#79`. Identity comes
+from those two marks and ring shaped indicators and from nothing else, so do not let the tool invent
+a third carrier.
 
 ---
 
@@ -187,7 +184,7 @@ BANNED WITHOUT EXCEPTION: decorative glow at any strength, gradient wash, gradie
 
 HIERARCHY: space is the primary device, then size, then weight, then contrast. A surface step or a hairline is the last resort. Use exactly ONE separation device per boundary, never two: where a gap already separates two things, do not also draw a line. A card is not a layout primitive; group with space and alignment first, and a card earns its place only when its content is a separable, actionable object.
 
-IDENTITY: three carriers and nothing else, the orbital logo mark, the Astra glyph, and ring shaped indicators. Never background decoration. Warmth has exactly one source, the mark. The mark is a tilted ellipse with one solid body on the path and it is empty in the middle. Astra is a circle with a filled centre core. Anything with a core is Astra, anything empty in the middle is Orbit.
+IDENTITY: three carriers and nothing else, the orbital logo mark, the Astra glyph, and ring shaped indicators. Never background decoration. Warmth has exactly one source, the mark. The two marks are told apart by silhouette, not by a detail: a hollow ring is Orbit, a solid letterform is Astra. That distinction survives at 16px, which the earlier 'circle with a core' rule did not.
 
 ICONS: Tabler only. Sizes 16, 20 and 24, default 24. Outline is the default and a filled icon marks the active state. Every icon stays legible at 16.
 
