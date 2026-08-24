@@ -53,14 +53,31 @@ but the package with that name requires a `GEMINI_API_KEY` and is not free. The 
 skill is `rknall/claude-skills@svg-logo-designer`. Neither was used in the end, because a diffusion
 model cannot hold exact geometry and Recraft's native vector model can.
 
+## The variants, built by `#365`
+
+| file | what it is |
+|---|---|
+| `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:265`). Monochrome, no accent |
+| `orbit-mark-24.svg`, `astra-mark-24.svg` | the 24 grid variant, for a surface that sits the mark beside Tabler icons |
+| `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
+| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 91.52 by 28 |
+
+**Pick by size, not by taste.** Below roughly 20px use the 16 pair; beside icons use the 24 pair;
+above that use the 1024 originals. The redraws are simplifications, so blowing a 16 up to 128 shows
+geometry that was chosen to survive at 16 and nothing else.
+
+**The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
+fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
+violation, not a variation.
+
+**The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
+carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
+asset, not a CSS override.
+
 ## Still to build
 
 These are not done and nothing here should be treated as a complete asset set:
 
-- the 24 grid viewBox variant, for the icon scale
-- the accent treatment, the mark carrying `--primary` on the moon only
-- the native 16px redraw, since a stroke scaled down from 1024 renders soft
-- the horizontal lockup, 28px mark, 12px gap, 22px wordmark in Space Grotesk 600 at `-0.02em`
 - the platform icon at 512 on the `#09090B` canvas
 - the PNG set at 16, 48, 128 and 512
 
