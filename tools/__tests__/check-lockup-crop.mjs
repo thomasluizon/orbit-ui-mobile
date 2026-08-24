@@ -1,0 +1,89 @@
+import { mkdirSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+
+import { check, root, toolPath } from "./_harness.mjs"
+
+// Each fixture is a whole SVG, because the tool's contract is about the bytes that ship. Testing
+// the bounds solver alone would have missed the defect that produced this gate: the generator's
+// own assertion passed against pre-rounded floats while the written file clipped.
+const stage = (label, svg) => {
+  const directory = join(root, "lockup-crop", label)
+  mkdirSync(directory, { recursive: true })
+  const file = join(directory, "lockup.svg")
+  writeFileSync(file, svg)
+  return file
+}
+
+// A 10 by 10 square at the origin, scaled by 2 and translated by 1, so its ink is exactly
+// 1,1 to 21,21. Every fixture below moves the viewBox around that known box.
+const SQUARE = "M0 0L10 0L10 10L0 10Z"
+const svgWith = (viewBox, d = SQUARE, transform = "translate(1 1) scale(2)") =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="none">\n` +
+  `<g transform="${transform}">\n<path fill="currentColor" d="${d}"/>\n</g>\n</svg>\n`
+
+export const cases = () => {
+  check(
+    "check-lockup-crop.mjs",
+    "accepts a viewBox that is exactly the ink",
+    ["--file", stage("exact", svgWith("1 1 20 20"))],
+    { status: 0, stdout: /crop is exact/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a viewBox that clips the bottom",
+    ["--file", stage("clips-bottom", svgWith("1 1 20 19.9"))],
+    { status: 1, stderr: /bottom.*clips/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a viewBox that pads the left",
+    ["--file", stage("pads-left", svgWith("0 1 21 20"))],
+    { status: 1, stderr: /left.*pads/ },
+  )
+
+  // The regression this gate was written for: 2.5e-4 is far too small to see in a render and far
+  // too large to ship in a file that claims to be ink-tight.
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a sub-pixel overrun a raster cannot show",
+    ["--file", stage("subpixel", svgWith("1 1 20 19.99975"))],
+    { status: 1, stderr: /bottom/ },
+  )
+
+  // A curve's extremum sits outside its control points' span, so a control-point box would call
+  // this exact and a solved box does not.
+  check(
+    "check-lockup-crop.mjs",
+    "solves curve extrema rather than trusting control points",
+    ["--file", stage("curve", svgWith("0 0 10 7.5", "M0 0C0 10 10 10 10 0Z", "translate(0 0) scale(1)"))],
+    { status: 0, stdout: /crop is exact/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "reports a missing viewBox rather than passing",
+    ["--file", stage("no-viewbox", '<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(0 0)"><path d="M0 0L1 1Z"/></g></svg>\n')],
+    { status: 1, stderr: /no viewBox/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "reports an SVG with no transformed group rather than passing",
+    ["--file", stage("no-group", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0L1 1Z"/></svg>\n')],
+    { status: 1, stderr: /no transformed groups/ },
+  )
+
+  check("check-lockup-crop.mjs", "prints usage for --help", ["--help"], { status: 0, stdout: /usage: check-lockup-crop/ })
+  check("check-lockup-crop.mjs", "rejects --file with no path", ["--file"], { status: 2, stderr: /needs a path/ })
+
+  // The default target is the real asset, so the gate fails loudly if the committed lockup drifts.
+  check(
+    "check-lockup-crop.mjs",
+    "checks the committed lockup by default",
+    [],
+    { status: 0, stdout: /crop is exact/ },
+    { path: toolPath("check-lockup-crop.mjs") },
+  )
+}

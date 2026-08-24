@@ -40,6 +40,8 @@ jobs:
       - run: node tools/check-root-allowlist.mjs
       - name: Workspace packages declare no ignored overrides
         run: node tools/check-workspace-overrides.mjs
+      - name: The brand lockup's viewBox is exactly its ink
+        run: node tools/check-lockup-crop.mjs
 
   dashes:
     name: Dash Ban

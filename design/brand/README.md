@@ -59,7 +59,7 @@ model cannot hold exact geometry and Recraft's native vector model can.
 |---|---|
 | `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
 | `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
-| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 |
+| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221) |
 
 **There is no 24 grid variant, and there will not be one.** `#365` originally ordered one and this
 list originally promised one. `DESIGN.md:267` overrules both: "Asset sizes are enumerated: 16, 48,
@@ -84,12 +84,18 @@ lockup.
 **The lockup's 12 separates ink from ink**, not bounding boxes. The wordmark's `O` carries a left
 side bearing, so placing the text origin 12 from the mark would have left a 13.15 visual gap.
 
-**The lockup's viewBox IS its ink**, 89.3955 by 17.8827, with no baked margin. Clear space is the
+**The lockup's viewBox IS its ink**, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221), with no baked margin. Clear space is the
 consumer's to add. A logo file that carries its own padding cannot be aligned to anything.
 
 Both numbers are solved from the curve extrema, not measured off a render. A pixel measurement
 rounds to the render grid: the first attempt cropped at 24.300 while the `O`'s overshoot reaches
 24.292, and clipped 0.008 of it at every scale.
+
+**`tools/check-lockup-crop.mjs` holds this.** It parses the committed file, re-solves the bounds and
+fails if any edge is off by more than 1e-6. It runs in `guards.yml` and on pre-commit. The gate reads
+the shipped bytes on purpose: a generator that asserted its own pre-rounded floats passed while the
+file it wrote still clipped by 2.5e-4. Regenerating the lockup means running that check, not eyeing a
+render, because a raster shows ink on an edge whether the geometry touches it or runs past it.
 
 **The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
 carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new

@@ -135,7 +135,7 @@ role and the only non-state use of the accent in the system, so **never tint a s
 fallback matters here: an upload preview defines no `--primary`, and without it the moon renders as
 nothing at all rather than as ink.
 
-`orbit-lockup.svg` is the horizontal lockup at 28 / 12 / 22, 89.3955 by 17.8827. The 28 measures the
+`orbit-lockup.svg` is the horizontal lockup at 28 / 12 / 22, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221). The 28 measures the
 mark itself, not a 28 box (`DESIGN.md:269`), the 12 separates ink from ink rather than bounding
 boxes, and the viewBox is exactly the ink, so the file carries no baked margin. Its wordmark is Space Grotesk 600 converted to outlines, so it needs no font at render
 time and carries no `<text>`.
