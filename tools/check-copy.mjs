@@ -44,19 +44,21 @@ const BRAND_COLOR_EXEMPT = [
 // scanner cannot see, and stay with the design-reviewer agent.
 // https://github.com/thomasluizon/orbit-tickets/issues/36
 const BANNED_COPY = [
-  { entry: 7, kind: "puffery", pattern: /(?:crucial|pivotal|vital|essential|game-?chang(?:er|ers|ing))/i },
-  { entry: 8, kind: "ai-cliche", pattern: /(?:delv(?:e|es|ed|ing)|harness(?:es|ed|ing)?|unlock(?:s|ed|ing)?|elevat(?:e|es|ed|ing)|empower(?:s|ed|ing)?|supercharg(?:e|es|ed|ing)|seamless(?:ly)?|robust|cutting-edge|revolutionar(?:y|ily)|revolutioni[sz](?:e|es|ed|ing))/i },
-  { entry: 8, kind: "ai-cliche", pattern: /leverag(?:e|es|ed|ing)/i },
-  { entry: 9, kind: "weasel-attribution", pattern: /(?:experts agree|studies show|science says)/i },
-  { entry: 10, kind: "fake-strong-verb", pattern: /(?:utiliz(?:e|es|ed|ing)|commenc(?:e|es|ed|ing))/i },
-  { entry: 18, kind: "cutesy-error", pattern: /(?:oops|uh[ -]oh|whoops)/i },
-  { entry: 20, kind: "dead-link-label", pattern: /(?:click here|read more)/i },
-  { entry: 21, kind: "the-user", pattern: /the user/i },
-  { entry: 22, kind: "pt-br-puffery", pattern: /(?:otimiz|potencializ|maximiz)(?:e|es|ar|ando|ado|ada)?/i },
-  { entry: 23, kind: "journey-framing", pattern: /(?:comece sua jornada|sua jornada|your journey)/i },
-  { entry: 25, kind: "medical-claim", pattern: /(?:treats ADHD|cure[sd]?|fixes your brain)/i },
+  { entry: 7, kind: "puffery", pattern: /\b(?:crucial|pivotal|vital|essential|game-?chang(?:er|ers|ing))(?!\p{L})/iu },
+  { entry: 8, kind: "ai-cliche", pattern: /\b(?:delv(?:e|es|ed|ing)|harness(?:es|ed|ing)?|unlock(?:s|ed|ing)?|elevat(?:e|es|ed|ing)|empower(?:s|ed|ing)?|supercharg(?:e|es|ed|ing)|seamless(?:ly)?|robust|cutting-edge|revolutionar(?:y|ily)|revolutioni[sz](?:e|es|ed|ing))\b/i },
+  { entry: 8, kind: "ai-cliche", pattern: /\bleverag(?:e|es|ed|ing)\b/i },
+  { entry: 9, kind: "weasel-attribution", pattern: /\b(?:experts agree|studies show|science says)\b/i },
+  { entry: 10, kind: "fake-strong-verb", pattern: /\b(?:utiliz(?:e|es|ed|ing)|commenc(?:e|es|ed|ing))\b/i },
+  { entry: 18, kind: "cutesy-error", pattern: /\b(?:oops|uh[ -]oh|whoops)\b/i },
+  { entry: 20, kind: "dead-link-label", pattern: /\b(?:click here|read more)\b/i },
+  { entry: 21, kind: "the-user", pattern: /\bthe user\b/i },
+  // "maximizar" is dropped from entry 22: it is also the panel-control verb ("Maximizar"),
+  // and the puffery sense cannot be told apart from the control sense in a single string.
+  { entry: 22, kind: "pt-br-puffery", pattern: /\b(?:otimiz|potencializ)(?:e|es|ar|ando|ado|ada)?(?!\p{L})/iu },
+  { entry: 23, kind: "journey-framing", pattern: /\b(?:comece sua jornada|sua jornada|your journey)\b/i },
+  { entry: 25, kind: "medical-claim", pattern: /\b(?:treats ADHD|cure[sd]?\b|fixes your brain)\b/i },
   // Legacy entries kept: they predate the enumeration and are still banned by entry 8 in spirit.
-  { entry: 8, kind: "ai-cliche", pattern: /(?:unleash(?:es|ed|ing)?|next-gen(?:eration)?|tapestry|streamlin(?:e|es|ed|ing)|in the world of)/i },
+  { entry: 8, kind: "ai-cliche", pattern: /\b(?:unleash(?:es|ed|ing)?|next-gen(?:eration)?|tapestry|streamlin(?:e|es|ed|ing)|in the world of)\b/i },
 ]
 
 // Entry 1: no "!" on a success, completion or celebration string. Scoped by key name, because the
@@ -64,8 +66,8 @@ const BANNED_COPY = [
 const CELEBRATORY_KEY = /(?:success|complete|completed|celebrat|achiev|unlocked|congrat|done|wrapped)/i
 
 // Entry 19: "Are you sure?" as a confirmation body. microcopy scope.
-const ARE_YOU_SURE = /are you sure/i
-const TEM_CERTEZA = /tem certeza/i
+const ARE_YOU_SURE = /\bare you sure\b/i
+const TEM_CERTEZA = /\btem certeza\b/i
 
 const PLACEHOLDERS = [/\bjohn doe\b/i, /\bjane doe\b/i, /\bacme\b/i, /\blorem ipsum\b/i]
 

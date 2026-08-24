@@ -5,8 +5,13 @@
  * drawn on a 24 grid, so an off-grid size such as 22 renders with fractional
  * scaling and looks soft. DESIGN.md "Enforcement" lists this as a gate.
  *
- * Only a literal `size` on an icon element is checked. A variable size is a
- * runtime value this rule cannot read, and the mark is deliberately out of scope:
+ * An icon is identified by its IMPORT, not by its name. The barrel re-exports
+ * Tabler under the names the call sites already use - `Check`, `Trash2`,
+ * `Receipt` - so a name-shape heuristic would miss almost every real icon. Every
+ * icon reaches a call site through `@/components/ui/icons` and nothing else
+ * (`no-restricted-imports` guarantees it), so that import IS the icon set.
+ *
+ * The marks are deliberately out of scope even when imported from the barrel:
  * DESIGN.md says the mark "is neither type nor an icon, so it answers to neither
  * the type scale nor the 24 icon grid".
  */
@@ -14,8 +19,8 @@
 const { getAttribute, getAttributeValueNode, getElementName } = require('./_jsx-strings.cjs')
 
 const ALLOWED = new Set([16, 20, 24])
-const MARK_ELEMENTS = new Set(['OrbitMark', 'AstraGlyph', 'AstraMark', 'AppLogo'])
-const ICON_NAME_RE = /^(?:Icon[A-Z]|[A-Z][A-Za-z0-9]*Icon$)/
+const ICON_BARREL = /(?:^|\/)components\/ui\/icons$/
+const MARKS = new Set(['OrbitMark', 'AstraGlyph', 'AstraMark', 'AppLogo'])
 
 const literalNumber = (node) => {
   if (!node) return null
@@ -37,11 +42,22 @@ module.exports = {
     },
   },
   create(context) {
+    const iconNames = new Set()
+
     return {
+      ImportDeclaration(node) {
+        if (!ICON_BARREL.test(String(node.source.value))) return
+        for (const specifier of node.specifiers) {
+          const local = specifier.local?.name
+          if (local && !MARKS.has(local)) iconNames.add(local)
+        }
+      },
+      'Program:exit'() {
+        // names are collected before any JSX is visited, because imports hoist
+      },
       JSXOpeningElement(node) {
         const name = getElementName(node)
-        if (!name || MARK_ELEMENTS.has(name)) return
-        if (!ICON_NAME_RE.test(name)) return
+        if (!name || !iconNames.has(name)) return
 
         const sizeAttribute = getAttribute(node, 'size')
         if (!sizeAttribute) return

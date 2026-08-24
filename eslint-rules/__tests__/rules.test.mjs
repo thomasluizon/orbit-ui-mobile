@@ -533,18 +533,25 @@ ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
 
 ruleTester.run('icon-size-grid', rule('icon-size-grid'), {
   valid: [
-    '<IconCircleDot size={16} />',
-    '<IconCircleDot size={20} />',
-    '<IconCircleDot size={24} />',
-    '<IconCircleDot size={iconSize} />',
-    '<OrbitMark size={96} />',
-    '<AstraGlyph size={11} />',
-    '<Card size={13} />',
+    "import { Check } from '@/components/ui/icons'; const a = <Check size={16} />",
+    "import { Check } from '@/components/ui/icons'; const a = <Check size={20} />",
+    "import { Check } from '@/components/ui/icons'; const a = <Check size={24} />",
+    "import { Check } from '@/components/ui/icons'; const a = <Check size={iconSize} />",
+    // the marks answer to neither the type scale nor the icon grid
+    "import { OrbitMark } from '@/components/ui/icons'; const a = <OrbitMark size={96} />",
+    // not imported from the barrel, so not an icon
+    "import { Card } from './card'; const a = <Card size={13} />",
+    '<Check size={13} />',
   ],
   invalid: [
-    { code: '<IconCircleDot size={22} />', errors: [{ messageId: 'offGridIconSize' }] },
-    { code: '<IconTrash size={12} />', errors: [{ messageId: 'offGridIconSize' }] },
-    { code: '<ChevronIcon size={18} />', errors: [{ messageId: 'offGridIconSize' }] },
+    {
+      code: "import { Check } from '@/components/ui/icons'; const a = <Check size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Trash2, Receipt } from '@/components/ui/icons'; const a = <><Trash2 size={12} /><Receipt size={28} /></>",
+      errors: [{ messageId: 'offGridIconSize' }, { messageId: 'offGridIconSize' }],
+    },
   ],
 })
 

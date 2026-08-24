@@ -12,6 +12,10 @@
  * and promises a press. A circle is not a pill: an icon in a 56x56 rounded-full box,
  * an avatar, a dot, a ring indicator and a skeleton bar are all round by design and
  * promise nothing. DESIGN.md wants those round.
+ *
+ * Badge is deliberately NOT exempt. DESIGN.md gives a badge radius 8 and reserves
+ * 999 to the interactive kit, so a fully-rounded badge is the defect this catches,
+ * not an exception to it.
  */
 
 const { getClassText, getElementName, collectStaticStrings, collectStyleProperties, getPropertyKeyName } = require('./_jsx-strings.cjs')
@@ -27,7 +31,7 @@ const INTERACTIVE = new Set([
 ])
 const ROUND_BY_NATURE = new Set([
   'Avatar', 'AvatarImage', 'AvatarFallback', 'Dot', 'StatusDot', 'Ring', 'ProgressRing',
-  'Spinner', 'Skeleton', 'Badge', 'OrbitMark', 'AstraGlyph', 'AstraMark',
+  'Spinner', 'Skeleton', 'OrbitMark', 'AstraGlyph', 'AstraMark',
 ])
 
 const isInteractive = (node) => {
