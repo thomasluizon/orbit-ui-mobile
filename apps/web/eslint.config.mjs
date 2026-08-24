@@ -29,6 +29,9 @@ import noUserScalableNo from "../../eslint-rules/no-user-scalable-no.cjs"
 import react19Api from "../../eslint-rules/react19-api.cjs"
 import requireDialogTitle from "../../eslint-rules/require-dialog-title.cjs"
 import requireFocusReplacement from "../../eslint-rules/require-focus-replacement.cjs"
+import noSparkleAiMarker from "../../eslint-rules/no-sparkle-ai-marker.cjs"
+import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
+import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
 
 export default [
@@ -88,6 +91,9 @@ export default [
           "react19-api": react19Api,
           "require-dialog-title": requireDialogTitle,
           "require-focus-replacement": requireFocusReplacement,
+          "no-sparkle-ai-marker": noSparkleAiMarker,
+          "icon-size-grid": iconSizeGrid,
+          "no-pill-radius-on-static": noPillRadiusOnStatic,
           "will-change-discipline": willChangeDiscipline,
         },
       },
@@ -143,9 +149,8 @@ export default [
       // fail CI on code that is only waiting its turn.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       // Wired on web only, each for a platform reason (#36 parity criterion):
-      //   no-calc-percentage-width, no-gradient-text, will-change-discipline,
-      //   require-focus-replacement, no-user-scalable-no  -> CSS or viewport-meta
-      //     constructs React Native does not have.
+      //   no-calc-percentage-width, no-gradient-text, no-user-scalable-no -> CSS or
+      //     viewport-meta constructs React Native does not have.
       //   no-dead-href, no-placeholder-alt, require-dialog-title -> <a href>, <img alt>
       //     and <dialog>, none of which exist in React Native.
       //   react19-api -> the rule scopes itself to Next.js 16 / React 19 spellings.
@@ -166,6 +171,9 @@ export default [
       "local/no-space-x-y": "error",
       "local/react19-api": "error",
       "local/require-focus-replacement": "error",
+      "local/no-sparkle-ai-marker": "error",
+      "local/icon-size-grid": "error",
+      "local/no-pill-radius-on-static": "error",
 
       // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
       // committed eslint-suppressions.json baseline (regenerated against main, 2026-07-24),

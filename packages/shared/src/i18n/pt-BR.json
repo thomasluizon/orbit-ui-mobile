@@ -362,9 +362,9 @@
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
     "loadError": "Não foi possível carregar seus hábitos.",
     "emptyGeneral": "Nenhum hábito geral ainda",
-    "allDoneToday": "Tudo feito por hoje!",
-    "allDoneHint": "Você concluiu todos os seus hábitos. Mandou muito bem!",
-    "allDoneCelebrationTitle": "Tudo feito!",
+    "allDoneToday": "Tudo feito por hoje",
+    "allDoneHint": "Você concluiu todos os seus hábitos.",
+    "allDoneCelebrationTitle": "Tudo feito",
     "allDoneCelebrationSubtitle": "Você arrasou em todos os hábitos hoje.",
     "seeUpcoming": "Ver hábitos de amanhã",
     "noSubHabits": "Nenhum sub-hábito ainda",
@@ -425,7 +425,7 @@
     "autoSkipParentTitle": "Todos os sub-hábitos pulados!",
     "autoSkipParentMessage": "Quer pular \"{name}\" também?",
     "autoSkipParentConfirm": "Pular",
-    "checklistCompleteTitle": "Checklist concluído!",
+    "checklistCompleteTitle": "Checklist concluído",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar",
     "checklistClearTitle": "Limpar checklist?",
@@ -748,7 +748,7 @@
     "deselectAll": "Desmarcar todos",
     "importButton": "Importar {count} evento | Importar {count} eventos",
     "importing": "Importando eventos...",
-    "importDone": "Importação concluída!",
+    "importDone": "Importação concluída",
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
     "goToHabits": "Ir para Hábitos",
@@ -1528,7 +1528,7 @@
         "placeholder": "ex: Beber água, Ler, Treinar",
         "create": "Criar hábito",
         "creating": "Criando...",
-        "success": "Hábito criado!",
+        "success": "Hábito criado",
         "useForm": "Usar o formulário",
         "starters": "Ou experimente",
         "frequency": {
@@ -1547,7 +1547,7 @@
         "title": "Agora conclua",
         "instruction": "Toque no círculo para marcar como feito",
         "tapHint": "Toque no círculo para concluir",
-        "success": "Sua sequência começa agora!"
+        "success": "Sua sequência começa agora"
       },
       "createGoal": {
         "title": "Defina uma meta",
@@ -1559,7 +1559,7 @@
         "unitPlaceholder": "Unidade (km, livros...)",
         "create": "Criar meta",
         "creating": "Criando...",
-        "success": "Meta criada!",
+        "success": "Meta criada",
         "skipStep": "Pular por enquanto",
         "suggestions": {
           "run": "Correr 100km",
@@ -1592,7 +1592,7 @@
         }
       },
       "complete": {
-        "title": "Tudo pronto!",
+        "title": "Tudo pronto",
         "subtitle": "É tudo de verdade. Seu hábito e seu progresso já estão salvos.",
         "start": "Começar a usar o Orbit",
         "recap": {
@@ -2052,7 +2052,7 @@
     "failedToStop": "Não foi possível parar a gravação."
   },
   "goals": {
-    "completedCelebrationTitle": "Meta alcançada!",
+    "completedCelebrationTitle": "Meta alcançada",
     "completedCelebrationLabel": "Meta · {name}",
     "completedCelebrationFiled": "Arquivada.",
     "tab": "Metas",
@@ -2378,8 +2378,8 @@
     "celebration": {
       "eyebrow": "Sequência",
       "subtitle": "{count} dia. | {count} dias.",
-      "milestone": "Marco incrível!",
-      "keepGoing": "Continue assim!"
+      "milestone": "Marco alcançado",
+      "keepGoing": "Continue assim"
     },
     "badge": {
       "tooltip": "Sequência de {count} dia | Sequência de {count} dias"
@@ -2396,7 +2396,7 @@
     "freeze": {
       "title": "Congelamento de sequência",
       "activeToday": "Congelamento ativo hoje",
-      "celebrationTitle": "Sequência salva!",
+      "celebrationTitle": "Sequência salva",
       "celebrationSubtitle": "Sua sequência continua.",
       "eyebrow": "Congelado · {date}",
       "auto": {
@@ -2549,7 +2549,7 @@
         "tryAstra": "Pergunte algo à Astra"
       },
       "progress": "{done} de {total} concluídos",
-      "complete": "Tudo pronto. Bom trabalho!",
+      "complete": "Tudo pronto.",
       "dismiss": "Dispensar"
     }
   },

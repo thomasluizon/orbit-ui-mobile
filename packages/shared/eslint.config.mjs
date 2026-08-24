@@ -7,6 +7,7 @@ import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
 import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
 import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
 import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
+import noOklch from "../../eslint-rules/no-oklch-outside-web-tokens.cjs"
 import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 
@@ -45,6 +46,7 @@ export default [
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
           "no-raw-gradient": noRawGradient,
+          "no-oklch-outside-web-tokens": noOklch,
           "no-unjustified-disable": noUnjustifiedDisable,
           "spacing-scale": spacingScale,
         },
@@ -73,6 +75,7 @@ export default [
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-raw-gradient": "error",
+      "local/no-oklch-outside-web-tokens": "error",
 
       // Staged at `warn`: 6 exported functions lack an explicit return type (query/keys.ts,
       // tour/tour-mock-data.ts, types/habit.ts, utils/{google-calendar-auth,

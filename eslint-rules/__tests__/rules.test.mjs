@@ -404,12 +404,13 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     '<div style={{ padding: "24px" }} />',
     '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
     '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
-    '<div className="flex gap-3 px-4 pb-10" />',
+    '<div style={{ gap: 96, padding: 64 }} />',
+    '<div className="flex gap-3 px-4 pb-12" />',
     '<div className="absolute inset-0 top-0 md:mt-6" />',
     '<div className="p-px w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
     '<div className="gap-[16px] mt-[1.5rem]" />',
     '<div style={{ top: 1, right: -1 }} />',
-    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 20 } })',
+    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 24 } })',
     {
       code: 'const s = StyleSheet.create({ row: { gap: 9, paddingX: 26 } })',
       filename: 'packages/shared/src/theme/button.ts',
@@ -418,6 +419,12 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving
+    // steps, so isUnambiguous() refuses to autofix and a human picks the direction.
+    { code: '<div style={{ gap: 20 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 28 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 40 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 56 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     {
       code: '<div style={{ gap: 13 }} />',
       output: '<div style={{ gap: 12 }} />',
@@ -496,5 +503,66 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       output: '<div style={{ top: 4 }} />',
       errors: [{ messageId: 'offScaleStyle' }],
     },
+  ],
+})
+
+ruleTester.run('no-oklch-outside-web-tokens', rule('no-oklch-outside-web-tokens'), {
+  valid: [
+    'const c = "#C4530F"',
+    'const c = "rgb(196 83 15)"',
+    'const label = "oklchophobia"',
+  ],
+  invalid: [
+    { code: 'const c = "oklch(0.6 0.15 45)"', errors: [{ messageId: 'noOklch' }] },
+    { code: 'const c = `oklch(${l} 0.15 45)`', errors: [{ messageId: 'noOklch' }] },
+  ],
+})
+
+ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
+  valid: [
+    "import { AstraGlyph } from '@/components/ui/astra-glyph'",
+    '<AstraGlyph size={16} />',
+    '<span>Ask Astra</span>',
+  ],
+  invalid: [
+    { code: "import { Sparkles } from '@/components/ui/icons'", errors: [{ messageId: 'noSparkle' }] },
+    { code: '<Sparkles size={16} />', errors: [{ messageId: 'noSparkle' }] },
+    { code: '<span>✨ Astra</span>', errors: [{ messageId: 'noSparkle' }] },
+  ],
+})
+
+ruleTester.run('icon-size-grid', rule('icon-size-grid'), {
+  valid: [
+    '<IconCircleDot size={16} />',
+    '<IconCircleDot size={20} />',
+    '<IconCircleDot size={24} />',
+    '<IconCircleDot size={iconSize} />',
+    '<OrbitMark size={96} />',
+    '<AstraGlyph size={11} />',
+    '<Card size={13} />',
+  ],
+  invalid: [
+    { code: '<IconCircleDot size={22} />', errors: [{ messageId: 'offGridIconSize' }] },
+    { code: '<IconTrash size={12} />', errors: [{ messageId: 'offGridIconSize' }] },
+    { code: '<ChevronIcon size={18} />', errors: [{ messageId: 'offGridIconSize' }] },
+  ],
+})
+
+ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
+  valid: [
+    '<PillButton className="rounded-full" />',
+    '<button className="rounded-full" />',
+    '<div className="rounded-full" onClick={go} />',
+    '<Avatar className="rounded-full" />',
+    '<ProgressRing className="rounded-full" />',
+    '<div className="rounded-2xl" />',
+    '<Pressable style={{ borderRadius: 999 }} />',
+    '<div className="rounded-full bg-surface" />',
+    '<div className="animate-pulse rounded-full">{label}</div>',
+    '<div style={{ borderRadius: 999, height: 7 }} />',
+  ],
+  invalid: [
+    { code: '<div className="rounded-full bg-surface">Pro</div>', errors: [{ messageId: 'pillOnStatic' }] },
+    { code: '<View style={{ borderRadius: 999 }}><Text>Pro</Text></View>', errors: [{ messageId: 'pillOnStatic' }] },
   ],
 })

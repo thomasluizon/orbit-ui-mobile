@@ -362,9 +362,9 @@
     "reorderFailed": "Couldn't save the new order. Please try again.",
     "loadError": "Couldn't load your habits.",
     "emptyGeneral": "No general habits yet",
-    "allDoneToday": "All done for today!",
-    "allDoneHint": "You've completed all your habits. Great job!",
-    "allDoneCelebrationTitle": "All done!",
+    "allDoneToday": "All done for today",
+    "allDoneHint": "You've completed all your habits.",
+    "allDoneCelebrationTitle": "All done",
     "allDoneCelebrationSubtitle": "You crushed every habit today.",
     "seeUpcoming": "See tomorrow's habits",
     "noSubHabits": "No sub-habits yet",
@@ -425,7 +425,7 @@
     "autoSkipParentTitle": "All sub-habits skipped!",
     "autoSkipParentMessage": "Would you like to skip \"{name}\" too?",
     "autoSkipParentConfirm": "Skip",
-    "checklistCompleteTitle": "Checklist complete!",
+    "checklistCompleteTitle": "Checklist complete",
     "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
     "checklistCompleteConfirm": "Log",
     "checklistClearTitle": "Clear checklist?",
@@ -748,7 +748,7 @@
     "deselectAll": "Deselect all",
     "importButton": "Import {count} event | Import {count} events",
     "importing": "Importing events...",
-    "importDone": "Import complete!",
+    "importDone": "Import complete",
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
     "goToHabits": "Go to Habits",
@@ -1528,7 +1528,7 @@
         "placeholder": "e.g., Drink water, Read, Exercise",
         "create": "Create habit",
         "creating": "Creating...",
-        "success": "Habit created!",
+        "success": "Habit created",
         "useForm": "Use a form",
         "starters": "Or try one",
         "frequency": {
@@ -1547,7 +1547,7 @@
         "title": "Now complete it",
         "instruction": "Tap the circle to mark it done",
         "tapHint": "Tap the circle to complete",
-        "success": "Your streak starts now!"
+        "success": "Your streak starts now"
       },
       "createGoal": {
         "title": "Set a goal",
@@ -1559,7 +1559,7 @@
         "unitPlaceholder": "Unit (km, books...)",
         "create": "Create goal",
         "creating": "Creating...",
-        "success": "Goal created!",
+        "success": "Goal created",
         "skipStep": "Skip for now",
         "suggestions": {
           "run": "Run 100km",
@@ -1592,7 +1592,7 @@
         }
       },
       "complete": {
-        "title": "You're all set!",
+        "title": "You're all set",
         "subtitle": "Everything is real. Your habit and progress are already saved.",
         "start": "Start using Orbit",
         "recap": {
@@ -2052,7 +2052,7 @@
     "failedToStop": "Failed to stop recording."
   },
   "goals": {
-    "completedCelebrationTitle": "Goal achieved!",
+    "completedCelebrationTitle": "Goal achieved",
     "completedCelebrationLabel": "Goal · {name}",
     "completedCelebrationFiled": "Filed.",
     "tab": "Goals",
@@ -2378,8 +2378,8 @@
     "celebration": {
       "eyebrow": "Streak",
       "subtitle": "1 day. | {count} days.",
-      "milestone": "Amazing milestone!",
-      "keepGoing": "Keep it going!"
+      "milestone": "Milestone reached",
+      "keepGoing": "Keep it going"
     },
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
@@ -2396,7 +2396,7 @@
     "freeze": {
       "title": "Streak freeze",
       "activeToday": "Freeze active today",
-      "celebrationTitle": "Streak saved!",
+      "celebrationTitle": "Streak saved",
       "celebrationSubtitle": "Your streak holds.",
       "eyebrow": "Frozen · {date}",
       "auto": {
@@ -2549,7 +2549,7 @@
         "tryAstra": "Ask Astra anything"
       },
       "progress": "{done} of {total} done",
-      "complete": "You're all set. Nice work!",
+      "complete": "You're all set.",
       "dismiss": "Dismiss"
     }
   },

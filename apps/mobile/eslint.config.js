@@ -8,6 +8,12 @@ const noComments = require("../../eslint-rules/no-comments.cjs")
 const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
 const noDynamicTailwindClass = require("../../eslint-rules/no-dynamic-tailwind-class.cjs")
 const noSpaceXY = require("../../eslint-rules/no-space-x-y.cjs")
+const requireFocusReplacement = require("../../eslint-rules/require-focus-replacement.cjs")
+const willChangeDiscipline = require("../../eslint-rules/will-change-discipline.cjs")
+const noSparkleAiMarker = require("../../eslint-rules/no-sparkle-ai-marker.cjs")
+const iconSizeGrid = require("../../eslint-rules/icon-size-grid.cjs")
+const noPillRadiusOnStatic = require("../../eslint-rules/no-pill-radius-on-static.cjs")
+const noOklch = require("../../eslint-rules/no-oklch-outside-web-tokens.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
@@ -95,6 +101,12 @@ module.exports = defineConfig([
           "no-unjustified-disable": noUnjustifiedDisable,
           "no-dynamic-tailwind-class": noDynamicTailwindClass,
           "no-space-x-y": noSpaceXY,
+          "require-focus-replacement": requireFocusReplacement,
+          "will-change-discipline": willChangeDiscipline,
+          "no-sparkle-ai-marker": noSparkleAiMarker,
+          "icon-size-grid": iconSizeGrid,
+          "no-pill-radius-on-static": noPillRadiusOnStatic,
+          "no-oklch-outside-web-tokens": noOklch,
           "mobile-supabase-lazy": mobileSupabaseLazy,
         },
       },
@@ -151,6 +163,12 @@ module.exports = defineConfig([
       "local/no-jsx-logical-and": "error",
       "local/no-dynamic-tailwind-class": "error",
       "local/no-space-x-y": "error",
+      "local/require-focus-replacement": "error",
+      "local/will-change-discipline": "error",
+      "local/no-sparkle-ai-marker": "error",
+      "local/icon-size-grid": "error",
+      "local/no-pill-radius-on-static": "error",
+      "local/no-oklch-outside-web-tokens": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-scroll-listener-motion": "error",
