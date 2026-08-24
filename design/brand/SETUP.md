@@ -82,7 +82,7 @@ C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile\design
 
 Take it from a working tree on `redesign/main`. It is real frontend code, it is small, and every byte
 in it belongs to the new system. It carries `reference.html`, which is the rendered authority, and
-`brand/`, which carries the mark, the glyph, the lockup and the three type families.
+`brand/`, which carries the mark, the glyph and the three type families.
 
 Confirm the branch before you drag, because the folder path is identical on every branch:
 
@@ -101,7 +101,7 @@ has no Figma export, so one will not appear from this work either. Skip the fiel
 
 ## Field 4. Add fonts, logos and assets
 
-Drag these 12 files. Every path is relative to `design/brand/`.
+Drag these 5 files. Every path is relative to `design/brand/`.
 
 **Type, 3 files.** Upload the TTF files, never the `woff2` data inside `reference.html`. Those are
 subsets and do not carry the whole character set, which breaks pt-BR copy.
