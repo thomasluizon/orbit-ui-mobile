@@ -1,5 +1,8 @@
 {
   "app/(tabs)/calendar.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -17,6 +20,11 @@
   "app/(tabs)/calendar/_components/calendar-grid.tsx": {
     "local/spacing-scale": {
       "count": 3
+    }
+  },
+  "app/(tabs)/calendar/_components/calendar-loading-bar.tsx": {
+    "local/no-raw-gradient": {
+      "count": 2
     }
   },
   "app/(tabs)/calendar/_components/calendar-range-view.tsx": {
@@ -48,8 +56,16 @@
     "local/no-arbitrary-zindex": {
       "count": 1
     },
+    "local/no-raw-gradient": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
+    }
+  },
+  "app/(tabs)/profile.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
@@ -68,6 +84,9 @@
     }
   },
   "app/(tabs)/profile/_components/next-reward-carrot.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -117,19 +136,37 @@
       "count": 1
     }
   },
+  "app/auth-callback.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
+    }
+  },
   "app/calendar-sync-styles.ts": {
     "local/spacing-scale": {
       "count": 15
     }
   },
   "app/chat.styles.ts": {
+    "local/no-decorative-glow": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 10
+    }
+  },
+  "app/chat.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "app/login-styles.ts": {
     "local/spacing-scale": {
       "count": 5
+    }
+  },
+  "app/login.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "app/preferences-styles.ts": {
@@ -145,6 +182,11 @@
   "app/retrospective-styles.ts": {
     "local/spacing-scale": {
       "count": 16
+    }
+  },
+  "app/streak-sections-freeze.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
     }
   },
   "app/streak-sections-styles.ts": {
@@ -165,6 +207,16 @@
   "app/terms.tsx": {
     "local/spacing-scale": {
       "count": 2
+    }
+  },
+  "app/upgrade.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
+    }
+  },
+  "app/wrapped-player.tsx": {
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "app/wrapped-styles.ts": {
@@ -228,15 +280,24 @@
   "components/gamification/all-done-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
+    },
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "components/gamification/goal-completed-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
+    },
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "components/gamification/level-up-overlay.tsx": {
     "local/no-arbitrary-zindex": {
+      "count": 1
+    },
+    "local/no-raw-gradient": {
       "count": 1
     }
   },
@@ -248,10 +309,16 @@
   "components/gamification/streak-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
+    },
+    "local/no-raw-gradient": {
+      "count": 1
     }
   },
   "components/gamification/streak-freeze-celebration.tsx": {
     "local/no-arbitrary-zindex": {
+      "count": 1
+    },
+    "local/no-raw-gradient": {
       "count": 1
     }
   },
@@ -384,11 +451,17 @@
     }
   },
   "components/milestone-share/milestone-share-card.tsx": {
+    "local/no-raw-gradient": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 11
     }
   },
   "components/navigation/bottom-tab-bar.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 9
     }
@@ -429,11 +502,17 @@
     }
   },
   "components/onboarding/onboarding-create-goal.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
     }
   },
   "components/onboarding/onboarding-create-habit.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -445,6 +524,11 @@
   },
   "components/onboarding/onboarding-flow.styles.ts": {
     "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/onboarding/onboarding-flow.tsx": {
+    "local/no-raw-gradient": {
       "count": 1
     }
   },
@@ -484,6 +568,9 @@
     }
   },
   "components/share/share-card.tsx": {
+    "local/no-raw-gradient": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 17
     }
@@ -512,6 +599,9 @@
     "local/no-arbitrary-zindex": {
       "count": 2
     },
+    "local/no-decorative-glow": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -532,6 +622,9 @@
     }
   },
   "components/ui/app-error-boundary.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -607,6 +700,11 @@
       "count": 2
     }
   },
+  "components/ui/gradient-top.tsx": {
+    "local/no-raw-gradient": {
+      "count": 2
+    }
+  },
   "components/ui/highlight-text.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -620,6 +718,11 @@
   "components/ui/offline-unavailable-state.tsx": {
     "local/spacing-scale": {
       "count": 4
+    }
+  },
+  "components/ui/pill-button.tsx": {
+    "local/no-decorative-glow": {
+      "count": 1
     }
   },
   "components/ui/push-prompt.tsx": {

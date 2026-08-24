@@ -6,6 +6,8 @@ const sonarjs = require("eslint-plugin-sonarjs")
 const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
 const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
+const noDynamicTailwindClass = require("../../eslint-rules/no-dynamic-tailwind-class.cjs")
+const noSpaceXY = require("../../eslint-rules/no-space-x-y.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
@@ -91,6 +93,8 @@ module.exports = defineConfig([
           "no-side-stripe-border": noSideStripeBorder,
           "spacing-scale": spacingScale,
           "no-unjustified-disable": noUnjustifiedDisable,
+          "no-dynamic-tailwind-class": noDynamicTailwindClass,
+          "no-space-x-y": noSpaceXY,
           "mobile-supabase-lazy": mobileSupabaseLazy,
         },
       },
@@ -145,6 +149,8 @@ module.exports = defineConfig([
       "local/no-double-assertion": "error",
       "local/no-draggable-onscroll": "error",
       "local/no-jsx-logical-and": "error",
+      "local/no-dynamic-tailwind-class": "error",
+      "local/no-space-x-y": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-scroll-listener-motion": "error",
@@ -155,8 +161,11 @@ module.exports = defineConfig([
       // and gradient tokens and their call sites (LinearGradient here, GradientTop on web) —
       // and flips these to `error` in the same PR.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/no-decorative-glow": "warn",
-      "local/no-raw-gradient": "warn",
+      // Wired on mobile only, each a platform adapter (#36 parity criterion):
+      //   mobile-supabase-lazy, no-gorhom-sheet, no-draggable-onscroll -> a React
+      //   Native client, library and gesture concern with no web counterpart.
+      "local/no-decorative-glow": "error",
+      "local/no-raw-gradient": "error",
     },
   },
   {

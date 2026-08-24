@@ -142,20 +142,30 @@ export default [
       // ~46 call sites — and flips these two to `error` in the same PR. `error` today would
       // fail CI on code that is only waiting its turn.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/no-decorative-glow": "warn",
-      "local/no-raw-gradient": "warn",
+      // Wired on web only, each for a platform reason (#36 parity criterion):
+      //   no-calc-percentage-width, no-gradient-text, will-change-discipline,
+      //   require-focus-replacement, no-user-scalable-no  -> CSS or viewport-meta
+      //     constructs React Native does not have.
+      //   no-dead-href, no-placeholder-alt, require-dialog-title -> <a href>, <img alt>
+      //     and <dialog>, none of which exist in React Native.
+      //   react19-api -> the rule scopes itself to Next.js 16 / React 19 spellings.
+      //   no-nested-component-definition -> mobile bans the same thing through
+      //     react-hooks/static-components, which web does not wire. Same ban, one
+      //     mechanism per platform, not a parity gap.
+      "local/no-decorative-glow": "error",
+      "local/no-raw-gradient": "error",
 
       // Staged at `warn`: pre-existing violations that are NOT bundle 5's de-decoration work.
       // Each needs its own judgement call (a11y fix, motion fix, perf rewrite, React 19
       // migration), so they are surfaced rather than silenced, and flip to `error` per rule as
       // its backlog is cleared. Counts + the to-do list are in the bundle 4a report on #539.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/animate-presence-exit": "warn",
-      "local/no-dynamic-tailwind-class": "warn",
-      "local/no-scroll-listener-motion": "warn",
-      "local/no-space-x-y": "warn",
-      "local/react19-api": "warn",
-      "local/require-focus-replacement": "warn",
+      "local/animate-presence-exit": "error",
+      "local/no-dynamic-tailwind-class": "error",
+      "local/no-scroll-listener-motion": "error",
+      "local/no-space-x-y": "error",
+      "local/react19-api": "error",
+      "local/require-focus-replacement": "error",
 
       // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
       // committed eslint-suppressions.json baseline (regenerated against main, 2026-07-24),
