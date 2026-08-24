@@ -552,6 +552,16 @@ ruleTester.run('icon-size-grid', rule('icon-size-grid'), {
       code: "import { Trash2, Receipt } from '@/components/ui/icons'; const a = <><Trash2 size={12} /><Receipt size={28} /></>",
       errors: [{ messageId: 'offGridIconSize' }, { messageId: 'offGridIconSize' }],
     },
+    // an icon reached through a direct alias
+    {
+      code: "import { Check } from '@/components/ui/icons'; const Icon = Check; const a = <Icon size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // an icon reached through a lookup map indexed at render time
+    {
+      code: "import { Check, Trash2 } from '@/components/ui/icons'; const map = { a: Check, b: Trash2 }; const Icon = map[key]; const el = <Icon size={18} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
   ],
 })
 

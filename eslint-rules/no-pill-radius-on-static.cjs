@@ -42,6 +42,25 @@ const isInteractive = (node) => {
 // React Native passes a radius through a StyleSheet reference (`style={styles.badge}`), which no
 // per-element scan can resolve. So the DEFINITION is checked instead: a StyleSheet entry whose key
 // names a static content element must not carry a pill radius.
+// A pill radius arrives three ways: a number, a '999px' string, and the token member the mobile
+// styles use, `radius.full` / `radii.pill`.
+const PILL_TOKEN = /^(?:radius|radii|borderRadius)$/i
+const PILL_TOKEN_PROP = /^(?:full|pill|round|circle)$/i
+function isPillRadius(value) {
+  if (!value) return false
+  if (value.type === 'Literal' && typeof value.value === 'number') return value.value >= 999
+  if (value.type === 'MemberExpression') {
+    const object = value.object?.name
+    const prop = value.property?.name ?? value.property?.value
+    return typeof object === 'string' && typeof prop === 'string' && PILL_TOKEN.test(object) && PILL_TOKEN_PROP.test(prop)
+  }
+  return collectStaticStrings(value).some((s) => /^\s*(?:999|9999)(?:px|rem)?\s*$/.test(s))
+}
+
+// Equal source text only proves a circle for an ABSOLUTE size. width: '100%' and height: '100%'
+// fill a rectangular parent, so they are not evidence of roundness.
+const RELATIVE_SIZE = /%|v[wh]|auto|inherit|100%/i
+
 const STATIC_STYLE_KEY = /^(?:badge|chip|tag|pill|label|eyebrow|caption|status)[A-Z0-9_]*$|^(?:badge|chip|tag|pill|label|eyebrow)$/i
 
 module.exports = {
@@ -67,9 +86,7 @@ module.exports = {
           const name = property.key?.name ?? property.key?.value
           if (name !== 'borderRadius') continue
           const value = property.value
-          if (value?.type === 'Literal' && typeof value.value === 'number' && value.value >= 999) {
-            context.report({ node: property, messageId: 'pillOnStatic' })
-          }
+          if (isPillRadius(value)) context.report({ node: property, messageId: 'pillOnStatic' })
         }
       },
       JSXOpeningElement(node) {
@@ -83,8 +100,7 @@ module.exports = {
             const key = getPropertyKeyName(property)
             if (!key || !RADIUS_KEYS.has(key)) continue
             const value = property.value
-            if (value?.type === 'Literal' && typeof value.value === 'number' && value.value >= 999) pill = true
-            if (collectStaticStrings(value).some((s) => /^\s*(?:999|9999)(?:px|rem)?\s*$/.test(s))) pill = true
+            if (isPillRadius(value)) pill = true
           }
         }
 
@@ -103,7 +119,7 @@ module.exports = {
           if (key === 'width') width = text
           else height = text
         }
-        if (width !== null && width === height) return
+        if (width !== null && width === height && !RELATIVE_SIZE.test(width)) return
         // Only a pill carrying TEXT reads as a chip. An icon inside a circle does not.
         const children = node.parent?.children ?? []
         const carriesText = children.some(

@@ -50,12 +50,12 @@ const BANNED_COPY = [
   { entry: 9, kind: "weasel-attribution", pattern: /\b(?:experts agree|studies show|science says)\b/i },
   { entry: 10, kind: "fake-strong-verb", pattern: /\b(?:utiliz(?:e|es|ed|ing)|commenc(?:e|es|ed|ing))\b/i },
   { entry: 18, kind: "cutesy-error", pattern: /\b(?:oops|uh[ -]oh|whoops)\b/i },
-  { entry: 20, kind: "dead-link-label", pattern: /\b(?:click here|read more)\b/i },
+  { entry: 20, kind: "dead-link-label", pattern: /\b(?:click here|read more|learn more)\b/i },
   { entry: 21, kind: "the-user", pattern: /\bthe user\b/i },
   // "maximizar" is dropped from entry 22: it is also the panel-control verb ("Maximizar"),
   // and the puffery sense cannot be told apart from the control sense in a single string.
   { entry: 22, kind: "pt-br-puffery", pattern: /\b(?:otimiz|potencializ)(?:e|es|ar|ando|ado|ada)?(?!\p{L})/iu },
-  { entry: 23, kind: "journey-framing", pattern: /\b(?:comece sua jornada|sua jornada|your journey)\b/i },
+  { entry: 23, kind: "journey-framing", pattern: /\b(?:jornada|journey)\b/i },
   { entry: 25, kind: "medical-claim", pattern: /\b(?:treats ADHD|cure[sd]?\b|fixes your brain)\b/i },
   // Legacy entries kept: they predate the enumeration and are still banned by entry 8 in spirit.
   { entry: 8, kind: "ai-cliche", pattern: /\b(?:unleash(?:es|ed|ing)?|next-gen(?:eration)?|tapestry|streamlin(?:e|es|ed|ing)|in the world of)\b/i },

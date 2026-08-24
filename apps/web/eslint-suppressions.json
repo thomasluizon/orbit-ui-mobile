@@ -1784,7 +1784,7 @@
   },
   "components/upgrade/plan-comparison-cards.tsx": {
     "local/icon-size-grid": {
-      "count": 2
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 4

@@ -43,6 +43,7 @@ module.exports = {
   },
   create(context) {
     const iconNames = new Set()
+    const iconMaps = new Set()
 
     return {
       ImportDeclaration(node) {
@@ -52,8 +53,28 @@ module.exports = {
           if (local && !MARKS.has(local)) iconNames.add(local)
         }
       },
-      'Program:exit'() {
-        // names are collected before any JSX is visited, because imports hoist
+      // An icon rarely reaches JSX under its imported name. Follow the two shapes this
+      // repository actually uses: a direct alias, and a lookup map of barrel icons indexed at
+      // render time (`const Icon = iconByKey[category.iconKey]`).
+      VariableDeclarator(node) {
+        const name = node.id?.type === 'Identifier' ? node.id.name : null
+        if (!name || MARKS.has(name)) return
+        const init = node.init
+        if (!init) return
+        if (init.type === 'Identifier' && iconNames.has(init.name)) {
+          iconNames.add(name)
+          return
+        }
+        if (init.type === 'MemberExpression' && init.object?.type === 'Identifier' && iconMaps.has(init.object.name)) {
+          iconNames.add(name)
+          return
+        }
+        if (init.type === 'ObjectExpression') {
+          const values = init.properties.filter((p) => p.type === 'Property').map((p) => p.value)
+          if (values.length > 0 && values.every((v) => v.type === 'Identifier' && iconNames.has(v.name))) {
+            iconMaps.add(name)
+          }
+        }
       },
       JSXOpeningElement(node) {
         const name = getElementName(node)
