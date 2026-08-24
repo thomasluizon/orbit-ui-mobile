@@ -240,11 +240,6 @@
       "count": 2
     }
   },
-  "app/(app)/today-provider.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "app/(app)/today-sections.tsx": {
     "local/spacing-scale": {
       "count": 8
@@ -950,11 +945,6 @@
       "count": 1
     }
   },
-  "components/onboarding/onboarding-actions-context.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "components/onboarding/onboarding-complete-habit.tsx": {
     "local/spacing-scale": {
       "count": 4
@@ -1062,11 +1052,6 @@
       "count": 4
     }
   },
-  "components/shell/in-app-shell-context.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "components/shell/progress-orbit.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -1080,11 +1065,6 @@
   "components/shell/today-rail.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/shell/topbar-slot.tsx": {
-    "local/react19-api": {
-      "count": 2
     }
   },
   "components/today/setup-checklist-card.tsx": {

@@ -385,11 +385,15 @@ ruleTester.run('no-draggable-onscroll', rule('no-draggable-onscroll'), {
 })
 
 ruleTester.run('react19-api', rule('react19-api'), {
-  valid: ['const v = use(ThemeContext)', 'function Row({ ref }) { return <li ref={ref} /> }'],
+  valid: [
+    'const v = use(ThemeContext)',
+    'function Row({ ref }) { return <li ref={ref} /> }',
+    'const v = useContext(ThemeContext)',
+    'const v = React.useContext(ThemeContext)',
+  ],
   invalid: [
     { code: 'const C = forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
-    { code: 'const v = useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
-    { code: 'const v = React.useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
+    { code: 'const C = React.forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
   ],
 })
 

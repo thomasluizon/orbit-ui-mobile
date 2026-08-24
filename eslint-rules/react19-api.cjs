@@ -4,8 +4,9 @@
  * apps/web is Next.js 16 / React 19, where:
  *  - `ref` is an ordinary prop, so `forwardRef` is a deprecated wrapper that adds
  *    an indirection and a display-name problem for nothing;
- *  - `use(Context)` replaces `useContext(Context)` and, unlike the hook, may be
- *    called conditionally.
+ *
+ * It deliberately does NOT flag `useContext`. React 19 does not deprecate it;
+ * `use` is an additional API that may also read context, not a replacement.
  *
  * WEB ONLY, deliberately. The harvest table flags this explicitly: do not point
  * this rule at apps/mobile until its React version is confirmed — React Native's
@@ -15,7 +16,6 @@
 
 const REPLACEMENTS = new Map([
   ['forwardRef', 'forwardRefRemoved'],
-  ['useContext', 'useContextReplaced'],
 ])
 
 function isReactMember(node, name) {
@@ -32,14 +32,12 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Use React 19 APIs on the web: `ref` is a prop (no forwardRef), and `use(Context)` replaces `useContext`.',
+      description: 'Use React 19 APIs on the web: `ref` is an ordinary prop, so `forwardRef` is a deprecated wrapper.',
     },
     schema: [],
     messages: {
       forwardRefRemoved:
         'React 19 passes `ref` as an ordinary prop — `forwardRef` is a deprecated wrapper. Take `ref` in the props object and drop the wrapper.',
-      useContextReplaced:
-        'React 19 replaces `useContext(Context)` with `use(Context)`, which may also be called conditionally. Import `use` from react.',
     },
   },
   create(context) {
@@ -49,7 +47,6 @@ module.exports = {
         let name = null
         if (callee.type === 'Identifier') name = callee.name
         else if (isReactMember(callee, 'forwardRef')) name = 'forwardRef'
-        else if (isReactMember(callee, 'useContext')) name = 'useContext'
 
         const messageId = name ? REPLACEMENTS.get(name) : null
         if (messageId) {
