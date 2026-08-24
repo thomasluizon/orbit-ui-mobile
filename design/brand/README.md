@@ -57,18 +57,24 @@ model cannot hold exact geometry and Recraft's native vector model can.
 
 | file | what it is |
 |---|---|
-| `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:265`). Monochrome, no accent |
-| `orbit-mark-24.svg`, `astra-mark-24.svg` | the 24 grid variant, for a surface that sits the mark beside Tabler icons |
+| `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
 | `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
 | `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 91.52 by 28 |
 
-**Pick by size, not by taste.** Below roughly 20px use the 16 pair; beside icons use the 24 pair;
-above that use the 1024 originals. The redraws are simplifications, so blowing a 16 up to 128 shows
-geometry that was chosen to survive at 16 and nothing else.
+**There is no 24 grid variant, and there will not be one.** `#365` originally ordered one and this
+list originally promised one. `DESIGN.md:267` overrules both: "Asset sizes are enumerated: 16, 48,
+128, 512. The mark is neither type nor an icon, so it answers to neither the type scale nor the 24
+icon grid." A mark sized to the Tabler grid is a mark being treated as an icon, which is the thing
+that sentence exists to stop. Detail on `#365`.
+
+**Pick by size, not by taste.** Below roughly 20px use the 16 pair; above that use the 1024
+originals. The redraw is a simplification, so blowing a 16 up to 128 shows geometry that was chosen
+to survive at 16 and nothing else.
 
 **The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
 fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
-violation, not a variation.
+violation, not a variation. The moon's fill falls back to `currentColor`, so a viewer or an upload
+preview that defines no `--primary` still renders the whole mark rather than dropping the moon.
 
 **The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
 carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
