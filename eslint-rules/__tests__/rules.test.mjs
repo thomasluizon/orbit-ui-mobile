@@ -570,6 +570,16 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
   ],
   invalid: [
     { code: '<div className="rounded-full bg-surface">Pro</div>', errors: [{ messageId: 'pillOnStatic' }] },
+    // the canonical class builder in this repository, previously invisible to the scan
+    {
+      code: "const a = <div className={['rounded-full', tone].filter(Boolean).join(' ')}>Pro</div>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    // React Native reaches the radius through a StyleSheet reference, so the definition is checked
+    {
+      code: "const styles = StyleSheet.create({ badge: { borderRadius: 999 } })",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
     { code: '<View style={{ borderRadius: 999 }}><Text>Pro</Text></View>', errors: [{ messageId: 'pillOnStatic' }] },
   ],
 })

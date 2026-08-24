@@ -1554,6 +1554,9 @@
     }
   },
   "components/ui/badge.tsx": {
+    "local/no-pill-radius-on-static": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -1652,6 +1655,11 @@
       "count": 1
     }
   },
+  "components/ui/popover.tsx": {
+    "local/no-arbitrary-zindex": {
+      "count": 1
+    }
+  },
   "components/ui/push-prompt.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -1707,6 +1715,11 @@
       "count": 5
     }
   },
+  "components/ui/skeleton.tsx": {
+    "local/no-space-x-y": {
+      "count": 1
+    }
+  },
   "components/ui/stat-tile.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -1742,6 +1755,11 @@
     },
     "local/spacing-scale": {
       "count": 3
+    }
+  },
+  "components/ui/user-avatar.tsx": {
+    "local/no-pill-radius-on-static": {
+      "count": 1
     }
   },
   "components/ui/year-picker.tsx": {

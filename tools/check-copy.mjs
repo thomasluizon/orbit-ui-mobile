@@ -61,9 +61,9 @@ const BANNED_COPY = [
   { entry: 8, kind: "ai-cliche", pattern: /\b(?:unleash(?:es|ed|ing)?|next-gen(?:eration)?|tapestry|streamlin(?:e|es|ed|ing)|in the world of)\b/i },
 ]
 
-// Entry 1: no "!" on a success, completion or celebration string. Scoped by key name, because the
-// ban is about the register of those strings, not about every exclamation mark in the file.
-const CELEBRATORY_KEY = /(?:success|complete|completed|celebrat|achiev|unlocked|congrat|done|wrapped)/i
+// Entry 1, read as DESIGN.md "Voice" states it: "Zero exclamation marks. Confidence, not
+// euphoria." No key-name heuristic: it is every locale string, because any heuristic leaves
+// the register unenforced on the keys it did not think of.
 
 // Entry 19: "Are you sure?" as a confirmation body. microcopy scope.
 const ARE_YOU_SURE = /\bare you sure\b/i
@@ -97,8 +97,8 @@ const localeFindings = () => {
         const hit = pattern.exec(prose)
         if (hit) findings.push({ file, key, kind, detail: `entry ${entry}: "${hit[0]}" in ${JSON.stringify(value)}` })
       }
-      if (CELEBRATORY_KEY.test(key) && prose.includes("!")) {
-        findings.push({ file, key, kind: "celebratory-exclamation", detail: `entry 1: ${JSON.stringify(value)}` })
+      if (prose.includes("!")) {
+        findings.push({ file, key, kind: "exclamation", detail: `entry 1: ${JSON.stringify(value)}` })
       }
       if (ARE_YOU_SURE.test(prose) || TEM_CERTEZA.test(prose)) {
         findings.push({ file, key, kind: "are-you-sure", detail: `entry 19: ${JSON.stringify(value)}` })

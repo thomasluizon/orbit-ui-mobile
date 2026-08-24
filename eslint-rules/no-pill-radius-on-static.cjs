@@ -39,6 +39,11 @@ const isInteractive = (node) => {
   return node.attributes.some((a) => a.type === 'JSXAttribute' && (a.name?.name === 'href' || a.name?.name === 'role'))
 }
 
+// React Native passes a radius through a StyleSheet reference (`style={styles.badge}`), which no
+// per-element scan can resolve. So the DEFINITION is checked instead: a StyleSheet entry whose key
+// names a static content element must not carry a pill radius.
+const STATIC_STYLE_KEY = /^(?:badge|chip|tag|pill|label|eyebrow|caption|status)[A-Z0-9_]*$|^(?:badge|chip|tag|pill|label|eyebrow)$/i
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -53,6 +58,20 @@ module.exports = {
   },
   create(context) {
     return {
+      Property(node) {
+        const key = node.key?.name ?? node.key?.value
+        if (typeof key !== 'string' || !STATIC_STYLE_KEY.test(key)) return
+        if (node.value?.type !== 'ObjectExpression') return
+        for (const property of node.value.properties) {
+          if (property.type !== 'Property') continue
+          const name = property.key?.name ?? property.key?.value
+          if (name !== 'borderRadius') continue
+          const value = property.value
+          if (value?.type === 'Literal' && typeof value.value === 'number' && value.value >= 999) {
+            context.report({ node: property, messageId: 'pillOnStatic' })
+          }
+        }
+      },
       JSXOpeningElement(node) {
         const name = getElementName(node)
         if (!name || INTERACTIVE.has(name) || ROUND_BY_NATURE.has(name)) return

@@ -249,8 +249,8 @@
   },
   "reviewMoment": {
     "eyebrow": "Um recado da Astra",
-    "streakTitle": "{count} dias seguidos!",
-    "levelTitle": "Nível {level}!",
+    "streakTitle": "{count} dias seguidos",
+    "levelTitle": "Nível {level}",
     "streakBody": "Você apareceu {count} dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
     "levelBody": "Você acabou de alcançar o nível {level}. Isso exigiu constância. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
     "cta": "Avaliar Orbit",
@@ -280,7 +280,7 @@
     "email": "E-mail",
     "emailPlaceholder": "voce@exemplo.com",
     "sendCode": "Enviar código",
-    "codeSent": "Código de verificação enviado! Confira seu e-mail.",
+    "codeSent": "Código de verificação enviado. Confira seu e-mail.",
     "codeSentTo": "Enviamos um código de 6 dígitos para",
     "verify": "Verificar",
     "resendCode": "Reenviar código",
@@ -358,7 +358,7 @@
     "expandAll": "Expandir todos",
     "refresh": "Atualizar",
     "noDueToday": "Nenhum hábito para hoje",
-    "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro!",
+    "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro",
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
     "loadError": "Não foi possível carregar seus hábitos.",
     "emptyGeneral": "Nenhum hábito geral ainda",
@@ -419,10 +419,10 @@
     "forceLogTitle": "Registrar com sub-hábitos pendentes",
     "forceLogMessage": "Alguns sub-hábitos ainda não foram concluídos. Quer registrar este hábito mesmo assim?",
     "forceLogConfirm": "Registrar",
-    "autoLogParentTitle": "Todos os sub-hábitos concluídos!",
+    "autoLogParentTitle": "Todos os sub-hábitos concluídos",
     "autoLogParentMessage": "Quer registrar \"{name}\" como concluído?",
     "autoLogParentConfirm": "Registrar",
-    "autoSkipParentTitle": "Todos os sub-hábitos pulados!",
+    "autoSkipParentTitle": "Todos os sub-hábitos pulados",
     "autoSkipParentMessage": "Quer pular \"{name}\" também?",
     "autoSkipParentConfirm": "Pular",
     "checklistCompleteTitle": "Checklist concluído",
@@ -796,7 +796,7 @@
       "reconnectBody": "A sincronização automática está pausada. Reconecte para retomar.",
       "reconnectCta": "Reconectar",
       "reviewModeTitle": "Revisar novos eventos",
-      "reviewModeEmpty": "Nenhum evento novo para revisar. Tudo em dia!",
+      "reviewModeEmpty": "Nenhum evento novo para revisar.",
       "dismissSuggestion": "Descartar",
       "enableSuccess": "Sincronização automática ativada",
       "disableSuccess": "Sincronização automática desativada",
@@ -1116,7 +1116,7 @@
       "confirmDelete": "Desativar minha conta",
       "deleting": "Processando...",
       "deactivated": "Sua conta foi desativada. Ela será apagada de vez em {date}.",
-      "reactivated": "Que bom te ver de volta! A exclusão da sua conta foi cancelada.",
+      "reactivated": "A exclusão da sua conta foi cancelada.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
       "offlineTitle": "Você está sem conexão",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
@@ -1135,29 +1135,29 @@
       "yourLink": "Seu link de indicação",
       "copy": "Copiar",
       "copyLink": "Copiar link",
-      "copied": "Copiado!",
+      "copied": "Copiado",
       "linkCopied": "Link copiado",
       "share": "Compartilhar link",
       "completed": "Indicações concluídas",
       "pending": "Pendentes",
       "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
-      "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos!",
+      "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos",
       "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
-      "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto!"
+      "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto"
     },
     "prompt": {
       "eyebrow": "Você está com tudo",
-      "streakTitle": "Sequência de {count} dias!",
-      "levelTitle": "Você chegou ao nível {level}!",
+      "streakTitle": "Sequência de {count} dias",
+      "levelTitle": "Você chegou ao nível {level}",
       "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
       "cta": "Convidar amigos",
       "later": "Agora não"
     },
-    "loginBanner": "Você foi convidado! 10% de desconto no Pro ao se cadastrar"
+    "loginBanner": "Você foi convidado. 10% de desconto no Pro ao se cadastrar"
   },
   "marketingConsent": {
     "prompt": {
@@ -1175,7 +1175,7 @@
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo!",
+    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
     "loading": "Preparando seu card…",
     "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
     "error": "Não foi possível carregar seu resumo. Tente novamente.",
@@ -1355,7 +1355,7 @@
     "banner": {
       "trialEyebrow": "Teste Pro",
       "daysLeft": "{days} dia restante | {days} dias restantes",
-      "lastDay": "O teste acaba hoje!",
+      "lastDay": "O teste acaba hoje",
       "upgrade": "Upgrade"
     },
     "expired": {
@@ -1437,7 +1437,7 @@
         "createCtaOne": "Adicionar 1 hábito",
         "createOwn": "Prefiro criar o meu",
         "skip": "Pular por agora",
-        "created": "Seus hábitos estão prontos!",
+        "created": "Seus hábitos estão prontos",
         "packs": {
           "morningRoutine": {
             "name": "Rotina Matinal",
@@ -1703,7 +1703,7 @@
         "cannotDoTitle": "Limitações",
         "cannotDoDesc": "A Astra é focada em hábitos e rotinas. Ela não responde a perguntas gerais, não ajuda com tarefas da escola nem faz coisas fora do tema dos seus hábitos.",
         "tipsTitle": "Dicas",
-        "tipsDesc": "A Astra lembra da conversa, então você pode dizer 'mudar a sugestão anterior' ou 'passar TestA para semanal'. Ela também conhece suas sequências e estatísticas, então peça um feedback sincero!"
+        "tipsDesc": "A Astra lembra da conversa, então você pode dizer 'mudar a sugestão anterior' ou 'passar TestA para semanal'. Ela também conhece suas sequências e estatísticas, então peça um feedback sincero"
       },
       "connectSection": {
         "mcpTitle": "Conecte seu assistente de IA",
@@ -1781,7 +1781,7 @@
   },
   "upgrade": {
     "title": "Upgrade para o Pro",
-    "alreadyPro": "Você está no plano Pro!",
+    "alreadyPro": "Você está no plano Pro",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
     "free": "Grátis",
@@ -1990,7 +1990,7 @@
   },
   "ads": {
     "watchForMessages": "Assistir a um anúncio e ganhar +5 mensagens de IA",
-    "rewardGranted": "+5 mensagens de IA adicionadas!",
+    "rewardGranted": "+5 mensagens de IA adicionadas",
     "rewardFailed": "O anúncio não foi até o fim",
     "dailyLimitReached": "recompensas diárias"
   },
@@ -2386,12 +2386,12 @@
     },
     "profile": {
       "currentStreak": "Sequência de {count} dia | Sequência de {count} dias",
-      "encouragement1": "Ótimo começo!",
-      "encouragement7": "Uma semana firme!",
-      "encouragement14": "Duas semanas de dedicação!",
-      "encouragement30": "Um mês inteiro! Incrível!",
-      "encouragement100": "Três dígitos! Lendário!",
-      "encouragement365": "Um ano inteiro! Você é imparável!"
+      "encouragement1": "Primeiro dia feito",
+      "encouragement7": "Uma semana",
+      "encouragement14": "Duas semanas",
+      "encouragement30": "Um mês inteiro",
+      "encouragement100": "Três dígitos",
+      "encouragement365": "Um ano inteiro"
     },
     "freeze": {
       "title": "Congelamento de sequência",
@@ -2463,7 +2463,7 @@
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "keyCreatedWarning": "Copie esta chave agora. Ela não vai aparecer de novo.",
-    "copied": "Copiado!",
+    "copied": "Copiado",
     "done": "Concluído",
     "connectionInstructions": "Como conectar",
     "claudeWeb": "Claude Web",
@@ -2666,7 +2666,7 @@
       },
       "streak": {
         "title": "Contador de sequência",
-        "description": "Sua sequência conta os dias seguidos em que você concluiu todos os hábitos agendados. Mantenha-a viva para ganhar conquistas e criar embalo!"
+        "description": "Sua sequência conta os dias seguidos em que você concluiu todos os hábitos agendados. Mantenha-a viva para ganhar conquistas e criar embalo"
       },
       "notifications": {
         "title": "Notificações",
@@ -2712,7 +2712,7 @@
       },
       "legend": {
         "title": "Legenda de cores",
-        "description": "Sua cor de destaque marca o dia de hoje. Um ponto cheio quer dizer todos os hábitos feitos, um anel vazado quer dizer conclusão parcial, e o âmbar marca os hábitos que ficaram para trás. Monte uma sequência de dias cheios!"
+        "description": "Sua cor de destaque marca o dia de hoje. Um ponto cheio quer dizer todos os hábitos feitos, um anel vazado quer dizer conclusão parcial, e o âmbar marca os hábitos que ficaram para trás. Monte uma sequência de dias cheios"
       },
       "monthNav": {
         "title": "Navegação por mês",
@@ -2847,13 +2847,13 @@
   "milestoneShare": {
     "streakEyebrow": "Marco de sequência",
     "achievementEyebrow": "Conquista obtida",
-    "streakTitle": "Sequência de {count} dias!",
+    "streakTitle": "Sequência de {count} dias",
     "body": "Compartilhe seu marco e convide um amigo. Vocês dois ganham um cupom de desconto no Pro.",
     "share": "Compartilhar",
     "download": "Baixar",
     "later": "Agora não",
     "shareTitle": "Meu marco no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo!",
+    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "rarity": {
       "Rare": "Raro",

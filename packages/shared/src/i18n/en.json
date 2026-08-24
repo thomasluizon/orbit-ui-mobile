@@ -249,8 +249,8 @@
   },
   "reviewMoment": {
     "eyebrow": "A word from Astra",
-    "streakTitle": "{count} days straight!",
-    "levelTitle": "Level {level}!",
+    "streakTitle": "{count} days straight",
+    "levelTitle": "Level {level}",
     "streakBody": "You showed up {count} days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.",
     "levelBody": "You just reached level {level}. That took consistency. Mind rating Orbit on Google Play? It helps more people find their orbit.",
     "cta": "Rate Orbit",
@@ -280,7 +280,7 @@
     "email": "Email",
     "emailPlaceholder": "you@example.com",
     "sendCode": "Send code",
-    "codeSent": "Verification code sent! Check your email.",
+    "codeSent": "Verification code sent. Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
     "verify": "Verify",
     "resendCode": "Resend code",
@@ -358,7 +358,7 @@
     "expandAll": "Expand all",
     "refresh": "Refresh",
     "noDueToday": "No habits due today",
-    "noHabitsYet": "No habits yet. Create your first one!",
+    "noHabitsYet": "No habits yet. Create your first one",
     "reorderFailed": "Couldn't save the new order. Please try again.",
     "loadError": "Couldn't load your habits.",
     "emptyGeneral": "No general habits yet",
@@ -419,10 +419,10 @@
     "forceLogTitle": "Log with incomplete sub-habits",
     "forceLogMessage": "Some sub-habits are not complete yet. Logging this habit marks it done anyway.",
     "forceLogConfirm": "Log",
-    "autoLogParentTitle": "All sub-habits complete!",
+    "autoLogParentTitle": "All sub-habits complete",
     "autoLogParentMessage": "Would you like to log \"{name}\" as complete?",
     "autoLogParentConfirm": "Log",
-    "autoSkipParentTitle": "All sub-habits skipped!",
+    "autoSkipParentTitle": "All sub-habits skipped",
     "autoSkipParentMessage": "Would you like to skip \"{name}\" too?",
     "autoSkipParentConfirm": "Skip",
     "checklistCompleteTitle": "Checklist complete",
@@ -796,7 +796,7 @@
       "reconnectBody": "Auto-sync paused. Reconnect to resume.",
       "reconnectCta": "Reconnect",
       "reviewModeTitle": "Review new events",
-      "reviewModeEmpty": "No new events to review. All caught up!",
+      "reviewModeEmpty": "No new events to review.",
       "dismissSuggestion": "Dismiss",
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
@@ -1116,7 +1116,7 @@
       "confirmDelete": "Deactivate my account",
       "deleting": "Processing...",
       "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
-      "reactivated": "Welcome back! Your account deletion has been cancelled.",
+      "reactivated": "Your account deletion is cancelled.",
       "errorGeneric": "Something went wrong. Please try again.",
       "offlineTitle": "You're offline",
       "offlineDescription": "Connect to the internet to deactivate your account."
@@ -1135,29 +1135,29 @@
       "yourLink": "Your referral link",
       "copy": "Copy",
       "copyLink": "Copy link",
-      "copied": "Copied!",
+      "copied": "Copied",
       "linkCopied": "Link copied",
       "share": "Share link",
       "completed": "Successful referrals",
       "pending": "Pending",
       "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
-      "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends!",
+      "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends",
       "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change."
     },
     "share": {
       "title": "Join me on Orbit",
-      "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon!"
+      "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon"
     },
     "prompt": {
       "eyebrow": "You're on a roll",
-      "streakTitle": "{count}-day streak!",
-      "levelTitle": "You reached level {level}!",
+      "streakTitle": "{count}-day streak",
+      "levelTitle": "You reached level {level}",
       "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
       "cta": "Invite friends",
       "later": "Maybe later"
     },
-    "loginBanner": "You're invited! 10% off Pro when you sign up"
+    "loginBanner": "You're invited. 10% off Pro when you sign up"
   },
   "marketingConsent": {
     "prompt": {
@@ -1175,7 +1175,7 @@
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
-    "shareText": "I'm building better habits with Orbit. Join me!",
+    "shareText": "I'm building better habits with Orbit. Join me",
     "loading": "Preparing your card…",
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
@@ -1355,7 +1355,7 @@
     "banner": {
       "trialEyebrow": "Pro Trial",
       "daysLeft": "{days} day left | {days} days left",
-      "lastDay": "Trial ends today!",
+      "lastDay": "Trial ends today",
       "upgrade": "Upgrade"
     },
     "expired": {
@@ -1437,7 +1437,7 @@
         "createCtaOne": "Add 1 habit",
         "createOwn": "Create my own instead",
         "skip": "Skip for now",
-        "created": "Your habits are ready!",
+        "created": "Your habits are ready",
         "packs": {
           "morningRoutine": {
             "name": "Morning Routine",
@@ -1703,7 +1703,7 @@
         "cannotDoTitle": "Limitations",
         "cannotDoDesc": "Astra is focused on habits and routines. It can't answer general knowledge questions, help with homework, or do things unrelated to your habits.",
         "tipsTitle": "Tips",
-        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback!"
+        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback"
       },
       "connectSection": {
         "mcpTitle": "Connect Your AI Assistant",
@@ -1781,7 +1781,7 @@
   },
   "upgrade": {
     "title": "Upgrade to Pro",
-    "alreadyPro": "You're on the Pro plan!",
+    "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
     "free": "Free",
@@ -1990,7 +1990,7 @@
   },
   "ads": {
     "watchForMessages": "Watch ad for +5 AI messages",
-    "rewardGranted": "+5 AI messages added!",
+    "rewardGranted": "+5 AI messages added",
     "rewardFailed": "Ad not completed",
     "dailyLimitReached": "daily rewards"
   },
@@ -2386,12 +2386,12 @@
     },
     "profile": {
       "currentStreak": "1 day streak | {count} day streak",
-      "encouragement1": "Great start!",
-      "encouragement7": "One week strong!",
-      "encouragement14": "Two weeks of dedication!",
-      "encouragement30": "A full month! Incredible!",
-      "encouragement100": "Triple digits! Legendary!",
-      "encouragement365": "A whole year! You are unstoppable!"
+      "encouragement1": "Day one done",
+      "encouragement7": "One week",
+      "encouragement14": "Two weeks",
+      "encouragement30": "A full month",
+      "encouragement100": "Triple digits",
+      "encouragement365": "A whole year"
     },
     "freeze": {
       "title": "Streak freeze",
@@ -2463,7 +2463,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "keyCreatedWarning": "Copy this key now. It will not be shown again.",
-    "copied": "Copied!",
+    "copied": "Copied",
     "done": "Done",
     "connectionInstructions": "Connection Instructions",
     "claudeWeb": "Claude Web",
@@ -2666,7 +2666,7 @@
       },
       "streak": {
         "title": "Streak Counter",
-        "description": "Your streak tracks consecutive days where you completed all scheduled habits. Keep it going to earn achievements and build momentum!"
+        "description": "Your streak tracks consecutive days where you completed all scheduled habits. Keep it going to earn achievements and build momentum"
       },
       "notifications": {
         "title": "Notifications",
@@ -2712,7 +2712,7 @@
       },
       "legend": {
         "title": "Color Legend",
-        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days!"
+        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days"
       },
       "monthNav": {
         "title": "Month Navigation",
@@ -2847,13 +2847,13 @@
   "milestoneShare": {
     "streakEyebrow": "Streak milestone",
     "achievementEyebrow": "Achievement earned",
-    "streakTitle": "{count}-day streak!",
+    "streakTitle": "{count}-day streak",
     "body": "Share your milestone and invite a friend. You both get a discount coupon for Pro.",
     "share": "Share",
     "download": "Download",
     "later": "Maybe later",
     "shareTitle": "My Orbit milestone",
-    "shareText": "I'm building better habits with Orbit. Join me!",
+    "shareText": "I'm building better habits with Orbit. Join me",
     "shareError": "Couldn't share your card. Please try again.",
     "rarity": {
       "Rare": "Rare",
