@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
+import { buildTempGoal } from '@/lib/goal-mutation-helpers'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -295,6 +296,46 @@ describe('GoalDetailDrawer', () => {
     expect(
       tree.root.findAllByType('BottomSheetAppTextInput').length,
     ).toBeGreaterThan(0)
+  })
+
+  it('does not offer manual progress editing for a derived goal', () => {
+    detailGoal = {
+      ...listGoal,
+      isProgressDerived: true,
+      progressHistory: [],
+    }
+
+    const tree = renderDrawer()
+    const updateProgressButtons = tree.root.findAll(
+      (node: any) =>
+        node.props.accessibilityLabel === 'goals.updateProgress' &&
+        typeof node.props.onPress === 'function',
+    )
+
+    expect(updateProgressButtons).toHaveLength(0)
+    expect(tree.root.findAllByType('BottomSheetAppTextInput')).toHaveLength(0)
+  })
+
+  it('does not offer manual progress editing for a temporary streak goal', () => {
+    detailGoal = {
+      ...buildTempGoal({
+        title: 'Daily workout',
+        targetValue: 30,
+        unit: 'days',
+        type: 'Streak',
+      }, '1', 0),
+      progressHistory: [],
+    }
+
+    const tree = renderDrawer()
+    const updateProgressButtons = tree.root.findAll(
+      (node: any) =>
+        node.props.accessibilityLabel === 'goals.updateProgress' &&
+        typeof node.props.onPress === 'function',
+    )
+
+    expect(updateProgressButtons).toHaveLength(0)
+    expect(tree.root.findAllByType('BottomSheetAppTextInput')).toHaveLength(0)
   })
 
   it('renders the action footer (status, edit, delete)', () => {
