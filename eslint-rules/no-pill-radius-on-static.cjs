@@ -91,15 +91,17 @@ module.exports = {
         if (!pill) return
         // A skeleton is deliberately shaped like the thing it stands in for.
         if (/(?:^|\s)animate-pulse(?:\s|$)/.test(getClassText(node) ?? '')) return
-        // A circle is not a pill. Equal width and height is a round shape by design.
+        // A circle is not a pill. Equal width and height is a round shape by design, and that
+        // holds for a DYNAMIC size too: an avatar sized `width: size, height: size` is a circle
+        // at every value of `size`, so the two are compared by source text rather than by literal.
         let width = null
         let height = null
         for (const property of collectStyleProperties(node)) {
           const key = getPropertyKeyName(property)
-          const value = property.value
-          if (value?.type !== 'Literal' || typeof value.value !== 'number') continue
-          if (key === 'width') width = value.value
-          if (key === 'height') height = value.value
+          if (key !== 'width' && key !== 'height') continue
+          const text = context.sourceCode.getText(property.value)
+          if (key === 'width') width = text
+          else height = text
         }
         if (width !== null && width === height) return
         // Only a pill carrying TEXT reads as a chip. An icon inside a circle does not.

@@ -567,6 +567,8 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
     '<div className="rounded-full bg-surface" />',
     '<div className="animate-pulse rounded-full">{label}</div>',
     '<div style={{ borderRadius: 999, height: 7 }} />',
+    // an avatar sized from one variable is a circle at every value of that variable
+    "const a = <div className={['rounded-full', c].filter(Boolean).join(' ')} style={{ width: size, height: size }}>{initials}</div>",
   ],
   invalid: [
     { code: '<div className="rounded-full bg-surface">Pro</div>', errors: [{ messageId: 'pillOnStatic' }] },

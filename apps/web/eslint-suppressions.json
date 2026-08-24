@@ -1686,11 +1686,6 @@
       "count": 1
     }
   },
-  "components/ui/select-check.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    }
-  },
   "components/ui/settings-description.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -1755,11 +1750,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/ui/user-avatar.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
     }
   },
   "components/ui/year-picker.tsx": {
