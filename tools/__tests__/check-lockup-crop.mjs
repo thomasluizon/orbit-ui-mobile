@@ -17,9 +17,12 @@ const stage = (label, svg) => {
 // A 10 by 10 square at the origin, scaled by 2 and translated by 1, so its ink is exactly
 // 1,1 to 21,21. Every fixture below moves the viewBox around that known box.
 const SQUARE = "M0 0L10 0L10 10L0 10Z"
+const wrap = (viewBox, body) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="none">\n${body}\n</svg>\n`
+const grouped = (d = SQUARE, transform = "translate(1 1) scale(2)") =>
+  `<g transform="${transform}">\n<path fill="currentColor" d="${d}"/>\n</g>`
 const svgWith = (viewBox, d = SQUARE, transform = "translate(1 1) scale(2)") =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="none">\n` +
-  `<g transform="${transform}">\n<path fill="currentColor" d="${d}"/>\n</g>\n</svg>\n`
+  wrap(viewBox, grouped(d, transform))
 
 export const cases = () => {
   check(
@@ -61,18 +64,99 @@ export const cases = () => {
     { status: 0, stdout: /crop is exact/ },
   )
 
+  /* ---------------------------------------------------------------- fails closed */
+
+  // Pullfrog's reproduction against the first revision: an exact grouped square plus root-level
+  // geometry far outside the viewBox. That revision inventoried only grouped paths and exited 0.
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a root-level path instead of omitting it",
+    ["--file", stage("root-path", wrap("1 1 20 20", `${grouped()}\n<path fill="currentColor" d="M900 900L910 910Z"/>`))],
+    { status: 1, stderr: /path.*directly inside/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a painted element that is not a path",
+    ["--file", stage("circle", wrap("1 1 20 20", `${grouped()}\n<circle cx="900" cy="900" r="5" fill="currentColor"/>`))],
+    { status: 1, stderr: /<circle> is not a construct/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects an arc command rather than misreading its coordinates",
+    ["--file", stage("arc", svgWith("1 1 20 20", "M0 0A5 5 0 0 1 10 10Z"))],
+    { status: 1, stderr: /"A" command/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a smooth-curve command",
+    ["--file", stage("smooth", svgWith("1 1 20 20", "M0 0C0 5 5 5 5 0S10 5 10 0Z"))],
+    { status: 1, stderr: /"S" command/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a stroke, which widens ink past the path bounds",
+    ["--file", stage("stroke", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path fill="none" stroke="currentColor" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /stroke/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a rotate transform it cannot solve",
+    ["--file", stage("rotate", svgWith("1 1 20 20", SQUARE, "translate(1 1) rotate(30)"))],
+    { status: 1, stderr: /translate\(x y\)/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a matrix transform it cannot solve",
+    ["--file", stage("matrix", svgWith("1 1 20 20", SQUARE, "matrix(2 0 0 2 1 1)"))],
+    { status: 1, stderr: /translate\(x y\)/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a nested group",
+    ["--file", stage("nested", wrap("1 1 20 20", `<g transform="translate(0 0)">\n${grouped()}\n</g>`))],
+    { status: 1, stderr: /nested <g>/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a transform on the path itself",
+    ["--file", stage("path-transform", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path transform="translate(5 5)" fill="currentColor" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /own transform/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a style attribute it does not read",
+    ["--file", stage("style", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path style="stroke:red" fill="currentColor" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /style attribute/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a file with no paths rather than passing vacuously",
+    ["--file", stage("empty", wrap("0 0 1 1", "<title>nothing</title>"))],
+    { status: 1, stderr: /no paths to measure/ },
+  )
+
   check(
     "check-lockup-crop.mjs",
     "reports a missing viewBox rather than passing",
-    ["--file", stage("no-viewbox", '<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(0 0)"><path d="M0 0L1 1Z"/></g></svg>\n')],
+    ["--file", stage("no-viewbox", `<svg xmlns="http://www.w3.org/2000/svg">\n${grouped()}\n</svg>\n`)],
     { status: 1, stderr: /no viewBox/ },
   )
 
   check(
     "check-lockup-crop.mjs",
-    "reports an SVG with no transformed group rather than passing",
-    ["--file", stage("no-group", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0L1 1Z"/></svg>\n')],
-    { status: 1, stderr: /no transformed groups/ },
+    "reports markup that is not well formed",
+    ["--file", stage("unclosed", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">\n<g transform="translate(0 0)">\n<path fill="currentColor" d="${SQUARE}"/>\n`)],
+    { status: 1, stderr: /never closed/ },
   )
 
   check("check-lockup-crop.mjs", "prints usage for --help", ["--help"], { status: 0, stdout: /usage: check-lockup-crop/ })

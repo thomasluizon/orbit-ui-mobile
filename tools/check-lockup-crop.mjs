@@ -9,6 +9,11 @@
 //
 // Solving beats sampling here. A raster shows ink on an edge whether the geometry touches that
 // edge or runs past it, so a render can confirm contact and never detect clipping.
+//
+// It FAILS CLOSED. Every element, attribute and path command it cannot account for is an error,
+// never a skip. An earlier revision inventoried only paths inside transformed groups, so a
+// root-level path outside the viewBox passed silently. A gate that omits what it does not
+// understand reports clean over geometry it never measured, which is worse than no gate.
 
 import { readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -17,11 +22,13 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: check-lockup-crop.mjs [--file <path>]
 
   Asserts design/brand/orbit-lockup.svg's viewBox equals its ink bounds within 1e-6.
+  Rejects any SVG construct whose contribution to the ink it cannot compute.
 
   --file <path>  check this SVG instead of the default
   --help, -h     print this usage and exit 0
 
-exit codes: 0 the crop is exact, 1 the crop clips or pads, 2 usage error`
+exit codes: 0 the crop is exact, 1 the crop is wrong or the file uses an unsupported construct,
+            2 usage error`
 
 const argv = process.argv.slice(2)
 if (argv.includes("--help") || argv.includes("-h")) {
@@ -30,9 +37,8 @@ if (argv.includes("--help") || argv.includes("-h")) {
 }
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-const DEFAULT_FILE = join(REPO_ROOT, "design/brand/orbit-lockup.svg")
+let file = join(REPO_ROOT, "design/brand/orbit-lockup.svg")
 
-let file = DEFAULT_FILE
 const flagIndex = argv.indexOf("--file")
 if (flagIndex !== -1) {
   if (!argv[flagIndex + 1]) {
@@ -48,6 +54,12 @@ if (flagIndex !== -1) {
 }
 
 const TOLERANCE = 1e-6
+const fail = (message) => {
+  console.error(`check-lockup-crop: ${message}`)
+  process.exit(1)
+}
+
+/* ------------------------------------------------------------------ geometry */
 
 const cubicAt = (p0, p1, p2, p3, t) => {
   const u = 1 - t
@@ -82,12 +94,13 @@ const quadExtremum = (p0, p1, p2) => {
   return t > 0 && t < 1 ? [t] : []
 }
 
+// S, T and A are deliberately absent. Their coordinates would otherwise be read under the
+// preceding command and silently misplace the bounds.
 const ARG_COUNT = { M: 2, L: 2, H: 1, V: 1, C: 6, Q: 4, Z: 0 }
+const SUPPORTED_COMMANDS = /^[MmLlHhVvCcQqZz]$/
 
-// Solves the tight bounds of one path, curve extrema included. A control-point box would
-// overshoot and a sampled box would round; either would make this gate lie.
 const pathBounds = (d) => {
-  const tokens = d.match(/[MmLlHhVvCcQqZz]|-?\d*\.?\d+(?:[eE][-+]?\d+)?/g) ?? []
+  const tokens = d.match(/[A-Za-z]|-?\d*\.?\d+(?:[eE][-+]?\d+)?/g) ?? []
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -106,6 +119,10 @@ const pathBounds = (d) => {
 
   while (i < tokens.length) {
     if (/^[A-Za-z]$/.test(tokens[i])) {
+      if (!SUPPORTED_COMMANDS.test(tokens[i])) {
+        fail(`path uses the "${tokens[i]}" command, which this gate cannot solve.\n` +
+             `  Supported: M L H V C Q Z. Rewrite the path or teach the gate that command.`)
+      }
       cmd = tokens[i]
       i += 1
       if (cmd === "Z" || cmd === "z") {
@@ -114,10 +131,7 @@ const pathBounds = (d) => {
       }
       continue
     }
-    if (cmd === null) {
-      console.error(`check-lockup-crop: path data starts with a number, not a command`)
-      process.exit(1)
-    }
+    if (cmd === null) fail("path data starts with a number, not a command")
 
     const up = cmd.toUpperCase()
     const rel = cmd === cmd.toLowerCase()
@@ -127,7 +141,7 @@ const pathBounds = (d) => {
       args.push(Number(tokens[i]))
       i += 1
     }
-    if (args.length < need) break
+    if (args.length < need) fail(`path ends mid-command after "${cmd}"`)
 
     if (up === "M") {
       cur = rel ? [cur[0] + args[0], cur[1] + args[1]] : [args[0], args[1]]
@@ -152,11 +166,10 @@ const pathBounds = (d) => {
       const p3 = rel ? [cur[0] + args[4], cur[1] + args[5]] : [args[4], args[5]]
       see(cur[0], cur[1])
       see(p3[0], p3[1])
-      for (const t of cubicExtrema(cur[0], p1[0], p2[0], p3[0])) {
-        see(cubicAt(cur[0], p1[0], p2[0], p3[0], t), cubicAt(cur[1], p1[1], p2[1], p3[1], t))
-      }
-      for (const t of cubicExtrema(cur[1], p1[1], p2[1], p3[1])) {
-        see(cubicAt(cur[0], p1[0], p2[0], p3[0], t), cubicAt(cur[1], p1[1], p2[1], p3[1], t))
+      for (const axis of [0, 1]) {
+        for (const t of cubicExtrema(cur[axis], p1[axis], p2[axis], p3[axis])) {
+          see(cubicAt(cur[0], p1[0], p2[0], p3[0], t), cubicAt(cur[1], p1[1], p2[1], p3[1], t))
+        }
       }
       cur = p3
     } else if (up === "Q") {
@@ -164,70 +177,99 @@ const pathBounds = (d) => {
       const p2 = rel ? [cur[0] + args[2], cur[1] + args[3]] : [args[2], args[3]]
       see(cur[0], cur[1])
       see(p2[0], p2[1])
-      for (const t of quadExtremum(cur[0], p1[0], p2[0])) {
-        see(quadAt(cur[0], p1[0], p2[0], t), quadAt(cur[1], p1[1], p2[1], t))
-      }
-      for (const t of quadExtremum(cur[1], p1[1], p2[1])) {
-        see(quadAt(cur[0], p1[0], p2[0], t), quadAt(cur[1], p1[1], p2[1], t))
+      for (const axis of [0, 1]) {
+        for (const t of quadExtremum(cur[axis], p1[axis], p2[axis])) {
+          see(quadAt(cur[0], p1[0], p2[0], t), quadAt(cur[1], p1[1], p2[1], t))
+        }
       }
       cur = p2
     }
   }
 
-  if (!Number.isFinite(minX)) {
-    console.error("check-lockup-crop: a path produced no points")
-    process.exit(1)
-  }
+  if (!Number.isFinite(minX)) fail("a path produced no points")
   return { minX, minY, maxX, maxY }
 }
 
+/* ------------------------------------------------------------------ parsing */
+
+// The asset is machine-generated and deliberately tiny, so a scanner is enough. What matters is
+// that anything outside this shape is refused rather than skipped.
+const ELEMENTS_WITHOUT_INK = new Set(["svg", "title", "desc"])
+const TRANSFORM = /^translate\(\s*(-?[\d.eE+-]+)[\s,]+(-?[\d.eE+-]+)\s*\)(?:\s*scale\(\s*(-?[\d.eE+-]+)\s*\))?$/
+
 const svg = readFileSync(file, "utf8")
+if (/<!--/.test(svg)) fail("the file carries a comment; this gate reads a generated asset, not hand-edited markup")
 
-const viewBoxMatch = svg.match(/viewBox="([^"]+)"/)
-if (!viewBoxMatch) {
-  console.error(`check-lockup-crop: ${file} has no viewBox`)
-  process.exit(1)
-}
-const [vx, vy, vw, vh] = viewBoxMatch[1].trim().split(/[\s,]+/).map(Number)
+const viewBoxMatch = svg.match(/<svg\b[^>]*\bviewBox="([^"]+)"/)
+if (!viewBoxMatch) fail(`${file} has no viewBox`)
+const view = viewBoxMatch[1].trim().split(/[\s,]+/).map(Number)
+if (view.length !== 4 || view.some((n) => !Number.isFinite(n))) fail(`viewBox is not four numbers: ${viewBoxMatch[1]}`)
+const [vx, vy, vw, vh] = view
 
-// Each <g> carries at most one translate and one uniform scale, which is all this asset uses.
-const groups = [...svg.matchAll(/<g\b[^>]*transform="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g)]
-if (groups.length === 0) {
-  console.error(`check-lockup-crop: ${file} has no transformed groups`)
-  process.exit(1)
-}
-
+const stack = []
 let ink = null
-for (const [, transform, body] of groups) {
-  const translate = transform.match(/translate\(\s*(-?[\d.eE+-]+)[\s,]+(-?[\d.eE+-]+)\s*\)/)
-  const scale = transform.match(/scale\(\s*(-?[\d.eE+-]+)\s*\)/)
-  const tx = translate ? Number(translate[1]) : 0
-  const ty = translate ? Number(translate[2]) : 0
-  const s = scale ? Number(scale[1]) : 1
+const seen = { paths: 0 }
 
-  for (const [, d] of body.matchAll(/<path\b[^>]*\bd="([^"]+)"/g)) {
-    const b = pathBounds(d)
+const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*?)(\/?)>/g
+for (const match of svg.matchAll(TAG)) {
+  const [, closing, name, attrText, selfClosing] = match
+
+  if (closing) {
+    const open = stack.pop()
+    if (open !== name) fail(`markup is not well formed: </${name}> closes <${open ?? "nothing"}>`)
+    continue
+  }
+
+  const attrs = {}
+  for (const a of attrText.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)) attrs[a[1]] = a[2]
+
+  // stroke widens ink past the path's own bounds, and this gate measures fill geometry only.
+  if (attrs.stroke && attrs.stroke !== "none") {
+    fail(`<${name}> carries stroke="${attrs.stroke}"; a stroke widens the ink beyond the path bounds this gate solves`)
+  }
+  if (attrs.style) fail(`<${name}> carries a style attribute, which can move or stroke it in ways this gate does not read`)
+
+  if (name === "path") {
+    const parent = stack[stack.length - 1]
+    if (parent !== "g") fail(`a <path> sits directly inside <${parent ?? "nothing"}>; every path must be in a transformed <g> this gate can resolve`)
+    if (!attrs.d) fail("a <path> carries no d attribute")
+    if (attrs.transform) fail("a <path> carries its own transform; put the transform on its <g>")
+
+    const g = stack.gTransform
+    const b = pathBounds(attrs.d)
     const box = {
-      minX: tx + b.minX * s,
-      minY: ty + b.minY * s,
-      maxX: tx + b.maxX * s,
-      maxY: ty + b.maxY * s,
+      minX: g.tx + b.minX * g.s,
+      minY: g.ty + b.minY * g.s,
+      maxX: g.tx + b.maxX * g.s,
+      maxY: g.ty + b.maxY * g.s,
     }
     ink = ink
-      ? {
-          minX: Math.min(ink.minX, box.minX),
-          minY: Math.min(ink.minY, box.minY),
-          maxX: Math.max(ink.maxX, box.maxX),
-          maxY: Math.max(ink.maxY, box.maxY),
-        }
+      ? { minX: Math.min(ink.minX, box.minX), minY: Math.min(ink.minY, box.minY),
+          maxX: Math.max(ink.maxX, box.maxX), maxY: Math.max(ink.maxY, box.maxY) }
       : box
+    seen.paths += 1
+  } else if (name === "g") {
+    if (stack[stack.length - 1] !== "svg") fail("nested <g> is not supported; this gate resolves one transform per path")
+    const parsed = TRANSFORM.exec((attrs.transform ?? "").trim())
+    if (!parsed) {
+      fail(`<g> transform ${JSON.stringify(attrs.transform ?? "")} is not "translate(x y)" with an optional uniform scale.\n` +
+           `  rotate, skew, matrix and non-uniform scale change the bounds in ways this gate does not solve.`)
+    }
+    stack.gTransform = { tx: Number(parsed[1]), ty: Number(parsed[2]), s: parsed[3] === undefined ? 1 : Number(parsed[3]) }
+  } else if (!ELEMENTS_WITHOUT_INK.has(name)) {
+    fail(`<${name}> is not a construct this gate can measure.\n` +
+         `  It paints, or may paint, and omitting it would report a crop over geometry never checked.\n` +
+         `  Supported: svg, title, desc, g, path.`)
   }
+
+  if (!selfClosing) stack.push(name)
 }
 
-if (!ink) {
-  console.error(`check-lockup-crop: ${file} has no paths inside a transformed group`)
-  process.exit(1)
-}
+if (stack.length > 0) fail(`markup is not well formed: <${stack[stack.length - 1]}> is never closed`)
+if (seen.paths === 0) fail(`${file} has no paths to measure`)
+if (!ink) fail(`${file} produced no ink`)
+
+/* ------------------------------------------------------------------ verdict */
 
 const deltas = [
   ["left", ink.minX - vx],
@@ -242,13 +284,11 @@ if (bad.length > 0) {
   console.error(`  viewBox ${vx} ${vy} ${vw} ${vh}`)
   console.error(`  ink     ${ink.minX} ${ink.minY} ${ink.maxX} ${ink.maxY}`)
   for (const [edge, delta] of bad) {
-    const how = delta > 0
-      ? (edge === "left" || edge === "top" ? "pads" : "clips")
-      : (edge === "left" || edge === "top" ? "clips" : "pads")
-    console.error(`  ${edge}: off by ${delta.toExponential(4)} (${how})`)
+    const leading = edge === "left" || edge === "top"
+    console.error(`  ${edge}: off by ${delta.toExponential(4)} (${(delta > 0) === leading ? "pads" : "clips"})`)
   }
   console.error(`  tolerance ${TOLERANCE}`)
   process.exit(1)
 }
 
-console.log(`check-lockup-crop: ${file} crop is exact (all four edges within ${TOLERANCE})`)
+console.log(`check-lockup-crop: ${file} crop is exact (${seen.paths} paths, all four edges within ${TOLERANCE})`)

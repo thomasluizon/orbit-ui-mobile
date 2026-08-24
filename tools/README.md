@@ -50,7 +50,7 @@ These back required CI checks. They fail a merge.
 | Tool | What it does | Usage |
 |---|---|---|
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
-| `check-lockup-crop.mjs` | Asserts `design/brand/orbit-lockup.svg`'s viewBox equals its ink within 1e-6, solving each path's real bounds from the curve extrema and applying the serialized transforms. It reads the committed bytes, because a generator asserting its own pre-rounded floats passed while the written file clipped. | `node tools/check-lockup-crop.mjs [--file <path>]` |
+| `check-lockup-crop.mjs` | Asserts `design/brand/orbit-lockup.svg`'s viewBox equals its ink within 1e-6, solving each path's real bounds from the curve extrema and applying the serialized transforms. It reads the committed bytes, because a generator asserting its own pre-rounded floats passed while the written file clipped. It FAILS CLOSED: a root-level path, a non-path shape, a stroke, an arc or smooth command, a nested group, or any transform beyond translate plus uniform scale is an error, never a skip. | `node tools/check-lockup-crop.mjs [--file <path>]` |
 | `check-copy.mjs` | Enforces the copy register. Backs `Copy Register`. | `node tools/check-copy.mjs --check` |
 | `check-suppressions-ratchet.mjs` | Fails when the lint-suppression count grows. Backs `Suppressions Ratchet` (escape hatch: the `ratchet:reseed` label). | `node tools/check-suppressions-ratchet.mjs` |
 | `check-push-target.mjs` | Refuses a push whose target is a protected branch. | `node tools/check-push-target.mjs` |
