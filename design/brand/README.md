@@ -78,7 +78,7 @@ preview that defines no `--primary` still renders the whole mark rather than dro
 
 **The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
-height and the word swamps the mark. Sized on the ink it stands 15.1px and the pair reads as one
+height and the word swamps the mark. Sized on the ink it stands 15.04px and the pair reads as one
 lockup.
 
 **The lockup's 12 separates ink from ink**, not bounding boxes. The wordmark's `O` carries a left

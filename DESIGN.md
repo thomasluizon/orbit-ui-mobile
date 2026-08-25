@@ -258,7 +258,7 @@ Identity comes from three things and nothing else:
 2. the **Astra orbital glyph** (which replaces the sparkle icon),
 3. **ring-shaped status and progress indicators**.
 
-**The mark is a planet drawn as a ring with an open centre**, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its moon, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`. The accent treatment is listed as still to build, so the shipped asset is monochrome today and a surface that needs the accent version must wait rather than tint the file itself.
+**The mark is a planet drawn as a ring with an open centre**, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its moon, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`. `design/brand/orbit-mark-accent.svg` ships that treatment, so a surface takes the accent file and never tints the monochrome one itself.
 
 **`design/brand/README.md` is authoritative for the assets.** The two marks are final and merged; this section describes how they are used, not what they are.
 
