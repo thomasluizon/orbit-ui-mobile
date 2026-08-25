@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -206,6 +206,10 @@ function maestroCapture(cell, options, outputBase) {
   const debugOutput = join(outputBase, ".maestro", captureName)
   const bundledPng = join(debugOutput, cell.surfaceId, "takeScreenshot", `${captureName}.png`)
   const link = buildCaptureDeepLink(cell, cell.theme, cell.locale)
+  // Maestro suffixes an existing flattened flow folder as `<surfaceId>-2`, so a reused output
+  // directory would leave the hard-coded bundledPng path pointing at the PREVIOUS run's screenshot.
+  // Clearing it first keeps that path correct by construction rather than by naming luck.
+  rmSync(debugOutput, { recursive: true, force: true })
   const args = ["test", "--debug-output", debugOutput, "--flatten-debug-output"]
   if (options.serial) args.push("--device", options.serial)
   args.push(flow)
@@ -240,14 +244,26 @@ async function adbCapture(cell, options, outputBase) {
   return captureResult(cell, pngPath, startedAt, screenshot, "adb-screencap")
 }
 
+function commandOutput(commandResult) {
+  const streams = [commandResult.stderr, commandResult.stdout]
+    .filter((stream) => typeof stream === "string" && stream.trim().length > 0)
+    .map((stream) => stream.trim())
+  if (streams.length === 0) return ""
+  return `: ${streams.join(" | ").slice(-1200)}`
+}
+
 function captureResult(cell, pngPath, startedAt, commandResult, command) {
   if (commandResult.error || commandResult.status !== 0) {
+    // A nonzero Maestro exit is NOT evidence that the surface is unreachable. TestRunner.runSingle
+    // collapses a failed route assertion, a driver timeout and any other flow exception into the same
+    // status, so inferring "unreachable" from the exit code reports a broken flow or a dead emulator as
+    // a product fact. Runtime failures are reported as failures, carrying Maestro's own output so the
+    // real cause is readable. Only the plan marks a cell unreachable, where the evidence is real.
     return {
       cell,
       ok: false,
-      unreachable: command === "maestro" && !commandResult.error,
       command,
-      detail: commandResult.error?.message ?? `exit ${commandResult.status}`,
+      detail: commandResult.error?.message ?? `exit ${commandResult.status}${commandOutput(commandResult)}`,
     }
   }
   if (!pngPath || !existsSync(pngPath)) {
@@ -300,14 +316,12 @@ async function main() {
   mkdirSync(output, { recursive: true })
   const captured = []
   const failed = []
-  const runtimeUnreachable = []
   if (!options.dryRun) {
     for (const cell of plan.captures) {
       const result = options.driver === "maestro"
         ? maestroCapture(cell, options, output)
         : await adbCapture(cell, options, output)
       if (result.ok) captured.push(result)
-      else if (result.unreachable) runtimeUnreachable.push(result)
       else failed.push(result)
     }
   }
@@ -328,15 +342,6 @@ async function main() {
         sourceFile: entry.cell.sourceFile,
         reason: entry.reason,
         detail: entry.detail,
-      })),
-      ...runtimeUnreachable.map((entry) => ({
-        cell: entry.cell.surfaceId,
-        state: entry.cell.state ?? "default",
-        theme: entry.cell.theme,
-        locale: entry.cell.locale,
-        sourceFile: entry.cell.sourceFile,
-        reason: "route-assertion-failed",
-        detail: `${entry.command} ${entry.detail}`,
       })),
     ],
   }

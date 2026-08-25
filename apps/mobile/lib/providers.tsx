@@ -126,6 +126,8 @@ function AuthInitializer({
 
   useEffect(() => {
     async function boot() {
+      /** Re-gates a capture re-run: changeLanguage below is async, so a stale ready captures the previous locale. */
+      setReady(false)
       let isAuthenticated = false
 
       try {
