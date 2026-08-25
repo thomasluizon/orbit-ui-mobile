@@ -91,9 +91,30 @@ from Claude Design and open it there, or drop those two files and the font binar
 The `_ds/<uuid>/` directory keeps the export's own UUID name because the screens link through it.
 Flattening it silently breaks every stylesheet reference.
 
-The manifest lists 41 components by `sourcePath`. **Those `.jsx` files are not in this export**; the
-paths are provenance from the canvas sessions. What specifies a component is stated once above: the
-token values, `styles.css`, and the screens that draw it.
+### The component contracts
+
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/components/` holds **48 `.d.ts` prop contracts**, at the exact
+paths the manifest names and the redesign tickets cite. They are pulled from the design-system project
+itself, because the downloadable archive omits them.
+
+**These are binding.** A rule written here is enforced by the compiler, which is why the canvas held its
+rules across three drawing sessions and prose did not:
+
+* `StatTile` discriminates on `state`, so an empty tile cannot accept `value` and can never render a `0`
+  that reads as a real measurement.
+* `Columns` has no date, start, interval or ordering prop at all, so a category set cannot become a time
+  axis whose gaps carry meaning.
+* `Sheet.open` accepts only the literal `true`, so a kept-and-toggled instance does not compile.
+* `StepUp` has no `children` and no node-typed prop, so a credential field cannot be nested into it.
+* `Toast` is four discriminated kinds; `lost` cannot be constructed without both what was lost and the
+  way back.
+
+The matching `.jsx` implementations and `.prompt.md` files stay in the project and are not mirrored
+here: the contract is what an implementer builds against, and the canvas's own React source is not the
+app's.
+
+`CanvasControls` is deliberately absent. It is the canvas review bar, chrome for the drawing tool
+rather than a product surface.
 
 ## `superseded/`
 
