@@ -20,7 +20,8 @@ The single, code-derived, gating- and platform-aware map of everything Orbit doe
 
 **Limits (source: the live `AppConfigs` rows, which override the `AppConstants.cs` defaults).** The AI
 meter is **daily** and resets at the user's local midnight: **5** messages a day free, **50** a day on
-Pro. **What Pro buys is the higher daily allowance, ten times the free one, not a feature matrix.**
+Pro. **On the Astra allowance specifically, what Pro buys is ten times the free one rather than a
+different product.** Pro does also carry its own entitlements, enumerated in the plan table below.
 
 **Habits are not a paid axis.** The ceiling is **1000** live top-level habits, identical on every
 plan, and it exists as an abuse guard rather than as an upsell.
@@ -33,8 +34,9 @@ Read from the production `AppConfigs` table on 2026-08-25: `FreeAiMessagesPerDay
 `ProAiMessagesPerDay` 50, `FreeMaxHabits` 1000, `SubHabitsProOnly` true.
 
 `AppConfigService.GetAsync` caches each key in memory for **30 minutes** and falls back to the
-`AppConstants.cs` default only when the row is absent. So a row edit takes up to half an hour to take
-effect, and the constant governs only a key that was never seeded. Quote the row values above rather
+`AppConstants.cs` default when the row is absent, when its value cannot be parsed into the requested
+type, and when the requested type is one `ConvertValue` does not handle. So a row edit takes up to
+half an hour to take effect, and a malformed row is indistinguishable from a missing one. Quote the row values above rather
 than the constants: `DefaultFreeMaxHabits` is 1000 while the original seed migration wrote 10, so the
 two disagreed until a later migration raised the row.
 
