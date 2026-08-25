@@ -3,8 +3,12 @@
 // eslint-suppressions.json baselines may only SHRINK. Before this job existed,
 // zero CI read the suppression files, so a baseline edit could absorb a new
 // violation silently. Compares each workspace's total suppressed-violation
-// count in the working tree against the same file on origin/main; exits 1 on
-// growth. New-rule adoption that legitimately grows a baseline (a rule newly
+// count in the working tree against the same file on THE BRANCH THIS MERGES
+// INTO, taken from GITHUB_BASE_REF and falling back to origin/main; exits 1 on
+// growth. The base ref is load-bearing rather than tidiness: `redesign/main`
+// carries about 950 more suppressions than `main`, so a fixed origin/main
+// baseline would fail every redesign pull request against an unrelated total
+// and the ratchet would gate nothing on that branch. New-rule adoption that legitimately grows a baseline (a rule newly
 // registered, like spacing-scale landing) must regenerate on the SAME PR that
 // registers the rule, and gets reviewed as such.
 
@@ -15,7 +19,8 @@ import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: check-suppressions-ratchet.mjs
 
-  Compares each workspace's eslint-suppressions.json total against origin/main.
+  Compares each workspace's eslint-suppressions.json total against the branch this
+  merges into: origin/$GITHUB_BASE_REF when set, otherwise origin/main.
   Takes no arguments.
 
   --help, -h  print this usage and exit 0
@@ -44,9 +49,13 @@ const totalOf = (json) => {
   return total
 }
 
-const mainVersionOf = (path) => {
+// GITHUB_BASE_REF is the base BRANCH NAME on a pull_request event and empty everywhere else,
+// so a local run and a push build both keep the historical origin/main behaviour.
+const BASE_REF = `origin/${process.env.GITHUB_BASE_REF?.trim() || "main"}`
+
+const baseVersionOf = (path) => {
   try {
-    return JSON.parse(execFileSync("git", ["show", `origin/main:${path}`], { cwd: REPO_ROOT, encoding: "utf8" }))
+    return JSON.parse(execFileSync("git", ["show", `${BASE_REF}:${path}`], { cwd: REPO_ROOT, encoding: "utf8" }))
   } catch {
     return {}
   }
@@ -57,15 +66,15 @@ for (const path of BASELINES) {
   const absolute = join(REPO_ROOT, path)
   const current = existsSync(absolute) ? JSON.parse(readFileSync(absolute, "utf8")) : {}
   const currentTotal = totalOf(current)
-  const mainTotal = totalOf(mainVersionOf(path))
-  const verdict = currentTotal > mainTotal ? "GREW" : "ok"
-  console.log(`${path}: ${mainTotal} on main -> ${currentTotal} here (${verdict})`)
-  if (currentTotal > mainTotal) failed = true
+  const baseTotal = totalOf(baseVersionOf(path))
+  const verdict = currentTotal > baseTotal ? "GREW" : "ok"
+  console.log(`${path}: ${baseTotal} on ${BASE_REF} -> ${currentTotal} here (${verdict})`)
+  if (currentTotal > baseTotal) failed = true
 }
 
 if (failed) {
   console.error(
-    "\nA suppressions baseline grew. The ratchet only shrinks: fix the new violation instead of absorbing it.\n" +
+    `\nA suppressions baseline grew against ${BASE_REF}. The ratchet only shrinks: fix the new violation instead of absorbing it.\n` +
       "If this PR deliberately registers a NEW rule and seeds its baseline, say so in the PR body; a reviewer\n" +
       "override (re-running with the label ratchet:reseed) is the only sanctioned path.",
   )
