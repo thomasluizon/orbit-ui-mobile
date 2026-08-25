@@ -35,7 +35,7 @@ const forwarded = (captureFile) => {
   return { subcommand: String(argv[0] ?? ""), rest: JSON.stringify(argv.slice(1)) }
 }
 
-const plan = (label) => {
+const plan = (label, { bodyExit = 0 } = {}) => {
   const bodyCapture = stage(`update-ticket/${label}-body.txt`, "unwritten")
   const editMarker = stage(`update-ticket/${label}-edit`, "pending")
   const titleMarker = stage(`update-ticket/${label}-title`, "pending")
@@ -55,7 +55,7 @@ const plan = (label) => {
       ...githubIssueReadPlan(issue()),
       { match: "project item-list 2 --owner thomasluizon", stdout: project(), removePath: projectReadMarker },
       { match: "issue edit 221 --repo thomasluizon/orbit-tickets --title", stdout: "", ignoreTicketShape: true, argvFile: titleCapture, removePath: titleMarker },
-      { match: "issue edit 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, stdinFile: bodyCapture, removePath: editMarker },
+      { match: "issue edit 221 --repo thomasluizon/orbit-tickets", stdout: "", stderr: bodyExit === 0 ? "" : "gh: body write refused", exit: bodyExit, ignoreTicketShape: true, stdinFile: bodyCapture, removePath: editMarker },
       { match: "issue comment 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, removePath: commentMarker },
       { match: "project item-edit 2 --owner thomasluizon", stdout: "", ignoreTicketShape: true, removePath: statusMarker },
     ],
@@ -167,6 +167,26 @@ export const cases = () => {
   )
   T(`${TOOL}: a combined call edits the body`, !existsSync(both.editMarker))
   T(`${TOOL}: a combined call carries the file's exact bytes`, readFileSync(both.bodyCapture, "utf8") === readFileSync(replacement, "utf8"))
+
+  /**
+   * The ORDER of the two writes, pinned by making the body write fail. The tool writes the title
+   * first so that a failing body leaves the cheap field already correct rather than both stale, and
+   * nothing else in this file proves that: swapping `updateTitle` and `updateBody` leaves every
+   * other case green, because they all assert that both writes eventually happened.
+   */
+  const bodyFails = plan("body-fails", { bodyExit: 1 })
+  const bodyFailsRun = run(TOOL, ["--issue", "#221", "--title", NEW_TITLE, "--body-file", replacement, "--confirm-replace"], { env: orcaEnv(bodyFails.entries) })
+  T(
+    `${TOOL}: a failing body write is reported, not swallowed`,
+    bodyFailsRun.status === 1 && /update-ticket: .*failed/.test(bodyFailsRun.stderr),
+    `${bodyFailsRun.status} ${bodyFailsRun.stdout}${bodyFailsRun.stderr}`,
+  )
+  T(`${TOOL}: the title was already written when the body write failed`, !existsSync(bodyFails.titleMarker))
+  T(
+    `${TOOL}: and it was the exact new title`,
+    forwarded(bodyFails.titleCapture).rest === titleArgv(NEW_TITLE),
+    readFileSync(bodyFails.titleCapture, "utf8"),
+  )
 
   /** The body guard must not decay just because a title rides along. */
   check(TOOL, "still refuses a body without --confirm-replace when a title is given", ["--issue", "#221", "--title", NEW_TITLE, "--body-file", replacement], { status: 2, stderr: /--confirm-replace is required/ })
