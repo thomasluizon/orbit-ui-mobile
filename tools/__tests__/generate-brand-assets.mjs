@@ -27,8 +27,9 @@ const expectedAssets = [
 const fixtureRoot = (label) => {
   const directory = join(root, "brand-assets", label)
   mkdirSync(join(directory, "design", "brand"), { recursive: true })
-  // Both canonical sources: the 1024 mark, and the native 16 redraw the favicon comes from.
-  for (const mark of ["orbit-mark.svg", "orbit-mark-16.svg"]) {
+  // All three canonical sources: the 1024 monochrome mark, the accent treatment every coloured
+  // raster comes from, and the native 16 redraw behind the favicon.
+  for (const mark of ["orbit-mark.svg", "orbit-mark-16.svg", "orbit-mark-accent.svg"]) {
     cpSync(join(REPO_ROOT, "design", "brand", mark), join(directory, "design", "brand", mark))
   }
   return directory
@@ -94,6 +95,45 @@ export const cases = async () => {
     visiblePixels > 0 && monochromeIsWhite,
     `visible pixels ${visiblePixels}; one-colour ${monochromeIsWhite}`,
   )
+
+  // DESIGN.md:261: the mark carries the accent on exactly one element, its moon, and a surface takes
+  // the accent file rather than tinting the monochrome one. Before this, every coloured raster was
+  // flattened to one ink and the moon disappeared from the launcher, splash, PWA, OG and store art.
+  const accentPixelCount = async (relativePath) => {
+    const { data, info } = await sharp(join(outputRoot, ...relativePath.split("/")))
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    let accent = 0
+    for (let index = 0; index < data.length; index += info.channels) {
+      if (data[index + 3] < 128) continue
+      if (data[index] === 0xc4 && data[index + 1] === 0x53 && data[index + 2] === 0x0f) accent += 1
+    }
+    return accent
+  }
+
+  for (const relativePath of ["apps/mobile/assets/icon.png", "apps/web/public/pwa-512x512.png"]) {
+    T(
+      `generate-brand-assets.mjs: ${relativePath} keeps the accent moon`,
+      (await accentPixelCount(relativePath)) > 0,
+      `${relativePath} carries no #C4530F pixel`,
+    )
+  }
+
+  // The three that must stay monochrome, each for a stated reason: the Android monochrome layer is
+  // one flat colour by platform rule, the notification icon is a white silhouette by platform rule,
+  // and DESIGN.md:267 says the 16 redraw is "monochrome --fg-1 with no accent".
+  for (const relativePath of [
+    "apps/mobile/assets/adaptive-icon-monochrome.png",
+    "apps/mobile/assets/notification-icon.png",
+    "apps/web/public/favicon-16.png",
+  ]) {
+    T(
+      `generate-brand-assets.mjs: ${relativePath} carries no accent`,
+      (await accentPixelCount(relativePath)) === 0,
+      `${relativePath} unexpectedly carries an accent pixel`,
+    )
+  }
 
   const icon = join(outputRoot, "apps", "mobile", "assets", "icon.png")
   const iconCorner = await pixelAt(icon, 0, 0)

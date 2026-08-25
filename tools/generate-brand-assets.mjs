@@ -55,38 +55,45 @@ const markPath = join(repositoryRoot, "design", "brand", "orbit-mark.svg")
 // so an asset marked `nativeMark` is rasterised at its designed size instead of being trimmed and
 // rescaled from the 1024 source.
 const mark16Path = join(repositoryRoot, "design", "brand", "orbit-mark-16.svg")
+// DESIGN.md:261: "a surface takes the accent file and never tints the monochrome one itself". Every
+// coloured raster of the mark comes from here, so the moon keeps the accent. The three that stay
+// monochrome are named at their entries below, each for a reason the spec or the platform gives.
+const markAccentPath = join(repositoryRoot, "design", "brand", "orbit-mark-accent.svg")
 
 const CANVAS = "#09090B"
 const FOREGROUND = "#F4F4F6"
 const WHITE = "#FFFFFF"
+// DESIGN.md:372. The mark carries this on exactly one element, its moon, and DESIGN.md:261 calls that
+// the only non-state use of the accent in the whole system.
+const ACCENT = "#C4530F"
 
 const generatedAssets = [
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
-  { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.6 },
+  { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: 0.6 },
-  { path: "apps/mobile/assets/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
-  { path: "apps/mobile/assets/icon.png", width: 1024, height: 1024, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
-  { path: "apps/mobile/assets/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8 },
+  { path: "apps/mobile/assets/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  { path: "apps/mobile/assets/icon.png", width: 1024, height: 1024, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  { path: "apps/mobile/assets/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, accent: true },
   // 96 because expo-notifications resizes this one input into every density bucket, and its largest
   // is xxxhdpi: BASELINE_PIXEL_SIZE 24 * scale 4 in
   // node_modules/expo-notifications/plugin/build/withNotificationsAndroid.js. A smaller source is
   // upscaled with resizeMode 'cover' and the silhouette softens on exactly the densest screens.
   { path: "apps/mobile/assets/notification-icon.png", width: 96, height: 96, ink: WHITE, scale: 0.8 },
-  { path: "apps/mobile/assets/splash-icon.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.4 },
-  { path: "apps/mobile/store/feature-graphic.png", width: 1024, height: 500, ink: FOREGROUND, background: CANVAS, scale: 0.36 },
+  { path: "apps/mobile/assets/splash-icon.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.4, accent: true },
+  { path: "apps/mobile/store/feature-graphic.png", width: 1024, height: 500, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
   // app/icon.png is a Next.js App Router FILE CONVENTION, not an ordinary public asset. It is the
   // browser-tab icon Next serves for the app segment, so leaving it out of this list is how the old
   // mark survived every previous regeneration: it is the one icon that metadata.icons does not
   // reach. Same geometry as the public favicon, because it does the same job.
-  { path: "apps/web/app/icon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
+  { path: "apps/web/app/icon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   // The browser tab draws a favicon at 16px. Downscaling the 64 into that slot is exactly the soft
   // stroke DESIGN.md:267 forbids, so this one comes from the native 16 redraw at its designed size.
   { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, background: CANVAS, nativeMark: true },
-  { path: "apps/web/public/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
-  { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8 },
-  { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36 },
-  { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
-  { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
+  { path: "apps/web/public/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, accent: true },
+  { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
+  { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
 ]
 
 function assertCanonicalSource(source, name) {
@@ -135,8 +142,33 @@ async function renderNativeMark(source, ink, size) {
   return sharp(Buffer.from(bakedSource)).resize(size, size).png().toBuffer()
 }
 
+/** The accent treatment: body in `ink`, moon in the accent. Trimmed and resized like the monochrome
+ *  path, but WITHOUT the flatten-every-pixel step, which is what would erase the moon.
+ *
+ *  The var() expression is substituted BEFORE `currentColor`, because it contains that literal as its
+ *  own fallback and a naive replace would turn the moon back into the body colour. */
+async function renderAccentMark(source, ink, accent, targetWidth) {
+  const bakedSource = source
+    .replaceAll("var(--primary, currentColor)", accent)
+    .replaceAll("currentColor", ink)
+
+  if (bakedSource.includes("currentColor") || bakedSource.includes("var(")) {
+    throw new Error("orbit-mark-accent.svg still carries an unresolved colour after baking")
+  }
+
+  const trimmed = await sharp(Buffer.from(bakedSource))
+    .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer()
+
+  return sharp(trimmed)
+    .resize({ width: targetWidth, fit: "inside", withoutEnlargement: false })
+    .png()
+    .toBuffer({ resolveWithObject: true })
+}
+
 async function renderAsset(sources, asset) {
-  const source = asset.nativeMark ? sources.mark16 : sources.mark
+  const source = asset.nativeMark ? sources.mark16 : asset.accent ? sources.markAccent : sources.mark
   const background = asset.background ?? { r: 0, g: 0, b: 0, alpha: 0 }
   const canvas = sharp({
     create: {
@@ -160,7 +192,9 @@ async function renderAsset(sources, asset) {
   }
 
   const targetWidth = Math.round(asset.width * asset.scale)
-  const { data: mark, info } = await renderTrimmedMark(source, asset.ink, targetWidth)
+  const { data: mark, info } = asset.accent
+    ? await renderAccentMark(source, asset.ink, ACCENT, targetWidth)
+    : await renderTrimmedMark(source, asset.ink, targetWidth)
   const left = Math.floor((asset.width - info.width) / 2)
   const top = Math.floor((asset.height - info.height) / 2)
 
@@ -174,9 +208,14 @@ async function main() {
   const sources = {
     mark: await readFile(markPath, "utf8"),
     mark16: await readFile(mark16Path, "utf8"),
+    markAccent: await readFile(markAccentPath, "utf8"),
   }
   assertCanonicalSource(sources.mark, "orbit-mark.svg")
   assertCanonicalSource(sources.mark16, "orbit-mark-16.svg")
+  assertCanonicalSource(sources.markAccent, "orbit-mark-accent.svg")
+  if (!sources.markAccent.includes("var(--primary, currentColor)")) {
+    throw new Error("orbit-mark-accent.svg must carry the accent moon as var(--primary, currentColor)")
+  }
 
   for (const asset of generatedAssets) {
     const outputPath = join(repositoryRoot, ...asset.path.split("/"))
@@ -185,7 +224,7 @@ async function main() {
   }
 
   console.log(
-    `generated ${generatedAssets.length} brand assets from design/brand/orbit-mark.svg and orbit-mark-16.svg`,
+    `generated ${generatedAssets.length} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
   )
 }
 
