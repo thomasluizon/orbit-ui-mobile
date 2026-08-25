@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Sobre" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" tab-bar="{{ tabBar }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:16px;min-width:0">
+
+          <sc-if value="{{ isAbout }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px;min-width:0">
+              <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start;min-width:0">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n48 }}" hint-size="48px,48px"></x-import>
+                <p translate="no" style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-0.02em">Orbit</p>
+                <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty;max-width:38ch">{{ tagline }}</p>
+              </div>
+
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RowList" hint-size="100%,220px">
+                <sc-for list="{{ navRows }}" as="nv" hint-placeholder-count="4">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ nv.label }}" on-click="{{ nv.go }}" hint-size="100%,52px"></x-import>
+                </sc-for>
+              </x-import>
+
+              <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                <sc-for list="{{ facts }}" as="f" hint-placeholder-count="3">
+                  <div style="display:flex;flex-wrap:wrap;gap:4px 12px;min-width:0">
+                    <span style="flex:1 1 auto;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-3)">{{ f.label }}</span>
+                    <span data-mock="true" style="flex:0 1 auto;min-width:0;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-2);overflow-wrap:anywhere">{{ f.value }}</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty;overflow-wrap:anywhere">{{ credit }}</p>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isProse }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;min-width:0">
+              <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ proseTitle }}</p>
+                <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ proseUpdated }}</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:24px;min-width:0;max-width:62ch">
+                <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="4">
+                  <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                    <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty">{{ sec.head }}</p>
+                    <p style="font-size:16px;line-height:1.6;color:var(--fg-2);text-wrap:pretty">{{ sec.body }}</p>
+                  </div>
+                </sc-for>
+              </div>
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ proseNote }}</p>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSupport }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;min-width:0">
+              {{ supportBody }}
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px;max-width:620px;min-width:0">
+
+            <sc-if value="{{ isAbout }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:24px;min-width:0">
+                <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start;min-width:0">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n48 }}" hint-size="48px,48px"></x-import>
+                  <p translate="no" style="font-family:var(--font-display);font-size:34px;line-height:1.12;font-weight:600;letter-spacing:-0.02em">Orbit</p>
+                  <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty;max-width:46ch">{{ tagline }}</p>
+                </div>
+
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RowList" hint-size="100%,220px">
+                  <sc-for list="{{ navRows }}" as="nv" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ nv.label }}" on-click="{{ nv.go }}" hint-size="100%,52px"></x-import>
+                  </sc-for>
+                </x-import>
+
+                <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                  <sc-for list="{{ facts }}" as="f" hint-placeholder-count="3">
+                    <div style="display:flex;flex-wrap:wrap;gap:4px 12px;min-width:0">
+                      <span style="flex:1 1 auto;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-3)">{{ f.label }}</span>
+                      <span data-mock="true" style="flex:0 1 auto;min-width:0;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-2);overflow-wrap:anywhere">{{ f.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ credit }}</p>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isProse }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:24px;min-width:0">
+                <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                  <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ proseTitle }}</p>
+                  <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ proseUpdated }}</p>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:24px;min-width:0;max-width:62ch">
+                  <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="4">
+                    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                      <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty">{{ sec.head }}</p>
+                      <p style="font-size:16px;line-height:1.6;color:var(--fg-2);text-wrap:pretty">{{ sec.body }}</p>
+                    </div>
+                  </sc-for>
+                </div>
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ proseNote }}</p>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isSupport }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:24px;min-width:0;max-width:520px">
+                {{ supportBody }}
+              </div>
+            </sc-if>
+
+          </div>
+        </x-import>
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Four static screens in the new canon: about, privacy, terms and support. Same purpose as the ones they replace, same order of entry, redrawn on the current tokens and the current shell.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>about, guide, privacy, terms, support, support invalid, support sending, support sent, support failed, support offline. Portuguese is the longer locale, so every one was read at 412 in Portuguese first and in English second. NO plan axis: nothing on these four screens is gated, and the terms page naming Pro is a description of billing rather than a gate, so the absent switch is a decision.</p>
+      <p><span style="color:var(--fg-3)">clipping&nbsp;&nbsp;</span>the inherited defect was the about screen clipping horizontally at 412 in Portuguese, in both themes, and it is fixed by structure rather than by shortening the strings. Every label and value pair wraps rather than competing for one line: the row is a wrapping flex, the label takes the remaining space with a zero min width, the value may fall to its own line, and long unbroken values break inside a word rather than pushing the row wider. The name and the version are stacked rather than inline, and every column in the tree declares a zero min width, so no descendant can force the scroller wider than the shell.</p>
+      <p><span style="color:var(--fg-3)">labels&nbsp;&nbsp;</span>the about screen’s navigation labels and their order are load bearing, and the order comes from the shipping code: apps/web/app/(app)/about/page.tsx:58-63 and apps/mobile/app/about.tsx:63-68 both ship feature guide, support, terms, privacy, and this canvas now draws all four in that order. An earlier pass dropped the feature guide row claiming D69 deleted it; D69 does not mention the feature guide. Its item 17 deletes the onboarding TOUR, the preference quiz and the goal survey, and the guide is none of those: it is About’s own drawer, opened from About’s first row on both platforms (page.tsx:84; about.tsx:87). The claim was FALSE and the row is back, first. Nothing was added beside the four, because an invented row here is a promise the product would have to keep.</p>
+      <p><span style="color:var(--fg-3)">guide&nbsp;&nbsp;</span>the drawer itself (feature-guide-drawer.tsx) is a Sheet holding a scrolling strip of eight subject chips (:17-26) and, under the chosen one, a list of entries, each a heading and a short paragraph (:160-190); this fixture draws each subject’s first two. The eight subjects here against the shipping eight (astra, connect, habits, goals, calendar, rewards, settings, notifications): Hábitos, Astra, Conectar, Metas, Calendario and Recompensas are the six shipping subjects under their product names, restored after an earlier pass invented its own list and lost two whose surfaces are alive. Conectar covers what Perfil draws today, the API keys behind a fresh sign in and the MCP connection (advanced/page.tsx:81-110), the product’s only integration. Recompensas covers what Thomas ruled survives on 2026-08-20: XP and levels, achievements grouped by category in Progresso, and the streak, whose freeze entry says what D69 made it, a repair the person performs, never the deleted automatic one. The two shipping subjects NOT drawn are decisions: settings is out because Perfil now draws every setting as a labelled row with its reason in place, so a guide entry would restate rows that explain themselves; notifications is RENAMED Lembretes, because the subject’s live content is the reminder system and reminders are what a person looks up, while Avisos’ own rows carry their meaning in place. Widget is ADDED in their room: the one surface with no in-app chrome to explain itself, and its entry defers to the widget document as the authority. Its second entry states the widget NEVER logs: every surface but the refresh is wired to one intent that opens Orbit at the day (OrbitWidgetProvider.kt:150-155, :148; Thomas 2026-08-20, no undo in a pocket), correcting a false claim an earlier pass drew here that contradicted that document. Three entries the shipping guide holds stay out with their deleted surfaces: insights and the retrospective (:97-98), and the calendar colours entry (:84), since colour as data is dead.</p>
+      <p><span style="color:var(--fg-3)">facts&nbsp;&nbsp;</span>the app shows the VERSION and nothing else: about/page.tsx:54 renders it from packageJson.version, and apps/mobile/app/about.tsx:33 reads Constants.expoConfig?.version. There is no build number on either platform, so the build line this canvas used to draw is deleted. The account line is an ADDITION beyond the shipping screen, kept because the value is real: it is the profile’s own email, the same field Perfil shows.</p>
+      <p><span style="color:var(--fg-3)">prose&nbsp;&nbsp;</span>privacy and terms are the same layout: a title, the date it changed, then sections of a heading and a short paragraph each, capped near 62 characters. The wording here states only what the product demonstrably does and is not the final legal text; the layout is the deliverable and the copy is the lawyers'.</p>
+      <p><span style="color:var(--fg-3)">support&nbsp;&nbsp;</span>a form, so it ships the full control set rather than only its resting state: the subject picker and the message field in default, focused, filled, invalid and disabled, the account field disabled with the reason beside it rather than silently greyed, the submit in default, disabled while the form is short of what it needs, and loading while it sends. Errors sit next to the field they belong to and state the fix. The DRAFT SURVIVES LEAVING: the app writes the subject and the message to the device on every keystroke (support/page.tsx:46-54), restores them when the screen opens (:23-39), and clears them only on a successful send (:75), so a returning person finds their words still there; this canvas keeps the words across its own navigation the same way, and the report’s worst outcome, losing a support message, is covered even by closing the screen. Offline refuses the send (support/page.tsx:57, the imported offline state at :10): the send is disabled with its reason beside it, the way Entrar draws its own, and the reason says the words stay on the device. The four subjects write into a plain string: the API takes subject as free text (buildSupportRequestBody:30) and the app ships it from a text field (support-form.tsx:44-50), so the options here are authored phrasings of that same string and the API has no categories.</p>
+      <p><span style="color:var(--fg-3)">success&nbsp;&nbsp;</span>designed rather than a toast, matching support-success-state.tsx: a check, one heading, one line saying where the answer arrives, and one quiet action back. NO reference number: sendSupportMessage returns nothing the screen reads (support/page.tsx:71), so the protocol line an earlier pass drew was an invention and is deleted. It states a working day rather than a time, because no endpoint promises one.</p>
+      <p><span style="color:var(--fg-3)">failure&nbsp;&nbsp;</span>a send that fails keeps every word the person typed, says nothing was sent, and offers the retry. Losing a support message to a failed request is the worst outcome this screen has, so the text is never cleared on error.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>at most one filled action per state: the submit on the form, the retry on a failure, none at all on the three read only screens, which is correct for pages that ask nothing. Current position is the focused field ring. Wide keeps the sidebar create as the one filled action, so the submit steps down to the neutral fill there.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. status-bad carries the field errors, paired with a dot and a sentence. The version and the reference sit at fg-2 in mono, above fg-3, because they are values a person may need to read aloud.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the version, the account email and the date each document changed carry data-mock. The build and the support reference are gone, because neither has a producer.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 nothing clips or scrolls sideways at 412 in Portuguese, in either theme. 2 the about navigation labels and their order match the shipping files. 3 the form holds every state it can be in, and the success is a designed state rather than a toast.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 the subject picker is RadioRow, which is the system’s one single choice row, so that is a statement of what the picker is rather than a workaround. 2 closed: the message field is Input with multiline and six rows, exactly what the app uses (support-form.tsx:57-58), and its error rides the component’s own message treatment; the hand built textarea is deleted. 3 there is no prose or document component, so the two legal screens are composed from headings and paragraphs at a measured cap. 4 there is no chip strip control in the system, so the guide’s subject chips are composed pills inside the Sheet. The mirrored bundle was checked before use and already carried Input’s multiline, rows, marks and marksLabel from this run’s earlier re-sync, so nothing was re-synced and nothing was worked around.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether support should attach the app version and build automatically, which the form does not currently claim to do.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    account: 'Marina', create: 'Criar hábito', back: 'Voltar',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    titles: { about: 'Sobre', privacy: 'Privacidade', terms: 'Termos', support: 'Suporte' },
+    tagline: 'Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.',
+    /* Load bearing: the shipping order is feature guide, support, terms, privacy
+       (apps/web/app/(app)/about/page.tsx:58-63 and :84; apps/mobile/app/about.tsx:63-68 and :87). */
+    nav: [
+      { id: 'guide', label: 'Guia do Orbit' },
+      { id: 'support', label: 'Falar com o suporte' },
+      { id: 'terms', label: 'Termos de uso' },
+      { id: 'privacy', label: 'Política de privacidade' },
+    ],
+    guideTitle: 'Guia do Orbit',
+    guideSubjects: ['Hábitos', 'Astra', 'Conectar', 'Metas', 'Calendario', 'Recompensas', 'Lembretes', 'Widget'],
+    guideEntries: [
+      [['O anel registra', 'Um toque no anel marca o hábito como feito, na hora, sem esperar nada. Tocar de novo desfaz.'],
+       ['Criar é uma frase', 'Escreva o hábito com as suas palavras e o Orbit lê os dias e a hora na própria frase.']],
+      [['Uma camada, não uma aba', 'O Astra vive na barra de conversa, em toda tela principal, e abre a conversa inteira dali.'],
+       ['Mensagens do dia', 'Falar com o Astra usa as mensagens do dia. Registrar hábitos nunca usa.']],
+      [['Assistentes de fora', 'Com uma chave ativa num cliente MCP, um assistente de fora lê e altera os seus hábitos por você.'],
+       ['Chaves no Perfil', 'As chaves de API nascem no Perfil, atrás de uma nova entrada, e cada uma pode ser revogada.']],
+      [['Onde vivem', 'As metas moram no Progresso e nascem de um hábito ou de um pedido ao Astra.'],
+       ['Ligadas aos hábitos', 'Um hábito ligado a uma meta soma nela a cada registro.']],
+      [['Quatro visões', 'Dia, semana, mês e agenda mostram os mesmos registros de quatro jeitos.'],
+       ['Eventos de fora', 'Com a sincronização de calendário, os eventos dos seus calendários aparecem junto dos hábitos.']],
+      [['XP e níveis', 'Registrar rende XP e o nível sobe com a constância. As conquistas moram no Progresso, por categoria.'],
+       ['Proteger uma sequência', 'Um congelamento é um reparo que você faz: ele marca um dia perdido e a sequência segue.']],
+      [['Dois tipos', 'Um hábito com hora marcada lembra contando para trás dela. Sem hora, os lembretes são horários fixos.'],
+       ['Cada hábito guarda os seus', 'Os lembretes ficam no próprio hábito, e é lá que eles mudam.']],
+      [['O dia na tela inicial', 'O widget do Android mostra os hábitos de hoje na tela inicial do aparelho.'],
+       ['Um toque abre o Orbit', 'O widget nunca registra: tocar em qualquer lugar abre o Orbit no hábito. Sem desfazer no bolso, nada é escrito por engano.']],
+    ],
+    facts: [
+      { label: 'Versão', value: '2.4.0' },
+      { label: 'Conta', value: 'marina@exemplo.com' },
+    ],
+    credit: 'Orbit e Astra são nomes próprios e não são traduzidos.',
+    updated: (d) => 'Atualizado em ' + d,
+    privacyDate: '17 de agosto de 2026',
+    termsDate: '17 de agosto de 2026',
+    privacy: [
+      { head: 'O que guardamos', body: 'Os seus hábitos, os seus registros, as suas metas e as configurações da sua conta. Nada disso é vendido e nada disso é usado para anúncios.' },
+      { head: 'O que o Astra recebe', body: 'Quando você fala com o Astra, o texto da conversa e os hábitos que ele precisa ler são enviados ao provedor do modelo para responder. O resto da sua conta não vai.' },
+      { head: 'Quem mais vê', body: 'Ninguém. Não existe camada social no Orbit, e não há como outra pessoa ver a sua lista.' },
+      { head: 'Apagar os seus dados', body: 'Apagar a conta no Perfil remove os hábitos, os registros e as metas. Não há como restaurar depois disso.' },
+      { head: 'Contato', body: 'Dúvidas sobre privacidade vão pelo suporte, e a resposta vem por email.' },
+    ],
+    terms: [
+      { head: 'O que você recebe', body: 'Uma licença de uso pessoal do Orbit, no plano grátis ou no Pro, enquanto a sua conta existir.' },
+      { head: 'O que esperamos de você', body: 'Usar a sua própria conta, não tentar contornar os limites do serviço e não usar o Orbit para nada ilegal.' },
+      { head: 'Cobrança', body: 'O Pro é cobrado pelo provedor de pagamento, no período que você escolher, e pode ser cancelado por lá a qualquer momento.' },
+      { head: 'Limites do serviço', body: 'O Orbit não é um serviço de saúde e não substitui orientação profissional.' },
+      { head: 'Mudanças', body: 'Se estes termos mudarem, avisamos no app antes de valerem.' },
+    ],
+    proseNote: 'Este texto descreve o que o produto faz hoje. A versão final é a jurídica.',
+    supportIntro: 'Conte o que aconteceu. Quanto mais concreto, mais rápido a gente resolve.',
+    subjectLabel: 'Sobre o que é',
+    subjects: [
+      { id: 'bug', label: 'Algo não funciona', desc: 'Uma tela, um registro ou uma sincronização.' },
+      { id: 'billing', label: 'Cobrança ou plano', desc: 'Valores, troca de plano ou cancelamento.' },
+      { id: 'account', label: 'Conta e acesso', desc: 'Entrar, código de verificação ou apagar a conta.' },
+      { id: 'other', label: 'Outro assunto', desc: 'Sugestões e o que não couber acima.' },
+    ],
+    messageLabel: 'O que aconteceu',
+    messagePlaceholder: 'Registrei a caminhada e ela voltou para pendente depois de fechar o app.',
+    messageError: 'Escreva pelo menos uma frase sobre o que aconteceu.',
+    subjectError: 'Escolha um assunto para a gente encaminhar certo.',
+    emailLabel: 'Resposta para',
+    emailDisabledReason: 'Gerido pela sua conta. Para mudar, troque o email no Perfil.',
+    send: 'Enviar', sending: 'Enviando',
+    sentTitle: 'A sua mensagem chegou',
+    sentBody: 'A resposta vai para marina@exemplo.com em até um dia útil.',
+    sentBack: 'Voltar para Sobre',
+    offlineReason: 'Sem conexão. A mensagem sai quando a conexão voltar, e o que você escreveu fica guardado neste aparelho.',
+    failTitle: 'A mensagem não foi enviada',
+    failBody: 'O que você escreveu continua aqui. Tente de novo quando quiser.',
+    retry: 'Tentar de novo',
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
+    account: 'Marina', create: 'Create habit', back: 'Back',
+    navLabel: 'Main navigation', palette: 'Search',
+    titles: { about: 'About', privacy: 'Privacy', terms: 'Terms', support: 'Support' },
+    tagline: 'An AI that tracks habits, for people who cannot keep a routine.',
+    nav: [
+      { id: 'guide', label: 'Orbit guide' },
+      { id: 'support', label: 'Contact support' },
+      { id: 'terms', label: 'Terms of use' },
+      { id: 'privacy', label: 'Privacy policy' },
+    ],
+    guideTitle: 'Orbit guide',
+    guideSubjects: ['Habits', 'Astra', 'Connect', 'Goals', 'Calendar', 'Rewards', 'Reminders', 'Widget'],
+    guideEntries: [
+      [['The ring logs', 'One tap on the ring marks the habit done, instantly, waiting on nothing. Tapping again undoes it.'],
+       ['Creation is a sentence', 'Write the habit in your own words and Orbit reads the days and the time out of the sentence.']],
+      [['A layer, not a tab', 'Astra lives in the conversation bar on every main screen, and the full conversation opens from there.'],
+       ['The day\u2019s messages', 'Talking to Astra spends the day\u2019s messages. Logging habits never does.']],
+      [['Outside assistants', 'With an active key in an MCP client, an outside assistant reads and changes your habits for you.'],
+       ['Keys live in Profile', 'API keys are made in Profile, behind a fresh sign in, and each one can be revoked.']],
+      [['Where they live', 'Goals live in Progress and are made from a habit or by asking Astra.'],
+       ['Linked to habits', 'A habit linked to a goal counts into it with every log.']],
+      [['Four views', 'Day, week, month and agenda show the same logs four ways.'],
+       ['Events from outside', 'With calendar sync, events from your calendars appear beside the habits.']],
+      [['XP and levels', 'Logging earns XP and the level rises with consistency. Achievements live in Progress, by category.'],
+       ['Protecting a streak', 'A freeze is a repair you perform: it marks one missed day and the streak carries on.']],
+      [['Two kinds', 'A habit with a set time reminds counting back from it. With no time, reminders are fixed clock times.'],
+       ['Each habit keeps its own', 'Reminders live on the habit itself, and that is where they change.']],
+      [['The day on the home screen', 'The Android widget shows today\u2019s habits on the device\u2019s home screen.'],
+       ['A tap opens Orbit', 'The widget never logs: tapping anywhere opens Orbit at that habit. With no undo in a pocket, nothing is written by mistake.']],
+    ],
+    facts: [
+      { label: 'Version', value: '2.4.0' },
+      { label: 'Account', value: 'marina@exemplo.com' },
+    ],
+    credit: 'Orbit and Astra are proper names and are never translated.',
+    updated: (d) => 'Updated ' + d,
+    privacyDate: '17 August 2026',
+    termsDate: '17 August 2026',
+    privacy: [
+      { head: 'What we store', body: 'Your habits, your logs, your goals and your account settings. None of it is sold and none of it is used for advertising.' },
+      { head: 'What Astra receives', body: 'When you talk to Astra, the conversation text and the habits it needs to read are sent to the model provider to answer. The rest of your account is not.' },
+      { head: 'Who else sees it', body: 'Nobody. There is no social layer in Orbit, and there is no way for another person to see your list.' },
+      { head: 'Deleting your data', body: 'Deleting the account in Profile removes the habits, the logs and the goals. There is no way to restore it afterwards.' },
+      { head: 'Contact', body: 'Privacy questions go through support, and the answer comes by email.' },
+    ],
+    terms: [
+      { head: 'What you get', body: 'A personal licence to use Orbit, on the free plan or on Pro, for as long as your account exists.' },
+      { head: 'What we expect', body: 'Use your own account, do not work around the limits of the service, and do not use Orbit for anything illegal.' },
+      { head: 'Billing', body: 'Pro is charged by the payment provider, for the period you choose, and can be cancelled there at any time.' },
+      { head: 'Limits of the service', body: 'Orbit is not a health service and does not replace professional advice.' },
+      { head: 'Changes', body: 'If these terms change, we tell you in the app before they apply.' },
+    ],
+    proseNote: 'This text describes what the product does today. The final wording is the legal one.',
+    supportIntro: 'Tell us what happened. The more concrete it is, the faster we can fix it.',
+    subjectLabel: 'What is it about',
+    subjects: [
+      { id: 'bug', label: 'Something does not work', desc: 'A screen, a log or a sync.' },
+      { id: 'billing', label: 'Billing or plan', desc: 'Amounts, changing plan or cancelling.' },
+      { id: 'account', label: 'Account and access', desc: 'Signing in, the verification code or deleting the account.' },
+      { id: 'other', label: 'Something else', desc: 'Suggestions and anything not above.' },
+    ],
+    messageLabel: 'What happened',
+    messagePlaceholder: 'I logged the walk and it went back to pending after I closed the app.',
+    messageError: 'Write at least one sentence about what happened.',
+    subjectError: 'Pick a subject so we can route it properly.',
+    emailLabel: 'Reply to',
+    emailDisabledReason: 'Managed by your account. To change it, change the email in Profile.',
+    send: 'Send', sending: 'Sending',
+    sentTitle: 'Your message arrived',
+    sentBody: 'The answer goes to marina@exemplo.com within one working day.',
+    sentBack: 'Back to About',
+    offlineReason: 'No connection. The message goes out when the connection comes back, and what you wrote stays on this device.',
+    failTitle: 'The message was not sent',
+    failBody: 'What you wrote is still here. Try again whenever you like.',
+    retry: 'Try again',
+  },
+};
+
+const PROSE = { privacy: true, terms: true };
+const SUPPORT_STATES = ['support', 'support invalid', 'support sending', 'support sent',
+  'support failed', 'support offline'];
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'about', loc: 'pt-BR',
+    page: 'about', subject: null, message: null, sendState: null,
+    guideOpen: false, guideSubject: 0 };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => {
+    const st = next.state;
+    const page = SUPPORT_STATES.indexOf(st) >= 0 ? 'support' : st;
+    const send = st === 'support sending' ? 'sending' : st === 'support sent' ? 'sent'
+      : st === 'support failed' ? 'failed' : null;
+    this.setState({ mode: next.mode, width: next.width, st: st, loc: next.locale,
+      page: st === 'guide' ? 'about' : page, sendState: send,
+      guideOpen: st === 'guide', guideSubject: 0,
+      subject: st === 'support invalid' ? null : (st === 'support' ? null : 'bug'),
+      message: st === 'support invalid' ? '' : (st === 'support' ? null : undefined) });
+  };
+
+  /* The feature guide: About's own drawer (feature-guide-drawer.tsx), a Sheet holding a scrolling
+     strip of eight subject chips (:17-26) and, under the chosen one, entries of a heading and a
+     short paragraph (:160-190). The D69-deleted entries are gone with their surfaces: insights and
+     the retrospective (:97-98), and the calendar colours entry (:84), because colour as data is dead. */
+  guideSheet(t, D) {
+    const s = this.state;
+    const gi = s.guideSubject || 0;
+    return H(D.Sheet, { open: true, title: t.guideTitle, onClose: () => this.setState({ guideOpen: false }) },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 } },
+        H('div', { role: 'group', 'aria-label': t.guideTitle, style: { display: 'flex', gap: 8,
+          overflowX: 'auto', marginInline: -24, paddingInline: 24, paddingBottom: 4 } },
+          t.guideSubjects.map((sub, i) => {
+            const on = i === gi;
+            return H('button', { key: i, type: 'button', 'aria-pressed': on,
+              onClick: () => this.setState({ guideSubject: i }),
+              style: { height: 44, paddingInline: 14, flex: '0 0 auto', borderRadius: 'var(--r-pill)',
+                border: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)',
+                fontWeight: 500, whiteSpace: 'nowrap',
+                background: on ? 'var(--primary-dim)' : 'var(--bg-well)',
+                color: on ? 'var(--fg-1)' : 'var(--fg-2)',
+                boxShadow: on ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' } }, sub);
+          })),
+        H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+          (t.guideEntries[gi] || []).map((e, i) => H('div', { key: i, style: { display: 'flex',
+            flexDirection: 'column', gap: 4 } },
+            H('p', { style: { fontSize: 17, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' } }, e[0]),
+            H('p', { style: { fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-2)',
+              textWrap: 'pretty', maxWidth: '58ch' } }, e[1]))))));
+  }
+
+  supportNode(t, D, filled) {
+    const s = this.state;
+    const invalid = s.st === 'support invalid';
+    const offline = s.st === 'support offline';
+    const send = s.sendState;
+    const subject = s.subject;
+    /* The draft survives leaving the screen: the app writes subject and message to the device on
+       every keystroke (support/page.tsx:46-54), restores them on open (:23-39) and clears them only
+       on a successful send (:75). Here the words live in this document's state the same way. */
+    const message = s.message !== undefined && s.message !== null ? s.message
+      : ((send || offline) ? t.messagePlaceholder : '');
+
+    if (send === 'sent') {
+      return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16,
+        alignItems: 'flex-start' } },
+        H('span', { 'aria-hidden': 'true', style: { width: 44, height: 44, display: 'grid',
+          placeItems: 'center', borderRadius: 'var(--r-pill)', background: 'var(--fg-1)',
+          color: 'var(--bg)' } }, H(D.Icon, { name: 'check', size: 24 })),
+        H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2,
+          fontWeight: 500, letterSpacing: '-0.02em', textWrap: 'pretty' } }, t.sentTitle),
+        H('p', { style: { fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-2)',
+          textWrap: 'pretty', overflowWrap: 'anywhere' } }, t.sentBody),
+        H(D.Button, { variant: 'ghost', onClick: () => this.setState({ page: 'about', sendState: null }) },
+          t.sentBack));
+    }
+
+    const field = (label, node, error, hint) => H('div', { style: { display: 'flex',
+      flexDirection: 'column', gap: 6, minWidth: 0 } },
+      H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, label),
+      node,
+      error ? H('p', { style: { display: 'flex', alignItems: 'flex-start', gap: 6,
+        fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--status-bad)', textWrap: 'pretty' } },
+        H('span', { 'aria-hidden': 'true', style: { flex: '0 0 auto', width: 14, height: 14,
+          marginTop: 4, borderRadius: 'var(--r-pill)', background: 'var(--status-bad)' } }),
+        H('span', { style: { flex: 1, minWidth: 0 } }, error)) : null,
+      !error && hint ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5,
+        color: 'var(--fg-3)', textWrap: 'pretty' } }, hint) : null);
+
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 } },
+      H('p', { style: { fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-2)',
+        textWrap: 'pretty' } }, t.supportIntro),
+
+      send === 'failed' ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8,
+        padding: 16, background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+        H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.4, fontWeight: 500 } }, t.failTitle),
+        H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)',
+          textWrap: 'pretty' } }, t.failBody)) : null,
+
+      field(t.subjectLabel,
+        H(D.RowList, null, t.subjects.map((sub) => H(D.RadioRow, { key: sub.id, label: sub.label,
+          description: sub.desc, selected: subject === sub.id,
+          onSelect: () => this.setState({ subject: sub.id }) }))),
+        invalid && !subject ? t.subjectError : null),
+
+      /* The system field: multiline with six rows, exactly what the app uses (support-form.tsx:57-58). */
+      H(D.Input, { label: t.messageLabel, multiline: true, rows: 6, value: message,
+        onChange: (e) => this.setState({ message: e.target.value }),
+        placeholder: t.messagePlaceholder, disabled: send === 'sending',
+        error: (invalid && !message.length) ? t.messageError : undefined }),
+
+      /* A disabled control carries its reason beside it rather than being silently grey. */
+      H(D.Input, { label: t.emailLabel, value: 'marina@exemplo.com', disabled: true,
+        hint: t.emailDisabledReason, onChange: () => {} }),
+
+      /* Offline refuses the send (support/page.tsx:57, the state at :10): disabled with its reason
+         beside it, the way Entrar draws its own. */
+      offline ? H('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: 12,
+        background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+        H('span', { 'aria-hidden': 'true', style: { flex: '0 0 auto', display: 'grid',
+          placeItems: 'center', width: 20, height: 20, color: 'var(--fg-4)' } },
+          H(D.Icon, { name: 'wifi-off', size: 20 })),
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', lineHeight: 1.5,
+          color: 'var(--fg-2)', textWrap: 'pretty' } }, t.offlineReason)) : null,
+
+      H('div', { style: { display: 'flex' } },
+        send === 'failed'
+          ? H(D.Button, { variant: filled, onClick: () => this.setState({ sendState: 'sending' }),
+              style: { width: '100%' } }, t.retry)
+          : H(D.Button, { variant: filled, loading: send === 'sending',
+              disabled: send === 'sending' || offline || !subject || !message.length,
+              onClick: () => this.setState({ sendState: 'sent' }),
+              style: { width: '100%' } }, send === 'sending' ? t.sending : t.send)));
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const page = s.page || 'about';
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: s.st, locale: s.loc },
+      stateAxis: ['about', 'guide', 'privacy', 'terms', 'support', 'support invalid',
+        'support sending', 'support sent', 'support failed', 'support offline'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n48: 48, noop: () => {},
+      showReport: this.props.showReport !== false,
+      tagline: t.tagline, credit: t.credit, proseNote: t.proseNote,
+      account: t.account, createLabel: t.create, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+    const isProse = !!PROSE[page];
+
+    return Object.assign(base, {
+      isAbout: page === 'about', isProse: isProse, isSupport: page === 'support',
+      navRows: t.nav.map((n) => ({ label: n.label,
+        go: () => n.id === 'guide'
+          ? this.setState({ guideOpen: true, guideSubject: 0 })
+          : this.setState({ page: n.id, sendState: null }) })),
+      sheet: s.guideOpen ? this.guideSheet(t, D) : null,
+      facts: t.facts,
+      proseTitle: page === 'privacy' ? t.nav[2].label : t.nav[1].label,
+      proseUpdated: t.updated(page === 'privacy' ? t.privacyDate : t.termsDate),
+      sections: page === 'privacy' ? t.privacy : t.terms,
+      supportBody: this.supportNode(t, D, filled),
+
+      header: H('div', { style: { display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 16px 8px 8px', boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.back,
+          onClick: () => this.setState({ page: 'about', sendState: null }),
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+          H(D.Icon, { name: 'arrow-left', size: 20 })),
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, t.titles[page])),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'perfil', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>

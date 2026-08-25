@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Perfil" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ notice }}" composer="{{ composer }}" sheets="{{ sheet }}" hint-size="412px,900px">
+        <div style="display:flex;flex-direction:column;gap:32px;padding:16px">
+          <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n8 }}" label="{{ loadingLabel }}" hint-size="100%,420px"></x-import>
+          </sc-if>
+          <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">{{ body }}</sc-if>
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,900px">
+          <div style="display:flex;flex-direction:column;gap:32px;max-width:560px">
+            <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n8 }}" label="{{ loadingLabel }}" hint-size="100%,420px"></x-import>
+            </sc-if>
+            <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">{{ body }}</sc-if>
+          </div>
+        </x-import>
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Perfil exists to change one setting and get out. Five headings: you, Astra, notifications, more of Orbit, and an ending heading at the bottom for the things that end something. It is still not a profile page: no avatar, no bio, no stats, and no home for anything that belongs on another screen. The fourth group is routes only, because PROFILE_NAV_ITEMS (profile-navigation.ts) is the app's own list of where Perfil goes: preferences and ai-settings folded into this screen, achievements went to Progresso (D69 item 8), the retrospective into Astra's line (D69 item 12), and the remaining four, Wrapped, about, the Android widget and calendar sync, were dead ends in this project until this group.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, email never asked, email on, email off, allowance spent, exporting, step up, step up done, keys none, fresh start, delete, loading. A plan axis sits beside the state, free or Pro, defaulting to free: a plan is an account fact that survives a state change, so free and pro came OFF the state axis in the same edit that added it. Reached by using the screen rather than the axis: the rename sheet from the account row, the revoke confirmation from a key's own action, the scoped create from its button, and the export's preparing beat from the row itself.</p>
+      <p><span style="color:var(--fg-3)">you&nbsp;&nbsp;</span>the account row carries the display name, opens the rename (edit-name-sheet.tsx, opened from profile-identity-header.tsx:53) and states the address under it: the name is editable in the app and nothing decided otherwise, so the earlier "no display name" line in this report was wrong and is gone. Then the settings that drive every dated screen: timezone and the 24 hour clock (profile.ts:23 and :24, both real writable fields), week start, language. Theme is a real setting (themePreference, profile.ts:50, written through /api/profile/theme-preference, endpoints.ts:24) with exactly two values, themeModeSchema = z.enum(['dark','light']) (profile.ts:131), so it is drawn as a two way choice with no system option, and choosing one turns the screen itself. colorScheme (profile.ts:51) stays deleted: two modes, no hue. Show general habits on Hoje is the real switch at preference-settings-list.tsx:91 with its description. Export my data (use-data-export.ts, profile-account-actions.tsx:36) sits last in the group with its preparing state drawn, and a done toast in the shell's notice slot; the composer chip stopped being the only way to reach it.</p>
+      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>the daily allowance with its remainder, a bar over the day's count, 5 on free against 50 on Pro (D70 item 1). It never states when the allowance returns, because no endpoint returns that moment. Free carries see Pro, which leaves for Orbit Pro; Pro carries no upgrade action, since there is nothing above it, and gets the billing hand off instead, which leaves for Orbit Assinatura: billing is NOT a step up, because the Stripe customer portal authenticates the person itself. Then the two things Astra does unasked, each labelled for its on state.</p>
+      <p><span style="color:var(--fg-3)">keys&nbsp;&nbsp;</span>the section matches advanced/page.tsx:81-110. The heading carries the Pro badge on both sides. A free account sees the section's description and a lock row that ROUTES to the upgrade and nothing else, so the step up is only ever reached on Pro. A Pro account reaches the step up first (keys and account deletion are the only two step up operations; StepUp structurally cannot hold a credential field), and after it the list: each key a row with its name, its mono prefix and a REVOKE through ListRow's real per-row action with its own confirmation, then create and scoped create, and the MCP connection line under them. The exact scope vocabulary and the MCP snippet are the app's own, so the scoped create takes the scope as text and the MCP line names where the key goes without inventing an endpoint.</p>
+      <p><span style="color:var(--fg-3)">notifications&nbsp;&nbsp;</span>one per user field, the product email consent, nullable (profile.ts:71), so never asked is a real third state and renders as a question with two answers rather than a toggle resting in a default nobody chose. Everything else is a per device push registration capped at 5, so the group states the count against the cap and names the device in hand. Each habit's reminders live on the habit, and the group says so instead of drawing a global toggle with nothing to write to.</p>
+      <p><span style="color:var(--fg-3)">more&nbsp;&nbsp;</span>plain rows, a route and not a home: Orbit Wrapped opens the Wrapped document, about opens Sobre, the Android widget opens its document with the widget hint as the row's description (advanced/page.tsx:71-74), support opens the conversation, because support runs through Astra's send_support_request tool, and calendar sync (D70 item 4) follows the plan: the Pro badge and the upgrade route on free, the sync boundary that Orbit Calendario already draws on Pro. Three documents in this project stopped being unreachable when this group landed.</p>
+      <p><span style="color:var(--fg-3)">ending&nbsp;&nbsp;</span>sign out leaves for Entrar. Fresh start (fresh-start-modal.tsx, profile-account-actions.tsx:54) ends something without ending the account, so it sits under this heading above delete, with its own confirmation naming what it clears and what stays. Delete account keeps the status-bad label, the last position, and one confirmation that says there is no way back rather than implying one.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Three gates draw from both sides: the allowance panel, the keys section and the calendar sync row. Every gated tap leaves for Orbit Pro through one route; a gated affordance is never a disabled row and never a silent no-op. The state axis jumped to a key state on a free account shows the lock row, because that is all a free account can reach.</p>
+      <p><span style="color:var(--fg-3)">toggles&nbsp;&nbsp;</span>a switch is labelled for its on state, so the label reads as what happens when it is on and never as a negation. Nothing here has to be mentally inverted.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Group gap 32 against in-group 12, which is what makes five headings read as five groups. Rows keep 16 of inline padding and a 44 minimum.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells, 20 on the groups and the allowance panel, 28 on the shell and the sheet, 8 on badges, 999 on everything interactive, the theme pills included.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position on the Perfil tab, on a switch that is on and on the selected theme pill; unfinished progress on the allowance bar, which turns neutral when the day's count is spent. Exactly one filled action at a time: the consent answer while the question is unanswered, the confirmation once one is open; the key actions stay neutral, and StepUp owns its one accent action by its own rule. Wide: the sidebar create is the one filled action, so everything else steps down.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. status-bad carries the delete label and the revoke action's icon, each paired with position and a word, never colour alone. The mono values sit at fg-3, which clears every resting surface and touches the known 4.40:1 hover limit only under the pointer.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the allowance count and ceiling, the device count and cap, the key prefixes, the address, and the setting values in the you group.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 nothing here is a setting the product cannot write, and every claim traces to a field or a file. 2 the destructive actions are named, separated and confirmed, and no ordinary row can delete anything. 3 no credential is collected outside a hand off, and no gated tap dies silently.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: this time it already carried ListRow's action and CanvasControls' plans axis, so nothing was re-synced, the second consecutive check that needed none. Still composed around the system: 1 SettingsGroup owns a card surface of its own, so the groups are RowLists with ListRow rows, and the value-plus-control rows (theme, the switches, the devices) are composed padded rows inside them. 2 there is no three state consent control, so never asked is composed from a well and two buttons. 3 there is no two-value choice control for a setting: SegmentedControl is scoped to views of the same content, so the theme choice is two composed pills. 4 the scoped create sheet is composed from Input plus a Sheet, since no key form exists. Closed since last time: the per key revoke rides ListRow's action instead of a hand composed row, and the export toast rides the shells' notice slot.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the device list should allow revoking one registration, which the cap implies but no endpoint exposes. Whether the allowance row should lead to the conversation, since the count is only spendable there. The scope vocabulary for a scoped key and the exact MCP snippet are the app's, so both are taken as text here rather than invented.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const EMAIL = 'marina@exemplo.com';
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    gYou: 'Você', gAstra: 'Astra', gNotif: 'Notificações', gMore: 'Mais do Orbit', gDanger: 'Encerrar',
+    name: 'Marina', renameTitle: 'Mudar o nome', renameLabel: 'Nome', renameGo: 'Pronto',
+    tz: 'Fuso horário', tzValue: 'America/Sao_Paulo',
+    week: 'Semana começa em', weekValue: 'segunda',
+    clock: 'Relógio', clockValue: '24 horas',
+    language: 'Idioma', languageValue: 'Português do Brasil',
+    theme: 'Tema', themeDark: 'Escuro', themeLight: 'Claro',
+    themeOn: (v) => 'Tema ' + v + ', ativo', themeOff: (v) => 'Tema ' + v,
+    showGeneral: 'Hábitos sem dia certo no Hoje',
+    showGeneralDesc: 'Os hábitos sem programação aparecem na lista de hoje.',
+    exportLabel: 'Exportar os meus dados', exportPrep: 'Preparando', exportDone: 'Os seus dados foram baixados.',
+    allowance: 'Mensagens de hoje',
+    used: ' usadas', ofWord: ' de ',
+    spentLine: 'As mensagens de hoje foram usadas. A sua lista continua funcionando sem elas.',
+    plan: 'Plano', planFree: 'Grátis', planPro: 'Pro',
+    seePro: 'Ver o Pro', billing: 'Gerir assinatura',
+    proactive: 'Astra avisa quando algo escapa',
+    summary: 'Resumo do dia pelo Astra',
+    keys: 'Chaves de API e MCP',
+    keysDesc: 'Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.',
+    keysUnlock: 'Liberar com o Pro',
+    keysOpen: 'Abrir as chaves', keysCount: (n) => [mock(n), n === '1' ? ' chave ativa' : ' chaves ativas'],
+    keysNone: 'Nenhuma chave ainda',
+    keyNew: 'Criar chave', keyNewScoped: 'Criar chave com escopo',
+    keyNewName: 'Nova chave',
+    scopeTitle: 'Chave com escopo', scopeLabel: 'Escopo', scopeGo: 'Criar',
+    revoke: (n) => 'Revogar ' + n,
+    revokeTitle: (n) => 'Revogar ' + n + '?',
+    revokeBody: 'O que usa esta chave para de funcionar na hora. Não há como restaurar a chave.',
+    revokeGo: 'Revogar',
+    mcpTitle: 'Conectar por MCP',
+    mcpLine: 'Cole uma chave ativa nas configurações do seu cliente MCP. As instruções completas ficam nesta seção no app.',
+    stepUpBody: 'Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.',
+    stepUpGo: 'Entrar de novo',
+    emailAskTitle: 'Podemos mandar email sobre o produto?',
+    emailAskBody: 'Novidades e mudanças, no máximo uma vez por mês.',
+    emailYes: 'Pode mandar', emailNo: 'Não mandar',
+    emailOn: 'Email sobre o produto',
+    devices: 'Aparelhos com aviso', thisDevice: 'este aparelho',
+    remindersNote: 'Os lembretes de cada hábito ficam no próprio hábito.',
+    wrapped: 'Orbit Wrapped', about: 'Sobre o Orbit',
+    widget: 'Widget do Android', widgetHint: 'Os hábitos de hoje na tela inicial do aparelho.',
+    support: 'Ajuda e suporte', supportDesc: 'A conversa manda o pedido para a equipe.',
+    calSync: 'Sincronizar calendário', calSyncDesc: 'Eventos dos seus calendários aparecem no Calendario.',
+    signOut: 'Sair da conta',
+    fresh: 'Começar de novo',
+    freshTitle: 'Começar de novo?',
+    freshBody: 'Os registros e as sequências voltam ao zero. Os hábitos, as metas e a conta ficam.',
+    freshGo: 'Recomeçar',
+    del: 'Apagar a conta',
+    delTitle: 'Apagar a sua conta?',
+    delBody: 'Os seus hábitos, registros e metas saem do Orbit. Não há como restaurar depois disto.',
+    cancel: 'Cancelar', delConfirm: 'Apagar',
+    loading: 'Carregando',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Mudar o fuso horário', 'Desligar o resumo do dia', 'Ver o meu plano', 'Exportar os meus dados'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
+    deviceNames: ['iPhone de Marina', 'Chrome no Mac'],
+    keyNames: ['Automação da casa', 'Leitura no notebook'],
+  },
+  en: {
+    lang: 'en',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
+    navLabel: 'Main navigation', palette: 'Search',
+    gYou: 'You', gAstra: 'Astra', gNotif: 'Notifications', gMore: 'More of Orbit', gDanger: 'Ending things',
+    name: 'Marina', renameTitle: 'Change the name', renameLabel: 'Name', renameGo: 'Done',
+    tz: 'Timezone', tzValue: 'America/Sao_Paulo',
+    week: 'Week starts on', weekValue: 'Monday',
+    clock: 'Clock', clockValue: '24 hour',
+    language: 'Language', languageValue: 'Brazilian Portuguese',
+    theme: 'Theme', themeDark: 'Dark', themeLight: 'Light',
+    themeOn: (v) => v + ' theme, on', themeOff: (v) => v + ' theme',
+    showGeneral: 'Anytime habits on Today',
+    showGeneralDesc: 'Habits with no schedule show in the Today list.',
+    exportLabel: 'Export my data', exportPrep: 'Preparing', exportDone: 'Your data has been downloaded.',
+    allowance: "Today's messages",
+    used: ' used', ofWord: ' of ',
+    spentLine: "Today's messages have been used. Your list keeps working without them.",
+    plan: 'Plan', planFree: 'Free', planPro: 'Pro',
+    seePro: 'See Pro', billing: 'Manage subscription',
+    proactive: 'Astra tells you when something slips',
+    summary: 'Daily summary from Astra',
+    keys: 'API keys and MCP',
+    keysDesc: 'To connect Orbit to other tools through the API or an MCP client.',
+    keysUnlock: 'Unlock with Pro',
+    keysOpen: 'Open the keys', keysCount: (n) => [mock(n), n === '1' ? ' active key' : ' active keys'],
+    keysNone: 'No keys yet',
+    keyNew: 'Create key', keyNewScoped: 'Create a scoped key',
+    keyNewName: 'New key',
+    scopeTitle: 'Scoped key', scopeLabel: 'Scope', scopeGo: 'Create',
+    revoke: (n) => 'Revoke ' + n,
+    revokeTitle: (n) => 'Revoke ' + n + '?',
+    revokeBody: 'Whatever uses this key stops working right away. There is no way to restore the key.',
+    revokeGo: 'Revoke',
+    mcpTitle: 'Connect over MCP',
+    mcpLine: 'Paste an active key into your MCP client\u2019s settings. The full instructions live in this section in the app.',
+    stepUpBody: 'To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.',
+    stepUpGo: 'Sign in again',
+    emailAskTitle: 'May we email you about the product?',
+    emailAskBody: 'What is new and what changed, once a month at most.',
+    emailYes: 'Yes, email me', emailNo: 'No email',
+    emailOn: 'Product email',
+    devices: 'Devices getting alerts', thisDevice: 'this device',
+    remindersNote: "Each habit's reminders live on the habit itself.",
+    wrapped: 'Orbit Wrapped', about: 'About Orbit',
+    widget: 'Android widget', widgetHint: "Today's habits on the device's home screen.",
+    support: 'Help and support', supportDesc: 'The conversation sends the request to the team.',
+    calSync: 'Calendar sync', calSyncDesc: 'Events from your calendars show on Calendar.',
+    signOut: 'Sign out',
+    fresh: 'Fresh start',
+    freshTitle: 'Start over?',
+    freshBody: 'Logs and streaks go back to zero. Your habits, your goals and your account stay.',
+    freshGo: 'Start over',
+    del: 'Delete account',
+    delTitle: 'Delete your account?',
+    delBody: 'Your habits, logs and goals leave Orbit. There is no way to restore this afterwards.',
+    cancel: 'Cancel', delConfirm: 'Delete',
+    loading: 'Loading',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['Change my timezone', 'Turn off the daily summary', 'See my plan', 'Export my data'],
+    limit: ["Today's ", '5', ' messages have been used.'],
+    deviceNames: ["Marina's iPhone", 'Chrome on Mac'],
+    keyNames: ['Home automation', 'Laptop read access'],
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'default', loc: 'pt-BR', plan: 'free',
+    consent: undefined, proactive: true, summary: true, confirm: false, freshAsk: false, stepUp: null,
+    name: null, renameOpen: false, nameDraft: '',
+    themePref: null, showGeneral: true,
+    exportPhase: null,
+    keys: null, revokeAsk: null, scopedOpen: false, scopeVal: '' };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._xT); }
+
+  onCC = (next) => {
+    clearTimeout(this._xT);
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free',
+      consent: undefined, proactive: true, summary: true,
+      confirm: next.state === 'delete', freshAsk: next.state === 'fresh start',
+      stepUp: next.state === 'step up' ? 'pending' : (next.state === 'step up done' || next.state === 'keys none') ? 'done' : null,
+      name: null, renameOpen: false, nameDraft: '',
+      themePref: null, showGeneral: true,
+      exportPhase: next.state === 'exporting' ? 'prep' : null,
+      keys: next.state === 'keys none' ? [] : null, revokeAsk: null, scopedOpen: false, scopeVal: '' });
+  };
+
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+  goBilling = () => { window.location.href = encodeURI('Orbit Assinatura.dc.html'); };
+  goWrapped = () => { window.location.href = encodeURI('Orbit Wrapped.dc.html'); };
+  goAbout = () => { window.location.href = encodeURI('Orbit Sobre.dc.html'); };
+  goWidget = () => { window.location.href = encodeURI('Orbit Widget Android.dc.html'); };
+  goCal = () => { window.location.href = encodeURI('Orbit Calendario.dc.html'); };
+  goConv = () => { window.location.href = encodeURI('Orbit Astra Conversation.dc.html'); };
+  goEntrar = () => { window.location.href = encodeURI('Orbit Entrar.dc.html'); };
+  /* use-data-export: the preparing beat, then the done toast in the shell's notice slot. */
+  onExport = () => {
+    clearTimeout(this._xT);
+    this.setState({ exportPhase: 'prep' });
+    this._xT = setTimeout(() => {
+      this.setState({ exportPhase: 'done' });
+      this._xT = setTimeout(() => this.setState({ exportPhase: null }), 2600);
+    }, 1400);
+  };
+
+  keysOf = (t) => this.state.keys || t.keyNames.map((n, i) => ({ n: n, p: i === 0 ? 'orb_live_7f2a\u2026' : 'orb_live_c91d\u2026' }));
+
+  padRow(children) {
+    return H('div', { style: { padding: '12px 16px', minHeight: 44, display: 'flex', alignItems: 'center' } },
+      H('div', { style: { flex: 1, minWidth: 0 } }, children));
+  }
+
+  body(t, filled) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const st = s.st;
+    const pro = s.plan === 'Pro';
+    const spent = st === 'allowance spent';
+    const cap = pro ? 50 : 5;
+    const used = spent ? cap : (pro ? 12 : 2);
+    const consent = s.consent !== undefined ? s.consent
+      : st === 'email on' ? true : st === 'email off' ? false : null;
+    /* The step up is only ever reached on Pro: a free account sees the lock row, whatever the axis says. */
+    const stepUp = pro ? s.stepUp : null;
+    const keys = this.keysOf(t);
+    const name = s.name != null ? s.name : t.name;
+    const themePref = s.themePref != null ? s.themePref : s.mode;
+    const label = (txt) => H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, txt);
+    const group = (title, kids) => H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      H(D.SectionTitle, null, title), kids);
+    const themePill = (val, word) => {
+      const on = themePref === val;
+      return H('button', { key: val, type: 'button', 'aria-pressed': on,
+        'aria-label': on ? t.themeOn(word) : t.themeOff(word),
+        onClick: () => this.setState({ themePref: val, mode: val }),
+        style: { height: 44, paddingInline: 14, flex: '0 0 auto', borderRadius: 'var(--r-pill)', border: 0,
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', fontWeight: 500,
+          background: on ? 'var(--primary-dim)' : 'var(--bg-well)', color: on ? 'var(--fg-1)' : 'var(--fg-2)',
+          boxShadow: on ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' } }, word);
+    };
+
+    const you = group(t.gYou, H(D.RowList, null,
+      /* The account row: the name, the rename behind it, the address under it. */
+      H(D.ListRow, { title: name, description: H('span', { 'data-mock': 'true' }, EMAIL), chevron: true,
+        onClick: () => this.setState({ renameOpen: true, nameDraft: name }) }),
+      H(D.ListRow, { title: t.tz, value: mock(t.tzValue), onClick: () => {} }),
+      H(D.ListRow, { title: t.week, value: mock(t.weekValue), onClick: () => {} }),
+      H(D.ListRow, { title: t.clock, value: mock(t.clockValue), onClick: () => {} }),
+      H(D.ListRow, { title: t.language, value: mock(t.languageValue), onClick: () => {} }),
+      /* Theme: exactly two values (themeModeSchema), a two way choice and never a switch to invert. */
+      H('div', { style: { padding: '12px 16px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 12 } },
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, t.theme),
+        H('div', { role: 'group', 'aria-label': t.theme, style: { display: 'flex', gap: 4 } },
+          themePill('dark', t.themeDark), themePill('light', t.themeLight))),
+      H('div', { style: { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 } },
+        H(D.Switch, { label: t.showGeneral, checked: s.showGeneral, onChange: (v) => this.setState({ showGeneral: v }) }),
+        H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, t.showGeneralDesc)),
+      H(D.ListRow, { icon: 'download', title: t.exportLabel,
+        value: s.exportPhase === 'prep' ? t.exportPrep : undefined,
+        chevron: false, onClick: this.onExport })));
+
+    const allowance = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16,
+      background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } },
+      H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)', lineHeight: 1.4 } }, t.allowance),
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums', flex: '0 0 auto' } },
+          mock(String(used)), t.ofWord, mock(String(cap)), t.used)),
+      H(D.ProgressBar, { value: used, max: cap, label: t.allowance }),
+      spent ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-3)', textWrap: 'pretty' } }, t.spentLine) : null,
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.plan),
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' } }, pro ? t.planPro : t.planFree)),
+      H('div', { style: { display: 'flex', gap: 8 } },
+        pro ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.goBilling }, t.billing)
+          : H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.goPro }, t.seePro)));
+
+    /* advanced/page.tsx:81-110: the heading carries the Pro badge; free sees the description and the
+       lock route and nothing else; Pro reaches the step up and then the list. */
+    const keysSection = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } }, label(t.keys), H(D.Badge, null, 'Pro')),
+      H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5, textWrap: 'pretty' } }, t.keysDesc),
+      !pro
+        ? H('div', { style: { marginInline: -16 } },
+            H(D.ListRow, { icon: 'lock', title: t.keysUnlock, trailing: H(D.Badge, null, 'Pro'), chevron: false, onClick: this.goPro }))
+        : stepUp === 'pending'
+          ? H(D.StepUp, { message: t.stepUpBody, actionLabel: t.stepUpGo, onAction: () => this.setState({ stepUp: 'done' }) })
+          : stepUp === 'done'
+            ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+                keys.length
+                  ? H(D.RowList, null, keys.map((k, i) => H(D.ListRow, { key: i, icon: 'key', title: k.n,
+                      value: mock(k.p), chevron: false,
+                      action: { icon: 'trash', label: t.revoke(k.n), danger: true,
+                        onPress: () => this.setState({ revokeAsk: i }) } })))
+                  : H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.keysNone),
+                H('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+                  H(D.Button, { variant: 'secondary', size: 'sm',
+                    onClick: () => this.setState({ keys: keys.concat([{ n: t.keyNewName, p: 'orb_live_a4e0\u2026' }]) }) }, t.keyNew),
+                  H(D.Button, { variant: 'ghost', size: 'sm',
+                    onClick: () => this.setState({ scopedOpen: true, scopeVal: '' }) }, t.keyNewScoped)),
+                H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, padding: 16,
+                  background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+                  H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500 } }, t.mcpTitle),
+                  H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5, textWrap: 'pretty' } }, t.mcpLine)))
+            : H('div', { style: { marginInline: -16 } },
+                H(D.ListRow, { icon: 'key', title: t.keysOpen,
+                  value: keys.length ? H(F, null, t.keysCount(String(keys.length))) : t.keysNone,
+                  onClick: () => this.setState({ stepUp: 'pending' }) })));
+
+    const astra = group(t.gAstra, H(F, null,
+      allowance,
+      H(D.RowList, null,
+        this.padRow(H(D.Switch, { label: t.proactive, checked: s.proactive, onChange: (v) => this.setState({ proactive: v }) })),
+        this.padRow(H(D.Switch, { label: t.summary, checked: s.summary, onChange: (v) => this.setState({ summary: v }) }))),
+      keysSection));
+
+    const notif = group(t.gNotif, H(F, null,
+      consent === null
+        ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16,
+            background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+            H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' } }, t.emailAskTitle),
+            H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)', textWrap: 'pretty' } }, t.emailAskBody),
+            H('div', { style: { display: 'flex', gap: 8 } },
+              H(D.Button, { variant: filled, size: 'sm', onClick: () => this.setState({ consent: true }) }, t.emailYes),
+              H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ consent: false }) }, t.emailNo)))
+        : H(D.RowList, null,
+            this.padRow(H(D.Switch, { label: t.emailOn, checked: !!consent, onChange: (v) => this.setState({ consent: v }) }))),
+      H(D.RowList, null,
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 44, padding: '12px 16px' } },
+          H('span', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, t.devices),
+          H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)', flex: '0 0 auto' } },
+            mock('2'), t.ofWord, mock('5'))),
+        H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 16px' } },
+          t.deviceNames.map((nm, i) => H('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, minHeight: 24 } },
+            H('span', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, nm),
+            i === 0 ? H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-4)', flex: '0 0 auto' } }, t.thisDevice) : null)))),
+      H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-3)', textWrap: 'pretty' } }, t.remindersNote)));
+
+    /* The routes: PROFILE_NAV_ITEMS' four surfaces with no home in the redesign. A route, not a home. */
+    const more = group(t.gMore, H(D.RowList, null,
+      H(D.ListRow, { icon: 'gift', title: t.wrapped, onClick: this.goWrapped }),
+      H(D.ListRow, { icon: 'device-mobile', title: t.widget, description: t.widgetHint, onClick: this.goWidget }),
+      pro
+        ? H(D.ListRow, { icon: 'calendar-plus', title: t.calSync, description: t.calSyncDesc, onClick: this.goCal })
+        : H(D.ListRow, { icon: 'calendar-plus', title: t.calSync, description: t.calSyncDesc,
+            trailing: H(D.Badge, null, 'Pro'), chevron: false, onClick: this.goPro }),
+      H(D.ListRow, { icon: 'help', title: t.support, description: t.supportDesc, onClick: this.goConv }),
+      H(D.ListRow, { icon: 'info-circle', title: t.about, onClick: this.goAbout })));
+
+    const danger = group(t.gDanger, H(D.RowList, null,
+      H(D.ListRow, { icon: 'logout', title: t.signOut, chevron: false, onClick: this.goEntrar }),
+      H(D.ListRow, { icon: 'rotate', title: t.fresh, chevron: false, onClick: () => this.setState({ freshAsk: true }) }),
+      H(D.ListRow, { icon: 'trash', title: t.del, danger: true, chevron: false, onClick: () => this.setState({ confirm: true }) })));
+
+    return H(F, null, you, astra, notif, more, danger);
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['default', 'email never asked', 'email on', 'email off', 'allowance spent', 'exporting',
+        'step up', 'step up done', 'keys none', 'fresh start', 'delete', 'loading'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n8: 8, noop: () => {},
+      showReport: this.props.showReport !== false,
+      loadingLabel: t.loading,
+      createLabel: t.create, account: t.account, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+    const loading = st === 'loading';
+    const spent = st === 'allowance spent';
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+    const keys = this.keysOf(t);
+    const name = s.name != null ? s.name : t.name;
+    return Object.assign(base, {
+      loading: loading, ready: !loading,
+      body: this.body(t, filled),
+      navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
+        activeId: 'perfil', onSelect: () => {} }),
+      /* The export's done word rides the notice slot: pinned chrome above the composer, never in its place. */
+      notice: s.exportPhase === 'done' ? H(D.Toast, { kind: 'done', message: t.exportDone }) : null,
+      composer: H(D.Composer, { state: spent ? 'atLimit' : 'resting', chips: spent ? [] : t.chips,
+        limitReason: H(F, null, t.limit[0], mock(t.limit[1]), t.limit[2]),
+        words: t.composerWords, onOpen: this.goConv, onChipPress: this.goConv }),
+      sheet: s.renameOpen
+        ? H(D.Sheet, { open: true, title: t.renameTitle, onClose: () => this.setState({ renameOpen: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ renameOpen: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: filled, disabled: !s.nameDraft.trim(),
+                onClick: () => this.setState({ name: s.nameDraft.trim(), renameOpen: false }) }, t.renameGo)) },
+            H('div', { style: { paddingBottom: 8 } },
+              H(D.Input, { label: t.renameLabel, value: s.nameDraft, autoFocus: true,
+                onChange: (e) => this.setState({ nameDraft: e.target.value }) })))
+        : s.scopedOpen
+        ? H(D.Sheet, { open: true, title: t.scopeTitle, onClose: () => this.setState({ scopedOpen: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ scopedOpen: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: filled, disabled: !s.scopeVal.trim(),
+                onClick: () => this.setState({ keys: keys.concat([{ n: s.scopeVal.trim(), p: 'orb_live_d27b\u2026' }]),
+                  scopedOpen: false }) }, t.scopeGo)) },
+            H('div', { style: { paddingBottom: 8 } },
+              H(D.Input, { label: t.scopeLabel, value: s.scopeVal, autoFocus: true,
+                onChange: (e) => this.setState({ scopeVal: e.target.value }) })))
+        : s.revokeAsk != null
+        ? H(D.Sheet, { open: true, title: t.revokeTitle((keys[s.revokeAsk] || {}).n || ''),
+            onClose: () => this.setState({ revokeAsk: null }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ revokeAsk: null }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: 'destructive',
+                onClick: () => this.setState({ keys: keys.filter((k, i) => i !== s.revokeAsk), revokeAsk: null }) }, t.revokeGo)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.revokeBody))
+        : s.freshAsk
+        ? H(D.Sheet, { open: true, title: t.freshTitle, onClose: () => this.setState({ freshAsk: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ freshAsk: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: 'destructive', onClick: () => this.setState({ freshAsk: false }) }, t.freshGo)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.freshBody))
+        : s.confirm
+        ? H(D.Sheet, { open: true, title: t.delTitle, onClose: () => this.setState({ confirm: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ confirm: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: 'destructive', onClick: () => this.setState({ confirm: false }) }, t.delConfirm)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.delBody))
+        : null,
+    });
+  }
+}
+</script>
+</body>
+</html>

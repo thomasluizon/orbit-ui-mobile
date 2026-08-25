@@ -8,410 +8,692 @@
 <body>
 <x-dc>
 <helmet>
-  <meta name="design_doc_mode" content="canvas">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
-  <style>
-    @keyframes ob-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-    a{color:var(--primary-soft)} a:hover{color:var(--fg-1)}
-  </style>
-  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+@keyframes ob-ring-in{from{stroke-dashoffset:97.39}to{stroke-dashoffset:0}}
+</style>
 </helmet>
-<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
-  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 3 · onboarding · a matriz completa</p>
-  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
-  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-    <div id="f1" data-screen-label="Onboarding · 412" style="flex:0 0 auto">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" fab="{{ fabEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
-        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
-          <sc-if value="{{ isWizard }}" hint-placeholder-val="{{ true }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ goBack }}" hint-size="100%,56px"></x-import>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tStepLabel }}</p>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ progVal }}" max="{{ n3 }}" label="{{ tStepLabel }}" hint-size="100%,8px"></x-import>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Onboarding" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" dc-props="{{ sh412 }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:16px;min-height:100%;box-sizing:border-box">
+
+          <sc-if value="{{ hasTopRow }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:4px;min-height:44px">
+              <sc-if value="{{ hasBack }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goBack }}" hint-size="auto,44px">{{ backWord }}</x-import>
+              </sc-if>
+              {{ counterNode }}
+              <span style="flex:1"></span>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goSkip }}" hint-size="auto,44px">{{ skipWord }}</x-import>
             </div>
-            <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ qTitle }}</h1>
-            <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;flex-direction:column;gap:16px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tName }}" placeholder="{{ tNamePh }}" value="{{ name }}" on-change="{{ setName }}" hint-size="100%,80px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ showWhat }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n40 }}" hint-size="40px,40px"></x-import>
+                <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ whatTitle }}</p>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" dc-props="{{ fieldProps }}" hint-size="100%,150px"></x-import>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ startersTitle }}</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                  <sc-for list="{{ starters }}" as="s" hint-placeholder-count="4">
+                    <button type="button" onClick="{{ s.pick }}" style="height:32px;padding-inline:12px;border:0;border-radius:var(--r-pill);background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);font-family:var(--font-sans);font-size:14px;cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)" style-active="scale:.96">{{ s.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showWhen }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+              <sc-if value="{{ atLimit }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitNode }}" hint-size="100%,60px"></x-import>
+              </sc-if>
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <sc-if value="{{ hasProposal }}" hint-placeholder-val="{{ true }}">
+                  <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:26px;color:var(--fg-3)">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
+                  </span>
+                </sc-if>
+                <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ astraRead }}</p>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ notTouched }}" label="{{ proposedBy }}" hint-size="100%,220px">
+                <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <sc-if value="{{ hasEmoji }}" hint-placeholder-val="{{ true }}">
+                      <span role="img" aria-label="{{ emojiLabel }}" style="width:46px;height:46px;flex:0 0 auto;border-radius:var(--r-well);background:var(--bg-well);display:grid;place-items:center;font-size:22px">{{ emoji }}</span>
+                    </sc-if>
+                    <p style="flex:1;min-width:0;font-size:17px;line-height:1.4;font-weight:500">{{ habitName }}</p>
+                  </div>
+                  <sc-if value="{{ hasSentence }}" hint-placeholder-val="{{ true }}"><p style="font-size:17px;line-height:1.4"><sc-for list="{{ sentenceParts }}" as="sp" hint-placeholder-count="2"><sc-if value="{{ sp.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true">{{ sp.text }}</span></sc-if><sc-if value="{{ sp.plain }}" hint-placeholder-val="{{ true }}"><span>{{ sp.text }}</span></sc-if></sc-for></p></sc-if>
+                  <div role="group" aria-label="{{ daysLabel }}" style="display:flex;gap:4px">
+                    <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                      <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                        <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary);transition:background-color var(--dur-fast) var(--ease-standard)">{{ p.label }}</button>
+                      </sc-if>
+                      <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                        <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.TimeField" label="{{ timeLabel }}" value="{{ timeValue }}" on-change="{{ onTime }}" hint="{{ timeHint }}" hint-size="100%,86px"></x-import>
+                </div>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showRemind }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ remindTitle }}</p>
+                <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ remindBody }}</p>
+              </div>
+              <sc-if value="{{ showRemindRow }}" hint-placeholder-val="{{ true }}">
                 <div style="display:flex;flex-direction:column;gap:8px">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:var(--track-label);text-transform:uppercase">{{ tSugg }}</p>
+                  <div style="display:flex;flex-direction:column;gap:4px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n16 }}" hint-size="16px,16px"></x-import>
+                      <p translate="no" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3)">Orbit</p>
+                      <span style="flex:1"></span>
+                      <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ remindAtValue }}</p>
+                    </div>
+                    <p style="font-size:16px;line-height:1.4;font-weight:500">{{ habitName }}</p>
+                    <p style="font-size:14px;line-height:1.4;color:var(--fg-2)">{{ notifBody }}</p>
+                  </div>
+                  <p style="font-size:12px;color:var(--fg-3);line-height:1.5;text-wrap:pretty">{{ remindFine }}</p>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showDone }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+              <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding-top:24px">
+                {{ ringNode }}
+                <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ doneTitle }}</p>
+                <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ doneBody }}</p>
+              </div>
+              <sc-if value="{{ hasHabit }}" hint-placeholder-val="{{ true }}">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ emoji }}" title="{{ habitName }}" meta="{{ metaNode }}" trailing="{{ ringSmall }}" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
+                </div>
+              </sc-if>
+              <div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" dc-props="{{ shWide }}" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px;max-width:560px;min-height:100%;box-sizing:border-box">
+
+            <sc-if value="{{ hasTopRow }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:4px;min-height:44px">
+                <sc-if value="{{ hasBack }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goBack }}" hint-size="auto,44px">{{ backWord }}</x-import>
+                </sc-if>
+                {{ counterNode }}
+                <span style="flex:1"></span>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goSkip }}" hint-size="auto,44px">{{ skipWord }}</x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showWhat }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n40 }}" hint-size="40px,40px"></x-import>
+                  <p style="font-family:var(--font-display);font-size:34px;line-height:1.12;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ whatTitle }}</p>
+                </div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" dc-props="{{ fieldProps }}" hint-size="100%,150px"></x-import>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ startersTitle }}</p>
                   <div style="display:flex;flex-wrap:wrap;gap:8px">
-                    <sc-for list="{{ suggs }}" as="g" hint-placeholder-count="3">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ g.pick }}" hint-size="auto,36px">{{ g.label }}</x-import>
+                    <sc-for list="{{ starters }}" as="s" hint-placeholder-count="4">
+                      <button type="button" onClick="{{ s.pick }}" style="height:32px;padding-inline:12px;border:0;border-radius:var(--r-pill);background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);font-family:var(--font-sans);font-size:14px;cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)" style-active="scale:.96">{{ s.label }}</button>
                     </sc-for>
                   </div>
                 </div>
               </div>
             </sc-if>
-            <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
-              <div role="radiogroup" aria-label="{{ qTitle }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                <sc-for list="{{ periods }}" as="pd" hint-placeholder-count="4">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ pd.label }}" description="{{ pd.desc }}" selected="{{ pd.selected }}" on-select="{{ pd.pick }}" hint-size="100%,64px"></x-import>
-                </sc-for>
-              </div>
-            </sc-if>
-            <sc-if value="{{ isStep3ish }}" hint-placeholder-val="{{ false }}">
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
+
+            <sc-if value="{{ showWhen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+                <sc-if value="{{ atLimit }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitNode }}" hint-size="100%,60px"></x-import>
+                </sc-if>
+                <div style="display:flex;align-items:flex-start;gap:12px">
+                  <sc-if value="{{ hasProposal }}" hint-placeholder-val="{{ true }}">
+                    <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:26px;color:var(--fg-3)">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
+                    </span>
+                  </sc-if>
+                  <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ astraRead }}</p>
                 </div>
-                <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tEditLater }}</p>
-              </div>
-            </sc-if>
-            <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,160px"></x-import>
-            </sc-if>
-            <sc-if value="{{ showContinue }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ contDisabled }}" loading="{{ isSaving }}" on-click="{{ goNext }}" hint-size="auto,44px">{{ tCont }}</x-import>
-                <sc-if value="{{ contDisabled }}" hint-placeholder-val="{{ false }}">
-                  <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tReason }}</span>
-                </sc-if>
-              </div>
-            </sc-if>
-          </sc-if>
-          <sc-if value="{{ isDoneish }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;flex-direction:column;gap:24px;padding-top:48px;animation:ob-rise 280ms cubic-bezier(0.16,1,0.3,1) both">
-              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ tDoneTitle }}</h1>
-              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
-              </div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                <sc-if value="{{ hasReminder }}" hint-placeholder-val="{{ true }}">
-                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraPre }}<span data-mock="true" style="font-variant-numeric:tabular-nums">{{ astraTime }}</span>{{ tDot }}</p>
-                </sc-if>
-                <sc-if value="{{ noReminder }}" hint-placeholder-val="{{ false }}">
-                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraNone }}</p>
-                </sc-if>
-              </div>
-              <div style="display:flex;gap:12px;flex-wrap:wrap">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ startTour }}" hint-size="auto,44px">{{ tSeeHow }}</x-import>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ noop }}" hint-size="auto,44px">{{ tGoToday }}</x-import>
-              </div>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isTour }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;flex-direction:column;gap:24px;padding-top:16px">
-              <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tHoje }}</h1>
-              <div data-tour-t="row" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
-              </div>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isReplay }}" hint-placeholder-val="{{ false }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tHelp }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
-            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tProposal }}</p>
-            <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
-              <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:280px">
-                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptA }}</p>
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="refresh" title="{{ tReplayRow }}" description="{{ tReplayDesc }}" on-click="{{ startTour }}" hint-size="100%,64px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="book" title="{{ tGuideTitle }}" on-click="{{ openGuide }}" hint-size="100%,64px"></x-import>
-                </div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:8px">
-                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptB }}</p>
-                <div style="width:280px;background:var(--bg-elev);border-radius:16px;box-shadow:var(--sh-2);padding:16px;display:flex;flex-direction:column;gap:12px">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ tStep33 }}</p>
-                  <p style="font-size:var(--fs-sm);line-height:1.45">{{ tTip3 }}</p>
-                  <div style="display:flex;gap:8px;justify-content:flex-end">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ openGuide }}" hint-size="auto,36px">{{ tSeeGuide }}</x-import>
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tFinish }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ notTouched }}" label="{{ proposedBy }}" hint-size="100%,220px">
+                  <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <sc-if value="{{ hasEmoji }}" hint-placeholder-val="{{ true }}">
+                        <span role="img" aria-label="{{ emojiLabel }}" style="width:46px;height:46px;flex:0 0 auto;border-radius:var(--r-well);background:var(--bg-well);display:grid;place-items:center;font-size:22px">{{ emoji }}</span>
+                      </sc-if>
+                      <p style="flex:1;min-width:0;font-size:17px;line-height:1.4;font-weight:500">{{ habitName }}</p>
+                    </div>
+                    <sc-if value="{{ hasSentence }}" hint-placeholder-val="{{ true }}"><p style="font-size:17px;line-height:1.4"><sc-for list="{{ sentenceParts }}" as="sp" hint-placeholder-count="2"><sc-if value="{{ sp.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true">{{ sp.text }}</span></sc-if><sc-if value="{{ sp.plain }}" hint-placeholder-val="{{ true }}"><span>{{ sp.text }}</span></sc-if></sc-for></p></sc-if>
+                    <div role="group" aria-label="{{ daysLabel }}" style="display:flex;gap:4px">
+                      <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                        <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                          <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary);transition:background-color var(--dur-fast) var(--ease-standard)">{{ p.label }}</button>
+                        </sc-if>
+                        <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                          <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                        </sc-if>
+                      </sc-for>
+                    </div>
+                    <div style="max-width:220px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.TimeField" label="{{ timeLabel }}" value="{{ timeValue }}" on-change="{{ onTime }}" hint="{{ timeHint }}" hint-size="100%,86px"></x-import>
+                    </div>
                   </div>
+                </x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showRemind }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ remindTitle }}</p>
+                  <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ remindBody }}</p>
+                </div>
+                <sc-if value="{{ showRemindRow }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;max-width:412px">
+                    <div style="display:flex;flex-direction:column;gap:4px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n16 }}" hint-size="16px,16px"></x-import>
+                        <p translate="no" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3)">Orbit</p>
+                        <span style="flex:1"></span>
+                        <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ remindAtValue }}</p>
+                      </div>
+                      <p style="font-size:16px;line-height:1.4;font-weight:500">{{ habitName }}</p>
+                      <p style="font-size:14px;line-height:1.4;color:var(--fg-2)">{{ notifBody }}</p>
+                    </div>
+                    <p style="font-size:12px;color:var(--fg-3);line-height:1.5;text-wrap:pretty">{{ remindFine }}</p>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showDone }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:24px;margin-block:auto">
+                <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+                  {{ ringNode }}
+                  <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ doneTitle }}</p>
+                  <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ doneBody }}</p>
+                </div>
+                <sc-if value="{{ hasHabit }}" hint-placeholder-val="{{ true }}">
+                  <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ emoji }}" title="{{ habitName }}" meta="{{ metaNode }}" trailing="{{ ringSmall }}" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
+                  </div>
+                </sc-if>
+                <div>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
                 </div>
               </div>
-            </div>
-          </sc-if>
-        </div>
-      </x-import>
+            </sc-if>
+
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Onboarding produces one real habit that the person typed, and ends with them looking at it. It is not a tour, not a quiz and not a preference survey: the tour and the push prompt system are deleted, so nothing here explains a feature the person has not asked about. The feature guide is not this screen's to claim: it lives on the About screen (about/page.tsx:84) and Sobre draws it.</p>
+      <p><span style="color:var(--fg-3)">entrances&nbsp;&nbsp;</span>the same flow mounts in two places. Signed in, layout.tsx:380 mounts it as an overlay over the app for an account that never finished, and it ends on Hoje. Signed out, onboarding/page.tsx:13 mounts it with isLive false: every answer is buffered on the device (onboarding-actions-context.tsx:96 and :133), nothing is sent to a server, the last step's words become the save your plan words with the action changed to match (onboarding-complete.tsx:102-109 and :159), the route goes to sign in (onboarding-actions-context.tsx:134), and the buffered habit is written to the account after sign in (use-onboarding-flush.ts:38). The first step carries the I already have an account link on that path only (onboarding-welcome.tsx:141-145).</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>what, what typed, what signed out, when, when corrected, at limit, create failed, remind, remind already refused, remind enable failed, remind no time, done, done no reminders, done signed out. Remind no time is also reached by clearing the time on the when step and continuing. Hover, focus-visible and press are live, and the flow walks: back returns step by step (onboarding-flow.tsx:83-95), skip leaves from any step except the last (:130-134), and the signed out first step carries the whole path forward. NO plan axis: D69 item 17 puts no paywall anywhere in onboarding, so this screen has no gate and the absent switch is a decision, not an oversight.</p>
+      <p><span style="color:var(--fg-3)">position&nbsp;&nbsp;</span>one indicator: the mono counter the app draws (onboarding-flow.tsx:248-264), Orbit · 01 / 03, zero padded and tabular, the current number at fg-1 and the rest at fg-3, over THREE steps rather than the app's eight because three is what this flow has. An sr-only progress element travels with it (:290-296) so a screen reader gets the same position. The app also draws dots (:289); one indicator is enough, so the counter wins and the dots are not drawn. The counter sits in the top row with back (:299-301) on the two steps that have something behind them, and skip (:265-267) on every step except the last. Skip goes straight to the end, so a person who does not want to type a habit right now is never trapped on the first screen.</p>
+      <p><span style="color:var(--fg-3)">decisions&nbsp;&nbsp;</span>three, and no more: what you want to keep doing, when it happens, and whether we may remind you. The first is typed, the second is proposed from what was typed and corrected by tapping, and the third is a yes or a no. Nothing else is collected, because everything else can be changed later from the habit itself.</p>
+      <p><span style="color:var(--fg-3)">input&nbsp;&nbsp;</span>the system field, not a composed pair: Input with multiline, three rows, and the words the parser consumed as marks with their required marksLabel, so mirror and textarea are one box from one declaration (the D71 drift defect) and the marked words carry an accessible name. maxLength rides the field because the app caps the title (MAX_HABIT_TITLE_LENGTH, onboarding-create-habit.tsx:182), drawn here at 100 with no counter: the limit stops the typing, it does not annotate the field. The quick start chips fill that field rather than skipping it, so the habit is still the person's own sentence.</p>
+      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>signed in, the person meets Astra by watching it do the work: it reads the sentence back as a schedule, in the proposed state, and the correction is two taps. It never introduces itself. Signed out there is no Astra at all: ChatController.cs:18 marks the whole controller [Authorize], so no anonymous call exists and the pre auth flow buffers instead of calling. The when step then drops the glyph and the proposal and carries the second decision as the day pills and the time field, which is the same drawing the daily ceiling reaches: two different reasons, at limit and signed out, arrive at one no-model drawing rather than two inventions.</p>
+      <p><span style="color:var(--fg-3)">failure&nbsp;&nbsp;</span>creating the habit can fail (onboarding-create-habit.tsx:95-99 catches it; :74-85 validates before the call). The create failed state keeps the typed sentence and the chosen days exactly as they were, raises a neutral Toast in the shell's notice slot stating the failure and the fix, and makes the pinned action the retry. The form is still correct, so nothing replaces it.</p>
+      <p><span style="color:var(--fg-3)">permission&nbsp;&nbsp;</span>the ask comes after the habit exists, never before, and it shows the notification as it will actually arrive rather than describing one: the title is the habit's own title and the body is the relative time, Em 15 minutos and Due in 15 minutes, Agora and Due now at zero (ReminderSchedulerService.cs:142, :149, :322-338), timestamped at the moment it fires, the due time minus the default ReminderTimes of [15] (Habit.cs:77 and :159), so a habit due at 18:00 previews at 17:45 and never at 18:00, which is what the old bell row falsely showed. One quiet line under it states the two scheduling facts: it arrives 15 minutes before the habit, and it is not sent if the habit is already logged (:129-130). A habit left with NO time gets no ask at all: ProcessRelativeReminders walks ReminderTimes against habit.DueTime and does nothing without one, and onboarding never sets a fixed clock time (ScheduledReminderWhen exists but is not collected here), so the step says plainly that reminders need a time, offers to go back and set one, and its forward action continues without asking, because a permission the flow cannot use is never requested. For the ask itself, four outcomes, matching use-push-notifications.ts:418-440 and push-prompt.tsx: granted; refused, a plain second action that costs nothing; already refused, where the system will not show its prompt again (canAskAgain false; push-prompt.tsx:46 does not ask at all once the browser has denied), so the step states that reminders are off in the system settings and how to turn them on, with continue as its only forward action; and enable failed, where permission was given and the registration failed (push-prompt.tsx:101-103 sets the retry hint), so the retry is the pinned action, continue sits under it, and the habit is already saved either way. In the two failure shapes and the no time shape the allow control is absent rather than dead.</p>
+      <p><span style="color:var(--fg-3)">order&nbsp;&nbsp;</span>no choice is made before the interface has been seen. The shell is present from the first step and its navigation is not: both shells take nav as their own behaviour, so the three decisions pass nav false, which renders no tab bar and no sidebar at all, and the last step returns to the plain nav shape. With nav off the shells reject items, activeId, navLabel, account and onPalette outright, so nothing is passed as null and no stylesheet reaches into shell internals. Each step's one forward action rides the shells' action slot, which exists exactly for a flow that owns the screen; the composer slot takes the composer and nothing else, and the composer is not in this flow, arriving on Hoje.</p>
+      <p><span style="color:var(--fg-3)">delight&nbsp;&nbsp;</span>once, at the end: a single ring sweep as the habit lands, 280ms, a stroke offset only, with no fill mode, so the finished ring is also its resting state. Nothing else animates its own entrance anywhere in the flow.</p>
+      <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>reading the sentence spends an Astra message, so a person who arrives at the ceiling still gets through: the notice states the allowance, the schedule is not proposed, and the day pills and the time field carry the second decision with no model call, the same drawing the signed out path uses for its own reason.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 for the pills and the top row controls, 46 for the emoji well; the field's height is rows, not pixels. Each step centres in the scroller's leftover space with auto block margins, which collapse to nothing when a step overflows, so a short step never pins to the top of a tall column and a tall one never clips.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on the marked words and the chips, 12 on the field and the wells, 20 on the proposed panel and the habit panel, 28 on the shell, 999 on interactive.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per step, always the step's forward action, in the shells' pinned action slot for the three decisions and in the content column at the last step. Back and skip are plain ghost controls, so neither competes. A selected day pill takes the selected tint and ring rather than a fill. The final ring sweeps the accent while travelling and lands neutral, because the habit is not complete on the day it is created. Wide: the returning sidebar carries no create button here, so the last step's action keeps the accent alone.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. primary-soft appears only on the canvas. fg-3 on the well sits at 4.69:1 on these non-interactive rows.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>four numbers carry data-mock on the element that renders them: the time inside the proposed sentence, the time on the notification preview, the time on the final habit row, and the allowance number inside the at limit notice. The preview's time is the due time minus the shipped default; the 15 inside its body is that default itself (Habit.cs:77), the notification's verbatim wording and not fixture data, so it carries none. The step counter is position, not data, so it carries none either. Base date Monday 17 August 2026.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 a person can leave from every step except the last and return from every step after the first. 2 at most three decisions, and the permission ask is not one of the first two. 3 nothing explains a feature and nothing mentions a price, because no paywall exists in onboarding (D69 item 17). 4 signed out, no model is called and nothing reaches a server: the plan is buffered on the device and flushed after sign in.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was STALE AN EIGHTH ROUND: it lacked Input's multiline, rows, marks, marksLabel and maxLength and both shells' action slot, all of which this brief depends on. The whole bundle was re-synced from the source project and each contract verified present before use; nothing was worked around. Closed by that sync: the composed mirror and textarea pair (Input owns the marks now), the forward action riding the composer slot (the action slot exists), and the stylesheet rule that hid the sidebar by class name (nav is a shell behaviour). Still composed: 1 the closing ring is an SVG arc with one keyframe, because ProgressRing takes a value and holds no entrance. 2 the starter chips are composed pills, since no chip control exists in forms. 3 the step counter is composed type, which is right: it is this flow's chrome, not a component. 4 the remind actions appearing to sit below the card at 412 WAS a shell defect, found from this screen by a DOM probe rather than by eye: the probe put both buttons inside .ob-sh412 > .chrome > .actionslot with the action prop arriving through the spread, which cleared this document and pointed at the shells drawing their frame as an inset shadow on the root, where every opaque descendant painted over it, the header covering the top edge, the chrome the bottom, and the wide conversation panel the whole right side. Fixed in the design system: both shells now paint the frame above every child. The mirror here was stale a NINTH time, still carrying the old frame, and was re-synced; the fixed edge was then confirmed on all four steps, both themes and both widths. Worth remembering why nobody caught it: a tab bar and a composer are dense enough to mask the seam, and a two button action stack is not. 5 the notification preview is composed from a well, the mark and three lines, since no notification component exists and should not: it draws the system's surface, not Orbit's.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the quick start chips should also seed the composer on Hoje for the first session. Whether a person who refuses notifications should be asked again later, and by what, since no surface currently owns that. Whether the skipped ending should offer creation directly rather than pointing at Hoje.</p>
     </div>
   </sc-if>
-  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
-    <div id="f2" data-screen-label="Onboarding · wide" style="position:relative;width:1332px;flex:0 0 auto">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="{{ wideActive }}" on-create="{{ wideCreate }}" create-label="{{ tCreateSide }}" account="Thomas" hint-size="1332px,820px">
-        <div style="display:flex;flex-direction:column;gap:24px;max-width:520px">
-          <sc-if value="{{ isWizard }}" hint-placeholder-val="{{ true }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ goBack }}" hint-size="100%,56px"></x-import>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tStepLabel }}</p>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ progVal }}" max="{{ n3 }}" label="{{ tStepLabel }}" hint-size="100%,8px"></x-import>
-            </div>
-            <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ qTitle }}</h1>
-            <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;flex-direction:column;gap:16px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tName }}" placeholder="{{ tNamePh }}" value="{{ name }}" on-change="{{ setName }}" hint-size="100%,80px"></x-import>
-                <div style="display:flex;flex-direction:column;gap:8px">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:var(--track-label);text-transform:uppercase">{{ tSugg }}</p>
-                  <div style="display:flex;flex-wrap:wrap;gap:8px">
-                    <sc-for list="{{ suggs }}" as="g" hint-placeholder-count="3">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ g.pick }}" hint-size="auto,36px">{{ g.label }}</x-import>
-                    </sc-for>
-                  </div>
-                </div>
-              </div>
-            </sc-if>
-            <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
-              <div role="radiogroup" aria-label="{{ qTitle }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                <sc-for list="{{ periods }}" as="pd" hint-placeholder-count="4">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ pd.label }}" description="{{ pd.desc }}" selected="{{ pd.selected }}" on-select="{{ pd.pick }}" hint-size="100%,64px"></x-import>
-                </sc-for>
-              </div>
-            </sc-if>
-            <sc-if value="{{ isStep3ish }}" hint-placeholder-val="{{ false }}">
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
-                </div>
-                <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tEditLater }}</p>
-              </div>
-            </sc-if>
-            <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,160px"></x-import>
-            </sc-if>
-            <sc-if value="{{ showContinue }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ contDisabled }}" loading="{{ isSaving }}" on-click="{{ goNext }}" hint-size="auto,44px">{{ tCont }}</x-import>
-                <sc-if value="{{ contDisabled }}" hint-placeholder-val="{{ false }}">
-                  <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tReason }}</span>
-                </sc-if>
-              </div>
-            </sc-if>
-          </sc-if>
-          <sc-if value="{{ isDoneish }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;flex-direction:column;gap:24px;padding-top:48px;animation:ob-rise 280ms cubic-bezier(0.16,1,0.3,1) both">
-              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ tDoneTitle }}</h1>
-              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
-              </div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                <sc-if value="{{ hasReminder }}" hint-placeholder-val="{{ true }}">
-                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraPre }}<span data-mock="true" style="font-variant-numeric:tabular-nums">{{ astraTime }}</span>{{ tDot }}</p>
-                </sc-if>
-                <sc-if value="{{ noReminder }}" hint-placeholder-val="{{ false }}">
-                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraNone }}</p>
-                </sc-if>
-              </div>
-              <div style="display:flex;gap:12px;flex-wrap:wrap">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ startTour }}" hint-size="auto,44px">{{ tSeeHow }}</x-import>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ noop }}" hint-size="auto,44px">{{ tGoToday }}</x-import>
-              </div>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isTour }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;flex-direction:column;gap:24px">
-              <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tHoje }}</h1>
-              <div data-tour-t="row" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
-              </div>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isReplay }}" hint-placeholder-val="{{ false }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tHelp }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
-            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tProposal }}</p>
-            <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
-              <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:280px">
-                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptA }}</p>
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="refresh" title="{{ tReplayRow }}" description="{{ tReplayDesc }}" on-click="{{ startTour }}" hint-size="100%,64px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="book" title="{{ tGuideTitle }}" on-click="{{ openGuide }}" hint-size="100%,64px"></x-import>
-                </div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:8px">
-                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptB }}</p>
-                <div style="width:280px;background:var(--bg-elev);border-radius:16px;box-shadow:var(--sh-2);padding:16px;display:flex;flex-direction:column;gap:12px">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ tStep33 }}</p>
-                  <p style="font-size:var(--fs-sm);line-height:1.45">{{ tTip3 }}</p>
-                  <div style="display:flex;gap:8px;justify-content:flex-end">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ openGuide }}" hint-size="auto,36px">{{ tSeeGuide }}</x-import>
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tFinish }}</x-import>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </sc-if>
-        </div>
-      </x-import>
-      {{ sheetsEl }}
-    </div>
-  </sc-if>
-</section>
+
+</div>
 </x-dc>
-<script type="text/x-dc" data-dc-script>
-class Component extends DCLogic {
-  state = { name:'', icon:'', period:null, tourStep:1, spot:null,
-    cv:{mode:'dark', width:'412', state:'step 1', locale:'pt-BR'} };
-  componentDidMount(){ this.measure(); }
-  componentDidUpdate(){ this.measure(); }
-  measure(){
-    const st = this.state, cv = st.cv;
-    if (cv.state!=='tour'){ if (st.spot) this.setState({spot:null}); return; }
-    const wide = cv.width==='wide';
-    const frame = document.getElementById(wide?'f2':'f1'); if(!frame) return;
-    const parent = wide ? frame : frame.querySelector('.ob-sh412'); if(!parent) return;
-    const sels = wide
-      ? ['[data-tour-t="row"]','.ob-shw>.side .foot','.ob-shw>.side nav']
-      : ['[data-tour-t="row"]','[data-tour-t="fab"]','[data-tour-t="tabs"]'];
-    const el = frame.querySelector(sels[st.tourStep-1]); if(!el) return;
-    const pr = parent.getBoundingClientRect(), r = el.getBoundingClientRect();
-    const next = {x:r.left-pr.left, y:r.top-pr.top, w:r.width, h:r.height, pw:pr.width, ph:pr.height};
-    const s = st.spot;
-    if (!s || Math.abs(s.x-next.x)>1 || Math.abs(s.y-next.y)>1 || Math.abs(s.w-next.w)>1 || Math.abs(s.h-next.h)>1)
-      this.setState({spot:next});
-  }
-  setStage(v, extra){ this.setState(s => Object.assign({cv:{...s.cv, state:v}, spot:null}, extra||null)); }
-  renderVals(){
-    const DS = window.OrbitDesignSystem_918bd5 || {};
-    const E = React.createElement;
-    const st = this.state, cv = st.cv, en = cv.locale==='en';
-    const T = en ? {
-      nav:'First habit', stepPre:'step', of:'of', sugg:'suggestions',
-      q1:'Which habit do you want to start?', q2:'When do you want to do it?', q3:'Review your first habit',
-      name:'Habit name', ph:'Morning water', cont:'Continue', create:'Create habit',
-      r1:'Type a name to continue.', r2:'Pick a period to continue.',
-      editLater:'You can change all of this later.',
-      err:'Could not save your habit. Check your connection and try again.', retry:'Try again',
-      done:'Your first habit is ready.', astraPre:'Astra reminds you at ', astraNone:'Astra will not send reminders.',
-      seeHow:'See how it works', goToday:'Go to today', hoje:'Today', help:'Help',
-      tips:['Tap the ring to log the habit.','Create more habits here.','Astra sits in the middle. Ask for any routine change.'],
-      tipsWide:['Tap the ring to log the habit.','Create more habits from the menu.','Astra sits in the menu. Ask for any routine change.'],
-      skip:'Skip', next:'Next', finish:'Finish', seeGuide:'See the guide', tourAria:'Tour',
-      guideTitle:'Orbit guide', close:'Close',
-      gLog:'Log', gLogD:'Tap the ring on a habit in the today list.',
-      gGoals:'Goals', gGoalsD:'Group habits under a deadline.',
-      gAstraD:'Ask for routine changes in natural language.',
-      gFreeze:'Freeze', gFreezeD:'Pause a habit without losing the streak.',
-      proposal:'proposal · where the tour re-entry lives', optA:'option a · rows in profile', optB:'option b · the last tour step opens the guide',
-      replayRow:'Replay the tour', replayDesc:'About one minute',
-      periods:[['morning','In the morning','start of the day','08:00'],['afternoon','In the afternoon','after lunch','14:00'],['evening','In the evening','end of the day','20:00'],['none','No fixed time','appears on the today list',null]],
-      noTime:'no fixed time',
-      suggs:[['Morning water','💧'],['Read 10 pages','📖'],['Walk','🚶']],
-      tabs:['Today','Goals','Astra','Profile']
-    } : {
-      nav:'Primeiro hábito', stepPre:'passo', of:'de', sugg:'sugestões',
-      q1:'Qual hábito você quer começar?', q2:'Quando você quer fazer isso?', q3:'Confira seu primeiro hábito',
-      name:'Nome do hábito', ph:'Água da manhã', cont:'Continuar', create:'Criar hábito',
-      r1:'Digite um nome para continuar.', r2:'Escolha um período para continuar.',
-      editLater:'Você pode mudar tudo isso depois.',
-      err:'Não foi possível salvar seu hábito. Verifique sua conexão e tente de novo.', retry:'Tentar de novo',
-      done:'Seu primeiro hábito está pronto.', astraPre:'Astra lembra você às ', astraNone:'Astra não vai enviar lembretes.',
-      seeHow:'Ver como funciona', goToday:'Ir para hoje', hoje:'Hoje', help:'Ajuda',
-      tips:['Toque no anel para registrar o hábito.','Crie mais hábitos por aqui.','Astra fica no centro. Peça qualquer mudança na rotina.'],
-      tipsWide:['Toque no anel para registrar o hábito.','Crie mais hábitos pelo menu.','Astra fica no menu. Peça qualquer mudança na rotina.'],
-      skip:'Pular', next:'Próximo', finish:'Concluir', seeGuide:'Ver o guia', tourAria:'Tour',
-      guideTitle:'Guia do Orbit', close:'Fechar',
-      gLog:'Registrar', gLogD:'Toque no anel do hábito na lista de hoje.',
-      gGoals:'Metas', gGoalsD:'Agrupe hábitos com um prazo.',
-      gAstraD:'Peça mudanças na rotina em linguagem natural.',
-      gFreeze:'Congelar', gFreezeD:'Pause um hábito sem perder a sequência.',
-      proposal:'proposta · onde fica a reentrada do tour', optA:'opção a · linhas no Perfil', optB:'opção b · o último passo do tour abre o guia',
-      replayRow:'Rever o tour', replayDesc:'Cerca de um minuto',
-      periods:[['morning','De manhã','no começo do dia','08:00'],['afternoon','À tarde','depois do almoço','14:00'],['evening','À noite','no fim do dia','20:00'],['none','Sem horário fixo','aparece na lista de hoje',null]],
-      noTime:'sem horário fixo',
-      suggs:[['Água da manhã','💧'],['Ler 10 páginas','📖'],['Caminhada','🚶']],
-      tabs:['Hoje','Metas','Astra','Perfil']
-    };
-    const stg = cv.state;
-    const isStep1 = stg==='step 1', isStep2 = stg==='step 2', isStep3 = stg==='step 3';
-    const isSaving = stg==='saving', isError = stg==='error';
-    const isWizard = isStep1||isStep2||isStep3||isSaving||isError;
-    const stepNum = isStep1?1:isStep2?2:3;
-    const isGuide = stg==='guide', isDoneish = stg==='done'||isGuide;
-    const isTour = stg==='tour', isReplay = stg==='replay';
-    const isWide = cv.width==='wide';
-    const mockEl = t => E('span',{'data-mock':'true',style:{fontVariantNumeric:'tabular-nums'}},t);
-    const noop = ()=>{};
-    const save = ()=>{ this.setStage('saving');
-      setTimeout(()=>this.setState(s=>s.cv.state==='saving'?{cv:{...s.cv,state:'done'}}:null), 900); };
-    const goNext = ()=>{ if(isStep1) this.setStage('step 2'); else if(isStep2) this.setStage('step 3'); else if(isStep3) save(); };
-    const goBack = ()=>{ if(stepNum>1) this.setStage('step '+(stepNum-1)); };
-    const startTour = ()=>this.setStage('tour',{tourStep:1});
-    const openGuide = ()=>this.setStage('guide');
-    const periodDef = T.periods.find(p=>p[0]===st.period) || null;
-    const effPeriod = periodDef || T.periods[0];
-    const typed = st.name.trim();
-    const prevName = typed || T.ph;
-    const prevIcon = typed ? (st.icon||undefined) : '💧';
-    const prevMeta = effPeriod[3] ? mockEl(effPeriod[3]) : T.noTime;
-    const periods = T.periods.map(p=>({label:p[1], desc:p[2], selected:st.period===p[0], pick:()=>this.setState({period:p[0]})}));
-    const suggs = T.suggs.map(g=>({label:g[0], pick:()=>this.setState({name:g[0], icon:g[1]})}));
-    const contDisabled = (isStep1 && !typed) || (isStep2 && !st.period);
-    const errAction = DS.Button ? E(DS.Button,{size:'sm',onClick:save},T.retry) : null;
-    const tabs = [
-      {id:'hoje',label:T.tabs[0],icon:'home'},
-      {id:'metas',label:T.tabs[1],icon:'target'},
-      {id:'astra',label:T.tabs[2],astra:true},
-      {id:'perfil',label:T.tabs[3],icon:'user'}];
-    const showChrome = isDoneish||isTour||isReplay;
-    const tabBarEl = (showChrome && DS.TabBar)
-      ? E('div',{'data-tour-t':'tabs'}, E(DS.TabBar,{items:tabs,activeId:isReplay?'perfil':'hoje'})) : null;
-    const fabEl = ((isDoneish||isTour) && DS.Fab)
-      ? E('div',{'data-tour-t':'fab'}, E(DS.Fab,{label:T.create,onClick:noop})) : null;
-    const astraRow = E('div',{style:{display:'flex',alignItems:'center',gap:12,minHeight:56,padding:'8px 16px'}},
-      DS.AstraGlyph ? E(DS.AstraGlyph,{size:24}) : null,
-      E('div',{style:{display:'flex',flexDirection:'column',gap:2}},
-        E('span',{style:{fontSize:17,fontWeight:400}},'Astra'),
-        E('span',{style:{fontSize:'var(--fs-sm)',color:'var(--fg-3)'}},T.gAstraD)));
-    const guideSheet = DS.Sheet ? E(DS.Sheet,{open:isGuide,title:T.guideTitle,onClose:()=>this.setStage('done'),
-      actions:E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>this.setStage('done')},T.close)},
-      E('div',{style:{display:'flex',flexDirection:'column',paddingBottom:24}},
-        E(DS.ListRow,{icon:'circle-check',title:T.gLog,description:T.gLogD,chevron:false}),
-        E(DS.ListRow,{icon:'target',title:T.gGoals,description:T.gGoalsD,chevron:false}),
-        astraRow,
-        E(DS.ListRow,{icon:'snowflake',title:T.gFreeze,description:T.gFreezeD,chevron:false}))) : null;
-    let tourOverlay = null;
-    const spot = st.spot;
-    if (isTour && spot){
-      const tips = isWide ? T.tipsWide : T.tips;
-      const radii = isWide ? [20,999,12] : [20,999,16];
-      const below = (spot.y + spot.h/2) < spot.ph*0.5;
-      const tipLeft = Math.max(16, Math.min(spot.x + spot.w/2 - 140, spot.pw - 296));
-      const tipPos = below ? {top:spot.y+spot.h+18} : {bottom:spot.ph-spot.y+18};
-      const nextTour = ()=> st.tourStep<3 ? this.setState({tourStep:st.tourStep+1, spot:null}) : this.setStage('done',{tourStep:1});
-      tourOverlay = E('div',{style:{position:'absolute',inset:0,zIndex:60,pointerEvents:'none',overflow:'hidden',borderRadius:'var(--r-sheet)'}},
-        E('div',{style:{position:'absolute',left:spot.x-6,top:spot.y-6,width:spot.w+12,height:spot.h+12,borderRadius:radii[st.tourStep-1],boxShadow:'0 0 0 2000px var(--scrim)'}}),
-        E('div',Object.assign({role:'dialog','aria-label':T.tourAria,style:Object.assign({position:'absolute',width:280,left:tipLeft,background:'var(--bg-elev)',borderRadius:16,boxShadow:'var(--sh-2)',padding:16,display:'flex',flexDirection:'column',gap:12,pointerEvents:'auto'},tipPos)}),
-          E('p',{style:{margin:0,fontFamily:'var(--font-mono)',fontSize:'var(--fs-xs)',color:'var(--fg-3)',fontVariantNumeric:'tabular-nums'}}, st.tourStep+' '+T.of+' 3'),
-          E('p',{style:{margin:0,fontSize:'var(--fs-sm)',lineHeight:1.45,color:'var(--fg-1)'}}, tips[st.tourStep-1]),
-          E('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
-            st.tourStep<3
-              ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>this.setStage('done',{tourStep:1})},T.skip)
-              : E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>this.setStage('guide',{tourStep:1})},T.seeGuide),
-            E(DS.Button,{size:'sm',onClick:nextTour}, st.tourStep<3?T.next:T.finish))));
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+/* The reminder fires at the due time minus the default ReminderTimes of [15] (Habit.cs:77, :159). */
+const minus15 = (hm) => { const p = hm.split(':'); const v = ((+p[0]) * 60 + (+p[1]) - 15 + 1440) % 1440; return ('0' + Math.floor(v / 60)).slice(-2) + ':' + ('0' + (v % 60)).slice(-2); };
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const PT_DAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const EN_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const EMOJI_HINT = [[/corr|run/i, '\uD83C\uDFC3'], [/ler|leitur|read|livro|book/i, '\uD83D\uDCD6'],
+  [/[áa]gua|water|beber|drink/i, '\uD83D\uDCA7'], [/casa|house|lou[çc]|dish|limp|clean/i, '\uD83E\uDDF9'],
+  [/along|stretch|yoga/i, '\uD83E\uDDD8'], [/caminh|walk|passe/i, '\uD83D\uDEB6']];
+
+/* The same parser the create surface uses: it resolves only what the suggestion contract carries. */
+const PAT = {
+  'pt-BR': {
+    days: [/\bdomingos?\b/gi, /\bsegundas?(?:-feira)?\b/gi, /\bter[çc]as?(?:-feira)?\b/gi, /\bquartas?(?:-feira)?\b/gi,
+      /\bquintas?(?:-feira)?\b/gi, /\bsextas?(?:-feira)?\b/gi, /\bs[áa]bados?\b/gi],
+    daily: /\b(todo dia|todos os dias|diariamente|toda manh[ãa]|toda noite)\b/gi,
+    times: /\b(\d+)\s*(?:vezes|x)\s*(?:por|na)?\s*semana\b/gi,
+    clockA: /\b([01]?\d|2[0-3]):([0-5]\d)\b/g,
+    clockB: /\b[àa]s\s+([01]?\d|2[0-3])(?:h([0-5]\d)?)?\b/gi,
+  },
+  en: {
+    days: [/\bsundays?\b/gi, /\bmondays?\b/gi, /\btuesdays?\b/gi, /\bwednesdays?\b/gi, /\bthursdays?\b/gi,
+      /\bfridays?\b/gi, /\bsaturdays?\b/gi],
+    daily: /\b(every day|daily|each day|every morning|every evening)\b/gi,
+    times: /\b(\d+)\s*(?:times|x)\s*(?:a|per)\s*week\b/gi,
+    clockA: /\b([01]?\d|2[0-3]):([0-5]\d)\b/g,
+    clockB: /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d))?\b/gi,
+  },
+};
+
+function parseHabit(text, loc) {
+  const P = PAT[loc] || PAT['pt-BR'];
+  const out = { days: [], qty: null, time: null, mode: null, emoji: null, tokens: [] };
+  const add = (m) => out.tokens.push([m.index, m.index + m[0].length]);
+  let m;
+  P.times.lastIndex = 0;
+  while ((m = P.times.exec(text))) { out.qty = parseInt(m[1], 10); out.mode = 'flex'; add(m); }
+  P.daily.lastIndex = 0;
+  while ((m = P.daily.exec(text))) { if (!out.mode) out.mode = 'daily'; add(m); }
+  P.days.forEach((re, i) => {
+    re.lastIndex = 0;
+    let mm;
+    while ((mm = re.exec(text))) { if (out.days.indexOf(i) < 0) out.days.push(i); out.mode = 'fixed'; add(mm); }
+  });
+  [P.clockA, P.clockB].forEach((re) => {
+    re.lastIndex = 0;
+    let mm;
+    while ((mm = re.exec(text))) {
+      const a = mm.index, b = a + mm[0].length;
+      if (out.tokens.some((r) => a < r[1] && b > r[0])) continue;
+      out.time = ('0' + mm[1]).slice(-2) + ':' + (mm[2] ? ('0' + mm[2]).slice(-2) : '00');
+      out.tokens.push([a, b]);
     }
-    const sheetsEl = E(React.Fragment,null,guideSheet,tourOverlay);
-    return {
-      mode:cv.mode, cv, setCv:next=>this.setState({cv:next,spot:null,tourStep:1}),
-      cvStates:['step 1','step 2','step 3','saving','error','done','guide','tour','replay'],
-      is412:!isWide, isWide, tabs,
-      wideActive: isReplay?'perfil':(showChrome?'hoje':''),
-      wideCreate: showChrome && !isTour ? noop : (isTour ? noop : undefined),
-      tCreateSide:T.create,
-      isWizard, isStep1, isStep2, isStep3ish:stepNum===3&&isWizard, isSaving, isError,
-      isDoneish, isTour, isReplay, showContinue:isWizard&&!isError,
-      hasReminder:isDoneish&&!!effPeriod[3], noReminder:isDoneish&&!effPeriod[3],
-      tNav:T.nav, tStepLabel:T.stepPre+' '+stepNum+' '+T.of+' 3', progVal:stepNum-1, n3:3, n20:20,
-      qTitle:isStep1?T.q1:isStep2?T.q2:T.q3,
-      tName:T.name, tNamePh:T.ph, tSugg:T.sugg, name:st.name,
-      setName:e=>this.setState({name:e.target.value}),
-      suggs, periods, prevName, prevIcon, prevMeta,
-      tEditLater:T.editLater, tErrMsg:T.err, errAction,
-      contDisabled, tCont:stepNum===3?T.create:T.cont, tReason:isStep1?T.r1:T.r2,
-      goNext, goBack, noop, startTour, openGuide,
-      tDoneTitle:T.done, tAstraPre:T.astraPre, astraTime:effPeriod[3]||'', tDot:'.', tAstraNone:T.astraNone,
-      tSeeHow:T.seeHow, tGoToday:T.goToday, tHoje:T.hoje, tHelp:T.help,
-      tProposal:T.proposal, tOptA:T.optA, tOptB:T.optB,
-      tReplayRow:T.replayRow, tReplayDesc:T.replayDesc, tGuideTitle:T.guideTitle,
-      tStep33:'3 '+T.of+' 3', tTip3:(isWide?T.tipsWide:T.tips)[2], tSeeGuide:T.seeGuide, tFinish:T.finish,
-      sheetsEl, tabBarEl, fabEl
+  });
+  out.days.sort((a, b) => a - b);
+  for (let i = 0; i < EMOJI_HINT.length; i++) if (EMOJI_HINT[i][0].test(text)) { out.emoji = EMOJI_HINT[i][1]; break; }
+  out.tokens.sort((a, b) => a[0] - b[0]);
+  let name = '', at = 0;
+  out.tokens.forEach((r) => { name += text.slice(at, r[0]); at = r[1]; });
+  name += text.slice(at);
+  out.name = cleanName(name.replace(/[,;]/g, ' '));
+  return out;
+}
+
+const STOP = /^(toda|todo|todas|todos|e|às|as|ao|aos|no|na|nos|nas|de|do|da|em|por|pela|pelo|cada|every|each|and|at|on|in|the|a|per)$/i;
+function cleanName(raw) {
+  const w = raw.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  while (w.length && STOP.test(w[w.length - 1])) w.pop();
+  while (w.length && STOP.test(w[0])) w.shift();
+  return w.join(' ');
+}
+
+function joinDays(list, names, and) {
+  const parts = list.map((d) => names[d]);
+  if (parts.length <= 1) return parts.join('');
+  return parts.slice(0, -1).join(', ') + ' ' + and + ' ' + parts[parts.length - 1];
+}
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR', dayNames: PT_DAY, dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    back: 'Voltar', skip: 'Pular',
+    stepOf: (n) => 'Passo ' + n + ' de 3',
+    whatTitle: 'O que você quer continuar fazendo?',
+    whatLabel: 'Escreva com as suas palavras',
+    placeholder: 'Caminhar toda segunda e quinta às 18:00',
+    marksLabel: 'Palavras que o Orbit entendeu',
+    startersTitle: 'Se quiser um começo',
+    starters: ['Beber água pela manhã', 'Caminhar 3 vezes por semana', 'Ler antes de dormir', 'Arrumar a casa no sábado'],
+    haveAccount: 'Já tenho uma conta',
+    next: 'Continuar', nextWhy: 'Escreva o que você quer acompanhar.',
+    astraRead: 'Entendi assim. Toque para corrigir.',
+    astraLimited: 'Escolha os dias e a hora.',
+    proposedBy: 'Proposto pelo Astra',
+    emojiLabel: 'Emoji proposto pelo Astra',
+    daysLabel: 'Dias da semana',
+    dayOn: (d) => PT_DAY[d] + ', ativo', dayOff: (d) => PT_DAY[d] + ', inativo',
+    timeLabel: 'Hora', timeHint: 'Deixe vazio para qualquer hora do dia',
+    fixed: (days, time) => [['toda ', 0], [joinDays(days, PT_DAY, 'e'), 0]].concat(time ? [[' às ', 0], [time, 1]] : []),
+    daily: (time) => [['todo dia', 0]].concat(time ? [[' às ', 0], [time, 1]] : []),
+    flex: (q, time) => [[String(q), 1], [' vezes por semana, qualquer dia', 0]].concat(time ? [[', às ', 0], [time, 1]] : []),
+    create: 'Criar hábito',
+    retry: 'Tentar de novo',
+    createFailedToast: 'O hábito não foi criado. Verifique a conexão e tente de novo.',
+    remindTitle: 'Podemos te lembrar?',
+    remindBody: 'O hábito já está criado. É assim que o lembrete chega:',
+    notifBody: 'Em 15 minutos',
+    remindFine: 'Ele chega 15 minutos antes do hábito. Se o hábito já estiver registrado, ele não é enviado.',
+    noTimeTitle: 'Lembretes precisam de uma hora',
+    noTimeBody: 'O hábito ficou sem hora marcada, então não há lembrete para enviar. Você pode voltar e definir uma, ou seguir sem lembretes.',
+    setTime: 'Definir a hora',
+    refusedTitle: 'Os lembretes estão desligados',
+    refusedBody: 'O aparelho está bloqueando as notificações do Orbit. Para receber lembretes, ligue as notificações do Orbit nas configurações do sistema. O hábito já está salvo.',
+    enableFailTitle: 'Os lembretes não ligaram',
+    enableFailBody: 'A permissão foi dada e o registro deste aparelho falhou. O hábito já está salvo.',
+    allow: 'Permitir lembretes', deny: 'Agora não',
+    doneTitle: 'Pronto. Ele está no seu dia.',
+    doneBody: 'Toque no anel para registrar quando acontecer.',
+    doneBodyDenied: 'Toque no anel para registrar quando acontecer. Você pode ligar os lembretes no hábito.',
+    doneTitleSkip: 'Você pode começar pelo Hoje.',
+    doneBodySkip: 'Crie o primeiro hábito quando quiser, escrevendo uma frase.',
+    doneTitleOut: 'O seu plano está pronto.',
+    doneBodyOut: 'Ele fica guardado neste aparelho e entra na sua conta quando você entrar.',
+    toHoje: 'Ver o meu dia',
+    toEntrar: 'Entrar para salvar',
+    statusEmpty: 'pendente',
+    limit: ['As ', '5', ' mensagens de hoje foram usadas. A leitura da frase usa a mesma conta.'],
+  },
+  en: {
+    intl: 'en-GB', lang: 'en', dayNames: EN_DAY, dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina',
+    navLabel: 'Main navigation', palette: 'Search',
+    back: 'Back', skip: 'Skip',
+    stepOf: (n) => 'Step ' + n + ' of 3',
+    whatTitle: 'What do you want to keep doing?',
+    whatLabel: 'Write it in your own words',
+    placeholder: 'Walk every Monday and Thursday at 18:00',
+    marksLabel: 'Words Orbit understood',
+    startersTitle: 'If you want a start',
+    starters: ['Drink water in the morning', 'Walk 3 times a week', 'Read before bed', 'Tidy the house on Saturday'],
+    haveAccount: 'I already have an account',
+    next: 'Continue', nextWhy: 'Write what you want to keep up.',
+    astraRead: 'This is how I read it. Tap to correct it.',
+    astraLimited: 'Pick the days and the time.',
+    proposedBy: 'Proposed by Astra',
+    emojiLabel: 'Emoji proposed by Astra',
+    daysLabel: 'Days of the week',
+    dayOn: (d) => EN_DAY[d] + ', on', dayOff: (d) => EN_DAY[d] + ', off',
+    timeLabel: 'Time', timeHint: 'Leave empty for any time of day',
+    fixed: (days, time) => [['every ', 0], [joinDays(days, EN_DAY, 'and'), 0]].concat(time ? [[' at ', 0], [time, 1]] : []),
+    daily: (time) => [['every day', 0]].concat(time ? [[' at ', 0], [time, 1]] : []),
+    flex: (q, time) => [[String(q), 1], [' times a week, any day', 0]].concat(time ? [[', at ', 0], [time, 1]] : []),
+    create: 'Create habit',
+    retry: 'Try again',
+    createFailedToast: 'The habit was not created. Check the connection and try again.',
+    remindTitle: 'May we remind you?',
+    remindBody: 'The habit is already created. This is how the reminder arrives:',
+    notifBody: 'Due in 15 minutes',
+    remindFine: 'It arrives 15 minutes before the habit. If the habit is already logged, it is not sent.',
+    noTimeTitle: 'Reminders need a time',
+    noTimeBody: 'The habit has no set time, so there is no reminder to send. You can go back and set one, or continue without reminders.',
+    setTime: 'Set the time',
+    refusedTitle: 'Reminders are off',
+    refusedBody: 'The device is blocking Orbit notifications. To get reminders, turn Orbit notifications on in the system settings. The habit is already saved.',
+    enableFailTitle: 'Reminders did not turn on',
+    enableFailBody: 'Permission was given and registering this device failed. The habit is already saved.',
+    allow: 'Allow reminders', deny: 'Not now',
+    doneTitle: 'Done. It is in your day.',
+    doneBody: 'Tap the ring to log it when it happens.',
+    doneBodyDenied: 'Tap the ring to log it when it happens. You can turn reminders on from the habit.',
+    doneTitleSkip: 'You can start from Today.',
+    doneBodySkip: 'Create your first habit whenever you like, by writing a sentence.',
+    doneTitleOut: 'Your plan is ready.',
+    doneBodyOut: 'It stays on this device and joins your account when you sign in.',
+    toHoje: 'See my day',
+    toEntrar: 'Sign in to save',
+    statusEmpty: 'pending',
+    limit: ["Today's ", '5', ' messages have been used. Reading the phrase draws on the same allowance.'],
+  },
+};
+
+const SEED = { 'pt-BR': 'Caminhar toda segunda e quinta às 18:00', en: 'Walk every Monday and Thursday at 18:00' };
+const STEP = { what: 0, 'what typed': 0, 'what signed out': 0, when: 1, 'when corrected': 1, 'at limit': 1,
+  'create failed': 1, remind: 2, 'remind already refused': 2, 'remind enable failed': 2, 'remind no time': 2,
+  done: 3, 'done no reminders': 3, 'done signed out': 3 };
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'what typed', loc: 'pt-BR',
+    text: null, days: null, time: null, touched: false, step: null, denied: null,
+    signedOut: false, created: null, failed: false, remindVar: null };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => {
+    const st = next.state;
+    this.setState({ mode: next.mode, width: next.width, st: st, loc: next.locale,
+      text: null, days: null, time: st === 'remind no time' ? '' : null, touched: st === 'when corrected', step: null, denied: null,
+      signedOut: st === 'what signed out' || st === 'done signed out',
+      created: null, failed: st === 'create failed',
+      remindVar: st === 'remind already refused' ? 'refused' : st === 'remind enable failed' ? 'enablefail' : null });
+  };
+
+  goEntrar = () => { window.location.href = encodeURI('Orbit Entrar.dc.html'); };
+  goHoje = () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); };
+  /* Skip leaves from any step except the last, straight to the end (onboarding-flow.tsx:130-134). */
+  goSkip = () => this.setState({ step: 3, failed: false });
+  /* Back walks the flow backward step by step (onboarding-flow.tsx:83-95). */
+  goBack = () => this.setState((p) => {
+    const cur = p.step != null ? p.step : (STEP[p.st] || 0);
+    return { step: Math.max(0, cur - 1), failed: false, remindVar: null };
+  });
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['what', 'what typed', 'what signed out', 'when', 'when corrected', 'at limit',
+        'create failed', 'remind', 'remind already refused', 'remind enable failed', 'remind no time',
+        'done', 'done no reminders', 'done signed out'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n16: 16, n18: 18, n20: 20, n40: 40, noop: () => {},
+      showReport: this.props.showReport !== false,
+      whatTitle: t.whatTitle, startersTitle: t.startersTitle, proposedBy: t.proposedBy,
+      emojiLabel: t.emojiLabel, daysLabel: t.daysLabel, timeLabel: t.timeLabel, timeHint: t.timeHint,
+      backWord: t.back, skipWord: t.skip, atLimit: false,
     };
+    if (!D) return base;
+
+    const atLimit = st === 'at limit';
+    const step = s.step != null ? s.step : (STEP[st] || 0);
+    const signedOut = s.signedOut;
+    const failed = s.failed && step === 1;
+    const remindVar = step === 2 ? s.remindVar : null;
+    const denied = s.denied != null ? s.denied : (st === 'done no reminders');
+    /* A habit exists at the end only if the create step ran: skip jumps past it. */
+    const created = s.created != null ? s.created
+      : (st === 'done' || st === 'done no reminders' || st === 'done signed out'
+        || st === 'remind' || st === 'remind already refused' || st === 'remind enable failed');
+    const seedText = st === 'what' ? '' : SEED[t.lang === 'en' ? 'en' : 'pt-BR'];
+    const text = s.text != null ? s.text : seedText;
+    const isEmpty = text.length === 0;
+    const parsed = parseHabit(text, t.lang);
+    /* No proposal at the ceiling (the read spends a message) and none signed out (ChatController.cs:18
+       is [Authorize], so no anonymous call exists): two reasons, one drawing. */
+    const hasProposal = !atLimit && !signedOut;
+
+    const days = s.days != null ? s.days : parsed.days;
+    const time = s.time != null ? s.time : (parsed.time || '');
+    /* No due time, no relative reminder: ProcessRelativeReminders walks ReminderTimes against
+       DueTime and does nothing without one, and onboarding sets no fixed clock time. So with no
+       time there is nothing to ask permission FOR, and the step never asks. */
+    const noTime = step === 2 && !remindVar && !time;
+    const mode = s.days != null ? (days.length ? 'fixed' : 'flex') : parsed.mode;
+    const raw = (hasProposal && mode) ? (mode === 'fixed' ? t.fixed(days, time || null)
+      : mode === 'daily' ? t.daily(time || null)
+      : t.flex(parsed.qty || 3, time || null)) : null;
+    const habitName = (parsed.name || '').length ? parsed.name : t.placeholder;
+    const navOn = step === 3;
+    const doneOut = navOn && signedOut;
+
+    /* The delight budget, spent once: one ring sweep as the habit lands. No fill mode: the resting
+       style is the finished ring. */
+    const ringNode = created ? H('svg', { width: 56, height: 56, viewBox: '0 0 34 34', 'aria-hidden': 'true' },
+      H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--status-empty)', strokeWidth: 1.5 }),
+      H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--primary)', strokeWidth: 2.5,
+        strokeLinecap: 'round', strokeDasharray: '97.39', transform: 'rotate(-90 17 17)',
+        style: { animation: 'ob-ring-in 280ms var(--ease-out)', animationDelay: '60ms' } })) : null;
+
+    /* The one position indicator (onboarding-flow.tsx:248-264) with its sr-only progress (:290-296). */
+    const nn = ('0' + (step + 1)).slice(-2);
+    const counterNode = H(F, null,
+      H('p', { 'aria-hidden': 'true', style: { fontFamily: 'var(--font-mono)', fontSize: 12,
+        letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--fg-3)',
+        paddingInline: 8, whiteSpace: 'nowrap' } },
+        H('span', { translate: 'no' }, 'Orbit'), ' \u00B7 ',
+        H('span', { style: { color: 'var(--fg-1)', fontWeight: 500 } }, nn), ' / 03'),
+      H('progress', { max: 3, value: step + 1, 'aria-label': t.stepOf(step + 1),
+        style: { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden',
+          clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 } }));
+
+    const btn = (label, onClick, extra) => H(D.Button, Object.assign({ variant: 'primary', onClick: onClick,
+      style: { width: '100%' } }, extra), label);
+    const ghost = (label, onClick) => H(D.Button, { variant: 'ghost', onClick: onClick,
+      style: { width: '100%' } }, label);
+    let action = null;
+    if (step === 0) {
+      action = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        btn(t.next, () => this.setState({ step: 1 }), { disabled: isEmpty }),
+        isEmpty ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', textAlign: 'center' } }, t.nextWhy) : null,
+        /* The sign in link rides the first step on the signed out path only (onboarding-welcome.tsx:141-145). */
+        signedOut ? ghost(t.haveAccount, this.goEntrar) : null);
+    } else if (step === 1) {
+      action = failed
+        ? btn(t.retry, () => this.setState({ failed: false, created: true, step: 2 }))
+        : btn(t.create, () => this.setState({ created: true, step: 2 }));
+    } else if (step === 2) {
+      action = noTime
+        ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+            btn(t.next, () => this.setState({ step: 3, denied: false })),
+            ghost(t.setTime, () => this.setState({ step: 1 })))
+        : remindVar === 'refused'
+        ? btn(t.next, () => this.setState({ step: 3, denied: true, remindVar: null }))
+        : remindVar === 'enablefail'
+          ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              btn(t.retry, () => this.setState({ step: 3, denied: false, remindVar: null })),
+              ghost(t.next, () => this.setState({ step: 3, denied: true, remindVar: null })))
+          : H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              btn(t.allow, () => this.setState({ step: 3, denied: false })),
+              ghost(t.deny, () => this.setState({ step: 3, denied: true })));
+    }
+
+    /* The create failure is a Toast in the notice slot: the form on screen is still correct, so
+       nothing replaces it (onboarding-create-habit.tsx:95-99). */
+    const notice = failed ? H(D.Toast, { kind: 'neutral', icon: 'alert-triangle', message: t.createFailedToast }) : null;
+
+    /* nav is the shells' own behaviour: absent for the three decisions, the plain shape at the last
+       step. With nav off the rejected sidebar props are OMITTED, never passed as null. */
+    const sh412 = navOn
+      ? { tabBar: H(D.TabBar, { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
+          activeId: 'hoje', onSelect: () => {} }), notice: notice }
+      : { nav: false, action: action, notice: notice };
+    const shWide = navOn
+      ? { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })), activeId: 'hoje',
+          onSelect: () => {}, navLabel: t.navLabel, account: t.account, onPalette: () => {},
+          paletteLabel: t.palette, paletteHint: 'Ctrl K', notice: notice }
+      : { nav: false, action: action, notice: notice };
+
+    /* Input owns the mirror now: marks with their required marksLabel, maxLength for the app's title
+       cap (MAX_HABIT_TITLE_LENGTH), rows not pixels. */
+    const fieldProps = Object.assign({
+      label: t.whatLabel, placeholder: t.placeholder, value: text,
+      onChange: (e) => this.setState({ text: e.target.value }),
+      multiline: true, rows: 3, maxLength: 100,
+    }, parsed.tokens.length ? { marks: parsed.tokens, marksLabel: t.marksLabel } : {});
+
+    return Object.assign(base, {
+      sh412: sh412, shWide: shWide, fieldProps: fieldProps,
+      hasTopRow: !navOn, hasBack: step > 0 && !navOn,
+      counterNode: counterNode, goBack: this.goBack, goSkip: this.goSkip,
+      showWhat: step === 0, showWhen: step === 1, showRemind: step === 2, showDone: navOn,
+
+      starters: t.starters.map((label) => ({ label: label,
+        pick: () => this.setState({ text: label, days: null, time: null, touched: false }) })),
+
+      atLimit: atLimit,
+      limitNode: H(F, null, t.limit[0], mock(t.limit[1]), t.limit[2]),
+      hasProposal: hasProposal,
+      astraRead: hasProposal && raw ? t.astraRead : t.astraLimited,
+      hasSentence: !!raw,
+      notTouched: hasProposal && !s.touched,
+      hasEmoji: !!parsed.emoji, emoji: parsed.emoji || H('span', { 'aria-hidden': 'true' }),
+      habitName: habitName,
+      sentenceParts: raw ? raw.map((p) => ({ text: p[0], mock: p[1] === 1, plain: p[1] === 0 })) : [],
+      pills: [0, 1, 2, 3, 4, 5, 6].map((d) => {
+        const on = days.indexOf(d) >= 0;
+        return { label: t.dayShort[d], on: on, off: !on, aria: on ? t.dayOn(d) : t.dayOff(d),
+          pick: () => this.setState((p) => {
+            const cur = p.days != null ? p.days : days;
+            return { touched: true,
+              days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b) };
+          }) };
+      }),
+      timeValue: time,
+      onTime: (v) => this.setState({ time: v, touched: true }),
+
+      remindTitle: remindVar === 'refused' ? t.refusedTitle : remindVar === 'enablefail' ? t.enableFailTitle : noTime ? t.noTimeTitle : t.remindTitle,
+      remindBody: remindVar === 'refused' ? t.refusedBody : remindVar === 'enablefail' ? t.enableFailBody : noTime ? t.noTimeBody : t.remindBody,
+      showRemindRow: !remindVar && !noTime,
+      notifBody: t.notifBody, remindFine: t.remindFine,
+      remindAtValue: time ? minus15(time) : '',
+
+      hasHabit: created,
+      doneTitle: doneOut ? t.doneTitleOut : created ? t.doneTitle : t.doneTitleSkip,
+      doneBody: doneOut ? t.doneBodyOut : created ? (denied ? t.doneBodyDenied : t.doneBody) : t.doneBodySkip,
+      doneAction: doneOut ? t.toEntrar : t.toHoje,
+      doneGo: doneOut ? this.goEntrar : this.goHoje,
+      ringNode: ringNode,
+      metaNode: time ? mock(time) : null,
+      /* Signed out the ring is presentation only: no habit exists on the server yet. */
+      ringSmall: H(D.StatusRing, { status: 'empty', size: 30, label: t.statusEmpty }),
+    });
   }
 }
 </script>

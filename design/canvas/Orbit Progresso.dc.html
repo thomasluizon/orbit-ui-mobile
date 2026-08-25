@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+[data-dragging="true"]{opacity:.5;box-shadow:var(--sh-2);position:relative;z-index:2}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Progresso" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" tab-bar="{{ tabBar }}" composer="{{ composer }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:32px;padding:16px">
+
+          <sc-if value="{{ showMain }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;align-items:baseline;gap:12px">
+                <p data-mock="true" style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">{{ streak }}</p>
+                <p style="font-size:17px;line-height:1.3;color:var(--fg-2)">{{ lblStreak }}</p>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayStrip" scope="account" days="{{ strip }}" labels="{{ stripLabels }}" words="{{ stripWords }}" size="{{ n20 }}" label="{{ lblStripAria }}" hint-size="100%,20px"></x-import>
+              {{ frozenBanner }}
+              {{ legend }}
+              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
+              </div>
+              {{ bankCard }}
+              {{ protectedBlock }}
+
+              <sc-if value="{{ hasGap }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                  <p style="font-size:16px;line-height:1.5;text-wrap:pretty">{{ gapLine }}</p>
+                  <sc-if value="{{ canRepair }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;align-items:flex-start">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" size="sm" on-click="{{ onRepair }}" hint-size="auto,40px">{{ repairLabel }}</x-import>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ noRepair }}" hint-placeholder-val="{{ false }}">
+                    <p style="font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ noRepairLine }}</p>
+                  </sc-if>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ bankFull }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ bankFullMessage }}" hint-size="100%,68px"></x-import>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblGoals }}</x-import>
+              {{ goalFilter }}
+              <sc-if value="{{ goalsEmptyFiltered }}" hint-placeholder-val="{{ false }}">{{ goalFilterEmpty }}</sc-if>
+              <sc-for list="{{ goals }}" as="g" hint-placeholder-count="3">
+                <button type="button" onClick="{{ g.open }}" data-goalkey="{{ g.key }}" data-dragging="{{ g.dragging }}" onPointerDown="{{ g.onDown }}" onPointerUp="{{ g.onUp }}" onPointerCancel="{{ g.onUp }}" style="display:flex;align-items:center;gap:12px;width:100%;padding:16px;border:0;border-radius:var(--r-card);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);cursor:pointer;text-align:start;font-family:var(--font-sans);transition:background-color var(--dur-enter) var(--ease-standard)" style-hover="background:var(--bg-hover)">
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                    <span style="font-size:17px;line-height:1.3;font-weight:500;color:{{ g.nameColor }}">{{ g.name }}</span>
+                    <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ g.badgeVariant }}" hint-size="auto,22px">{{ g.badge }}</x-import>
+                      <sc-if value="{{ g.hasFigure }}" hint-placeholder-val="{{ true }}">
+                        <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ g.figure }}</span>
+                      </sc-if>
+                    </span>
+                  </span>
+                  <sc-if value="{{ g.isDone }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="done" size="{{ n30 }}" label="{{ g.ringLabel }}" hint-size="30px,30px"></x-import>
+                  </sc-if>
+                  <sc-if value="{{ g.isOpen }}" hint-placeholder-val="{{ true }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressRing" value="{{ g.pct }}" size="{{ n44 }}" label="{{ g.ringLabel }}" hint-size="44px,44px"></x-import>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblWindow }}</x-import>
+              <sc-if value="{{ figGated }}" hint-placeholder-val="{{ false }}">{{ figLockCard }}</sc-if>
+              <sc-if value="{{ figOpen }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
+                </sc-for>
+              </div>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:baseline;gap:12px">
+                <p style="flex:1;min-width:0;font-size:17px;line-height:1.3;font-weight:500">{{ levelLine }}</p>
+                <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ xpLine }}</p>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ xpValue }}" max="{{ xpMax }}" label="{{ lblXp }}" hint-size="100%,8px"></x-import>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblAchievements }}</x-import>
+              {{ achLockCard }}
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ achievements }}" as="a" hint-placeholder-count="4">
+                  <sc-if value="{{ a.catStart }}" hint-placeholder-val="{{ false }}"><p style="grid-column:1/-1;font-size:14px;font-weight:500;color:var(--fg-2);padding-top:4px">{{ a.cat }}</p></sc-if>
+                  <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <sc-if value="{{ a.earned }}" hint-placeholder-val="{{ false }}">
+                        <span role="img" aria-label="{{ a.stateLabel }}" style="width:32px;height:32px;flex:0 0 auto;border-radius:var(--r-pill);background:var(--status-done);color:var(--bg);display:grid;place-items:center">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ a.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                        </span>
+                      </sc-if>
+                      <sc-if value="{{ a.unearned }}" hint-placeholder-val="{{ true }}">
+                        <span role="img" aria-label="{{ a.stateLabel }}" style="width:32px;height:32px;flex:0 0 auto;border-radius:var(--r-pill);box-shadow:inset 0 0 0 1.5px var(--hairline-strong);color:var(--fg-3);display:grid;place-items:center">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ a.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                        </span>
+                      </sc-if>
+                      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                        <p style="font-size:14px;line-height:1.35;font-weight:500;color:{{ a.nameColor }}">{{ a.name }}</p>
+                        <p style="font-size:12px;line-height:1.4;color:var(--fg-3);text-wrap:pretty">{{ a.desc }}</p>
+                      </div>
+                      <sc-if value="{{ a.earned }}" hint-placeholder-val="{{ false }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ a.earnedWord }}</x-import>
+                      </sc-if>
+                    </div>
+                    <sc-if value="{{ a.hasBar }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ a.value }}" max="{{ a.max }}" label="{{ a.barLabel }}" hint-size="100%,8px"></x-import>
+                        <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ a.figure }}</p>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+                  <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ dName }}</p>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ dBadgeVariant }}" hint-size="auto,22px">{{ dBadge }}</x-import>
+                    <sc-if value="{{ dHasFigure }}" hint-placeholder-val="{{ true }}">
+                      <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dFigure }}</p>
+                    </sc-if>
+                  </div>
+                </div>
+                <sc-if value="{{ dIsDone }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="done" size="{{ n44 }}" label="{{ dRingLabel }}" hint-size="44px,44px"></x-import>
+                </sc-if>
+                <sc-if value="{{ dIsOpen }}" hint-placeholder-val="{{ true }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressRing" value="{{ dPct }}" size="{{ n60 }}" label="{{ dRingLabel }}" hint-size="60px,60px"></x-import>
+                </sc-if>
+              </div>
+
+              <sc-if value="{{ dDerived }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ dDerivedWhy }}</p>
+              </sc-if>
+
+              <sc-if value="{{ dManual }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <p style="font-size:14px;line-height:1.4;font-weight:500;color:var(--fg-2)">{{ dManualLabel }}</p>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ dLess }}" dc-props="{{ dLessProps }}" hint-size="44px,44px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                    </x-import>
+                    <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:32px;text-align:center">{{ dValue }}</p>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ dMore }}" dc-props="{{ dMoreProps }}" hint-size="44px,44px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                    </x-import>
+                    <p style="font-size:14px;line-height:1.4;color:var(--fg-3)">{{ dUnit }}</p>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ dCanComplete }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <div style="display:flex;align-items:flex-start">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ dComplete }}" hint-size="auto,40px">{{ dCompleteLabel }}</x-import>
+                  </div>
+                  <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ dCompleteWhy }}</p>
+                </div>
+              </sc-if>
+
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblLinked }}</x-import>
+                <sc-if value="{{ dLinkFull }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ dLinkFullMessage }}" hint-size="100%,68px"></x-import>
+                </sc-if>
+                <div style="margin-inline:-16px">
+                  <sc-for list="{{ dLinked }}" as="h" hint-placeholder-count="3">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ h.icon }}" title="{{ h.title }}" value="{{ h.value }}" on-click="{{ h.open }}" hint-size="100%,56px"></x-import>
+                  </sc-for>
+                </div>
+              </div>
+
+              {{ dHistory }}
+              <div style="margin-inline:-16px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ dEditLabel }}" chevron="{{ no }}" on-click="{{ dEdit }}" hint-size="100%,56px"></x-import>
+                <sc-if value="{{ dCanReopen }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="rotate" title="{{ dReopenLabel }}" chevron="{{ no }}" on-click="{{ dReopen }}" hint-size="100%,56px"></x-import>
+                </sc-if>
+                <sc-if value="{{ dCanAbandon }}" hint-placeholder-val="{{ true }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="circle-off" title="{{ dAbandonLabel }}" chevron="{{ no }}" on-click="{{ dAbandon }}" hint-size="100%,56px"></x-import>
+                </sc-if>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="trash" title="{{ dDeleteLabel }}" danger="{{ yes }}" chevron="{{ no }}" on-click="{{ dDelete }}" hint-size="100%,56px"></x-import>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n2 }}" label="{{ loadingLabel }}" hint-size="100%,120px"></x-import>
+              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                </sc-for>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ loadingLabel }}" hint-size="100%,240px"></x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ errorMessage }}" action="{{ errorAction }}" hint-size="100%,200px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ showEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding-top:48px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ emptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ header }}" items="{{ navItems }}" active-id="progresso" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:32px">
+
+            <sc-if value="{{ showMain }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;align-items:baseline;gap:12px">
+                  <p data-mock="true" style="font-family:var(--font-display);font-size:60px;font-weight:600;line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">{{ streak }}</p>
+                  <p style="font-size:17px;line-height:1.3;color:var(--fg-2)">{{ lblStreak }}</p>
+                </div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayStrip" scope="account" days="{{ strip }}" labels="{{ stripLabels }}" words="{{ stripWords }}" size="{{ n24 }}" label="{{ lblStripAria }}" hint-size="100%,24px"></x-import>
+                {{ frozenBanner }}
+              {{ legend }}
+              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
+              </div>
+              {{ bankCard }}
+              {{ protectedBlock }}
+
+                <sc-if value="{{ hasGap }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-well);border-radius:var(--r-well);max-width:560px">
+                    <p style="font-size:16px;line-height:1.5;text-wrap:pretty">{{ gapLine }}</p>
+                    <sc-if value="{{ canRepair }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:flex-start">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" size="sm" on-click="{{ onRepair }}" hint-size="auto,40px">{{ repairLabel }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ noRepair }}" hint-placeholder-val="{{ false }}">
+                      <p style="font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ noRepairLine }}</p>
+                    </sc-if>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ bankFull }}" hint-placeholder-val="{{ false }}">
+                  <div style="max-width:560px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ bankFullMessage }}" hint-size="100%,68px"></x-import>
+                  </div>
+                </sc-if>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblGoals }}</x-import>
+              {{ goalFilter }}
+              <sc-if value="{{ goalsEmptyFiltered }}" hint-placeholder-val="{{ false }}">{{ goalFilterEmpty }}</sc-if>
+                <sc-for list="{{ goals }}" as="g" hint-placeholder-count="3">
+                  <button type="button" onClick="{{ g.open }}" data-goalkey="{{ g.key }}" data-dragging="{{ g.dragging }}" onPointerDown="{{ g.onDown }}" onPointerUp="{{ g.onUp }}" onPointerCancel="{{ g.onUp }}" style="display:flex;align-items:center;gap:12px;width:100%;padding:16px;border:0;border-radius:var(--r-card);background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);cursor:pointer;text-align:start;font-family:var(--font-sans);transition:background-color var(--dur-enter) var(--ease-standard)" style-hover="background:var(--bg-hover)">
+                    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                      <span style="font-size:17px;line-height:1.3;font-weight:500;color:{{ g.nameColor }}">{{ g.name }}</span>
+                      <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ g.badgeVariant }}" hint-size="auto,22px">{{ g.badge }}</x-import>
+                        <sc-if value="{{ g.hasFigure }}" hint-placeholder-val="{{ true }}">
+                          <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ g.figure }}</span>
+                        </sc-if>
+                      </span>
+                    </span>
+                    <sc-if value="{{ g.isDone }}" hint-placeholder-val="{{ false }}">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="done" size="{{ n30 }}" label="{{ g.ringLabel }}" hint-size="30px,30px"></x-import>
+                    </sc-if>
+                    <sc-if value="{{ g.isOpen }}" hint-placeholder-val="{{ true }}">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressRing" value="{{ g.pct }}" size="{{ n44 }}" label="{{ g.ringLabel }}" hint-size="44px,44px"></x-import>
+                    </sc-if>
+                  </button>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblWindow }}</x-import>
+                <sc-if value="{{ figGated }}" hint-placeholder-val="{{ false }}"><div style="max-width:560px">{{ figLockCard }}</div></sc-if>
+                <sc-if value="{{ figOpen }}" hint-placeholder-val="{{ true }}">
+                <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px">
+                  <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
+                  </sc-for>
+                </div>
+                </sc-if>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+                <div style="display:flex;align-items:baseline;gap:12px">
+                  <p style="flex:1;min-width:0;font-size:17px;line-height:1.3;font-weight:500">{{ levelLine }}</p>
+                  <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ xpLine }}</p>
+                </div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ xpValue }}" max="{{ xpMax }}" label="{{ lblXp }}" hint-size="100%,8px"></x-import>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblAchievements }}</x-import>
+              {{ achLockCard }}
+                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                  <sc-for list="{{ achievements }}" as="a" hint-placeholder-count="4">
+                    <sc-if value="{{ a.catStart }}" hint-placeholder-val="{{ false }}"><p style="grid-column:1/-1;font-size:14px;font-weight:500;color:var(--fg-2);padding-top:4px">{{ a.cat }}</p></sc-if>
+                    <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                      <div style="display:flex;align-items:center;gap:12px">
+                        <sc-if value="{{ a.earned }}" hint-placeholder-val="{{ false }}">
+                          <span role="img" aria-label="{{ a.stateLabel }}" style="width:32px;height:32px;flex:0 0 auto;border-radius:var(--r-pill);background:var(--status-done);color:var(--bg);display:grid;place-items:center">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ a.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                          </span>
+                        </sc-if>
+                        <sc-if value="{{ a.unearned }}" hint-placeholder-val="{{ true }}">
+                          <span role="img" aria-label="{{ a.stateLabel }}" style="width:32px;height:32px;flex:0 0 auto;border-radius:var(--r-pill);box-shadow:inset 0 0 0 1.5px var(--hairline-strong);color:var(--fg-3);display:grid;place-items:center">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ a.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                          </span>
+                        </sc-if>
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                          <p style="font-size:14px;line-height:1.35;font-weight:500;color:{{ a.nameColor }}">{{ a.name }}</p>
+                          <p style="font-size:12px;line-height:1.4;color:var(--fg-3);text-wrap:pretty">{{ a.desc }}</p>
+                        </div>
+                        <sc-if value="{{ a.earned }}" hint-placeholder-val="{{ false }}">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ a.earnedWord }}</x-import>
+                        </sc-if>
+                      </div>
+                      <sc-if value="{{ a.hasBar }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ a.value }}" max="{{ a.max }}" label="{{ a.barLabel }}" hint-size="100%,8px"></x-import>
+                          <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ a.figure }}</p>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:24px;max-width:620px">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+                    <p style="font-family:var(--font-display);font-size:28px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ dName }}</p>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ dBadgeVariant }}" hint-size="auto,22px">{{ dBadge }}</x-import>
+                      <sc-if value="{{ dHasFigure }}" hint-placeholder-val="{{ true }}">
+                      <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dFigure }}</p>
+                    </sc-if>
+                    </div>
+                  </div>
+                  <sc-if value="{{ dIsDone }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="done" size="{{ n44 }}" label="{{ dRingLabel }}" hint-size="44px,44px"></x-import>
+                  </sc-if>
+                  <sc-if value="{{ dIsOpen }}" hint-placeholder-val="{{ true }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressRing" value="{{ dPct }}" size="{{ n60 }}" label="{{ dRingLabel }}" hint-size="60px,60px"></x-import>
+                  </sc-if>
+                </div>
+
+                <sc-if value="{{ dDerived }}" hint-placeholder-val="{{ false }}">
+                  <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ dDerivedWhy }}</p>
+                </sc-if>
+
+                <sc-if value="{{ dManual }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <p style="font-size:14px;line-height:1.4;font-weight:500;color:var(--fg-2)">{{ dManualLabel }}</p>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ dLess }}" dc-props="{{ dLessProps }}" hint-size="44px,44px">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                      </x-import>
+                      <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:32px;text-align:center">{{ dValue }}</p>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ dMore }}" dc-props="{{ dMoreProps }}" hint-size="44px,44px">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                      </x-import>
+                      <p style="font-size:14px;line-height:1.4;color:var(--fg-3)">{{ dUnit }}</p>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ dCanComplete }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:flex-start">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ dComplete }}" hint-size="auto,40px">{{ dCompleteLabel }}</x-import>
+                    </div>
+                    <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ dCompleteWhy }}</p>
+                  </div>
+                </sc-if>
+
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblLinked }}</x-import>
+                  <sc-if value="{{ dLinkFull }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ dLinkFullMessage }}" hint-size="100%,68px"></x-import>
+                  </sc-if>
+                  <div>
+                    <sc-for list="{{ dLinked }}" as="h" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ h.icon }}" title="{{ h.title }}" value="{{ h.value }}" on-click="{{ h.open }}" hint-size="100%,56px"></x-import>
+                    </sc-for>
+                  </div>
+                </div>
+
+                {{ dHistory }}
+                <div>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ dEditLabel }}" chevron="{{ no }}" on-click="{{ dEdit }}" hint-size="100%,56px"></x-import>
+                  <sc-if value="{{ dCanReopen }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="rotate" title="{{ dReopenLabel }}" chevron="{{ no }}" on-click="{{ dReopen }}" hint-size="100%,56px"></x-import>
+                  </sc-if>
+                  <sc-if value="{{ dCanAbandon }}" hint-placeholder-val="{{ true }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="circle-off" title="{{ dAbandonLabel }}" chevron="{{ no }}" on-click="{{ dAbandon }}" hint-size="100%,56px"></x-import>
+                  </sc-if>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="trash" title="{{ dDeleteLabel }}" danger="{{ yes }}" chevron="{{ no }}" on-click="{{ dDelete }}" hint-size="100%,56px"></x-import>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showLoading }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:32px">
+                <div style="max-width:560px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n2 }}" label="{{ loadingLabel }}" hint-size="100%,120px"></x-import>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px">
+                  <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                  </sc-for>
+                </div>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ loadingLabel }}" hint-size="100%,240px"></x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showError }}" hint-placeholder-val="{{ false }}">
+              <div style="max-width:620px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ errorMessage }}" action="{{ errorAction }}" hint-size="100%,200px"></x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding-top:48px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ emptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+              </div>
+            </sc-if>
+
+          </div>
+        </x-import>
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Progresso answers am I moving. It composes what used to be three screens, so the thing that keeps it one answer is a single descending column: the streak is the focal element, at 60px, bare on the canvas with no card around it, because it is the only thing here in the present tense and the only thing carrying an action. Goals come second as the toward what. Four figures come third in one window. Achievements come last, smallest type on the screen. Nothing is a card unless it is a separable object, so the four sections carry only a section title and space between them, never a panel each.</p>
+      <p><span style="color:var(--fg-3)">not&nbsp;&nbsp;</span>not a trophy cabinet and not a chart gallery. No chart, no new shape: every figure is StatTile, ProgressBar or ProgressRing, and nothing needed a shape the system cannot draw.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, gap, no freeze, bank full, frozen today, goal at 100, abandoned goal, goal detail, linked at limit, loading, error, empty, Astra at limit. A plan axis sits beside the state, free or Pro, defaulting to free: a plan is an account fact that survives a state change, so it never sits on the state axis. Reached by using the screen rather than the axis: the goal detail by tapping a goal, the filters and their empty case by tapping completed, the edit sheet, the reopen on an abandoned goal, the history’s show all, and reordering by dragging a goal card.</p>
+      <p><span style="color:var(--fg-3)">record&nbsp;&nbsp;</span>a record is not a next action, so the accent is absent from every finished thing: an earned achievement is neutral, the streak total is neutral, and a goal at 100 renders status-done as a filled disc with a check rather than a ring at full sweep, so there is no intermediate flip between the two shapes. Below 100 the ring sweeps primary over the status-empty track. The accent enters only on progress toward something unfinished.</p>
+      <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>one streak per person, never one per habit. Three figures, the shipping three (StreakStatsRow, streak-sections.tsx:46-61): the current streak as the focal 60px number, and the longest streak and the tier as two tiles under the strip; the tier’s vocabulary lives in streakDisplay.detail.tierTileLabel, so the word drawn is a fixture of that ladder. The strip carries exactly four derived values, active frozen missed today, and under it the legend names its marks in words (StreakTimelineCard): day active, day frozen, day missed, because colour and shape alone are not carriers. The freeze bank is drawn as FreezeProgressCard draws it: freezes banked over the ceiling of 3, freezes used this month, and the days toward the next freeze as a bar over the 7 day earn rate, resting while the bank is full. Protected days list each frozen day by date, protected today included, with their own empty line when none exist. When today itself is frozen the frozen banner says so above the strip (streak-frozen-banner.tsx, mounted at page.tsx:88); the earlier claim here that today can never be frozen contradicted that mounted banner and is gone. An unlogged today still renders as today, not as missed, and the number stands while the day is open.</p>
+      <p><span style="color:var(--fg-3)">repair&nbsp;&nbsp;</span>the person comes back, the surface shows the gap, and spending a freeze on it is an action they take. Nothing is applied silently on their behalf. The copy names the circumstance and never the person, states how many days are open and how many freezes exist, and the button states how many it will spend. When the bank is empty there is no action and no blame: the line says what happens next and when the next freeze arrives. The bank ceiling is 3, one earned every 7 streak days, and a full bank is the one genuine at capacity state here: neutral, stating the limit, no upgrade action.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Two gates draw from both sides, and both state which way the decisions point: achievements are hard gated on Pro in the shipping code, so a free account sees the locked state (achievements-locked-state.tsx) with the route to Orbit Pro and the line naming api #332 as the ungating; the four figures come from the retrospective, whose endpoint defaults Pro (PayGateService.cs:141, RetrospectiveProOnly), so the window section gets the same two sided treatment. Goals are ungated and stay ungated: D70 item 3 moved them out of the paywall, and a gate a decision removed does not come back. Every gated tap leaves for Orbit Pro through one route; a gated affordance is never a disabled control and never a silent no-op.</p>
+      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>three statuses and no others, active completed abandoned, under four views of one list: all, active, completed, abandoned (goals-view.tsx:29-32), a SegmentedControl because they are views of the same thing. A filter that matches nothing gets its own empty line and an action that clears the filter (:55-58); completed shows it against this fixture, since no goal here has been completed yet. Goals reorder by dragging with the whole card as the handle, the same gesture Hoje’s list uses: hold and move, at 300ms with a 5px tolerance on touch and a 5px drag with a pointer, the order written on release (ReorderGoalsCommand, the reorder_goals tool); dragging runs on the unfiltered list. An active goal carries one tracking word, on track at risk behind or no deadline, and an abandoned goal reports nothing: no ring, no tracking word, no figure. No goal has a colour, an icon or an emoji. There is no create entry: a goal is made from a habit or by asking, which is why the empty state’s action routes to a habit rather than to a form. The detail gained the rest of the shipping surface: the goal’s own progress history with its show all toggle (goal-detail-sections.tsx:30-111), the linked habits section (:216), and the full footer, edit, mark abandoned, delete with a confirmation naming what goes, and REOPEN on an abandoned goal, which exists twice in the code (goal-action-footer.tsx:55 renders reactivate, UpdateGoalStatusCommand.cs:44 runs goal.Reactivate(), and RestoreGoalCommand.cs is its own command), so the earlier open question claiming no restore path was false and is deleted.</p>
+      <p><span style="color:var(--fg-3)">derived&nbsp;&nbsp;</span>only a streak goal derives its progress, from the smallest current streak among its linked habits, so it hides the manual input and the surface names what the number comes from. Every other goal keeps its manual input however many habits are linked, because that input is the only control that can move it. A derived value is not a proposed value: it renders like a typed one and wears no dashed hairline. That is today's behaviour and the drawing is right. D69's wording says a goal with linked habits derives its progress, so the rule is half implemented on the api side; ticket #340 on the api carries the gap, and until it lands the manual input on a linked goal is correct rather than a bug.</p>
+      <p><span style="color:var(--fg-3)">completion&nbsp;&nbsp;</span>a streak goal can sit at 100 while still active, because the read path refreshes the value and never changes the status. So completion is drawn as a write the person makes: at 100 an active goal shows one neutral action that finishes it, with a line stating why it is not automatic. The action is the fg-1 fill rather than the accent, because the accent never marks completion, which also leaves the repair as the only accent-filled action on the screen.</p>
+      <p><span style="color:var(--fg-3)">achievements&nbsp;&nbsp;</span>grouped, not flat: achievements/page.tsx:96-99 maps achievementsByCategory through a section per category, so the grid carries a heading at each category start; the category names here are fixtures of that grouping. The XP row stays exactly as ruled on 2026-08-20: one row above the grid, level and title on one line, the figure on the other end, one bar beneath. Earned and unearned differ by shape before colour: earned is a filled status-done disc with the glyph knocked out, unearned a hollow ring at hairline-strong with the glyph at fg-3. In progress is derived from a current over a target, both null on a one shot achievement, so that tile has no bar rather than an empty one. Social, Sharing and Together stay hidden, and stopping the API from returning them is the real fix, api #332. Nothing is secret: every name and description shows while unearned.</p>
+      <p><span style="color:var(--fg-3)">xp&nbsp;&nbsp;</span>a row, not a ring: the level and its title on one line, the figure on the other end, one bar under them. The ladder has no cap, so past level 10 the number keeps climbing and the title stays the one level 10 carries.</p>
+      <p><span style="color:var(--fg-3)">motion&nbsp;&nbsp;</span>no entrance animation and no stagger, because this is reached many times a day and the frequency gate rules it out. The only motion is hover, press, and the ring and bar sweeps, which indicate state rather than announce arrival.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32 48, gap only. Section gap 32 against in-section 12, which is the 2x rule. 44 is the touch and stepper token, 56 the list row, 32 the achievement indicator, 20 and 24 the strip cell.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on badges and strip cells, 12 on the gap well and the notice, 20 on cards and tiles, 28 on the shell and the sheet, 999 on interactive and on the two round indicators.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412 default: no filled action at all, which is correct for a surface that reports. Current position is the Progresso tab and the strip's today cell. Progress is the unfinished goal rings and the XP bar. In the gap state the freeze spend is the one filled action; in the empty state the one action is; the two never coexist. The goal completion action and the wide width's filled actions step down to the neutral fg-1 fill, since the sidebar create owns the fill there. Completion is neutral everywhere: the 100 percent disc, the earned achievement and the full bar are all status-done.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover #B74E12, 6.09:1 pressed #A24716. primary-soft on the canvas 4.58:1, used only for the active nav item and nowhere above the canvas. Light status-overdue #946A00 is 4.66:1 on #FAFAFA and white on it 4.86:1, unused here since no habit status renders on this screen. The three known limits are left as they are; limit 3 is touched by the unearned achievement ring, so that ring is drawn in hairline-strong rather than fg-4.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the streak total, the longest streak and the tier word, all three bank figures and the bar’s count, each protected day’s date, every goal figure, the four tile values, the level, both XP figures, every achievement figure, the history’s dates and deltas, and the manual stepper. Base date Tuesday 18 August 2026.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 the screen answers am I moving in one glance, and the answer is the largest thing on it. 2 nothing finished takes the accent, and the only accent-filled action is the one that repairs a gap. 3 a freeze renders on a day and never on a habit.</p>
+      <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>1 the repair needs a new endpoint. Today every freeze is written automatically and retroactively by exactly one day, and the gamification controller exposes no write verb at all, so a person-initiated spend cannot be called. 2 the Social, Sharing and Together categories are hidden here, and stopping the API from returning them is the real fix, ticket #332 on the api, the achievements payload: their progress counts friends and cheers, so those tiles can never move now that the social layer is deleted. 3 the ungated screen drawn here needs two changes, also #332: the shipping code gates goals end to end, including reading one, and hard gates achievements on Pro, so a free account currently receives an empty achievement list and a zero count. And if Progresso reads the retrospective for the four figures, it inherits that endpoint's Pro gate (PayGateService.cs:141, RetrospectiveProOnly defaults true) while this screen is drawn ungated, so that ungating belongs here too.</p>
+      <p><span style="color:var(--fg-3)">decided&nbsp;&nbsp;</span>1 the retrospective survives (D69, item 12): Astra delivers it on a cadence, into the proactive line, with no navigation entry of its own. What D69 deleted is its dedicated screen and its three dead states, not the thing itself, so this build loses no surface. 2 the 30 day window is stated by code and the match is exact: the four figures are RetrospectiveMetrics' CompletionRate, ActiveDays, WeeklyConsistency and TopHabits (GetRetrospectiveQuery.cs:21-31), and RetrospectivePeriodRange.Resolve computes the month window as today.AddDays(-30) (RetrospectivePeriodRange.cs:28) ending today (:35), thirty rolling days, which is what this screen draws. HabitMetricsCalculator.cs:28,29 corroborates the convention from the other side, a weekly rate over 7 days and a monthly one over 30.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried ListRow’s action and CanvasControls’ plans axis, so nothing was re-synced, the third consecutive check that needed none. Composed around the system: 1 the freeze bank card, the legend and the protected day rows, since no bank or legend component exists. 2 the two locked-state cards, composed from a card, the lock glyph, the Pro badge and one route, since the system has no paywall component. 3 the goal card itself stays composed, as before, because HabitRow is scoped to habits. 4 the history rows are composed mono lines; a data-list component does not exist. ListRow’s action was available but unused here: no row in this document carries a second control, so nothing leaned on it this round.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>1 whether spending a freeze on a gap of more than one day is one call or one per day, which decides whether the action can partially fail. 2 the level titles past 10 are unspecified beyond the number climbing, so the title shown is the level 10 one. 3 the behind tracking word is not drawn, because no goal in this fixture is in that condition; it renders as the same neutral badge with a different word. 4 the tracking value completed needs its own words, since an active goal that reached its target is not the same thing as a goal whose status is Completed; it is drawn as alvo alcançado against concluída, which is copy I chose rather than copy the code carries. 5 the tier ladder’s words and the achievement category names live in the app’s vocabulary; the ones drawn are fixtures of those ladders, not inventions of new ladders.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const BASE = new Date(2026, 7, 18);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+
+const A = 'active', FR = 'frozen', M = 'missed', TD = 'today';
+/* A missed day with no freeze resets the streak, so the 12 day run sits after the one at index 0. */
+const STRIP_OK = [M, A, A, A, FR, A, A, A, A, A, A, A, A, TD];
+const STRIP_GAP = [A, A, A, A, A, A, A, A, A, A, A, M, M, TD];
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
+    navLabel: 'Navegação principal', palette: 'Buscar', back: 'Voltar',
+    title: 'Progresso',
+    streakLabel: (n) => n === 1 ? 'dia seguido' : 'dias seguidos',
+    stripAria: 'Últimos 14 dias da sua sequência',
+    stripWords: { active: 'ativo', frozen: 'congelado', missed: 'sem registro', today: 'hoje' },
+    bank: ['', '2', ' de ', '3', ' congelamentos · um a cada ', '7', ' dias de sequência'],
+    bankFull: ['', '3', ' congelamentos é o limite. O próximo entra depois que você usar um.'],
+    gap: (n) => [n === 1 ? 'Um dia sem registro. ' : ['', String(n), ' dias sem registro. '], 'Os hábitos continuam como estavam.'],
+    repair: (n) => n === 1 ? ['Usar ', '1', ' congelamento'] : ['Usar ', String(n), ' congelamentos'],
+    noRepairLine: ['Nenhum congelamento no banco agora. A sequência começa de novo hoje, e o próximo congelamento entra depois de ', '7', ' dias.'],
+    repaired: 'Sequência mantida com os congelamentos que você usou.',
+    goals: 'Metas',
+    track: { on_track: 'no ritmo', at_risk: 'em risco', behind: 'atrasada', no_deadline: 'sem prazo',
+      completed: 'alvo alcançado' },
+    completedWord: 'concluída', abandonedWord: 'abandonada',
+    goalRing: (n) => 'Progresso de ' + n,
+    window: 'Últimos 30 dias',
+    figures: ['Taxa de conclusão', 'Dias com registro', 'Melhor dia da semana', 'Hábito mais constante'],
+    figureValues: ['78%', '24', 'quinta', 'Caminhada'],
+    level: ['Nível ', '7', ' · Constante'],
+    xp: ['', '340', ' / ', '500', ' XP'],
+    xpLabel: 'Progresso até o próximo nível',
+    achievements: 'Conquistas',
+    earnedWord: 'conquistado',
+    earnedAria: 'conquistado', unearnedAria: 'ainda não conquistado',
+    ach: [
+      { icon: 'flame', name: 'Primeira semana', desc: 'Sete dias seguidos com registro.', earned: true },
+      { icon: 'sunrise', name: 'Manhãs seguidas', desc: 'Trinta manhãs com o primeiro hábito registrado.', earned: true, value: 30, max: 30 },
+      { icon: 'target-arrow', name: 'Constância', desc: 'Trinta dias com todos os hábitos do dia registrados.', earned: false, value: 18, max: 30 },
+      { icon: 'circle-check', name: 'Cem registros', desc: 'Cem hábitos registrados desde o começo.', earned: false, value: 64, max: 100 },
+      { icon: 'plant-2', name: 'Primeiro hábito', desc: 'Você criou e registrou um hábito.', earned: true },
+    ],
+    achFigure: (v, m) => [String(v), ' de ', String(m)],
+    achBar: (n) => 'Progresso de ' + n,
+    linked: 'Hábitos ligados',
+    linkFull: ['', '20', ' hábitos é o limite por meta.'],
+    manualLabel: 'Seu progresso',
+    derivedWhy: (n) => ['Vem da menor sequência atual entre os ', String(n), ' hábitos ligados a esta meta, então não é editável aqui.'],
+    complete: 'Concluir meta',
+    completeWhy: 'A meta chegou ao alvo e continua ativa até você concluir, porque o número é recalculado a cada leitura.',
+    abandon: 'Abandonar meta', del: 'Apagar meta',
+    delTitle: 'Apagar esta meta?',
+    delBody: 'A meta sai da sua lista. Os hábitos ligados a ela continuam como estão.',
+    abandonTitle: 'Abandonar esta meta?',
+    abandonBody: 'Ela para de acompanhar o progresso e fica na lista como abandonada. Não há como reabrir por aqui.',
+    cancel: 'Cancelar', confirmDel: 'Apagar', confirmAbandon: 'Abandonar',
+    less: 'Menos um', more: 'Mais um', books: 'livros lidos',
+    loading: 'Carregando',
+    error: 'Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.',
+    retry: 'Tentar de novo',
+    empty: 'Nada para medir ainda',
+    emptyAction: 'Começar um hábito',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Criar uma meta para a leitura', 'Por que a sequência quebrou', 'Reduzir minhas metas', 'O que está pegando esta semana'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
+    lblBest: 'Maior sequência', lblTier: 'Nível da sequência', tierValue: 'Prata',
+    lgd: { a: 'dia ativo', f: 'dia congelado', m: 'dia sem registro' },
+    frozenLine: 'Hoje está congelado. A sequência não quebra hoje.',
+    bankedLbl: 'No banco', usedLbl: 'Usados neste mês', nextLbl: 'Próximo congelamento',
+    nextOf: (a, b) => [mock(a), ' de ', mock(b), ' dias de sequência'],
+    protectedLbl: 'Dias protegidos', protectedWord: 'protegido', protectedTodayWord: 'protegido hoje',
+    protectedNone: 'Nenhum dia protegido ainda.',
+    filterLabel: 'Filtrar metas',
+    filters: { all: 'Todas', active: 'Ativas', completed: 'Concluídas', abandoned: 'Abandonadas' },
+    filterEmpty: (w) => 'Nenhuma meta ' + w.toLowerCase() + ' agora.',
+    clearFilter: 'Limpar o filtro',
+    histLbl: 'Histórico', showAll: 'Mostrar tudo', showLess: 'Mostrar menos',
+    hist: [['18 ago', '+1', '4'], ['12 ago', '+1', '3'], ['3 ago', '+1', '2'], ['28 jul', '+1', '1'], ['21 jul', '\u22121', '0'], ['20 jul', '+1', '1']],
+    editGoal: 'Editar meta', editTitle: 'Editar a meta', editName: 'Nome', save: 'Salvar',
+    reopen: 'Reabrir meta',
+    catNames: ['Sequência', 'Constância', 'Registros', 'Começos'],
+    achLockedLine: 'As conquistas fazem parte do Pro hoje. A decisão é liberar para todo mundo, e a mudança é a api #332.',
+    figLockedLine: 'Estes números vêm da retrospectiva, que hoje é só do Pro. A decisão é liberar, e a mudança é a api #332.',
+    seePro: 'Conhecer o Pro',
+    goalsData: [
+      { name: '30 dias de movimento', kind: 'streak', value: 12, max: 30, track: 'on_track', unit: 'dias', links: [0, 1, 2] },
+      { name: 'Ler 12 livros', kind: 'manual', value: 4, max: 12, track: 'at_risk', unit: 'livros', links: [3] },
+      { name: 'Beber 2 litros por dia', kind: 'manual', value: 46, max: 90, track: 'no_deadline', unit: 'dias', links: [4] },
+      { name: 'Correr 5 quilômetros', kind: 'manual', value: 5, max: 5, track: 'on_track', unit: 'km', links: [1] },
+      { name: 'Meditar todo dia', kind: 'manual', value: 3, max: 60, status: 'abandoned', unit: 'dias', links: [5] },
+    ],
+    linkedData: [
+      { icon: 'walk', title: 'Caminhada', value: ['', '12', ' dias'] },
+      { icon: 'run', title: 'Corrida leve', value: ['', '9', ' dias'] },
+      { icon: 'stretching', title: 'Alongamento', value: ['', '14', ' dias'] },
+      { icon: 'book', title: 'Leitura da noite', value: ['', '6', ' dias'] },
+      { icon: 'droplet', title: 'Água da manhã', value: ['', '21', ' dias'] },
+      { icon: 'mood-smile', title: 'Meditação', value: ['', '0', ' dias'] },
+    ],
+  },
+  en: {
+    intl: 'en-GB', lang: 'en',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
+    navLabel: 'Main navigation', palette: 'Search', back: 'Back',
+    title: 'Progress',
+    streakLabel: (n) => n === 1 ? 'day in a row' : 'days in a row',
+    stripAria: 'The last 14 days of your streak',
+    stripWords: { active: 'active', frozen: 'frozen', missed: 'nothing logged', today: 'today' },
+    bank: ['', '2', ' of ', '3', ' freezes · one every ', '7', ' streak days'],
+    bankFull: ['', '3', ' freezes is the limit. The next one arrives after you spend one.'],
+    gap: (n) => [n === 1 ? 'One day with nothing logged. ' : ['', String(n), ' days with nothing logged. '], 'The habits are as they were.'],
+    repair: (n) => n === 1 ? ['Spend ', '1', ' freeze'] : ['Spend ', String(n), ' freezes'],
+    noRepairLine: ['No freezes in the bank right now. The streak starts again today, and the next freeze arrives after ', '7', ' days.'],
+    repaired: 'The streak is held with the freezes you spent.',
+    goals: 'Goals',
+    track: { on_track: 'on track', at_risk: 'at risk', behind: 'behind', no_deadline: 'no deadline',
+      completed: 'target reached' },
+    completedWord: 'completed', abandonedWord: 'abandoned',
+    goalRing: (n) => 'Progress of ' + n,
+    window: 'Last 30 days',
+    figures: ['Completion rate', 'Days logged', 'Best day of the week', 'Most consistent habit'],
+    figureValues: ['78%', '24', 'Thursday', 'Walk'],
+    level: ['Level ', '7', ' · Steady'],
+    xp: ['', '340', ' / ', '500', ' XP'],
+    xpLabel: 'Progress to the next level',
+    achievements: 'Achievements',
+    earnedWord: 'earned',
+    earnedAria: 'earned', unearnedAria: 'not earned yet',
+    ach: [
+      { icon: 'flame', name: 'First week', desc: 'Seven days in a row with something logged.', earned: true },
+      { icon: 'sunrise', name: 'Mornings in a row', desc: 'Thirty mornings with the first habit logged.', earned: true, value: 30, max: 30 },
+      { icon: 'target-arrow', name: 'Consistency', desc: "Thirty days with every one of the day's habits logged.", earned: false, value: 18, max: 30 },
+      { icon: 'circle-check', name: 'One hundred logs', desc: 'One hundred habits logged since the start.', earned: false, value: 64, max: 100 },
+      { icon: 'plant-2', name: 'First habit', desc: 'You created and logged a habit.', earned: true },
+    ],
+    achFigure: (v, m) => [String(v), ' of ', String(m)],
+    achBar: (n) => 'Progress of ' + n,
+    linked: 'Linked habits',
+    linkFull: ['', '20', ' habits is the limit for one goal.'],
+    manualLabel: 'Your progress',
+    derivedWhy: (n) => ['It comes from the smallest current streak among the ', String(n), ' habits linked to this goal, so it cannot be edited here.'],
+    complete: 'Complete goal',
+    completeWhy: 'The goal reached its target and stays active until you complete it, because the number is recalculated on every read.',
+    abandon: 'Abandon goal', del: 'Delete goal',
+    delTitle: 'Delete this goal?',
+    delBody: 'The goal leaves your list. The habits linked to it stay as they are.',
+    abandonTitle: 'Abandon this goal?',
+    abandonBody: 'It stops tracking progress and stays in the list as abandoned. There is no way to reopen it here.',
+    cancel: 'Cancel', confirmDel: 'Delete', confirmAbandon: 'Abandon',
+    less: 'One fewer', more: 'One more', books: 'books read',
+    loading: 'Loading',
+    error: 'We could not load your progress. Check the connection and try again.',
+    retry: 'Try again',
+    empty: 'Nothing to measure yet',
+    emptyAction: 'Start a habit',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['Create a goal for reading', 'Why the streak broke', 'Trim my goals', 'What is getting stuck this week'],
+    limit: ["Today's ", '5', ' messages have been used.'],
+    lblBest: 'Longest streak', lblTier: 'Streak tier', tierValue: 'Silver',
+    lgd: { a: 'day active', f: 'day frozen', m: 'day missed' },
+    frozenLine: 'Today is frozen. The streak does not break today.',
+    bankedLbl: 'Banked', usedLbl: 'Used this month', nextLbl: 'Next freeze',
+    nextOf: (a, b) => [mock(a), ' of ', mock(b), ' streak days'],
+    protectedLbl: 'Protected days', protectedWord: 'protected', protectedTodayWord: 'protected today',
+    protectedNone: 'No protected days yet.',
+    filterLabel: 'Filter goals',
+    filters: { all: 'All', active: 'Active', completed: 'Completed', abandoned: 'Abandoned' },
+    filterEmpty: (w) => 'No ' + w.toLowerCase() + ' goals right now.',
+    clearFilter: 'Clear the filter',
+    histLbl: 'History', showAll: 'Show all', showLess: 'Show less',
+    hist: [['18 Aug', '+1', '4'], ['12 Aug', '+1', '3'], ['3 Aug', '+1', '2'], ['28 Jul', '+1', '1'], ['21 Jul', '\u22121', '0'], ['20 Jul', '+1', '1']],
+    editGoal: 'Edit goal', editTitle: 'Edit the goal', editName: 'Name', save: 'Save',
+    reopen: 'Reopen goal',
+    catNames: ['Streaks', 'Consistency', 'Logging', 'Starts'],
+    achLockedLine: 'Achievements are part of Pro today. The decision is to open them to everyone, and the change is api #332.',
+    figLockedLine: 'These figures come from the retrospective, which is Pro only today. The decision is to open it, and the change is api #332.',
+    seePro: 'See Pro',
+    goalsData: [
+      { name: '30 days of moving', kind: 'streak', value: 12, max: 30, track: 'on_track', unit: 'days', links: [0, 1, 2] },
+      { name: 'Read 12 books', kind: 'manual', value: 4, max: 12, track: 'at_risk', unit: 'books', links: [3] },
+      { name: 'Drink 2 litres a day', kind: 'manual', value: 46, max: 90, track: 'no_deadline', unit: 'days', links: [4] },
+      { name: 'Run 5 kilometres', kind: 'manual', value: 5, max: 5, track: 'on_track', unit: 'km', links: [1] },
+      { name: 'Meditate every day', kind: 'manual', value: 3, max: 60, status: 'abandoned', unit: 'days', links: [5] },
+    ],
+    linkedData: [
+      { icon: 'walk', title: 'Walk', value: ['', '12', ' days'] },
+      { icon: 'run', title: 'Easy run', value: ['', '9', ' days'] },
+      { icon: 'stretching', title: 'Stretching', value: ['', '14', ' days'] },
+      { icon: 'book', title: 'Evening reading', value: ['', '6', ' days'] },
+      { icon: 'droplet', title: 'Morning water', value: ['', '21', ' days'] },
+      { icon: 'mood-smile', title: 'Meditation', value: ['', '0', ' days'] },
+    ],
+  },
+};
+
+/* Builds a run of alternating plain and marked spans from a flat list. */
+function line(parts, marks) {
+  return H(F, null, parts.map((p, i) => marks.indexOf(i) >= 0 ? H('span', { key: i, 'data-mock': 'true' }, p) : p));
+}
+
+/* Category per achievement index: Sequência (flame, sunrise), Constância, Registros, Começos. */
+const ACH_CAT = [0, 0, 1, 2, 3];
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'default', loc: 'pt-BR', plan: 'free',
+    bank: null, repaired: false, goalIx: null, gv: null, confirm: null, goalStatus: {},
+    filter: 'all', ord: null, dragKey: null, histAll: false, editOpen: false, editDraft: '', nameOv: {} };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+    this._esc = (e) => {
+      if (e.key !== 'Escape') return;
+      if (this.state.editOpen) this.setState({ editOpen: false });
+      else if (this.state.confirm) this.setState({ confirm: null });
+      else if (this.state.goalIx != null) this.setState({ goalIx: null, gv: null, histAll: false });
+    };
+    document.addEventListener('keydown', this._esc);
+  }
+  componentWillUnmount() { clearInterval(this._t); document.removeEventListener('keydown', this._esc); if (this._press) this.gCleanup(); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    plan: next.plan || 'free',
+    bank: null, repaired: false, gv: null, confirm: null, goalStatus: {},
+    filter: 'all', ord: null, dragKey: null, histAll: false, editOpen: false, editDraft: '', nameOv: {},
+    goalIx: next.state === 'goal detail' ? 1 : next.state === 'goal at 100' ? 3
+      : next.state === 'abandoned goal' ? 4 : next.state === 'linked at limit' ? 0 : null });
+
+  openGoal = (i) => this.setState({ goalIx: i, gv: null, histAll: false });
+  closeGoal = () => this.setState({ goalIx: null, gv: null, histAll: false });
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+
+  /* Goals reorder by dragging (ReorderGoalsCommand and the reorder_goals tool): hold and move, at
+     300ms with a 5px tolerance on touch and a 5px drag with a pointer; the order is written on
+     release. Dragging runs on the unfiltered list, so it is off while a filter is on. */
+  gDown = (e, key) => {
+    if (this.state.filter !== 'all') return;
+    if (this._press) this.gCleanup();
+    const p = this._press = { key: key, x0: e.clientX, y0: e.clientY,
+      touch: e.pointerType === 'touch', armed: false };
+    if (p.touch) p.armT = setTimeout(() => { p.armed = true; this.setState({ dragKey: key }); }, 300);
+    p.mv = (ev) => {
+      const dist = Math.max(Math.abs(ev.clientX - p.x0), Math.abs(ev.clientY - p.y0));
+      if (!p.armed) {
+        if (dist <= 5) return;
+        if (p.touch) { this.gCleanup(); return; }
+        p.armed = true;
+        this.setState({ dragKey: key });
+      }
+      this.gReorder(ev.clientY);
+    };
+    p.up = () => this.gCleanup();
+    window.addEventListener('pointermove', p.mv);
+    window.addEventListener('pointerup', p.up);
+    window.addEventListener('pointercancel', p.up);
+  };
+  gReorder = (y) => {
+    const p = this._press;
+    const s = this.state;
+    const ord = (s.ord || [0, 1, 2, 3, 4]).slice();
+    const others = ord.filter((k) => k !== p.key);
+    let idx = others.length;
+    for (let i = 0; i < others.length; i++) {
+      const el = document.querySelector('[data-goalkey="' + others[i] + '"]');
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (y < r.top + r.height / 2) { idx = i; break; }
+    }
+    others.splice(idx, 0, p.key);
+    if (String(others) !== String(ord)) this.setState({ ord: others });
+  };
+  gCleanup = () => {
+    const p = this._press;
+    if (!p) return;
+    clearTimeout(p.armT);
+    window.removeEventListener('pointermove', p.mv);
+    window.removeEventListener('pointerup', p.up);
+    window.removeEventListener('pointercancel', p.up);
+    this._press = null;
+    if (this.state.dragKey != null) this.setState({ dragKey: null });
+  };
+  /* Spends from the bank the screen is showing, not from a second default. */
+  spendFreeze = (n, from) => this.setState({ repaired: true, bank: Math.max(0, from - n) });
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['default', 'gap', 'no freeze', 'bank full', 'frozen today', 'goal at 100', 'abandoned goal',
+        'goal detail', 'linked at limit', 'loading', 'error', 'empty', 'at limit'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n2: 2, n3: 3, n20: 20, n24: 24, n30: 30, n44: 44, n60: 60,
+      yes: true, no: false, noop: () => {},
+      showReport: this.props.showReport !== false,
+      lblGoals: t.goals, lblWindow: t.window, lblAchievements: t.achievements, lblXp: t.xpLabel,
+      lblLinked: t.linked, loadingLabel: t.loading, createLabel: t.create, account: t.account,
+      lblStripAria: t.stripAria, stripWords: t.stripWords, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const detailOpen = s.goalIx != null;
+    const showMain = ['loading', 'error', 'empty'].indexOf(st) < 0 && !detailOpen;
+    const gapState = st === 'gap' || st === 'no freeze';
+    const frozenToday = st === 'frozen today';
+    const pro = s.plan === 'Pro';
+    const bank = s.bank != null ? s.bank : (st === 'no freeze' ? 0 : st === 'bank full' ? 3 : 2);
+    const gapDays = 2;
+    const repaired = s.repaired;
+    const usedMonth = repaired ? 1 + gapDays : 1;
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+
+    const streak = (gapState && !repaired) ? 0 : 12;
+    const strip = (gapState && !repaired) ? STRIP_GAP
+      : gapState ? STRIP_GAP.map((v) => v === M ? FR : v)
+      : frozenToday ? STRIP_OK.map((v, i) => i === STRIP_OK.length - 1 ? FR : v) : STRIP_OK;
+    const labels = strip.map((v, i) => {
+      const d = new Date(BASE.getTime());
+      d.setDate(BASE.getDate() - (strip.length - 1 - i));
+      return d.toLocaleDateString(t.intl, { day: 'numeric', month: 'short' });
+    });
+    /* StreakTimelineCard's legend: the three marks named in words. */
+    const swatch = (kind) => kind === 'a'
+      ? H('span', { 'aria-hidden': 'true', style: { width: 12, height: 12, borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', flex: '0 0 auto' } })
+      : kind === 'f'
+        ? H('span', { 'aria-hidden': 'true', style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center', flex: '0 0 auto' } }, H(D.Icon, { name: 'snowflake', size: 14 }))
+        : H('span', { 'aria-hidden': 'true', style: { width: 12, height: 12, borderRadius: 'var(--r-pill)', boxShadow: 'inset 0 0 0 1.5px var(--fg-4)', flex: '0 0 auto' } });
+    const legend = H('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } },
+      ['a', 'f', 'm'].map((k) => H('span', { key: k, style: { display: 'inline-flex', alignItems: 'center', gap: 6,
+        fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, swatch(k), t.lgd[k])));
+    const frozenBanner = frozenToday ? H('div', { role: 'status', style: { display: 'flex', alignItems: 'center', gap: 12,
+      padding: 12, background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+      H('span', { style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
+        H(D.Icon, { name: 'snowflake', size: 20 })),
+      H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-2)' } }, t.frozenLine)) : null;
+    /* FreezeProgressCard: banked, used this month, and the days toward the next freeze over the
+       7 day earn rate; the bar rests while the bank is at its ceiling of 3. */
+    const nextVal = streak % 7;
+    const bankCard = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16,
+      background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+      H('div', { style: { display: 'flex', gap: 12 } },
+        H('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 } },
+          H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 'var(--fs-xl)', fontWeight: 500,
+            fontVariantNumeric: 'tabular-nums' } }, mock(String(bank)), H('span', { style: { color: 'var(--fg-3)', fontSize: 'var(--fs-sm)' } }, ' / ', mock('3'))),
+          H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, t.bankedLbl)),
+        H('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 } },
+          H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 'var(--fs-xl)', fontWeight: 500,
+            fontVariantNumeric: 'tabular-nums' } }, mock(String(usedMonth))),
+          H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, t.usedLbl))),
+      bank < 3 ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+          H('p', { style: { flex: 1, fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, t.nextLbl),
+          H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+            fontVariantNumeric: 'tabular-nums' } }, t.nextOf(String(nextVal), '7'))),
+        H(D.ProgressBar, { value: nextVal, max: 7, label: t.nextLbl })) : null);
+    /* Protected days, with protected today and its own empty line. */
+    const protectedRows = [];
+    strip.forEach((v, i) => {
+      if (v !== FR) return;
+      const isToday = i === strip.length - 1;
+      protectedRows.push(H('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, minHeight: 28 } },
+        H('span', { style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
+          H(D.Icon, { name: 'snowflake', size: 14 })),
+        H('p', { style: { flex: 1, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-2)',
+          fontVariantNumeric: 'tabular-nums' } }, mock(labels[i])),
+        H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, isToday && frozenToday ? t.protectedTodayWord : t.protectedWord)));
+    });
+    const protectedBlock = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+      H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, t.protectedLbl),
+      protectedRows.length ? protectedRows
+        : H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.protectedNone));
+
+    /* An abandoned goal reports no tracking status and no figure. An active goal that reached its
+       target reports the tracking value for it, which is not the same word as the Completed status. */
+    const goalNode = (g, i) => {
+      const status = s.goalStatus[i] || g.status || 'active';
+      const abandoned = status === 'abandoned';
+      const value = (g.kind === 'manual' && s.goalIx === i && s.gv != null) ? s.gv : g.value;
+      const pct = Math.round((value / g.max) * 100);
+      const done = status === 'completed' || (!abandoned && pct >= 100);
+      const trackWord = abandoned ? t.abandonedWord
+        : status === 'completed' ? t.completedWord
+        : pct >= 100 ? t.track.completed : t.track[g.track];
+      return {
+        key: i,
+        name: s.nameOv[i] || g.name, nameColor: abandoned ? 'var(--fg-3)' : 'var(--fg-1)',
+        badge: trackWord, badgeVariant: abandoned ? 'outline' : 'solid',
+        hasFigure: !abandoned, figure: line([String(value), ' / ', String(g.max), ' ' + g.unit], [0, 2]),
+        isDone: done, isOpen: !done && !abandoned, pct: pct,
+        ringLabel: t.goalRing(s.nameOv[i] || g.name),
+        open: () => { if (s.dragKey == null) this.openGoal(i); },
+        onDown: (e) => this.gDown(e, i),
+        onUp: () => { if (this._press && !this._press.armed) this.gCleanup(); },
+        dragging: s.dragKey === i,
+        status: status,
+      };
+    };
+
+    const gi = detailOpen ? s.goalIx : 0;
+    const gd = t.goalsData[gi] || t.goalsData[0];
+    const gStatus = s.goalStatus[gi] || gd.status || 'active';
+    const dValue = (gd.kind === 'manual' && s.gv != null) ? s.gv : gd.value;
+    const dPct = Math.round((dValue / gd.max) * 100);
+    const dAbandoned = gStatus === 'abandoned';
+    /* The disc is the shape for 100 percent whether or not the status has been written yet. */
+    const dDone = gStatus === 'completed' || (!dAbandoned && dPct >= 100);
+
+    const figures = t.figures.map((label, i) => ({
+      label: label, value: mock(t.figureValues[i]), state: 'default',
+    }));
+
+    /* achievementsByCategory: the grid is grouped, a heading at each category start; Social, Sharing
+       and Together stay hidden (api #332). On free the whole section is the locked state. */
+    const achievements = pro ? t.ach.map((a, i) => {
+      const hasBar = a.value != null && a.max != null;
+      return {
+        catStart: i === 0 || ACH_CAT[i] !== ACH_CAT[i - 1],
+        cat: t.catNames[ACH_CAT[i]],
+        icon: a.icon, name: a.name, desc: a.desc,
+        earned: a.earned, unearned: !a.earned,
+        nameColor: a.earned ? 'var(--fg-1)' : 'var(--fg-2)',
+        stateLabel: a.name + ', ' + (a.earned ? t.earnedAria : t.unearnedAria),
+        earnedWord: t.earnedWord,
+        hasBar: hasBar,
+        value: hasBar ? a.value : 0, max: hasBar ? a.max : 1,
+        figure: hasBar ? line(t.achFigure(a.value, a.max), [0, 2]) : null,
+        barLabel: t.achBar(a.name),
+      };
+    }) : [];
+    const lockCard = (lineTxt) => H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16,
+      background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+        H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
+          H(D.Icon, { name: 'lock', size: 20 })),
+        H(D.Badge, null, 'Pro')),
+      H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)', textWrap: 'pretty' } }, lineTxt),
+      H('div', null, H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.goPro }, t.seePro)));
+
+    const gapParts = t.gap(gapDays);
+    const gapLine = repaired ? t.repaired
+      : H(F, null, Array.isArray(gapParts[0]) ? line(gapParts[0], [1]) : gapParts[0], gapParts[1]);
+
+    return Object.assign(base, {
+      /* No page title on the main view: the tab already names the place, and the streak is the
+         first thing. The header exists only where there is something to go back to. */
+      header: detailOpen ? H(D.NavHeader, { title: t.goals, onBack: this.closeGoal, backLabel: t.back }) : null,
+
+      showMain: showMain,
+      streak: streak, lblStreak: t.streakLabel(streak),
+      strip: strip, stripLabels: labels,
+      frozenBanner: frozenBanner, legend: legend,
+      tileBest: mock('21'), lblBest: t.lblBest,
+      tileTier: mock(t.tierValue), lblTier: t.lblTier,
+      bankCard: bankCard, protectedBlock: protectedBlock,
+
+      hasGap: gapState, gapLine: gapLine,
+      canRepair: gapState && !repaired && bank >= gapDays,
+      noRepair: gapState && !repaired && bank < gapDays,
+      repairLabel: line(t.repair(gapDays), [1]),
+      noRepairLine: line(t.noRepairLine, [1]),
+      onRepair: () => this.spendFreeze(gapDays, bank),
+      filled: filled,
+      bankFull: st === 'bank full' && bank >= 3,
+      bankFullMessage: line(t.bankFull, [1]),
+
+      goals: (s.ord || [0, 1, 2, 3, 4]).map((i) => goalNode(t.goalsData[i], i))
+        .filter((g) => s.filter === 'all' || g.status === s.filter),
+      /* goals-view.tsx:29-32: all, active, completed, abandoned, one list under four views. */
+      goalFilter: H(D.SegmentedControl, { label: t.filterLabel, value: s.filter,
+        onChange: (id) => this.setState({ filter: id }),
+        options: ['all', 'active', 'completed', 'abandoned'].map((id) => ({ id: id, label: t.filters[id] })) }),
+      goalsEmptyFiltered: showMain && s.filter !== 'all'
+        && (s.ord || [0, 1, 2, 3, 4]).map((i) => goalNode(t.goalsData[i], i))
+          .filter((g) => g.status === s.filter).length === 0,
+      goalFilterEmpty: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start',
+        padding: 16, background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+        H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, t.filterEmpty(t.filters[s.filter] || '')),
+        H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ filter: 'all' }) }, t.clearFilter)),
+
+      achGated: !pro,
+      achLockCard: pro ? null : lockCard(t.achLockedLine),
+      figGated: !pro, figOpen: pro,
+      figLockCard: lockCard(t.figLockedLine),
+
+      figures: figures,
+      levelLine: line(t.level, [1]), xpLine: line(t.xp, [1, 3]), xpValue: 340, xpMax: 500,
+      achievements: achievements,
+
+      showDetail: detailOpen,
+      dName: s.nameOv[gi] || gd.name,
+      dBadge: dAbandoned ? t.abandonedWord
+        : gStatus === 'completed' ? t.completedWord
+        : dPct >= 100 ? t.track.completed : t.track[gd.track],
+      dBadgeVariant: dAbandoned ? 'outline' : 'solid',
+      dHasFigure: !dAbandoned,
+      dFigure: line([String(dValue), ' / ', String(gd.max), ' ' + gd.unit], [0, 2]),
+      dIsDone: dDone, dIsOpen: !dDone && !dAbandoned, dPct: dPct,
+      dRingLabel: t.goalRing(gd.name),
+      dDerived: gd.kind === 'streak', dDerivedWhy: line(t.derivedWhy(gd.links.length), [1]),
+      dManual: gd.kind === 'manual' && !dAbandoned, dManualLabel: t.manualLabel,
+      dValue: dValue, dUnit: gd.unit,
+      dLessProps: { 'aria-label': t.less, style: { width: 44, height: 44, paddingInline: 0 } },
+      dMoreProps: { 'aria-label': t.more, style: { width: 44, height: 44, paddingInline: 0 } },
+      dLess: () => this.setState({ gv: Math.max(0, dValue - 1) }),
+      dMore: () => this.setState({ gv: Math.min(gd.max, dValue + 1) }),
+      dCanComplete: gStatus === 'active' && !dAbandoned && dPct >= 100,
+      dCompleteLabel: t.complete, dCompleteWhy: t.completeWhy,
+      dComplete: () => this.setState((p) => ({ goalStatus: Object.assign({}, p.goalStatus, { [gi]: 'completed' }) })),
+      dLinkFull: st === 'linked at limit', dLinkFullMessage: line(t.linkFull, [1]),
+      dLinked: gd.links.map((ix) => t.linkedData[ix]).map((h) => ({
+        icon: h.icon, title: h.title, value: line(h.value, [1]), open: () => {},
+      })),
+      dCanAbandon: !dAbandoned && gStatus !== 'completed',
+      dAbandonLabel: t.abandon, dDeleteLabel: t.del,
+      dAbandon: () => this.setState({ confirm: 'abandon' }),
+      dDelete: () => this.setState({ confirm: 'delete' }),
+      dEditLabel: t.editGoal,
+      dEdit: () => this.setState({ editOpen: true, editDraft: s.nameOv[gi] || gd.name }),
+      /* Reopening exists twice in the code (goal-action-footer.tsx:55 reactivate, Reactivate() in
+         UpdateGoalStatusCommand.cs:44, RestoreGoalCommand.cs), so an abandoned goal offers it. */
+      dCanReopen: dAbandoned, dReopenLabel: t.reopen,
+      dReopen: () => this.setState((p) => ({ goalStatus: Object.assign({}, p.goalStatus, { [gi]: 'active' }) })),
+      /* goal-detail-sections.tsx:30-111: the goal's own progress history, first three, show all. */
+      dHistory: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, t.histLbl),
+        H('div', { style: { display: 'flex', flexDirection: 'column' } },
+          (s.histAll ? t.hist : t.hist.slice(0, 3)).map((r, i) => H('div', { key: i,
+            style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 28 } },
+            H('p', { style: { flex: 1, minWidth: 0, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+              color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' } }, mock(r[0])),
+            H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-2)',
+              fontVariantNumeric: 'tabular-nums' } }, mock(r[1])),
+            H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+              fontVariantNumeric: 'tabular-nums', minWidth: 56, textAlign: 'end' } },
+              mock(r[2]), ' / ', mock(String(gd.max)))))),
+        t.hist.length > 3 ? H('div', null, H(D.Button, { variant: 'ghost', size: 'sm',
+          onClick: () => this.setState((p) => ({ histAll: !p.histAll })) },
+          s.histAll ? t.showLess : t.showAll)) : null),
+
+      showLoading: st === 'loading',
+      showError: st === 'error', errorMessage: t.error,
+      errorAction: H(D.Button, { size: 'sm', variant: filled, onClick: () => this.setState({ st: 'default' }) }, t.retry),
+      showEmpty: st === 'empty', emptyTitle: t.empty,
+      emptyAction: H(D.Button, { size: 'sm', variant: filled, onClick: () => {} }, t.emptyAction),
+
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'progresso', onSelect: () => {} }),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      composer: H(D.Composer, {
+        state: st === 'at limit' ? 'atLimit' : 'resting',
+        chips: (st === 'loading' || st === 'error') ? [] : t.chips,
+        limitReason: H('span', null, line(t.limit, [1])),
+        words: t.composerWords,
+        onOpen: () => {}, onChipPress: () => {},
+      }),
+      sheet: s.editOpen ? H(D.Sheet, { open: true, title: t.editTitle,
+        onClose: () => this.setState({ editOpen: false }),
+        actions: H(F, null,
+          H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ editOpen: false }) }, t.cancel),
+          H(D.Button, { size: 'sm', variant: filled, disabled: !s.editDraft.trim(),
+            onClick: () => this.setState((p) => ({ editOpen: false,
+              nameOv: Object.assign({}, p.nameOv, { [gi]: p.editDraft.trim() }) })) }, t.save)) },
+        H('div', { style: { paddingBottom: 8 } },
+          H(D.Input, { label: t.editName, value: s.editDraft, autoFocus: true,
+            onChange: (e) => this.setState({ editDraft: e.target.value }) })))
+      : s.confirm ? H(D.Sheet, { open: true,
+        title: s.confirm === 'delete' ? t.delTitle : t.abandonTitle,
+        onClose: () => this.setState({ confirm: null }),
+        actions: H(F, null,
+          H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ confirm: null }) }, t.cancel),
+          H(D.Button, { size: 'sm', variant: s.confirm === 'delete' ? 'destructive' : 'caution',
+            onClick: () => this.setState((p) => ({
+              confirm: null,
+              goalIx: s.confirm === 'delete' ? null : p.goalIx,
+              goalStatus: s.confirm === 'abandon'
+                ? Object.assign({}, p.goalStatus, { [gi]: 'abandoned' }) : p.goalStatus })) },
+            s.confirm === 'delete' ? t.confirmDel : t.confirmAbandon)) },
+        H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } },
+          s.confirm === 'delete' ? t.delBody : t.abandonBody)) : null,
+    });
+  }
+}
+</script>
+</body>
+</html>

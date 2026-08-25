@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Entrar" style="display:flex;gap:32px;align-items:flex-start">
+
+    <div style="{{ frameStyle }}">
+      <div style="{{ innerStyle }}">
+
+        <sc-if value="{{ referred }}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="display:flex;flex-direction:column;gap:8px">
+            <span aria-hidden="true" style="height:1px;background:var(--hairline)"></span>
+            <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-3);line-height:1.6;text-wrap:pretty">{{ referralLine }}</p>
+            <span aria-hidden="true" style="height:1px;background:var(--hairline)"></span>
+          </div>
+        </sc-if>
+
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Lockup" hint-size="120px,28px"></x-import>
+
+        <sc-if value="{{ isEmailStep }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ emailTitle }}</p>
+              <sc-if value="{{ fromOnboarding }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:16px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ planSubtitle }}</p>
+                <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ planCount }}</p>
+              </sc-if>
+            </div>
+
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ emailLabel }}" type="email" value="{{ email }}" on-change="{{ onEmail }}" error="{{ emailError }}" placeholder="nome@exemplo.com" dc-props="{{ emailProps }}" hint-size="100%,86px"></x-import>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-well);border-radius:var(--r-well)">
+                  <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:20px;color:var(--fg-4)">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="wifi-off" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                  </span>
+                  <p style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ offlineReason }}</p>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sendFailed }}" hint-placeholder-val="{{ false }}">
+                <p role="alert" style="font-size:14px;line-height:1.5;color:var(--status-bad);text-wrap:pretty">{{ sendFailedLine }}</p>
+              </sc-if>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ sending }}" disabled="{{ sendBlocked }}" on-click="{{ onSend }}" dc-props="{{ wideBtn }}" hint-size="100%,50px">{{ continueLabel }}</x-import>
+            </div>
+
+            <div aria-hidden="true" style="display:flex;align-items:center;gap:12px">
+              <span style="flex:1;height:1px;background:var(--hairline)"></span>
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ orLabel }}</span>
+              <span style="flex:1;height:1px;background:var(--hairline)"></span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" loading="{{ googleBusy }}" disabled="{{ offline }}" on-click="{{ onGoogle }}" dc-props="{{ wideBtn }}" hint-size="100%,50px">{{ googleLabel }}</x-import>
+              <sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ googleOffline }}</p>
+              </sc-if>
+              <sc-if value="{{ googleFailed }}" hint-placeholder-val="{{ false }}">
+                <p role="alert" style="font-size:14px;line-height:1.5;color:var(--status-bad);text-wrap:pretty">{{ googleFailedLine }}</p>
+              </sc-if>
+            </div>
+
+            <p style="font-size:12px;line-height:1.6;color:var(--fg-3);text-wrap:pretty">{{ legalPre }}<a href="Orbit Sobre.dc.html" style="color:var(--fg-2);text-decoration:underline;text-underline-offset:3px">{{ termsWord }}</a>{{ legalMid }}<a href="Orbit Sobre.dc.html" style="color:var(--fg-2);text-decoration:underline;text-underline-offset:3px">{{ privacyWord }}</a>{{ legalEnd }}</p>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isBack }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ backTitle }}</p>
+              <p role="status" style="font-size:16px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ backBody }}</p>
+            </div>
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ goHoje }}" dc-props="{{ wideBtn }}" hint-size="100%,50px">{{ backAction }}</x-import>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isCodeStep }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ codeTitle }}</p>
+              <p style="font-size:16px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ sentToLine }}</p>
+              <sc-if value="{{ hasSentMsg }}" hint-placeholder-val="{{ true }}">
+                <p role="status" style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3)">{{ sentMsg }}</p>
+              </sc-if>
+              <sc-if value="{{ showChangeEmail }}" hint-placeholder-val="{{ true }}">
+                <div style="align-self:flex-start">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onChangeEmail }}" hint-size="auto,40px">{{ changeEmailLabel }}</x-import>
+                </div>
+              </sc-if>
+            </div>
+
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OtpInput" length="{{ n6 }}" value="{{ code }}" on-change="{{ onCode }}" error="{{ codeError }}" hint="{{ codeHint }}" disabled="{{ codeLocked }}" label="{{ codeAria }}" hint-size="304px,84px"></x-import>
+
+            <sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-well);border-radius:var(--r-well)">
+                <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:20px;color:var(--fg-4)">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="wifi-off" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </span>
+                <p style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ offlineReason }}</p>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showVerify }}" hint-placeholder-val="{{ true }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ verifying }}" disabled="{{ verifyBlocked }}" on-click="{{ onVerify }}" dc-props="{{ wideBtn }}" hint-size="100%,50px">{{ verifyLabel }}</x-import>
+            </sc-if>
+
+            <sc-if value="{{ showResend }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <sc-if value="{{ resendReady }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ offline }}" on-click="{{ onResend }}" hint-size="auto,40px">{{ resendLabel }}</x-import>
+                </sc-if>
+                <sc-if value="{{ resendWaiting }}" hint-placeholder-val="{{ true }}">
+                  <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ resendCountdown }}</p>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isLocked }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ lockMessage }}" hint-size="100%,96px"></x-import>
+                <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ lockCountdown }}</p>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Entrar gets a person in and nothing else. It is not a place to explain the product: the mark, one line, the field, and the two ways in. No feature list, no screenshots, no plan, no testimonial, and no second heading restating the first. Two exceptions, both earned: the legal line, because this is the only place a person agrees to anything, and the habit count on the arrival from onboarding, because that something is the person’s own habit.</p>
+      <p><span style="color:var(--fg-3)">identity&nbsp;&nbsp;</span>the sign in IS the sign up: SendCodeCommand.cs:22-63 never looks a person up, and VerifyCodeCommand.cs:35 creates the account on the first correct code. That is why no account not found state exists anywhere on this screen, and why no attacker can learn from it whether an address has an account. The screen is shaped by that fact.</p>
+      <p><span style="color:var(--fg-3)">referral&nbsp;&nbsp;</span>the landing of the growth loop: use-login-flow.ts:60 reads the referral_code cookie a shared Wrapped link set, and login-sections.tsx:93-133 draws the banner above everything, a mono eyebrow between two hairlines, a polite live region. The words promise nothing to a person who already has an account, because the referral is applied only when the account is NEW (VerifyCodeCommand.cs:100-101): it says the invitation applies when a new account is created, and no more.</p>
+      <p><span style="color:var(--fg-3)">arrivals&nbsp;&nbsp;</span>two more ways in than the plain visit. From onboarding (the signed out path’s other end): the heading becomes the save your plan title (login-sections.tsx:32-40), the subtitle swaps and a line counts the habits waiting on the device, with singular and plural forms (:70-81), and the button’s word changes with them (page.tsx:81-83); the count is drawn with data-mock. From a link: when the address carries an email and a valid code, the screen opens ALREADY on the code step with the six digits filled and the verify ready to press (use-login-flow.ts:78-86).</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>email, email invalid, referred, from onboarding, sending, send failed, code, code typing, from link, code wrong, code expired, locked out, resend ready, verifying, google, google failed, account back, offline. Hover, focus-visible and press are live. Two steps only, the step inferred from what the person has done. NO plan axis: there is no gate and no plan before a person is in, so the absent switch is a decision, not an oversight.</p>
+      <p><span style="color:var(--fg-3)">typing&nbsp;&nbsp;</span>the sixth digit submits on its own: use-login-code-entry.ts:41-49 fires the verify as soon as six digits are present, deduped so one code submits once. The button (code-step.tsx:87-96) stays, so both exist, and in this drawing the verifying state is reachable from the sixth digit as well as from the action. The confirmation that a code went out is drawn too: use-login-flow.ts:117 sets it after the send and :174 again after a resend, a polite live region (login-sections.tsx:183-226), so the move from the email step is never silent. And a returning deleted account is told its account is back: VerifyCodeCommand.cs:104-109 cancels the deactivation when a deactivated account signs in, and login-form-helpers.ts:110-112 shows that as the success line, drawn here as its own state with one action into Hoje.</p>
+      <p><span style="color:var(--fg-3)">failures&nbsp;&nbsp;</span>the code has three failures and they are three different screens, because they need different copy and different actions. A wrong code says it does not match and leaves the field usable, since retyping is the fix. An expired code says the code lasts 5 minutes and offers a resend, not a retype, because retyping a dead code cannot work. A lock after 3 attempts says how long the wait is; it offers no verify and no resend, since those would fail for 15 minutes, but the change of address STAYS, because the lock is PER EMAIL ADDRESS: VerifyCodeCommand.cs:90 keys the counter as verify-attempts:{email} and nothing else, with :87 giving it the 15 minute window, so another address works right away. The email step fails too: auth-login.ts:112 maps 429 to a rate limited message, :114-118 maps every 5xx to a server error, and :123 maps a thrown TypeError to a network error, and all three are ONE send failed shape here, the message beside the action and the typed address kept, because to a person they are the same thing: it did not go, try again. Google can fail as well (use-login-flow.ts:207-213): the failure is a line under the button with the button back at rest, never a separate screen. One defect stays in the code rather than in the drawing: use-login-flow.ts:96-99 sets the inline message AND raises a toast for the same failure; the drawing keeps only the inline message, beside the field it belongs to, and the duplicate toast should not be restored. Every number is the sign in flow’s own, traced 2026-08-20 and re-traced today: the code lasts 5 minutes (SendCodeCommand.cs:56), the resend cooldown is 60 seconds (SendCodeCommand.cs:45), there are 3 attempts (AppConstants.cs:42, checked at VerifyCodeCommand.cs:60), the lock lasts 15 minutes (AppConstants.cs:43, written at VerifyCodeCommand.cs:87), and the code is 6 digits (SendCodeCommand.cs:49).</p>
+      <p><span style="color:var(--fg-3)">resend&nbsp;&nbsp;</span>two states, drawn as two. While the window is closed it is a mono countdown and no control, so there is no button to press that would be refused. When it opens it becomes a quiet ghost action. The countdown is a fixture rather than a live timer, since a canvas that runs a clock forever is a worse review artifact than one that states the moment.</p>
+      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>neither step blanks. Sending keeps the email step on screen with the action in its loading state; verifying keeps the six digits visible with the action loading and the field disabled. There is no spinner over an empty screen anywhere in the flow, and no full page loading state exists to draw.</p>
+      <p><span style="color:var(--fg-3)">errors&nbsp;&nbsp;</span>every error sits next to the field it belongs to, in both locales, and states the fix: the email error carries the shape of a complete address rather than the word invalid. No bare code, no status number, no shame. The email error uses the field component's own message treatment, and the code error is the six digit field's own error state, ringing every cell because the code is wrong as a whole rather than one digit being wrong.</p>
+      <p><span style="color:var(--fg-3)">offline&nbsp;&nbsp;</span>a real state on this screen today, so it is drawn on both steps: a neutral notice naming the circumstance, the primary disabled with its reason beside it, and the Google path disabled for the same reason. It is a boundary rather than an error, so no status colour appears.</p>
+      <p><span style="color:var(--fg-3)">google&nbsp;&nbsp;</span>one ghost action under a divider, equal in width to the primary and lower in weight, because most people will use the email path and the accent belongs to it. No Google logo is drawn: the system holds no third party brand asset and inventing one is worse than the word.</p>
+      <p><span style="color:var(--fg-3)">legal&nbsp;&nbsp;</span>one sentence under the Google action (email-step.tsx:91-110), with a link to the terms and a link to the privacy policy. It is not an explanation of the product, and it is the only place a person agrees to anything. Neither document is drawn in this project, so both links land on Sobre.</p>
+      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>neither shell is used here, deliberately, and nav false does not change that: this screen has no tab bar, no sidebar, no composer AND no pinned bottom slot, because its actions sit in the flow of the form rather than pinned to the shell’s edge. A single column at 412 and the same column centred in a panel at the wide width.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. The six digit cells are the component's own 44 by 56, the buttons are 50 tall and full width, and the panel padding at the wide width is 32.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on the field, the digits and the wells, 20 on the notice, 28 on the wide panel, 999 on the buttons.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per step, and it is the step's own forward action, at both widths: with no shell there is no sidebar create button to compete with, so the accent does not step down the way it does on a screen inside the shell. Current position is the focused field ring and the active digit cell. Nothing here marks completion, and the Google path, the resend and the change of email are all quiet.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. status-bad carries both error messages and is paired with a dot and a sentence, never colour alone. fg-3 on the canvas is 6.18:1, and the mono hints sit on the canvas rather than on a raised surface.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the address in the sent line, the resend and lock countdowns, the 5 minutes in the expiry copy, the 3 attempts and the 15 minutes in the lock copy, and the habit count on the arrival from onboarding. The prefilled six digits are the field’s value, not a rendered number.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 nothing on the screen explains the product, except the legal line and the person’s own habit count. 2 every failure offers only actions that can succeed, including the change of address while locked. 3 no state blanks the screen or hides what was typed. 4 no state reveals whether an address has an account.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 closed by wave 3: OtpInput owns the typing, one real input spanning the cells, so backspace, autofill and pasting a whole code are the component's; the wrong and expired messages ride its error state, ringing every cell because the code is wrong as a whole, and the 5 minute line is its hint. The overlay input and the composed error are deleted. 2 the system has no divider, so the or rule is composed from two hairlines. 3 there is no field level countdown or a resend row, so both are composed from mono text. 4 CapacityNotice is the closest neutral boundary and it carries the lock, which is a rate limit rather than a plan ceiling.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a person returning to a still valid code should see the digits they already typed, which no endpoint reports. Whether the referred banner should persist onto the code step or only sit on the first screen, which login-sections draws but the flow does not state.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const EMAIL = 'marina@exemplo.com';
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR',
+    emailTitle: 'Entre com o seu email',
+    emailLabel: 'Email',
+    emailBad: 'Use um email completo, como nome@exemplo.com',
+    continue: 'Continuar',
+    referralLine: 'Você veio por um convite. Ele vale ao criar uma conta nova.',
+    planTitle: 'Entre para salvar o seu plano',
+    planSubtitle: 'Ele sai deste aparelho e entra na sua conta.',
+    planCount: ['', '1', ' hábito esperando neste aparelho.'],
+    planCountPlural: ['', '2', ' hábitos esperando neste aparelho.'],
+    planContinue: 'Continuar e salvar',
+    legal: ['Ao continuar, você concorda com os ', 'Termos', ' e a ', 'Política de privacidade', '.'],
+    sendFailedLine: 'O código não foi enviado. Tente de novo.',
+    googleFailedLine: 'O Google não abriu. Tente de novo.',
+    sentNow: 'Código enviado.',
+    resentNow: 'Um novo código foi enviado.',
+    backTitle: 'A sua conta está de volta',
+    backBody: 'O pedido de exclusão foi cancelado quando você entrou.',
+    backAction: 'Ver o meu dia',
+    or: 'ou',
+    google: 'Continuar com o Google',
+    googleOffline: 'Precisa de conexão para abrir o Google.',
+    offline: 'Sem conexão. O código é enviado quando a conexão voltar.',
+    codeTitle: 'Digite o código',
+    sentTo: ['Enviamos 6 dígitos para ', EMAIL, '.'],
+    changeEmail: 'Trocar de email',
+    codeAria: 'Código de 6 dígitos',
+    verify: 'Entrar',
+    codeHint: 'O código vale 5 minutos.',
+    wrong: 'O código não confere. Confira os 6 dígitos e digite de novo.',
+    expired: ['Este código expirou. Ele vale ', '5', ' minutos, então peça outro.'],
+    resend: 'Enviar outro código',
+    resendIn: ['Você pode pedir outro código em ', '0:42'],
+    locked: ['Depois de ', '3', ' tentativas, a verificação fica bloqueada por ', '15', ' minutos. O código atual continua valendo quando o tempo passar.'],
+    lockIn: ['Liberado em ', '14:38'],
+  },
+  en: {
+    lang: 'en',
+    emailTitle: 'Sign in with your email',
+    emailLabel: 'Email',
+    emailBad: 'Use a complete email, like name@example.com',
+    continue: 'Continue',
+    referralLine: 'You came through an invitation. It applies when a new account is created.',
+    planTitle: 'Sign in to save your plan',
+    planSubtitle: 'It leaves this device and joins your account.',
+    planCount: ['', '1', ' habit waiting on this device.'],
+    planCountPlural: ['', '2', ' habits waiting on this device.'],
+    planContinue: 'Continue and save',
+    legal: ['By continuing, you agree to the ', 'Terms', ' and the ', 'Privacy policy', '.'],
+    sendFailedLine: 'The code was not sent. Try again.',
+    googleFailedLine: 'Google did not open. Try again.',
+    sentNow: 'Code sent.',
+    resentNow: 'A new code was sent.',
+    backTitle: 'Your account is back',
+    backBody: 'The deletion request was cancelled when you signed in.',
+    backAction: 'See my day',
+    or: 'or',
+    google: 'Continue with Google',
+    googleOffline: 'Google needs a connection to open.',
+    offline: 'No connection. The code is sent when the connection comes back.',
+    codeTitle: 'Enter the code',
+    sentTo: ['We sent 6 digits to ', EMAIL, '.'],
+    changeEmail: 'Use another email',
+    codeAria: '6 digit code',
+    verify: 'Sign in',
+    codeHint: 'The code lasts 5 minutes.',
+    wrong: 'That code does not match. Check the 6 digits and enter it again.',
+    expired: ['This code expired. It lasts ', '5', ' minutes, so ask for another.'],
+    resend: 'Send another code',
+    resendIn: ['You can ask for another code in ', '0:42'],
+    locked: ['After ', '3', ' attempts, verification is locked for ', '15', ' minutes. The current code still works once the time has passed.'],
+    lockIn: ['Open again in ', '14:38'],
+  },
+};
+
+const CODE_STATES = ['code', 'code typing', 'from link', 'code wrong', 'code expired', 'locked out', 'resend ready', 'verifying'];
+const SEED_CODE = { 'code typing': '4192', 'code wrong': '', 'verifying': '419277', 'from link': '419277', 'resend ready': '' };
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'email', loc: 'pt-BR', email: null, code: null, resent: false };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => { this._lastCode = null; this.setState({ mode: next.mode, width: next.width,
+    st: next.state, loc: next.locale, email: null, code: null, resent: false }); };
+
+  goHoje = () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); };
+  /* The sixth digit submits on its own (use-login-code-entry.ts:41-49), deduped so one code submits
+     once. The button stays (code-step.tsx:87-96): both exist. */
+  onCode = (v) => {
+    this.setState({ code: v });
+    if (v.length === 6 && this._lastCode !== v) { this._lastCode = v; this.setState({ st: 'verifying' }); }
+  };
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const wide = s.width === 'wide';
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['email', 'email invalid', 'referred', 'from onboarding', 'sending', 'send failed',
+        'code', 'code typing', 'from link', 'code wrong', 'code expired', 'locked out', 'resend ready',
+        'verifying', 'google', 'google failed', 'account back', 'offline'],
+      n6: 6, n20: 20,
+      showReport: this.props.showReport !== false,
+      emailTitle: t.emailTitle, emailLabel: t.emailLabel, continueLabel: t.continue, orLabel: t.or,
+      googleLabel: t.google, googleOffline: t.googleOffline, offlineReason: t.offline,
+      codeTitle: t.codeTitle, changeEmailLabel: t.changeEmail, codeAria: t.codeAria,
+      verifyLabel: t.verify, resendLabel: t.resend,
+      /* Neither shell fits: both carry chrome that does not exist before a person is in. */
+      frameStyle: wide
+        ? 'width:1416px;min-height:820px;display:grid;place-items:center;background:var(--bg);border-radius:var(--r-sheet);box-shadow:inset 0 0 0 1px var(--hairline)'
+        : 'width:412px;min-height:820px;background:var(--bg);border-radius:var(--r-sheet);box-shadow:inset 0 0 0 1px var(--hairline);display:flex;flex-direction:column',
+      innerStyle: wide
+        ? 'width:420px;display:flex;flex-direction:column;gap:32px;padding:32px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)'
+        : 'display:flex;flex-direction:column;gap:32px;padding:32px 16px 16px',
+      wideBtn: { style: { width: '100%' } },
+      /* No shell here means no sidebar create button, so nothing competes for the accent at either
+         width and the step's forward action keeps it. */
+      filled: 'primary',
+    };
+    if (!D) return base;
+
+    const isCode = CODE_STATES.indexOf(st) >= 0;
+    const isBack = st === 'account back';
+    const offline = st === 'offline';
+    const sending = st === 'sending';
+    const verifying = st === 'verifying';
+    const locked = st === 'locked out';
+    const expired = st === 'code expired';
+    const wrong = st === 'code wrong';
+    const fromOnboarding = st === 'from onboarding';
+    const email = s.email != null ? s.email : (st === 'email' || st === 'referred' || fromOnboarding ? '' : EMAIL);
+    const code = s.code != null ? s.code : (SEED_CODE[st] || '');
+    const codeError = wrong ? t.wrong
+      : expired ? H(F, null, t.expired[0], mock(t.expired[1]), t.expired[2]) : null;
+
+    return Object.assign(base, {
+      isEmailStep: !isCode && !isBack, isCodeStep: isCode, isBack: isBack,
+      backTitle: t.backTitle, backBody: t.backBody, backAction: t.backAction, goHoje: this.goHoje,
+
+      referred: st === 'referred', referralLine: t.referralLine,
+      /* The other end of the onboarding path: the heading, the subtitle, the waiting count (singular
+         and plural forms exist) and the button's word all swap (login-sections.tsx:32-40, :70-81;
+         page.tsx:81-83). */
+      fromOnboarding: fromOnboarding,
+      planSubtitle: t.planSubtitle,
+      planCount: H(F, null, t.planCount[0], mock(t.planCount[1]), t.planCount[2]),
+      emailTitle: fromOnboarding ? t.planTitle : t.emailTitle,
+      continueLabel: fromOnboarding ? t.planContinue : t.continue,
+      legalPre: t.legal[0], termsWord: t.legal[1], legalMid: t.legal[2],
+      privacyWord: t.legal[3], legalEnd: t.legal[4],
+
+      email: email,
+      onEmail: (e) => this.setState({ email: e.target.value }),
+      emailError: st === 'email invalid' ? t.emailBad : null,
+      emailProps: { disabled: sending, autoComplete: 'email' },
+      sending: sending, sendBlocked: sending || offline || email.length === 0,
+      onSend: () => this.setState({ st: 'code', code: null, resent: false }),
+      /* One send failed shape: 429, every 5xx and a thrown network error read the same to a person
+         (auth-login.ts:112, :114-118, :123). The typed address stays. */
+      sendFailed: st === 'send failed', sendFailedLine: t.sendFailedLine,
+      googleBusy: st === 'google', offline: offline,
+      googleFailed: st === 'google failed', googleFailedLine: t.googleFailedLine,
+      onGoogle: () => this.setState({ st: 'google' }),
+
+      sentToLine: H(F, null, t.sentTo[0], mock(t.sentTo[1]), t.sentTo[2]),
+      /* The confirmation the flow sets after a send and again after a resend (use-login-flow.ts:117,
+         :174), a polite live region (login-sections.tsx:183-226). */
+      hasSentMsg: st === 'code' || s.resent,
+      sentMsg: s.resent ? t.resentNow : t.sentNow,
+      /* The lock is PER EMAIL ADDRESS (VerifyCodeCommand.cs:90 keys verify-attempts:{email}), so
+         changing the address works and stays available while locked. */
+      showChangeEmail: true,
+      onChangeEmail: () => this.setState({ st: 'email', email: '', code: null, resent: false }),
+      code: code,
+      /* The component owns the typing; the sixth digit submits on its own, deduped. */
+      onCode: this.onCode,
+      codeLocked: locked || expired || verifying,
+      codeError: codeError,
+      /* The hint drops once a message occupies its place, so the two never stack. */
+      codeHint: (codeError || locked) ? null : t.codeHint,
+
+      /* A lock offers no action, because for those minutes every action here would be refused. */
+      showVerify: !locked && !expired,
+      verifying: verifying, verifyBlocked: verifying || offline || code.length < 6,
+      onVerify: () => this.setState({ st: 'verifying' }),
+
+      showResend: !locked,
+      resendReady: st === 'resend ready' || expired,
+      resendWaiting: !(st === 'resend ready' || expired),
+      resendCountdown: H(F, null, t.resendIn[0], mock(t.resendIn[1])),
+      onResend: () => this.setState({ st: 'code', code: '', resent: true }),
+
+      isLocked: locked,
+      lockMessage: H(F, null, t.locked[0], mock(t.locked[1]), t.locked[2], mock(t.locked[3]), t.locked[4]),
+      lockCountdown: H(F, null, t.lockIn[0], mock(t.lockIn[1])),
+    });
+  }
+}
+</script>
+</body>
+</html>

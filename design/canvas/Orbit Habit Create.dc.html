@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Criar hábito" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" composer="{{ footer }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ title }}" on-back="{{ onBack }}" back-label="{{ backLabel }}" hint-size="100%,56px"></x-import>
+        <div style="display:flex;flex-direction:column;gap:24px;padding:16px">
+
+          <sc-if value="{{ hasOrigin }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:21px;color:var(--fg-3)">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
+              </span>
+              <p style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ originLine }}</p>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label for="hc-say" style="font-size:14px;font-weight:500;color:var(--fg-2)">{{ lblField }}</label>
+            <div style="position:relative">
+              <p aria-hidden="true" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;background:var(--bg-field);color:var(--fg-1);box-shadow:inset 0 0 0 1px var(--border-control)">
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><span style="color:var(--fg-4)">{{ placeholder }}</span></sc-if><sc-for list="{{ segs }}" as="seg" hint-placeholder-count="3"><sc-if value="{{ seg.hit }}" hint-placeholder-val="{{ false }}"><span style="background:var(--bg-well);border-radius:var(--r-chip);box-shadow:inset 0 -2px 0 var(--hairline-strong)">{{ seg.text }}</span></sc-if><sc-if value="{{ seg.plain }}" hint-placeholder-val="{{ true }}"><span>{{ seg.text }}</span></sc-if></sc-for></p>
+              <textarea id="hc-say" value="{{ text }}" onChange="{{ onText }}" spellcheck="false" aria-label="{{ lblField }}" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;position:absolute;inset:0;height:100%;background:var(--p-transparent);color:transparent;caret-color:var(--fg-1);resize:none;overflow:hidden"></textarea>
+            </div>
+          </div>
+
+          <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ isProposed }}" label="{{ proposedLabel }}" hint-size="100%,200px">
+              <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <button type="button" aria-label="{{ emojiWellLabel }}" onClick="{{ onEmojiOpen }}" style="width:46px;height:46px;flex:0 0 auto;border-radius:var(--r-well);background:var(--bg-well);border:0;cursor:pointer;display:grid;place-items:center;font-size:22px;color:var(--fg-3)">
+                    <sc-if value="{{ hasEmoji }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true">{{ emoji }}</span></sc-if>
+                    <sc-if value="{{ noEmoji }}" hint-placeholder-val="{{ true }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import></sc-if>
+                  </button>
+                  <p style="font-size:12px;line-height:1.4">{{ lblUnderstood }}</p>
+                </div>
+                <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty"><sc-for list="{{ sentenceParts }}" as="sp" hint-placeholder-count="2"><sc-if value="{{ sp.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true">{{ sp.text }}</span></sc-if><sc-if value="{{ sp.plain }}" hint-placeholder-val="{{ true }}"><span>{{ sp.text }}</span></sc-if></sc-for></p>
+                <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
+                  <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary);transition:background-color var(--dur-fast) var(--ease-standard)">{{ p.label }}</button>
+                    </sc-if>
+                    <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                      <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                    </sc-if>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ showStepper }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                    </x-import>
+                    <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center">{{ qty }}</p>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                    </x-import>
+                    <p style="font-size:14px">{{ lblCount }}</p>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ hasBreakdown }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <p style="font-size:12px">{{ lblBreakdown }}</p>
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                      <sc-for list="{{ subs }}" as="sub" hint-placeholder-count="3">
+                        <p style="font-size:14px;padding:8px 12px;background:var(--bg-well);border-radius:var(--r-well)">{{ sub }}</p>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ showUnresolved }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-2);padding:12px;background:var(--bg-well);border-radius:var(--r-well);text-wrap:pretty">{{ unresolvedLine }}</p>
+              <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
+                <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                  <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                    <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
+                  </sc-if>
+                  <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                    <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                  </sc-if>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </x-import>
+                <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </x-import>
+                <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ askCost }}</p>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showLimit }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitMessage }}" hint-size="100%,96px"></x-import>
+              <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
+                <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                  <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                    <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
+                  </sc-if>
+                  <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                    <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                  </sc-if>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </x-import>
+                <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </x-import>
+                <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
+              </div>
+              <div style="display:flex;align-items:flex-start">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showParsing }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n3 }}" label="{{ parsingLabel }}" hint-size="100%,160px"></x-import>
+          </sc-if>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ discIcon }}" title="{{ lblMore }}" chevron="{{ no }}" on-click="{{ onDisc }}" hint-size="100%,52px"></x-import>
+            <sc-if value="{{ discOpen }}" hint-placeholder-val="{{ false }}">{{ discBody }}</sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <p style="font-size:12px;color:var(--fg-3)">{{ lblStart }}</p>
+            <p style="font-size:17px;line-height:1.4;color:var(--fg-1)">{{ startValue }}</p>
+            <p style="font-size:14px;color:var(--fg-3);line-height:1.5;text-wrap:pretty">{{ startWhy }}</p>
+          </div>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ footer }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px">
+
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ title }}" on-back="{{ onBack }}" back-label="{{ backLabel }}" hint-size="100%,56px"></x-import>
+
+            <sc-if value="{{ hasOrigin }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:21px;color:var(--fg-3)">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
+                </span>
+                <p style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ originLine }}</p>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:560px">
+              <label for="hc-say-w" style="font-size:14px;font-weight:500;color:var(--fg-2)">{{ lblField }}</label>
+              <div style="position:relative">
+                <p aria-hidden="true" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;background:var(--bg-field);color:var(--fg-1);box-shadow:inset 0 0 0 1px var(--border-control)">
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><span style="color:var(--fg-4)">{{ placeholder }}</span></sc-if><sc-for list="{{ segs }}" as="seg" hint-placeholder-count="3"><sc-if value="{{ seg.hit }}" hint-placeholder-val="{{ false }}"><span style="background:var(--bg-well);border-radius:var(--r-chip);box-shadow:inset 0 -2px 0 var(--hairline-strong)">{{ seg.text }}</span></sc-if><sc-if value="{{ seg.plain }}" hint-placeholder-val="{{ true }}"><span>{{ seg.text }}</span></sc-if></sc-for></p>
+                <textarea id="hc-say-w" value="{{ text }}" onChange="{{ onText }}" spellcheck="false" aria-label="{{ lblField }}" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;position:absolute;inset:0;height:100%;background:var(--p-transparent);color:transparent;caret-color:var(--fg-1);resize:none;overflow:hidden"></textarea>
+              </div>
+            </div>
+
+            <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
+              <div style="max-width:560px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ isProposed }}" label="{{ proposedLabel }}" hint-size="100%,200px">
+                  <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <button type="button" aria-label="{{ emojiWellLabel }}" onClick="{{ onEmojiOpen }}" style="width:46px;height:46px;flex:0 0 auto;border-radius:var(--r-well);background:var(--bg-well);border:0;cursor:pointer;display:grid;place-items:center;font-size:22px;color:var(--fg-3)">
+                        <sc-if value="{{ hasEmoji }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true">{{ emoji }}</span></sc-if>
+                        <sc-if value="{{ noEmoji }}" hint-placeholder-val="{{ true }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import></sc-if>
+                      </button>
+                      <p style="font-size:12px;line-height:1.4">{{ lblUnderstood }}</p>
+                    </div>
+                    <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty"><sc-for list="{{ sentenceParts }}" as="sp" hint-placeholder-count="2"><sc-if value="{{ sp.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true">{{ sp.text }}</span></sc-if><sc-if value="{{ sp.plain }}" hint-placeholder-val="{{ true }}"><span>{{ sp.text }}</span></sc-if></sc-for></p>
+                    <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
+                      <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                        <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                          <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary);transition:background-color var(--dur-fast) var(--ease-standard)">{{ p.label }}</button>
+                        </sc-if>
+                        <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                          <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                        </sc-if>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ showStepper }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                        </x-import>
+                        <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center">{{ qty }}</p>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                        </x-import>
+                        <p style="font-size:14px">{{ lblCount }}</p>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ hasBreakdown }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:8px">
+                        <p style="font-size:12px">{{ lblBreakdown }}</p>
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                          <sc-for list="{{ subs }}" as="sub" hint-placeholder-count="3">
+                            <p style="font-size:14px;padding:8px 12px;background:var(--bg-well);border-radius:var(--r-well)">{{ sub }}</p>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showUnresolved }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-2);padding:12px;background:var(--bg-well);border-radius:var(--r-well);text-wrap:pretty">{{ unresolvedLine }}</p>
+                <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
+                  <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
+                    </sc-if>
+                    <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                      <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                    </sc-if>
+                  </sc-for>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                  </x-import>
+                  <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                  </x-import>
+                  <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                  <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ askCost }}</p>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showLimit }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitMessage }}" hint-size="100%,96px"></x-import>
+                <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
+                  <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
+                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
+                    </sc-if>
+                    <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
+                      <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
+                    </sc-if>
+                  </sc-for>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                  </x-import>
+                  <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                  </x-import>
+                  <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
+                </div>
+                <div style="display:flex;align-items:flex-start">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showParsing }}" hint-placeholder-val="{{ false }}">
+              <div style="max-width:560px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n3 }}" label="{{ parsingLabel }}" hint-size="100%,160px"></x-import>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ discIcon }}" title="{{ lblMore }}" chevron="{{ no }}" on-click="{{ onDisc }}" hint-size="100%,52px"></x-import>
+              <sc-if value="{{ discOpen }}" hint-placeholder-val="{{ false }}">{{ discBody }}</sc-if>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:4px;max-width:560px">
+              <p style="font-size:12px;color:var(--fg-3)">{{ lblStart }}</p>
+              <p style="font-size:17px;line-height:1.4;color:var(--fg-1)">{{ startValue }}</p>
+              <p style="font-size:14px;color:var(--fg-3);line-height:1.5;text-wrap:pretty">{{ startWhy }}</p>
+            </div>
+
+          </div>
+        </x-import>
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Creation describes a habit in as few decisions as possible. One input, one sentence stating what Orbit understood, two tappable corrections, and one disclosure for everything else. It is not a schedule form: there is no type picker, none of the four internal type names renders in either locale, and there is no colour swatch row, because colour as data is gone.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>empty, typed, resolved, unresolved, from the conversation, proposed unasked, details open, reading the phrase, at the daily limit, the same set Hoje’s create states reach. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly one gate on this screen, the slip alert inside the disclosure. Reached by using the screen rather than the axis: the ask runs the reading beat live and settles on Astra’s proposal, the emoji picker opens from the well, the disclosure opens from its row, and the templates and goal sheets open from theirs. The empty state is what the create action opens: nothing is proposed before there is something to propose.</p>
+      <p><span style="color:var(--fg-3)">input&nbsp;&nbsp;</span>the words the parser consumed are marked inside the field, so it is visible what was read and what was ignored. The marking is a background and a baseline rule only, never padding, so the marked text keeps the same metrics as the plain text. The field is a highlighted mirror under a transparent textarea sharing one metric declaration, which is what keeps the two aligned to the pixel.</p>
+      <p><span style="color:var(--fg-3)">parser&nbsp;&nbsp;</span>reading the sentence happens on the device first. The local read is regex over weekdays, times, counts and the daily phrases: it runs on every keystroke, calls nothing and costs nothing, which is what makes a live preview compatible with a five message day. Weekdays beat a count, and a count beats a bare daily phrase. A time is read only with a separator or after the word for at, so the 3 in three times a week is never mistaken for an hour. Astra is the fallback, called only when the local read resolves nothing and the person asks for it, and what it can return is bounded by the suggestion contract: an emoji, a cadence, fixed weekdays, a flexible target, a time, and one breakdown, either sub habits or a checklist and never both. Neither path guesses silently: when nothing resolves the screen says so and offers the two controls and the ask.</p>
+      <p><span style="color:var(--fg-3)">proposed&nbsp;&nbsp;</span>the treatment marks who read the sentence. A value the device read is just resolved and renders as typed, because the marked words in the field already show what was read. A value Astra read wears the proposed state, fg-3 inside a dashed hairline, and it never takes the accent. The first tap on a day pill, the stepper or the emoji picker resolves the whole block to normal, because at that point the person owns the value. Astra proposing unasked is the same treatment with every value proposed and a line naming that nothing has been created yet.</p>
+      <p><span style="color:var(--fg-3)">emoji&nbsp;&nbsp;</span>the 46px well beside the understood sentence IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid of choices. With no emoji chosen and none read from the sentence the well shows a plus rather than a derived initial, because there it is an empty control and not a label. An emoji Astra proposed wears the block’s proposed state until it is touched.</p>
+      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>ONE disclosure, closed by default, holding creation’s ten sections in this order: exact time as a TimeField with the any-time hint; reminders, which are two things, offset chips over the ten shipping presets plus a custom number and unit when a due time exists, with the LAST offset locked and its reason beside it because reminders on with nothing set is a lie, and absolute clock times when none, each added through a small form whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words, a timed habit nesting its clock times under the same switch; checklist items as real inputs that retype in place, each duplicable, removable and draggable, up to 50 with the cap stated where it bites, and the person’s own templates, load one, save the current items under a name (absent while the list is empty), delete one through ListRow’s real per-row action; sub habits up to 20; the bad habit toggle with its line; the slip alert, plan gated; tags up to 5 as plain word pills with no colour dot, since colour as data is dead; goal linking, ungated; end date; description. Below the disclosure the immutable start date and its reason, then the create action. Colour swatches stay deleted.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. The slip alert on free is a row carrying the Pro badge that ROUTES to the upgrade, never a disabled control and never a silent tap; on Pro it is the real switch with its shield glyph, its label and its description, and it turns on and off. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back. Every gated tap leaves this document for Orbit Pro through one route. The daily ceiling is a different kind of boundary, an allowance and not a plan: it quiets the one ask with the reason stated in the notice beside it.</p>
+      <p><span style="color:var(--fg-3)">start&nbsp;&nbsp;</span>the form states an immutable start date and the reason it cannot move. It does not show a next due date: that value changes every time the schedule advances, so a fixed label over it is a structural defect rather than a wording problem, and it is not drawn here at all.</p>
+      <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>creating a habit spends nothing from the daily Astra allowance. The live read is local. The one path that spends a message is the fallback ask, through SuggestHabitSetupCommand.cs:35, so the ceiling stops that one action and nothing else. The notice states the allowance, the ask stands beside it disabled, and the pills, the stepper, the details and the create action all stay live, so a habit can still be created with no model call at all.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 is the touch token for the pills, the stepper, the chips and the disclosure rows. The field is 92 tall with 16 of padding on every side: the microphone and its 60px end reserve are gone, because the app has no voice control on this form. use-speech-to-text.ts is imported by the chat composer, the copilot rail and the composer hook, and by nothing under components/habits, so voice stays where it lives, in the shell composer.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on the marked words and chips, 12 on the field, the wells and the notice, 20 on the preview panel, 28 on the shell, 999 on interactive.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: the create action is the one filled action; the focused field ring and a selected day pill are current position, the pill taking the selected tint and ring rather than a fill because a day is a state, not an action. Wide: the sidebar carries no create button on this surface, since duplicating this screen's own action is exactly the doubling the accent budget forbids, so the create action keeps the fill there too. Nothing here marks completion.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. primary-soft only on the canvas at 4.58:1, which is why the nav item is the only coloured label. Light status-overdue #946A00 4.66:1 on #FAFAFA and white on it 4.86:1, unused on this screen. fg-3 on the hovered dark row stays the known 4.40:1 limit.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the count in the stepper, the numbers inside the understood sentence, the allowance in the limit notice and the start date. Base date Monday 17 August 2026.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 creating a habit costs one input, no decision the person did not volunteer, and no model call. 2 nothing inferred is presented as typed: it wears the proposed state until it is touched. 3 no schedule type name renders and the start date cannot move.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it went stale six rounds running: this time it already carried ListRow’s action and HabitRow’s onLog from the last re-sync, so nothing was re-synced and the templates sheet leans on the real per-row action. Still composed around the system: 1 forms has no field that marks parsed words, so the mirror and textarea pair is composed here. 2 there is no neutral component for a phrase that could not be resolved, so that notice is composed from bg-well and a hairline, with CapacityNotice reserved for the ceiling. 3 Shell412 has no slot for a pinned action row, so the create action rides the composer slot. 4 the system has no date field, so the end date is a text input with a format hint. 5 no system emoji picker exists, so the search, the category chips and the grid are composed inside a Sheet.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a proposed breakdown should be editable before creation or only after. The ask settles on a fixture suggestion after a beat, and the disclosure’s edits live in this document’s state.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const BASE = new Date(2026, 7, 17);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+
+const PT_DAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const EN_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const EMOJI_HINT = [[/corr|run/i, '\uD83C\uDFC3'], [/ler|leitur|read|livro|book/i, '\uD83D\uDCD6'],
+  [/[áa]gua|water|beber|drink/i, '\uD83D\uDCA7'], [/casa|house|lou[çc]|dish|limp|clean/i, '\uD83E\uDDF9'],
+  [/along|stretch|yoga/i, '\uD83E\uDDD8']];
+
+const PAT = {
+  'pt-BR': {
+    days: [/\bdomingos?\b/gi, /\bsegundas?(?:-feira)?\b/gi, /\bter[çc]as?(?:-feira)?\b/gi, /\bquartas?(?:-feira)?\b/gi,
+      /\bquintas?(?:-feira)?\b/gi, /\bsextas?(?:-feira)?\b/gi, /\bs[áa]bados?\b/gi],
+    daily: /\b(todo dia|todos os dias|diariamente|toda manh[ãa]|toda noite)\b/gi,
+    times: /\b(\d+)\s*(?:vezes|x)\s*(?:por|na)?\s*semana\b/gi,
+    clockA: /\b([01]?\d|2[0-3]):([0-5]\d)\b/g,
+    clockB: /\b[àa]s\s+([01]?\d|2[0-3])(?:h([0-5]\d)?)?\b/gi,
+  },
+  en: {
+    days: [/\bsundays?\b/gi, /\bmondays?\b/gi, /\btuesdays?\b/gi, /\bwednesdays?\b/gi, /\bthursdays?\b/gi,
+      /\bfridays?\b/gi, /\bsaturdays?\b/gi],
+    daily: /\b(every day|daily|each day|every morning|every evening)\b/gi,
+    times: /\b(\d+)\s*(?:times|x)\s*(?:a|per)\s*week\b/gi,
+    clockA: /\b([01]?\d|2[0-3]):([0-5]\d)\b/g,
+    clockB: /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d))?\b/gi,
+  },
+};
+
+/* Resolves only what HabitSetupSuggestion can carry, and leaves everything else unset. */
+function parseHabit(text, loc) {
+  const P = PAT[loc] || PAT['pt-BR'];
+  const out = { days: [], qty: null, time: null, mode: null, emoji: null, tokens: [] };
+  const add = (m) => out.tokens.push([m.index, m.index + m[0].length]);
+  let m;
+  P.times.lastIndex = 0;
+  while ((m = P.times.exec(text))) { out.qty = parseInt(m[1], 10); out.mode = 'flex'; add(m); }
+  P.daily.lastIndex = 0;
+  while ((m = P.daily.exec(text))) { if (!out.mode) out.mode = 'daily'; add(m); }
+  P.days.forEach((re, i) => {
+    re.lastIndex = 0;
+    let mm;
+    while ((mm = re.exec(text))) { if (out.days.indexOf(i) < 0) out.days.push(i); out.mode = 'fixed'; add(mm); }
+  });
+  [P.clockA, P.clockB].forEach((re) => {
+    re.lastIndex = 0;
+    let mm;
+    while ((mm = re.exec(text))) {
+      const a = mm.index, b = a + mm[0].length;
+      if (out.tokens.some((r) => a < r[1] && b > r[0])) continue;
+      out.time = ('0' + mm[1]).slice(-2) + ':' + (mm[2] ? ('0' + mm[2]).slice(-2) : '00');
+      out.tokens.push([a, b]);
+    }
+  });
+  out.days.sort((a, b) => a - b);
+  for (let i = 0; i < EMOJI_HINT.length; i++) if (EMOJI_HINT[i][0].test(text)) { out.emoji = EMOJI_HINT[i][1]; break; }
+  out.tokens.sort((a, b) => a[0] - b[0]);
+  return out;
+}
+
+function joinDays(list, names, and) {
+  const parts = list.map((d) => names[d]);
+  if (parts.length <= 1) return parts.join('');
+  return parts.slice(0, -1).join(', ') + ' ' + and + ' ' + parts[parts.length - 1];
+}
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR', and: 'e', dayNames: PT_DAY,
+    dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    title: 'Novo hábito', back: 'Voltar',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina',
+    lblField: 'O que você quer acompanhar',
+    placeholder: 'Correr 3 vezes por semana',
+    understood: 'O Orbit entendeu',
+    understoodAstra: 'O Astra entendeu',
+    proposedBy: 'Proposto pelo Astra',
+    emojiLabel: 'Emoji proposto pelo Astra',
+    days: 'Dias da semana',
+    dayOn: (d) => PT_DAY[d] + ', ativo', dayOff: (d) => PT_DAY[d] + ', inativo',
+    count: 'Vezes por semana', less: 'Menos vezes', more: 'Mais vezes',
+    unresolved: 'O Orbit não encontrou a frequência nesta frase. Escolha os dias ou um número de vezes por semana.',
+    ask: 'Pedir ao Astra', askCost: ['Usa 1 das ', '5', ' mensagens de hoje.'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas. O Orbit lê a frase no aparelho, e criar um hábito não usa mensagem: só pedir ao Astra usa. Escolha os dias ou um número de vezes por semana.'],
+    parsing: 'O Astra está lendo a frase',
+    more2: 'Mais detalhes',
+    fTime: 'Hora exata', fTimeHint: 'Deixe vazio para qualquer hora do dia',
+    fRemind: 'Lembretes', fEnd: 'Data de término', fEndPlaceholder: '31/12/2026', fDesc: 'Descrição',
+    remAt: 'Na hora', before: (v) => v + ' antes', dayWord: 'dia', daysWord: 'dias',
+    unitNames: ['min', 'h', 'dias'], customLabel: 'Outro intervalo', addWord: 'Adicionar', whenLabel: 'Quando',
+    schedNested: 'Em horários fixos', schedAdd: 'Adicionar horário', schedCap: 'O limite é 5 horários.',
+    schedSame: 'No dia', schedEve: 'Na véspera', schedTimeLabel: 'Horário',
+    schedDup: 'Esse horário já existe nesse dia. Escolha outro.', schedInvalid: 'Use uma hora válida, como 20:00.',
+    lastRem: 'O último lembrete fica. Para nenhum, desligue os lembretes.',
+    fChecklist: 'Itens', fAddItem: 'Adicionar item', itemCap: 'O limite é 50 itens.', itemField: 'Item',
+    fTpl: 'Usar modelo salvo', tplTitle: 'Modelos salvos', itemsWord: 'itens',
+    tplSave: 'Salvar os itens como modelo', tplName: 'Nome do modelo', tplGo: 'Salvar', tplDel: (n) => 'Apagar ' + n,
+    dupItem: (n) => 'Duplicar ' + n, removeX: (n) => 'Remover ' + n, dragHint: 'Arrastar para reordenar',
+    tpls: [
+      { n: 'Mala de viagem', items: ['Documentos', 'Carregador', 'Roupas', 'Nécessaire', 'Remédios', 'Fones', 'Garrafa', 'Casaco'] },
+      { n: 'Limpeza da cozinha', items: ['Louça', 'Bancada', 'Fogão', 'Pia', 'Chão', 'Lixo'] },
+      { n: 'Compras da semana', items: ['Frutas', 'Legumes', 'Arroz', 'Feijão', 'Café', 'Leite', 'Pão', 'Ovos', 'Queijo', 'Sabão'] },
+      { n: 'Fechar o dia', items: ['Louça da janta', 'Roupa de amanhã', 'Mochila pronta', 'Luzes apagadas'] },
+    ],
+    fSubs: 'Sub-hábitos', fAddSub: 'Adicionar sub-hábito', subCap: 'O limite é 20 sub-hábitos.',
+    fBad: 'Hábito a evitar', fBadHint: 'Registrar passa a significar que aconteceu.',
+    fSlip: 'Alerta de deslize', fSlipDesc: 'Um aviso quando o hábito começa a falhar.',
+    fTags: 'Etiquetas', fAddTag: 'Adicionar etiqueta', tagCap: 'O limite é 5 etiquetas.',
+    fGoal: 'Ligar a uma meta', goalNone: 'Nenhuma', goalTitle: 'Metas', goals: ['Correr 10 km', 'Manhã sem pressa'],
+    cancel: 'Cancelar',
+    emoTitle: 'Escolher emoji', emoWell: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
+    emoNone: 'Nenhum emoji com esse nome',
+    start: 'Início',
+    startValue: (d) => ['Começa em ', d],
+    startWhy: 'A data de início é o dia em que você cria o hábito e não muda depois.',
+    create: 'Criar hábito',
+    createWhy: 'Escreva o que você quer acompanhar.',
+    breakdown: 'O que tem dentro',
+    subs: ['Louça', 'Roupa lavada', 'Banheiro'],
+    fromChat: 'Veio da sua conversa com o Astra.',
+    fromAstra: 'O Astra propôs este hábito. Nada foi criado ainda.',
+    fixed: (days, time, x) => [['toda ', 0], [joinDays(days, PT_DAY, 'e'), 0]].concat(time ? [[' às ', 0], [time, 1]] : []),
+    daily: (time) => [['todo dia', 0]].concat(time ? [[' às ', 0], [time, 1]] : []),
+    flex: (q, time) => [[String(q), 1], [' vezes por semana, qualquer dia', 0]].concat(time ? [[', às ', 0], [time, 1]] : []),
+  },
+  en: {
+    intl: 'en-GB', lang: 'en', and: 'and', dayNames: EN_DAY,
+    dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    title: 'New habit', back: 'Back',
+    navLabel: 'Main navigation', palette: 'Search',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina',
+    lblField: 'What you want to keep up',
+    placeholder: 'Run 3 times a week',
+    understood: 'Orbit understood',
+    understoodAstra: 'Astra understood',
+    proposedBy: 'Proposed by Astra',
+    emojiLabel: 'Emoji proposed by Astra',
+    days: 'Days of the week',
+    dayOn: (d) => EN_DAY[d] + ', on', dayOff: (d) => EN_DAY[d] + ', off',
+    count: 'Times a week', less: 'Fewer times', more: 'More times',
+    unresolved: 'Orbit did not find how often in this phrase. Pick the days or a number of times a week.',
+    ask: 'Ask Astra', askCost: ['Uses 1 of today\'s ', '5', ' messages.'],
+    limit: ["Today's ", '5', ' messages have been used. Orbit reads the phrase on the device, and creating a habit uses no message: only asking Astra does. Pick the days or a number of times a week.'],
+    parsing: 'Astra is reading the phrase',
+    more2: 'More details',
+    fTime: 'Exact time', fTimeHint: 'Leave empty for any time of day',
+    fRemind: 'Reminders', fEnd: 'End date', fEndPlaceholder: '31/12/2026', fDesc: 'Description',
+    remAt: 'At the time', before: (v) => v + ' before', dayWord: 'day', daysWord: 'days',
+    unitNames: ['min', 'h', 'days'], customLabel: 'Another interval', addWord: 'Add', whenLabel: 'When',
+    schedNested: 'At fixed times', schedAdd: 'Add a time', schedCap: 'The limit is 5 times.',
+    schedSame: 'Same day', schedEve: 'Day before', schedTimeLabel: 'Time',
+    schedDup: 'That time already exists on that day. Pick another.', schedInvalid: 'Use a real time, like 20:00.',
+    lastRem: 'The last reminder stays. For none, turn reminders off.',
+    fChecklist: 'Items', fAddItem: 'Add an item', itemCap: 'The limit is 50 items.', itemField: 'Item',
+    fTpl: 'Use a saved template', tplTitle: 'Saved templates', itemsWord: 'items',
+    tplSave: 'Save the items as a template', tplName: 'Template name', tplGo: 'Save', tplDel: (n) => 'Delete ' + n,
+    dupItem: (n) => 'Duplicate ' + n, removeX: (n) => 'Remove ' + n, dragHint: 'Drag to reorder',
+    tpls: [
+      { n: 'Packing list', items: ['Documents', 'Charger', 'Clothes', 'Toiletries', 'Medication', 'Headphones', 'Bottle', 'Jacket'] },
+      { n: 'Kitchen clean-up', items: ['Dishes', 'Counter', 'Stove', 'Sink', 'Floor', 'Trash'] },
+      { n: 'Weekly groceries', items: ['Fruit', 'Vegetables', 'Rice', 'Beans', 'Coffee', 'Milk', 'Bread', 'Eggs', 'Cheese', 'Soap'] },
+      { n: 'Close the day', items: ['Dinner dishes', 'Clothes for tomorrow', 'Bag packed', 'Lights off'] },
+    ],
+    fSubs: 'Sub habits', fAddSub: 'Add a sub habit', subCap: 'The limit is 20 sub habits.',
+    fBad: 'Habit to avoid', fBadHint: 'Logging then means it happened.',
+    fSlip: 'Slip alert', fSlipDesc: 'A heads-up when the habit starts to slip.',
+    fTags: 'Tags', fAddTag: 'Add a tag', tagCap: 'The limit is 5 tags.',
+    fGoal: 'Link to a goal', goalNone: 'None', goalTitle: 'Goals', goals: ['Run 10 km', 'Calm mornings'],
+    cancel: 'Cancel',
+    emoTitle: 'Choose an emoji', emoWell: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
+    emoNone: 'No emoji with that name',
+    start: 'Start',
+    startValue: (d) => ['Starts on ', d],
+    startWhy: 'The start date is the day you create the habit and does not change after that.',
+    create: 'Create habit',
+    createWhy: 'Write what you want to keep up.',
+    breakdown: 'What is inside',
+    subs: ['Dishes', 'Laundry', 'Bathroom'],
+    fromChat: 'Came from your conversation with Astra.',
+    fromAstra: 'Astra proposed this habit. Nothing has been created yet.',
+    fixed: (days, time) => [['every ', 0], [joinDays(days, EN_DAY, 'and'), 0]].concat(time ? [[' at ', 0], [time, 1]] : []),
+    daily: (time) => [['every day', 0]].concat(time ? [[' at ', 0], [time, 1]] : []),
+    flex: (q, time) => [[String(q), 1], [' times a week, any day', 0]].concat(time ? [[', at ', 0], [time, 1]] : []),
+  },
+};
+
+const SEED = {
+  empty: { 'pt-BR': '', en: '' },
+  typed: { 'pt-BR': 'Correr 3 vezes por semana', en: 'Run 3 times a week' },
+  resolved: { 'pt-BR': 'Correr 3 vezes por semana', en: 'Run 3 times a week' },
+  unresolved: { 'pt-BR': 'Beber mais água quando der', en: 'Drink more water when I can' },
+  'from chat': { 'pt-BR': 'Ler toda segunda e quinta às 08:00', en: 'Read every Monday and Thursday at 08:00' },
+  proposed: { 'pt-BR': 'Rotina da casa', en: 'House routine' },
+  details: { 'pt-BR': 'Alongar toda manhã às 07:00', en: 'Stretch every morning at 07:00' },
+  /* Both fallback states start from a sentence the local read cannot resolve, which is the only
+     circumstance that reaches Astra at all. */
+  parsing: { 'pt-BR': 'Beber mais água quando der', en: 'Drink more water when I can' },
+  'at limit': { 'pt-BR': 'Beber mais água quando der', en: 'Drink more water when I can' },
+};
+
+/* The emoji picker's options: [category id, pt label, en label, [[emoji, pt keyword, en keyword]...]].
+   The eleven category ids are habit-emoji-options.ts's. */
+const EMO = [
+  ['smileys', 'Carinhas', 'Smileys', [['\uD83D\uDE42', 'leve', 'easy'], ['\uD83D\uDE0C', 'calmo', 'calm'], ['\uD83D\uDE34', 'sono', 'sleep'], ['\uD83E\uDD13', 'foco', 'focus'], ['\uD83D\uDE24', 'força', 'push'], ['\uD83D\uDE00', 'sorriso', 'smile']]],
+  ['body', 'Corpo', 'Body', [['\uD83D\uDCAA', 'força', 'strength'], ['\uD83E\uDDB7', 'dentes', 'teeth'], ['\uD83D\uDC63', 'passos', 'steps'], ['\uD83E\uDEC0', 'coração', 'heart'], ['\uD83E\uDDE0', 'mente', 'mind'], ['\uD83D\uDC40', 'olhos', 'eyes']]],
+  ['wellness', 'Bem-estar', 'Wellness', [['\uD83E\uDDD8', 'meditar', 'meditate'], ['\uD83D\uDCA7', 'água', 'water'], ['\uD83D\uDC8A', 'remédio', 'medication'], ['\uD83D\uDECC', 'dormir', 'sleep'], ['\uD83D\uDEBF', 'banho', 'shower'], ['\uD83E\uDDD6', 'descanso', 'rest']]],
+  ['animals', 'Animais', 'Animals', [['\uD83D\uDC15', 'cachorro', 'dog'], ['\uD83D\uDC08', 'gato', 'cat'], ['\uD83D\uDC1F', 'peixe', 'fish'], ['\uD83D\uDC0E', 'cavalo', 'horse'], ['\uD83D\uDC1D', 'abelha', 'bee'], ['\uD83E\uDD9C', 'pássaro', 'bird']]],
+  ['nature', 'Natureza', 'Nature', [['\uD83C\uDF31', 'planta', 'plant'], ['\uD83C\uDF33', 'árvore', 'tree'], ['\uD83C\uDF0A', 'mar', 'sea'], ['\uD83C\uDF38', 'flor', 'flower'], ['\u26F0\uFE0F', 'montanha', 'mountain'], ['\uD83C\uDF19', 'lua', 'moon']]],
+  ['food', 'Comida', 'Food', [['\uD83E\uDD57', 'salada', 'salad'], ['\uD83C\uDF4E', 'fruta', 'fruit'], ['\u2615', 'café', 'coffee'], ['\uD83E\uDD66', 'legumes', 'vegetables'], ['\uD83C\uDF5E', 'pão', 'bread'], ['\uD83E\uDD64', 'suco', 'juice']]],
+  ['activities', 'Atividades', 'Activities', [['\uD83C\uDFC3', 'correr', 'run'], ['\uD83D\uDEB6', 'caminhar', 'walk'], ['\uD83C\uDFCB\uFE0F', 'treino', 'gym'], ['\uD83D\uDEB4', 'pedalar', 'cycle'], ['\u26BD', 'bola', 'ball'], ['\uD83C\uDFB8', 'violão', 'guitar']]],
+  ['work', 'Trabalho', 'Work', [['\uD83D\uDCBC', 'trabalho', 'work'], ['\uD83D\uDCDA', 'estudo', 'study'], ['\u270D\uFE0F', 'escrever', 'write'], ['\uD83D\uDCBB', 'computador', 'computer'], ['\uD83D\uDCDE', 'ligação', 'call'], ['\uD83D\uDDC2\uFE0F', 'arquivos', 'files']]],
+  ['home', 'Casa', 'Home', [['\uD83E\uDDF9', 'limpeza', 'clean'], ['\uD83E\uDDFA', 'roupa', 'laundry'], ['\uD83C\uDF7D\uFE0F', 'louça', 'dishes'], ['\uD83D\uDECF\uFE0F', 'cama', 'bed'], ['\uD83E\uDEB4', 'vaso', 'pot'], ['\uD83D\uDD27', 'conserto', 'fix']]],
+  ['travel', 'Viagem', 'Travel', [['\u2708\uFE0F', 'viagem', 'trip'], ['\uD83D\uDE8C', 'ônibus', 'bus'], ['\uD83D\uDE97', 'carro', 'car'], ['\uD83E\uDDF3', 'mala', 'bag'], ['\uD83D\uDDFA\uFE0F', 'mapa', 'map'], ['\u26FA', 'acampar', 'camp']]],
+  ['symbols', 'Símbolos', 'Symbols', [['\u2B50', 'estrela', 'star'], ['\u2764\uFE0F', 'coração', 'heart'], ['\u2705', 'feito', 'check'], ['\uD83D\uDD14', 'sino', 'bell'], ['\uD83C\uDFAF', 'alvo', 'target'], ['\u267B\uFE0F', 'reciclar', 'recycle']]],
+];
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'typed', loc: 'pt-BR', plan: 'free',
+    text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
+    cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
+    fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
+    ckItems: [], ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
+    subsOwn: [], subInput: '', tags: [], tagInput: '',
+    badOn: false, slipOn: false, goalOpen: false, goalSel: -1 };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._akT); }
+
+  onCC = (next) => {
+    clearTimeout(this._akT);
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free',
+      text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
+      cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
+      fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
+      ckItems: [], ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
+      subsOwn: [], subInput: '', tags: [], tagInput: '',
+      badOn: false, slipOn: false, goalOpen: false, goalSel: -1 });
+  };
+
+  pick = (d, days) => this.setState((p) => {
+    const cur = p.days != null ? p.days : days;
+    return { days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b),
+      resolved: true };
+  });
+
+  /* The one upgrade route: every plan-gated tap leaves for the Pro document. Never a silent no-op. */
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+  /* The explicit fallback: the ONE action that spends a message (SuggestHabitSetupCommand.cs:35).
+     It reads for a beat and settles on Astra's suggestion, proposed until touched. */
+  onAsk = () => {
+    clearTimeout(this._akT);
+    this.setState({ phase: 'parsing' });
+    this._akT = setTimeout(() => this.setState({ phase: 'done' }), 1100);
+  };
+  ckAppend = (arr) => this.setState((p) => ({ ckItems: p.ckItems.concat(arr).slice(0, 50) }));
+
+  pill(txt, on, fn, aria, key, off) {
+    return H('button', { key: key, type: 'button', 'aria-pressed': on, 'aria-label': aria || undefined,
+      'aria-disabled': off ? 'true' : undefined, onClick: off ? undefined : fn,
+      style: { height: 44, paddingInline: 14, flex: '0 0 auto', borderRadius: 'var(--r-pill)', border: 0,
+        cursor: off ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', fontWeight: 500,
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: on ? 'var(--primary-dim)' : 'var(--bg-well)', color: on ? 'var(--fg-1)' : 'var(--fg-2)',
+        boxShadow: on ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' } }, txt);
+  }
+  addInline(ph, val, setVal, add) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+      H('div', { style: { flex: 1, minWidth: 0 } },
+        H(D.Input, { placeholder: ph, 'aria-label': ph, value: val,
+          onChange: (e) => setVal(e.target.value),
+          onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } } })),
+      H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': ph, onClick: add,
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto' } }, H(D.Icon, { name: 'plus', size: 20 })));
+  }
+  editRow(x, txt, onRemove, drag, key, onEdit, onDup) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H('div', { key: key, style: { display: 'flex', alignItems: 'center', gap: 4, minHeight: 44,
+      background: 'var(--bg-well)', borderRadius: 'var(--r-well)', paddingInlineStart: drag ? 8 : 12 } },
+      drag ? H('span', { title: x.dragHint, style: { color: 'var(--fg-4)', display: 'grid', placeItems: 'center',
+        cursor: 'grab' }, 'aria-hidden': 'true' }, H(D.Icon, { name: 'grip-vertical', size: 16 })) : null,
+      onEdit
+        ? H('input', { value: txt, 'aria-label': x.itemField,
+            onChange: (e) => onEdit(e.target.value),
+            style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', fontFamily: 'var(--font-sans)',
+              background: 'var(--p-transparent)', border: 0, color: 'var(--fg-1)', padding: '4px 0' } })
+        : H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, txt),
+      onDup ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dupItem(txt), onClick: onDup,
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+        H(D.Icon, { name: 'copy', size: 16 })) : null,
+      H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.removeX(txt), onClick: onRemove,
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+        H(D.Icon, { name: 'x', size: 16 })));
+  }
+  fmtOffset(min, x) {
+    if (min === 0) return x.remAt;
+    if (min % 1440 === 0) { const d = min / 1440; return x.before(d === 1 ? '1 ' + x.dayWord : d + ' ' + x.daysWord); }
+    if (min % 60 === 0) return x.before((min / 60) + ' h');
+    return x.before(min + ' min');
+  }
+  /* Scheduled reminders: absolute clock times, each same day or day before, MAX_SCHEDULED_REMINDERS = 5.
+     Both refusals from validateScheduledReminders are said in words. */
+  schedListNode(x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const setRow = (i, r) => this.setState((p) => { const sched = p.sched.slice(); sched[i] = r; return { sched: sched }; });
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      s.sched.map((r, i) => H('div', { key: i, style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        H('div', { style: { width: 128, flex: '0 0 auto' } },
+          H(D.TimeField, { value: r.time, onChange: (v) => setRow(i, { time: v, when: r.when }) })),
+        H('div', { role: 'group', 'aria-label': x.whenLabel, style: { display: 'flex', gap: 4 } },
+          this.pill(x.schedSame, r.when === 'same_day', () => setRow(i, { time: r.time, when: 'same_day' }), null, 'sd'),
+          this.pill(x.schedEve, r.when === 'day_before', () => setRow(i, { time: r.time, when: 'day_before' }), null, 'db')),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.removeX(r.time),
+          onClick: () => this.setState((p) => ({ sched: p.sched.filter((q, j) => j !== i) })),
+          style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+          H(D.Icon, { name: 'x', size: 16 })))),
+      s.sched.length >= 5
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.schedCap)
+        : s.schedForm
+          ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              H('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' } },
+                H('div', { style: { width: 128, flex: '0 0 auto' } },
+                  H(D.TimeField, { label: x.schedTimeLabel, value: s.schedForm.time,
+                    onChange: (v) => this.setState({ schedForm: { time: v, when: this.state.schedForm.when, err: null } }) })),
+                H('div', { role: 'group', 'aria-label': x.whenLabel, style: { display: 'flex', gap: 4, paddingBottom: 5 } },
+                  this.pill(x.schedSame, s.schedForm.when === 'same_day', () => this.setState({
+                    schedForm: Object.assign({}, this.state.schedForm, { when: 'same_day', err: null }) }), null, 'sd'),
+                  this.pill(x.schedEve, s.schedForm.when === 'day_before', () => this.setState({
+                    schedForm: Object.assign({}, this.state.schedForm, { when: 'day_before', err: null }) }), null, 'db')),
+                H('div', { style: { paddingBottom: 5, display: 'flex', gap: 4 } },
+                  H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ schedForm: null }) }, x.cancel),
+                  H(D.Button, { variant: 'secondary', size: 'sm', disabled: !s.schedForm.time, onClick: () => {
+                    const f = this.state.schedForm;
+                    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(f.time)) return this.setState({ schedForm: Object.assign({}, f, { err: x.schedInvalid }) });
+                    if (this.state.sched.some((r2) => r2.time === f.time && r2.when === f.when)) return this.setState({ schedForm: Object.assign({}, f, { err: x.schedDup }) });
+                    this.setState((p) => ({ sched: p.sched.concat([{ time: f.time, when: f.when }]), schedForm: null }));
+                  } }, x.addWord))),
+              s.schedForm.err ? H('p', { role: 'alert', style: { fontSize: 'var(--fs-sm)', color: 'var(--status-bad)' } }, s.schedForm.err) : null)
+          : H('div', { style: { marginInline: -16 } }, H(D.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
+              onClick: () => this.setState({ schedForm: { time: '', when: 'same_day', err: null } }) })));
+  }
+  /* Everything else behind the ONE disclosure, in creation's order: when it happens, how it reminds,
+     what is inside it, what kind it is, how it is watched, how it is filed, when it ends, prose last. */
+  discNode(x, parsedTime) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const time = s.fTime != null ? s.fTime : (parsedTime || '');
+    const label = (txt) => H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, txt);
+    const PRESETS = [0, 5, 10, 15, 30, 60, 120, 360, 720, 1440];
+    /* The last offset cannot be removed, and the reason sits beside it: reminders on with nothing set
+       is a lie (reminder-section.tsx). */
+    const remLocked = s.remSel.length + s.remCustom.length === 1;
+    const remChips = H('div', { role: 'group', 'aria-label': x.fRemind, style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+      PRESETS.map((m) => {
+        const on = s.remSel.indexOf(m) >= 0;
+        return this.pill(this.fmtOffset(m, x), on, () => this.setState((p) => ({
+          remSel: on ? p.remSel.filter((q) => q !== m) : p.remSel.concat([m]) })), null, 'p' + m, on && remLocked);
+      }),
+      s.remCustom.map((m) => this.pill(H(F, null, this.fmtOffset(m, x), H(D.Icon, { name: 'x', size: 14 })), true,
+        () => this.setState((p) => ({ remCustom: p.remCustom.filter((q) => q !== m) })),
+        x.removeX(this.fmtOffset(m, x)), 'c' + m, remLocked)));
+    const addCustom = () => {
+      const n = parseInt(this.state.cNum || '0', 10);
+      if (!(n > 0)) return;
+      const mins = this.state.cUnit === 'h' ? n * 60 : this.state.cUnit === 'd' ? n * 1440 : n;
+      this.setState((p) => PRESETS.indexOf(mins) >= 0
+        ? { remSel: p.remSel.indexOf(mins) >= 0 ? p.remSel : p.remSel.concat([mins]) }
+        : { remCustom: p.remCustom.indexOf(mins) >= 0 ? p.remCustom : p.remCustom.concat([mins]).sort((a, b) => a - b) });
+    };
+    const customRow = H('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' } },
+      H('div', { style: { width: 96, flex: '0 0 auto' } },
+        H(D.Input, { label: x.customLabel, value: s.cNum, inputMode: 'numeric',
+          onChange: (e) => this.setState({ cNum: e.target.value.replace(/[^0-9]/g, '').slice(0, 3) }) })),
+      H('div', { role: 'group', 'aria-label': x.customLabel, style: { display: 'flex', gap: 4, paddingBottom: 5 } },
+        this.pill(x.unitNames[0], s.cUnit === 'min', () => this.setState({ cUnit: 'min' }), null, 'u0'),
+        this.pill(x.unitNames[1], s.cUnit === 'h', () => this.setState({ cUnit: 'h' }), null, 'u1'),
+        this.pill(x.unitNames[2], s.cUnit === 'd', () => this.setState({ cUnit: 'd' }), null, 'u2')),
+      H('div', { style: { paddingBottom: 5 } },
+        H(D.Button, { variant: 'ghost', size: 'sm', onClick: addCustom }, x.addWord)));
+    /* Offset reminders need a due time; a habit with no time gets absolute clock times; a timed habit
+       that also holds clock times nests them under the same switch. */
+    const reminders = time
+      ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          H(D.Switch, { label: x.fRemind, checked: s.remOn, onChange: (n) => this.setState({ remOn: n }) }),
+          s.remOn ? H(F, null, remChips,
+            remLocked ? H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.lastRem) : null,
+            customRow,
+            H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, paddingInlineStart: 12 } },
+              H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.schedNested),
+              this.schedListNode(x))) : null)
+      : H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          label(x.fRemind), this.schedListNode(x));
+    const ck = s.ckItems;
+    const checklist = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      label(x.fChecklist),
+      ck.length ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        ck.map((it, i) => this.editRow(x, it,
+          () => this.setState((p) => ({ ckItems: p.ckItems.filter((q, j) => j !== i) })), true, i,
+          (v) => this.setState((p) => { const a = p.ckItems.slice(); a[i] = v; return { ckItems: a }; }),
+          () => this.setState((p) => p.ckItems.length >= 50 ? null
+            : { ckItems: p.ckItems.slice(0, i + 1).concat([p.ckItems[i]], p.ckItems.slice(i + 1)) })))) : null,
+      ck.length >= 50
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.itemCap)
+        : this.addInline(x.fAddItem, s.ckInput, (v) => this.setState({ ckInput: v }), () => {
+            const v = (this.state.ckInput || '').trim();
+            if (v) { this.ckAppend([v]); this.setState({ ckInput: '' }); }
+          }),
+      H('div', { style: { marginInline: -16 } },
+        H(D.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
+    const subs = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      label(x.fSubs),
+      s.subsOwn.length ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        s.subsOwn.map((it, i) => this.editRow(x, it, () => this.setState((p) => ({
+          subsOwn: p.subsOwn.filter((q, j) => j !== i) })), false, i))) : null,
+      s.subsOwn.length >= 20
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.subCap)
+        : this.addInline(x.fAddSub, s.subInput, (v) => this.setState({ subInput: v }), () => {
+            const v = (this.state.subInput || '').trim();
+            if (v) this.setState((p) => ({ subsOwn: p.subsOwn.concat([v]).slice(0, 20), subInput: '' }));
+          }));
+    const badRow = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+      H(D.Switch, { label: x.fBad, checked: s.badOn, onChange: (n) => this.setState({ badOn: n }) }),
+      H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fBadHint));
+    /* Slip alert follows the plan (slip-alert-section.tsx:21): on free the row is a route to the
+       upgrade, never a disabled control; on Pro it is the real switch. */
+    const slip = s.plan === 'Pro'
+      ? H('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-start' } },
+          H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center', width: 28,
+            paddingTop: 2 }, 'aria-hidden': 'true' }, H(D.Icon, { name: 'shield', size: 20 })),
+          H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+            H(D.Switch, { label: x.fSlip, checked: s.slipOn, onChange: (n) => this.setState({ slipOn: n }) }),
+            H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fSlipDesc)))
+      : H('div', { style: { marginInline: -16 } },
+          H(D.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
+            trailing: H(D.Badge, null, 'Pro'), onClick: this.goPro }));
+    const tags = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      label(x.fTags),
+      s.tags.length ? H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+        s.tags.map((tg, i) => this.pill(H(F, null, tg, H(D.Icon, { name: 'x', size: 14 })), false,
+          () => this.setState((p) => ({ tags: p.tags.filter((q, j) => j !== i) })), x.removeX(tg), i))) : null,
+      s.tags.length >= 5
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.tagCap)
+        : this.addInline(x.fAddTag, s.tagInput, (v) => this.setState({ tagInput: v }), () => {
+            const v = (this.state.tagInput || '').trim();
+            if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
+          }));
+    const goal = H('div', { style: { marginInline: -16 } },
+      H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
+        chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
+      H(D.TimeField, { label: x.fTime, value: time, hint: x.fTimeHint,
+        onChange: (v) => this.setState({ fTime: v }) }),
+      reminders, checklist, subs, badRow, slip, tags, goal,
+      H(D.Input, { label: x.fEnd, placeholder: x.fEndPlaceholder }),
+      H(D.Input, { label: x.fDesc, placeholder: '' }));
+  }
+  /* Saved checklist templates: the person's own. Load one, save the current items under a name (absent
+     while the list is empty), delete one through ListRow's real per-row action. */
+  tplNode(x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const list = s.tplList || x.tpls;
+    const close = () => this.setState({ tplOpen: false, tplSaving: false, tplName: '' });
+    const saveRow = s.ckItems.length === 0 ? null
+      : s.tplSaving
+        ? H('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end', paddingBlock: 8 } },
+            H('div', { style: { flex: 1, minWidth: 0 } },
+              H(D.Input, { label: x.tplName, value: s.tplName, autoFocus: true,
+                onChange: (e) => this.setState({ tplName: e.target.value }) })),
+            H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ tplSaving: false, tplName: '' }) }, x.cancel),
+            H(D.Button, { size: 'sm', variant: 'secondary', disabled: !s.tplName.trim(),
+              onClick: () => this.setState({ tplList: [{ n: s.tplName.trim(), items: s.ckItems.slice() }].concat(list),
+                tplSaving: false, tplName: '' }) }, x.tplGo))
+        : H('div', { style: { marginInline: -24 } },
+            H(D.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
+              onClick: () => this.setState({ tplSaving: true }) }));
+    return H(D.Sheet, { open: true, title: x.tplTitle, onClose: close },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8 } },
+        saveRow,
+        H('div', { style: { marginInline: -24 } },
+          list.map((tp, i) => H(D.ListRow, { key: i, icon: 'template', title: tp.n,
+            description: H('span', null, mock(String(tp.items.length)), ' ' + x.itemsWord),
+            chevron: false,
+            action: { icon: 'trash', label: x.tplDel(tp.n), danger: true,
+              onPress: () => this.setState({ tplList: list.filter((q2, j) => j !== i) }) },
+            onClick: () => { this.ckAppend(tp.items); this.setState({ tplOpen: false, tplSaving: false }); } })))));
+  }
+  goalSheet(x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const close = () => this.setState({ goalOpen: false });
+    return H(D.Sheet, { open: true, title: x.goalTitle, onClose: close },
+      H('div', { style: { marginInline: -12, paddingBottom: 8 }, role: 'radiogroup' },
+        H(D.RadioRow, { label: x.goalNone, selected: this.state.goalSel < 0,
+          onSelect: () => this.setState({ goalSel: -1, goalOpen: false }) }),
+        x.goals.map((g, i) => H(D.RadioRow, { key: i, label: g, selected: this.state.goalSel === i,
+          onSelect: () => this.setState({ goalSel: i, goalOpen: false }) }))));
+  }
+  /* HabitEmojiSelector: a search that clears, the eleven category chips, and the grid. Picking is a
+     touch, so a proposed block resolves. */
+  emojiSheet(x, lang) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const close = () => this.setState({ emoOpen: false });
+    const norm = (val) => val.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const q = norm(s.emoQ.trim());
+    const li = lang === 'en' ? 2 : 1;
+    const cats = s.emoCat ? EMO.filter((c) => c[0] === s.emoCat) : EMO;
+    const hits = [];
+    cats.forEach((c) => c[3].forEach((e) => {
+      if (!q || norm(e[1]).indexOf(q) >= 0 || norm(e[2]).indexOf(q) >= 0 || norm(c[li]).indexOf(q) >= 0) hits.push(e[0]);
+    }));
+    return H(D.Sheet, { open: true, title: x.emoTitle, onClose: close },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 8 } },
+        H('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+          H('div', { style: { flex: 1, minWidth: 0 } },
+            H(D.Input, { placeholder: x.emoSearch, 'aria-label': x.emoSearch, value: s.emoQ,
+              onChange: (e) => this.setState({ emoQ: e.target.value }) })),
+          s.emoQ ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.emoClear,
+            onClick: () => this.setState({ emoQ: '' }),
+            style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto' } },
+            H(D.Icon, { name: 'x', size: 20 })) : null),
+        H('div', { role: 'group', 'aria-label': x.emoTitle, style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+          EMO.map((c) => this.pill(c[li], s.emoCat === c[0],
+            () => this.setState({ emoCat: this.state.emoCat === c[0] ? null : c[0] }), null, c[0]))),
+        hits.length
+          ? H('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))', gap: 4 } },
+              hits.map((ch) => H('button', { key: ch, type: 'button', 'aria-label': ch,
+                onClick: () => this.setState({ cEmoji: ch, emoOpen: false, resolved: true }),
+                style: { width: '100%', height: 44, display: 'grid', placeItems: 'center', fontSize: 22,
+                  background: 'var(--p-transparent)', border: 0, borderRadius: 'var(--r-well)', cursor: 'pointer' } }, ch)))
+          : H('p', { style: { textAlign: 'center', fontSize: 'var(--fs-sm)', color: 'var(--fg-3)',
+              paddingBlock: 24 } }, x.emoNone)));
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n3: 3, n18: 18, n20: 20, no: false, noop: () => {},
+      showReport: this.props.showReport !== false,
+      title: t.title, lblField: t.lblField, placeholder: t.placeholder,
+      backLabel: t.back, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const atLimit = st === 'at limit';
+    const astra = st === 'proposed';
+    const parsing = st === 'parsing' || s.phase === 'parsing';
+    const askDone = s.phase === 'done';
+    const seed = (SEED[st] || SEED.typed)[t.lang === 'en' ? 'en' : 'pt-BR'];
+    const text = s.text != null ? s.text : seed;
+    const isEmpty = text.length === 0;
+
+    /* Local first: the device reads every keystroke and the model is never on this path, even at the
+       ceiling. Astra's read exists only after the explicit ask (SuggestHabitSetupCommand.cs:35), and
+       it settles as a proposal, never as typed. */
+    const parsed = parsing ? { tokens: [], mode: null, days: [], qty: null, time: null, emoji: null }
+      : astra ? { tokens: [], mode: 'daily', days: [], qty: null, time: '09:00', emoji: '\uD83E\uDDF9' }
+      : askDone ? { tokens: [], mode: 'daily', days: [], qty: null, time: null, emoji: '\uD83D\uDCA7' }
+      : parseHabit(text, t.lang);
+
+    const days = s.days != null ? s.days : parsed.days;
+    const qty = s.qty != null ? s.qty : (parsed.qty || 3);
+    const mode = s.days != null ? (days.length ? 'fixed' : 'flex') : parsed.mode;
+    const resolved = s.resolved != null ? s.resolved : st === 'resolved';
+    const discOpen = s.disc != null ? s.disc : st === 'details';
+    const seedDays = st === 'resolved' && s.days == null ? [1, 3, 5] : days;
+    const useDays = s.days != null ? days : seedDays;
+    const useMode = (st === 'resolved' && s.days == null) ? 'fixed' : mode;
+
+    const segs = [];
+    let at = 0;
+    parsed.tokens.forEach((r) => {
+      if (r[0] > at) segs.push({ text: text.slice(at, r[0]), hit: false, plain: true });
+      segs.push({ text: text.slice(r[0], r[1]), hit: true, plain: false });
+      at = r[1];
+    });
+    if (at < text.length) segs.push({ text: text.slice(at), hit: false, plain: true });
+
+    const raw = useMode === 'fixed' ? t.fixed(useDays, parsed.time)
+      : useMode === 'daily' ? t.daily(parsed.time)
+      : useMode === 'flex' ? t.flex(qty, parsed.time) : null;
+    const sentenceParts = raw ? raw.map((p) => ({ text: p[0], mock: p[1] === 1, plain: p[1] === 0 })) : [];
+
+    const showPreview = !isEmpty && !parsing && !!raw;
+    /* The ceiling only bites where the fallback would be offered, so a sentence the device can read
+       previews at the limit like any other. */
+    const noRead = !isEmpty && !parsing && !raw;
+    const showUnresolved = noRead && !atLimit;
+    const dateStr = BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' });
+
+    return Object.assign(base, {
+      isEmpty: isEmpty, text: text,
+      onText: (e) => this.setState({ text: e.target.value, phase: null }),
+      segs: segs,
+
+      showPreview: showPreview, isProposed: (astra || askDone) && !resolved, proposedLabel: t.proposedBy,
+      lblUnderstood: (astra || askDone) ? t.understoodAstra : t.understood, sentenceParts: sentenceParts,
+      /* The well is the emoji control (HabitEmojiSelector): with no emoji it shows a plus, because
+         there it is an empty control and not a label. */
+      hasEmoji: !!(s.cEmoji != null ? s.cEmoji : parsed.emoji),
+      noEmoji: !(s.cEmoji != null ? s.cEmoji : parsed.emoji),
+      emoji: s.cEmoji != null ? s.cEmoji : parsed.emoji,
+      emojiWellLabel: t.emoWell,
+      onEmojiOpen: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
+      lblDays: t.days,
+      pills: [0, 1, 2, 3, 4, 5, 6].map((d) => {
+        const on = useDays.indexOf(d) >= 0;
+        return { label: t.dayShort[d], on: on, off: !on, aria: on ? t.dayOn(d) : t.dayOff(d),
+          pick: () => this.pick(d, useDays) };
+      }),
+      showStepper: useMode === 'flex', qty: qty, lblCount: t.count,
+      lessProps: { 'aria-label': t.less, style: { width: 44, height: 44, paddingInline: 0 } },
+      moreProps: { 'aria-label': t.more, style: { width: 44, height: 44, paddingInline: 0 } },
+      onLess: () => this.setState({ qty: Math.max(1, qty - 1), days: [], resolved: true }),
+      onMore: () => this.setState({ qty: Math.min(7, qty + 1), days: [], resolved: true }),
+      hasBreakdown: astra, lblBreakdown: t.breakdown, subs: t.subs,
+
+      showUnresolved: showUnresolved, unresolvedLine: t.unresolved,
+      lblAsk: t.ask, askCost: H(F, null, t.askCost[0], mock(t.askCost[1]), t.askCost[2]),
+      onAsk: this.onAsk,
+      askOffProps: { disabled: true },
+      showLimit: noRead && atLimit,
+      limitMessage: H(F, null, t.limit[0], mock(t.limit[1]), t.limit[2]),
+      showParsing: parsing, parsingLabel: t.parsing,
+
+      hasOrigin: st === 'from chat' || astra,
+      originLine: astra ? t.fromAstra : t.fromChat,
+
+      discIcon: discOpen ? 'chevron-down' : 'chevron-right', discOpen: discOpen, lblMore: t.more2,
+      onDisc: () => this.setState({ disc: !discOpen }),
+      discBody: discOpen ? this.discNode(t, parsed.time || '') : null,
+
+      lblStart: t.start, startValue: H(F, null, t.startValue(dateStr)[0], mock(dateStr)), startWhy: t.startWhy,
+
+      onBack: () => {},
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      account: t.account,
+      footer: H('div', { style: { paddingInline: 16, display: 'flex', flexDirection: 'column', gap: 8 } },
+        H(D.Button, { disabled: isEmpty, onClick: () => {}, style: { width: '100%' } }, t.create),
+        isEmpty ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', textAlign: 'center' } }, t.createWhy) : null),
+      sheet: s.emoOpen ? this.emojiSheet(t, t.lang)
+        : s.tplOpen ? this.tplNode(t)
+        : s.goalOpen ? this.goalSheet(t)
+        : null,
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+@keyframes wg-pulse{50%{opacity:.45}}
+@keyframes wg-spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Widget" style="display:flex;gap:32px;align-items:flex-start">
+    <div style="{{ stageStyle }}">
+      <sc-if value="{{ isPicker }}" hint-placeholder-val="{{ false }}">
+        {{ pickerNode }}
+      </sc-if>
+      <sc-if value="{{ notPicker }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ sizes }}" as="sz" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <p data-canvas-chrome="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4);letter-spacing:0.04em">{{ sz.label }}</p>
+            {{ sz.node }}
+          </div>
+        </sc-for>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">case&nbsp;&nbsp;</span>the widget is the last unredesigned surface, the most used surface of the only paying subscriber, and ugly enough that he stopped using it. That is the whole case, and it is enough.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>the Android home screen widget at the sizes a launcher actually offers, plus the preview the configuration picker shows. The launcher owns the surface behind it, so the backdrop here is a neutral stand in rather than a wallpaper, and the widget is drawn opaque because it cannot know what is under it.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>rows, streak zero, tomorrow, empty, first load, refreshing, refresh failed, signed out, picker. Every per row treatment is in the rows state at once: completed, overdue, pending, a bad habit, a children done over total badge, a checklist badge, a child indent, and the truncation where the tree goes deeper than the widget can show. NO plan axis: the widget is not gated and shows the same thing on either plan, so the absent switch is a decision.</p>
+      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>the header is two lines, not one. Under the day label sits the subtitle OrbitWidgetProvider.kt:102-107 writes: the completed count, the word for of, the total and the word for completed, computed at OrbitWidgetService.kt:376-387, and it is the ONLY progress figure on the surface. It stays EMPTY until the widget has synced at least once (:104), which is the first load state here. The day label is not always today: with dayOffset 1 and habits in the payload the header says Amanhã or Tomorrow (OrbitWidgetService.kt:368-372, the strings at :126 and :135), drawn as its own state where nothing is done or overdue yet. The figure counts the way :378-386 counts: a top level habit with children contributes its children’s total and done, a leaf contributes one, and a BAD HABIT contributes nothing, because a slip is not a completion (:377). Against this fixture that is 3 of 7, with the sweets row on the surface and outside both numbers.</p>
+      <p><span style="color:var(--fg-3)">no tokens&nbsp;&nbsp;</span>three facts, in order. RemoteViews cannot read a CSS custom property, so the widget cannot consume tokens directly. It still FOLLOWS Orbit’s tokens: the app syncs the resolved token colours into the widget’s shared preferences and the widget reads them back per active scheme and mode (OrbitWidgetService.kt:148-153 with OrbitWidgetModule.COLOR_KEY_PREFIX), so the literals in this document are the flattened results that sync produces, each naming the token it came from. The hardcoded fallback map in the code is only the first paint before any sync (OrbitWidgetService.kt:104-120), and it is STALE: it still carries the pre redesign purple, primary to #7f46f7, and the old surfaces, so a freshly added widget paints the old brand until the app syncs once. Updating that fallback to the current tokens is work the implementation owes; this drawing stays on the current accent.</p>
+      <p><span style="color:var(--fg-3)">map&nbsp;&nbsp;</span>dark: #09090B is --bg, #131315 is --bg-card flattened, #1D1D1F is --bg-well flattened, #2B2B2D is --hairline-ghost flattened over the card, #F4F4F6 is --fg-1, #C9C9CC is --fg-2, #8F8F93 is --fg-3, #5D5D60 is --fg-4, #C4530F is --primary, #FE9A00 is --status-overdue. Light: #FAFAFA is --bg, #FFFFFF is --bg-card, #F1F1F2 is --bg-well flattened, #E6E6E8 is --hairline flattened, #1A1A1D is --fg-1, #424247 is --fg-2, #68686D is --fg-3, #89898D is --fg-4, #C4530F is --primary unchanged, #946A00 is light --status-overdue.</p>
+      <p><span style="color:var(--fg-3)">no fonts&nbsp;&nbsp;</span>a widget cannot load Geist or Space Grotesk, so it renders in the platform font. That is stated rather than faked here: the widget blocks use the system stack, which is why the numerals are not the display face and why nothing in the widget is tracked negative.</p>
+      <p><span style="color:var(--fg-3)">no icon font&nbsp;&nbsp;</span>Tabler is a webfont and RemoteViews cannot use it, so each status mark is a shape a vector drawable can hold: a filled disc with a check, a triangle, and an open ring. They match the app's glyph meanings without depending on its font.</p>
+      <p><span style="color:var(--fg-3)">strings&nbsp;&nbsp;</span>the widget’s strings live in an Android resource file rather than the shared translation files, so this surface is outside the copy pass and the copy had to be right here. The empty line is ONE string, shown whenever the list is empty (OrbitWidgetProvider.kt:113 and :129): Tudo feito! and All clear! (OrbitWidgetService.kt:130 and :139), drawn verbatim, whether nothing was scheduled or everything is done. Two changes the implementation owes on that string, recorded rather than drawn: the two cases deserve two lines, because all clear after a full day and all clear on a day with nothing scheduled are different facts, and the exclamation mark breaks the voice rule that no success carries one. The signed out words are the app’s own: Abra o Orbit para entrar and Open Orbit to sign in (OrbitWidgetProvider.kt:94-99), in the header’s subtitle and the body line both, with the streak hidden. Both locales are written out in full, and the Portuguese is the longer one, which is what sets the truncation on the narrow sizes.</p>
+      <p><span style="color:var(--fg-3)">sizes&nbsp;&nbsp;</span>four, at the dp a launcher grid actually gives: 4 by 1, 4 by 2, 4 by 3 and 2 by 2. The row count is derived from the geometry rather than set per size: the header takes 48, each row takes 48, and where habits do not fit, one row gives up its place so the remainder can be stated. The 2 by 2 drops the times, since a 160dp column cannot hold a name and a time on one line in Portuguese. Only 4 by 1 cannot state a remainder at all, because a header and one row consume its whole height, and that is a size limit rather than a choice. The row's own vocabulary never changes between sizes, so a person moving the widget does not learn a second layout.</p>
+      <p><span style="color:var(--fg-3)">overdue&nbsp;&nbsp;</span>the widget computes overdue with its own rule, capped at a maximum range, and it is not the rule the app list uses. This document draws what the widget produces: the 18:00 walk is overdue, and the habit whose time passed beyond the cap renders as pending here while the app list would call it overdue. The two are not reconciled, and the unification is ticket #343 on the api: GetHabitWidgetQuery.cs:151-176 keeps a private overdue rule capped at AppConstants.MaxRangeDays, while the habit list delegates to HabitScheduleService.IsOverdueOnDate through HabitScheduleFilters.cs:99-100, whose own comment says the point of delegating is that the schedule query and the daily summary share one definition of overdue. This drawing stays correct after #343 lands, because only the fixture's beyond the cap row changes.</p>
+      <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>the streak hides at zero rather than rendering a nought, because a nought is the one number on this surface that would only ever discourage. The header keeps its other content and the space closes up.</p>
+      <p><span style="color:var(--fg-3)">picker&nbsp;&nbsp;</span>the configuration preview matches the shipped widget rather than an idealised one: the same header, the same three rows at 4 by 2, the same marks, and a day that includes an overdue row, because a preview that shows only completed rows sells something the widget does not deliver. It is static, since the picker cannot render live data.</p>
+      <p><span style="color:var(--fg-3)">touch&nbsp;&nbsp;</span>Android’s minimum is 48dp, not 44, so every tappable region here is 48 tall. The WHOLE CARD opens the app, not only a row: OrbitWidgetProvider.kt:150-155 wires the root, the header container, the header label, the empty view and the loading view to the same intent, :148 gives the list its row template, and only the refresh is its own target (:149). The signed out card is one tap target with no control on it, because the widget cannot sign anyone in and a button that says Entrar would be a control that cannot do what it says; tapping anywhere opens the app (:154). There is no ripple, because RemoteViews does not give one.</p>
+      <p><span style="color:var(--fg-3)">refresh&nbsp;&nbsp;</span>the refresh can fail, and the widget has nowhere to put an error, which is the honest answer rather than an omission: OrbitWidgetService.kt:340-348 catches a failed reload, hides the spinner and puts the control back, with a whole timeout worker behind it (OrbitWidgetRefreshTimeoutWorker.kt; apps/mobile/lib/widget-refresh-timeout.ts). The refresh failed state draws exactly that: the spinner gone, the control returned, and the rows that were already there staying, indistinguishable from rows because that is what a person sees.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one use only: the streak figure, which is progress toward something unfinished. Completion is neutral, so a done row is the fg-1 disc exactly as in the app. The signed out state carries NO accent and no control at all, because its one action is the whole card.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>flattening the surfaces changes nothing measurably: fg-1 on #131315 is 15.6:1 dark and #1A1A1D on #FFFFFF is 16.1:1 light. Dark #FE9A00 carries overdue with a triangle beside it, and light #946A00 replaces it, which is the same pair the app uses.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock: the streak, every time, the header figure’s count and total, the children badge, the checklist badge, the overflow count and the truncation count.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no literal appears without the token it came from. 2 the picker preview and the shipped 4 by 2 are the same drawing. 3 the streak never renders a zero. 4 the bad habit never counts toward the header figure, and no control promises what the widget cannot do.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 nothing in the design system can be reused on this surface, by construction, so every part here is composed and none of it should be pulled back into the system. 2 the flattened surface literals need a generator or they will drift the first time an alpha changes. 3 the row is 48 rather than the app's 68, so the widget's density is its own; that is a launcher constraint rather than a choice.</p>
+      <p><span style="color:var(--fg-3)">decided&nbsp;&nbsp;</span>1 tapping a row opens the app (Thomas, 2026-08-20), which is also what ships: a widget has no undo and no toast, so a pocket tap would write a log the person could not take back without opening the app anyway. The 48dp minimum and the refresh control are unchanged. 2 the widget does not follow the launcher's dynamic colour on Android 12 and later, and Orbit's literals stay. The accent and the mark are two of the very few identity carriers this surface has, DESIGN.md makes them load bearing, and handing the widget's colour to the launcher gives that identity away on the one screen a person sees without opening anything.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+
+/* RemoteViews cannot read a CSS custom property, so every value here is a literal and every literal
+   names the token it came from. Alpha-over-surface tokens are flattened, because a widget has no
+   stack to composite against. */
+const THEME = {
+  dark: {
+    bg: '#09090B',        // --bg
+    card: '#131315',      // --bg-card flattened over --bg
+    well: '#1D1D1F',      // --bg-well flattened over --bg
+    hairline: '#2B2B2D',  // --hairline-ghost flattened over --bg-card
+    fg1: '#F4F4F6',       // --fg-1
+    fg2: '#C9C9CC',       // --fg-2
+    fg3: '#8F8F93',       // --fg-3
+    fg4: '#5D5D60',       // --fg-4
+    primary: '#C4530F',   // --primary
+    onPrimary: '#FFFFFF', // --fg-on-primary
+    overdue: '#FE9A00',   // --status-overdue (dark)
+  },
+  light: {
+    bg: '#FAFAFA',        // --bg
+    card: '#FFFFFF',      // --bg-card
+    well: '#F1F1F2',      // --bg-well flattened over --bg
+    hairline: '#E6E6E8',  // --hairline flattened over --bg-card
+    fg1: '#1A1A1D',       // --fg-1
+    fg2: '#424247',       // --fg-2
+    fg3: '#68686D',       // --fg-3
+    fg4: '#89898D',       // --fg-4
+    primary: '#C4530F',   // --primary, unchanged across modes
+    onPrimary: '#FFFFFF', // --fg-on-primary
+    overdue: '#946A00',   // --status-overdue (light)
+  },
+};
+
+/* A widget cannot load Geist or Space Grotesk: it renders in the platform font. */
+const SYS = 'Roboto, "Helvetica Neue", Arial, sans-serif';
+
+const SIZES = [
+  { id: '4x2', label: '4 × 2  ·  336 × 192dp', w: 336, h: 192, rows: 3, times: true },
+  { id: '4x1', label: '4 × 1  ·  336 × 96dp', w: 336, h: 96, rows: 1, times: true },
+  { id: '4x3', label: '4 × 3  ·  336 × 288dp', w: 336, h: 288, rows: 5, times: true },
+  { id: '2x2', label: '2 × 2  ·  160 × 192dp', w: 160, h: 192, rows: 2, times: false },
+];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR',
+    today: 'Hoje', tomorrowW: 'Amanhã', refresh: 'Atualizar', streakUnit: 'dias',
+    ofWord: ' de ', doneWord: ' concluídos',
+    openApp: (n) => 'Abrir ' + n + ' no Orbit',
+    rows: [
+      { id: 'water', name: 'Água da manhã', time: '08:00', mark: 'done' },
+      { id: 'walk', name: 'Caminhada', time: '18:00', mark: 'overdue' },
+      { id: 'house', name: 'Rotina da casa', time: '09:00', mark: 'pending', children: '2/3', deeper: '2' },
+      { id: 'dishes', name: 'Louça', time: null, mark: 'pending', child: true },
+      { id: 'night', name: 'Rotina da noite', time: '22:00', mark: 'pending', checklist: '1/3' },
+      { id: 'stretch', name: 'Alongamento', time: '21:00', mark: 'pending' },
+      /* A bad habit (HabitItem.isBadHabit): drawn, and never counted in the header figure. */
+      { id: 'sweets', name: 'Doce depois do jantar', time: null, mark: 'pending', bad: true },
+    ],
+    overflow: (n) => ['mais ', n],
+    deeper: (n) => ['+', n, ' dentro'],
+    checklistWord: 'lista',
+    allClear: 'Tudo feito!',
+    signedOutLine: 'Abra o Orbit para entrar',
+    loading: 'Carregando',
+    refreshing: 'Atualizando',
+    pickerTitle: 'Orbit',
+    pickerSub: 'Os hábitos de hoje. Um toque abre o Orbit.',
+    pickerSize: '4 × 2',
+    pickerAdd: 'Adicionar',
+  },
+  en: {
+    lang: 'en',
+    today: 'Today', tomorrowW: 'Tomorrow', refresh: 'Refresh', streakUnit: 'days',
+    ofWord: ' of ', doneWord: ' completed',
+    openApp: (n) => 'Open ' + n + ' in Orbit',
+    rows: [
+      { id: 'water', name: 'Morning water', time: '08:00', mark: 'done' },
+      { id: 'walk', name: 'Walk', time: '18:00', mark: 'overdue' },
+      { id: 'house', name: 'House routine', time: '09:00', mark: 'pending', children: '2/3', deeper: '2' },
+      { id: 'dishes', name: 'Dishes', time: null, mark: 'pending', child: true },
+      { id: 'night', name: 'Evening routine', time: '22:00', mark: 'pending', checklist: '1/3' },
+      { id: 'stretch', name: 'Stretching', time: '21:00', mark: 'pending' },
+      { id: 'sweets', name: 'Sweets after dinner', time: null, mark: 'pending', bad: true },
+    ],
+    overflow: (n) => [n, ' more'],
+    deeper: (n) => ['+', n, ' inside'],
+    checklistWord: 'list',
+    allClear: 'All clear!',
+    signedOutLine: 'Open Orbit to sign in',
+    loading: 'Loading',
+    refreshing: 'Refreshing',
+    pickerTitle: 'Orbit',
+    pickerSub: "Today's habits. One tap opens Orbit.",
+    pickerSize: '4 × 2',
+    pickerAdd: 'Add',
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'rows', loc: 'pt-BR' };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale });
+
+  /* Each mark is a shape a vector drawable can hold: no icon font is available here. */
+  mark(kind, c) {
+    if (kind === 'done') {
+      return H('span', { 'aria-hidden': 'true', style: { width: 20, height: 20, flex: '0 0 auto',
+        borderRadius: 999, background: c.fg1, display: 'grid', placeItems: 'center' } },
+        H('svg', { width: 12, height: 12, viewBox: '0 0 12 12' },
+          H('path', { d: 'M2.5 6.2 L4.7 8.4 L9.5 3.6', fill: 'none', stroke: c.bg, strokeWidth: 1.8,
+            strokeLinecap: 'round', strokeLinejoin: 'round' })));
+    }
+    if (kind === 'overdue') {
+      return H('span', { 'aria-hidden': 'true', style: { width: 20, height: 20, flex: '0 0 auto',
+        display: 'grid', placeItems: 'center' } },
+        H('svg', { width: 18, height: 18, viewBox: '0 0 18 18' },
+          H('path', { d: 'M9 2.6 L16.2 15 H1.8 Z', fill: 'none', stroke: c.overdue, strokeWidth: 1.7,
+            strokeLinejoin: 'round' }),
+          H('path', { d: 'M9 7 V10.4', stroke: c.overdue, strokeWidth: 1.7, strokeLinecap: 'round' }),
+          H('circle', { cx: 9, cy: 12.6, r: 0.9, fill: c.overdue })));
+    }
+    return H('span', { 'aria-hidden': 'true', style: { width: 20, height: 20, flex: '0 0 auto',
+      borderRadius: 999, boxShadow: 'inset 0 0 0 1.5px ' + c.fg4 } });
+  }
+
+  badge(text, c) {
+    return H('span', { 'data-mock': 'true', style: { flex: '0 0 auto', paddingInline: 6, height: 18,
+      lineHeight: '18px', borderRadius: 6, background: c.well, color: c.fg2, fontFamily: SYS,
+      fontSize: 11, letterSpacing: '0.02em' } }, text);
+  }
+
+  row(r, t, c, showTime) {
+    const isChild = !!r.child;
+    /* Fixed 48, Android's touch minimum, so the row count derived from the geometry is exact. */
+    /* One tap target: the row opens the app. A widget has no undo and no toast, so it never logs. */
+    return H('div', { key: r.id, role: 'button', 'aria-label': t.openApp(r.name),
+      style: { display: 'flex', alignItems: 'center', gap: 10,
+      height: 48, flex: '0 0 auto', overflow: 'hidden', cursor: 'pointer',
+      paddingInline: 12, paddingLeft: isChild ? 32 : 12 } },
+      this.mark(r.mark, c),
+      H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 } },
+          H('span', { style: { minWidth: 0, fontFamily: SYS, fontSize: 15, lineHeight: 1.3,
+            color: r.mark === 'done' ? c.fg3 : c.fg1, whiteSpace: 'nowrap', overflow: 'hidden',
+            textOverflow: 'ellipsis' } }, r.name),
+          r.children ? this.badge(r.children, c) : null,
+          r.checklist ? this.badge(t.checklistWord + ' ' + r.checklist, c) : null),
+        (showTime && r.time) ? H('span', { 'data-mock': 'true', style: { fontFamily: SYS, fontSize: 12,
+          lineHeight: 1.35, color: r.mark === 'overdue' ? c.overdue : c.fg3 } }, r.time) : null),
+      r.deeper ? H('span', { 'data-mock': 'true', style: { flex: '0 0 auto', fontFamily: SYS,
+        fontSize: 11, color: c.fg4 } }, t.deeper(r.deeper)) : null);
+  }
+
+  header(t, c, size, opts) {
+    const o = opts || {};
+    return H('div', { style: { display: 'flex', alignItems: 'center', gap: 8, height: 48,
+      flex: '0 0 auto', paddingInline: 12, boxShadow: 'inset 0 -1px 0 ' + c.hairline } },
+      H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
+        justifyContent: 'center' } },
+        H('span', { style: { fontFamily: SYS, fontSize: 13, fontWeight: 600,
+          letterSpacing: '0.04em', textTransform: 'uppercase', color: c.fg3, whiteSpace: 'nowrap',
+          overflow: 'hidden', textOverflow: 'ellipsis' } }, o.title || t.today),
+        /* The subtitle (OrbitWidgetProvider.kt:102-107): the only progress figure on the surface,
+           EMPTY until the widget has synced at least once (:104). */
+        o.sub ? H('span', { style: { fontFamily: SYS, fontSize: 11, lineHeight: 1.3, color: c.fg4,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, o.sub) : null),
+      /* The streak hides at zero rather than rendering a nought. */
+      o.streak ? H('span', { style: { flex: '0 0 auto', display: 'flex', alignItems: 'baseline', gap: 3 } },
+        H('span', { 'data-mock': 'true', style: { fontFamily: SYS, fontSize: 15, fontWeight: 600,
+          color: c.primary } }, o.streak),
+        size.w > 200 ? H('span', { style: { fontFamily: SYS, fontSize: 11, color: c.fg3 } },
+          t.streakUnit) : null) : null,
+      o.refreshing
+        ? H('span', { 'aria-hidden': 'true', style: { width: 20, height: 20, flex: '0 0 auto',
+            borderRadius: 999, border: '2px solid ' + c.fg4, borderTopColor: 'transparent',
+            animation: 'wg-spin 700ms linear infinite' } })
+        : H('span', { role: 'button', 'aria-label': t.refresh, style: { width: 20, height: 20,
+            flex: '0 0 auto', display: 'grid', placeItems: 'center', cursor: 'pointer' } },
+            H('svg', { width: 18, height: 18, viewBox: '0 0 18 18' },
+              H('path', { d: 'M15 9a6 6 0 1 1-1.8-4.3', fill: 'none', stroke: c.fg3, strokeWidth: 1.7,
+                strokeLinecap: 'round' }),
+              H('path', { d: 'M15 2.6 V6.2 H11.4', fill: 'none', stroke: c.fg3, strokeWidth: 1.7,
+                strokeLinecap: 'round', strokeLinejoin: 'round' }))));
+  }
+
+  shell(size, children, c) {
+    return H('div', { role: 'group', style: { width: size.w, height: size.h, background: c.card,
+      borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+      boxShadow: '0 1px 3px rgba(0,0,0,.28)' } }, children);
+  }
+
+  widget(size, t, c, st) {
+    /* The row count comes from the widget's real geometry, not a guess per size: the header is 48, a
+       row is 48, and the remainder line needs 24, so it always has room to be stated. */
+    const tomorrow = st === 'tomorrow';
+    /* Tomorrow's list (dayOffset 1, OrbitWidgetService.kt:368-372): nothing is done or overdue yet. */
+    const rows = tomorrow ? t.rows.map((r) => Object.assign({}, r, { mark: 'pending' })) : t.rows;
+    const avail = size.h - 48;
+    const fit = Math.max(1, Math.floor(avail / 48));
+    const canStateRest = rows.length > fit && fit >= 2 && (avail - (fit - 1) * 48) >= 24;
+    const count = canStateRest ? Math.max(1, fit - 1) : Math.min(fit, rows.length);
+    const visible = rows.slice(0, count);
+    const rest = rows.length - count;
+    /* The header figure (OrbitWidgetService.kt:376-387): a parent contributes its children's total
+       and done, a leaf contributes one, and a bad habit contributes NOTHING, because a slip is not
+       a completion (:377). Against this fixture: 3 done of 7, and the sweets row is outside both. */
+    const subNode = H(F, null, mock(tomorrow ? '0' : '3'), t.ofWord, mock('7'), t.doneWord);
+
+    if (st === 'signed out') {
+      /* No control: the widget cannot sign anyone in. OrbitWidgetProvider.kt:94-99 sets the header
+         to Orbit and both lines to the open-Orbit words, hides the streak, and tapping anywhere
+         opens the app (:154). */
+      return this.shell(size, H('div', { role: 'button', 'aria-label': t.signedOutLine,
+        style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', cursor: 'pointer' } },
+        this.header(t, c, size, { title: 'Orbit', sub: t.signedOutLine }),
+        H('div', { style: { flex: 1, display: 'flex', alignItems: 'center', padding: '8px 12px' } },
+          H('p', { style: { fontFamily: SYS, fontSize: 15, lineHeight: 1.35, color: c.fg1,
+            textWrap: 'pretty' } }, t.signedOutLine))), c);
+    }
+
+    if (st === 'first load') {
+      return this.shell(size, H(F, null,
+        /* Before the first sync the subtitle is empty (OrbitWidgetProvider.kt:104). */
+        this.header(t, c, size, {}),
+        H('div', { 'aria-busy': 'true', 'aria-label': t.loading,
+          style: { flex: 1, display: 'flex', flexDirection: 'column' } },
+          rows.slice(0, fit).map((r, i) => H('div', { key: i, style: { display: 'flex', alignItems: 'center',
+            gap: 10, height: 48, flex: '0 0 auto', paddingInline: 12 } },
+            H('span', { style: { width: 20, height: 20, borderRadius: 999, background: c.well,
+              animation: 'wg-pulse 1.4s ease-in-out infinite' } }),
+            H('span', { style: { flex: 1, height: 12, borderRadius: 6, background: c.well,
+              maxWidth: 150 - i * 24, animation: 'wg-pulse 1.4s ease-in-out infinite',
+              animationDelay: (i * 120) + 'ms' } }))))), c);
+    }
+
+    if (st === 'empty') {
+      /* ONE string whether nothing was scheduled or everything is done (OrbitWidgetProvider.kt:113
+         and :129; the string at OrbitWidgetService.kt:130 and :139). */
+      return this.shell(size, H(F, null,
+        this.header(t, c, size, { streak: '12',
+          sub: H(F, null, mock('7'), t.ofWord, mock('7'), t.doneWord) }),
+        H('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          gap: 4, padding: '8px 12px' } },
+          H('p', { style: { fontFamily: SYS, fontSize: 15, lineHeight: 1.35, color: c.fg1 } },
+            t.allClear))), c);
+    }
+
+    const streak = st === 'streak zero' ? null : '12';
+    return this.shell(size, H(F, null,
+      this.header(t, c, size, { streak: streak, refreshing: st === 'refreshing',
+        title: tomorrow ? t.tomorrowW : undefined, sub: subNode }),
+      /* refresh failed (OrbitWidgetService.kt:340-348): the spinner leaves, the control returns, and
+         the rows that were already there stay. The widget has nowhere to put an error, so the state
+         renders exactly like rows, which is the honest drawing. */
+      H('div', { style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+        opacity: st === 'refreshing' ? 0.6 : 1 } },
+        visible.map((r) => this.row(r, t, c, size.times)),
+        (rest > 0 && canStateRest) ? H('p', { 'data-mock': 'true',
+          style: { fontFamily: SYS, fontSize: 12, height: 24, lineHeight: '24px', flex: '0 0 auto',
+            color: c.fg4, paddingInline: 12 } },
+          t.overflow(String(rest))) : null)), c);
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const wide = s.width === 'wide';
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['rows', 'streak zero', 'tomorrow', 'empty', 'first load', 'refreshing',
+        'refresh failed', 'signed out', 'picker'],
+      showReport: this.props.showReport !== false,
+      stageStyle: 'display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;padding:32px;'
+        + 'border-radius:var(--r-sheet);background:var(--bg-well);box-shadow:inset 0 0 0 1px var(--hairline);'
+        + (wide ? 'width:1416px' : 'width:412px;flex-direction:column'),
+    };
+    if (!D) return base;
+
+    /* The launcher decides the mode, so the widget follows the canvas control rather than the app. */
+    const c = THEME[s.mode === 'light' ? 'light' : 'dark'];
+    const isPicker = st === 'picker';
+    const sizes = isPicker ? [] : (wide ? SIZES : SIZES.slice(0, 3));
+
+    /* The picker preview is the shipped 4 by 2 drawing, not an idealised one. */
+    const preview = this.widget(SIZES[0], t, c, 'rows');
+    const pickerNode = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16,
+      width: wide ? 380 : '100%', padding: 16, background: 'var(--bg-card)',
+      borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } },
+      H('div', { style: { display: 'grid', placeItems: 'center', padding: 16, background: c.bg,
+        borderRadius: 'var(--r-well)' } }, preview),
+      H('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 12 } },
+        H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
+          H('p', { translate: 'no', style: { fontSize: 'var(--fs-md)', fontWeight: 500 } }, t.pickerTitle),
+          H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-3)',
+            textWrap: 'pretty' } }, t.pickerSub)),
+        H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+          color: 'var(--fg-4)', flex: '0 0 auto' } }, t.pickerSize)),
+      H(D.Button, { size: 'sm', variant: wide ? 'secondary' : 'primary', onClick: () => {},
+        style: { width: '100%' } }, t.pickerAdd));
+
+    return Object.assign(base, {
+      isPicker: isPicker, notPicker: !isPicker, pickerNode: pickerNode,
+      sizes: sizes.map((size) => ({ label: size.label, node: this.widget(size, t, c, st) })),
+    });
+  }
+}
+</script>
+</body>
+</html>

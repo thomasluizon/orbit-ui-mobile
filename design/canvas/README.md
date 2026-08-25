@@ -1,59 +1,80 @@
 # The canvas documents
 
-> **At a glance** - the screens built on the Claude Design canvas for ticket `#36`, exported so the
-> canvas is never the only copy. Eleven documents survive of the twelve exported.
-> **They are token-correct and product-wrong**, and they are kept as a record rather than as a target.
-> `RUN-LOG.md` in `design/prompts/` says what was verified.
+> **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
+> Twenty-one screens plus the design system tokens. Build from these. The eleven documents in
+> `superseded/` are a record of an earlier pass and are not a target.
 
-## Superseded by the information architecture, 2026-08-16
+## The authority
 
-These documents reskin the app that exists. They were built before the information architecture was
-written, so every one of them draws a habit tracker with a chat tab. `DESIGN.md` section
-`## Information architecture` now says what each screen IS, and the prompts in `design/prompts/`
-were rewritten against it.
-
-**Do not build from these documents.** They are evidence of what the canvas produces when the
-prompt describes the screen that exists instead of the job the screen does.
-
-`Orbit Insights.dc.html` was deleted on 2026-08-16: the `/insights` route is cut, and its charts
-fold into the streak and wrapped surfaces. The canvas built it by mistake.
-
-## What these are
+**When this canvas and any prose disagree, the canvas wins.** That includes `DESIGN.md`, a ticket
+body, and this file. `DESIGN.md` remains the written spec and the place mechanical rules are
+enforced, but a drawing here outranks a sentence there (D42).
 
 Each `.dc.html` is **one screen as one interactive document**, not a picture of a screen. It carries
 a control bar with four axes, mode, width, state and locale, and renders the whole matrix from one
-build. That convention is `guidelines/screen-contract.md` inside the design system project.
+build.
 
 | document | screen |
 |---|---|
-| `Orbit Today.dc.html` | Hoje, the habit list, the core loop |
+| `Orbit Hoje.dc.html` | Hoje, the habit list, the core loop |
+| `Orbit Calendario.dc.html` | calendário, the month grid, the day cell and the event row |
+| `Orbit Progresso.dc.html` | progresso, and the goals that live inside it |
+| `Orbit Perfil.dc.html` | perfil and settings |
+| `Orbit Habit Create.dc.html` | criar hábito |
 | `Orbit Habit Detail.dc.html` | one habit, its history and its actions |
-| `Orbit Habit Form.dc.html` | criar e editar hábito, with the emoji and reschedule sheets |
-| `Orbit Calendar.dc.html` | calendário, the month grid and the selected day |
-| `Orbit Goals.dc.html` | metas |
-| `Orbit Goal Detail.dc.html` | one goal, its habits and its form |
-| `Orbit Retrospective.dc.html` | retrospectiva and the wrapped variant |
-| `Orbit Astra Chat.dc.html` | Astra, the conversation |
-| `Orbit Astra Cards.dc.html` | Astra, the generative cards |
-| `Orbit Onboarding.dc.html` | onboarding and the tour |
-| `Orbit Auth.dc.html` | entrar, the code entry and the callback |
+| `Orbit Astra Conversation.dc.html` | the Astra conversation overlay and side panel |
+| `Orbit Wrapped.dc.html` | Wrapped, its cover and its pager |
+| `Orbit Onboarding.dc.html` | onboarding |
+| `Orbit Entrar.dc.html` | entrar |
+| `Orbit Verificacao.dc.html` | the code entry |
+| `Orbit Assinatura.dc.html` | assinatura |
+| `Orbit Pro.dc.html` | the Pro surface |
+| `Orbit Avisos.dc.html` | avisos, the notification surface |
+| `Orbit Busca.dc.html` | busca |
+| `Orbit Celebracao.dc.html` | the celebration set |
+| `Orbit Estados.dc.html` | the shared state set |
+| `Orbit Offline.dc.html` | the offline surface |
+| `Orbit Sobre.dc.html` | sobre |
+| `Orbit Sobreposicoes.dc.html` | the overlay set |
+| `Orbit Widget Android.dc.html` | the Android home screen widget |
 
-## Rendering them
+## `_ds/`, the design system
 
-They resolve a `support.js` runtime beside them and a `_ds/` folder holding the design system
-bundle, tokens and fonts. Neither is committed here. `_ds/` carries the font binaries and duplicates
-the design system export, and `support.js` is the canvas runtime, vendor code whose em dashes the
-repository dash gate rejects. To open a document locally, export the project archive from Claude
-Design again and open it there, or drop these files beside an exported `support.js` and `_ds/`.
+`_ds/tokens/` holds the **166 authoritative token values**. A number typed into a component that
+disagrees with a token here is wrong, whatever any document says.
 
-## Provenance and state
+| file | what it fixes |
+|---|---|
+| `tokens/colors.css` | the surface ladder, the foreground ramp, the one accent and the status set |
+| `tokens/spacing.css` | exactly ten values: 0 4 8 12 16 24 32 48 64 96. **20, 28, 40 and 56 must not appear** |
+| `tokens/shape.css` | the radius scale, the shadows and the motion durations. Radius 999 means interactive |
+| `tokens/typography.css` | three families and a closed size set: 12 14 16 17 20 22 28 34 44 60 |
+| `tokens/fonts.css`, `tokens/base.css` | the font faces and the reset |
+| `styles.css` | the shared component styles |
+| `_ds_manifest.json` | the inventory: 41 components with their source paths, and 36 guideline cards with their specs |
 
-Exported 2026-08-16 from the Claude Design project `87c2d1c5-d02d-4840-98e8-3abc270d2928`. The
-canvas remains the source of truth: **edit them there, not here**, or the next export overwrites the
-edit.
+**A component in `_ds_manifest.json` is a promoted primitive. A component that appears only inside a
+screen is drawn inline there**, and the screen is its reference. Both are equally binding.
 
-Mechanically checked at export: no em or en dash, no raw hex outside a `var()` fallback, no gradient,
-no blur or glass, no `transition: all`, no sparkle, no arbitrary z-index, no off scale radius, and
-every document composes `Shell412`, `ShellWide` and `CanvasControls` and marks its numbers with
-`data-mock`. One defect survives, recorded in `RUN-LOG.md`: a `gap:2` in `Orbit Onboarding.dc.html`,
-which is off the spacing scale.
+## What is deliberately not committed
+
+* **The font binaries.** `design/brand/fonts/` already carries them.
+* **`support.js`**, the canvas runtime. It is vendor code and its em dashes fail the repository dash
+  gate.
+* **`_ds_bundle.js`**, which is compiled output carrying no readable component source.
+* **`_adherence.oxlintrc.json`**, the canvas's own lint config. Nothing here consumes it, and its
+  messages carry em dashes the dash gate rejects.
+
+To open a document locally, export the project archive from Claude Design again and open it there,
+or drop these files beside an exported `support.js` and the font binaries.
+
+## `superseded/`
+
+Eleven documents from the pass that predates the information architecture (2026-08-16). They reskin
+the app that existed and draw a habit tracker with a chat tab, so **every one of them contradicts
+`DESIGN.md` section `## Information architecture`**. They are kept as a record of what the canvas
+produces when the prompt describes the screen that exists instead of the job the screen does.
+
+They live in their own folder rather than beside the authority because prose asking an implementer to
+ignore a file in front of them is not a control. `Orbit Insights.dc.html` was deleted on 2026-08-16
+with the `/insights` route.

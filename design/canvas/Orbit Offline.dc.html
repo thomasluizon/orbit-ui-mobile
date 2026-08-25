@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Offline" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ bottom }}" composer="{{ composer }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px">
+          <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.meta }}" trailing="{{ r.trailing }}" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
+              </div>
+            </sc-for>
+          </div>
+          <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty;padding-top:8px">{{ noMarkNote }}</p>
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ bottom }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
+
+            <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.meta }}" trailing="{{ r.trailing }}" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ showRefusals }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ refusalsTitle }}</x-import>
+                <sc-for list="{{ refusals }}" as="rf" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:8px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:20px;color:var(--fg-4)">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ rf.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                      </span>
+                      <p style="flex:1;min-width:0;font-size:16px;line-height:1.4;font-weight:500">{{ rf.what }}</p>
+                    </div>
+                    <p style="font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ rf.why }}</p>
+                  </div>
+                </sc-for>
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ webNote }}</p>
+              </div>
+            </sc-if>
+
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Offline is not one screen, so it is not drawn as one. There is no offline page anywhere in this document. It is drawn as the two behaviours the product actually has: on mobile the change is queued and the row moves anyway, and on the web a small number of surfaces refuse in place and say so.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>queued, syncing, failed retrying, synced, dropped. Switch the width control to see the other half: 412 carries the queue and its toasts, wide carries the refusals. Tapping a ring at 412 queues another change, so the mechanism can be exercised rather than only read; every other host control is scenery and wired to nothing, said here once. NO plan axis: nothing here is gated, because being offline is not a plan boundary, so the absent switch is a decision.</p>
+      <p><span style="color:var(--fg-3)">mobile&nbsp;&nbsp;</span>the row mutates optimistically and carries no pending mark of its own. That is deliberate: a per row clock or dimming would tell a person their log did not count, when it did, and it would put a spinner on the one gesture in the product that is guaranteed never to fail. The whole mechanism lives in three global toasts instead, so there is one place to look and the list stays exactly as it reads when online.</p>
+      <p><span style="color:var(--fg-3)">queue&nbsp;&nbsp;</span>the queue holds CHANGES, not logs: packages/shared/src/types/sync.ts:3-13 lists about fifty mutation types, covering creating, updating, deleting and restoring a habit, a goal or a tag; logging and skipping; reordering; checklists; sub habits; every bulk action; notifications including mark all read and delete all; every profile setting from the name to the theme to the time zone; completing onboarding; and creating or deleting an API key. So the toasts count alterações, never registros. The queue also orders and deduplicates itself: sync.ts:39-57 gives every change a dedupeKey, a dependsOn list, a clientEntityId and a targetEntityId, and offline-mutations.ts replaces entity references once a real id comes back, so a habit created offline and then logged offline lands in the right order with the right id, and the same change made twice is not sent twice. That is the reason the drawing can promise the queue drains itself, and why the neutral toasts carry no action.</p>
+      <p><span style="color:var(--fg-3)">toasts&nbsp;&nbsp;</span>four now, and the first three are the same object in three of its states. Queued says the changes are held on the device and counts what is waiting; syncing says they are going up now, with the three dot mark the Toast draws itself; synced says everything landed, and it is the only one that leaves on its own, through onDone. Between syncing and dropped sits the status the store actually has: sync.ts:37 declares pending, syncing and failed, and offline-mutations.ts:540 with :545-561 writes failed with the error and a retry count while the change stays IN the queue. The failed retrying toast is neutral, names no loss because there is none, carries no action because the retry is the queue’s own, and must never read like dropped. The composer’s offline half took an onRetry this round, valid only in that state for a message that failed to send; it is deliberately not passed here, because nothing has been sent on this screen and a retry with nothing to retry is a dead control.</p>
+      <p><span style="color:var(--fg-3)">dropped&nbsp;&nbsp;</span>this is the one that loses data. The client bounds the queue itself: maxRetries is 3 (offline-mutations.ts:118), and :342-346 drops a change on the third failure, or immediately when the error is one retrying cannot fix, which is exactly what makes a dropped state honest to draw. The toast names which change was lost, states that the rest of the queue did land, and offers the one action that fixes it: do it again, from here, in one tap. It carries the error hue because something was genuinely lost, and it never leaves on its own. The client also HAS the reason: offline-mutations.ts:48-52 hands the listener the id, the type and lastError, so support can be given a cause even though the raw error stays out of the line.</p>
+      <p><span style="color:var(--fg-3)">web&nbsp;&nbsp;</span>the web has no queue, and that is verified rather than assumed: apps/web/hooks/use-offline.ts is 25 lines and returns one boolean. So a small number of surfaces refuse and say so in place, next to the control that will not work: the composer, creation, and calendar sync. Everything else keeps working, because reading is served from what was already loaded. One refusal sentence is WEB ONLY and must not be carried to mobile: creating needs a connection on the web because the habit is made on the server there, but on mobile createHabit is a queued type with a client side id that is swapped for the real one when it lands, so a mobile creation works offline like any other change.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>the queued and syncing toasts carry no action and no accent. The dropped toast's redo is the one filled action in that state, because it is the next action in the strictest sense. Rings that were logged while offline are neutral fg-1, exactly as they are online.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>status-bad appears only on the dropped toast, paired with a glyph and a sentence, never as colour alone. The other three toasts are neutral wells at fg-2.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the queue count, the habit times, the name of the dropped change and the allowance number inside the composer’s limit reason all carry data-mock.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no row carries a pending mark. 2 a dropped change names what was lost and offers to redo it, and a failed change never reads as loss. 3 the web never claims to have queued anything.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 closed: Toast exists in overlay, discriminated on kind, and the four states here are its four kinds: queued is neutral with the wifi-off glyph, syncing is working with the component's own three dot mark, synced is done and unmounts through onDone, and dropped is lost, which the type cannot construct without its detail line and its way back. All four ride the shells' notice slot, with the composer restored beside them. 2 there is no inline refusal component, so the web refusals are composed from a well, a glyph and two lines.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the synced toast should appear at all when the queue was one item, since the person may never have known it was queued.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    account: 'Marina', create: 'Criar hábito', menu: 'Mais opções',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Registrar a caminhada', 'O que falta hoje', 'Ver a semana', 'Criar um hábito novo'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
+    hostTitle: 'Hoje',
+    logA: (n) => 'Registrar ' + n, unlogA: (n) => 'Desfazer o registro de ' + n,
+    rows: [
+      { e: '\uD83D\uDCA7', name: 'Água da manhã', time: '08:00', done: true },
+      { e: '\uD83D\uDEB6', name: 'Caminhada', time: '18:00', done: true },
+      { e: null, name: 'Alongamento', time: '21:00', done: false },
+      { e: '\uD83D\uDCD6', name: 'Leitura da noite', time: '22:00', done: false },
+    ],
+    statusDone: 'feito', statusEmpty: 'pendente',
+    noMark: 'As linhas mudam na hora e não ganham marca de pendente: o registro vale, e a fila é contada uma vez, embaixo.',
+    queued: (n) => ['Sem conexão. ', n, ' alterações guardadas no aparelho.'],
+    syncing: (n) => ['Enviando ', n, ' alterações.'],
+    failedT: 'Uma alteração não subiu ainda. Ela fica na fila e tenta de novo sozinha.',
+    synced: 'Tudo sincronizado.',
+    dropped: (name) => ['O registro de ', name, ' não subiu e foi descartado.'],
+    droppedFix: 'O resto da fila subiu. Toque para registrar de novo.',
+    redo: 'Registrar de novo',
+    refusalsTitle: 'O que não funciona sem conexão',
+    refusals: [
+      { icon: 'message', what: 'Falar com o Astra', why: 'O Astra precisa de conexão. A sua lista continua funcionando sem ele.' },
+      { icon: 'plus', what: 'Criar hábito', why: 'Criar precisa de conexão porque o hábito nasce no servidor. Volte quando a conexão voltar.' },
+      { icon: 'calendar', what: 'Sincronizar a agenda', why: 'A agenda do Google não responde sem conexão. Os compromissos já carregados continuam à vista.' },
+    ],
+    webNote: 'No navegador não existe fila: cada superfície que precisa da rede recusa ali mesmo, e o resto da página continua servindo o que já foi carregado.',
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
+    account: 'Marina', create: 'Create habit', menu: 'More options',
+    navLabel: 'Main navigation', palette: 'Search',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['Log the walk', 'What is left today', 'See the week', 'Create a new habit'],
+    limit: ["Today's ", '5', ' messages have been used.'],
+    hostTitle: 'Today',
+    logA: (n) => 'Log ' + n, unlogA: (n) => 'Undo the log for ' + n,
+    rows: [
+      { e: '\uD83D\uDCA7', name: 'Morning water', time: '08:00', done: true },
+      { e: '\uD83D\uDEB6', name: 'Walk', time: '18:00', done: true },
+      { e: null, name: 'Stretching', time: '21:00', done: false },
+      { e: '\uD83D\uDCD6', name: 'Evening reading', time: '22:00', done: false },
+    ],
+    statusDone: 'done', statusEmpty: 'pending',
+    noMark: 'Rows move immediately and carry no pending mark: the log counts, and the queue is counted once, below.',
+    queued: (n) => ['No connection. ', n, ' changes held on the device.'],
+    syncing: (n) => ['Sending ', n, ' changes.'],
+    failedT: 'One change did not go up yet. It stays in the queue and tries again on its own.',
+    synced: 'Everything is synced.',
+    dropped: (name) => ['The log for ', name, ' did not go up and was dropped.'],
+    droppedFix: 'The rest of the queue landed. Tap to log it again.',
+    redo: 'Log it again',
+    refusalsTitle: 'What does not work without a connection',
+    refusals: [
+      { icon: 'message', what: 'Talk to Astra', why: 'Astra needs a connection. Your list keeps working without it.' },
+      { icon: 'plus', what: 'Create habit', why: 'Creating needs a connection because the habit is made on the server. Come back when the connection does.' },
+      { icon: 'calendar', what: 'Sync the calendar', why: 'Google Calendar does not answer without a connection. Events already loaded stay in view.' },
+    ],
+    webNote: 'On the web there is no queue: each surface that needs the network refuses right there, and the rest of the page keeps serving what was already loaded.',
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'queued', loc: 'pt-BR', logs: {}, gone: false };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    logs: {}, gone: false });
+
+  /* The four states are Toast's four kinds; the component owns the shapes and the working mark. */
+  toast(kind, t, D, count, droppedName) {
+    if (kind === 'queued') {
+      return H(D.Toast, { message: H(F, null, t.queued(mock(String(count)))), icon: 'wifi-off' });
+    }
+    if (kind === 'syncing') {
+      return H(D.Toast, { kind: 'working', message: H(F, null, t.syncing(mock(String(count)))) });
+    }
+    /* failed and retrying (sync.ts:37; offline-mutations.ts:540,545-561): the change stays IN the
+       queue with its error and retry count. Nothing is lost, so it is neutral, carries no action,
+       and must never read like dropped. */
+    if (kind === 'failed retrying') {
+      return H(D.Toast, { message: t.failedT, icon: 'refresh' });
+    }
+    if (kind === 'synced') {
+      /* The only self-dismissal in the component: onDone fires and this caller unmounts it. */
+      return H(D.Toast, { kind: 'done', message: t.synced, onDone: () => this.setState({ gone: true }) });
+    }
+    return H(D.Toast, { kind: 'lost', message: H(F, null, t.dropped(mock(droppedName))),
+      detail: t.droppedFix, actionLabel: t.redo, onAction: () => this.setState({ gone: true }) });
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['queued', 'syncing', 'failed retrying', 'synced', 'dropped'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n20: 20, noop: () => {},
+      showReport: this.props.showReport !== false,
+      hostTitle: t.hostTitle, menuLabel: t.menu, noMarkNote: t.noMark,
+      refusalsTitle: t.refusalsTitle, refusals: t.refusals, webNote: t.webNote,
+      showRefusals: true, account: t.account, createLabel: t.create,
+      navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const extra = Object.keys(s.logs).length;
+    const queued = (st === 'synced' ? 0 : 2) + extra;
+
+    return Object.assign(base, {
+      rows: t.rows.map((r, i) => {
+        const on = s.logs[i] != null ? s.logs[i] : r.done;
+        const fire = (e) => { e.stopPropagation(); this.setState((p) => ({ logs: Object.assign({}, p.logs, { [i]: !on }) })); };
+        /* Hoje's row grammar: no emoji means HabitRow draws the title's first letter itself, the
+           ring is the ONLY control that logs, and it reads exactly as it does online. Tapping it
+           here queues another change. */
+        const ring = H('span', { role: 'button', tabIndex: 0,
+          'aria-label': on ? t.unlogA(r.name) : t.logA(r.name),
+          onClick: fire,
+          onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fire(e); } },
+          style: { display: 'grid', placeItems: 'center', width: 44, height: 44, marginInlineEnd: -7,
+            borderRadius: 'var(--r-pill)', cursor: 'pointer' } },
+          H(D.StatusRing, { status: on ? 'done' : 'empty', size: 30,
+            label: on ? t.statusDone : t.statusEmpty }));
+        return { icon: r.e || undefined, title: r.name, meta: mock(r.time), trailing: ring };
+      }),
+      bottom: s.gone ? null : this.toast(st === 'dropped' ? 'dropped' : st, t, D, queued,
+        t.lang === 'en' ? 'Walk' : 'Caminhada'),
+      /* Hoje's composer, prop for prop: Hoje is the authority for this surface. The offline half's
+         onRetry is deliberately NOT passed: it exists for a message that failed to send, and nothing
+         has been sent on this screen, so it would be a control with nothing to retry. */
+      composer: H(D.Composer, { state: st === 'queued' ? 'offline' : 'resting',
+        chips: t.chips.slice(0, 4),
+        limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
+        words: t.composerWords, onOpen: () => {}, onChipPress: () => {} }),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'hoje', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Pro" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" composer="{{ footer }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:32px;padding:16px">
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <p style="font-family:var(--font-mono);font-size:12px;line-height:1.4;color:var(--fg-3);letter-spacing:0.04em">{{ eyebrow }}</p>
+            <p style="font-family:var(--font-display);font-size:28px;line-height:1.18;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ sentence }}</p>
+            <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ promiseLine }}</p>
+            <sc-if value="{{ hasTrust }}" hint-placeholder-val="{{ true }}">
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ trustLine }}</p>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:stretch;gap:16px;padding:16px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline)">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);letter-spacing:0.04em">{{ freeWord }}</p>
+                <p style="font-family:var(--font-display);font-size:34px;line-height:1.05;font-weight:600;letter-spacing:-0.02em"><span data-mock="true">{{ freeCount }}</span></p>
+                <p style="font-size:14px;line-height:1.4;color:var(--fg-3)">{{ perDay }}</p>
+              </div>
+              <span aria-hidden="true" style="width:1px;background:var(--hairline);flex:0 0 auto"></span>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);letter-spacing:0.04em">{{ proWord }}</p>
+                <p style="font-family:var(--font-display);font-size:34px;line-height:1.05;font-weight:600;letter-spacing:-0.02em"><span data-mock="true">{{ proCount }}</span></p>
+                <p style="font-size:14px;line-height:1.4;color:var(--fg-3)">{{ perDay }}</p>
+              </div>
+            </div>
+            <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ arithmeticNote }}</p>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="3">
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;margin-top:2px;color:var(--fg-3)">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ o.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </span>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                  <p style="font-size:17px;line-height:1.4;font-weight:500">{{ o.title }}</p>
+                  <p style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ o.body }}</p>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SegmentedControl" options="{{ intervalOptions }}" value="{{ intervalValue }}" on-change="{{ onInterval }}" label="{{ intervalLabel }}" hint-size="100%,52px"></x-import>
+
+            <sc-if value="{{ priceLoading }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n3 }}" label="{{ priceLoadingLabel }}" hint-size="100%,200px"></x-import>
+            </sc-if>
+
+            <sc-if value="{{ priceError }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ priceErrorLine }}" action="{{ priceRetry }}" hint-size="100%,160px"></x-import>
+            </sc-if>
+
+            <sc-if value="{{ hasPrices }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ tiers }}" as="p" hint-placeholder-count="2">
+                  <div style="display:flex;flex-direction:column;gap:8px;padding:24px;border-radius:var(--r-card);background:{{ p.bg }};box-shadow:{{ p.ring }}">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <p style="flex:1;min-width:0;font-size:17px;line-height:1.3;font-weight:500">{{ p.name }}</p>
+                      <sc-if value="{{ p.recommended }}" hint-placeholder-val="{{ false }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ recommendedWord }}</x-import>
+                      </sc-if>
+                    </div>
+                    <p style="font-family:var(--font-display);font-size:28px;line-height:1.1;font-weight:600;letter-spacing:-0.02em"><span data-mock="true">{{ p.amount }}</span><span style="font-family:var(--font-sans);font-size:16px;font-weight:400;color:var(--fg-3)">{{ p.per }}</span></p>
+                    <sc-if value="{{ p.hasHero }}" hint-placeholder-val="{{ false }}"><p style="font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ p.heroLine }}</p></sc-if>
+                    <sc-if value="{{ p.hasSecond }}" hint-placeholder-val="{{ false }}">
+                      <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ p.secondLine }}</p>
+                    </sc-if>
+                    <sc-if value="{{ p.hasCoupon }}" hint-placeholder-val="{{ false }}">
+                      <p style="font-size:14px;line-height:1.5;color:var(--fg-2)">{{ p.couponLine }}</p>
+                    </sc-if>
+                    <div style="padding-top:8px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ ctaVerb }}</x-import>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ cancelLine }}</p>
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ renewalNote }}</p>
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ handOffNote }}</p>
+              <a href="#" onClick="{{ onDecline }}" style="font-size:16px;line-height:1.5">{{ declineLabel }}</a>
+            </div>
+          </div>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:32px;max-width:620px">
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p style="font-family:var(--font-mono);font-size:12px;line-height:1.4;color:var(--fg-3);letter-spacing:0.04em">{{ eyebrow }}</p>
+              <p style="font-family:var(--font-display);font-size:34px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ sentence }}</p>
+              <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ promiseLine }}</p>
+              <sc-if value="{{ hasTrust }}" hint-placeholder-val="{{ true }}">
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ trustLine }}</p>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:stretch;gap:24px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline)">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                  <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);letter-spacing:0.04em">{{ freeWord }}</p>
+                  <p style="font-family:var(--font-display);font-size:44px;line-height:1.02;font-weight:600;letter-spacing:-0.02em"><span data-mock="true">{{ freeCount }}</span></p>
+                  <p style="font-size:14px;line-height:1.4;color:var(--fg-3)">{{ perDay }}</p>
+                </div>
+                <span aria-hidden="true" style="width:1px;background:var(--hairline);flex:0 0 auto"></span>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                  <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);letter-spacing:0.04em">{{ proWord }}</p>
+                  <p style="font-family:var(--font-display);font-size:44px;line-height:1.02;font-weight:600;letter-spacing:-0.02em"><span data-mock="true">{{ proCount }}</span></p>
+                  <p style="font-size:14px;line-height:1.4;color:var(--fg-3)">{{ perDay }}</p>
+                </div>
+              </div>
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ arithmeticNote }}</p>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="3">
+                <div style="display:flex;align-items:flex-start;gap:12px">
+                  <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;margin-top:2px;color:var(--fg-3)">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ o.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                  </span>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                    <p style="font-size:17px;line-height:1.4;font-weight:500">{{ o.title }}</p>
+                    <p style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ o.body }}</p>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="max-width:320px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SegmentedControl" options="{{ intervalOptions }}" value="{{ intervalValue }}" on-change="{{ onInterval }}" label="{{ intervalLabel }}" hint-size="100%,52px"></x-import>
+              </div>
+
+              <sc-if value="{{ priceLoading }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n3 }}" label="{{ priceLoadingLabel }}" hint-size="100%,200px"></x-import>
+              </sc-if>
+
+              <sc-if value="{{ priceError }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ priceErrorLine }}" action="{{ priceRetry }}" hint-size="100%,160px"></x-import>
+              </sc-if>
+
+              <sc-if value="{{ hasPrices }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <sc-for list="{{ tiers }}" as="p" hint-placeholder-count="2">
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding:24px;border-radius:var(--r-card);background:{{ p.bg }};box-shadow:{{ p.ring }}">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <p style="flex:1;min-width:0;font-size:17px;line-height:1.3;font-weight:500">{{ p.name }}</p>
+                        <sc-if value="{{ p.recommended }}" hint-placeholder-val="{{ false }}">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ recommendedWord }}</x-import>
+                        </sc-if>
+                      </div>
+                      <p style="font-family:var(--font-display);font-size:28px;line-height:1.1;font-weight:600;letter-spacing:-0.02em"><span data-mock="true">{{ p.amount }}</span><span style="font-family:var(--font-sans);font-size:16px;font-weight:400;color:var(--fg-3)">{{ p.per }}</span></p>
+                      <sc-if value="{{ p.hasHero }}" hint-placeholder-val="{{ false }}"><p style="font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ p.heroLine }}</p></sc-if>
+                    <sc-if value="{{ p.hasSecond }}" hint-placeholder-val="{{ false }}">
+                        <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ p.secondLine }}</p>
+                      </sc-if>
+                      <sc-if value="{{ p.hasCoupon }}" hint-placeholder-val="{{ false }}">
+                        <p style="font-size:14px;line-height:1.5;color:var(--fg-2)">{{ p.couponLine }}</p>
+                      </sc-if>
+                      <div style="padding-top:8px">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ ctaVerb }}</x-import>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ cancelLine }}</p>
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ renewalNote }}</p>
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ handOffNote }}</p>
+                <a href="#" onClick="{{ onDecline }}" style="font-size:16px;line-height:1.5">{{ declineLabel }}</a>
+              </div>
+            </div>
+
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The pitch is one sentence: ten times more Astra, the true multiple of 50 over 5. That sentence is the screen, at display size, directly above the card that proves it. It is not a feature matrix: there is no table, no tick column, and no list of everything Pro touches.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>annual, monthly, in trial, trial last day, coupon, price loading, price error, decline. Hover, focus-visible and press are live. There is no start your trial state, because nothing in either repository can start, extend or restart one. There is no plan axis either: this screen has no gate, it IS where the gates lead, and a Pro account that opens this route gets the billing dashboard instead (upgrade/page.tsx:95 against :123), which is Orbit Assinatura; the two documents are the two halves of one route, so this one does not grow a dead switch.</p>
+      <p><span style="color:var(--fg-3)">arithmetic&nbsp;&nbsp;</span>the honest comparison is two numbers side by side, 5 a day against 50 a day, at display size on one card with a hairline between them. The note underneath says what the free number buys rather than what it costs, and nothing here is phrased as a lack.</p>
+      <p><span style="color:var(--fg-3)">outcomes&nbsp;&nbsp;</span>three, and no more: the calendar, the periodic retrospective, and Astra noticing without being asked. Each is one line of what happens, not a feature name. Goals are not Pro any more, so no copy sells them, and nothing on the screen mentions them. Calendar sync is the one integration named, because it is the one that is gated.</p>
+      <p><span style="color:var(--fg-3)">prices&nbsp;&nbsp;</span>no price is typed anywhere in this document. The server asks the billing provider at request time and returns two amounts, a currency, a savings percent and an optional coupon percent, and every figure on the screen is fed from that response: the amounts, the currency symbol, the per interval word, the derived saving and the coupon. The saving is not computed here and not hardcoded, because it arrives already derived from the two amounts. A missing response is a state, not a blank: the tiers carry their own loading shape and their own error with a retry.</p>
+      <p><span style="color:var(--fg-3)">interval&nbsp;&nbsp;</span>a segmented control chooses monthly or annual, so choosing an interval is not the same gesture as choosing a plan. Annual is the visual default and carries the one recommended badge. The monthly to annual arithmetic is visible on the annual tier: the annual amount, what it works out to per month, and the saving, all from the response.</p>
+      <p><span style="color:var(--fg-3)">tiers&nbsp;&nbsp;</span>at most three, and this draws two, because two is what the product sells: the interval the person has chosen, and the other one. Exactly one is marked recommended. The CTA verb is identical on every tier, so the tiers differ by price and not by how hard they ask.</p>
+      <p><span style="color:var(--fg-3)">decline&nbsp;&nbsp;</span>as reachable as accept: a plain inline link at the end of the flow, 16px, underlined, not a caption and not a corner dismiss. Free is that link rather than a third card, since a card would make staying free look like a purchase.</p>
+      <p><span style="color:var(--fg-3)">trial&nbsp;&nbsp;</span>the paywall never says something the next line contradicts, which is the 2026-08-20 ruling this document lives by, and the trial state used to break it: the notice said the 50 a day were already on while the headline offered ten times more. The heading now swaps inside a trial, as the app’s does (pricing-section.tsx:49, trialHeading against freeHeading): the trial headline is the arithmetic from the other direction, the 50 a day stay or go back to 5, so the headline and the eyebrow above it agree. The eyebrow has the three shipping variants (:40-47): the free line outside a trial, the day count pluralised inside one, and the LAST DAY as its own string, never a count of one; the last day is on the axis because it is the state where the sentence matters most. Nothing offers to start anything, and no countdown names a moment no endpoint returns.</p>
+      <p><span style="color:var(--fg-3)">reassurance&nbsp;&nbsp;</span>the five lines the shipping pitch says before anyone pays, all real strings in pricing-section.tsx: the promise under the heading (:61); the trust line (:63-65), shown ONLY when the person is not in a trial, and the condition is drawn, not just the line; cancel anytime (:122) and the renewal note (:128), the two things a person looks for before paying, above the hand off note; and the annual hero line (plan-selection.tsx:55), one line on the annual tier saying why annual. Their exact copy is the app’s vocabulary; the lines here carry its shape in both locales.</p>
+      <p><span style="color:var(--fg-3)">hand off&nbsp;&nbsp;</span>buying is a hand off and not a step up: the Stripe portal authenticates the person itself, so a code before it would buy no security, and the product's two step up operations stay account deletion and API keys. The note above the decline link says the payment happens with the provider, and no card field, no address field and no credential appears anywhere in this document. There is no rewarded ad and no bonus message affordance: that path is deleted.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Group gap 32 against in-group 12. The segmented control and the CTAs keep the 44 and 50 touch tokens.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells, 20 on the arithmetic card and the tiers, 28 on the shell, 999 on the segmented control and the buttons.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per view: the recommended tier's CTA. The other tier's CTA is the same verb in ghost, so the accent marks which one is recommended without changing what is offered. Current position is the selected segment, which takes the tint and ring rather than a fill. The accent never lands on the arithmetic, the outcomes or the badge.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The recommended tier sits on primary-dim with fg-1 text; the badge is the neutral well rather than an accent chip, since accent text is canvas only and a badge sits on a card.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: both allowance figures, both amounts, the per month equivalent, the saving, the coupon percent and the trial day count. The fixture amounts stand in for the provider response and are labelled as such in the logic.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no price, saving or currency is typed in this document. 2 one filled action, one recommended tier, one CTA verb. 3 nothing sells goals, and nothing offers to start a trial.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: nothing this document leans on was missing, so nothing was re-synced. 1 PlanCard is a selectable card with a name and a price, so it cannot carry a per tier CTA, a hero line, a second line and a coupon; the tiers are composed. 2 the interval control is the system’s SegmentedControl at both widths; what is still composed is the arithmetic card and the outcome rows, since no two-number comparison or icon-line component exists. 3 Badge is uppercase mono at 10.5px, below the 12 minimum, which is the system’s own exception for badges and is used as shipped.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the coupon should also restate the pre discount amount, which the response carries but which doubles the numbers on the card. Whether a person inside a trial should see the trial notice on every visit or only the first.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+/* Stands in for the pricing response. No amount, currency or saving is typed into the layout: the
+   server asks the billing provider at request time and returns exactly these fields, and the saving
+   arrives already derived from the two amounts. */
+const PRICING = {
+  currency: 'BRL', symbol: 'R$',
+  monthlyAmount: '29,90',
+  annualAmount: '199,00',
+  annualPerMonth: '16,58',
+  savingsPercent: '44',
+  couponPercent: '20',
+  freePerDay: '5',
+  proPerDay: '50',
+  trialDays: '7',
+};
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina',
+    title: 'Orbit Pro', back: 'Voltar',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    sentence: 'Dez vezes mais Astra.',
+    sentenceTrial: 'As 50 por dia ficam, ou voltam a ser 5.',
+    eyebrowFree: 'Você está no plano grátis',
+    eyebrowDays: (n, one) => one ? ['Falta ', n, ' dia de teste'] : ['Faltam ', n, ' dias de teste'],
+    eyebrowLastDay: 'Último dia do teste',
+    promise: 'O plano muda o Astra, nunca os seus hábitos e registros.',
+    trust: 'Sem fidelidade, e nenhum cartão fica guardado no Orbit.',
+    cancelAnytime: 'Cancele quando quiser.',
+    renewalNote: 'A assinatura renova sozinha no fim do período, e dá para desligar isso no portal.',
+    heroAnnual: 'O jeito mais barato de ter o Astra o ano inteiro.',
+    freeWord: 'Grátis', proWord: 'Pro', perDay: 'mensagens por dia',
+    arithmetic: 'As 5 do plano grátis dão para registrar o dia e pedir um ajuste. As 50 dão para reorganizar a semana quantas vezes precisar.',
+    outcomes: [
+      { icon: 'calendar', title: 'A sua agenda ao lado dos hábitos',
+        body: 'Sincronizar com o Google Calendar mostra os seus compromissos junto do dia.' },
+      { icon: 'file-text', title: 'A retrospectiva do período',
+        body: 'O Astra fecha a semana e o mês com o que aconteceu e o que mudar.' },
+      { icon: 'eye', title: 'O Astra percebe sem você pedir',
+        body: 'Ele avisa quando algo escapa em vez de esperar você abrir o app.' },
+    ],
+    intervalLabel: 'Como pagar',
+    monthly: 'Mensal', annual: 'Anual',
+    perMonth: ' por mês', perYear: ' por ano',
+    equivalent: (per, save) => ['Sai a ', per, ' por mês, ', save, ' menos que o mensal.'],
+    couponLine: (pct) => ['Com o seu cupom, ', pct, ' de desconto na primeira cobrança.'],
+    recommended: 'Recomendado',
+    cta: 'Assinar',
+    handOff: 'O pagamento acontece com o nosso provedor. O Orbit não guarda os dados do seu cartão.',
+    decline: 'Continuar no plano grátis',
+    trial: (d) => ['Você está nos seus ', d, ' dias de teste, com as 50 mensagens por dia já liberadas.'],
+    priceLoading: 'Buscando os valores',
+    priceError: 'Não foi possível buscar os valores agora. Verifique a conexão e tente de novo.',
+    retry: 'Tentar de novo',
+  },
+  en: {
+    lang: 'en',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina',
+    title: 'Orbit Pro', back: 'Back',
+    navLabel: 'Main navigation', palette: 'Search',
+    sentence: 'Ten times more Astra.',
+    sentenceTrial: 'The 50 a day stay, or go back to 5.',
+    eyebrowFree: 'You are on the free plan',
+    eyebrowDays: (n, one) => one ? ['', n, ' trial day left'] : ['', n, ' trial days left'],
+    eyebrowLastDay: 'Last day of the trial',
+    promise: 'The plan changes Astra, never your habits and logs.',
+    trust: 'No lock-in, and no card is ever stored in Orbit.',
+    cancelAnytime: 'Cancel whenever you like.',
+    renewalNote: 'The subscription renews itself at the end of the period, and you can turn that off in the portal.',
+    heroAnnual: 'The cheapest way to have Astra all year.',
+    freeWord: 'Free', proWord: 'Pro', perDay: 'messages a day',
+    arithmetic: 'The free 5 cover logging the day and asking for one change. The 50 cover rearranging the week as often as you need to.',
+    outcomes: [
+      { icon: 'calendar', title: 'Your calendar beside your habits',
+        body: 'Syncing with Google Calendar puts your commitments next to the day.' },
+      { icon: 'file-text', title: 'The periodic retrospective',
+        body: 'Astra closes the week and the month with what happened and what to change.' },
+      { icon: 'eye', title: 'Astra notices without being asked',
+        body: 'It tells you when something slips instead of waiting for you to open the app.' },
+    ],
+    intervalLabel: 'How to pay',
+    monthly: 'Monthly', annual: 'Annual',
+    perMonth: ' a month', perYear: ' a year',
+    equivalent: (per, save) => ['That is ', per, ' a month, ', save, ' less than monthly.'],
+    couponLine: (pct) => ['With your coupon, ', pct, ' off the first charge.'],
+    recommended: 'Recommended',
+    cta: 'Subscribe',
+    handOff: 'Payment happens with our provider. Orbit never holds your card details.',
+    decline: 'Stay on the free plan',
+    trial: (d) => ['You are inside your ', d, ' day trial, with the 50 messages a day already on.'],
+    priceLoading: 'Fetching the amounts',
+    priceError: 'We could not fetch the amounts just now. Check the connection and try again.',
+    retry: 'Try again',
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'annual', loc: 'pt-BR', interval: null };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    interval: null });
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['annual', 'monthly', 'in trial', 'trial last day', 'coupon', 'price loading',
+        'price error', 'declined'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n3: 3, n20: 20, noop: () => {},
+      showReport: this.props.showReport !== false,
+      sentence: t.sentence, freeWord: t.freeWord, proWord: t.proWord, perDay: t.perDay,
+      arithmeticNote: t.arithmetic, intervalLabel: t.intervalLabel,
+      recommendedWord: t.recommended, ctaVerb: t.cta, handOffNote: t.handOff,
+      declineLabel: t.decline, priceLoadingLabel: t.priceLoading, priceErrorLine: t.priceError,
+      account: t.account, navLabelWord: t.navLabel, paletteWord: t.palette,
+      fullWidth: { style: { width: '100%' } },
+    };
+    if (!D) return base;
+
+    const p = PRICING;
+    const interval = s.interval != null ? s.interval : (st === 'monthly' ? 'monthly' : 'annual');
+    const coupon = st === 'coupon';
+    const loading = st === 'price loading';
+    const error = st === 'price error';
+    /* Free is a link, not a tier, so a person staying free is not making a purchase. */
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+
+    const money = (amount) => p.symbol + ' ' + amount;
+    const annualTier = {
+      key: 'annual', name: t.annual, recommended: interval === 'annual',
+      amount: money(p.annualAmount), per: t.perYear,
+      /* plan-selection.tsx:55: one line on the annual tier saying why annual. */
+      hasHero: true, heroLine: t.heroAnnual,
+      hasSecond: true,
+      secondLine: H(F, null, t.equivalent(mock(money(p.annualPerMonth)), mock(p.savingsPercent + '%'))),
+      hasCoupon: coupon, couponLine: coupon ? H(F, null, t.couponLine(mock(p.couponPercent + '%'))) : null,
+      variant: interval === 'annual' ? filled : 'ghost',
+      bg: interval === 'annual' ? 'var(--primary-dim)' : 'var(--bg-card)',
+      ring: interval === 'annual' ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)',
+      buy: () => {},
+    };
+    const monthlyTier = {
+      key: 'monthly', name: t.monthly, recommended: interval === 'monthly',
+      amount: money(p.monthlyAmount), per: t.perMonth,
+      hasHero: false, heroLine: null,
+      hasSecond: false, secondLine: null,
+      hasCoupon: coupon, couponLine: coupon ? H(F, null, t.couponLine(mock(p.couponPercent + '%'))) : null,
+      variant: interval === 'monthly' ? filled : 'ghost',
+      bg: interval === 'monthly' ? 'var(--primary-dim)' : 'var(--bg-card)',
+      ring: interval === 'monthly' ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)',
+      buy: () => {},
+    };
+
+    return Object.assign(base, {
+      header: H('div', { style: { display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 16px 8px 8px', boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.back, onClick: () => {},
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+          H(D.Icon, { name: 'arrow-left', size: 20 })),
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500 },
+          translate: 'no' }, t.title)),
+
+      /* pricing-section.tsx:40-49: the eyebrow has three variants, the last day its own string and
+         never a count of one; the heading swaps inside a trial (trialHeading against freeHeading) so
+         the paywall never pitches the 50 a day a trial account is already using. */
+      inTrial: st === 'in trial' || st === 'trial last day',
+      eyebrow: st === 'trial last day' ? t.eyebrowLastDay
+        : st === 'in trial' ? H(F, null, t.eyebrowDays(mock(p.trialDays), false)[0], t.eyebrowDays(mock(p.trialDays), false)[1], t.eyebrowDays('', false)[2])
+        : t.eyebrowFree,
+      sentence: (st === 'in trial' || st === 'trial last day') ? t.sentenceTrial : t.sentence,
+      promiseLine: t.promise,
+      /* The trust line shows ONLY when the person is not in a trial (pricing-section.tsx:63-65). */
+      hasTrust: st !== 'in trial' && st !== 'trial last day',
+      trustLine: t.trust,
+      cancelLine: t.cancelAnytime, renewalNote: t.renewalNote,
+
+      freeCount: p.freePerDay, proCount: p.proPerDay,
+      outcomes: t.outcomes,
+
+      intervalOptions: [{ id: 'monthly', label: t.monthly }, { id: 'annual', label: t.annual }],
+      intervalValue: interval,
+      onInterval: (id) => this.setState({ interval: id }),
+
+      priceLoading: loading, priceError: error, hasPrices: !loading && !error,
+      priceRetry: H(D.Button, { size: 'sm', variant: filled,
+        onClick: () => this.setState({ st: 'annual' }) }, t.retry),
+      /* The recommended interval leads, so the order follows the choice rather than fighting it. */
+      tiers: interval === 'annual' ? [annualTier, monthlyTier] : [monthlyTier, annualTier],
+
+      onDecline: (e) => { e.preventDefault(); },
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      footer: null,
+    });
+  }
+}
+</script>
+</body>
+</html>

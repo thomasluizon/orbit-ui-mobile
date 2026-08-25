@@ -8,262 +8,1050 @@
 <body>
 <x-dc>
 <helmet>
-  <meta name="design_doc_mode" content="canvas">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
-  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
-  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
 </helmet>
-<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
-  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 2 · hábito, detalhe</p>
-  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
-  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-    <div id="f1" data-screen-label="Hábito, detalhe · 412" style="flex:0 0 auto">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
-        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
-          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
-          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;flex-direction:column;gap:24px" aria-busy="true">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,72px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,180px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,240px"></x-import>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
-          </sc-if>
-          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;flex-direction:column;gap:32px;padding-bottom:8px">
-              <div style="display:flex;flex-direction:column;gap:16px">
-                <div style="display:flex;align-items:center;gap:16px">
-                  <div aria-hidden="true" style="width:56px;height:56px;flex:0 0 auto;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-well);font-size:28px">💧</div>
-                  <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                    <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tName }}</h1>
-                    <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums"><span data-mock="true">08:00</span> · {{ tFreq }}<sc-if value="{{ isFrozen }}" hint-placeholder-val="{{ false }}"> · {{ tFrozen }}</sc-if></p>
-                  </div>
-                </div>
-                <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--fg-2);font-variant-numeric:tabular-nums">{{ tSeqPre }} <span data-mock="true">12</span> {{ tDays }} · <span data-mock="true">83%</span> {{ tLastLower }} <span data-mock="true">30</span> {{ tDays }}</p>
-                </sc-if>
-              </div>
-              <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,240px"></x-import>
-              </sc-if>
-              <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
-                <div style="display:flex;flex-direction:column;gap:12px">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tHistPre }} <span data-mock="true">30</span> {{ tDays }}</p>
-                  <div role="img" aria-label="{{ tGridLabel }}" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;justify-items:center">
-                    <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
-                      <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
-                    </sc-for>
-                    <sc-for list="{{ cells }}" as="c" hint-placeholder-count="34">
-                      <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:24px;height:24px"></span></sc-if>
-                      <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="{{ c.st }}" size="{{ n24 }}" label="{{ c.label }}" hint-size="24px,24px"></x-import>
-                      </sc-if>
-                    </sc-for>
-                  </div>
-                </div>
-              </sc-if>
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tGoals }}</x-import>
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal1 }}" value="{{ goal1Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal2 }}" value="{{ goal2Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
-                </div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tDescTitle }}</x-import>
-                <p style="max-width:65ch;font-size:var(--fs-md);line-height:1.65;color:var(--fg-2);text-wrap:pretty">{{ tDescBody }}</p>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ tEdit }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="calendar-time" title="{{ tResched }}" value="{{ schedVal }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="snowflake" title="{{ tFreezeRow }}" description="{{ tFreezeDesc }}" chevron="{{ false }}" on-click="{{ toggleFreeze }}" hint-size="100%,64px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="archive" title="{{ tArchive }}" description="{{ tArchDesc }}" chevron="{{ false }}" on-click="{{ openArch }}" hint-size="100%,64px"></x-import>
-                </div>
-              </div>
-            </div>
-          </sc-if>
-        </div>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Hábito" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ headerNode }}" composer="{{ composer }}" sheets="{{ sheet }}" hint-size="412px,860px">
+        <div style="display:flex;flex-direction:column;padding:16px">{{ body }}</div>
       </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ headerNode }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,860px">
+          <div style="max-width:620px;display:flex;flex-direction:column">{{ body }}</div>
+        </x-import>
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>One surface, two documents: this one is the authority for the habit detail, and Hoje's detail state is the same surface reached from Hoje. The order is the shipping drawer's (habit-detail-drawer.tsx): the header, the interactive checklist, the three numbers, the reminders it holds, the end date, the linked goals, the month calendar and the ask Astra row, with the redesign's strip and slipping line up top, then the editable half behind ONE disclosure, the immutable start date, and delete last.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly three gates: the reschedule, add a sub habit, and the slip alert inside the disclosure. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
+      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a 76px emoji well, the name with rename in place, a summary line, and every tag as a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
+      <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
+      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled days free on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, a loading row of three tiles, and ONE centred no data line when metrics is null, never three zeros. The grid renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
+      <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here, because the app offers it only on an overdue habit (habit-list.tsx:906), and it needs Pro (reschedule-sheet.tsx:119): on Pro it is a proposal carrying its reason, with accept and not now; on free the same place carries the upgrade route in the shipping sheet's words, never an empty space.</p>
+      <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>ONE list with two jobs, never drawn twice at once. In the open part it is interactive: a progress bar with the mono count, uncheck everything appearing only once something is checked, clear asking first, and the last item checked on an unlogged habit asking whether to log the habit now. While the disclosure is open the same list is creation's editable one, where an item is retyped in place, duplicated, removed or dragged, with saved templates in a listed sheet. The reset rule line renders only where Habit.cs makes it true.</p>
+      <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog, a real sibling button; its body makes it the subject of this screen with the parent one step back, and its overflow holds log, open and delete. A child with its own children drills rather than nesting a third level inline. Add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the row carries the Pro badge and leaves for the upgrade; on Pro it would open creation, which lives in Hoje's create surface.</p>
+      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>linked goals are plain rows that leave for the goal in Progresso, one per linked goal. The manual progress stepper is deleted from this screen: the app does not edit goal progress here, and D69 item 8 gave goals to Progresso. The reasoning that produced it, only GoalType.Streak can derive and every other goal moves by hand, is kept for Progresso's own round as ticket #340.</p>
+      <p><span style="color:var(--fg-3)">calendar&nbsp;&nbsp;</span>the whole history as a month of DayCells under MonthGrid: month back and forward, days outside the month shown as such, future days future, and a logged day tappable, answering when it was logged. The strip answers whether this one is holding right now; the calendar answers what it has looked like.</p>
+      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>the editable half is creation's field set (edit-habit-modal.tsx:262 renders the same HabitFormFields creation renders), behind one disclosure in creation's order: exact time, reminders, checklist items, the bad habit toggle, the slip alert, tags, goal linking, end date, description. Reminders are two things: offset chips over the ten shipping presets with a custom entry when a due time exists, absolute clock times capped at 5 when none, nested with no second switch when both. Sub habits are the one exception to the order: they already hold their own section in the open part doing both jobs, so the disclosure does not draw a second, smaller version. The frequency edits in place as the day pills, since creation puts it in the sentence, not the disclosure. The start date sits below as a stated fact with its reason, and delete is last.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Every gated tap leaves this document for Orbit Pro through one route; a gated affordance is never a disabled control and never a silent no-op. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: one filled action, the reschedule's accept on Pro and the upgrade button on free, only in the slipping state; otherwise none. A selected day pill takes the tint and ring. Completion is neutral everywhere: the done disc, the checked box and a finished arc are fg-1. Wide: the sidebar create is the one filled action, so the body's filled steps down to the neutral secondary.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11 hover, 6.09 pressed. status-bad marks only the delete row and the destructive menu item. The strip's missed ring in fg-4 sits on the canvas at 3.03:1 and inside no raised surface. Overdue states itself in words in the slipping line, never colour alone.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the tiles, the counts, the reminder times, the proposal's date and time. Values inside TimeField, DateRow and DayStrip render as the components' own plain values. Base date Monday 17 August 2026.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle went stale a SIXTH round: checked before use as instructed, it lacked both contracts this round leans on, HabitRow's onLog with logLabel and ListRow's action, though the source carried them; the whole mirror was re-synced from the source project and confirmed carrying both before this document leaned on either. Still composed around the system: 1 the header's 76px emoji well, since the system's wells are internal to their rows. 2 the header ring button, built by hand on HabitRow's pairing because the pairing lives inside HabitRow and the header is not a row. 3 the ask Astra row, because ListRow's icon slot takes a Tabler name and this row carries the Astra glyph. 4 the emoji grid and its category chips, since no system picker exists. 5 the parent's fraction ring is ProgressRing in a composed button, because onLog draws only the StatusRing.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>delete asks and then closes without removing the fixture, and accepting the reschedule closes the proposal without rewriting the schedule. The composer's conversation and the ask Astra row leave for the conversation document rather than opening an overlay here. The back control at the root leaves for Hoje. The checklist drag handle is drawn but item drag is not simulated. The metrics loading row is also reached live for a beat whenever a subject opens.</p>
     </div>
   </sc-if>
-  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
-    <div id="f2" data-screen-label="Hábito, detalhe · wide" style="position:relative;width:1332px;flex:0 0 auto">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="hoje" on-create="{{ noop }}" create-label="{{ tCreate }}" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
-        <div style="display:flex;flex-direction:column;gap:24px">
-          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
-          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;flex-direction:column;gap:24px" aria-busy="true">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,72px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,180px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,240px"></x-import>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
-          </sc-if>
-          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;flex-direction:column;gap:32px">
-              <div style="display:flex;flex-direction:column;gap:16px">
-                <div style="display:flex;align-items:center;gap:16px">
-                  <div aria-hidden="true" style="width:56px;height:56px;flex:0 0 auto;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-well);font-size:28px">💧</div>
-                  <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                    <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tName }}</h1>
-                    <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums"><span data-mock="true">08:00</span> · {{ tFreq }}<sc-if value="{{ isFrozen }}" hint-placeholder-val="{{ false }}"> · {{ tFrozen }}</sc-if></p>
-                  </div>
-                </div>
-                <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--fg-2);font-variant-numeric:tabular-nums">{{ tSeqPre }} <span data-mock="true">12</span> {{ tDays }} · <span data-mock="true">83%</span> {{ tLastLower }} <span data-mock="true">30</span> {{ tDays }}</p>
-                </sc-if>
-              </div>
-              <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyActionWide }}" hint-size="100%,240px"></x-import>
-              </sc-if>
-              <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
-                <div style="display:flex;flex-direction:column;gap:12px">
-                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tHistPre }} <span data-mock="true">30</span> {{ tDays }}</p>
-                  <div role="img" aria-label="{{ tGridLabel }}" style="display:grid;grid-template-columns:repeat(7,44px);gap:12px;justify-items:center;justify-content:start">
-                    <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
-                      <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
-                    </sc-for>
-                    <sc-for list="{{ cells }}" as="c" hint-placeholder-count="34">
-                      <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:24px;height:24px"></span></sc-if>
-                      <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="{{ c.st }}" size="{{ n24 }}" label="{{ c.label }}" hint-size="24px,24px"></x-import>
-                      </sc-if>
-                    </sc-for>
-                  </div>
-                </div>
-              </sc-if>
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tGoals }}</x-import>
-                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal1 }}" value="{{ goal1Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal2 }}" value="{{ goal2Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
-                </div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tDescTitle }}</x-import>
-                <p style="max-width:65ch;font-size:var(--fs-md);line-height:1.65;color:var(--fg-2);text-wrap:pretty">{{ tDescBody }}</p>
-              </div>
-            </div>
-          </sc-if>
-        </div>
-      </x-import>
-      {{ sheetsEl }}
-    </div>
-  </sc-if>
-</section>
+
+</div>
 </x-dc>
-<script type="text/x-dc" data-dc-script>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const BASE = new Date(2026, 7, 17);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const cap = (v) => v.charAt(0).toUpperCase() + v.slice(1);
+
+/* 30 days ending at the base date, completions only: DayStrip's habit union is done, missed and
+   not-scheduled. A freeze marks a user day, never a habit, so the union cannot carry one. */
+function stripFor(days, slipping, intl) {
+  const out = [], labels = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(BASE); d.setDate(BASE.getDate() - i);
+    labels.push(d.toLocaleDateString(intl, { day: 'numeric', month: 'short' }));
+    if (days && days.indexOf(d.getDay()) < 0) { out.push('not-scheduled'); continue; }
+    out.push(slipping ? (i <= 2 || i % 3 === 1 ? 'missed' : 'done')
+      : (i === 12 || i === 21 ? 'missed' : 'done'));
+  }
+  return { days: out, labels: labels };
+}
+
+/* The emoji picker's options: [category id, pt label, en label, [[emoji, pt keyword, en keyword]...]].
+   The eleven category ids are habit-emoji-options.ts's. */
+const EMO = [
+  ['smileys', 'Carinhas', 'Smileys', [['\uD83D\uDE42', 'leve', 'easy'], ['\uD83D\uDE0C', 'calmo', 'calm'], ['\uD83D\uDE34', 'sono', 'sleep'], ['\uD83E\uDD13', 'foco', 'focus'], ['\uD83D\uDE24', 'força', 'push'], ['\uD83D\uDE00', 'sorriso', 'smile']]],
+  ['body', 'Corpo', 'Body', [['\uD83D\uDCAA', 'força', 'strength'], ['\uD83E\uDDB7', 'dentes', 'teeth'], ['\uD83D\uDC63', 'passos', 'steps'], ['\uD83E\uDEC0', 'coração', 'heart'], ['\uD83E\uDDE0', 'mente', 'mind'], ['\uD83D\uDC40', 'olhos', 'eyes']]],
+  ['wellness', 'Bem-estar', 'Wellness', [['\uD83E\uDDD8', 'meditar', 'meditate'], ['\uD83D\uDCA7', 'água', 'water'], ['\uD83D\uDC8A', 'remédio', 'medication'], ['\uD83D\uDECC', 'dormir', 'sleep'], ['\uD83D\uDEBF', 'banho', 'shower'], ['\uD83E\uDDD6', 'descanso', 'rest']]],
+  ['animals', 'Animais', 'Animals', [['\uD83D\uDC15', 'cachorro', 'dog'], ['\uD83D\uDC08', 'gato', 'cat'], ['\uD83D\uDC1F', 'peixe', 'fish'], ['\uD83D\uDC0E', 'cavalo', 'horse'], ['\uD83D\uDC1D', 'abelha', 'bee'], ['\uD83E\uDD9C', 'pássaro', 'bird']]],
+  ['nature', 'Natureza', 'Nature', [['\uD83C\uDF31', 'planta', 'plant'], ['\uD83C\uDF33', 'árvore', 'tree'], ['\uD83C\uDF0A', 'mar', 'sea'], ['\uD83C\uDF38', 'flor', 'flower'], ['\u26F0\uFE0F', 'montanha', 'mountain'], ['\uD83C\uDF19', 'lua', 'moon']]],
+  ['food', 'Comida', 'Food', [['\uD83E\uDD57', 'salada', 'salad'], ['\uD83C\uDF4E', 'fruta', 'fruit'], ['\u2615', 'café', 'coffee'], ['\uD83E\uDD66', 'legumes', 'vegetables'], ['\uD83C\uDF5E', 'pão', 'bread'], ['\uD83E\uDD64', 'suco', 'juice']]],
+  ['activities', 'Atividades', 'Activities', [['\uD83C\uDFC3', 'correr', 'run'], ['\uD83D\uDEB6', 'caminhar', 'walk'], ['\uD83C\uDFCB\uFE0F', 'treino', 'gym'], ['\uD83D\uDEB4', 'pedalar', 'cycle'], ['\u26BD', 'bola', 'ball'], ['\uD83C\uDFB8', 'violão', 'guitar']]],
+  ['work', 'Trabalho', 'Work', [['\uD83D\uDCBC', 'trabalho', 'work'], ['\uD83D\uDCDA', 'estudo', 'study'], ['\u270D\uFE0F', 'escrever', 'write'], ['\uD83D\uDCBB', 'computador', 'computer'], ['\uD83D\uDCDE', 'ligação', 'call'], ['\uD83D\uDDC2\uFE0F', 'arquivos', 'files']]],
+  ['home', 'Casa', 'Home', [['\uD83E\uDDF9', 'limpeza', 'clean'], ['\uD83E\uDDFA', 'roupa', 'laundry'], ['\uD83C\uDF7D\uFE0F', 'louça', 'dishes'], ['\uD83D\uDECF\uFE0F', 'cama', 'bed'], ['\uD83E\uDEB4', 'vaso', 'pot'], ['\uD83D\uDD27', 'conserto', 'fix']]],
+  ['travel', 'Viagem', 'Travel', [['\u2708\uFE0F', 'viagem', 'trip'], ['\uD83D\uDE8C', 'ônibus', 'bus'], ['\uD83D\uDE97', 'carro', 'car'], ['\uD83E\uDDF3', 'mala', 'bag'], ['\uD83D\uDDFA\uFE0F', 'mapa', 'map'], ['\u26FA', 'acampar', 'camp']]],
+  ['symbols', 'Símbolos', 'Symbols', [['\u2B50', 'estrela', 'star'], ['\u2764\uFE0F', 'coração', 'heart'], ['\u2705', 'feito', 'check'], ['\uD83D\uDD14', 'sino', 'bell'], ['\uD83C\uDFAF', 'alvo', 'target'], ['\u267B\uFE0F', 'reciclar', 'recycle']]],
+];
+
+/* The subjects. kids are ids; stat is [current streak, longest streak, 30 day rate] or null for no
+   data; slip marks the slipping walk; oneTime draws no stats grid (no frequency, not general). */
+const HB = {
+  walk: { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', time: '18:00', days: [1, 2, 3, 4, 5], status: 'done',
+    stat: [12, 21, '86%'], goals: [0],
+    tags: { pt: ['ar livre', 'fim do dia'], en: ['outdoors', 'end of day'] },
+    desc: { pt: 'Uma volta no quarteirão, de preferência antes do jantar.', en: 'A loop around the block, ideally before dinner.' },
+    rem: { due: '18:00', fixed: [['20:30', 'same']] } },
+  walkSlip: { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', time: '18:00', days: [1, 2, 3, 4, 5], status: 'overdue',
+    stat: [0, 21, '41%'], goals: [0], slip: true,
+    tags: { pt: ['ar livre', 'fim do dia'], en: ['outdoors', 'end of day'] },
+    desc: { pt: 'Uma volta no quarteirão, de preferência antes do jantar.', en: 'A loop around the block, ideally before dinner.' },
+    rem: { due: '18:00', fixed: [['20:30', 'same']] } },
+  house: { e: '\uD83E\uDDF9', pt: 'Rotina da casa', en: 'House routine', time: '09:00', days: [1, 2, 3, 4, 5, 6],
+    status: 'empty', stat: [6, 14, '72%'], kids: ['dishes', 'laundry', 'bath'], perDay: 3 },
+  dishes: { e: null, pt: 'Louça', en: 'Dishes', days: [1, 2, 3, 4, 5, 6], status: 'done', stat: [3, 9, '64%'] },
+  laundry: { e: '\uD83D\uDC55', pt: 'Roupa lavada', en: 'Laundry', days: [1, 3, 6], status: 'done', stat: [2, 5, '58%'] },
+  bath: { e: '\uD83D\uDEBF', pt: 'Banheiro', en: 'Bathroom', days: [1, 4], status: 'empty', stat: [1, 4, '40%'], kids: ['mirror'] },
+  mirror: { e: null, pt: 'Espelho', en: 'Mirror', days: [1, 4], status: 'empty', stat: null },
+  evening: { e: '\uD83C\uDF19', pt: 'Rotina da noite', en: 'Evening routine', time: '22:00', days: [0, 1, 2, 3, 4, 5, 6],
+    status: 'empty', stat: [9, 16, '78%'], end: [2026, 11, 31],
+    chk: { pt: ['Escovar os dentes', 'Preparar a roupa', 'Ler 10 páginas'], en: ['Brush teeth', 'Lay out clothes', 'Read 10 pages'], checked: [true, false, false] } },
+  novo: { e: null, pt: 'Diário', en: 'Journal', time: null, days: [0, 1, 2, 3, 4, 5, 6], status: 'empty', stat: null },
+};
+const STATE_SUBJ = { holding: 'walk', slipping: 'walkSlip', 'sub habits': 'house', checklist: 'evening',
+  'no data': 'novo', 'metrics loading': 'walk', delete: 'walk', loading: 'walk', error: 'walk', 'at limit': 'walk' };
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR',
+    wd: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'], weekStart: 0,
+    dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    dayNames: ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'],
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    kicker: 'Hábito', back: 'Voltar', rename: 'Renomear', done: 'Pronto', moreOpts: 'Mais opções',
+    status: { done: 'feito', empty: 'pendente', overdue: 'atrasado', bad: 'aconteceu hoje' },
+    ringLog: (n) => 'Registrar ' + n, ringUnlog: (n) => 'Desfazer o registro de ' + n,
+    allDays: 'Todos os dias', monFri: 'Seg a sex',
+    holding: 'Últimos 30 dias',
+    stripWords: { done: 'feito', missed: 'sem registro', notScheduled: 'não programado' },
+    slipLine: ['Nenhum registro nos últimos ', '3', ' dias. A sequência voltou para ', '0', ' e a taxa dos últimos ', '30', ' dias caiu.'],
+    dStreak: 'Sequência atual', dFree: 'Dias livres', dBest: 'Maior sequência',
+    noDataYet: 'Ainda sem dados',
+    proposedBy: 'Proposto pelo Astra',
+    rsFree: 'Com o Pro, o Astra transforma um hábito atrasado em um plano realista.',
+    rsPro: 'Conhecer o Pro', rsUse: 'Usar este plano', notNow: 'Não agora',
+    rsFine: 'O Astra pode errar. Revise o plano antes de usar.',
+    rsReason: ['A caminhada não aconteceu ', '3', ' vezes depois das ', '18:00', '. De manhã, antes do trabalho, a agenda costuma estar livre.'],
+    rsDate: ['qui, 20 ago', '07:30'], rsFreq: 'toda terça e quinta',
+    dDescOpen: 'Abrir a descrição inteira',
+    fChecklist: 'Itens', dUncheck: 'Desmarcar todos os itens', dClear: 'Limpar a lista',
+    dClearTitle: 'Limpar a lista de itens?', dClearGo: 'Limpar',
+    dClearBody: 'Os itens saem deste hábito. Não há como restaurar por aqui.',
+    dLogNowBody: 'Todos os itens estão feitos. Registrar o hábito agora?',
+    checklistRule: 'Marcar um item não registra o hábito. Ao registrar o hábito, a lista volta ao início.',
+    dRemDue: 'hora do hábito', dRemSame: 'no dia', dRemEve: 'na véspera',
+    factRemind: 'Lembretes', dEnd: 'Termina', dGoals: 'Metas',
+    goals: ['30 dias de movimento', 'Ler 12 livros'],
+    breakdown: 'O que tem dentro', fAddSub: 'Adicionar sub-hábito',
+    log: 'Registrar', unlogOne: 'Desfazer registro', openOne: 'Abrir',
+    dActivity: 'Atividade', dPrevM: 'Mês anterior', dNextM: 'Mês seguinte',
+    dLoggedAt: (v) => ['Registrado às ', mock(v)],
+    dayWords: { none: 'nenhum feito', partial: 'parcial', full: 'completo', notScheduled: 'não programado',
+      future: 'ainda por vir', of: 'de', today: 'hoje', selected: 'selecionado', readOnly: 'somente leitura' },
+    askAstra: 'Perguntar ao Astra',
+    factCadence: 'Frequência',
+    dayOn: (d, names) => names[d] + ', ativo', dayOff: (d, names) => names[d] + ', inativo',
+    moreDetails: 'Mais detalhes',
+    fTime: 'Hora exata', fTimeHint: 'Deixe vazio para qualquer hora do dia', fRemind: 'Lembretes',
+    remAt: 'Na hora', before: (v) => v + ' antes', dayWord: 'dia', daysWord: 'dias',
+    unitNames: ['min', 'h', 'dias'], customLabel: 'Outro intervalo', addWord: 'Adicionar', whenLabel: 'Quando',
+    schedNested: 'Em horários fixos', schedAdd: 'Adicionar horário', schedCap: 'O limite é 5 horários.',
+    schedSame: 'No dia', schedEve: 'Na véspera', schedTimeLabel: 'Horário',
+    schedDup: 'Esse horário já existe nesse dia. Escolha outro.', schedInvalid: 'Use uma hora válida, como 20:00.',
+    lastRem: 'O último lembrete fica. Para nenhum, desligue os lembretes.',
+    fAddItem: 'Adicionar item', itemCap: 'O limite é 50 itens.', itemField: 'Item',
+    fTpl: 'Usar modelo salvo', tplTitle: 'Modelos salvos', itemsWord: 'itens',
+    tplSave: 'Salvar os itens como modelo', tplName: 'Nome do modelo', tplGo: 'Salvar', tplDel: (n) => 'Apagar ' + n,
+    dupItem: (n) => 'Duplicar ' + n, removeX: (n) => 'Remover ' + n, dragHint: 'Arrastar para reordenar',
+    tpls: [
+      { n: 'Mala de viagem', items: ['Documentos', 'Carregador', 'Roupas', 'Nécessaire', 'Remédios', 'Fones', 'Garrafa', 'Casaco'] },
+      { n: 'Limpeza da cozinha', items: ['Louça', 'Bancada', 'Fogão', 'Pia', 'Chão', 'Lixo'] },
+      { n: 'Compras da semana', items: ['Frutas', 'Legumes', 'Arroz', 'Feijão', 'Café', 'Leite', 'Pão', 'Ovos', 'Queijo', 'Sabão'] },
+      { n: 'Fechar o dia', items: ['Louça da janta', 'Roupa de amanhã', 'Mochila pronta', 'Luzes apagadas'] },
+    ],
+    fBad: 'Hábito a evitar', fBadHint: 'Registrar passa a significar que aconteceu.',
+    fSlip: 'Alerta de deslize', fSlipDesc: 'Um aviso quando o hábito começa a falhar.',
+    fTags: 'Etiquetas', fAddTag: 'Adicionar etiqueta', tagCap: 'O limite é 5 etiquetas.',
+    fGoal: 'Ligar a uma meta', goalNone: 'Nenhuma', goalTitle: 'Metas',
+    fEnd: 'Data de término', fDesc: 'Descrição',
+    emoTitle: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
+    emoNone: 'Nenhum emoji com esse nome', emoWellLabel: (n) => 'Escolher emoji para ' + n,
+    startLabel: 'Início',
+    startWhy: 'A data de início é o dia em que o hábito foi criado e não muda.',
+    del: 'Apagar hábito', delTitle: 'Apagar este hábito?',
+    delBody: 'O hábito e tudo dentro dele saem da sua lista. Não há como restaurar por aqui.',
+    cancel: 'Cancelar', delConfirm: 'Apagar',
+    loading: 'Carregando',
+    error: 'Não foi possível carregar este hábito. Verifique a conexão e tente de novo.',
+    retry: 'Tentar de novo',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Mover para 20:00', 'Reduzir para 3 vezes', 'Pausar esta semana', 'Renomear'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
+  },
+  en: {
+    intl: 'en-GB', lang: 'en',
+    wd: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], weekStart: 1,
+    dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
+    navLabel: 'Main navigation', palette: 'Search',
+    kicker: 'Habit', back: 'Back', rename: 'Rename', done: 'Done', moreOpts: 'More options',
+    status: { done: 'done', empty: 'pending', overdue: 'overdue', bad: 'happened today' },
+    ringLog: (n) => 'Log ' + n, ringUnlog: (n) => 'Undo the log for ' + n,
+    allDays: 'Every day', monFri: 'Mon to Fri',
+    holding: 'Last 30 days',
+    stripWords: { done: 'done', missed: 'nothing logged', notScheduled: 'not scheduled' },
+    slipLine: ['Nothing logged in the last ', '3', ' days. The streak went back to ', '0', ' and the last ', '30', ' days\' rate is down.'],
+    dStreak: 'Current streak', dFree: 'Days free', dBest: 'Longest streak',
+    noDataYet: 'No data yet',
+    proposedBy: 'Proposed by Astra',
+    rsFree: 'With Pro, Astra turns a missed habit into a realistic plan.',
+    rsPro: 'See Pro', rsUse: 'Use this plan', notNow: 'Not now',
+    rsFine: 'Astra can be wrong. Review the plan before using it.',
+    rsReason: ['The walk did not happen ', '3', ' times after ', '18:00', '. In the morning, before work, the schedule is usually free.'],
+    rsDate: ['Thu, 20 Aug', '07:30'], rsFreq: 'every Tuesday and Thursday',
+    dDescOpen: 'Open the full description',
+    fChecklist: 'Items', dUncheck: 'Uncheck all the items', dClear: 'Clear the list',
+    dClearTitle: 'Clear the item list?', dClearGo: 'Clear',
+    dClearBody: 'The items leave this habit. There is no way to restore this here.',
+    dLogNowBody: 'Every item is done. Log the habit now?',
+    checklistRule: 'Checking an item does not log the habit. When you log the habit, the list starts over.',
+    dRemDue: 'the habit time', dRemSame: 'same day', dRemEve: 'day before',
+    factRemind: 'Reminders', dEnd: 'Ends', dGoals: 'Goals',
+    goals: ['30 days of moving', 'Read 12 books'],
+    breakdown: 'What is inside', fAddSub: 'Add a sub habit',
+    log: 'Log', unlogOne: 'Undo the log', openOne: 'Open',
+    dActivity: 'Activity', dPrevM: 'Previous month', dNextM: 'Next month',
+    dLoggedAt: (v) => ['Logged at ', mock(v)],
+    dayWords: { none: 'none done', partial: 'partial', full: 'complete', notScheduled: 'not scheduled',
+      future: 'upcoming', of: 'of', today: 'today', selected: 'selected', readOnly: 'read only' },
+    askAstra: 'Ask Astra',
+    factCadence: 'Frequency',
+    dayOn: (d, names) => names[d] + ', on', dayOff: (d, names) => names[d] + ', off',
+    moreDetails: 'More details',
+    fTime: 'Exact time', fTimeHint: 'Leave empty for any time of day', fRemind: 'Reminders',
+    remAt: 'At the time', before: (v) => v + ' before', dayWord: 'day', daysWord: 'days',
+    unitNames: ['min', 'h', 'days'], customLabel: 'Another interval', addWord: 'Add', whenLabel: 'When',
+    schedNested: 'At fixed times', schedAdd: 'Add a time', schedCap: 'The limit is 5 times.',
+    schedSame: 'Same day', schedEve: 'Day before', schedTimeLabel: 'Time',
+    schedDup: 'That time already exists on that day. Pick another.', schedInvalid: 'Use a real time, like 20:00.',
+    lastRem: 'The last reminder stays. For none, turn reminders off.',
+    fAddItem: 'Add an item', itemCap: 'The limit is 50 items.', itemField: 'Item',
+    fTpl: 'Use a saved template', tplTitle: 'Saved templates', itemsWord: 'items',
+    tplSave: 'Save the items as a template', tplName: 'Template name', tplGo: 'Save', tplDel: (n) => 'Delete ' + n,
+    dupItem: (n) => 'Duplicate ' + n, removeX: (n) => 'Remove ' + n, dragHint: 'Drag to reorder',
+    tpls: [
+      { n: 'Packing list', items: ['Documents', 'Charger', 'Clothes', 'Toiletries', 'Medication', 'Headphones', 'Bottle', 'Jacket'] },
+      { n: 'Kitchen clean-up', items: ['Dishes', 'Counter', 'Stove', 'Sink', 'Floor', 'Trash'] },
+      { n: 'Weekly groceries', items: ['Fruit', 'Vegetables', 'Rice', 'Beans', 'Coffee', 'Milk', 'Bread', 'Eggs', 'Cheese', 'Soap'] },
+      { n: 'Close the day', items: ['Dinner dishes', 'Clothes for tomorrow', 'Bag packed', 'Lights off'] },
+    ],
+    fBad: 'Habit to avoid', fBadHint: 'Logging then means it happened.',
+    fSlip: 'Slip alert', fSlipDesc: 'A heads-up when the habit starts to slip.',
+    fTags: 'Tags', fAddTag: 'Add a tag', tagCap: 'The limit is 5 tags.',
+    fGoal: 'Link to a goal', goalNone: 'None', goalTitle: 'Goals',
+    fEnd: 'End date', fDesc: 'Description',
+    emoTitle: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
+    emoNone: 'No emoji with that name', emoWellLabel: (n) => 'Choose an emoji for ' + n,
+    startLabel: 'Start',
+    startWhy: 'The start date is the day the habit was created and does not change.',
+    del: 'Delete habit', delTitle: 'Delete this habit?',
+    delBody: 'The habit and everything inside it leave your list. There is no way to restore this here.',
+    cancel: 'Cancel', delConfirm: 'Delete',
+    loading: 'Loading',
+    error: 'We could not load this habit. Check the connection and try again.',
+    retry: 'Try again',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['Move to 20:00', 'Cut to 3 times', 'Pause this week', 'Rename'],
+    limit: ["Today's ", '5', ' messages have been used.'],
+  },
+};
+
 class Component extends DCLogic {
-  state = {
-    isFrozen: false, archOpen: false,
-    cv: {mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  state = { mode: 'dark', width: '412', st: 'holding', loc: 'pt-BR', plan: 'free',
+    stack: [], logs: {}, mLoading: false, reschedGone: false, confirm: false,
+    editing: false, days: null, dtDescOpen: false, disc: false, childMenu: null,
+    emo: {}, emoOpen: false, emoQ: '', emoCat: null,
+    checks: {}, itemsOv: {}, cleared: {}, clearAsk: false, logNow: false,
+    calM: { y: 2026, m: 7 }, calSel: null,
+    fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
+    ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
+    tags: [], tagInput: '', badOn: false, slipOn: false, goalOpen: false, goalSel: -1 };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._mT); }
+
+  subjId = () => {
+    const s = this.state;
+    return s.stack.length ? s.stack[s.stack.length - 1] : (STATE_SUBJ[s.st] || 'walk');
   };
-  componentDidMount(){ document.documentElement.dataset.mode = this.state.cv.mode; }
-  componentDidUpdate(){ document.documentElement.dataset.mode = this.state.cv.mode; }
-  history = ['done','done','skip','done','done','done','empty','done','done','done','done','skip','done','done','done','done','empty','done','done','done','done','done','done','done','done','done','done','done','done','empty'];
-  renderVals(){
-    const DS = window.OrbitDesignSystem_918bd5 || {};
-    const E = React.createElement;
-    const st = this.state, cv = st.cv, en = cv.locale==='en';
-    const T = en ? {
-      nav:'Habit', name:'Morning water', freq:'every day', frozen:'frozen',
-      seqPre:'streak of', days:'days', lastLower:'in the last', histPre:'last',
-      gridLabel:'History of the last 30 days: 25 done, 2 skipped, 3 without a log',
-      goals:'Linked goals', goal1:'Drink more water', goal2:'Calmer mornings',
-      descTitle:'Description',
-      descBody:'A tall glass of water right after waking, before coffee and before the phone. The bottle goes on the nightstand the night before, so the morning holds no decision at all. On days that start away from home any glass counts; the point is the gesture, not the exact measure.',
-      edit:'Edit', resched:'Reschedule', freeze:'Freeze', unfreeze:'Unfreeze',
-      freezeDesc:'Pauses the habit without losing history.',
-      archive:'Archive', archDesc:'You can restore it at any time.',
-      archTitle:'Archive habit',
-      archBody:'Morning water leaves Today and its stats. You can restore it at any time.',
-      cancel:'Cancel', emptyTitle:'No log yet', logToday:'Log today',
-      errMsg:'Could not load this habit. Check your connection and try again.',
-      retry:'Try again', loading:'Loading', create:'Create habit',
-      wdays:['m','t','w','t','f','s','s'], tabs:['Today','Goals','Astra','Profile']
-    } : {
-      nav:'Hábito', name:'Água da manhã', freq:'todos os dias', frozen:'congelado',
-      seqPre:'sequência de', days:'dias', lastLower:'nos últimos', histPre:'últimos',
-      gridLabel:'Histórico dos últimos 30 dias: 25 feitos, 2 pulados, 3 sem registro',
-      goals:'Metas vinculadas', goal1:'Beber mais água', goal2:'Manhãs sem pressa',
-      descTitle:'Descrição',
-      descBody:'Um copo grande de água logo depois de acordar, antes do café e antes do celular. A garrafa fica na mesa de cabeceira na noite anterior, então de manhã não existe decisão nenhuma a tomar. Se o dia começar fora de casa, qualquer copo conta; o objetivo é o gesto, não a medida exata.',
-      edit:'Editar', resched:'Reagendar', freeze:'Congelar', unfreeze:'Descongelar',
-      freezeDesc:'Pausa o hábito sem perder o histórico.',
-      archive:'Arquivar', archDesc:'Você pode restaurar a qualquer momento.',
-      archTitle:'Arquivar hábito',
-      archBody:'Água da manhã sai de Hoje e das estatísticas. Você pode restaurar a qualquer momento.',
-      cancel:'Cancelar', emptyTitle:'Nenhum registro ainda', logToday:'Registrar hoje',
-      errMsg:'Não foi possível carregar este hábito. Verifique sua conexão e tente de novo.',
-      retry:'Tentar de novo', loading:'Carregando', create:'Criar hábito',
-      wdays:['s','t','q','q','s','s','d'], tabs:['Hoje','Metas','Astra','Perfil']
+  /* Seeding: the disclosure's editors are loaded from the subject, so the read-outs and the editors
+     describe one habit. */
+  seed = (id, stack) => {
+    const h = HB[id] || {};
+    return { stack: stack, mLoading: true, reschedGone: false, editing: false, dtDescOpen: false,
+      disc: false, childMenu: null, emoOpen: false, calM: { y: 2026, m: 7 }, calSel: null,
+      days: h.days ? h.days.slice() : null, fTime: null, remOn: true, remSel: [0, 15], remCustom: [],
+      sched: h.rem && h.rem.fixed ? h.rem.fixed.map((r) => ({ time: r[0], when: r[1] === 'same' ? 'same_day' : 'day_before' })) : [],
+      schedForm: null, ckInput: '',
+      tags: h.tags ? h.tags[this.state.loc === 'en' ? 'en' : 'pt'].slice() : [], tagInput: '',
+      goalSel: h.goals && h.goals.length ? h.goals[0] : -1, badOn: false, slipOn: false };
+  };
+  openSub = (id) => {
+    clearTimeout(this._mT);
+    this.setState((p) => this.seed(id, p.stack.concat([id])));
+    this._mT = setTimeout(() => this.setState({ mLoading: false }), 700);
+  };
+  popSub = () => {
+    const st = this.state.stack;
+    if (!st.length) { window.location.href = encodeURI('Orbit Hoje.dc.html'); return; }
+    clearTimeout(this._mT);
+    this.setState(this.seed(st.length > 1 ? st[st.length - 2] : (STATE_SUBJ[this.state.st] || 'walk'), st.slice(0, -1)));
+    this._mT = setTimeout(() => this.setState({ mLoading: false }), 700);
+  };
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+  goGoal = () => { window.location.href = encodeURI('Orbit Progresso.dc.html'); };
+  goConv = () => { window.location.href = encodeURI('Orbit Astra Conversation.dc.html'); };
+
+  onCC = (next) => {
+    clearTimeout(this._mT);
+    const seeded = Object.assign({ mode: next.mode, width: next.width, st: next.state, locOld: null,
+      loc: next.locale, plan: next.plan || 'free',
+      logs: {}, checks: {}, itemsOv: {}, cleared: {}, emo: {}, clearAsk: false, logNow: false, confirm: next.state === 'delete',
+      tplOpen: false, tplList: null, tplSaving: false, tplName: '', goalOpen: false, emoQ: '', emoCat: null },
+      this.seed(STATE_SUBJ[next.state] || 'walk', []));
+    seeded.mLoading = next.state === 'metrics loading' || next.state === 'loading';
+    this.setState(seeded);
+  };
+
+  logOf = (id) => {
+    const s = this.state;
+    return s.logs[id] !== undefined ? s.logs[id] : ((HB[id] || {}).status === 'done');
+  };
+  statusOf = (id) => {
+    const h = HB[id] || {};
+    if (this.logOf(id)) return 'done';
+    return h.status === 'overdue' && !this.state.logs[id] ? 'overdue' : 'empty';
+  };
+  toggle = (id) => {
+    const was = this.logOf(id);
+    const h = HB[id] || {};
+    this.setState((p) => {
+      const patch = { logs: Object.assign({}, p.logs, { [id]: !was }) };
+      /* Logging resets the checklist ONLY when the habit has a frequency, is not flexible and the due
+         date advances (Habit.cs:186-190). */
+      if (!was && h.chk && !h.flex && !h.oneTime) {
+        patch.checks = Object.assign({}, p.checks, { [id]: this.itemsOf(id).map(() => false) });
+      }
+      return patch;
+    });
+  };
+  itemsOf = (id) => {
+    const s = this.state;
+    const h = HB[id] || {};
+    if (s.cleared[id]) return s.itemsOv[id] || [];
+    return s.itemsOv[id] || (h.chk ? h.chk[s.loc === 'en' ? 'en' : 'pt'] : []);
+  };
+  checksOf = (id) => {
+    const s = this.state;
+    const h = HB[id] || {};
+    return (s.checks[id] || (h.chk ? h.chk.checked : [])).slice(0, this.itemsOf(id).length);
+  };
+  writeCk = (id, nItems, nChecked) => this.setState((p) => ({
+    itemsOv: Object.assign({}, p.itemsOv, { [id]: nItems }),
+    checks: nChecked ? Object.assign({}, p.checks, { [id]: nChecked }) : p.checks }));
+  ckAppend = (arr) => {
+    const id = this.subjId();
+    this.writeCk(id, this.itemsOf(id).concat(arr).slice(0, 50), this.checksOf(id).concat(arr.map(() => false)).slice(0, 50));
+  };
+
+  menuShell(title, items, onSelect, onClose, anchorEl) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const wide = this.state.width === 'wide';
+    const el = anchorEl && document.body.contains(anchorEl) ? anchorEl : null;
+    return H(D.Menu, { open: true, title: title, items: items, onSelect: onSelect, onClose: onClose,
+      presentation: wide && el ? 'anchored' : 'sheet', anchorRef: { current: el }, align: 'end' });
+  }
+  pill(txt, on, fn, aria, key, off) {
+    return H('button', { key: key, type: 'button', 'aria-pressed': on, 'aria-label': aria || undefined,
+      'aria-disabled': off ? 'true' : undefined, onClick: off ? undefined : fn,
+      style: { height: 44, paddingInline: 14, flex: '0 0 auto', borderRadius: 'var(--r-pill)', border: 0,
+        cursor: off ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', fontWeight: 500,
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: on ? 'var(--primary-dim)' : 'var(--bg-well)', color: on ? 'var(--fg-1)' : 'var(--fg-2)',
+        boxShadow: on ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' } }, txt);
+  }
+  addInline(ph, val, setVal, add) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+      H('div', { style: { flex: 1, minWidth: 0 } },
+        H(D.Input, { placeholder: ph, 'aria-label': ph, value: val,
+          onChange: (e) => setVal(e.target.value),
+          onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } } })),
+      H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': ph, onClick: add,
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto' } }, H(D.Icon, { name: 'plus', size: 20 })));
+  }
+  editRow(x, txt, onRemove, drag, key, onEdit, onDup) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H('div', { key: key, style: { display: 'flex', alignItems: 'center', gap: 4, minHeight: 44,
+      background: 'var(--bg-well)', borderRadius: 'var(--r-well)', paddingInlineStart: drag ? 8 : 12 } },
+      drag ? H('span', { title: x.dragHint, style: { color: 'var(--fg-4)', display: 'grid', placeItems: 'center',
+        cursor: 'grab' }, 'aria-hidden': 'true' }, H(D.Icon, { name: 'grip-vertical', size: 16 })) : null,
+      onEdit
+        ? H('input', { value: txt, 'aria-label': x.itemField,
+            onChange: (e) => onEdit(e.target.value),
+            style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', fontFamily: 'var(--font-sans)',
+              background: 'var(--p-transparent)', border: 0, color: 'var(--fg-1)', padding: '4px 0' } })
+        : H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, txt),
+      onDup ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dupItem(txt), onClick: onDup,
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+        H(D.Icon, { name: 'copy', size: 16 })) : null,
+      H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.removeX(txt), onClick: onRemove,
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+        H(D.Icon, { name: 'x', size: 16 })));
+  }
+  fmtOffset(min, x) {
+    if (min === 0) return x.remAt;
+    if (min % 1440 === 0) { const d = min / 1440; return x.before(d === 1 ? '1 ' + x.dayWord : d + ' ' + x.daysWord); }
+    if (min % 60 === 0) return x.before((min / 60) + ' h');
+    return x.before(min + ' min');
+  }
+  dayPills(days, x, pick) {
+    return H('div', { role: 'group', 'aria-label': x.factCadence, style: { display: 'flex', gap: 4 } },
+      [0, 1, 2, 3, 4, 5, 6].map((d) => {
+        const on = days.indexOf(d) >= 0;
+        return H('button', { key: d, type: 'button', 'aria-pressed': on,
+          'aria-label': on ? x.dayOn(d, x.dayNames) : x.dayOff(d, x.dayNames), onClick: () => pick(d),
+          style: { width: 44, height: 44, flex: '0 0 auto', border: 0, borderRadius: 'var(--r-pill)',
+            cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', fontWeight: 500,
+            background: on ? 'var(--primary-dim)' : 'var(--bg-well)', color: on ? 'var(--fg-1)' : 'var(--fg-2)',
+            boxShadow: on ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' } }, x.dayShort[d]);
+      }));
+  }
+
+  schedListNode(t) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const x = t;
+    const setRow = (i, r) => this.setState((p) => { const sched = p.sched.slice(); sched[i] = r; return { sched: sched }; });
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      s.sched.map((r, i) => H('div', { key: i, style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        H('div', { style: { width: 128, flex: '0 0 auto' } },
+          H(D.TimeField, { value: r.time, onChange: (v) => setRow(i, { time: v, when: r.when }) })),
+        H('div', { role: 'group', 'aria-label': x.whenLabel, style: { display: 'flex', gap: 4 } },
+          this.pill(x.schedSame, r.when === 'same_day', () => setRow(i, { time: r.time, when: 'same_day' }), null, 'sd'),
+          this.pill(x.schedEve, r.when === 'day_before', () => setRow(i, { time: r.time, when: 'day_before' }), null, 'db')),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.removeX(r.time),
+          onClick: () => this.setState((p) => ({ sched: p.sched.filter((q, j) => j !== i) })),
+          style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+          H(D.Icon, { name: 'x', size: 16 })))),
+      s.sched.length >= 5
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.schedCap)
+        : s.schedForm
+          ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              H('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' } },
+                H('div', { style: { width: 128, flex: '0 0 auto' } },
+                  H(D.TimeField, { label: x.schedTimeLabel, value: s.schedForm.time,
+                    onChange: (v) => this.setState({ schedForm: { time: v, when: this.state.schedForm.when, err: null } }) })),
+                H('div', { role: 'group', 'aria-label': x.whenLabel, style: { display: 'flex', gap: 4, paddingBottom: 5 } },
+                  this.pill(x.schedSame, s.schedForm.when === 'same_day', () => this.setState({
+                    schedForm: Object.assign({}, this.state.schedForm, { when: 'same_day', err: null }) }), null, 'sd'),
+                  this.pill(x.schedEve, s.schedForm.when === 'day_before', () => this.setState({
+                    schedForm: Object.assign({}, this.state.schedForm, { when: 'day_before', err: null }) }), null, 'db')),
+                H('div', { style: { paddingBottom: 5, display: 'flex', gap: 4 } },
+                  H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ schedForm: null }) }, x.cancel),
+                  H(D.Button, { variant: 'secondary', size: 'sm', disabled: !s.schedForm.time, onClick: () => {
+                    const f = this.state.schedForm;
+                    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(f.time)) return this.setState({ schedForm: Object.assign({}, f, { err: x.schedInvalid }) });
+                    if (this.state.sched.some((r2) => r2.time === f.time && r2.when === f.when)) return this.setState({ schedForm: Object.assign({}, f, { err: x.schedDup }) });
+                    this.setState((p) => ({ sched: p.sched.concat([{ time: f.time, when: f.when }]), schedForm: null }));
+                  } }, x.addWord))),
+              s.schedForm.err ? H('p', { role: 'alert', style: { fontSize: 'var(--fs-sm)', color: 'var(--status-bad)' } }, s.schedForm.err) : null)
+          : H('div', { style: { marginInline: -16 } }, H(D.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
+              onClick: () => this.setState({ schedForm: { time: '', when: 'same_day', err: null } }) })));
+  }
+
+  /* Creation's field set behind the one disclosure, seeded from the subject. Sub habits are the one
+     exception: they hold their own section in the open part, doing both jobs. */
+  discNode(t, id, h) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const x = t;
+    const time = s.fTime != null ? s.fTime : (h.time || '');
+    const label = (txt) => H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, txt);
+    const PRESETS = [0, 5, 10, 15, 30, 60, 120, 360, 720, 1440];
+    const remLocked = s.remSel.length + s.remCustom.length === 1;
+    const remChips = H('div', { role: 'group', 'aria-label': x.fRemind, style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+      PRESETS.map((m) => {
+        const on = s.remSel.indexOf(m) >= 0;
+        return this.pill(this.fmtOffset(m, x), on, () => this.setState((p) => ({
+          remSel: on ? p.remSel.filter((q) => q !== m) : p.remSel.concat([m]) })), null, 'p' + m, on && remLocked);
+      }),
+      s.remCustom.map((m) => this.pill(H(F, null, this.fmtOffset(m, x), H(D.Icon, { name: 'x', size: 14 })), true,
+        () => this.setState((p) => ({ remCustom: p.remCustom.filter((q) => q !== m) })),
+        x.removeX(this.fmtOffset(m, x)), 'c' + m, remLocked)));
+    const addCustom = () => {
+      const n = parseInt(this.state.cNum || '0', 10);
+      if (!(n > 0)) return;
+      const mins = this.state.cUnit === 'h' ? n * 60 : this.state.cUnit === 'd' ? n * 1440 : n;
+      this.setState((p) => PRESETS.indexOf(mins) >= 0
+        ? { remSel: p.remSel.indexOf(mins) >= 0 ? p.remSel : p.remSel.concat([mins]) }
+        : { remCustom: p.remCustom.indexOf(mins) >= 0 ? p.remCustom : p.remCustom.concat([mins]).sort((a, b) => a - b) });
     };
-    const cstate = cv.state;
-    const isLoading = cstate==='loading', isEmpty = cstate==='empty', isError = cstate==='error';
-    const isWide = cv.width==='wide';
-    const showBody = !isLoading && !isError;
-    const hasLogs = showBody && !isEmpty;
-    const mockEl = t => E('span', {'data-mock':'true'}, t);
-    const noop = () => {};
-    const hist = st.isFrozen ? this.history.slice(0,29).concat(['frozen']) : this.history;
-    const cells = [{pad:true,show:false},{pad:true,show:false},{pad:true,show:false},{pad:true,show:false}]
-      .concat(hist.map(s => ({pad:false, show:true, st:s})));
-    const tabs = [
-      {id:'hoje',label:T.tabs[0],icon:'home'},
-      {id:'metas',label:T.tabs[1],icon:'target'},
-      {id:'astra',label:T.tabs[2],astra:true},
-      {id:'perfil',label:T.tabs[3],icon:'user'}];
-    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'hoje'}) : null;
-    const openArch = () => this.setState({archOpen:true});
-    const closeArch = () => this.setState({archOpen:false});
-    const archSheet = (DS.Sheet && DS.Button) ? E(DS.Sheet, {open:st.archOpen, title:T.archTitle, onClose:closeArch,
-      actions:E(React.Fragment,null,
-        E(DS.Button,{variant:'ghost',size:'sm',onClick:closeArch},T.cancel),
-        E(DS.Button,{size:'sm',onClick:closeArch},T.archive))},
-      E('p',{style:{fontSize:'var(--fs-base)',color:'var(--fg-2)',lineHeight:1.5,paddingBottom:8,maxWidth:'65ch'}}, T.archBody)) : null;
-    const errAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{
-      this.setState(s=>({cv:{...s.cv,state:'loading'}}));
-      setTimeout(()=>this.setState(s=>s.cv.state==='loading'?{cv:{...s.cv,state:'default'}}:null), 900);
-    }}, T.retry) : null;
-    const emptyAction = DS.Button ? E(DS.Button,{size:'sm',onClick:noop}, T.logToday) : null;
-    const emptyActionWide = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.logToday) : null;
-    const rail = (isWide && hasLogs) ? E('div',{style:{background:'var(--bg-card)',borderRadius:'var(--r-card)',boxShadow:'inset 0 0 0 1px var(--hairline-ghost)',overflow:'hidden'}},
-      E(DS.ListRow,{icon:'pencil',title:T.edit,onClick:noop}),
-      E(DS.ListRow,{icon:'calendar-time',title:T.resched,value:mockEl('08:00'),onClick:noop}),
-      E(DS.ListRow,{icon:'snowflake',title:st.isFrozen?T.unfreeze:T.freeze,description:T.freezeDesc,chevron:false,onClick:()=>this.setState(s=>({isFrozen:!s.isFrozen}))}),
-      E(DS.ListRow,{icon:'archive',title:T.archive,description:T.archDesc,chevron:false,onClick:openArch})) : null;
-    return {
-      mode:cv.mode, cv,
-      setCv:next=>this.setState({cv:next, archOpen:false}),
-      cvStates:['default','loading','empty','error'],
-      is412:!isWide, isWide, tabs, tabBarEl, railEl:rail,
-      noop, sheetsEl:archSheet,
-      isLoading, isError, isEmpty, showBody, hasLogs, isFrozen:st.isFrozen,
-      tNav:T.nav, tName:T.name, tFreq:T.freq, tFrozen:T.frozen,
-      tSeqPre:T.seqPre, tDays:T.days, tLastLower:T.lastLower, tHistPre:T.histPre, tGridLabel:T.gridLabel,
-      wdays:T.wdays, cells,
-      tGoals:T.goals, tGoal1:T.goal1, tGoal2:T.goal2,
-      goal1Val:mockEl(en?'12 of 30':'12 de 30'), goal2Val:mockEl(en?'3 of 21':'3 de 21'),
-      schedVal:mockEl('08:00'),
-      tDescTitle:T.descTitle, tDescBody:T.descBody,
-      tEdit:T.edit, tResched:T.resched,
-      tFreezeRow:st.isFrozen?T.unfreeze:T.freeze, tFreezeDesc:T.freezeDesc,
-      tArchive:T.archive, tArchDesc:T.archDesc,
-      tEmptyTitle:T.emptyTitle, tErrMsg:T.errMsg, tLoading:T.loading, tCreate:T.create,
-      emptyAction, emptyActionWide, errAction, openArch,
-      toggleFreeze:()=>this.setState(s=>({isFrozen:!s.isFrozen})),
-      n1:1, n4:4, n24:24
+    const customRow = H('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' } },
+      H('div', { style: { width: 96, flex: '0 0 auto' } },
+        H(D.Input, { label: x.customLabel, value: s.cNum, inputMode: 'numeric',
+          onChange: (e) => this.setState({ cNum: e.target.value.replace(/[^0-9]/g, '').slice(0, 3) }) })),
+      H('div', { role: 'group', 'aria-label': x.customLabel, style: { display: 'flex', gap: 4, paddingBottom: 5 } },
+        this.pill(x.unitNames[0], s.cUnit === 'min', () => this.setState({ cUnit: 'min' }), null, 'u0'),
+        this.pill(x.unitNames[1], s.cUnit === 'h', () => this.setState({ cUnit: 'h' }), null, 'u1'),
+        this.pill(x.unitNames[2], s.cUnit === 'd', () => this.setState({ cUnit: 'd' }), null, 'u2')),
+      H('div', { style: { paddingBottom: 5 } },
+        H(D.Button, { variant: 'ghost', size: 'sm', onClick: addCustom }, x.addWord)));
+    const reminders = time
+      ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          H(D.Switch, { label: x.fRemind, checked: s.remOn, onChange: (n) => this.setState({ remOn: n }) }),
+          s.remOn ? H(F, null, remChips,
+            remLocked ? H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.lastRem) : null,
+            customRow,
+            H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, paddingInlineStart: 12 } },
+              H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.schedNested),
+              this.schedListNode(t))) : null)
+      : H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          label(x.fRemind), this.schedListNode(t));
+    const ck = this.itemsOf(id);
+    const checked = this.checksOf(id);
+    const checklist = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      label(x.fChecklist),
+      ck.length ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        ck.map((it, i) => this.editRow(x, it,
+          () => this.writeCk(id, ck.filter((q, j) => j !== i), checked.filter((q, j) => j !== i)), true, i,
+          (v) => { const a = ck.slice(); a[i] = v; this.writeCk(id, a); },
+          () => { if (ck.length >= 50) return;
+            this.writeCk(id, ck.slice(0, i + 1).concat([ck[i]], ck.slice(i + 1)),
+              checked.slice(0, i + 1).concat([false], checked.slice(i + 1))); }))) : null,
+      ck.length >= 50
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.itemCap)
+        : this.addInline(x.fAddItem, s.ckInput, (v) => this.setState({ ckInput: v }), () => {
+            const v = (this.state.ckInput || '').trim();
+            if (v) { this.ckAppend([v]); this.setState({ ckInput: '' }); }
+          }),
+      H('div', { style: { marginInline: -16 } },
+        H(D.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
+    const badRow = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+      H(D.Switch, { label: x.fBad, checked: s.badOn, onChange: (n) => this.setState({ badOn: n }) }),
+      H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fBadHint));
+    /* Slip alert follows the plan (slip-alert-section.tsx:21): on free the row is a route to the
+       upgrade, never a disabled control; on Pro it is the real switch. */
+    const slip = s.plan === 'Pro'
+      ? H('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-start' } },
+          H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center', width: 28,
+            paddingTop: 2 }, 'aria-hidden': 'true' }, H(D.Icon, { name: 'shield', size: 20 })),
+          H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+            H(D.Switch, { label: x.fSlip, checked: s.slipOn, onChange: (n) => this.setState({ slipOn: n }) }),
+            H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fSlipDesc)))
+      : H('div', { style: { marginInline: -16 } },
+          H(D.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
+            trailing: H(D.Badge, null, 'Pro'), onClick: this.goPro }));
+    const tags = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      label(x.fTags),
+      s.tags.length ? H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+        s.tags.map((tg, i) => this.pill(H(F, null, tg, H(D.Icon, { name: 'x', size: 14 })), false,
+          () => this.setState((p) => ({ tags: p.tags.filter((q, j) => j !== i) })), x.removeX(tg), i))) : null,
+      s.tags.length >= 5
+        ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.tagCap)
+        : this.addInline(x.fAddTag, s.tagInput, (v) => this.setState({ tagInput: v }), () => {
+            const v = (this.state.tagInput || '').trim();
+            if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
+          }));
+    const goal = H('div', { style: { marginInline: -16 } },
+      H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
+        chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
+      H(D.TimeField, { key: 'time-' + id, label: x.fTime, value: time, hint: x.fTimeHint,
+        onChange: (v) => this.setState({ fTime: v }) }),
+      reminders, checklist, badRow, slip, tags, goal,
+      H(D.Input, { key: 'end-' + id, label: x.fEnd, placeholder: '31/12/2026',
+        defaultValue: h.end ? new Date(h.end[0], h.end[1], h.end[2]).toLocaleDateString(t.intl) : undefined }),
+      H(D.Input, { key: 'desc-' + id, label: x.fDesc, placeholder: '',
+        defaultValue: h.desc ? h.desc[t.lang === 'en' ? 'en' : 'pt'] : undefined }));
+  }
+
+  /* The whole history: month back and forward, outside days shown as such, future days future, a
+     logged day tappable and answering when it was logged. */
+  activityNode(t, id, h) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const x = t;
+    const y = s.calM.y, m = s.calM.m;
+    const first = new Date(y, m, 1);
+    const lead = ((first.getDay() - x.weekStart) + 7) % 7;
+    const dim = new Date(y, m + 1, 0).getDate();
+    const prevDim = new Date(y, m, 0).getDate();
+    const hash = (d) => { let a = d * 7 + 3; for (let i = 0; i < id.length; i++) a += id.charCodeAt(i) * (i + 3); return a; };
+    const per = h.perDay || 1;
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push(H(D.DayCell, { key: 'o' + i, day: prevDim - lead + 1 + i,
+      outsideMonth: true, words: x.dayWords }));
+    for (let d = 1; d <= dim; d++) {
+      const date = new Date(y, m, d);
+      const future = date.getTime() > BASE.getTime();
+      const dow = date.getDay();
+      const sched = h.days ? (h.days.indexOf(dow) >= 0 ? per : 0) : (!future && hash(d) % 10 < 3 ? 1 : 0);
+      const done = future || !sched ? 0 : (hash(d) % 10 < 7 ? (per > 1 ? 1 + (hash(d + 3) % per) : 1) : 0);
+      const today = y === 2026 && m === 7 && d === 17;
+      const selP = s.calSel && s.calSel.y === y && s.calSel.m === m && s.calSel.d === d;
+      const base2 = { key: d, day: d, label: date.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }),
+        words: x.dayWords, today: today, selected: !!selP };
+      if (future) cells.push(H(D.DayCell, Object.assign(base2, { outcome: 'future' })));
+      else if (done > 0) cells.push(H(D.DayCell, Object.assign(base2, { loggable: true, done: done, scheduled: sched,
+        onPress: () => this.setState({ calSel: { y: y, m: m, d: d } }) })));
+      else cells.push(H(D.DayCell, Object.assign(base2, { done: done, scheduled: sched })));
+    }
+    const selLine = s.calSel && s.calSel.y === y && s.calSel.m === m
+      ? H('p', { role: 'status', style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } },
+          x.dLoggedAt(('0' + (7 + s.calSel.d % 12)).slice(-2) + ':' + ('0' + (s.calSel.d * 7 % 60)).slice(-2)))
+      : null;
+    return H('div', { key: 'act', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, x.dActivity),
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dPrevM,
+          onClick: () => this.setState({ calM: { y: m === 0 ? y - 1 : y, m: m === 0 ? 11 : m - 1 }, calSel: null }),
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'chevron-left', size: 20 })),
+        H('p', { style: { flex: 1, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+          color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' } },
+          mock(cap(new Date(y, m, 1).toLocaleDateString(t.intl, { month: 'long', year: 'numeric' })))),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dNextM,
+          onClick: () => this.setState({ calM: { y: m === 11 ? y + 1 : y, m: m === 11 ? 0 : m + 1 }, calSel: null }),
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'chevron-right', size: 20 }))),
+      H(D.MonthGrid, { weekdayLabels: x.wd, label: x.dActivity }, cells),
+      selLine);
+  }
+
+  emojiSheet(t) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const x = t;
+    const id = this.subjId();
+    const close = () => this.setState({ emoOpen: false });
+    const norm = (val) => val.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const q = norm(s.emoQ.trim());
+    const li = t.lang === 'en' ? 2 : 1;
+    const cats = s.emoCat ? EMO.filter((c) => c[0] === s.emoCat) : EMO;
+    const hits = [];
+    cats.forEach((c) => c[3].forEach((e) => {
+      if (!q || norm(e[1]).indexOf(q) >= 0 || norm(e[2]).indexOf(q) >= 0 || norm(c[li]).indexOf(q) >= 0) hits.push(e[0]);
+    }));
+    return H(D.Sheet, { open: true, title: x.emoTitle, onClose: close },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 8 } },
+        H('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+          H('div', { style: { flex: 1, minWidth: 0 } },
+            H(D.Input, { placeholder: x.emoSearch, 'aria-label': x.emoSearch, value: s.emoQ,
+              onChange: (e) => this.setState({ emoQ: e.target.value }) })),
+          s.emoQ ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.emoClear,
+            onClick: () => this.setState({ emoQ: '' }),
+            style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto' } },
+            H(D.Icon, { name: 'x', size: 20 })) : null),
+        H('div', { role: 'group', 'aria-label': x.emoTitle, style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+          EMO.map((c) => this.pill(c[li], s.emoCat === c[0],
+            () => this.setState({ emoCat: this.state.emoCat === c[0] ? null : c[0] }), null, c[0]))),
+        hits.length
+          ? H('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))', gap: 4 } },
+              hits.map((ch) => H('button', { key: ch, type: 'button', 'aria-label': ch,
+                onClick: () => this.setState((p) => ({ emo: Object.assign({}, p.emo, { [id]: ch }), emoOpen: false })),
+                style: { width: '100%', height: 44, display: 'grid', placeItems: 'center', fontSize: 22,
+                  background: 'var(--p-transparent)', border: 0, borderRadius: 'var(--r-well)', cursor: 'pointer' } }, ch)))
+          : H('p', { style: { textAlign: 'center', fontSize: 'var(--fs-sm)', color: 'var(--fg-3)',
+              paddingBlock: 24 } }, x.emoNone)));
+  }
+
+  tplNode(t) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const x = t;
+    const list = s.tplList || x.tpls;
+    const srcItems = this.itemsOf(this.subjId());
+    const close = () => this.setState({ tplOpen: false, tplSaving: false, tplName: '' });
+    const saveRow = srcItems.length === 0 ? null
+      : s.tplSaving
+        ? H('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end', paddingBlock: 8 } },
+            H('div', { style: { flex: 1, minWidth: 0 } },
+              H(D.Input, { label: x.tplName, value: s.tplName, autoFocus: true,
+                onChange: (e) => this.setState({ tplName: e.target.value }) })),
+            H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ tplSaving: false, tplName: '' }) }, x.cancel),
+            H(D.Button, { size: 'sm', variant: 'secondary', disabled: !s.tplName.trim(),
+              onClick: () => this.setState({ tplList: [{ n: s.tplName.trim(), items: srcItems.slice() }].concat(list),
+                tplSaving: false, tplName: '' }) }, x.tplGo))
+        : H('div', { style: { marginInline: -24 } },
+            H(D.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
+              onClick: () => this.setState({ tplSaving: true }) }));
+    return H(D.Sheet, { open: true, title: x.tplTitle, onClose: close },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8 } },
+        saveRow,
+        H('div', { style: { marginInline: -24 } },
+          list.map((tp, i) => H(D.ListRow, { key: i, icon: 'template', title: tp.n,
+            description: H('span', null, mock(String(tp.items.length)), ' ' + x.itemsWord),
+            chevron: false,
+            action: { icon: 'trash', label: x.tplDel(tp.n), danger: true,
+              onPress: () => this.setState({ tplList: list.filter((q2, j) => j !== i) }) },
+            onClick: () => { this.ckAppend(tp.items); this.setState({ tplOpen: false, tplSaving: false }); } })))));
+  }
+
+  goalSheet(t) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const x = t;
+    const close = () => this.setState({ goalOpen: false });
+    return H(D.Sheet, { open: true, title: x.goalTitle, onClose: close },
+      H('div', { style: { marginInline: -12, paddingBottom: 8 }, role: 'radiogroup' },
+        H(D.RadioRow, { label: x.goalNone, selected: this.state.goalSel < 0,
+          onSelect: () => this.setState({ goalSel: -1, goalOpen: false }) }),
+        x.goals.map((g, i) => H(D.RadioRow, { key: i, label: g, selected: this.state.goalSel === i,
+          onSelect: () => this.setState({ goalSel: i, goalOpen: false }) }))));
+  }
+
+  /* The one surface. */
+  body(t, filled) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const x = t;
+    const st = s.st;
+    if (st === 'loading') return H(D.Skeleton, { variant: 'settings', rows: 5, label: x.loading });
+    if (st === 'error') return H('div', { style: { minHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'center' } },
+      H(D.ErrorState, { message: x.error, action: H(D.Button, { size: 'sm', variant: filled,
+        onClick: () => this.onCC({ mode: s.mode, width: s.width, state: 'holding', locale: s.loc, plan: s.plan }) }, x.retry) }));
+    const id = this.subjId();
+    const h = HB[id] || {};
+    const lang = t.lang === 'en' ? 'en' : 'pt';
+    const name = h[lang] || '';
+    const emoji = s.emo[id] !== undefined ? s.emo[id] : (h.e || null);
+    const days = s.days != null ? s.days : (h.days || [0, 1, 2, 3, 4, 5, 6]);
+    const slipping = !!h.slip && !s.stack.length;
+    const logged = this.logOf(id);
+    const status = this.statusOf(id);
+    const kids = h.kids || [];
+    const isParent = kids.length > 0;
+    const doneKids = kids.filter((kk) => this.logOf(kk)).length;
+    const allKidsDone = isParent && doneKids === kids.length;
+    const dayName = (d) => x.wd[((d - x.weekStart) + 7) % 7];
+    const sumBase = days.length === 7 ? x.allDays : String(days) === '1,2,3,4,5' ? x.monFri : days.map(dayName).join(', ');
+    const sum = h.time ? H(F, null, sumBase, ' \u00B7 ', mock(h.time)) : sumBase;
+    const fireHeader = () => {
+      if (isParent && !logged && !allKidsDone) return this.setState({ logNow: false, confirmAnyway: id });
+      this.toggle(id);
     };
+    const ringNode = (isParent && !logged)
+      ? H(D.ProgressRing, { value: kids.length ? (doneKids / kids.length) * 100 : 0, size: 30, label: doneKids + ' / ' + kids.length })
+      : H(D.StatusRing, { status: status, size: 30, label: x.status[status] });
+    const out = [];
+    out.push(H('div', { key: 'head', style: { display: 'flex', alignItems: 'center', gap: 12 } },
+      H('button', { type: 'button', 'aria-label': x.emoWellLabel(name),
+        onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
+        style: { width: 76, height: 76, flex: '0 0 auto', borderRadius: 'var(--r-well)', background: 'var(--bg-well)',
+          border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: 34, color: 'var(--fg-3)' } },
+        emoji ? H('span', { 'aria-hidden': 'true' }, emoji) : H(D.Icon, { name: 'plus', size: 24 })),
+      s.editing
+        ? H('div', { style: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-end', gap: 8 } },
+            H('div', { style: { flex: 1, minWidth: 0 } },
+              H(D.Input, { defaultValue: name, 'aria-label': x.rename, autoFocus: true })),
+            H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ editing: false }) }, x.done))
+        : H(F, null,
+            H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
+              H('p', { style: { fontFamily: 'var(--font-display)', fontSize: s.width === 'wide' ? 28 : 22, fontWeight: 500,
+                letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, name),
+              H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+                fontVariantNumeric: 'tabular-nums' } }, sum)),
+            H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.rename,
+              onClick: () => this.setState({ editing: true }),
+              style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } },
+              H(D.Icon, { name: 'pencil', size: 20 })),
+            /* The header ring: HabitRow's pairing as a real button, its name the action and direction. */
+            H('button', { type: 'button', 'aria-label': logged ? x.ringUnlog(name) : x.ringLog(name), onClick: fireHeader,
+              style: { width: 44, height: 44, flex: '0 0 auto', display: 'grid', placeItems: 'center',
+                borderRadius: 'var(--r-pill)', background: 'var(--p-transparent)', border: 0, cursor: 'pointer' } },
+              H('span', { 'aria-hidden': 'true', style: { display: 'grid', placeItems: 'center' } }, ringNode)))));
+    if (h.tags) out.push(H('div', { key: 'tags', style: { display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 12 } },
+      h.tags[lang].map((tag, i) => H('span', { key: i, style: { height: 28, display: 'inline-flex', alignItems: 'center',
+        paddingInline: 10, borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', color: 'var(--fg-2)',
+        fontSize: 'var(--fs-xs)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } }, tag))));
+    if (h.desc) out.push(H('button', { key: 'desc', type: 'button', 'aria-label': x.dDescOpen, 'aria-expanded': s.dtDescOpen,
+      onClick: () => this.setState({ dtDescOpen: !s.dtDescOpen }),
+      style: { background: 'var(--p-transparent)', border: 0, padding: 0, marginTop: 12, cursor: 'pointer', textAlign: 'start',
+        fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5,
+        overflow: s.dtDescOpen ? 'visible' : 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: s.dtDescOpen ? 'normal' : 'nowrap', maxWidth: '100%' } }, h.desc[lang]));
+    const strip = stripFor(h.days || null, slipping, t.intl);
+    out.push(H('div', { key: 'strip', style: { display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 24 } },
+      H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.holding),
+      H(D.DayStrip, { scope: 'habit', days: strip.days, labels: strip.labels, words: x.stripWords,
+        size: s.width === 'wide' ? 16 : 8, label: x.holding }),
+      slipping ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)', textWrap: 'pretty' } },
+        x.slipLine[0], mock(x.slipLine[1]), x.slipLine[2], mock(x.slipLine[3]), x.slipLine[4], mock(x.slipLine[5]), x.slipLine[6]) : null));
+    const rest = [];
+    if (slipping && !s.reschedGone) {
+      rest.push(s.plan === 'Pro'
+        ? H(D.Proposed, { key: 'rs', scope: 'block', label: x.proposedBy },
+            H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 24, background: 'var(--bg-card)',
+              borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+              H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+                H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums' } }, mock(x.rsDate[0]), ' \u00B7 ', mock(x.rsDate[1])),
+                H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, x.rsFreq)),
+              H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } },
+                x.rsReason[0], mock(x.rsReason[1]), x.rsReason[2], mock(x.rsReason[3]), x.rsReason[4]),
+              H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.rsFine),
+              H('div', { style: { display: 'flex', gap: 8 } },
+                H(D.Button, { size: 'sm', variant: filled, onClick: () => this.setState({ reschedGone: true }) }, x.rsUse),
+                H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ reschedGone: true }) }, x.notNow))))
+        : H('div', { key: 'rs', style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 24,
+            background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+            H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
+                H(D.AstraGlyph, { size: 20 })),
+              H(D.Badge, null, 'Pro')),
+            H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree),
+            H('div', { style: { display: 'flex', gap: 8 } },
+              H(D.Button, { size: 'sm', variant: filled, onClick: this.goPro }, x.rsPro),
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ reschedGone: true }) }, x.notNow))));
+    }
+    const label = (txt) => H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, txt);
+    const items = h.chk && !s.cleared[id] && !s.disc ? this.itemsOf(id) : null;
+    if (items && items.length) {
+      const checked = this.checksOf(id);
+      const c = checked.filter(Boolean).length;
+      const setChecked = (arr, extra) => this.setState((p) => Object.assign(
+        { checks: Object.assign({}, p.checks, { [id]: arr }) }, extra || {}));
+      rest.push(H('div', { key: 'chk', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        label(x.fChecklist),
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+          H('div', { style: { flex: 1, minWidth: 0 } }, H(D.ProgressBar, { value: (c / items.length) * 100, label: x.fChecklist })),
+          H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+            fontVariantNumeric: 'tabular-nums' } }, mock(c), '/', mock(items.length)),
+          c > 0 ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dUncheck,
+            onClick: () => setChecked(items.map(() => false)),
+            style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'deselect', size: 20 })) : null,
+          H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dClear, onClick: () => this.setState({ clearAsk: true }),
+            style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'trash', size: 20 }))),
+        H('div', { style: { display: 'flex', flexDirection: 'column' } },
+          items.map((it, i) => H(D.CheckRow, { key: i, label: it, checked: !!checked[i],
+            onChange: (nx) => {
+              const arr = checked.slice(); arr[i] = nx;
+              setChecked(arr, (arr.every(Boolean) && !logged) ? { logNow: true } : null);
+            } }))),
+        (!h.flex && !h.oneTime) ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-3)',
+          textWrap: 'pretty' } }, x.checklistRule) : null));
+    }
+    if (!h.oneTime) {
+      if (s.mLoading) {
+        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
+          H(D.StatTile, { label: x.dStreak, state: 'loading' }),
+          H(D.StatTile, { label: x.dBest, state: 'loading' }),
+          H(D.StatTile, { label: x.holding, state: 'loading' })));
+      } else if (!h.stat) {
+        rest.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
+          color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
+      } else {
+        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
+          H(D.StatTile, { label: h.bad ? x.dFree : x.dStreak, value: mock(String(h.stat[0])) }),
+          H(D.StatTile, { label: x.dBest, value: mock(String(h.stat[1])) }),
+          H(D.StatTile, { label: x.holding, value: mock(h.stat[2]) })));
+      }
+    }
+    if (h.rem) {
+      const row = (time, word, k2) => H('div', { key: k2, style: { display: 'flex', alignItems: 'center', gap: 8, minHeight: 32 } },
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontVariantNumeric: 'tabular-nums' } }, mock(time)),
+        H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, word));
+      rest.push(H('div', { key: 'rem', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        label(x.factRemind),
+        h.rem.due ? row(h.rem.due, x.dRemDue, 'due') : null,
+        h.rem.fixed.map((r, i) => row(r[0], r[1] === 'same' ? x.dRemSame : x.dRemEve, i))));
+    }
+    if (h.end) {
+      rest.push(H('div', { key: 'end', style: { display: 'flex', alignItems: 'center', gap: 8 } },
+        H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, x.dEnd),
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontVariantNumeric: 'tabular-nums' } },
+          mock(new Date(h.end[0], h.end[1], h.end[2]).toLocaleDateString(t.intl, { day: 'numeric', month: 'short', year: 'numeric' })))));
+    }
+    if (h.goals && h.goals.length) {
+      rest.push(H('div', { key: 'goals', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        label(x.dGoals),
+        H('div', { style: { marginInline: -16 } },
+          h.goals.map((g, i) => H(D.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true, onClick: this.goGoal })))));
+    }
+    if (isParent) {
+      rest.push(H('div', { key: 'subs', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        label(x.breakdown),
+        H('div', { style: { background: 'var(--bg-card)', borderRadius: 'var(--r-card)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)', overflow: 'hidden' } },
+          kids.map((kk) => {
+            const kh = HB[kk];
+            const nm = kh[lang];
+            const kst = this.statusOf(kk);
+            const kEmoji = s.emo[kk] !== undefined ? s.emo[kk] : (kh.e || undefined);
+            return H(D.HabitRow, { key: kk, icon: kEmoji || undefined, title: nm, depth: 1,
+              status: kst, statusLabel: x.status[kst],
+              onLog: () => this.toggle(kk),
+              logLabel: kst === 'done' ? x.ringUnlog(nm) : x.ringLog(nm),
+              onClick: () => this.openSub(kk),
+              onMenu: (e) => { this._anchor = e.currentTarget; this.setState({ childMenu: kk }); },
+              menuLabel: x.moreOpts });
+          })),
+        H('div', { style: { marginInline: -16 } },
+          H(D.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
+            trailing: s.plan === 'Pro' ? undefined : H(D.Badge, null, 'Pro'),
+            onClick: () => { if (this.state.plan === 'Pro') window.location.href = encodeURI('Orbit Hoje.dc.html'); else this.goPro(); } }))));
+    }
+    rest.push(this.activityNode(t, id, h));
+    rest.push(H('button', { key: 'astra', type: 'button', onClick: this.goConv,
+      style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, paddingInline: 16,
+        marginInline: -16, background: 'var(--p-transparent)', border: 0, cursor: 'pointer',
+        fontFamily: 'var(--font-sans)', color: 'var(--fg-1)', textAlign: 'start' } },
+      H('span', { style: { width: 28, display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
+        H(D.AstraGlyph, { size: 20 })),
+      H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, x.askAstra),
+      H('span', { style: { color: 'var(--fg-4)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
+        H(D.Icon, { name: 'chevron-right', size: 24 }))));
+    rest.push(H('div', { key: 'cad', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      label(x.factCadence),
+      this.dayPills(days, x, (d) => this.setState((p) => {
+        const cur = p.days != null ? p.days : days;
+        return { days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b) };
+      }))));
+    rest.push(H('div', { key: 'disc', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      H(D.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
+        onClick: () => this.setState({ disc: !s.disc }) }),
+      s.disc ? this.discNode(t, id, h) : null));
+    rest.push(H('div', { key: 'start', style: { marginInline: -16 } },
+      H(D.DateRow, { label: x.startLabel, value: BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }), note: x.startWhy })));
+    rest.push(H('div', { key: 'del', style: { marginInline: -16 } },
+      H(D.ListRow, { icon: 'trash', title: x.del, danger: true, chevron: false,
+        onClick: () => this.setState({ confirm: true }) })));
+    return H(F, null, out, H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 24 } }, rest));
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['holding', 'slipping', 'sub habits', 'checklist', 'no data', 'metrics loading',
+        'delete', 'loading', 'error', 'at limit'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      noop: () => {},
+      showReport: this.props.showReport !== false,
+      navLabelWord: t.navLabel, paletteWord: t.palette, createLabel: t.create,
+    };
+    if (!D) return base;
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+    const id = this.subjId();
+    const kh = HB[id] || {};
+    const nm = kh[t.lang === 'en' ? 'en' : 'pt'] || '';
+    const kst = this.statusOf(id);
+    return Object.assign(base, {
+      body: this.body(t, filled),
+      headerNode: H(D.NavHeader, { title: t.kicker, backLabel: t.back, onBack: this.popSub }),
+      navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
+      account: t.account,
+      composer: H(D.Composer, {
+        state: st === 'at limit' ? 'atLimit' : 'resting',
+        chips: (st === 'loading' || st === 'error') ? [] : t.chips,
+        limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
+        words: t.composerWords,
+        onChipPress: this.goConv, onOpen: this.goConv,
+      }),
+      sheet: s.emoOpen ? this.emojiSheet(t)
+        : s.tplOpen ? this.tplNode(t)
+        : s.goalOpen ? this.goalSheet(t)
+        : s.childMenu ? (() => {
+            const kk = s.childMenu;
+            const ch = HB[kk] || {};
+            const cn = ch[t.lang === 'en' ? 'en' : 'pt'] || '';
+            const on = this.logOf(kk);
+            return this.menuShell(cn, [
+              { id: 'log', label: on ? t.unlogOne : t.log, icon: on ? 'rotate-2' : 'check' },
+              { id: 'open', label: t.openOne, icon: 'list-details' },
+              { id: 'del', label: t.del, icon: 'trash', destructive: true },
+            ], (idm) => {
+              if (idm === 'log') this.toggle(kk);
+              else if (idm === 'open') this.openSub(kk);
+              else if (idm === 'del') this.setState({ confirm: true });
+            }, () => this.setState({ childMenu: null }), this._anchor);
+          })()
+        : s.clearAsk ? H(D.Sheet, { open: true, title: t.dClearTitle, onClose: () => this.setState({ clearAsk: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ clearAsk: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: 'destructive', onClick: () => this.setState((p) => ({
+                clearAsk: false, cleared: Object.assign({}, p.cleared, { [id]: true }) })) }, t.dClearGo)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.dClearBody))
+        : s.logNow ? H(D.Sheet, { open: true, title: nm, onClose: () => this.setState({ logNow: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ logNow: false }) }, t.notNow),
+              H(D.Button, { size: 'sm', variant: filled, onClick: () => { this.setState({ logNow: false }); this.toggle(id); } }, t.log)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.dLogNowBody))
+        : s.confirmAnyway ? (() => {
+            const body = t.lang === 'en'
+              ? 'Some sub habits are not done yet. Log ' + nm + ' anyway?'
+              : 'Alguns sub-hábitos ainda não foram feitos. Registrar ' + nm + ' mesmo assim?';
+            return H(D.Sheet, { open: true, title: nm, onClose: () => this.setState({ confirmAnyway: null }),
+              actions: H(F, null,
+                H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ confirmAnyway: null }) }, t.cancel),
+                H(D.Button, { size: 'sm', variant: filled, onClick: () => { this.setState({ confirmAnyway: null }); this.toggle(id); } }, t.log)) },
+              H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, body));
+          })()
+        : s.confirm ? H(D.Sheet, { open: true, title: t.delTitle, onClose: () => this.setState({ confirm: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ confirm: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: 'destructive', onClick: () => this.setState({ confirm: false }) }, t.delConfirm)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.delBody))
+        : null,
+    });
   }
 }
 </script>

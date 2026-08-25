@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Sobreposições" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ notice }}" composer="{{ composer }}" sheets="{{ overlay }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px">
+          <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.meta }}" trailing="{{ r.trailing }}" menu-label="{{ menuLabel }}" on-click="{{ noop }}" on-menu="{{ r.onMenu }}" hint-size="100%,68px"></x-import>
+              </div>
+            </sc-for>
+          </div>
+          <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty;padding-top:8px">{{ hostNote }}</p>
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+            <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+                <div data-anchor="{{ r.anchorId }}" style="position:relative;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.meta }}" trailing="{{ r.trailing }}" menu-label="{{ menuLabel }}" on-click="{{ noop }}" on-menu="{{ r.onMenu }}" hint-size="100%,68px"></x-import>
+                </div>
+              </sc-for>
+            </div>
+            <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty;padding-top:8px">{{ hostNote }}</p>
+          </div>
+        </x-import>
+        {{ wideOverlay }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The overlay primitives in a real list rather than as specimens: the sheet at short and long content, the overflow menu in both of its presentations, and the confirmation that appears only for something irreversible. Every overlay here is opened from a row, because that is the only way to see whether it opens where it should.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>menu, menu not overdue, sheet short, sheet long, confirm irreversible, reversible acted. A plan axis sits beside the state, free or Pro, defaulting to free, because the menu carries one real gate. Switch the width control on the menu state to see its two presentations, and switch between the two menu states to see the reschedule item appear and leave.</p>
+      <p><span style="color:var(--fg-3)">menu&nbsp;&nbsp;</span>one component, two presentations, chosen by width rather than by caller: a bottom sheet at 412, where a popover would sit under a thumb, and a popover anchored to the row at the wide width, where a sheet would move the whole screen for one small choice. The items are Hoje’s, item for item, because two documents drawing one surface draw the same surface and Hoje traced the list against both platforms: add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, and delete last, destructive, behind the separator. Log and view details are absent by design: the ring already logs and the row body already opens the detail, so an item for either is a second control for something the row already does. Reschedule appears ONLY on the overdue row, because onReschedule passes only when habit.isOverdue (habit-list.tsx:906), which is why the fixture carries one overdue walk and why the menu on Leitura is one item shorter; open sub habits shows only where sub habits exist, and opens the drill, never the expand. Select stays, and stays hidden while selection is already on (this host never enters selection, so it shows); it is called out here so a third document cannot lose it by copying a seven item fixture. Dismissing changes nothing: the scrim, the catcher and Escape all leave the row exactly as it was.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the item carries the Pro badge through Menu’s own badge slot and ROUTES to Orbit Pro, on Pro it opens creation, drawn here as the item without the badge. The badge contract is the point: a badged item stays a real button, fires onSelect, and ignores disabled while the badge is present, so the gate can never be drawn as a dead control. This is the document’s one gate, and the only reason it carries the plan axis.</p>
+      <p><span style="color:var(--fg-3)">first line&nbsp;&nbsp;</span>a live defect, drawn as fixed. An overlay used to open with its body already scrolled, so its own first line was above the fold and a person met the middle of a sentence. The sheet now opens with its scroller at the top every time it opens, and the title is outside the scroller, so the first line is structurally reachable rather than reachable by luck. The long content state is the one that proves it: it opens at the top with 14 items below.</p>
+      <p><span style="color:var(--fg-3)">one scroller&nbsp;&nbsp;</span>the second live defect, drawn as fixed. A caller used to nest its own scroll container inside the sheet's, which produced two scrollbars, a trapped inner region and a body that could not be reached at all on a short screen. The sheet owns the only scroller: content passed to it lays out and grows, and nothing inside it declares its own overflow. The long state's 14 rows are a plain column for exactly that reason.</p>
+      <p><span style="color:var(--fg-3)">confirmation&nbsp;&nbsp;</span>only for something irreversible, and the test is reversibility rather than importance. Skipping a habit advances the schedule and can be skipped back, so it acts immediately and the row simply changes. Deleting takes the subtree with it and cannot be undone from any screen, so it asks once and names what goes. A confirmation on a reversible action teaches people to dismiss confirmations, which is what makes the irreversible one dangerous.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>at most one filled action per overlay, and the confirmation's is destructive rather than accent, so the accent never lands on a deletion. The menu carries none: every item is an equal choice, and marking one would be a guess.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. The sheet keeps 24 of padding and 28 of top radius, the popover 20, and every row keeps the 44 touch minimum.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>status-bad carries the delete label and the destructive button, each paired with position and a word. The scrim is the token value, unchanged.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the habit times, the item count inside the long sheet and the overdue word’s time carry data-mock. The overdue row also states atrasado in words in its meta strip, because colour on the ring alone is not a carrier.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every overlay opens showing its own first line. 2 no overlay contains a second scroll container. 3 a reversible action never asks.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried Menu’s badge, CanvasControls’ plans axis and Toast’s discriminated kind, so nothing was re-synced. The Toast call here was checked against Toast.d.ts and was already the contract’s shape for a reversible skip with a way back: kind neutral by default, one message, the undo as actionLabel and onAction, dismissed by this document’s own state change and never a timer; nothing was stale in it, unlike the Composer call sites an earlier pass found. 1 Menu owns both presentations, so nothing is composed for it here, which is the point of this document. 2 closed: Sheet’s open accepts only the literal true, so a kept and toggled instance does not type check, and every sheet here is mounted on open and unmounted on close, which keeps the first line and one scroller proofs honest. 3 there is no popover positioner in the system beyond Menu’s own, so an anchored overlay that is not a menu would have to compose one.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a long sheet should show a shadow or a hairline at its scroll edge, which no token currently covers. Whether the popover should flip above the row near the bottom of the viewport, which Menu decides internally and this document does not exercise.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    account: 'Marina', create: 'Criar hábito', menu: 'Mais opções',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    hostTitle: 'Hoje',
+    rows: [
+      { e: '\uD83D\uDCA7', name: 'Água da manhã', time: '08:00', done: true },
+      /* The overdue row: reschedule appears only here (habit-list.tsx:906). */
+      { e: '\uD83D\uDEB6', name: 'Caminhada', time: '18:00', done: false, overdue: true },
+      { e: null, name: 'Alongamento', time: '21:00', done: false },
+      { e: '\uD83D\uDCD6', name: 'Leitura da noite', time: '22:00', done: false, kids: true },
+    ],
+    statusDone: 'feito', statusEmpty: 'pendente',
+    hostNote: 'Cada sobreposição abre a partir de uma linha, porque é a única forma de ver se ela abre onde deveria.',
+    items: { sub: 'Adicionar sub-hábito', move: 'Mover para outro hábito', skip: 'Pular',
+      resched: 'Reagendar', edit: 'Editar', dup: 'Duplicar', select: 'Selecionar',
+      drill: 'Abrir os sub-hábitos', del: 'Apagar' },
+    overdueWord: 'atrasado',
+    shortTitle: 'Pular hoje',
+    shortBody: 'Pular avança o hábito para o próximo dia programado. Ele sai da lista de hoje e nada é registrado.',
+    shortAction: 'Pular',
+    longTitle: 'Escolher o horário',
+    longCount: (n) => [n, ' horários'],
+    longNote: 'A folha é o único elemento que rola. Nada dentro dela declara o seu próprio rolamento.',
+    delTitle: 'Apagar este hábito?',
+    delBody: 'O hábito e os 2 itens dentro dele saem da sua lista. Não há como restaurar por aqui.',
+    cancel: 'Cancelar', del: 'Apagar',
+    skipped: 'A caminhada foi pulada e saiu do dia. Pular de volta desfaz.',
+    undo: 'Desfazer',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Pular a caminhada', 'Mudar o horário', 'Ver a semana'],
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
+    account: 'Marina', create: 'Create habit', menu: 'More options',
+    navLabel: 'Main navigation', palette: 'Search',
+    hostTitle: 'Today',
+    rows: [
+      { e: '\uD83D\uDCA7', name: 'Morning water', time: '08:00', done: true },
+      { e: '\uD83D\uDEB6', name: 'Walk', time: '18:00', done: false, overdue: true },
+      { e: null, name: 'Stretching', time: '21:00', done: false },
+      { e: '\uD83D\uDCD6', name: 'Evening reading', time: '22:00', done: false, kids: true },
+    ],
+    statusDone: 'done', statusEmpty: 'pending',
+    hostNote: 'Every overlay opens from a row, because that is the only way to see whether it opens where it should.',
+    items: { sub: 'Add sub habit', move: 'Move under another habit', skip: 'Skip',
+      resched: 'Reschedule', edit: 'Edit', dup: 'Duplicate', select: 'Select',
+      drill: 'Open the sub habits', del: 'Delete' },
+    overdueWord: 'overdue',
+    shortTitle: 'Skip today',
+    shortBody: 'Skipping advances the habit to its next scheduled day. It leaves today and nothing is logged.',
+    shortAction: 'Skip',
+    longTitle: 'Choose the time',
+    longCount: (n) => [n, ' times'],
+    longNote: 'The sheet is the only thing that scrolls. Nothing inside it declares its own scrolling.',
+    delTitle: 'Delete this habit?',
+    delBody: 'The habit and the 2 items inside it leave your list. There is no way to restore this here.',
+    cancel: 'Cancel', del: 'Delete',
+    skipped: 'The walk was skipped and left the day. Skipping back undoes it.',
+    undo: 'Undo',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['Skip the walk', 'Change the time', 'See the week'],
+  },
+};
+
+const TIMES = ['06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '12:00',
+  '18:00', '18:30', '19:00', '20:00', '21:00', '22:00'];
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'menu', loc: 'pt-BR', plan: 'free',
+    open: 'menu', row: 1, gone: [], toast: false };
+
+  componentDidMount() {
+    this._esc = (e) => { if (e.key === 'Escape' && this.state.open) this.setState({ open: null }); };
+    document.addEventListener('keydown', this._esc);
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); document.removeEventListener('keydown', this._esc); }
+
+  /* Menu positions its anchored presentation against a ref, and hides itself until it has one, so the
+     row element is resolved after mount and handed over as a fresh ref to rerun its measurement. */
+  componentDidUpdate() { this.syncAnchor(); }
+  syncAnchor() {
+    if (!this._anchors || this.state.width !== 'wide' || this.state.open !== 'menu') return;
+    const el = document.querySelector('[data-anchor="ov-' + this.state.row + '"]');
+    const cur = this._anchors[this.state.row];
+    if (el && (!cur || cur.current !== el)) {
+      this._anchors[this.state.row] = { current: el };
+      this.forceUpdate();
+    }
+  }
+
+  onCC = (next) => {
+    const map = { menu: 'menu', 'menu not overdue': 'menu', 'sheet short': 'short', 'sheet long': 'long',
+      'confirm irreversible': 'confirm', 'reversible acted': null };
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+      plan: next.plan || 'free',
+      open: map[next.state], row: next.state === 'menu not overdue' ? 3 : 1,
+      gone: next.state === 'reversible acted' ? [1] : [],
+      toast: next.state === 'reversible acted' });
+  };
+
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+
+  close = () => this.setState({ open: null });
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['menu', 'menu not overdue', 'sheet short', 'sheet long', 'confirm irreversible', 'reversible acted'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      noop: () => {},
+      showReport: this.props.showReport !== false,
+      hostTitle: t.hostTitle, hostNote: t.hostNote, menuLabel: t.menu,
+      account: t.account, createLabel: t.create, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+    const name = t.rows[s.row] ? t.rows[s.row].name : '';
+
+    /* The overflow menu, through the component's own props: one item list, two presentations, and the
+       anchored one positions itself against the row it belongs to. */
+    if (!this._anchors) { this._anchors = t.rows.map(() => React.createRef()); setTimeout(() => this.syncAnchor(), 0); }
+    /* Hoje's menu, item for item, because two documents drawing one surface draw the same surface:
+       add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, delete
+       last behind the separator. Log and view details are absent by design: the ring already logs and
+       the row body already opens the detail. Reschedule appears ONLY on the overdue row, because
+       onReschedule passes only when habit.isOverdue (habit-list.tsx:906). Add a sub habit follows the
+       plan (startAddSubHabit, habit-list.tsx:702): the badge marks a ROUTE, never a dead control. */
+    const menuRow = t.rows[s.row] || {};
+    const menuItems = [
+      { id: 'sub', icon: 'subtask', label: t.items.sub,
+        badge: s.plan === 'Pro' ? undefined : 'Pro' },
+      { id: 'move', icon: 'arrows-move', label: t.items.move },
+      { id: 'skip', icon: 'player-skip-forward', label: t.items.skip },
+    ].concat(menuRow.overdue ? [{ id: 'resched', icon: 'calendar-time', label: t.items.resched }] : [])
+    .concat([
+      { id: 'edit', icon: 'pencil', label: t.items.edit },
+      { id: 'dup', icon: 'copy', label: t.items.dup },
+      /* Hidden while selection is already on; this host never enters selection, so it shows. */
+      { id: 'select', icon: 'checkbox', label: t.items.select },
+    ]).concat(menuRow.kids ? [{ id: 'drill', icon: 'list-tree', label: t.items.drill }] : [])
+    .concat([{ id: 'del', icon: 'trash', label: t.items.del, destructive: true }]);
+    /* Menu calls onSelect then onClose, so onClose only closes a menu that is still open. */
+    const menuNode = H(D.Menu, { open: true, title: name, items: menuItems,
+      presentation: s.width === 'wide' ? 'anchored' : 'sheet',
+      anchorRef: this._anchors[s.row],
+      onSelect: (id) => {
+        if (id === 'skip') this.setState({ open: 'short' });
+        else if (id === 'del') this.setState({ open: 'confirm' });
+        else if (id === 'sub' && s.plan !== 'Pro') this.goPro();
+      },
+      onClose: () => this.setState((p) => (p.open === 'menu' ? { open: null } : {})) });
+
+    /* Short content: the sheet does not scroll, and the actions never scroll with the body. */
+    const shortNode = H(D.Sheet, { open: true, title: t.shortTitle, onClose: this.close,
+      actions: H(F, null,
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: this.close }, t.cancel),
+        H(D.Button, { size: 'sm', variant: filled,
+          onClick: () => this.setState({ open: null, gone: [1], toast: true }) }, t.shortAction)) },
+      H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.shortBody));
+
+    /* Long content: one scroller, owned by the sheet, opening at its own first line. */
+    const longNode = H(D.Sheet, { open: true, title: t.longTitle, onClose: this.close,
+      actions: H(D.Button, { size: 'sm', variant: 'ghost', onClick: this.close }, t.cancel) },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-4)',
+          paddingBottom: 4 } }, t.longCount(mock(String(TIMES.length)))),
+        TIMES.map((time) => H(D.RadioRow, { key: time, label: time,
+          selected: time === '18:00', onSelect: this.close })),
+        H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-3)',
+          paddingTop: 8, textWrap: 'pretty' } }, t.longNote)));
+
+    const confirmNode = H(D.Sheet, { open: true, title: t.delTitle, onClose: this.close,
+      actions: H(F, null,
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: this.close }, t.cancel),
+        H(D.Button, { size: 'sm', variant: 'destructive',
+          onClick: () => this.setState({ open: null, gone: [1] }) }, t.del)) },
+      H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.delBody));
+
+    const node = s.open === 'menu' ? menuNode
+      : s.open === 'short' ? shortNode
+      : s.open === 'long' ? longNode
+      : s.open === 'confirm' ? confirmNode : null;
+
+    const anchored = (s.open === 'menu' && s.width === 'wide') ? menuNode : null;
+
+    return Object.assign(base, {
+      rows: t.rows.map((r, i) => ({
+        icon: r.e || undefined,
+        title: r.name,
+        /* Overdue states itself in words in the meta strip, never colour alone. */
+        meta: r.overdue
+          ? H(F, null, mock(r.time), ' \u00B7 ', H('span', { style: { color: 'var(--status-overdue)' } }, t.overdueWord))
+          : mock(r.time),
+        trailing: H(D.StatusRing, { status: r.overdue ? 'overdue' : r.done ? 'done' : 'empty', size: 30,
+          label: r.overdue ? t.overdueWord : r.done ? t.statusDone : t.statusEmpty }),
+        onMenu: () => this.setState({ open: 'menu', row: i }),
+        menuHere: s.open === 'menu' && s.row === i && s.width === 'wide',
+        anchor: this._anchors[i], anchorId: 'ov-' + i,
+      })).filter((r, i) => s.gone.indexOf(i) < 0),
+      /* The anchored menu renders at the shell level, not inside the row: Menu measures the space it
+         has against its offset parent, and a row is 78 tall, so a row-level parent would flip it. */
+      overlay: (s.width === '412') ? node : null,
+      wideOverlay: (s.width === 'wide' && s.open) ? node : null,
+
+      /* A reversible action acts at once and reports itself in the notice slot; it never asks first. */
+      notice: s.toast ? H(D.Toast, { message: t.skipped, actionLabel: t.undo,
+        onAction: () => this.setState({ gone: [], toast: false }) }) : null,
+      composer: H(D.Composer, { state: 'resting', chips: t.chips, words: t.composerWords,
+        onOpen: () => {}, onChipPress: () => {} }),
+
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'hoje', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>
