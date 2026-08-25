@@ -33,7 +33,11 @@ const assertNotStale = (configPath, baseBranch, workingText) => {
   const tracked = relative(repoRoot, configPath).replaceAll("\\", "/")
   const ref = `origin/${baseBranch}`
   const shown = runGit(repoRoot, ["show", `${ref}:${tracked}`])
-  if (!shown.ok || shown.stdout === workingText.trim()) return
+  // Compare content, not line endings. `git show` always emits LF while a Windows working copy
+  // checks out CRLF, so a byte comparison called every redesign-branch checkout stale and blocked
+  // the tool harness on a difference that does not exist.
+  const normalize = (text) => text.split("\r\n").join("\n").trim()
+  if (!shown.ok || normalize(shown.stdout) === normalize(workingText)) return
   if (runGit(repoRoot, ["merge-base", "--is-ancestor", ref, "HEAD"]).ok) return
   throw new Error(
     `${tracked} disagrees with ${ref} and this checkout does not contain ${ref}, so the working copy ` +

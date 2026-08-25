@@ -53,14 +53,58 @@ but the package with that name requires a `GEMINI_API_KEY` and is not free. The 
 skill is `rknall/claude-skills@svg-logo-designer`. Neither was used in the end, because a diffusion
 model cannot hold exact geometry and Recraft's native vector model can.
 
+## The variants, built by `#365`
+
+| file | what it is |
+|---|---|
+| `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
+| `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
+| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221) |
+
+**There is no 24 grid variant, and there will not be one.** `#365` originally ordered one and this
+list originally promised one. `DESIGN.md:267` overrules both: "Asset sizes are enumerated: 16, 48,
+128, 512. The mark is neither type nor an icon, so it answers to neither the type scale nor the 24
+icon grid." A mark sized to the Tabler grid is a mark being treated as an icon, which is the thing
+that sentence exists to stop. Detail on `#365`.
+
+**Pick by size, not by taste.** Below roughly 20px use the 16 pair; above that use the 1024
+originals. The redraw is a simplification, so blowing a 16 up to 128 shows geometry that was chosen
+to survive at 16 and nothing else.
+
+**The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
+fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
+violation, not a variation. The moon's fill falls back to `currentColor`, so a viewer or an upload
+preview that defines no `--primary` still renders the whole mark rather than dropping the moon.
+
+**The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
+art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
+height and the word swamps the mark. Sized on the ink it stands 15.04px and the pair reads as one
+lockup.
+
+**The lockup's 12 separates ink from ink**, not bounding boxes. The wordmark's `O` carries a left
+side bearing, so placing the text origin 12 from the mark would have left a 13.15 visual gap.
+
+**The lockup's viewBox IS its ink**, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221), with no baked margin. Clear space is the
+consumer's to add. A logo file that carries its own padding cannot be aligned to anything.
+
+Both numbers are solved from the curve extrema, not measured off a render. A pixel measurement
+rounds to the render grid: the first attempt cropped at 24.300 while the `O`'s overshoot reaches
+24.292, and clipped 0.008 of it at every scale.
+
+**`tools/check-lockup-crop.mjs` holds this.** It parses the committed file, re-solves the bounds and
+fails if any edge is off by more than 1e-6. It runs in `guards.yml` and on pre-commit. The gate reads
+the shipped bytes on purpose: a generator that asserted its own pre-rounded floats passed while the
+file it wrote still clipped by 2.5e-4. Regenerating the lockup means running that check, not eyeing a
+render, because a raster shows ink on an edge whether the geometry touches it or runs past it.
+
+**The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
+carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
+asset, not a CSS override.
+
 ## Still to build
 
 These are not done and nothing here should be treated as a complete asset set:
 
-- the 24 grid viewBox variant, for the icon scale
-- the accent treatment, the mark carrying `--primary` on the moon only
-- the native 16px redraw, since a stroke scaled down from 1024 renders soft
-- the horizontal lockup, 28px mark, 12px gap, 22px wordmark in Space Grotesk 600 at `-0.02em`
 - the platform icon at 512 on the `#09090B` canvas
 - the PNG set at 16, 48, 128 and 512
 
