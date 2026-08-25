@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -30,9 +30,18 @@ import { subscribeDroppedMutations, getMutationScope } from '@/lib/offline-mutat
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslation } from 'react-i18next'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
-import './i18n'
+import { useGlobalSearchParams } from 'expo-router'
+import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated'
+import {
+  captureBuildEnabled,
+  resolveCapturePreferences,
+  type CapturePreferences,
+} from './capture-mode'
+import { pinCaptureAnimationDurations } from './capture-animation-pin'
+import { i18n } from './i18n'
 
 void SplashScreen.preventAutoHideAsync()
+if (captureBuildEnabled) pinCaptureAnimationDurations()
 
 function syncWidgetDataSafely() {
   void syncWidgetData().catch(() => {})
@@ -90,7 +99,13 @@ function OfflineManager() {
   return null
 }
 
-function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
+function AuthInitializer({
+  capturePreferences,
+  children,
+}: Readonly<{
+  capturePreferences: CapturePreferences | null
+  children: ReactNode
+}>) {
   const initialize = useAuthStore((s) => s.initialize)
   const [ready, setReady] = useState(false)
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
@@ -118,6 +133,10 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         isAuthenticated = useAuthStore.getState().isAuthenticated
       } catch {}
 
+      if (capturePreferences) {
+        await i18n.changeLanguage(capturePreferences.locale)
+      }
+
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
         syncWidgetDataSafely()
@@ -129,7 +148,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
       setReady(true)
     }
     void boot()
-  }, [initialize])
+  }, [capturePreferences, initialize])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
@@ -162,7 +181,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   return (
-    <ThemeProvider>
+    <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
       <View style={{ flex: 1 }}>
         <OfflineManager />
         {children}
@@ -172,9 +191,25 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 export function Providers({ children }: Readonly<ProvidersProps>) {
+  const parameters = useGlobalSearchParams<{
+    captureLocale?: string | string[]
+    captureTheme?: string | string[]
+  }>()
+  const captureLocale = parameters.captureLocale
+  const captureTheme = parameters.captureTheme
+  const capturePreferences = useMemo(
+    () => resolveCapturePreferences(captureBuildEnabled, { captureLocale, captureTheme }),
+    [captureLocale, captureTheme],
+  )
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthInitializer>{children}</AuthInitializer>
+      <ReducedMotionConfig
+        mode={captureBuildEnabled ? ReduceMotion.Always : ReduceMotion.System}
+      />
+      <AuthInitializer capturePreferences={capturePreferences}>
+        {children}
+      </AuthInitializer>
     </QueryClientProvider>
   )
 }

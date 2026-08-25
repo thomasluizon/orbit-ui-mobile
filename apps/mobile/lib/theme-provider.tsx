@@ -79,7 +79,13 @@ function persistThemePreference(theme: ThemeMode): Promise<unknown> {
   })
 }
 
-export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
+export function ThemeProvider({
+  captureTheme,
+  children,
+}: Readonly<{
+  captureTheme: ThemeMode | null
+  children: ReactNode
+}>) {
   const systemScheme = useSystemColorScheme()
   const { profile, patchProfile } = useProfile()
   const draftColorScheme = useOnboardingDraftStore((s) => s.colorScheme)
@@ -87,12 +93,10 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     () => resolveActiveScheme(profile, draftColorScheme) ?? resolveAccessibleColorScheme(null, true),
   )
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
-    systemScheme === 'light' ? 'light' : 'dark',
+    captureTheme ?? (systemScheme === 'light' ? 'light' : 'dark'),
   )
   const [transitionSnapshot, setTransitionSnapshot] = useState<TransitionSnapshot | null>(null)
-  // useMemo (not useRef) for the Animated.Value so we don't read .current during
-  // render — React 19's react-hooks/refs forbids that. The instance is created
-  // once on mount and is referentially stable for the lifetime of the provider.
+  /** React 19 forbids reading a ref during render, so this stable value is memoized. */
   const transitionOpacity = useMemo(() => new Animated.Value(0), [])
   const transitionFrameRef = useRef<number | null>(null)
   const hasMountedRef = useRef(false)
@@ -155,7 +159,10 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
 
     const previous = previousThemeRef.current
-    if (previous.scheme !== currentScheme || previous.theme !== currentTheme) {
+    if (
+      captureTheme === null &&
+      (previous.scheme !== currentScheme || previous.theme !== currentTheme)
+    ) {
       const previousTokens = createTokensV2(previous.scheme, previous.theme)
       runThemeTransition({
         background: previousTokens.bg,
@@ -163,11 +170,9 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       })
       previousThemeRef.current = { scheme: currentScheme, theme: currentTheme }
     }
-  }, [currentScheme, currentTheme, runThemeTransition])
+  }, [captureTheme, currentScheme, currentTheme, runThemeTransition])
 
-  // Sync local state from profile via the "Adjusting state when a prop changes"
-  // pattern (compare prev-snapshot during render, setState only on transitions).
-  // React 19 forbids setState in effects when the cause is a prop change.
+  /** React 19 requires prop-driven state transitions to be adjusted during render. */
   const targetScheme = resolveActiveScheme(profile, draftColorScheme)
   const [previousTargetScheme, setPreviousTargetScheme] = useState<ColorScheme | null>(targetScheme)
   if (targetScheme !== null && targetScheme !== previousTargetScheme) {
@@ -175,10 +180,11 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     setCurrentScheme(targetScheme)
   }
 
-  const targetTheme =
+  const targetTheme = captureTheme ?? (
     profile?.themePreference === 'dark' || profile?.themePreference === 'light'
       ? profile.themePreference
       : null
+  )
   const [previousTargetTheme, setPreviousTargetTheme] = useState<ThemeMode | null>(targetTheme)
   if (targetTheme !== null && targetTheme !== previousTargetTheme) {
     setPreviousTargetTheme(targetTheme)
@@ -189,15 +195,13 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const hasSeededThemeRef = useRef(false)
 
   useEffect(() => {
-    if (!profile) return
+    if (!profile || captureTheme !== null) return
 
     if (profile.colorScheme == null && !hasSeededSchemeRef.current) {
       hasSeededSchemeRef.current = true
       const defaultScheme: ColorScheme = 'purple'
       patchProfile({ colorScheme: defaultScheme })
-      persistColorScheme(defaultScheme).catch(() => {
-        // Best-effort fire-and-forget
-      })
+      persistColorScheme(defaultScheme).catch(() => {})
     }
 
     if (profile.themePreference == null && !hasSeededThemeRef.current) {
@@ -206,11 +210,9 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       const detected: ThemeMode = detectedSystem === 'light' ? 'light' : 'dark'
       void Promise.resolve().then(() => setCurrentTheme(detected))
       patchProfile({ themePreference: detected })
-      persistThemePreference(detected).catch(() => {
-        // Best-effort fire-and-forget
-      })
+      persistThemePreference(detected).catch(() => {})
     }
-  }, [profile, patchProfile])
+  }, [captureTheme, profile, patchProfile])
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     const prev = currentScheme

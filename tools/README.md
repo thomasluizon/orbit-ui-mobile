@@ -65,8 +65,24 @@ These back required CI checks. They fail a merge.
 | `surface-manifest.mjs` | Derives the visual-surface inventory into `.claude/manifests/surfaces.json`, one cell per surface x theme x locale. Emits no status field on purpose. | `npm run surfaces:manifest` |
 | `redesign-coverage.mjs` | Validates the committed one-to-one mapping from every manifest surface to its redesign group or written exclusion, then prints the exact R-group lists cited by the redesign tickets. | `node tools/redesign-coverage.mjs` (`--json`) |
 | `capture-surfaces.mjs` | Playwright capture of one screenshot per manifest cell into `.artifacts/surfaces/`, against a running local stack. Reports every surface it cannot reach rather than skipping it. The D7 evidence mechanism. | `ORBIT_AUTH_TOKEN=... npm run surfaces:capture` |
+| `capture-surfaces-mobile.mjs` | Maestro capture of an exact named subset of Android manifest cells into one screenshots directory. Each deep link carries the theme and locale, each flow waits for animation completion and asserts the route probe, and every unsupported or unreachable cell is written to `report.json`. The `adb` driver keeps a framework-free `am start` plus `exec-out screencap` fallback. | `npm run surfaces:capture:mobile -- --surface m-route-login` (`--driver adb` for fallback) |
 | `orca-web-port.mjs` | Assigns a deterministic web port in the 3100-4099 window per Orca worktree and records it in the ignored `.orca/web-port`. Root stays on 3000; the database and API stay shared on 5432 and 5000. | `node tools/orca-web-port.mjs` (`--setup`) |
 | `android-emulator.mjs` | Brings the Orbit Android emulator to a ready state. Creates `Orbit_Pixel_9_API_35` when absent, using only hardware values measured to boot. Every serial is resolved to its own AVD before it counts as ready, so an unrelated emulator is never reported or installed to, and a serial it cannot identify is never used. A running AVD is reused only while it still resolves `--verify-host`; otherwise it is restarted with `--dns`, because an emulator someone else started inherits the host resolver that failed to resolve `api.useorbit.org`. Readiness comes from `sys.boot_completed`, never from the launch succeeding. | `node tools/android-emulator.mjs` (`--status`, `--avd`, `--dns`, `--verify-host`, `--timeout`, `--json`) |
+
+### Mobile surface capture
+
+The Android capture build is independent of the development server. From PowerShell, build and install it on an already-running emulator, then name the exact manifest surfaces to capture:
+
+```powershell
+$env:EXPO_PUBLIC_CAPTURE_MODE='true'
+npm run android:apk:emulator -w @orbit/mobile
+adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+npm run surfaces:capture:mobile -- --surface m-route-login --surface m-route-privacy
+```
+
+Maestro 2.8.0 is the default driver. On Windows the tool checks `MAESTRO_BIN`, then the standard `%USERPROFILE%\.maestro\bin` installation, then `PATH`. The checked-in flow opens the route with capture-only theme and locale query parameters, waits for motion to finish, asserts the route probe, and writes its screenshot into a new run directory.
+
+Use `--driver adb` when Maestro is unavailable. That fallback opens the same deep link with `am start`, waits a fixed interval, and writes `exec-out screencap` bytes. It cannot assert the route probe, so it is useful for framework-independent diagnosis rather than route evidence. Every run writes `report.json`; unsupported stateful cells, blocks, overlays, widgets, dynamic routes, and failed route assertions are explicit unreachable entries and cause exit code 3.
 
 ## Harness self-test
 
