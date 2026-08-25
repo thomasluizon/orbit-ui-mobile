@@ -10,8 +10,10 @@
 the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
 carries nothing, and the eleven in `superseded/` still carry nothing.
 
-**When this canvas and any prose disagree, the canvas wins.** That includes `DESIGN.md`, a ticket
-body, and this file. `DESIGN.md` remains the written spec and the place mechanical rules are
+**Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
+drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export
+never authorises a banned value. **Below those two the drawing wins**, over `DESIGN.md` prose, a
+ticket body, and this file. `DESIGN.md` remains the written spec and the place mechanical rules are
 enforced, but a drawing here outranks a sentence there (D42).
 
 Each `.dc.html` is **one screen as one interactive document**, not a picture of a screen. It carries
@@ -44,18 +46,18 @@ build.
 
 ## `_ds/`, the design system
 
-`_ds/tokens/` holds the **166 authoritative token values**. A number typed into a component that
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **166 authoritative token values**. A number typed into a component that
 disagrees with a token here is wrong, whatever any document says.
 
 | file | what it fixes |
 |---|---|
-| `tokens/colors.css` | the surface ladder, the foreground ramp, the one accent and the status set |
-| `tokens/spacing.css` | exactly ten values: 0 4 8 12 16 24 32 48 64 96. **20, 28, 40 and 56 must not appear** |
-| `tokens/shape.css` | the radius scale, the shadows and the motion durations. Radius 999 means interactive |
-| `tokens/typography.css` | three families and a closed size set: 12 14 16 17 20 22 28 34 44 60 |
-| `tokens/fonts.css`, `tokens/base.css` | the font faces and the reset |
-| `styles.css` | the shared component styles |
-| `_ds_manifest.json` | the inventory: 41 components with their source paths, and 36 guideline cards with their specs |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css` | the surface ladder, the foreground ramp, the one accent and the status set |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css` | exactly ten values: 0 4 8 12 16 24 32 48 64 96. **20, 28, 40 and 56 must not appear** |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css` | the radius scale, the shadows and the motion durations. Radius 999 means interactive |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css` | three families and a closed size set: 12 14 16 17 20 22 28 34 44 60 |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css`, `.../tokens/base.css` | the font faces and the reset |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css` | the shared component styles |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_manifest.json` | the inventory: 41 components with their source paths, and 36 guideline cards with their specs |
 
 **A component in `_ds_manifest.json` is a promoted primitive. A component that appears only inside a
 screen is drawn inline there**, and the screen is its reference. Both are equally binding.

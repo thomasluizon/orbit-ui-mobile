@@ -36,7 +36,7 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Brand & design
 
-"Orbit" and "Astra" are never translated. `BRAND.md` is authoritative for audience and positioning: read it before any brand, copy, positioning or design-direction work, and before ORB-30. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **`design/canvas/` is the granted Claude Design export (2026-08-25) and outranks `DESIGN.md` prose where a drawing disagrees**: read the drawing for the surface you are building, and its tokens in `design/canvas/_ds/`. Never build from `design/canvas/superseded/`. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
+"Orbit" and "Astra" are never translated. `BRAND.md` is authoritative for audience and positioning: read it before any brand, copy, positioning or design-direction work, and before ORB-30. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **`design/canvas/` is the granted Claude Design export (2026-08-25).** Read the drawing for the surface you are building, and its tokens. Precedence is a ladder, defined in `DESIGN.md` D42: `## Information architecture` and `## Bans` outrank every drawing, and below those two the drawing outranks `DESIGN.md` prose. A granted export never authorises a banned value. Never build from `design/canvas/superseded/`. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
 
 ## Conventions & tooling
 
@@ -54,7 +54,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 |---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI spec; read before frontend work. |
-| `design/canvas/` | The granted canvas export: 21 screens plus 166 tokens. Outranks DESIGN.md prose where a drawing disagrees. |
+| `design/canvas/` | The granted canvas export: 21 screens plus 166 tokens. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
