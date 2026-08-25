@@ -367,6 +367,25 @@ export const updateBody = async (number, body) => {
 }
 
 /**
+ * Replaces the TITLE of one existing ticket. createTicket wrote it and nothing could change it
+ * afterwards: the raw-mutation hook blocks `gh issue edit` from a session, and update-ticket
+ * touched only the body. Measured 2026-08-25: orbit-tickets#365 kept ordering "the 24 grid variant"
+ * in its title long after DESIGN.md:267 cancelled that deliverable, and no sanctioned path could
+ * correct it. A title is the line every board view and every `gh issue list` shows, so a stale one
+ * misdirects for as long as it stands.
+ *
+ * The `--title` contract is proven by execution against gh 2.97.0 on 2026-08-25, per code standard
+ * 8, with the title read back afterwards. It is NOT taken from `--help`.
+ */
+export const updateTitle = async (number, title) => {
+  positiveIssueNumber(number)
+  if (typeof title !== "string" || title.trim().length === 0) throw new Error("GitHub issue title must be a non-empty string")
+  if (/[\r\n]/.test(title)) throw new Error("GitHub issue title must be one line")
+  const tickets = ticketConfiguration()
+  await runGh(["issue", "edit", String(number), "--repo", tickets.repository, "--title", title])
+}
+
+/**
  * Add or remove labels on one existing ticket. The only sanctioned label mutation: the
  * raw-mutation hook blocks `gh issue edit` from a session, and until this existed a label change
  * on an existing ticket had no path at all (measured 2026-08-13: `needs:conversation` could not be
@@ -398,7 +417,7 @@ export const editLabels = async (number, { add = [], remove = [] } = {}) => {
 /**
  * Adds or removes blocked-by relations on one EXISTING ticket. createTicket writes blockers only at
  * creation, and nothing could change them afterwards: the raw-mutation hook blocks `gh issue edit`
- * from a session and update-ticket deliberately touches only the body. That is the same gap
+ * from a session and update-ticket writes only the title and the body. That is the same gap
  * label-ticket exists to close, one field over. Measured 2026-08-22: seventeen redesign tickets
  * needed an edge onto the design system tickets that block them and there was no sanctioned path.
  *

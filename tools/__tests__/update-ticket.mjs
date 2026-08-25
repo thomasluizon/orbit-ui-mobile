@@ -5,6 +5,7 @@ import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 const TOOL = "update-ticket.mjs"
 
 const LIVE_BODY = "Ticket body\n"
+const LIVE_TITLE = "Ticket title"
 
 const issue = () => JSON.stringify({
   blockedBy: { nodes: [], totalCount: 0 },
@@ -14,7 +15,7 @@ const issue = () => JSON.stringify({
   number: 221,
   state: "OPEN",
   stateReason: null,
-  title: "Ticket title",
+  title: LIVE_TITLE,
   url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
 })
 
@@ -26,18 +27,21 @@ const project = () => JSON.stringify({
 const plan = (label) => {
   const bodyCapture = stage(`update-ticket/${label}-body.txt`, "unwritten")
   const editMarker = stage(`update-ticket/${label}-edit`, "pending")
+  const titleMarker = stage(`update-ticket/${label}-title`, "pending")
   const statusMarker = stage(`update-ticket/${label}-status`, "must remain")
   const commentMarker = stage(`update-ticket/${label}-comment`, "must remain")
   const projectReadMarker = stage(`update-ticket/${label}-project-read`, "must remain")
   return {
     bodyCapture,
     editMarker,
+    titleMarker,
     statusMarker,
     commentMarker,
     projectReadMarker,
     entries: [
       ...githubIssueReadPlan(issue()),
       { match: "project item-list 2 --owner thomasluizon", stdout: project(), removePath: projectReadMarker },
+      { match: "issue edit 221 --repo thomasluizon/orbit-tickets --title", stdout: "", ignoreTicketShape: true, removePath: titleMarker },
       { match: "issue edit 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, stdinFile: bodyCapture, removePath: editMarker },
       { match: "issue comment 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, removePath: commentMarker },
       { match: "project item-edit 2 --owner thomasluizon", stdout: "", ignoreTicketShape: true, removePath: statusMarker },
@@ -47,7 +51,12 @@ const plan = (label) => {
 
 export const cases = () => {
   check(TOOL, "refuses a missing issue reference", ["--body-file", "-", "--confirm-replace"], { status: 2, stderr: /--issue is required/ })
-  check(TOOL, "refuses a missing body file", ["--issue", "#221", "--confirm-replace"], { status: 2, stderr: /--body-file is required/ })
+  check(TOOL, "refuses a call that names no field", ["--issue", "#221", "--confirm-replace"], { status: 2, stderr: /at least one of --body-file and --title is required/ })
+  check(TOOL, "refuses --body-file with no path", ["--issue", "#221", "--body-file", "--confirm-replace"], { status: 2, stderr: /--body-file needs a path/ })
+  check(TOOL, "refuses --title with no title", ["--issue", "#221", "--title"], { status: 2, stderr: /--title needs a title/ })
+  /** A GitHub title is one line, so a newline is a quoting mistake that would otherwise reach the API. */
+  check(TOOL, "refuses a multi-line title", ["--issue", "#221", "--title", "First line\nSecond line"], { status: 2, stderr: /must be one line/ })
+  check(TOOL, "refuses a blank title", ["--issue", "#221", "--title", "   "], { status: 2, stderr: /the new title is empty/ })
   check(TOOL, "refuses an unknown migrated identifier", ["--issue", "ORB-999999", "--body-file", "-", "--confirm-replace"], { status: 2, stderr: /Unknown migrated ticket ORB-999999/ })
 
   const replacement = stage("update-ticket/replacement.md", "Ticket body\n\n## Delivery shape\n\nShip as ONE pull request.\n")
@@ -77,6 +86,32 @@ export const cases = () => {
   const unchanged = plan("unchanged")
   check(TOOL, "reports an identical body as unchanged", ["--issue", "#221", "--body-file", identical, "--confirm-replace"], { status: 0, stdout: /"changed": false/ }, { env: orcaEnv(unchanged.entries) })
   T(`${TOOL}: an identical body performs no edit`, existsSync(unchanged.editMarker))
+
+  /**
+   * A title alone is a valid write, and it needs no --confirm-replace: that guard exists because a
+   * partial body file silently deletes every section it omits, which a title typed in full cannot do.
+   */
+  const renamed = plan("renamed")
+  check(TOOL, "replaces the title alone", ["--issue", "#221", "--title", "A corrected title"], { status: 0, stdout: /"titleChanged": true/ }, { env: orcaEnv(renamed.entries) })
+  T(`${TOOL}: replacing the title edits the issue`, !existsSync(renamed.titleMarker))
+  T(`${TOOL}: a title-only write never touches the body`, existsSync(renamed.editMarker))
+  T(`${TOOL}: a title-only write reports the body unchanged`, readFileSync(renamed.bodyCapture, "utf8") === "unwritten")
+  T(`${TOOL}: a title-only write never comments`, existsSync(renamed.commentMarker))
+  T(`${TOOL}: a title-only write never touches board Status`, existsSync(renamed.statusMarker))
+
+  /** The retry case, one field over: re-running after a network failure must not churn the history. */
+  const sameTitle = plan("same-title")
+  check(TOOL, "reports an identical title as unchanged", ["--issue", "#221", "--title", LIVE_TITLE], { status: 0, stdout: /"titleChanged": false/ }, { env: orcaEnv(sameTitle.entries) })
+  T(`${TOOL}: an identical title performs no edit`, existsSync(sameTitle.titleMarker))
+
+  const both = plan("both")
+  check(TOOL, "replaces the title and the body in one call", ["--issue", "#221", "--title", "A corrected title", "--body-file", replacement, "--confirm-replace"], { status: 0, stdout: /"changed": true/ }, { env: orcaEnv(both.entries) })
+  T(`${TOOL}: a combined call edits the title`, !existsSync(both.titleMarker))
+  T(`${TOOL}: a combined call edits the body`, !existsSync(both.editMarker))
+  T(`${TOOL}: a combined call carries the file's exact bytes`, readFileSync(both.bodyCapture, "utf8") === readFileSync(replacement, "utf8"))
+
+  /** The body guard must not decay just because a title rides along. */
+  check(TOOL, "still refuses a body without --confirm-replace when a title is given", ["--issue", "#221", "--title", "A corrected title", "--body-file", replacement], { status: 2, stderr: /--confirm-replace is required/ })
 
   /** GitHub returns CRLF for a body submitted through the browser; a file on disk here is LF. */
   const crlf = stage("update-ticket/crlf.md", LIVE_BODY.replace(/\n/g, "\r\n"))
