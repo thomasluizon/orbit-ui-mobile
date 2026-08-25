@@ -99,10 +99,20 @@ paths the manifest names and the redesign tickets cite. They are pulled from the
 itself, because the downloadable archive omits them.
 
 **These are the reference an implementer builds against, and they are not binding yet.** Nothing
-imports them and they sit in no `tsconfig` include, so today they are inert reference material. Each
-porting ticket is what makes its own group binding, by moving the group into
-`packages/shared/src/contracts/` where the compiler reads it. `#351` goes first and is the only
-ticket that edits `packages/shared/package.json`.
+imports them and they sit in no `tsconfig` include, so today they are inert reference material.
+
+**Moving a group into `packages/shared/src/contracts/` is necessary but it is not sufficient.** A
+declaration in an included folder still binds nothing until a component imports it and is typed by
+it. `#351` goes first and is the only ticket that edits `packages/shared/package.json`; each porting
+ticket then makes its own group binding by having both platforms' components consume it.
+
+**The handler name is the part that does not port straight across.** These contracts are drawn for
+the canvas's own React, so they say `onClick`. Web matches that, because it renders DOM. Mobile does
+not: `apps/mobile` is React Native and its components take `onPress`. So a single shared declaration
+cannot type both platforms unchanged, and a porting ticket has to reconcile that rather than assume
+the file drops in. The handler name is a platform adapter under the parity rule, the same way the
+storage and styling layers are, so the split is allowed; what is not allowed is the two sides drifting
+on anything below it.
 
 They are written to survive that move, which is why the canvas held its rules across three drawing
 sessions and prose did not:
