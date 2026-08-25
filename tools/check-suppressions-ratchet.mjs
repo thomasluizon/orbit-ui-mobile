@@ -1,3 +1,4 @@
+// PROOF RUN: this comment exists only to give the proof pull request a diff. Never merged.
 #!/usr/bin/env node
 // The handle on the spacing ratchet: the two
 // eslint-suppressions.json baselines may only SHRINK. Before this job existed,
