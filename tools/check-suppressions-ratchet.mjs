@@ -1,5 +1,5 @@
-// PROOF RUN: this comment exists only to give the proof pull request a diff. Never merged.
 #!/usr/bin/env node
+// PROOF RUN: this comment exists only to give the proof pull request a diff. Never merged.
 // The handle on the spacing ratchet: the two
 // eslint-suppressions.json baselines may only SHRINK. Before this job existed,
 // zero CI read the suppression files, so a baseline edit could absorb a new
