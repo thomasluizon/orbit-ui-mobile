@@ -101,7 +101,7 @@ has no Figma export, so one will not appear from this work either. Skip the fiel
 
 ## Field 4. Add fonts, logos and assets
 
-Drag these 5 files. Every path is relative to `design/brand/`.
+Drag these 9 files. Every path is relative to `design/brand/`.
 
 **Type, 3 files.** Upload the TTF files, never the `woff2` data inside `reference.html`. Those are
 subsets and do not carry the whole character set, which breaks pt-BR copy.
@@ -112,16 +112,35 @@ fonts/GeistMono[wght].ttf
 fonts/SpaceGrotesk[wght].ttf
 ```
 
-**Vector brand, 2 files.** These are the only brand vectors that exist.
+**Vector brand, 6 files.** These are the only brand vectors that exist.
 
 ```
 orbit-mark.svg
 astra-mark.svg
+orbit-mark-16.svg
+astra-mark-16.svg
+orbit-mark-accent.svg
+orbit-lockup.svg
 ```
 
-Both are drawn on a 1024 grid, one `fill-rule="evenodd"` path each plus Orbit's moon, and both paint
-with `fill="currentColor"` and carry no hex. Upload them as they are. There is no accent variant to
-choose between, because the accent treatment is not built yet.
+The two 1024 marks are the granted originals: one `fill-rule="evenodd"` path each plus Orbit's moon.
+The 16 pair is a **native redraw, not an export of the 1024 art**, because a stroke scaled down from
+1024 renders soft (`DESIGN.md:267`). Use it below roughly 20px and the 1024 originals everywhere else.
+**Do not ask for a 24 grid variant.** `DESIGN.md:267` enumerates 16, 48, 128 and 512 and states that
+the mark answers to neither the type scale nor the 24 icon grid.
+
+`orbit-mark-accent.svg` is the granted 1024 drawing with one change: the moon takes
+`var(--primary, currentColor)`. Every other element stays `currentColor`. That is the accent's fourth
+role and the only non-state use of the accent in the system, so **never tint a second element**. The
+fallback matters here: an upload preview defines no `--primary`, and without it the moon renders as
+nothing at all rather than as ink.
+
+`orbit-lockup.svg` is the horizontal lockup at 28 / 12 / 22, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221). The 28 measures the
+mark itself, not a 28 box (`DESIGN.md:269`), the 12 separates ink from ink rather than bounding
+boxes, and the viewBox is exactly the ink, so the file carries no baked margin. Its wordmark is Space Grotesk 600 converted to outlines, so it needs no font at render
+time and carries no `<text>`.
+
+Every file paints with `fill="currentColor"` and none carries a hex. Upload them as they are.
 
 **Raster: none.** No PNG set exists. `#80` owns the app icons, store graphics, OG images, splash and
 notification icon, and it derives them from the two files above.
@@ -129,8 +148,9 @@ notification icon, and it derives them from the two files above.
 **Do not look for the nine files an earlier revision of this document listed.** `mark-24-neutral.svg`,
 `mark-16.svg`, `astra-24.svg`, `lockup-horizontal-neutral.svg`, `icon-512-orange.svg` and the four
 `png/` files were the drafts PR #735 shipped to make the accent decidable. Every one of them is
-deleted and `png/` no longer exists. The 24 grid variant, the native 16px redraw, the horizontal
-lockup and the accent treatment are still to build, so a tool that asks for them gets nothing.
+deleted and `png/` no longer exists. Their replacements ship under different names, listed above:
+`#365` built the native 16px redraw, the horizontal lockup and the accent treatment, and none of them
+reuses a draft filename. It did NOT build a 24 grid variant, because `DESIGN.md:267` forbids one.
 
 **Expect the mark to render BLACK in an upload preview, not near white.** `currentColor` resolves
 against the SVG document's own root when the file is loaded as an image, and that document sets no

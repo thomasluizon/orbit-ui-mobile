@@ -258,7 +258,7 @@ Identity comes from three things and nothing else:
 2. the **Astra orbital glyph** (which replaces the sparkle icon),
 3. **ring-shaped status and progress indicators**.
 
-**The mark is a planet drawn as a ring with an open centre**, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its moon, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`. The accent treatment is listed as still to build, so the shipped asset is monochrome today and a surface that needs the accent version must wait rather than tint the file itself.
+**The mark is a planet drawn as a ring with an open centre**, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its moon, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`. `design/brand/orbit-mark-accent.svg` ships that treatment, so a surface takes the accent file and never tints the monochrome one itself.
 
 **`design/brand/README.md` is authoritative for the assets.** The two marks are final and merged; this section describes how they are used, not what they are.
 
@@ -266,7 +266,7 @@ Identity comes from three things and nothing else:
 
 **Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent.
 
-**The wordmark** is Space Grotesk 600 in natural case, `-0.02em`, `--fg-1`, carrying `translate="no"`. The horizontal lockup is a 28px mark, a 12px gap and a 22px wordmark.
+**The wordmark** is Space Grotesk 600 in natural case, `-0.02em`, `--fg-1`, carrying `translate="no"`. The horizontal lockup is a 28px mark, a 12px gap and a 22px wordmark. **The 28 measures the mark and the 12 separates ink from ink, never bounding boxes.** The 1024 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap height and the word swamps the mark; sized on the ink the mark stands 15.04px and the two read as one lockup. The lockup asset's viewBox is its ink, so clear space is the consumer's to add.
 
 It does **not** come from a background gradient, a glow, decorative background orbit arcs, a texture, or a glass material. Hierarchy is bought with space first, then size, weight, and contrast. A surface step or a hairline is the last resort.
 

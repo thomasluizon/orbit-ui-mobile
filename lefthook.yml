@@ -3,6 +3,9 @@ pre-commit:
   commands:
     root-allowlist:
       run: node tools/check-root-allowlist.mjs
+    lockup-crop:
+      glob: "design/brand/orbit-lockup.svg"
+      run: node tools/check-lockup-crop.mjs
     web-eslint:
       root: "apps/web/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
