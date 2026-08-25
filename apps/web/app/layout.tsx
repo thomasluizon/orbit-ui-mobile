@@ -43,7 +43,10 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     manifest: '/manifest.webmanifest',
     icons: {
-      icon: [{ url: '/favicon.png', type: 'image/png', sizes: '64x64' }],
+      icon: [
+        { url: '/favicon-16.png', type: 'image/png', sizes: '16x16' },
+        { url: '/favicon.png', type: 'image/png', sizes: '64x64' },
+      ],
     },
     openGraph: {
       title,

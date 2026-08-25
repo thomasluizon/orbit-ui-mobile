@@ -50,6 +50,11 @@ if (!write) {
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const repositoryRoot = resolve(requestedRoot ?? join(scriptDirectory, ".."))
 const markPath = join(repositoryRoot, "design", "brand", "orbit-mark.svg")
+// DESIGN.md:267: "At 16 the mark is redrawn natively rather than scaled", because a stroke scaled
+// down from the 24 grid renders soft. orbit-mark-16.svg is that redraw and carries its own geometry,
+// so an asset marked `nativeMark` is rasterised at its designed size instead of being trimmed and
+// rescaled from the 1024 source.
+const mark16Path = join(repositoryRoot, "design", "brand", "orbit-mark-16.svg")
 
 const CANVAS = "#09090B"
 const FOREGROUND = "#F4F4F6"
@@ -74,6 +79,9 @@ const generatedAssets = [
   // mark survived every previous regeneration: it is the one icon that metadata.icons does not
   // reach. Same geometry as the public favicon, because it does the same job.
   { path: "apps/web/app/icon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
+  // The browser tab draws a favicon at 16px. Downscaling the 64 into that slot is exactly the soft
+  // stroke DESIGN.md:267 forbids, so this one comes from the native 16 redraw at its designed size.
+  { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, background: CANVAS, nativeMark: true },
   { path: "apps/web/public/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
   { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8 },
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36 },
@@ -81,12 +89,12 @@ const generatedAssets = [
   { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
 ]
 
-function assertCanonicalSource(source) {
+function assertCanonicalSource(source, name) {
   if (!source.includes('fill="currentColor"')) {
-    throw new Error("orbit-mark.svg must paint with currentColor")
+    throw new Error(`${name} must paint with currentColor`)
   }
   if (/<(?:filter|image|linearGradient|radialGradient)\b/i.test(source)) {
-    throw new Error("orbit-mark.svg contains a banned raster or effect")
+    throw new Error(`${name} contains a banned raster or effect`)
   }
 }
 
@@ -120,7 +128,15 @@ async function renderTrimmedMark(source, ink, targetWidth) {
     .toBuffer({ resolveWithObject: true })
 }
 
-async function renderAsset(source, asset) {
+/** The native redraw, rasterised at its designed size. No trim and no rescale: its margins are part
+ *  of the drawing, and stripping them would put the geometry back on the scaled path this avoids. */
+async function renderNativeMark(source, ink, size) {
+  const bakedSource = source.replaceAll("currentColor", ink)
+  return sharp(Buffer.from(bakedSource)).resize(size, size).png().toBuffer()
+}
+
+async function renderAsset(sources, asset) {
+  const source = asset.nativeMark ? sources.mark16 : sources.mark
   const background = asset.background ?? { r: 0, g: 0, b: 0, alpha: 0 }
   const canvas = sharp({
     create: {
@@ -135,6 +151,14 @@ async function renderAsset(source, asset) {
     return canvas.png({ compressionLevel: 9 }).toBuffer()
   }
 
+  if (asset.nativeMark) {
+    const mark = await renderNativeMark(source, asset.ink, asset.width)
+    return canvas
+      .composite([{ input: mark, left: 0, top: 0 }])
+      .png({ compressionLevel: 9 })
+      .toBuffer()
+  }
+
   const targetWidth = Math.round(asset.width * asset.scale)
   const { data: mark, info } = await renderTrimmedMark(source, asset.ink, targetWidth)
   const left = Math.floor((asset.width - info.width) / 2)
@@ -147,16 +171,22 @@ async function renderAsset(source, asset) {
 }
 
 async function main() {
-  const source = await readFile(markPath, "utf8")
-  assertCanonicalSource(source)
+  const sources = {
+    mark: await readFile(markPath, "utf8"),
+    mark16: await readFile(mark16Path, "utf8"),
+  }
+  assertCanonicalSource(sources.mark, "orbit-mark.svg")
+  assertCanonicalSource(sources.mark16, "orbit-mark-16.svg")
 
   for (const asset of generatedAssets) {
     const outputPath = join(repositoryRoot, ...asset.path.split("/"))
     await mkdir(dirname(outputPath), { recursive: true })
-    await writeFile(outputPath, await renderAsset(source, asset))
+    await writeFile(outputPath, await renderAsset(sources, asset))
   }
 
-  console.log(`generated ${generatedAssets.length} brand assets from design/brand/orbit-mark.svg`)
+  console.log(
+    `generated ${generatedAssets.length} brand assets from design/brand/orbit-mark.svg and orbit-mark-16.svg`,
+  )
 }
 
 main().catch((error) => {

@@ -16,6 +16,7 @@ const expectedAssets = [
   ["apps/mobile/assets/splash-icon.png", 1024, 1024],
   ["apps/mobile/store/feature-graphic.png", 1024, 500],
   ["apps/web/app/icon.png", 64, 64],
+  ["apps/web/public/favicon-16.png", 16, 16],
   ["apps/web/public/favicon.png", 64, 64],
   ["apps/web/public/logo-no-bg.png", 96, 96],
   ["apps/web/public/og-image.png", 1200, 630],
@@ -26,7 +27,10 @@ const expectedAssets = [
 const fixtureRoot = (label) => {
   const directory = join(root, "brand-assets", label)
   mkdirSync(join(directory, "design", "brand"), { recursive: true })
-  cpSync(join(REPO_ROOT, "design", "brand", "orbit-mark.svg"), join(directory, "design", "brand", "orbit-mark.svg"))
+  // Both canonical sources: the 1024 mark, and the native 16 redraw the favicon comes from.
+  for (const mark of ["orbit-mark.svg", "orbit-mark-16.svg"]) {
+    cpSync(join(REPO_ROOT, "design", "brand", mark), join(directory, "design", "brand", mark))
+  }
   return directory
 }
 
@@ -42,7 +46,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 15 brand assets/ },
+    { status: 0, stdout: /generated 16 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
