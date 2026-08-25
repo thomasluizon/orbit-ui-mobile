@@ -27,12 +27,14 @@ const USAGE = `usage: check-suppressions-ratchet.mjs
 
 exit codes: 0 every baseline held or shrank, 1 a baseline grew, 2 usage error`
 
-if (process.argv.includes("--help") || process.argv.includes("-h")) {
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (isMain && (process.argv.includes("--help") || process.argv.includes("-h"))) {
   console.log(USAGE)
   process.exit(0)
 }
 
-if (process.argv.length > 2) {
+if (isMain && process.argv.length > 2) {
   console.error(`check-suppressions-ratchet: takes no arguments, got: ${process.argv.slice(2).join(" ")}\n`)
   console.error(USAGE)
   process.exit(2)
@@ -49,9 +51,17 @@ const totalOf = (json) => {
   return total
 }
 
-// GITHUB_BASE_REF is the base BRANCH NAME on a pull_request event and empty everywhere else,
-// so a local run and a push build both keep the historical origin/main behaviour.
-const BASE_REF = `origin/${process.env.GITHUB_BASE_REF?.trim() || "main"}`
+// GITHUB_BASE_REF carries the base BRANCH NAME on a pull_request event and is empty everywhere
+// else, so a local run and a push build both keep the historical origin/main behaviour.
+//
+// The value is NOT normalised beyond trimming, deliberately. Stripping a `refs/heads/` prefix
+// "just in case" would be a defensive branch for a field this repository does not own, and it
+// would hide the very drift worth seeing. The run log below prints the raw field on every run
+// instead, so a shape that is not a bare branch name shows up as a named baseline miss rather
+// than as silent behaviour.
+export const baselineRefFrom = (env = process.env) => `origin/${env.GITHUB_BASE_REF?.trim() || "main"}`
+
+const BASE_REF = baselineRefFrom()
 
 const baseVersionOf = (path) => {
   try {
@@ -61,22 +71,29 @@ const baseVersionOf = (path) => {
   }
 }
 
-let failed = false
-for (const path of BASELINES) {
-  const absolute = join(REPO_ROOT, path)
-  const current = existsSync(absolute) ? JSON.parse(readFileSync(absolute, "utf8")) : {}
-  const currentTotal = totalOf(current)
-  const baseTotal = totalOf(baseVersionOf(path))
-  const verdict = currentTotal > baseTotal ? "GREW" : "ok"
-  console.log(`${path}: ${baseTotal} on ${BASE_REF} -> ${currentTotal} here (${verdict})`)
-  if (currentTotal > baseTotal) failed = true
-}
+// Printed on every run so the resolved baseline and the raw field that produced it are both in the
+// job log. A pull_request build that reported `GITHUB_BASE_REF=<unset>` would mean the field is not
+// supplied the way this script assumes, and that is worth seeing in the log rather than inferring.
+if (isMain) {
+  console.log(`baseline: ${BASE_REF}  (GITHUB_BASE_REF=${process.env.GITHUB_BASE_REF ?? "<unset>"})`)
 
-if (failed) {
-  console.error(
-    `\nA suppressions baseline grew against ${BASE_REF}. The ratchet only shrinks: fix the new violation instead of absorbing it.\n` +
-      "If this PR deliberately registers a NEW rule and seeds its baseline, say so in the PR body; a reviewer\n" +
-      "override (re-running with the label ratchet:reseed) is the only sanctioned path.",
-  )
-  process.exit(1)
+  let failed = false
+  for (const path of BASELINES) {
+    const absolute = join(REPO_ROOT, path)
+    const current = existsSync(absolute) ? JSON.parse(readFileSync(absolute, "utf8")) : {}
+    const currentTotal = totalOf(current)
+    const baseTotal = totalOf(baseVersionOf(path))
+    const verdict = currentTotal > baseTotal ? "GREW" : "ok"
+    console.log(`${path}: ${baseTotal} on ${BASE_REF} -> ${currentTotal} here (${verdict})`)
+    if (currentTotal > baseTotal) failed = true
+  }
+
+  if (failed) {
+    console.error(
+      `\nA suppressions baseline grew against ${BASE_REF}. The ratchet only shrinks: fix the new violation instead of absorbing it.\n` +
+        "If this PR deliberately registers a NEW rule and seeds its baseline, say so in the PR body; a reviewer\n" +
+        "override (re-running with the label ratchet:reseed) is the only sanctioned path.",
+    )
+    process.exit(1)
+  }
 }
