@@ -86,7 +86,8 @@ export is here.
 
 **Rendering does not work from a checkout, by design.** Each document also pulls `support.js` and
 `_ds/<uuid>/_ds_bundle.js`, and neither is committed. To see one rendered, export the project archive
-from Claude Design and open it there, or drop those two files and the font binaries beside these.
+from Claude Design and open it there, or drop those two files beside these. The font binaries are
+already tracked: `tokens/fonts.css` resolves into `design/brand/fonts/`, so nothing needs copying.
 
 The `_ds/<uuid>/` directory keeps the export's own UUID name because the screens link through it.
 Flattening it silently breaks every stylesheet reference.
@@ -97,8 +98,14 @@ Flattening it silently breaks every stylesheet reference.
 paths the manifest names and the redesign tickets cite. They are pulled from the design-system project
 itself, because the downloadable archive omits them.
 
-**These are binding.** A rule written here is enforced by the compiler, which is why the canvas held its
-rules across three drawing sessions and prose did not:
+**These are the reference an implementer builds against, and they are not binding yet.** Nothing
+imports them and they sit in no `tsconfig` include, so today they are inert reference material. Each
+porting ticket is what makes its own group binding, by moving the group into
+`packages/shared/src/contracts/` where the compiler reads it. `#351` goes first and is the only
+ticket that edits `packages/shared/package.json`.
+
+They are written to survive that move, which is why the canvas held its rules across three drawing
+sessions and prose did not:
 
 * `StatTile` discriminates on `state`, so an empty tile cannot accept `value` and can never render a `0`
   that reads as a real measurement.
@@ -108,6 +115,12 @@ rules across three drawing sessions and prose did not:
 * `StepUp` has no `children` and no node-typed prop, so a credential field cannot be nested into it.
 * `Toast` is four discriminated kinds; `lost` cannot be constructed without both what was lost and the
   way back.
+
+**Where a screen and a contract disagree, the contract is the stricter artifact and the screen is a
+prototype.** A `.dc.html` is never type-checked, so several screens omit a word a contract requires:
+`StatTile`'s `loadingLabel` and `BlockFrame`'s `staleMessage` are both drawn without them. Build to
+the contract and supply the word. The two places where the drawing and the contract genuinely
+conflict are filed as tickets rather than settled here.
 
 The matching `.jsx` implementations and `.prompt.md` files stay in the project and are not mirrored
 here: the contract is what an implementer builds against, and the canvas's own React source is not the
