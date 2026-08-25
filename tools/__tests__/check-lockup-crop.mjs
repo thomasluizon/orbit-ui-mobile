@@ -182,6 +182,22 @@ export const cases = () => {
 
   check(
     "check-lockup-crop.mjs",
+    "rejects a fill=transparent path",
+    ["--file", stage("fill-transparent", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path fill="transparent" d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /paints nothing/ },
+  )
+
+  // `fill` is inherited and the root carries fill="none", so a path that omits the attribute
+  // paints nothing. Checking only for an explicit fill="none" counted this geometry as ink.
+  check(
+    "check-lockup-crop.mjs",
+    "rejects a path that inherits fill=none by declaring no fill",
+    ["--file", stage("fill-inherited-none", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path d="${SQUARE}"/>\n</g>`))],
+    { status: 1, stderr: /declares no fill/ },
+  )
+
+  check(
+    "check-lockup-crop.mjs",
     "rejects an unquoted attribute value it cannot read",
     ["--file", stage("unquoted", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path opacity=1 fill="currentColor" d="${SQUARE}"/>\n</g>`))],
     { status: 1, stderr: /cannot parse/ },

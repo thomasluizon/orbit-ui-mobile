@@ -265,8 +265,17 @@ for (const match of svg.matchAll(TAG)) {
            `  without modelling it would be a clean result over geometry never measured.`)
     }
   }
-  if (name === "path" && attrs.fill !== undefined && attrs.fill === "none") {
-    fail("a <path> is fill=\"none\", so it paints nothing or paints only a stroke this gate cannot measure")
+  // Every measured path must declare a visible fill. `fill` is INHERITED, and the root carries
+  // fill="none", so a path that simply omits the attribute paints nothing while its geometry
+  // would still have been counted as ink. Checking only for an explicit fill="none" missed that.
+  if (name === "path") {
+    if (attrs.fill === undefined) {
+      fail("a <path> declares no fill, so it inherits the root's fill=\"none\" and paints nothing,\n" +
+           "  yet its geometry would be counted as ink. Declare the fill this gate should measure.")
+    }
+    if (attrs.fill === "none" || attrs.fill === "transparent") {
+      fail(`a <path> is fill="${attrs.fill}", so it paints nothing, or paints only a stroke this gate cannot measure`)
+    }
   }
 
   if (name === "path") {
