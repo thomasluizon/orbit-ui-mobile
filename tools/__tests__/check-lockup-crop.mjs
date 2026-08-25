@@ -177,14 +177,32 @@ export const cases = () => {
     "check-lockup-crop.mjs",
     "rejects a fill=none path, which paints nothing or only a stroke",
     ["--file", stage("fill-none", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path fill="none" d="${SQUARE}"/>\n</g>`))],
-    { status: 1, stderr: /paints nothing/ },
+    { status: 1, stderr: /cannot prove paints/ },
   )
+
+  // There is no finite list of ways to write invisible, so the gate enumerates what it knows
+  // paints. Naming `none` and `transparent` left every zero-alpha spelling counted as ink.
+  for (const [label, value] of [
+    ["rgba zero alpha", "rgba(0, 0, 0, 0)"],
+    ["a four-digit hex with zero alpha", "#0000"],
+    ["hsl with zero alpha", "hsl(0 0% 0% / 0)"],
+    ["an opaque hex the gate cannot prove", "#C4530F"],
+  ]) {
+    check(
+      "check-lockup-crop.mjs",
+      `rejects ${label}`,
+      ["--file", stage(`fill-${label.replaceAll(/[^a-z]/g, "-")}`, wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">
+<path fill="${value}" d="${SQUARE}"/>
+</g>`))],
+      { status: 1, stderr: /cannot prove paints/ },
+    )
+  }
 
   check(
     "check-lockup-crop.mjs",
     "rejects a fill=transparent path",
     ["--file", stage("fill-transparent", wrap("1 1 20 20", `<g transform="translate(1 1) scale(2)">\n<path fill="transparent" d="${SQUARE}"/>\n</g>`))],
-    { status: 1, stderr: /paints nothing/ },
+    { status: 1, stderr: /cannot prove paints/ },
   )
 
   // `fill` is inherited and the root carries fill="none", so a path that omits the attribute

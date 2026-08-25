@@ -207,6 +207,12 @@ const ALLOWED_ATTRIBUTES = {
   g: new Set(["transform", "translate"]),
   path: new Set(["d", "fill", "fill-rule"]),
 }
+
+// The brand assets paint with `currentColor` and nothing else, which is the whole point of the
+// contract in design/brand/README.md: one file serves every colour the mark is drawn in. Any
+// other value has to be proven visible before its geometry counts as ink, so it is refused until
+// someone teaches this gate what it paints.
+const VISIBLE_FILLS = new Set(["currentColor"])
 const TRANSFORM = /^translate\(\s*(-?[\d.eE+-]+)[\s,]+(-?[\d.eE+-]+)\s*\)(?:\s*scale\(\s*(-?[\d.eE+-]+)\s*\))?$/
 
 const svg = readFileSync(file, "utf8")
@@ -273,8 +279,15 @@ for (const match of svg.matchAll(TAG)) {
       fail("a <path> declares no fill, so it inherits the root's fill=\"none\" and paints nothing,\n" +
            "  yet its geometry would be counted as ink. Declare the fill this gate should measure.")
     }
-    if (attrs.fill === "none" || attrs.fill === "transparent") {
-      fail(`a <path> is fill="${attrs.fill}", so it paints nothing, or paints only a stroke this gate cannot measure`)
+    // A CLOSED set again, for the same reason as the attribute names. Listing `none` and
+    // `transparent` as the not-visible values left `rgba(0,0,0,0)`, `#0000`, `hsl(0 0% 0% / 0)`
+    // and every other zero-alpha spelling counted as ink. There is no finite list of ways to
+    // write invisible, so the gate enumerates what it knows paints instead.
+    if (!VISIBLE_FILLS.has(attrs.fill)) {
+      fail(`a <path> is fill="${attrs.fill}", which this gate cannot prove paints.\n` +
+           `  Known visible: ${[...VISIBLE_FILLS].join(", ")}.\n` +
+           `  Any other value may be a zero-alpha colour, and counting invisible geometry as ink\n` +
+           `  would report a crop over a shape that renders nothing.`)
     }
   }
 
