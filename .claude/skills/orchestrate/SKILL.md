@@ -1005,9 +1005,26 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **3**, one worktree
-each. Not eight: each worktree is a full install, build and test run plus its own model session, and
-eight concurrent will thrash one laptop and hit rate limits. Raise it after measuring, not before.
+**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **8**, one worktree
+each. Each worktree is a full install, build and test run plus its own model session, so the cap is a
+resource decision, not a preference.
+
+Raised from 3 to 8 on 2026-08-25, deliberately and after measuring, to clear the redesign wave where
+sixteen tickets carry no open blocker at once. The measurement on this machine: **8 cores, 34 GB RAM
+with 16 GB free, 745 GB free disk**. Disk and memory carry eight comfortably; **the cores do not**, so
+eight concurrent tickets get about one core each and every individual ticket runs slower than it would
+at three. The throughput still wins while the ready queue is deep.
+
+**Dial it back to 3 or 4 when the wave is cleared**, or sooner if workers start coming back
+`KILLED_HARD_CEILING`, or if the elapsed time per DELIVERED ticket climbs well past what three
+concurrent tickets cost. Those are the signals CPU starvation actually produces here.
+
+**It will NOT show up as `KILLED_NO_PROGRESS`.** `launch-worker.mjs` counts process-tree CPU above
+1.5% of one core as progress, so a starved worker is still burning CPU and keeps resetting the stall
+clock. It runs slower, not quieter, until the unchanged 45 minute `hardCeilingMinutes` wall ends it.
+`KILLED_NO_PROGRESS` stays what it was built for: a tree silent across files, logs AND CPU.
+
+Model rate limits are the other ceiling and are not measurable from this file.
 
 Three rules bound it:
 
