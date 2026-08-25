@@ -106,13 +106,20 @@ declaration in an included folder still binds nothing until a component imports 
 it. `#351` goes first and is the only ticket that edits `packages/shared/package.json`; each porting
 ticket then makes its own group binding by having both platforms' components consume it.
 
-**The handler name is the part that does not port straight across.** These contracts are drawn for
-the canvas's own React, so they say `onClick`. Web matches that, because it renders DOM. Mobile does
-not: `apps/mobile` is React Native and its components take `onPress`. So a single shared declaration
-cannot type both platforms unchanged, and a porting ticket has to reconcile that rather than assume
-the file drops in. The handler name is a platform adapter under the parity rule, the same way the
-storage and styling layers are, so the split is allowed; what is not allowed is the two sides drifting
-on anything below it.
+**Two things do not port straight across, and a porting ticket has to reconcile both.**
+
+*The handler name.* These contracts are drawn for the canvas's own React, so they say `onClick`. Web
+matches that, because it renders DOM. Mobile does not: `apps/mobile` is React Native and its
+components take `onPress`. So a single shared declaration cannot type both platforms unchanged. The
+handler name is a platform adapter under the parity rule, the same way the storage and styling layers
+are, so the split is allowed; what is not allowed is the two sides drifting on anything below it.
+
+*The `any`s.* Every one of the 48 contracts uses `any`, 95 times in total, for node-typed slots like
+`children`, `trailing` and `control`. That is fine while these files are inert reference material,
+and it stops being fine the moment a group moves: `packages/shared/eslint.config.mjs` turns
+`@typescript-eslint/no-explicit-any` off only for test files, so a contract landing as ordinary
+source under `src/contracts/` is linted like any other source and a verbatim copy fails. Porting a
+group means giving each node-typed slot a real type, not carrying `any` across and suppressing it.
 
 They are written to survive that move, which is why the canvas held its rules across three drawing
 sessions and prose did not:
