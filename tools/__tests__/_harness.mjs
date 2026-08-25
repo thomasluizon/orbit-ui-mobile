@@ -307,6 +307,7 @@ if (match.hangTreePidFile) {
   writeFileSync(match.hangTreePidFile, String(child.pid))
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 }
+if (match.argvFile) writeFileSync(match.argvFile, JSON.stringify(argv))
 if (match.stdinFile) writeFileSync(match.stdinFile, readFileSync(0, "utf8"))
 if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
   const index = existsSync(match.sequenceFile) ? Number(readFileSync(match.sequenceFile, "utf8")) : 0

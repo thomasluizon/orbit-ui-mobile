@@ -3,8 +3,8 @@
  * Add or remove blocked-by relations on one existing ticket.
  *
  * `create-ticket.mjs` writes blockers at creation and nothing could change them afterwards: the
- * raw-mutation hook blocks `gh issue edit` from a session, and `update-ticket.mjs` deliberately
- * touches only the body. That is the gap `label-ticket.mjs` closes for labels, one field over.
+ * raw-mutation hook blocks `gh issue edit` from a session, and `update-ticket.mjs` writes only the
+ * title and the body. That is the gap `label-ticket.mjs` closes for labels, one field over.
  * Measured 2026-08-22: seventeen redesign tickets needed an edge onto the design system tickets that
  * block them, and no sanctioned path existed. A dependency stated in prose is not a dependency.
  */
