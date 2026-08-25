@@ -12,9 +12,10 @@ const expectedAssets = [
   ["apps/mobile/assets/favicon.png", 64, 64],
   ["apps/mobile/assets/icon.png", 1024, 1024],
   ["apps/mobile/assets/logo-no-bg.png", 96, 96],
-  ["apps/mobile/assets/notification-icon.png", 64, 64],
+  ["apps/mobile/assets/notification-icon.png", 96, 96],
   ["apps/mobile/assets/splash-icon.png", 1024, 1024],
   ["apps/mobile/store/feature-graphic.png", 1024, 500],
+  ["apps/web/app/icon.png", 64, 64],
   ["apps/web/public/favicon.png", 64, 64],
   ["apps/web/public/logo-no-bg.png", 96, 96],
   ["apps/web/public/og-image.png", 1200, 630],
@@ -41,7 +42,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 14 brand assets/ },
+    { status: 0, stdout: /generated 15 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
