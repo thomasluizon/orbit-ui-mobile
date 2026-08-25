@@ -62,9 +62,18 @@ const generatedAssets = [
   { path: "apps/mobile/assets/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
   { path: "apps/mobile/assets/icon.png", width: 1024, height: 1024, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
   { path: "apps/mobile/assets/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8 },
-  { path: "apps/mobile/assets/notification-icon.png", width: 64, height: 64, ink: WHITE, scale: 0.8 },
+  // 96 because expo-notifications resizes this one input into every density bucket, and its largest
+  // is xxxhdpi: BASELINE_PIXEL_SIZE 24 * scale 4 in
+  // node_modules/expo-notifications/plugin/build/withNotificationsAndroid.js. A smaller source is
+  // upscaled with resizeMode 'cover' and the silhouette softens on exactly the densest screens.
+  { path: "apps/mobile/assets/notification-icon.png", width: 96, height: 96, ink: WHITE, scale: 0.8 },
   { path: "apps/mobile/assets/splash-icon.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.4 },
   { path: "apps/mobile/store/feature-graphic.png", width: 1024, height: 500, ink: FOREGROUND, background: CANVAS, scale: 0.36 },
+  // app/icon.png is a Next.js App Router FILE CONVENTION, not an ordinary public asset. It is the
+  // browser-tab icon Next serves for the app segment, so leaving it out of this list is how the old
+  // mark survived every previous regeneration: it is the one icon that metadata.icons does not
+  // reach. Same geometry as the public favicon, because it does the same job.
+  { path: "apps/web/app/icon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
   { path: "apps/web/public/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6 },
   { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8 },
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36 },
