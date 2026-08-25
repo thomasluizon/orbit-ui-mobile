@@ -104,10 +104,6 @@ export const cases = () => {
   /**
    * A title alone is a valid write, and it needs no --confirm-replace: that guard exists because a
    * partial body file silently deletes every section it omits, which a title typed in full cannot do.
-   */
-  /**
-   * A title alone is a valid write, and it needs no --confirm-replace: that guard exists because a
-   * partial body file silently deletes every section it omits, which a title typed in full cannot do.
    * The whole result is PARSED rather than pattern-matched, so a wrong field cannot hide behind a
    * fragment that happens to appear somewhere in the JSON.
    */
