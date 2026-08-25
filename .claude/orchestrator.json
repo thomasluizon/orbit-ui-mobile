@@ -24,7 +24,7 @@
     "pollSeconds": 60
   },
   "caps": {
-    "parallelTickets": 3,
+    "parallelTickets": 8,
     "reviewFixAttempts": 3,
     "workerLogMegabytes": 32
   },
