@@ -31,7 +31,8 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
    export authoritative over prose; it does not make it authoritative over a prohibition.
 3. **Below those two, the granted drawing wins.** For how a surface looks, measures, spaces, states
    and behaves, a drawing in `design/canvas/` outranks the prose in this document, and the prose is
-   the defect. A number typed into a component that disagrees with a token in `_ds/tokens/` is wrong,
+   the defect. A number typed into a component that disagrees with a token under the
+   `tokens/` directory named above is wrong,
    whatever this document says.
 
 Read the drawing for the surface you are building before you read the section here that describes it.

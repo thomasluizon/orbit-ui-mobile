@@ -44,7 +44,7 @@ build.
 | `Orbit Sobreposicoes.dc.html` | the overlay set |
 | `Orbit Widget Android.dc.html` | the Android home screen widget |
 
-## `_ds/`, the design system
+## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
 
 `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **166 authoritative token values**. A number typed into a component that
 disagrees with a token here is wrong, whatever any document says.
@@ -59,8 +59,14 @@ disagrees with a token here is wrong, whatever any document says.
 | `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css` | the shared component styles |
 | `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_manifest.json` | the inventory: 41 components with their source paths, and 36 guideline cards with their specs |
 
-**A component in `_ds_manifest.json` is a promoted primitive. A component that appears only inside a
-screen is drawn inline there**, and the screen is its reference. Both are equally binding.
+**A component in the manifest is a promoted primitive. A component that appears only inside a screen
+is drawn inline there**, and the screen is its reference. Both are equally binding.
+
+**A guideline-card subtitle names a component and summarises it in one line. It is an index entry, not
+a specification.** The Actions card says only "Button variants and the FAB, dark and light", while the
+screens deliver the variants, sizes, states and measurements. The binding specification of any
+component is: the token values, `styles.css`, and every screen that draws it, with the screen named in
+its ticket as the reference. Read those, not the subtitle.
 
 ## What is deliberately not committed
 
@@ -75,7 +81,7 @@ screen is drawn inline there**, and the screen is its reference. Both are equall
 
 **Reading works from a checkout.** The markup is plain HTML with a `{{ }}` template layer, each
 screen carries a prose report block explaining its own decisions, and every stylesheet link resolves
-against the `_ds/` tree committed beside them. That is what an implementer needs and it is why this
+against the design-system tree committed beside them. That is what an implementer needs and it is why this
 export is here.
 
 **Rendering does not work from a checkout, by design.** Each document also pulls `support.js` and
