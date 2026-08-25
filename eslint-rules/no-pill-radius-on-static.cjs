@@ -40,6 +40,9 @@
  *     props, such as a bare `<View>` inside a `<Pressable>`. That case stays with
  *     the design-reviewer agent, which is where DESIGN.md already puts radius
  *     judgement it cannot mechanise.
+ *   - a rounded element whose only child is an expression the AST cannot prove is text, such
+ *     as `{label}`. It could be a word or an icon, and reporting on the guess is what made the
+ *     text discriminator meaningless.
  */
 
 const {
@@ -102,6 +105,25 @@ function isPillRadius(value) {
 // Equal source text only proves a circle for an ABSOLUTE size. width: '100%' and height: '100%'
 // fill a rectangular parent, so they are not evidence of roundness.
 const RELATIVE_SIZE = /%|v[wh]|auto|inherit/i
+
+/**
+ * True only for a child expression whose value IS text. Counting every nonempty expression
+ * container reported `{icon}` and `{ready && <Icon />}`, which are round icon wrappers rather
+ * than chips, so the discriminator that was supposed to separate a pill from a circle stopped
+ * separating anything. An ambiguous expression is left alone on purpose.
+ */
+const isProvablyText = (node) => {
+  if (!node) return false
+  if (node.type === 'Literal') return typeof node.value === 'string' || typeof node.value === 'number'
+  if (node.type === 'TemplateLiteral') return true
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    return isProvablyText(node.left) || isProvablyText(node.right)
+  }
+  if (node.type === 'ConditionalExpression') {
+    return isProvablyText(node.consequent) && isProvablyText(node.alternate)
+  }
+  return false
+}
 
 const unwrap = (node) =>
   node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression') ? unwrap(node.expression) : node
@@ -236,7 +258,7 @@ module.exports = {
         const carriesText = children.some(
           (child) =>
             (child.type === 'JSXText' && child.value.trim() !== '') ||
-            (child.type === 'JSXExpressionContainer' && child.expression?.type !== 'JSXEmptyExpression') ||
+            (child.type === 'JSXExpressionContainer' && isProvablyText(child.expression)) ||
             // React Native always wraps a label in <Text>, so that child IS the text.
             (child.type === 'JSXElement' && TEXT_ELEMENTS.has(getElementName(child.openingElement))),
         )

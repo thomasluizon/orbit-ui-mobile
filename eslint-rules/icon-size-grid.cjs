@@ -28,8 +28,10 @@
  * WHAT IT DOES NOT SEE, stated rather than guessed at:
  *   - a file linted without type information. The rule reports nothing at all
  *     there, because every answer it could give would be a guess.
- *   - a `size` that is not a literal number. `size={iconSize}` is a value the
- *     checker knows only as `number`, and a rule cannot read a runtime variable.
+ *   - a `size` that is not statically known. `size={iconSize}` is a value the checker knows
+ *     only as `number`, and a rule cannot read a runtime variable.
+ *   - a string `size` carrying a unit or a percentage, such as `size="1.5rem"`. Tabler accepts
+ *     it, but it is not a value this rule can place on a 16/20/24 grid.
  *   - an icon whose props type resolves to `any`, which carries no declaration
  *     to attribute.
  */
@@ -42,10 +44,20 @@ const ALLOWED = new Set([16, 20, 24])
 // inside either one is the icon set itself.
 const TABLER_DECLARATION = /[\\/]@tabler[\\/]icons-react(?:-native)?[\\/]/
 
-const literalNumber = (node) => {
+// `IconProps.size` is `string | number`, so `size="22"` is a supported form that reaches the
+// SVG as width and height 22 and renders exactly as softly as `size={22}`. A string that is not
+// a bare number is a length this rule cannot place on the grid, so it stays silent instead.
+const BARE_NUMBER = /^\d+(?:\.\d+)?$/
+const staticSize = (node) => {
   if (!node) return null
-  if (node.type === 'Literal' && typeof node.value === 'number') return node.value
-  if (node.type === 'JSXExpressionContainer') return literalNumber(node.expression)
+  if (node.type === 'JSXExpressionContainer') return staticSize(node.expression)
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) {
+    const cooked = node.quasis[0]?.value.cooked ?? ''
+    return BARE_NUMBER.test(cooked.trim()) ? Number(cooked) : null
+  }
+  if (node.type !== 'Literal') return null
+  if (typeof node.value === 'number') return node.value
+  if (typeof node.value === 'string' && BARE_NUMBER.test(node.value.trim())) return Number(node.value)
   return null
 }
 
@@ -104,7 +116,7 @@ module.exports = {
         const sizeAttribute = getAttribute(node, 'size')
         if (!sizeAttribute) return
 
-        const size = literalNumber(getAttributeValueNode(sizeAttribute))
+        const size = staticSize(getAttributeValueNode(sizeAttribute))
         if (size === null || ALLOWED.has(size)) return
 
         if (!isTablerIcon(services.getTypeAtLocation(node.name), services, node.name)) return

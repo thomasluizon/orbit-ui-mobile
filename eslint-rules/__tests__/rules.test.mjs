@@ -567,6 +567,12 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
     "import { Check } from './icons'; export const a = <Check size={16} />",
     "import { Check } from './icons'; export const a = <Check size={20} />",
     "import { Check } from './icons'; export const a = <Check size={24} />",
+    // Tabler accepts a string size, and an on-grid one is still on the grid
+    "import { Check } from './icons'; export const a = <Check size=\"16\" />",
+    "import { Check } from './icons'; export const a = <Check size={\"24\"} />",
+    // a unit or a percentage is not a value this rule can place on the grid
+    "import { Check } from './icons'; export const a = <Check size=\"1.5rem\" />",
+    "import { Check } from './icons'; export const a = <Check size=\"100%\" />",
     // a runtime value is not a literal, and a rule cannot read one
     "import { Check } from './icons'; declare const iconSize: number; export const a = <Check size={iconSize} />",
     // the marks answer to neither the type scale nor the icon grid, and they are excluded
@@ -585,6 +591,15 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
     {
       code: "import { Trash2, Receipt } from './icons'; export const a = <><Trash2 size={12} /><Receipt size={28} /></>",
       errors: [{ messageId: 'offGridIconSize' }, { messageId: 'offGridIconSize' }],
+    },
+    // `size="22"` reaches the SVG as width and height 22 and renders exactly as softly
+    {
+      code: "import { Check } from './icons'; export const a = <Check size=\"22\" />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Check } from './icons'; export const a = <Check size={\"18\"} />",
+      errors: [{ messageId: 'offGridIconSize' }],
     },
     // round 2: the barrel alias
     {
@@ -640,6 +655,13 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
     "const s = StyleSheet.create({ chip: { borderRadius: radius.full } }); const a = <View style={s.chip} onTouchEnd={go}><Text>Go</Text></View>",
     // a style built by a call is not a literal this rule can read, and it says so rather than guessing
     "const a = <View style={toneStyles(tone).container}><Text>Pro</Text></View>",
+    // An icon-valued child is a round wrapper, not a chip. Counting every expression container as
+    // text reported these, which is the false positive the text discriminator exists to prevent.
+    '<div className="rounded-full bg-surface">{icon}</div>',
+    '<div className="rounded-full bg-surface">{ready && <Icon />}</div>',
+    "const a = <View style={{ borderRadius: 999 }}>{icon}</View>",
+    // a still-ambiguous conditional stays silent, because one branch is not text
+    "const a = <div className=\"rounded-full\">{ok ? 'Pro' : <Icon />}</div>",
   ],
   invalid: [
     { code: '<div className="rounded-full bg-surface">Pro</div>', errors: [{ messageId: 'pillOnStatic' }] },
@@ -649,6 +671,9 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
       errors: [{ messageId: 'pillOnStatic' }],
     },
     { code: '<View style={{ borderRadius: 999 }}><Text>Pro</Text></View>', errors: [{ messageId: 'pillOnStatic' }] },
+    // a provably text expression still reads as a chip
+    { code: "<div className=\"rounded-full bg-surface\">{'Pro'}</div>", errors: [{ messageId: 'pillOnStatic' }] },
+    { code: '<div className="rounded-full bg-surface">{`${count} left`}</div>', errors: [{ messageId: 'pillOnStatic' }] },
     // The mobile Badge, which the previous revision's blanket opt-out went blind to: the radius
     // arrives through a StyleSheet reference, and the element applying it is a static View.
     {

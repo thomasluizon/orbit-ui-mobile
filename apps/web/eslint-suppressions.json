@@ -538,9 +538,6 @@
     "local/icon-size-grid": {
       "count": 2
     },
-    "local/no-pill-radius-on-static": {
-      "count": 2
-    },
     "local/no-raw-gradient": {
       "count": 1
     },
@@ -641,9 +638,6 @@
     }
   },
   "components/chat/habit-list-card.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 6
     }
@@ -674,9 +668,6 @@
   },
   "components/command/command-menu.tsx": {
     "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-pill-radius-on-static": {
       "count": 1
     },
     "local/require-focus-replacement": {
@@ -875,9 +866,6 @@
     }
   },
   "components/goals/goal-status-badge.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -958,9 +946,6 @@
     }
   },
   "components/habits/habit-calendar.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 2
-    },
     "local/no-space-x-y": {
       "count": 1
     },
@@ -1055,9 +1040,6 @@
     "local/icon-size-grid": {
       "count": 2
     },
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/no-space-x-y": {
       "count": 2
     },
@@ -1071,9 +1053,6 @@
   "components/habits/habit-form-fields/scheduled-reminder-section.tsx": {
     "local/icon-size-grid": {
       "count": 2
-    },
-    "local/no-pill-radius-on-static": {
-      "count": 1
     },
     "local/no-space-x-y": {
       "count": 3
@@ -1187,9 +1166,6 @@
     "local/icon-size-grid": {
       "count": 1
     },
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/no-sparkle-ai-marker": {
       "count": 2
     },
@@ -1235,9 +1211,6 @@
     }
   },
   "components/milestone-share/milestone-share-card.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/no-raw-gradient": {
       "count": 1
     },
@@ -1572,9 +1545,6 @@
     }
   },
   "components/ui/badge.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 2
     }
