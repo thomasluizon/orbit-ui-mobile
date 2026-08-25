@@ -11,6 +11,8 @@ import { RuleTester } from 'eslint'
 import tsParser from '@typescript-eslint/parser'
 import { afterAll, describe, it } from 'vitest'
 import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 
@@ -528,5 +530,165 @@ ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
     { code: "import { Sparkles } from '@/components/ui/icons'", errors: [{ messageId: 'noSparkle' }] },
     { code: '<Sparkles size={16} />', errors: [{ messageId: 'noSparkle' }] },
     { code: '<span>✨ Astra</span>', errors: [{ messageId: 'noSparkle' }] },
+  ],
+})
+
+/**
+ * `local/icon-size-grid` reads the TYPE of a JSX tag, so its cases need a real TypeScript
+ * program rather than the bare parser the tester above uses. The fixture project beside this
+ * file supplies one: an `IconProps` declared under an `@tabler/icons-react` path, a barrel
+ * that re-exports it, and a subject file the cases are parsed as.
+ *
+ * Each hop below is a shape ui PR #751 shipped a rule against and Pullfrog then broke. The AST
+ * revision needed one special case per row and still missed the last one. The type question
+ * answers all of them identically.
+ */
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'type-fixtures')
+const SUBJECT = join(FIXTURES, 'subject.tsx')
+
+const typedTester = new RuleTester({
+  languageOptions: {
+    parser: tsParser,
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    parserOptions: {
+      ecmaFeatures: { jsx: true },
+      project: './tsconfig.json',
+      tsconfigRootDir: FIXTURES,
+    },
+  },
+})
+
+const inSubject = (cases) =>
+  cases.map((entry) => (typeof entry === 'string' ? { code: entry, filename: SUBJECT } : { ...entry, filename: SUBJECT }))
+
+typedTester.run('icon-size-grid', rule('icon-size-grid'), {
+  valid: inSubject([
+    "import { Check } from './icons'; export const a = <Check size={16} />",
+    "import { Check } from './icons'; export const a = <Check size={20} />",
+    "import { Check } from './icons'; export const a = <Check size={24} />",
+    // Tabler accepts a string size, and an on-grid one is still on the grid
+    "import { Check } from './icons'; export const a = <Check size=\"16\" />",
+    "import { Check } from './icons'; export const a = <Check size={\"24\"} />",
+    // a unit or a percentage is not a value this rule can place on the grid
+    "import { Check } from './icons'; export const a = <Check size=\"1.5rem\" />",
+    "import { Check } from './icons'; export const a = <Check size=\"100%\" />",
+    // a runtime value is not a literal, and a rule cannot read one
+    "import { Check } from './icons'; declare const iconSize: number; export const a = <Check size={iconSize} />",
+    // the marks answer to neither the type scale nor the icon grid, and they are excluded
+    // because their props are declared locally, not because they were named in a list
+    "import { OrbitMark } from './icons'; export const a = <OrbitMark size={96} />",
+    // a local component that merely has a size prop is not an icon
+    'declare const Card: (props: { size?: number }) => unknown; export const a = <Card size={13} />',
+    // no import at all, so the checker has no icon to attribute it to
+    'declare const Check: (props: { size?: number }) => unknown; export const a = <Check size={13} />',
+  ]),
+  invalid: inSubject([
+    {
+      code: "import { Check } from './icons'; export const a = <Check size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Trash2, Receipt } from './icons'; export const a = <><Trash2 size={12} /><Receipt size={28} /></>",
+      errors: [{ messageId: 'offGridIconSize' }, { messageId: 'offGridIconSize' }],
+    },
+    // `size="22"` reaches the SVG as width and height 22 and renders exactly as softly
+    {
+      code: "import { Check } from './icons'; export const a = <Check size=\"22\" />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Check } from './icons'; export const a = <Check size={\"18\"} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 2: the barrel alias
+    {
+      code: "import { Check } from './icons'; const Icon = Check; export const a = <Icon size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 5: a lookup map indexed at render time
+    {
+      code: "import { Check, Trash2 } from './icons'; declare const key: 'a' | 'b'; const map = { a: Check, b: Trash2 }; const Icon = map[key]; export const el = <Icon size={18} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 8: `as const` wraps the initializer in a TSAsExpression
+    {
+      code: "import { Check } from './icons'; declare const k: 'a'; const M = { a: Check } as const; const Icon = M[k]; export const el = <Icon size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 9: a descriptor array carrying the icon under a key
+    {
+      code: "import { Check } from './icons'; const CARDS = [{ key: 'a', icon: Check }]; const Icon = CARDS[0].icon; export const el = <Icon size={18} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 10: the root identifier is the callback parameter, not the array. This is the hop
+    // that stopped the AST revision converging, and it needs no rule of its own here.
+    {
+      code: "import { Check } from './icons'; const CARDS = [{ key: 'a', icon: Check }]; export const el = CARDS.map((card) => { const Row = card.icon; return <Row key={card.key} size={28} /> })",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+  ]),
+})
+
+ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
+  valid: [
+    '<PillButton className="rounded-full" />',
+    '<button className="rounded-full" />',
+    '<div className="rounded-full" onClick={go} />',
+    '<Avatar className="rounded-full" />',
+    '<ProgressRing className="rounded-full" />',
+    '<div className="rounded-2xl" />',
+    '<Pressable style={{ borderRadius: 999 }} />',
+    '<div className="rounded-full bg-surface" />',
+    '<div className="animate-pulse rounded-full">{label}</div>',
+    '<div style={{ borderRadius: 999, height: 7 }} />',
+    // an avatar sized from one variable is a circle at every value of that variable
+    "const a = <div className={['rounded-full', c].filter(Boolean).join(' ')} style={{ width: size, height: size }}>{initials}</div>",
+    // The SAME style key on a real control stays silent. This is the false positive that made
+    // the previous revision oscillate: the style cannot decide, only the element can.
+    "const s = StyleSheet.create({ chip: { borderRadius: radius.full } }); const a = <Pressable style={s.chip}><Text>Go</Text></Pressable>",
+    // a resolved style whose radius is not a pill
+    "const s = StyleSheet.create({ card: { borderRadius: radius.md } }); const a = <View style={s.card}><Text>Card</Text></View>",
+    // a resolved circle: equal absolute width and height
+    "const s = StyleSheet.create({ avatar: { borderRadius: radius.full, width: 40, height: 40 } }); const a = <View style={s.avatar}><Text>TL</Text></View>",
+    // an activation handler proves the control even on a plain View
+    "const s = StyleSheet.create({ chip: { borderRadius: radius.full } }); const a = <View style={s.chip} onTouchEnd={go}><Text>Go</Text></View>",
+    // a style built by a call is not a literal this rule can read, and it says so rather than guessing
+    "const a = <View style={toneStyles(tone).container}><Text>Pro</Text></View>",
+    // An icon-valued child is a round wrapper, not a chip. Counting every expression container as
+    // text reported these, which is the false positive the text discriminator exists to prevent.
+    '<div className="rounded-full bg-surface">{icon}</div>',
+    '<div className="rounded-full bg-surface">{ready && <Icon />}</div>',
+    "const a = <View style={{ borderRadius: 999 }}>{icon}</View>",
+    // a still-ambiguous conditional stays silent, because one branch is not text
+    "const a = <div className=\"rounded-full\">{ok ? 'Pro' : <Icon />}</div>",
+  ],
+  invalid: [
+    { code: '<div className="rounded-full bg-surface">Pro</div>', errors: [{ messageId: 'pillOnStatic' }] },
+    // the canonical class builder in this repository, previously invisible to the scan
+    {
+      code: "const a = <div className={['rounded-full', tone].filter(Boolean).join(' ')}>Pro</div>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    { code: '<View style={{ borderRadius: 999 }}><Text>Pro</Text></View>', errors: [{ messageId: 'pillOnStatic' }] },
+    // a provably text expression still reads as a chip
+    { code: "<div className=\"rounded-full bg-surface\">{'Pro'}</div>", errors: [{ messageId: 'pillOnStatic' }] },
+    { code: '<div className="rounded-full bg-surface">{`${count} left`}</div>', errors: [{ messageId: 'pillOnStatic' }] },
+    // The mobile Badge, which the previous revision's blanket opt-out went blind to: the radius
+    // arrives through a StyleSheet reference, and the element applying it is a static View.
+    {
+      code: "const s = StyleSheet.create({ badge: { borderRadius: radius.full } }); const a = <View style={s.badge}><Text>Pro</Text></View>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    // the same reference reached through the array form the kit actually writes
+    {
+      code: "const s = StyleSheet.create({ badge: { borderRadius: radius.full } }); const a = <View style={[s.badge, extra]}><Text>Pro</Text></View>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    // a plain object binding, not StyleSheet.create
+    {
+      code: "const base = { borderRadius: 9999 }; const a = <View style={base}><Text>Pro</Text></View>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
   ],
 })
