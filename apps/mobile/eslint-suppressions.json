@@ -8,11 +8,17 @@
     }
   },
   "app/(tabs)/calendar/_components/calendar-day-detail.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 1
     }
   },
   "app/(tabs)/calendar/_components/calendar-day-entry.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -36,6 +42,9 @@
     }
   },
   "app/(tabs)/calendar/_components/calendar-shell.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 7
     }
@@ -72,6 +81,9 @@
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -82,11 +94,17 @@
     }
   },
   "app/(tabs)/profile/_components/fresh-start-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    },
     "local/spacing-scale": {
       "count": 4
     }
   },
   "app/(tabs)/profile/_components/next-reward-carrot.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-decorative-glow": {
       "count": 1
     },
@@ -98,8 +116,21 @@
     }
   },
   "app/(tabs)/profile/_components/profile-action-button.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
+    }
+  },
+  "app/(tabs)/profile/_components/profile-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "app/(tabs)/profile/_components/profile-stat-row.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "app/(tabs)/profile/_components/profile-styles.ts": {
@@ -108,6 +139,9 @@
     }
   },
   "app/(tabs)/today-shell.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -128,8 +162,16 @@
     }
   },
   "app/achievements.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 10
+    }
+  },
+  "app/advanced-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
     }
   },
   "app/advanced-styles.ts": {
@@ -138,7 +180,15 @@
     }
   },
   "app/advanced.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/ai-settings-sections.tsx": {
+    "local/icon-size-grid": {
       "count": 2
     }
   },
@@ -148,6 +198,9 @@
     }
   },
   "app/auth-callback.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-raw-gradient": {
       "count": 1
     },
@@ -155,9 +208,29 @@
       "count": 1
     }
   },
+  "app/calendar-sync-auto-section.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "app/calendar-sync-event-row.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "app/calendar-sync-select-all-toggle.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
   "app/calendar-sync-styles.ts": {
     "local/spacing-scale": {
       "count": 23
+    }
+  },
+  "app/calendar-sync.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
     }
   },
   "app/chat.styles.ts": {
@@ -183,6 +256,11 @@
       "count": 1
     }
   },
+  "app/preferences-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "app/preferences-styles.ts": {
     "local/spacing-scale": {
       "count": 6
@@ -191,6 +269,16 @@
   "app/privacy.tsx": {
     "local/spacing-scale": {
       "count": 4
+    }
+  },
+  "app/retrospective-dashboard.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    }
+  },
+  "app/retrospective-locked-states.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "app/retrospective-styles.ts": {
@@ -208,12 +296,20 @@
       "count": 19
     }
   },
+  "app/streak-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "app/streak.tsx": {
     "local/spacing-scale": {
       "count": 12
     }
   },
   "app/support.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -231,8 +327,21 @@
       "count": 2
     }
   },
+  "app/wrapped-cover.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "app/wrapped-player.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/no-raw-gradient": {
+      "count": 1
+    }
+  },
+  "app/wrapped-slide.tsx": {
+    "local/icon-size-grid": {
       "count": 1
     }
   },
@@ -251,17 +360,48 @@
       "count": 2
     }
   },
+  "components/chat/breakdown-habit-row.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/chat/breakdown-suggestion.styles.ts": {
     "local/spacing-scale": {
       "count": 11
     }
   },
+  "components/chat/breakdown-suggestion.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    }
+  },
+  "components/chat/chat-composer-input.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/chat/chat-input-area.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    }
+  },
+  "components/chat/chat-input-bar.tsx": {
+    "local/icon-size-grid": {
+      "count": 5
+    }
+  },
   "components/chat/clarification-card.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
     }
   },
   "components/chat/conflict-warning.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -287,6 +427,9 @@
     }
   },
   "components/gamification/achievement-toast.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-arbitrary-zindex": {
       "count": 1
     },
@@ -340,6 +483,9 @@
     }
   },
   "components/gamification/welcome-back-toast.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-arbitrary-zindex": {
       "count": 1
     },
@@ -352,14 +498,49 @@
       "count": 4
     }
   },
+  "components/goals/create-goal-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/goals/create-goal-modal/goal-deadline-field.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/goals/create-goal-modal/goal-type-selector.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/goals/create-goal-modal/styles.ts": {
     "local/spacing-scale": {
       "count": 6
     }
   },
+  "components/goals/edit-goal-modal/edit-goal-deadline-field.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/goals/edit-goal-modal/styles.ts": {
     "local/spacing-scale": {
       "count": 4
+    }
+  },
+  "components/goals/goal-detail-drawer/goal-action-footer.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/goals/goal-detail-drawer/goal-ask-astra-button.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/goals/goal-detail-drawer/goal-progress-block.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "components/goals/goal-detail-drawer/styles.ts": {
@@ -368,6 +549,9 @@
     }
   },
   "components/goals/goal-detail-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 8
     }
@@ -383,6 +567,9 @@
     }
   },
   "components/goals/goals-view.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -392,7 +579,15 @@
       "count": 1
     }
   },
+  "components/habit-list/drill-view.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/habit-list/empty-state.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/no-sparkle-ai-marker": {
       "count": 2
     },
@@ -401,6 +596,9 @@
     }
   },
   "components/habit-list/move-parent-dialog.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 7
     }
@@ -411,26 +609,46 @@
     }
   },
   "components/habits/bulk-action-bar-v2.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 2
     }
   },
   "components/habits/checklist-templates.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 11
     }
   },
   "components/habits/create-habit-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 12
     }
   },
+  "components/habits/create-habit-modal/sub-habit-editor.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/habits/description-viewer.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 4
     }
   },
   "components/habits/edit-habit-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -446,8 +664,21 @@
     }
   },
   "components/habits/habit-checklist.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 4
+    }
+  },
+  "components/habits/habit-detail-drawer.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/habits/habit-detail-drawer/habit-ask-astra-button.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "components/habits/habit-detail-drawer/styles.ts": {
@@ -461,7 +692,40 @@
     }
   },
   "components/habits/habit-form-fields.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-sparkle-ai-marker": {
+      "count": 2
+    }
+  },
+  "components/habits/habit-form-fields/advanced-section.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/habits/habit-form-fields/frequency-type-cards.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    }
+  },
+  "components/habits/habit-form-fields/habit-emoji-selector.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "components/habits/habit-form-fields/habit-tag-chip.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "components/habits/habit-form-fields/reminder-section.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "components/habits/habit-form-fields/scheduled-reminder-section.tsx": {
+    "local/icon-size-grid": {
       "count": 2
     }
   },
@@ -471,8 +735,21 @@
     }
   },
   "components/habits/habit-form-fields/tags-section.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/no-sparkle-ai-marker": {
       "count": 2
+    }
+  },
+  "components/habits/habit-row-check-circle.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/habits/habit-row-leading.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "components/habits/habit-row-styles.ts": {
@@ -480,7 +757,15 @@
       "count": 8
     }
   },
+  "components/habits/habit-row-trailing.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/habits/reschedule-sheet.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-sparkle-ai-marker": {
       "count": 2
     },
@@ -494,6 +779,11 @@
     },
     "local/spacing-scale": {
       "count": 6
+    }
+  },
+  "components/marketing-consent/marketing-consent-prompt.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "components/message-bubble.tsx": {
@@ -510,11 +800,17 @@
     }
   },
   "components/milestone-share/milestone-share-prompt.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 1
     }
   },
   "components/navigation/bottom-tab-bar.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-decorative-glow": {
       "count": 1
     },
@@ -527,12 +823,20 @@
       "count": 11
     }
   },
+  "components/navigation/notification-bell.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    }
+  },
   "components/navigation/notification-detail-modal.tsx": {
     "local/spacing-scale": {
       "count": 7
     }
   },
   "components/navigation/notification-row.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-sparkle-ai-marker": {
       "count": 1
     }
@@ -558,11 +862,17 @@
     }
   },
   "components/onboarding/onboarding-complete.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 5
     }
   },
   "components/onboarding/onboarding-create-goal.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-decorative-glow": {
       "count": 1
     },
@@ -571,6 +881,9 @@
     }
   },
   "components/onboarding/onboarding-create-habit.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/no-decorative-glow": {
       "count": 1
     },
@@ -579,6 +892,9 @@
     }
   },
   "components/onboarding/onboarding-features.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -594,11 +910,17 @@
     }
   },
   "components/onboarding/onboarding-meet-astra.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 3
     }
   },
   "components/onboarding/onboarding-template-packs.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -609,18 +931,32 @@
     }
   },
   "components/profile/profile-nav-icon.tsx": {
+    "local/icon-size-grid": {
+      "count": 9
+    },
     "local/no-sparkle-ai-marker": {
       "count": 2
     }
   },
   "components/referral/referral-card.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    },
     "local/spacing-scale": {
       "count": 5
     }
   },
   "components/referral/referral-drawer.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 11
+    }
+  },
+  "components/referral/referral-prompt.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   },
   "components/review-moment/review-moment-sheet.tsx": {
@@ -634,6 +970,9 @@
     }
   },
   "components/share/share-card-sheet.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -647,16 +986,25 @@
     }
   },
   "components/today/setup-checklist-card.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 3
     }
   },
   "components/today/today-habits-header.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 8
     }
   },
   "components/tour/tour-replay-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -667,6 +1015,9 @@
     }
   },
   "components/tour/tour-tooltip.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-arbitrary-zindex": {
       "count": 2
     },
@@ -683,16 +1034,25 @@
     }
   },
   "components/ui/app-bar.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    },
     "local/spacing-scale": {
       "count": 3
     }
   },
   "components/ui/app-date-picker.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 4
     }
   },
   "components/ui/app-error-boundary.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-decorative-glow": {
       "count": 1
     },
@@ -701,6 +1061,9 @@
     }
   },
   "components/ui/app-select.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -716,6 +1079,9 @@
     }
   },
   "components/ui/app-toast.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-arbitrary-zindex": {
       "count": 1
     },
@@ -724,6 +1090,9 @@
     }
   },
   "components/ui/badge.tsx": {
+    "local/no-pill-radius-on-static": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -744,6 +1113,9 @@
     }
   },
   "components/ui/confirm-dialog.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 6
     }
@@ -772,6 +1144,9 @@
     }
   },
   "components/ui/fresh-start-animation.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 1
     }
@@ -795,6 +1170,9 @@
     }
   },
   "components/ui/offline-unavailable-state.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -805,6 +1183,9 @@
     }
   },
   "components/ui/push-prompt.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -815,6 +1196,9 @@
     }
   },
   "components/ui/section-head-tabs.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -830,11 +1214,17 @@
     }
   },
   "components/ui/settings-group.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 5
     }
   },
   "components/ui/settings-row.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -845,11 +1235,17 @@
     }
   },
   "components/ui/trial-banner.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 4
     }
   },
   "components/ui/trial-expired-modal.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/spacing-scale": {
       "count": 8
     }
@@ -868,6 +1264,9 @@
     }
   },
   "components/upgrade/billing-dashboard.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    },
     "local/spacing-scale": {
       "count": 1
     }
@@ -877,12 +1276,28 @@
       "count": 5
     }
   },
+  "components/upgrade/plan-comparison-cards.tsx": {
+    "local/icon-size-grid": {
+      "count": 4
+    }
+  },
+  "components/upgrade/play-billing-dashboard.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/upgrade/pricing-footer.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    },
     "local/no-sparkle-ai-marker": {
       "count": 2
     }
   },
   "components/upgrade/pricing-section.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -893,8 +1308,16 @@
     }
   },
   "components/version-update-drawer.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
     "local/spacing-scale": {
       "count": 5
+    }
+  },
+  "components/wrapped/wrapped-entry-button.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
     }
   }
 }
