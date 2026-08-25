@@ -3,7 +3,7 @@
 > **At a glance** - the single code-derived, gating- and platform-aware map of every Orbit capability.
 > - Downstream copy (Play listing, landing page, QA matrix) derives its rows from here, so nothing is undersold.
 > - Gating: Free / Trial (7-day, full Pro except Retrospective) / Pro / Yearly-Pro, computed from `User` flags in `PayGateService.cs`.
-> - Free limits: 10 top-level habits and 20 AI messages/month; Both = web + mobile (Expo, Android-only), with no iOS app.
+> - Free limits: 5 AI messages per day. Habits are not a paid axis: the 1000 ceiling is an abuse guard, identical on every plan. Both = web + mobile (Expo, Android-only), with no iOS app.
 > - Headline surfaces: Astra (61 AI tools), the MCP server (79 tools / 15 classes), sharing and referrals, the core tracker.
 > - Read the whole doc before writing store, marketing, or QA copy.
 
@@ -18,7 +18,20 @@ The single, code-derived, gating- and platform-aware map of everything Orbit doe
 - **Pro** — monthly, yearly, or lifetime purchase (Play Billing on mobile, Stripe on web).
 - **Yearly-Pro** — the yearly plan; a super-set that additionally unlocks the AI Retrospective.
 
-Free-tier limits (source: `AppConstants.cs`): **10** top-level habits, **20** AI messages/month. Pro raises these to unlimited habits and **500** AI messages/month. A rewarded ad grants **+5** AI messages, capped at **3/day** — free, non-trial users only. Pro and trial users never see ads.
+**Limits (source: the live `AppConfigs` rows, which override the `AppConstants.cs` defaults).** The AI
+meter is **daily** and resets at the user's local midnight: **5** messages a day free, **50** a day on
+Pro. **Pro is Astra without the daily ceiling, not a feature matrix.**
+
+**Habits are not a paid axis.** The ceiling is **1000** live top-level habits, identical on every
+plan, and it exists as an abuse guard rather than as an upsell.
+
+**Sub-habits are Pro** (`SubHabitsProOnly`). A rewarded ad grants **+5** AI messages against that
+day's allowance, capped at **3/day**, for free non-trial users only. Pro and trial users never see
+ads.
+
+Verified against production on 2026-08-25: `FreeAiMessagesPerDay` 5, `ProAiMessagesPerDay` 50,
+`FreeMaxHabits` 1000, `SubHabitsProOnly` true. Each is an `AppConfigs` row read at request time, so
+the live row is the gating, never the constant.
 
 **Platform vocabulary.** **Both** = web (Next.js) and mobile (Expo, Android-only). **Web-only** / **Mobile-only** flag the genuine platform-specific surfaces. There is **no iOS app**.
 
@@ -46,10 +59,10 @@ Astra is the in-app assistant on the chat surface (web `/chat`, mobile `chat`). 
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Conversational chat | Natural-language coach that creates, logs, updates, and explains your habits and goals | Free (20 msgs/mo) · Pro (500 msgs/mo) | Both | en + pt-BR; AI replies in the user's language |
+| Conversational chat | Natural-language coach that creates, logs, updates, and explains your habits and goals | Free (5 msgs/day) · Pro (50 msgs/day) | Both | en + pt-BR; AI replies in the user's language |
 | Tool breadth — habits | 14 tools: create/update/delete, log, skip, duplicate, move, reorder, sub-habits, checklist, query, metrics | Free (Pro-gated actions inherit their feature's gate) | Both | — |
 | Tool breadth — habit bulk ops | 5 tools: bulk create/delete/log/skip and bulk emoji update | Free | Both | — |
-| Tool breadth — goals | 10 tools: create/query/update/delete, status, progress, link habits/goals, AI review, reorder | Pro (goals are Pro) | Both | — |
+| Tool breadth — goals | 10 tools: create/query/update/delete, status, progress, link habits/goals, AI review, reorder | Free, except the AI review, which is Pro | Both | — |
 | Tool breadth — tags | 5 tools: assign, list, create, update, delete | Free | Both | — |
 | Tool breadth — profile & preferences | 4 tools: get profile, update preferences, set color scheme, set AI summary | Free / Pro per setting | Both | — |
 | Tool breadth — checklist templates | 3 tools: get, create, delete reusable templates | Free | Both | — |
@@ -66,7 +79,7 @@ Astra is the in-app assistant on the chat surface (web `/chat`, mobile `chat`). 
 | Image analysis | Photograph a schedule/to-do/calendar; Astra extracts habits for review (vision turns skip tools) | Free (counts as an AI message) | Both | — |
 | Smart reschedule | Astra analyzes your routine and suggests better times/days | Pro | Both | — |
 | Proactive check-ins | Astra-initiated nudges | Pro | Both | — |
-| Monthly message cap + ad top-up | 20/mo free, 500/mo Pro; rewarded ad grants +5, cap 3/day | Free / Pro; ads free-non-trial only | Both | — |
+| Daily message cap + ad top-up | 5/day free, 50/day Pro, reset at local midnight; rewarded ad grants +5, cap 3/day | Free / Pro; ads free-non-trial only | Both | — |
 
 ---
 
@@ -113,7 +126,7 @@ Core tracker. Caps in `AppConstants.cs` (e.g. sub-habits max 20, depth max 5, ta
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Create habits | Name, description, frequency; via form or Astra | Free up to 10 top-level; Pro unlimited | Both | — |
+| Create habits | Name, description, frequency; via form or Astra | Free; the 1000 top-level ceiling is an abuse guard on every plan | Both | — |
 | AI habit setup suggestion | "Suggest with AI" from the create or edit modal fills emoji, cadence, due time, and checklist from the habit name (create also proposes sub-habits) | Free; AI usage metered, over-limit blocked server-side (no client Pro-gate) | Both | — |
 | Frequencies & scheduling | Daily, weekly-on-days, monthly, yearly | Free | Both | — |
 | Flexible habits | Complete X times per week/month, no fixed days | Free | Both | — |
@@ -127,7 +140,7 @@ Core tracker. Caps in `AppConstants.cs` (e.g. sub-habits max 20, depth max 5, ta
 | Metrics & streaks | Current/best streak, weekly/monthly rates, totals | Free | Both | — |
 | Drag & drop ordering | Reorder habit cards; order persists | Free | Both | — |
 | End dates | Optional stop date on recurring habits | Free | Both | — |
-| Goal linking | Link habits to goals for adherence tracking | Pro (goals are Pro) | Both | — |
+| Goal linking | Link habits to goals for adherence tracking | Free | Both | — |
 | Tags on cards | Color-coded tag badges on habit cards | Free | Both | — |
 | Bulk actions | Multi-select to log/skip/delete (max 100/op) | Free | Both | — |
 | Search & filters | Search by name, filter by frequency | Free | Both | — |
@@ -141,16 +154,18 @@ Core tracker. Caps in `AppConstants.cs` (e.g. sub-habits max 20, depth max 5, ta
 
 ## Goals
 
-Goals are a Pro feature end-to-end (`PayGateService.CanAccessGoals`). Caps: max 10 goals/habit, 20 habits/goal.
+**Goals are free.** `CanAccessGoals` no longer exists in `PayGateService.cs`; the only gated goal
+operation is the AI review (`CanUseGoalReview`), which two call sites check: `GetGoalReviewQuery` and
+the Astra `GoalReviewTool`. Caps: max 10 goals/habit, 20 habits/goal.
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Create goals | Title, target value, unit, optional deadline | Pro | Both | — |
-| Track progress | Update current value, notes, full history | Pro | Both | — |
-| Link habits | Connect habits for adherence tracking | Pro | Both | — |
-| Metrics dashboard | Velocity, projected completion, on-track/at-risk/behind | Pro | Both | — |
+| Create goals | Title, target value, unit, optional deadline | Free | Both | — |
+| Track progress | Update current value, notes, full history | Free | Both | — |
+| Link habits | Connect habits for adherence tracking | Free | Both | — |
+| Metrics dashboard | Velocity, projected completion, on-track/at-risk/behind | Free | Both | — |
 | AI goal review | AI analysis of what's working and what needs attention | Pro | Both | — |
-| Lifecycle | Active → completed → abandoned states | Pro | Both | — |
+| Lifecycle | Active → completed → abandoned states | Free | Both | — |
 
 ---
 
@@ -214,9 +229,9 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Free tier | 10 habits, 20 AI msgs/mo, core tracking, gamification, milestone sharing, referrals | Free | Both | — |
+| Free tier | 5 AI msgs/day, goals, core tracking, gamification, milestone sharing, referrals | Free | Both | — |
 | 7-day trial | Full Pro access (except Retrospective); set at signup, no card | Trial | Both | — |
-| Orbit Pro | Unlimited habits, 500 AI msgs, sub-habits, goals, calendar, daily summary, API keys/MCP, all color schemes | Pro | Both | — |
+| Orbit Pro | 50 AI msgs/day, sub-habits, calendar, daily summary, AI goal review, API keys/MCP, AI memory, proactive check-ins, slip alerts, all color schemes | Pro | Both | — |
 | Yearly Pro | Everything in Pro **plus** the AI Retrospective | Yearly-Pro | Both | — |
 | AI Retrospective | AI analysis over week/month/quarter/year | **Yearly-Pro only** | Both | — |
 | Purchase — mobile | Play Billing (native verify + RTDN); backend is source of truth | — | Mobile | — |
