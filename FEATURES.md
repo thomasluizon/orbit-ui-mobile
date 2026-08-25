@@ -18,7 +18,7 @@ The single, code-derived, gating- and platform-aware map of everything Orbit doe
 - **Pro** — monthly, yearly, or lifetime purchase (Play Billing on mobile, Stripe on web).
 - **Yearly-Pro** — the yearly plan; a super-set that additionally unlocks the AI Retrospective.
 
-**Limits (source: the live `AppConfigs` rows, which override the `AppConstants.cs` defaults).** The AI
+**Limits (source: the live `AppConfigs` rows).** The AI
 meter is **daily** and resets at the user's local midnight: **5** messages a day free, **50** a day on
 Pro. **On the Astra allowance specifically, what Pro buys is ten times the free one rather than a
 different product.** Pro does also carry its own entitlements, enumerated in the plan table below.
@@ -34,11 +34,16 @@ Read from the production `AppConfigs` table on 2026-08-25: `FreeAiMessagesPerDay
 `ProAiMessagesPerDay` 50, `FreeMaxHabits` 1000, `SubHabitsProOnly` true.
 
 `AppConfigService.GetAsync` caches each key in memory for **30 minutes** and falls back to the
-`AppConstants.cs` default when the row is absent, when its value cannot be parsed into the requested
-type, and when the requested type is one `ConvertValue` does not handle. So a row edit takes up to
-half an hour to take effect, and a malformed row is indistinguishable from a missing one. Quote the row values above rather
-than the constants: `DefaultFreeMaxHabits` is 1000 while the original seed migration wrote 10, so the
-two disagreed until a later migration raised the row.
+default its CALLER supplied when the row is absent, when its value cannot be parsed into the
+requested type, and when the requested type is one `ConvertValue` does not handle. So a row edit
+takes up to half an hour to take effect, and a malformed row is indistinguishable from a missing one.
+
+That supplied default is a named constant only for the numeric limits: `DefaultFreeMaxHabits`,
+`DefaultFreeAiMessages` and `DefaultProAiMessages`. `SubHabitsProOnly` passes the literal `true` and
+has no constant at all, so there is no single file to read every fallback out of.
+
+**Quote the row values above, never the constants.** `DefaultFreeMaxHabits` is 1000 while the
+original seed migration wrote 10, so the two disagreed until a later migration raised the row.
 
 **Platform vocabulary.** **Both** = web (Next.js) and mobile (Expo, Android-only). **Web-only** / **Mobile-only** flag the genuine platform-specific surfaces. There is **no iOS app**.
 
