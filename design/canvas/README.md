@@ -55,9 +55,9 @@ disagrees with a token here is wrong, whatever any document says.
 | `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css` | exactly ten values: 0 4 8 12 16 24 32 48 64 96. **20, 28, 40 and 56 must not appear** |
 | `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css` | the radius scale, the shadows and the motion durations. Radius 999 means interactive |
 | `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css` | three families and a closed size set: 12 14 16 17 20 22 28 34 44 60 |
-| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css`, `.../tokens/base.css` | the font faces and the reset |
+| `.../tokens/fonts.css`, `.../tokens/base.css` | the font faces, repointed at the tracked binaries in `design/brand/fonts/`, and the reset |
 | `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css` | the shared component styles |
-| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_manifest.json` | the inventory: 41 components with their source paths, and 36 guideline cards with their specs |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_manifest.json` | the inventory: 41 component names with their canvas source paths, and 36 guideline cards with a one-line summary each |
 
 **A component in the manifest is a promoted primitive. A component that appears only inside a screen
 is drawn inline there**, and the screen is its reference. Both are equally binding.
@@ -91,9 +91,9 @@ from Claude Design and open it there, or drop those two files and the font binar
 The `_ds/<uuid>/` directory keeps the export's own UUID name because the screens link through it.
 Flattening it silently breaks every stylesheet reference.
 
-`_ds_manifest.json` lists 41 components by `sourcePath`. **Those `.jsx` files are not in this export**;
-the paths are provenance from the canvas sessions. A component's real specification is its guideline
-card subtitle plus the screens that draw it.
+The manifest lists 41 components by `sourcePath`. **Those `.jsx` files are not in this export**; the
+paths are provenance from the canvas sessions. What specifies a component is stated once above: the
+token values, `styles.css`, and the screens that draw it.
 
 ## `superseded/`
 
