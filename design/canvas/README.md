@@ -6,6 +6,10 @@
 
 ## The authority
 
+**Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
+the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
+carries nothing, and the eleven in `superseded/` still carry nothing.
+
 **When this canvas and any prose disagree, the canvas wins.** That includes `DESIGN.md`, a ticket
 body, and this file. `DESIGN.md` remains the written spec and the place mechanical rules are
 enforced, but a drawing here outranks a sentence there (D42).
@@ -65,8 +69,23 @@ screen is drawn inline there**, and the screen is its reference. Both are equall
 * **`_adherence.oxlintrc.json`**, the canvas's own lint config. Nothing here consumes it, and its
   messages carry em dashes the dash gate rejects.
 
-To open a document locally, export the project archive from Claude Design again and open it there,
-or drop these files beside an exported `support.js` and the font binaries.
+### Reading them, and rendering them
+
+**Reading works from a checkout.** The markup is plain HTML with a `{{ }}` template layer, each
+screen carries a prose report block explaining its own decisions, and every stylesheet link resolves
+against the `_ds/` tree committed beside them. That is what an implementer needs and it is why this
+export is here.
+
+**Rendering does not work from a checkout, by design.** Each document also pulls `support.js` and
+`_ds/<uuid>/_ds_bundle.js`, and neither is committed. To see one rendered, export the project archive
+from Claude Design and open it there, or drop those two files and the font binaries beside these.
+
+The `_ds/<uuid>/` directory keeps the export's own UUID name because the screens link through it.
+Flattening it silently breaks every stylesheet reference.
+
+`_ds_manifest.json` lists 41 components by `sourcePath`. **Those `.jsx` files are not in this export**;
+the paths are provenance from the canvas sessions. A component's real specification is its guideline
+card subtitle plus the screens that draw it.
 
 ## `superseded/`
 
