@@ -463,7 +463,7 @@
       "aiSuggestApplied": "AI suggestion applied",
       "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
       "aiSuggestEmpty": "No suggestion for this one. Add the details yourself.",
-      "aiSuggestLimitReached": "You've reached your monthly AI message limit.",
+      "aiSuggestLimitReached": "You've reached today's AI message limit.",
       "title": "Title",
       "titlePlaceholder": "e.g. Morning run",
       "description": "Description",
@@ -908,7 +908,7 @@
     "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
-    "limitReachedError": "You've reached your monthly AI message limit.",
+    "limitReachedError": "You've reached today's AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
@@ -960,7 +960,7 @@
       "title": "Potential conflict"
     },
     "attachmentPreview": "User uploaded attachment",
-    "messagesUsed": "messages used this month",
+    "messagesUsed": "messages used today",
     "senderYou": "You",
     "senderOrbit": "Astra",
     "astraAvatarLabel": "Astra avatar",
@@ -1363,11 +1363,11 @@
       "heading": "Your Pro trial has ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "aiChat": "500 AI messages per month",
+      "aiChat": "50 AI messages per day",
       "allColors": "All 6 color schemes",
       "aiSummary": "Daily AI summaries",
       "subHabits": "Sub-habits",
-      "goals": "Goals & progress tracking",
+      "goals": "AI goal review and daily summaries",
       "subscribe": "Subscribe to Pro",
       "continueFree": "Continue with Free"
     }
@@ -1689,7 +1689,7 @@
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "61 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 20 AI messages per month; Pro raises it to 500.",
+        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -1763,7 +1763,7 @@
         "pushNotificationsTitle": "Push Notifications",
         "pushNotificationsDesc": "Enable or disable push notifications in Settings. Use the 'Send test notification' button to verify they work. Reminders are sent as push notifications based on each habit's due time.",
         "subscriptionTitle": "Subscription & Pro",
-        "subscriptionDesc": "The free tier includes up to 10 habits and 20 AI messages per month. Orbit Pro unlocks unlimited habits, 500 AI messages, daily summaries, sub-habits, calendar sync, and all color schemes.",
+        "subscriptionDesc": "The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and unlocks daily summaries, sub-habits, calendar sync, the AI goal review, and all color schemes.",
         "weekStartDayTitle": "Week Start Day",
         "weekStartDayDesc": "Choose whether your week starts on Monday or Sunday. This affects all calendars, day pickers, and weekly frequency displays throughout the app.",
         "showGeneralTodayTitle": "Show General on Today",
@@ -1797,14 +1797,14 @@
     "features": {
       "habits": {
         "label": "Habits",
-        "free": "Up to 10",
-        "pro": "Unlimited",
-        "tooltip": "Create and track daily, weekly, or monthly habits. Free users can have up to 10 active habits."
+        "free": "Up to 1000",
+        "pro": "Up to 1000",
+        "tooltip": "Create and track daily, weekly, or monthly habits. Every plan can have up to 1000 active habits."
       },
       "ai": {
         "label": "AI Chat",
-        "free": "20 msgs/month",
-        "pro": "500 msgs/month",
+        "free": "5 msgs/day",
+        "pro": "50 msgs/day",
         "tooltip": "Chat with an AI coach that can create habits, log completions, analyze progress, suggest breakdowns, and offer personalized advice."
       },
       "subHabits": {
@@ -1814,10 +1814,10 @@
         "tooltip": "Break complex habits into smaller steps. Sub-habits nest under a parent habit for better organization."
       },
       "goals": {
-        "label": "Goals",
+        "label": "AI Goal Review",
         "free": "No",
         "pro": "Included",
-        "tooltip": "Create long-term goals and link habits to track measurable progress over time."
+        "tooltip": "Goals are free on every plan: create long-term goals and link habits to track measurable progress. Pro adds the AI review, which reads a goal and reports what is working and what needs attention."
       },
       "colors": {
         "label": "Color Schemes",
@@ -1919,9 +1919,9 @@
         "billedSave": "Billed {price}/yr, save {amount} a year"
       },
       "proFeatures": {
-        "unlimited": "Unlimited habits",
-        "ai": "500 AI messages/month",
-        "goals": "Goals & progress tracking",
+        "unlimited": "Sub-habits and calendar sync",
+        "ai": "50 AI messages a day",
+        "goals": "AI goal review and daily summaries",
         "themes": "All 6 color themes",
         "retrospective": "AI Retrospective"
       },

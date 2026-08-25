@@ -20,7 +20,7 @@ The single, code-derived, gating- and platform-aware map of everything Orbit doe
 
 **Limits (source: the live `AppConfigs` rows, which override the `AppConstants.cs` defaults).** The AI
 meter is **daily** and resets at the user's local midnight: **5** messages a day free, **50** a day on
-Pro. **Pro is Astra without the daily ceiling, not a feature matrix.**
+Pro. **What Pro buys is the higher daily allowance, ten times the free one, not a feature matrix.**
 
 **Habits are not a paid axis.** The ceiling is **1000** live top-level habits, identical on every
 plan, and it exists as an abuse guard rather than as an upsell.
@@ -29,9 +29,14 @@ plan, and it exists as an abuse guard rather than as an upsell.
 day's allowance, capped at **3/day**, for free non-trial users only. Pro and trial users never see
 ads.
 
-Verified against production on 2026-08-25: `FreeAiMessagesPerDay` 5, `ProAiMessagesPerDay` 50,
-`FreeMaxHabits` 1000, `SubHabitsProOnly` true. Each is an `AppConfigs` row read at request time, so
-the live row is the gating, never the constant.
+Read from the production `AppConfigs` table on 2026-08-25: `FreeAiMessagesPerDay` 5,
+`ProAiMessagesPerDay` 50, `FreeMaxHabits` 1000, `SubHabitsProOnly` true.
+
+`AppConfigService.GetAsync` caches each key in memory for **30 minutes** and falls back to the
+`AppConstants.cs` default only when the row is absent. So a row edit takes up to half an hour to take
+effect, and the constant governs only a key that was never seeded. Quote the row values above rather
+than the constants: `DefaultFreeMaxHabits` is 1000 while the original seed migration wrote 10, so the
+two disagreed until a later migration raised the row.
 
 **Platform vocabulary.** **Both** = web (Next.js) and mobile (Expo, Android-only). **Web-only** / **Mobile-only** flag the genuine platform-specific surfaces. There is **no iOS app**.
 
