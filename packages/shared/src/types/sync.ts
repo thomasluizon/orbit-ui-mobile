@@ -155,6 +155,7 @@ const syncGoalDtoSchema = z.object({
   updatedAtUtc: z.string(),
   completedAtUtc: z.string().nullable(),
   streakSyncedAtUtc: z.string().nullable(),
+  isProgressDerived: z.boolean().optional(),
 })
 
 const syncGoalProgressLogDtoSchema = z.object({

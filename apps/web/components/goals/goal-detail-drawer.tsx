@@ -97,6 +97,11 @@ export function GoalDetailDrawer({
     onOpenChange,
   })
 
+  const openManualProgressForm = useCallback(() => {
+    if (goal?.isProgressDerived) return
+    openProgressForm()
+  }, [goal?.isProgressDerived, openProgressForm])
+
   const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
     useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail })
 
@@ -139,7 +144,7 @@ export function GoalDetailDrawer({
     initialAction,
     openEditModal: () => setShowEditModal(true),
     openDeleteConfirm: () => setShowDeleteConfirm(true),
-    openProgressForm,
+    openProgressForm: openManualProgressForm,
     markCompleted,
   })
 
@@ -195,11 +200,17 @@ export function GoalDetailDrawer({
               progressPercentage={goal.progressPercentage}
               progressFillColor={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
               progressText={progressText}
-              showEdit={goal.status === 'Active' && !showProgressForm}
-              onEdit={openProgressForm}
+              showEdit={
+                goal.status === 'Active' &&
+                !goal.isProgressDerived &&
+                !showProgressForm
+              }
+              onEdit={openManualProgressForm}
             />
 
-            {showProgressForm && goal.status === 'Active' && (
+            {showProgressForm &&
+              goal.status === 'Active' &&
+              !goal.isProgressDerived && (
               <GoalProgressForm
                 progressValue={progressValue}
                 progressNote={progressNote}

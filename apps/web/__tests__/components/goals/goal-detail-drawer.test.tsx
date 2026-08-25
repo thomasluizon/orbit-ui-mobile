@@ -37,7 +37,10 @@ const listGoal = {
   linkedHabits: [],
 }
 
-let detailGoal = { ...listGoal, progressHistory: [] as Array<unknown> }
+let detailGoal: typeof listGoal & {
+  isProgressDerived?: boolean
+  progressHistory: Array<unknown>
+} = { ...listGoal, progressHistory: [] }
 let detailLoadError = false
 const refetchDetail = vi.fn()
 const updateStatusMutateAsync = vi.fn()
@@ -153,6 +156,31 @@ describe('GoalDetailDrawer', () => {
     )
     expect(document.body.textContent).toContain('common.save')
     expect(document.body.textContent).not.toContain('goals.updateProgress')
+  })
+
+  it('does not offer or submit manual progress for a derived goal', () => {
+    detailGoal = {
+      ...listGoal,
+      isProgressDerived: true,
+      progressHistory: [],
+    }
+
+    render(
+      <GoalDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        goalId="1"
+        initialAction="progress"
+      />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'goals.updateProgress' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'common.save' }),
+    ).not.toBeInTheDocument()
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
   })
 
   it('marks the goal completed once for the complete initial action', () => {

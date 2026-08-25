@@ -81,6 +81,19 @@ describe('goal mutation helpers', () => {
       status: 'Active',
       position: 3,
       progressPercentage: 0,
+      isProgressDerived: false,
+    })
+  })
+
+  it('marks a temporary streak goal as progress-derived', () => {
+    expect(buildTempGoal({
+      title: 'Daily workout',
+      targetValue: 30,
+      unit: 'days',
+      type: 'Streak',
+    }, 'offline-goal-2', 4)).toMatchObject({
+      type: 'Streak',
+      isProgressDerived: true,
     })
   })
 

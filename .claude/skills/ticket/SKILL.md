@@ -153,6 +153,9 @@ defect if violated:
    Discovered something after `create-ticket.mjs` printed? Recompose the COMPLETE body and replace
    it with
    `node tools/update-ticket.mjs --issue "<actual-#N>" --body-file <scratchpad-file> --confirm-replace`.
+   The same tool corrects a title that no longer matches the work, with
+   `node tools/update-ticket.mjs --issue "<actual-#N>" --title "<the complete new title>"`. A title
+   alone needs no `--confirm-replace`, and either field may be written without the other.
    Use `node tools/comment-ticket.mjs` only for a decision that arrives later as its own event, such
    as an answer to an open question; both reach the worker, and the body is where a work order
    belongs.

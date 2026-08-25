@@ -40,6 +40,7 @@ export function buildTempGoal(
     completedAtUtc: null,
     progressPercentage: 0,
     linkedHabits: [],
+    isProgressDerived: request.type === 'Streak',
   }
 }
 
