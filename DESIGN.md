@@ -35,7 +35,7 @@ Thomas granted the twenty-one-screen Claude Design export on 2026-08-25. It is c
 
 Read the drawing for the surface you are building before you read the section here that describes it.
 
-**`design/reference.html` is STALE and carries no authority** (2026-08-25). It predates the canvas
+**`design/superseded/reference.html` is STALE and carries no authority** (2026-08-25). It predates the canvas
 and disagrees with it, for instance on `--primary-hover`, where it lightens the accent on hover while
 the canvas darkens it. It is moved to `design/superseded/` so nothing points at it. The earlier
 wording of D42, which scoped authority to that page, is withdrawn.

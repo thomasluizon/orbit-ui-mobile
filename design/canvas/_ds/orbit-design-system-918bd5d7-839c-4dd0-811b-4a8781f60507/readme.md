@@ -21,7 +21,10 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 
 ## Sources
 
-- Local codebase folder `design/` from `orbit-ui-mobile` on branch `redesign/main`: `design/reference.html` (the rendered authority for values, though its accent comparison is now historical: read the banner at its top), `design/brand/` (marks, lockups, fonts, README.md, SETUP.md).
+- Local codebase folder `design/` from `orbit-ui-mobile` on branch `redesign/main`: the granted
+  export under `design/canvas/` (subject to the D42 ladder in `DESIGN.md`) and `design/brand/`
+  (marks, lockups, fonts, README.md, SETUP.md). `design/superseded/reference.html` is historical and
+  carries no authority.
 - Uploaded brand files (same assets): fonts, mark/lockup SVGs and PNGs, now in `assets/`.
 - GitHub repo `github.com/thomasluizon/orbit-ui-mobile` exists but was deliberately NOT linked: its `main` branch carries the old system (six schemes, violet primary, glows, gradients, Rubik/Inter/Roboto) that this redesign deletes.
 - No Figma source exists.
