@@ -192,7 +192,7 @@ function runProcess(command, args, options = {}) {
     return spawnSync(invocation.command, invocation.args, {
       cwd: REPOSITORY_ROOT,
       encoding: options.binary ? null : "utf8",
-      env: { ...process.env, ...(options.env ?? {}) },
+      env: { ...process.env, ...(options.env ?? {}), ...(invocation.env ?? {}) },
       maxBuffer: 32 * 1024 * 1024,
       shell: false,
       windowsHide: true,
@@ -203,21 +203,22 @@ function runProcess(command, args, options = {}) {
   }
 }
 
-function windowsBatchValue(value) {
+function windowsBatchEnvironmentValue(value) {
   const text = String(value)
   if (/[\0\r\n"]/u.test(text)) {
     throw new Error("Windows batch arguments cannot contain NUL, newlines, or quotes")
   }
-  // Percent signs are expanded while cmd.exe reads batch source. Doubling them emits one literal
-  // percent sign. Delayed expansion is disabled in the wrapper, so exclamation marks stay literal.
-  return `"${text.replaceAll("%", "%%")}"`
+  return text
 }
 
-export function windowsBatchWrapperSource(command, args) {
+export function windowsBatchWrapperSource(argumentCount) {
   return [
     "@echo off",
     "setlocal DisableDelayedExpansion",
-    [windowsBatchValue(command), ...args.map(windowsBatchValue)].join(" "),
+    [
+      '"%ORBIT_MOBILE_CAPTURE_COMMAND%"',
+      ...Array.from({ length: argumentCount }, (_, index) => `"%ORBIT_MOBILE_CAPTURE_ARGUMENT_${index}%"`),
+    ].join(" "),
     "",
   ].join("\r\n")
 }
@@ -233,11 +234,18 @@ export function processInvocation(
 ) {
   if (platform !== "win32" || !/\.(?:bat|cmd)$/i.test(command)) return { command, args }
   if (!wrapperPath) throw new Error("Windows batch invocation requires a wrapper path")
+  const env = {
+    ORBIT_MOBILE_CAPTURE_COMMAND: windowsBatchEnvironmentValue(command),
+  }
+  args.forEach((value, index) => {
+    env[`ORBIT_MOBILE_CAPTURE_ARGUMENT_${index}`] = windowsBatchEnvironmentValue(value)
+  })
   return {
     command: commandProcessor,
     args: ["/d", "/s", "/v:off", "/c", `""${wrapperPath}""`],
     spawnOptions: { windowsVerbatimArguments: true },
-    wrapperSource: windowsBatchWrapperSource(command, args),
+    wrapperSource: windowsBatchWrapperSource(args.length),
+    env,
   }
 }
 

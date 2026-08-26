@@ -43,7 +43,7 @@ const captureSurfacesMobileCases = () => {
   )
 
   const windowsDeepLink = "orbit://login?captureTheme=dark&captureLocale=pt-BR"
-  const windowsFlowPath = "C:\\captures\\100%!ready\\flow.yaml"
+  const windowsFlowPath = "C:\\captures\\%TEMP%!pronto\\João\\flow.yaml"
   const windowsInvocation = processInvocation(
     "C:\\Program Files\\Maestro\\maestro.cmd",
     ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath],
@@ -54,17 +54,20 @@ const captureSurfacesMobileCases = () => {
     },
   )
   T(
-    "Windows batch launch isolates values in a one-shot wrapper with literal percent and bang handling",
+    "Windows batch launch keeps values in the Unicode process environment and emits ASCII-only source",
     windowsInvocation.command === "cmd.exe" &&
       windowsInvocation.spawnOptions.windowsVerbatimArguments === true &&
-      windowsInvocation.wrapperSource.includes(`"CAPTURE_LINK=${windowsDeepLink}"`) &&
-      windowsInvocation.wrapperSource.includes('"C:\\captures\\100%%!ready\\flow.yaml"') &&
-      windowsInvocation.wrapperSource.includes("setlocal DisableDelayedExpansion"),
+      windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENT_2 === `CAPTURE_LINK=${windowsDeepLink}` &&
+      windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENT_3 === windowsFlowPath &&
+      windowsInvocation.wrapperSource.includes('"%ORBIT_MOBILE_CAPTURE_ARGUMENT_3%"') &&
+      Buffer.from(windowsInvocation.wrapperSource, "ascii").toString("ascii") === windowsInvocation.wrapperSource,
     JSON.stringify(windowsInvocation),
   )
 
   if (process.platform === "win32") {
-    const batchProbe = join(root, "mobile-capture-argv-probe.cmd")
+    const probeDirectory = join(root, "João-%TEMP%!probe")
+    mkdirSync(probeDirectory, { recursive: true })
+    const batchProbe = join(probeDirectory, "mobile-capture-argv-probe.cmd")
     const wrapperPath = join(root, "mobile capture wrapper.cmd")
     // Keep the expansion quoted inside the probe too. An unquoted `%~3` would let cmd.exe parse the
     // successfully delivered ampersand a second time while executing the diagnostic echo itself.
@@ -77,11 +80,12 @@ const captureSurfacesMobileCases = () => {
     writeFileSync(wrapperPath, probeInvocation.wrapperSource)
     const probe = spawnSync(probeInvocation.command, probeInvocation.args, {
       encoding: "utf8",
+      env: { ...process.env, ...probeInvocation.env },
       shell: false,
       ...probeInvocation.spawnOptions,
     })
     T(
-      "the real Windows command processor preserves ampersands, percent signs, and exclamation marks",
+      "the real Windows command processor preserves Unicode, ampersands, percent signs, and exclamation marks",
       probe.status === 0 &&
         probe.stdout.trim() === `["CAPTURE_LINK=${windowsDeepLink}"]\r\n["${windowsFlowPath}"]`,
       JSON.stringify({ status: probe.status, stdout: probe.stdout, stderr: probe.stderr }),
@@ -94,6 +98,7 @@ const captureSurfacesMobileCases = () => {
     writeFileSync(failingWrapper, failingInvocation.wrapperSource)
     const failingProbe = spawnSync(failingInvocation.command, failingInvocation.args, {
       encoding: "utf8",
+      env: { ...process.env, ...failingInvocation.env },
       shell: false,
       ...failingInvocation.spawnOptions,
     })
