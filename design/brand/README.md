@@ -101,12 +101,21 @@ render, because a raster shows ink on an edge whether the geometry touches it or
 carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
 asset, not a CSS override.
 
-## Still to build
+## Raster exports, in `png/`
 
-These are not done and nothing here should be treated as a complete asset set:
+`node tools/generate-brand-assets.mjs --write` rebuilds these files together with every consumer
+asset. The transparent 16px export uses the native redraw and stays monochrome. The larger
+transparent marks use the granted 1024 canvas and preserve the accent moon. The platform icon puts
+the accent mark at 60% on the flat `#09090B` canvas and leaves its corners square for the platform
+mask.
 
-- the platform icon at 512 on the `#09090B` canvas
-- the PNG set at 16, 48, 128 and 512
+| file | contract |
+|---|---|
+| `orbit-mark-native-16.png` | 16px native redraw, monochrome `--fg-1`, transparent |
+| `orbit-mark-accent-48.png` | 48px granted mark, accent moon, transparent |
+| `orbit-mark-accent-128.png` | 128px granted mark, accent moon, transparent |
+| `orbit-mark-accent-512.png` | 512px granted mark, accent moon, transparent |
+| `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B` |
 
 ## Type, in `fonts/`
 

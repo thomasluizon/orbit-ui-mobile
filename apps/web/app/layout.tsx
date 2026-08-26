@@ -35,10 +35,31 @@ const roboto = Roboto({
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
+  const title = t('title')
+  const description = t('description')
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.useorbit.org'),
-    title: t('title'),
-    description: t('description'),
+    title,
+    description,
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [
+        { url: '/favicon-16.png', type: 'image/png', sizes: '16x16' },
+        { url: '/favicon.png', type: 'image/png', sizes: '64x64' },
+      ],
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ['/og-image.png'],
+    },
   }
 }
 

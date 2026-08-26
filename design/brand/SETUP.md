@@ -142,17 +142,18 @@ mark itself, not a 28 box (`DESIGN.md:269`), the 12 separates ink from ink rathe
 boxes, and the viewBox is exactly the ink, so the file carries no baked margin. Its wordmark is Space Grotesk 600 converted to outlines, so it needs no font at render
 time and carries no `<text>`.
 
-Every file paints with `fill="currentColor"` and none carries a hex. Upload them as they are.
+Every SVG file paints with `fill="currentColor"` and none carries a hex. Upload them as they are.
 
-**Raster: none.** No PNG set exists. `#80` owns the app icons, store graphics, OG images, splash and
-notification icon, and it derives them from the two files above.
+**Raster exports live in `png/`.** `#80` added the canonical 16, 48, 128 and 512 mark sizes plus the
+512 platform icon, and derives them together with the app icons, store graphics, OG images, splash
+and notification icon through `node tools/generate-brand-assets.mjs --write`.
 
 **Do not look for the nine files an earlier revision of this document listed.** `mark-24-neutral.svg`,
 `mark-16.svg`, `astra-24.svg`, `lockup-horizontal-neutral.svg`, `icon-512-orange.svg` and the four
-`png/` files were the drafts PR #735 shipped to make the accent decidable. Every one of them is
-deleted and `png/` no longer exists. Their replacements ship under different names, listed above:
-`#365` built the native 16px redraw, the horizontal lockup and the accent treatment, and none of them
-reuses a draft filename. It did NOT build a 24 grid variant, because `DESIGN.md:267` forbids one.
+`png/` files were the drafts PR #735 shipped to make the accent decidable. Every one of those draft
+files is deleted. `png/` exists again only for the generated exports listed in `README.md`, and none
+reuses a draft filename. `#365` built the native 16px redraw, the horizontal lockup and the accent
+treatment. It did NOT build a 24 grid variant, because `DESIGN.md:267` forbids one.
 
 **Expect the mark to render BLACK in an upload preview, not near white.** `currentColor` resolves
 against the SVG document's own root when the file is loaded as an image, and that document sets no
