@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+@keyframes bs-dot{50%{opacity:.35}}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Busca" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" tab-bar="{{ tabBar }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:16px;padding:16px">
+          {{ resultsNode }}
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ onPalette }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:16px;max-width:620px">
+            {{ resultsNode }}
+          </div>
+        </x-import>
+        {{ paletteNode }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Two surfaces for finding something, in one document because they are the same surface at two entry points: search, which had a control in the sidebar and no result anywhere, and the command palette, which is that field plus the actions and destinations. At 412 they are the same sheet reached from the same field.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>searching, no results, one result, many results, palette resting, palette typing, palette loading, the log page, the skip page, palette no match. Hover, focus-visible and press are live. Reached by using the screen rather than the axis: the second page by choosing log a habit or skip a habit, the way back out of it by its own back control or Escape, and the active item by the arrows. No plan axis: this screen has no gate, and a screen with no gate does not grow a dead switch.</p>
+      <p><span style="color:var(--fg-3)">match field&nbsp;&nbsp;</span>the API already returns which field matched, and the app has never rendered it. Every result states it: the title, the description, a tag, or a child habit. A row whose title does not contain the query would otherwise look like a mistake, and a person cannot tell a tag hit from a description hit by looking at the name. The fragment is quoted beside the field name only where the API returns one: SearchMatchField(string Field, string? Value) passes a null Value for title (HabitScheduleFilters.cs:255) and description (:257), the tag name for tag (:260), and the child habit's title for child (:284). So a title or description hit states the field and quotes nothing, which still answers why the row came back, and the line keeps one shape on all four rows.</p>
+      <p><span style="color:var(--fg-3)">results&nbsp;&nbsp;</span>one vocabulary for every result: the emoji well, the habit name, then the match line in mono. A child habit match names the parent, because that is the thing the person will navigate to. Rows lead to the habit detail, which is the only place a habit can be acted on.</p>
+      <p><span style="color:var(--fg-3)">searching&nbsp;&nbsp;</span>the field keeps what was typed and the list below it holds its own shape, so nothing jumps when the results land. It is three dots on a row rather than a spinner over the screen, because the query is fast and the field must stay usable while it runs.</p>
+      <p><span style="color:var(--fg-3)">no results&nbsp;&nbsp;</span>states the query back, says nothing matched, and offers the one action that makes sense from a search that failed: create a habit with that name. It parks no mark and no illustration, because this is a transient state inside a field, not a destination.</p>
+      <p><span style="color:var(--fg-3)">palette&nbsp;&nbsp;</span>at the wide width it is a centred overlay opened from the sidebar control or Ctrl K; at 412 there is no keyboard shortcut, so it is the same list reached from the search field. FOUR groups in the app’s order (command-menu.tsx): the habits (:122), holding their shape with the skeleton while they load (CommandHabitSkeleton, :118); create (:194-205), which here is create habit alone, because D69 item 9 removed the create goal entry, so a goal is made from a habit or by asking, and that half is a decision rather than a loss; actions (:209-221), log a habit and skip a habit; and the destinations (:224-226). Choosing log a habit or skip a habit does not act: CommandPage (:15) opens a SECOND page listing the habits to act on, with a back control (:155) and the page’s own word in the field’s chrome (:113), and choosing a habit there is what logs or skips it (:140-141). The single log everything action this document used to draw did something the palette never does, and it is gone. When nothing matches at all, the palette says so with its own line (command.empty, :188), which is not the same thing as a group being absent.</p>
+      <p><span style="color:var(--fg-3)">keyboard&nbsp;&nbsp;</span>the palette is a listbox: one item is active at a time, the active item takes the selected tint and ring rather than a fill, arrows move the active item without moving focus out of the field, Enter chooses it, and Escape backs out of a page before it closes the palette. The foot carries the hint row the app draws (CommandKeyHint, :247), keycap and word pairs starting with the up and down arrows, not one escape line.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>current position on the active palette item and the focused field ring. One filled action in the no results state, which is the create; none anywhere else, because a list of results is a list of actions and marking one of them would be a guess.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>the match line sits at fg-3 on the canvas and the quoted fragment at fg-2, so the quote reads above its label. No status colour appears; nothing here is an error, including no results.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the result count and every quoted fragment carry data-mock, along with the query itself.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every result states which field matched. 2 no result leads anywhere except a habit or one of the four destinations. 3 the field stays usable while a query is running.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried Input’s trailing slot, so nothing was re-synced. The old gap 1 said forms has no search field, so the field was a composed input; Input’s trailing slot closed that, and both the search field and the palette field are now the same Input the move sheet on Hoje uses, with the glyph in the slot. Still composed around the system: 1 there is no result row, so it is composed from a well, an emoji and a mono match line. 2 there is no palette or listbox in overlay, so the palette is composed from an elevated panel; Menu is an overflow menu and the wrong semantics for a filterable list. 3 the page chip in the field’s chrome and the keycap pairs are composed, since neither has a component.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a tag hit should offer to filter by that tag rather than open the one habit, which no surface currently supports. Whether the palette should search logs and notes as well as habits, which the endpoint does not cover.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+/* The API returns which field matched. These are the four it can return. */
+/* SearchMatchField(string Field, string? Value): Value is null for title (HabitScheduleFilters.cs:255)
+   and description (:257), so those two rows carry no fragment; tag (:260) carries the tag name and
+   child (:284) the child habit's title. */
+const RESULTS = [
+  { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', field: 'title' },
+  { e: '\uD83C\uDFC3', pt: 'Corrida do parque', en: 'Park run', field: 'description' },
+  { e: '\uD83E\uDDD8', pt: 'Alongamento', en: 'Stretching', field: 'tag',
+    fragPt: 'caminhada', fragEn: 'walking' },
+  { e: '\uD83E\uDDF9', pt: 'Rotina da casa', en: 'House routine', field: 'child',
+    fragPt: 'Caminhada até o mercado', fragEn: 'Walk to the shop' },
+];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    account: 'Marina', create: 'Criar hábito',
+    searchLabel: 'Buscar hábitos', placeholder: 'Buscar hábitos', back: 'Voltar',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    query: 'caminhada',
+    fields: { title: 'no nome', description: 'na descrição', tag: 'na etiqueta', child: 'dentro de' },
+    countLine: (n) => [n, ' hábitos'],
+    countOne: (n) => [n, ' hábito'],
+    searching: 'Buscando',
+    noneTitle: (q) => ['Nada encontrado para ', q],
+    noneBody: 'Nenhum hábito com esse nome, essa descrição ou essa etiqueta.',
+    noneAction: 'Criar com esse nome',
+    paletteTitle: 'O que você quer fazer',
+    palettePlaceholder: 'Buscar ou executar',
+    groupHabits: 'Hábitos', groupCreate: 'Criar', groupActions: 'Ações', groupPlaces: 'Ir para',
+    createRows: [{ icon: 'plus', label: 'Criar hábito' }],
+    actionRows: [
+      { icon: 'check', label: 'Registrar um hábito', page: 'log' },
+      { icon: 'player-skip-forward', label: 'Pular um hábito', page: 'skip' },
+    ],
+    pageWord: { log: 'Registrar', skip: 'Pular' },
+    pageBack: 'Voltar para tudo',
+    places: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    noMatch: 'Nada com esse nome.',
+    loadingHabits: 'Carregando os hábitos',
+    open: (n) => 'Abrir ' + n,
+    hints: [['\u2191\u2193', 'navegar'], ['\u21B5', 'escolher'], ['esc', 'fechar']],
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
+    account: 'Marina', create: 'Create habit',
+    searchLabel: 'Search habits', placeholder: 'Search habits', back: 'Back',
+    navLabel: 'Main navigation', palette: 'Search',
+    query: 'walk',
+    fields: { title: 'in the name', description: 'in the description', tag: 'in the tag', child: 'inside' },
+    countLine: (n) => [n, ' habits'],
+    countOne: (n) => [n, ' habit'],
+    searching: 'Searching',
+    noneTitle: (q) => ['Nothing found for ', q],
+    noneBody: 'No habit with that name, that description or that tag.',
+    noneAction: 'Create with that name',
+    paletteTitle: 'What do you want to do',
+    palettePlaceholder: 'Search or run',
+    groupHabits: 'Habits', groupCreate: 'Create', groupActions: 'Actions', groupPlaces: 'Go to',
+    createRows: [{ icon: 'plus', label: 'Create habit' }],
+    actionRows: [
+      { icon: 'check', label: 'Log a habit', page: 'log' },
+      { icon: 'player-skip-forward', label: 'Skip a habit', page: 'skip' },
+    ],
+    pageWord: { log: 'Log', skip: 'Skip' },
+    pageBack: 'Back to everything',
+    places: ['Today', 'Calendar', 'Progress', 'Profile'],
+    noMatch: 'Nothing by that name.',
+    loadingHabits: 'Loading the habits',
+    open: (n) => 'Open ' + n,
+    hints: [['\u2191\u2193', 'navigate'], ['\u21B5', 'choose'], ['esc', 'close']],
+  },
+};
+
+const PALETTE_STATES = ['palette resting', 'palette typing', 'palette loading',
+  'palette log page', 'palette skip page', 'palette no match'];
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'many results', loc: 'pt-BR',
+    text: null, active: 0, paletteOpen: false, pPage: null };
+
+  componentDidMount() {
+    this._esc = (e) => { if (e.key === 'Escape' && this.state.paletteOpen) this.setState({ paletteOpen: false }); };
+    document.addEventListener('keydown', this._esc);
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); document.removeEventListener('keydown', this._esc); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    text: null, active: 0, paletteOpen: PALETTE_STATES.indexOf(next.state) >= 0,
+    pPage: next.state === 'palette log page' ? 'log' : next.state === 'palette skip page' ? 'skip' : null });
+
+  /* The one search field everywhere in the product: Input with its trailing slot carrying the glyph,
+     the same object the move sheet on Hoje uses. */
+  field(t, value, onChange, placeholder, label, onKeyDown) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H(D.Input, { value: value, onChange: onChange, placeholder: placeholder,
+      'aria-label': label, onKeyDown: onKeyDown,
+      trailing: H(D.Icon, { name: 'search', size: 20 }) });
+  }
+
+  resultRow(r, t, D) {
+    const en = t.lang === 'en';
+    const name = en ? r.en : r.pt;
+    const frag = en ? r.fragEn : r.fragPt;
+    return H('button', { key: r.pt, type: 'button', 'aria-label': t.open(name), onClick: () => {},
+      style: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 44,
+        padding: 12, border: 0, cursor: 'pointer', textAlign: 'start', borderRadius: 'var(--r-well)',
+        background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)',
+        fontFamily: 'var(--font-sans)', transition: 'background-color var(--dur-hover) var(--ease-standard)' } },
+      H('span', { 'aria-hidden': 'true', style: { width: 40, height: 40, flex: '0 0 auto',
+        borderRadius: 'var(--r-well)', background: 'var(--bg-well)', display: 'grid',
+        placeItems: 'center', fontSize: 20 } }, r.e),
+      H('span', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
+        H('span', { style: { fontSize: 'var(--fs-md)', color: 'var(--fg-1)', whiteSpace: 'nowrap',
+          overflow: 'hidden', textOverflow: 'ellipsis' } }, name),
+        /* Why this row came back: the field the API said matched, then the fragment where the API
+           returns one. Value is null for title and description, so those two quote nothing. */
+        H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+          color: 'var(--fg-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+          t.fields[r.field],
+          frag ? H(F, null, ' ', H('span', { 'data-mock': 'true', style: { color: 'var(--fg-2)' } },
+            '\u201C' + frag + '\u201D')) : null)),
+      H('span', { 'aria-hidden': 'true', style: { flex: '0 0 auto', display: 'grid', placeItems: 'center',
+        color: 'var(--fg-4)' } }, H(D.Icon, { name: 'chevron-right', size: 20 })));
+  }
+
+  paletteGroup(title, rows, D) {
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+      H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-4)',
+        letterSpacing: '.06em', textTransform: 'uppercase', padding: '8px 12px 4px' } }, title),
+      rows);
+  }
+
+  paletteRow(key, icon, label, active, onPick, D) {
+    return H('button', { key: key, type: 'button', role: 'option', 'aria-selected': active,
+      onClick: onPick,
+      style: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 44,
+        padding: '10px 12px', border: 0, cursor: 'pointer', textAlign: 'start',
+        borderRadius: 'var(--r-well)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-md)',
+        color: 'var(--fg-1)',
+        background: active ? 'var(--primary-dim)' : 'var(--p-transparent)',
+        boxShadow: active ? 'inset 0 0 0 1.5px var(--primary)' : 'none' } },
+      H('span', { 'aria-hidden': 'true', style: { width: 24, height: 24, flex: '0 0 auto',
+        display: 'grid', placeItems: 'center', color: 'var(--fg-3)', fontSize: 18 } },
+        typeof icon === 'string' && icon.length <= 2 ? icon : H(D.Icon, { name: icon, size: 20 })),
+      H('span', { style: { flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden',
+        textOverflow: 'ellipsis' } }, label));
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['many results', 'one result', 'searching', 'no results',
+        'palette resting', 'palette typing', 'palette loading', 'palette log page',
+        'palette skip page', 'palette no match'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      noop: () => {},
+      showReport: this.props.showReport !== false,
+      account: t.account, createLabel: t.create, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const en = t.lang === 'en';
+    const isPalette = PALETTE_STATES.indexOf(st) >= 0;
+    const searching = st === 'searching';
+    const none = st === 'no results';
+    const one = st === 'one result';
+    const query = s.text != null ? s.text : (none ? (en ? 'yoga' : 'ioga') : t.query);
+    const rows = none ? [] : one ? RESULTS.slice(0, 1) : RESULTS;
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+
+    const results = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+      this.field(t, query, (e) => this.setState({ text: e.target.value }), t.placeholder, t.searchLabel),
+      searching
+        ? H('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: 12 }, role: 'status' },
+            H('span', { 'aria-hidden': 'true', style: { display: 'flex', gap: 3 } },
+              [0, 1, 2].map((i) => H('i', { key: i, style: { width: 4, height: 4, borderRadius: '999px',
+                background: 'var(--fg-3)', animation: 'bs-dot 1.1s var(--ease-standard) infinite',
+                animationDelay: (i * 0.15) + 's' } }))),
+            H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.searching))
+        : none
+          ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12,
+              alignItems: 'flex-start', padding: 12 } },
+              H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.45 } },
+                t.noneTitle(H('span', { 'data-mock': 'true' }, '\u201C' + query + '\u201D'))),
+              H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-3)',
+                textWrap: 'pretty' } }, t.noneBody),
+              H(D.Button, { size: 'sm', variant: filled, onClick: () => {} }, t.noneAction))
+          : H(F, null,
+              H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+                color: 'var(--fg-4)', paddingInline: 4 } },
+                (rows.length === 1 ? t.countOne : t.countLine)(mock(String(rows.length)))),
+              H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+                rows.map((r) => this.resultRow(r, t, D)))));
+
+    /* The palette: the same field plus the four shipping groups (command-menu.tsx), one active item
+       at a time. Choosing log a habit or skip a habit does not act: it opens the second page
+       (CommandPage, :15), listing the habits to act on, with a back control (:155) and the page's
+       word in the field's chrome (:113); choosing a habit there acts (:140-141). */
+    const page = s.pPage;
+    const pLoading = st === 'palette loading';
+    const pq = s.text != null ? s.text : (st === 'palette no match' ? 'zzz'
+      : st === 'palette typing' ? t.query : '');
+    const noMatchAll = st === 'palette no match' && !page;
+    const pHabits = noMatchAll || pLoading ? []
+      : page ? RESULTS
+      : (pq.length ? RESULTS.slice(0, 2) : RESULTS.slice(0, 3));
+    const pCreate = (noMatchAll || page) ? [] : t.createRows;
+    const pActions = (noMatchAll || page) ? [] : t.actionRows;
+    const pPlaces = (noMatchAll || page) ? [] : t.places;
+    const total = pHabits.length + pCreate.length + pActions.length + pPlaces.length;
+    const active = total ? (s.active % total + total) % total : -1;
+    let idx = -1;
+    const bump = (n) => { idx += 1; return idx === n; };
+    const picksFlat = [];
+    const closeAll = () => this.setState({ paletteOpen: false, pPage: null, text: null, active: 0 });
+    const openPage = (pg) => this.setState({ pPage: pg, text: null, active: 0 });
+    /* Arrows move the active item without moving focus out of the field; Enter chooses; Escape backs
+       out of a page before it closes the palette. */
+    const onKeys = (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.setState((p) => ({ active: p.active + 1 })); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState((p) => ({ active: p.active - 1 })); }
+      else if (e.key === 'Enter') { e.preventDefault(); const fn = picksFlat[active]; if (fn) fn(); }
+      else if (e.key === 'Escape' && page) { e.preventDefault(); this.setState({ pPage: null, text: null, active: 0 }); }
+    };
+    const row = (key, icon, label, onPick) => {
+      picksFlat.push(onPick);
+      return this.paletteRow(key, icon, label, bump(active), onPick, D);
+    };
+
+    const fieldRow = H('div', { style: { flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8,
+      padding: 16, boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+      page ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.pageBack,
+        onClick: () => this.setState({ pPage: null, text: null, active: 0 }),
+        style: { width: 44, height: 44, paddingInline: 0, flex: '0 0 auto', boxShadow: 'none' } },
+        H(D.Icon, { name: 'arrow-left', size: 20 })) : null,
+      page ? H('span', { style: { flex: '0 0 auto', height: 28, display: 'inline-flex', alignItems: 'center',
+        paddingInline: 10, borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', color: 'var(--fg-2)',
+        fontSize: 'var(--fs-xs)', fontWeight: 500, boxShadow: 'inset 0 0 0 1px var(--hairline)' } },
+        t.pageWord[page]) : null,
+      H('div', { style: { flex: 1, minWidth: 0 } },
+        this.field(t, pq, (e) => this.setState({ text: e.target.value, active: 0 }),
+          t.palettePlaceholder, t.paletteTitle, onKeys)));
+
+    const paletteInner = H('div', { style: { display: 'flex', flexDirection: 'column',
+      maxHeight: 520, minHeight: 0 } },
+      fieldRow,
+      H('div', { role: 'listbox', 'aria-label': t.paletteTitle,
+        style: { flex: 1, minHeight: 0, overflowY: 'auto', padding: 8,
+          display: 'flex', flexDirection: 'column', gap: 8 } },
+        pLoading
+          /* CommandHabitSkeleton (:118): the habit group holds its shape while the habits load. */
+          ? this.paletteGroup(t.groupHabits,
+              H('div', { style: { paddingInline: 4 } },
+                H(D.Skeleton, { variant: 'settings', rows: 3, label: t.loadingHabits })), D)
+          : total === 0
+            /* command.empty (:188): nothing matches at all, which is not a group being absent. */
+            ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', padding: 12 } }, t.noMatch)
+            : page
+              ? this.paletteGroup(t.groupHabits,
+                  pHabits.map((r) => row(r.pt, r.e, en ? r.en : r.pt, closeAll)), D)
+              : H(F, null,
+                  pHabits.length ? this.paletteGroup(t.groupHabits,
+                    pHabits.map((r) => row(r.pt, r.e, en ? r.en : r.pt, closeAll)), D) : null,
+                  pCreate.length ? this.paletteGroup(t.groupCreate,
+                    pCreate.map((a) => row(a.label, a.icon, a.label, closeAll)), D) : null,
+                  pActions.length ? this.paletteGroup(t.groupActions,
+                    pActions.map((a) => row(a.label, a.icon, a.label, () => openPage(a.page))), D) : null,
+                  pPlaces.length ? this.paletteGroup(t.groupPlaces,
+                    pPlaces.map((p, i) => row(p, ICONS[i], p, closeAll)), D) : null)),
+      /* CommandKeyHint (:247): the hint pairs at the foot, starting with the arrows. */
+      H('div', { style: { flex: '0 0 auto', display: 'flex', gap: 16, padding: '8px 16px',
+        boxShadow: 'inset 0 1px 0 var(--hairline)' } },
+        t.hints.map((hp, i) => H('span', { key: i, style: { display: 'inline-flex', alignItems: 'center',
+          gap: 6 } },
+          H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+            padding: '1px 5px', borderRadius: 'var(--r-chip)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } }, hp[0]),
+          H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-4)' } }, hp[1])))));
+
+    const paletteOpen = s.paletteOpen || isPalette;
+    const paletteNode = (paletteOpen && s.width === 'wide') ? H('div',
+      { style: { position: 'absolute', inset: 0, zIndex: 3, display: 'grid', placeItems: 'start center',
+        paddingTop: 96 } },
+      H('div', { onClick: () => this.setState({ paletteOpen: false }),
+        style: { position: 'absolute', inset: 0, background: 'var(--scrim)' } }),
+      H('div', { role: 'dialog', 'aria-modal': 'true', 'aria-label': t.paletteTitle,
+        style: { position: 'relative', width: 560, background: 'var(--bg-elev)',
+          borderRadius: 'var(--r-card)', overflow: 'hidden',
+          boxShadow: 'var(--sh-3), inset 0 0 0 1px var(--hairline)' } }, paletteInner)) : null;
+
+    return Object.assign(base, {
+      header: H('div', { style: { display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 16px 8px 8px', boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.back, onClick: () => {},
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+          H(D.Icon, { name: 'arrow-left', size: 20 })),
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500 } },
+          t.searchLabel)),
+      /* At 412 there is no shortcut, so the palette is the same list under the same field. */
+      resultsNode: (isPalette && s.width === '412') ? paletteInner : results,
+      paletteNode: paletteNode,
+      onPalette: () => this.setState({ paletteOpen: true, text: null, active: 0, pPage: null }),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'hoje', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>

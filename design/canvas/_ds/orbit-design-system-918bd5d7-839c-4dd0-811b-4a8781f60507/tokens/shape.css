@@ -1,0 +1,16 @@
+/* Orbit shape, shadow, motion. Radius 999 means interactive: a static element never wears it.
+   Animate transform and opacity only. No bounce, no spring. On the dark canvas a 1px inset
+   hairline does the work of depth, not a layered shadow. */
+:root{
+  --r-chip:8px; --r-well:12px; --r-md:16px; --r-card:20px; --r-sheet:28px; --r-pill:999px;
+  --r-platform-icon:22px; --r-platform-icon-lg:44px; --r-platform-icon-sm:13px; /* set by the platform mask, the one radius outside the scale */
+  --sh-1:0 1px 2px rgba(0,0,0,.20);
+  --sh-2:0 4px 16px rgba(0,0,0,.28);
+  --sh-3:0 12px 40px rgba(0,0,0,.45);
+  --dur-1:160ms; /* @kind other */ --dur-2:220ms; /* @kind other */ --dur-3:280ms; /* @kind other */
+  --dur-fast:240ms; /* @kind other */ /* hover on a control */
+  --dur-hover:380ms; /* @kind other */ /* hover on a surface */
+  --dur-enter:220ms; /* @kind other */
+  --ease-standard:cubic-bezier(0.2,0,0,1); /* @kind other */
+  --ease-out:cubic-bezier(0.16,1,0.3,1); /* @kind other */
+}

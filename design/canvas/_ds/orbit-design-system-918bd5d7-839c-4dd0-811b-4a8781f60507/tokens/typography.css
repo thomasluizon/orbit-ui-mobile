@@ -1,0 +1,13 @@
+/* Orbit type. Three families, no serif. Sizes are a closed set.
+   Emphasis is one weight step up, never a size change. Tabular numerals on any value that changes. */
+:root{
+  --font-sans:'Geist Sans',system-ui,sans-serif;
+  --font-display:'Space Grotesk','Geist Sans',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,monospace;
+  --fs-xs:12px; --fs-sm:14px; --fs-base:16px; --fs-md:17px; --fs-lg:20px;
+  --fs-xl:22px; --fs-2xl:28px; --fs-3xl:34px; --fs-4xl:44px; --fs-5xl:60px;
+  --track-display:-0.02em; /* @kind font */  /* large display text: negative tracking */
+  --track-body:0; /* @kind font */
+  --track-label:0.08em; /* @kind font */     /* small uppercase labels: positive tracking */
+  --measure:65ch; /* @kind other */
+}

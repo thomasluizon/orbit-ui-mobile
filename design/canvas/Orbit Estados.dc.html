@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Estados" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" sheets="{{ blocker }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:16px">
+
+          <sc-if value="{{ isNotFound }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start;padding-top:48px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n40 }}" hint-size="40px,40px"></x-import>
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ nfTitle }}</p>
+              <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ nfBody }}</p>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" on-click="{{ goHoje }}" hint-size="auto,50px">{{ nfAction }}</x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isFailure }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start;padding-top:48px">
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ failTitle }}</p>
+              <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ failBody }}</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ retrying }}" on-click="{{ onRetry }}" hint-size="auto,50px">{{ retryLabel }}</x-import>
+              </div>
+              <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-4)">{{ failRef }}</p>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isThrottle }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start;padding-top:48px">
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ thTitle }}</p>
+              <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ thBody }}</p>
+              <p style="font-family:var(--font-mono);font-size:20px;line-height:1.4;color:var(--fg-1);font-variant-numeric:tabular-nums"><span data-mock="true">{{ thCountdown }}</span></p>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" disabled="{{ yes }}" on-click="{{ noop }}" hint-size="auto,50px">{{ retryLabel }}</x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isUpdate }}" hint-placeholder-val="{{ false }}">
+            <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ behindNote }}</p>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ banner }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
+
+            <sc-if value="{{ isNotFound }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitMark" size="{{ n40 }}" hint-size="40px,40px"></x-import>
+                <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ nfTitle }}</p>
+                <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ nfBody }}</p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" on-click="{{ goHoje }}" hint-size="auto,50px">{{ nfAction }}</x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isFailure }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start">
+                <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ failTitle }}</p>
+                <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ failBody }}</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ retrying }}" on-click="{{ onRetry }}" hint-size="auto,50px">{{ retryLabel }}</x-import>
+                </div>
+                <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-4)">{{ failRef }}</p>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isThrottle }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start">
+                <p style="font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ thTitle }}</p>
+                <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ thBody }}</p>
+                <p style="font-family:var(--font-mono);font-size:20px;line-height:1.4;color:var(--fg-1);font-variant-numeric:tabular-nums"><span data-mock="true">{{ thCountdown }}</span></p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" disabled="{{ yes }}" on-click="{{ noop }}" hint-size="auto,50px">{{ retryLabel }}</x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isUpdate }}" hint-placeholder-val="{{ false }}">
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ behindNoteWeb }}</p>
+            </sc-if>
+
+            <sc-if value="{{ isSoft }}" hint-placeholder-val="{{ false }}">
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ softNoteWeb }}</p>
+            </sc-if>
+
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Four surfaces a person meets when something is wrong or missing: the update gate, a page that does not exist, a generic failure, and a refusal for rate limiting. Each states the fix. None of them apologises, and none of them says oops, sorry or something went wrong.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>update, update soft, not found, failure, throttle. The update state renders differently at each width, which is the point: switch the width control to see both halves of the divergence, and the soft update is a 412 shape, because the store check it comes from does not exist in a browser. NO plan axis: none of the five is a plan boundary, because a rate limit is not a ceiling a plan lifts, so the absent switch is a decision.</p>
+      <p><span style="color:var(--fg-3)">update&nbsp;&nbsp;</span>the gate has TWO independent sources. The server gate: MinimumVersionMiddleware.cs:26 reads the X-App-Version header, :41 compares it against the configured floor, and :53-63 answers 426 with minVersion in the body. Web picks that up at api-fetch.ts:88-91 and draws a DISMISSIBLE banner with a reload (update-available-banner.tsx:24,53), because the web app is brought up to date in place by loading it again, and a blocker would take a working session away for a fix that takes a second. Mobile picks it up at api-client.ts:222 and draws a NON DISMISSIBLE full screen blocker with a store action (upgrade-required-screen.tsx:23), because a build that is too old cannot talk to the API at all. That gate is FAIL SAFE and currently OPEN: a missing or unparseable header is always allowed and the floor defaults to 0.0.0 (MinimumVersionMiddleware.cs:17-20 and :38-39), so nobody is blocked today. The STORE check never touches the API: use-version-check.ts:41 asks Google Play directly and :49 asks the iTunes lookup, and two more mobile shapes come from it. The SOFT update, an update that exists and is not forced (version-update-drawer.tsx:77), is a dismissible drawer with a store action, drawn here on Sheet because dismissibility is the point. The FORCED store update, when Play reports an update priority of 4 or higher (use-version-check.ts:88), starts Play’s own immediate update flow (version-update-drawer.tsx:86-90), which is Play’s screen and not Orbit’s, so no drawing of it belongs here. Three mobile shapes, one web shape, all traced.</p>
+      <p><span style="color:var(--fg-3)">not found&nbsp;&nbsp;</span>says the page does not exist, names the likeliest cause in plain words, and offers the one destination that always exists, routed to Hoje. One deliberate divergence from the shipping screen: apps/web/app/not-found.tsx:19 draws a satellite glyph at 104, but the system holds no satellite and DESIGN.md allows exactly two identity carriers, the orbital mark and the Astra glyph, so the mark is drawn instead and this sentence is what keeps the drawing from being read as a claim about the shipping screen.</p>
+      <p><span style="color:var(--fg-3)">failure&nbsp;&nbsp;</span>the boundary this state draws is apps/web/app/global-error.tsx. It states that the request did not finish and that nothing was changed, which is the fact a person actually needs, then offers the retry, which goes busy while it runs. The reference code is real, not invented: every failing response carries x-orbit-request-id, set for the version gate at MinimumVersionMiddleware.cs:55 and for a rate limit at DistributedRateLimitAttribute.cs:79, and the client reads it (login-form-helpers.ts:89). It sits in mono at fg-4 because a person contacting support needs it, but it is never the headline.</p>
+      <p><span style="color:var(--fg-3)">throttle&nbsp;&nbsp;</span>the server refuses with more than a countdown: DistributedRateLimitAttribute.cs:73-97 sends a Retry-After header in seconds AND a body carrying retryAfterUtc, limit, count and requestId. The screen CHOOSES to show only the countdown, whose producer is retryAfterUtc: the limit and the current count explain nothing a person can act on, and the moment to try again is the whole fix. It does not guess which action tripped the limit, because the response does not say that, and it does not blame the person. The retry control is present and disabled while the countdown runs, so the way back is visible without being pressable. Backgrounding cannot desynchronise the countdown, because retryAfterUtc is an absolute moment and the remaining time is recomputed from it at any instant.</p>
+      <p><span style="color:var(--fg-3)">voice&nbsp;&nbsp;</span>every one of the four names the circumstance, states the fix, and stops. No exclamation mark, no apology, no reassurance the product cannot back up.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per state, always the way forward: the store button, the reload, the destination, the retry. The throttle state has none, because its only action is disabled, and a disabled accent would be an invitation the screen cannot honour.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. No status colour appears on any of the four: an old build, a missing page, a failed request and a rate limit are all boundaries, and status-bad is reserved for a habit a person is avoiding.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the countdown, both version numbers in the mobile blocker, the version in the web banner and the reference code all carry data-mock, and no other number renders on any of the five surfaces.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 each surface states a fix a person can act on. 2 the mobile gate cannot be dismissed and the web banner can. 3 the throttle states no reason.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 there is no banner component, so the web gate is composed and rides the shell's header slot. 2 Sheet is dismissible by design, so the mobile blocker is composed as a full bleed layer in the sheets slot with no close affordance and no scrim tap. 3 ErrorState centres a message and one action, which suits an inline failure but not a full screen, so these four are composed.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the web banner should become a blocker after some number of dismissals, which no client currently tracks.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    account: 'Marina', create: 'Criar hábito',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    upTitle: 'Esta versão do Orbit parou de funcionar',
+    upBody: ['A versão instalada é a ', '2.1.0', ' e o servidor já pede a ', '2.4.0', '. Atualize na loja para voltar a usar.'],
+    upAction: 'Atualizar na loja',
+    upWebTitle: 'Uma versão nova do Orbit está pronta',
+    upWebBody: ['Recarregue para pegar a ', '2.4.0', '.'],
+    upWebAction: 'Recarregar',
+    upDismiss: 'Depois',
+    behind: 'A tela fica bloqueada porque uma versão antiga do app não consegue mais falar com o servidor.',
+    behindWeb: 'No navegador a faixa pode ser fechada, porque recarregar resolve na hora e tirar a sessão da pessoa seria pior.',
+    nfTitle: 'Esta página não existe',
+    nfBody: 'O endereço pode ter mudado, ou o item foi apagado. O seu dia continua onde estava.',
+    nfAction: 'Ir para Hoje',
+    failTitle: 'O pedido não terminou',
+    failBody: 'Nada foi alterado. Tente de novo, e se continuar, saia e entre de novo na conta.',
+    failRef: ['ref ', '8f31c2'],
+    thTitle: 'Muitos pedidos em pouco tempo',
+    thBody: 'O servidor pediu para esperar antes do próximo pedido.',
+    thCountdown: '0:42',
+    retry: 'Tentar de novo',
+    softTitle: 'Uma versão nova está na loja',
+    softBody: 'Dá para atualizar agora ou seguir usando. Nada para de funcionar.',
+    softAction: 'Abrir a loja', softLater: 'Depois',
+    softNoteWeb: 'A checagem da loja é do celular: use-version-check pergunta à Play e à App Store, e o navegador não tem loja, então esta forma não existe na web.',
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
+    account: 'Marina', create: 'Create habit',
+    navLabel: 'Main navigation', palette: 'Search',
+    upTitle: 'This version of Orbit has stopped working',
+    upBody: ['The installed version is ', '2.1.0', ' and the server now asks for ', '2.4.0', '. Update in the store to carry on.'],
+    upAction: 'Update in the store',
+    upWebTitle: 'A new version of Orbit is ready',
+    upWebBody: ['Reload to pick up ', '2.4.0', '.'],
+    upWebAction: 'Reload',
+    upDismiss: 'Later',
+    behind: 'The screen is blocked because an old build can no longer talk to the server at all.',
+    behindWeb: 'On the web the banner can be closed, because reloading fixes it immediately and taking the session away would be worse.',
+    nfTitle: 'This page does not exist',
+    nfBody: 'The address may have changed, or the item was deleted. Your day is still where it was.',
+    nfAction: 'Go to Today',
+    failTitle: 'The request did not finish',
+    failBody: 'Nothing was changed. Try again, and if it keeps happening, sign out and sign back in.',
+    failRef: ['ref ', '8f31c2'],
+    thTitle: 'Too many requests in a short time',
+    thBody: 'The server asked us to wait before the next request.',
+    thCountdown: '0:42',
+    retry: 'Try again',
+    softTitle: 'A new version is in the store',
+    softBody: 'You can update now or keep going. Nothing stops working.',
+    softAction: 'Open the store', softLater: 'Later',
+    softNoteWeb: 'The store check belongs to mobile: use-version-check asks Play and the App Store, and the browser has no store, so this shape does not exist on the web.',
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'update', loc: 'pt-BR', dismissed: false,
+    softDismissed: false, retrying: false, storeBusy: false };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._rT); clearTimeout(this._sT); }
+
+  onCC = (next) => {
+    clearTimeout(this._rT); clearTimeout(this._sT);
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+      dismissed: false, softDismissed: false, retrying: false, storeBusy: false });
+  };
+
+  goHoje = () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); };
+  onRetry = () => {
+    clearTimeout(this._rT);
+    this.setState({ retrying: true });
+    this._rT = setTimeout(() => this.setState({ retrying: false }), 900);
+  };
+  /* The store hand off: the action goes busy while the platform's own flow takes over. */
+  onStore = () => {
+    clearTimeout(this._sT);
+    this.setState({ storeBusy: true });
+    this._sT = setTimeout(() => this.setState({ storeBusy: false }), 900);
+  };
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['update', 'update soft', 'not found', 'failure', 'throttle'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n40: 40, yes: true, noop: () => {}, goHoje: this.goHoje, onRetry: this.onRetry,
+      retrying: s.retrying, softNoteWeb: t.softNoteWeb,
+      showReport: this.props.showReport !== false,
+      nfTitle: t.nfTitle, nfBody: t.nfBody, nfAction: t.nfAction,
+      failTitle: t.failTitle, failBody: t.failBody, failRef: H(F, null, t.failRef[0], mock(t.failRef[1])),
+      thTitle: t.thTitle, thBody: t.thBody, thCountdown: t.thCountdown,
+      retryLabel: t.retry, behindNote: t.behind, behindNoteWeb: t.behindWeb,
+      account: t.account, createLabel: t.create, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const isUpdate = st === 'update';
+    const isSoft = st === 'update soft';
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+
+    /* The server gate on mobile: a full bleed layer with no close affordance and no dismiss on scrim
+       (upgrade-required-screen.tsx:23). */
+    const blocker = (isUpdate && s.width === '412') ? H('div', { role: 'alertdialog', 'aria-modal': 'true',
+      style: { position: 'absolute', inset: 0, zIndex: 4, background: 'var(--bg)', display: 'flex',
+        flexDirection: 'column', justifyContent: 'center', gap: 24, padding: 32 } },
+      H(D.OrbitMark, { size: 40 }),
+      H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500,
+        letterSpacing: '-0.02em', textWrap: 'pretty' } }, t.upTitle),
+      H('p', { style: { fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-2)',
+        textWrap: 'pretty' } }, t.upBody[0], mock(t.upBody[1]), t.upBody[2], mock(t.upBody[3]), t.upBody[4]),
+      H(D.Button, { variant: 'primary', loading: s.storeBusy, onClick: this.onStore,
+        style: { width: '100%' } }, t.upAction)) : null;
+
+    /* The SOFT update, from the store check rather than the server gate (version-update-drawer.tsx:77):
+       an update exists and is not forced, so the drawer is dismissible, which is why it rides Sheet. */
+    const softDrawer = (isSoft && s.width === '412' && !s.softDismissed)
+      ? H(D.Sheet, { open: true, title: t.softTitle,
+          onClose: () => this.setState({ softDismissed: true }),
+          actions: H(F, null,
+            H(D.Button, { size: 'sm', variant: 'ghost',
+              onClick: () => this.setState({ softDismissed: true }) }, t.softLater),
+            H(D.Button, { size: 'sm', variant: 'primary', loading: s.storeBusy, onClick: this.onStore },
+              t.softAction)) },
+          H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.softBody))
+      : null;
+
+    /* The server gate on web: a dismissible banner with a reload, because reloading fixes it in place
+       (update-available-banner.tsx:24,53). Reloading picks up the new version, so the banner leaves. */
+    const banner = (isUpdate && s.width === 'wide' && !s.dismissed) ? H('div', { role: 'status',
+      style: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px',
+        background: 'var(--bg-well)', boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+      H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
+        H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.4, fontWeight: 500 } }, t.upWebTitle),
+        H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-3)' } }, t.upWebBody[0], mock(t.upWebBody[1]), t.upWebBody[2])),
+      H(D.Button, { size: 'sm', variant: 'secondary', onClick: () => this.setState({ dismissed: true }) }, t.upWebAction),
+      H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ dismissed: true }) }, t.upDismiss)) : null;
+
+    return Object.assign(base, {
+      isUpdate: isUpdate, isSoft: isSoft, isNotFound: st === 'not found', isFailure: st === 'failure',
+      isThrottle: st === 'throttle', filled: filled,
+      blocker: blocker || softDrawer, banner: banner,
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'hoje', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>

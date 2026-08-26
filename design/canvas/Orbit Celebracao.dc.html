@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+@keyframes cel-rise{from{transform:translateY(12px)}to{transform:none}}
+@keyframes cel-sweep{from{stroke-dashoffset:97.39}to{stroke-dashoffset:0}}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Celebração" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ panel }}" composer="{{ composer }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px">
+          <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ hostRows }}" as="r" hint-placeholder-count="3">
+              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.meta }}" trailing="{{ r.trailing }}" menu-label="{{ menuLabel }}" on-click="{{ noop }}" on-menu="{{ noop }}" hint-size="100%,68px"></x-import>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ panel }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+            <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ hostRows }}" as="r" hint-placeholder-count="3">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ r.icon }}" title="{{ r.title }}" meta="{{ r.meta }}" trailing="{{ r.trailing }}" menu-label="{{ menuLabel }}" on-click="{{ noop }}" on-menu="{{ noop }}" hint-size="100%,68px"></x-import>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">case&nbsp;&nbsp;</span>this one is worth interrupting someone for because each of its four triggers is a threshold the person cannot see themselves cross, and each crosses at most a few times a month, so the interruption costs less than the silence would.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>one celebration survives of seven. It has exactly four triggers: a streak milestone, a goal completing, a level up, and everything due today being done. It never fires for an individual habit completion, which happens over a hundred times a day across a list and would put the motion frequency gate in breach on its own.</p>
+      <p><span style="color:var(--fg-3)">triggers&nbsp;&nbsp;</span>four is a DECISION, not the type’s whole list: CelebrationKind (celebration-queue.ts:1-6) has FIVE kinds, and the fifth, achievement, is absent here on purpose, because D69 item 11 names exactly four triggers. The streak milestone comes from AppConstants.StreakMilestoneTiers, and that list is [7, 14, 30, 90, 100, 365] (AppConstants.cs:90): the 30 drawn here is a tier, and no number outside the list may ever be drawn as one.</p>
+      <p><span style="color:var(--fg-3)">debt&nbsp;&nbsp;</span>the code still carries what the decision removed, and that is work the implementation owes rather than a surface this document is missing: achievement is still in CelebrationKind, achievement-toast.tsx:49 still enqueues it, and StreakFreezeCelebration still mounts in the app (layout.tsx:396), which D69 also deleted when it turned the freeze into a repair the person performs. None of it is drawn, and none of it should be restored as a lost capability.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>streak, goal, level, day done, queued next, reduced motion, dismissed. Each state is the same panel with a different fact in it, because a person learning one shape learns all four. Queued next is also reached by using the screen: closing the first panel promotes the second. NO plan axis: none of the four triggers is gated and none differs between plans, so the absent switch is a decision.</p>
+      <p><span style="color:var(--fg-3)">shape&nbsp;&nbsp;</span>it is a panel in the shell’s notice slot, pinned directly above the composer rather than in its place, not a modal: no scrim, nothing behind it disabled, and the day’s list stays live and tappable underneath. Skipping it is a tap on the close control or simply carrying on; it never waits for an answer. When two triggers land on the same log the panels QUEUE, one at a time: the shared store gives every kind a priority (celebration-queue.ts:70-80: streak 0, achievement 1, goal completed and all done 2, level up 3), sortCelebrationQueue:82 orders by that priority and then by arrival, and enqueueCelebrationItem:184 queues an item behind whatever is active, promoting the next when the active one completes. Two panels are never on screen together, and the queued next state draws exactly that: a streak panel first, the level up behind it, in the store’s own order. The host around the panel is scenery: its rows, menus, tab bar, sidebar create and palette are wired to nothing, said here once so nobody hunts for dead controls, while the panel’s own close is a real state change and the composer is Hoje’s, prop for prop, because two documents drawing one surface draw the same surface and Hoje is the authority.</p>
+      <p><span style="color:var(--fg-3)">motion&nbsp;&nbsp;</span>under a second in total: the panel rises 12px over 280ms and the ring sweeps once over 280ms, both on the standard curve, transform only. It does not fade in, because a panel whose resting state is invisible disappears entirely the moment a timeline is paused or a frame is dropped, and the static cue is the whole point of this one. Nothing loops, nothing bounces, nothing throws particles.</p>
+      <p><span style="color:var(--fg-3)">static cue&nbsp;&nbsp;</span>the motion is never the message. The completed ring, the figure and the one line all state the fact and hold after the motion ends, so a person who looks up late, or whose screen was off, reads the same thing.</p>
+      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>a dignified static state on both platforms, not a degraded one: the same panel, the same ring at its final value, the same line, arriving at full opacity with no rise and no sweep. Nothing is removed except the movement.</p>
+      <p><span style="color:var(--fg-3)">voice&nbsp;&nbsp;</span>no exclamation mark anywhere, in either locale. The line states what happened and stops; it does not congratulate, does not say keep going, and does not name the person.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>none. Every one of the four triggers is a completion, and completion never takes the accent, so the ring lands neutral at fg-1 and the only control is a ghost close. The ring sweeps in the accent while it is still travelling, which is the one legal frame, and resolves to fg-1 at 100 percent.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. The panel is 24 of padding at 20 radius, the ring is 44, and the close control keeps the 44 touch token.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock: the streak day count, the goal figure, the level number, the day’s habit count and the allowance number inside the composer’s limit reason.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 it cannot fire for a single habit log. 2 it reads correctly with motion disabled and with the animation already finished. 3 nothing in it takes the accent and nothing in it blocks.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 the system has no celebration component, and that is a decision rather than a hole: one screen uses this shape, and a component is extracted on the third real use, not the first. It must not become a Toast either: a Toast carries one message line and at most one action, while this panel carries a completed ring, an eyebrow and a line, and the ring is the static cue that lets the celebration survive with motion disabled. 2 ProgressRing takes a value and holds no entrance, so the sweep is an SVG arc with one keyframe. 3 closed: both shells carry a notice slot now, pinned directly above the composer and never in its place, and the panel rides it with the composer restored beside it, so Astra's front door stays on screen while the celebration shows.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the day done trigger should fire on a day with a single habit due, where the threshold is real but thin.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
+    account: 'Marina', create: 'Criar hábito', menu: 'Mais opções',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Como foi a semana', 'Planejar amanhã', 'Criar um hábito novo', 'Mudar o horário da caminhada'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
+    hostTitle: 'Hoje',
+    rows: [
+      { e: '\uD83D\uDCA7', name: 'Água da manhã', time: '08:00' },
+      { e: '\uD83D\uDEB6', name: 'Caminhada', time: '18:00' },
+      { e: '\uD83D\uDCD6', name: 'Leitura da noite', time: '22:00' },
+    ],
+    close: 'Fechar',
+    streak: { eyebrow: 'Sequência', line: ['A sua sequência chegou a ', '30', ' dias.'], figure: '30' },
+    goal: { eyebrow: 'Meta', line: ['A meta de leitura fechou em ', '12', ' livros.'], figure: '12' },
+    level: { eyebrow: 'Nível', line: ['Você chegou ao nível ', '7', '.'], figure: '7' },
+    day: { eyebrow: 'Hoje', line: ['Os ', '3', ' hábitos de hoje estão feitos.'], figure: '3' },
+    statusDone: 'feito',
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
+    account: 'Marina', create: 'Create habit', menu: 'More options',
+    navLabel: 'Main navigation', palette: 'Search',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['How the week went', 'Plan tomorrow', 'Create a new habit', 'Change the walk time'],
+    limit: ["Today's ", '5', ' messages have been used.'],
+    hostTitle: 'Today',
+    rows: [
+      { e: '\uD83D\uDCA7', name: 'Morning water', time: '08:00' },
+      { e: '\uD83D\uDEB6', name: 'Walk', time: '18:00' },
+      { e: '\uD83D\uDCD6', name: 'Evening reading', time: '22:00' },
+    ],
+    close: 'Close',
+    streak: { eyebrow: 'Streak', line: ['Your streak reached ', '30', ' days.'], figure: '30' },
+    goal: { eyebrow: 'Goal', line: ['The reading goal closed at ', '12', ' books.'], figure: '12' },
+    level: { eyebrow: 'Level', line: ['You reached level ', '7', '.'], figure: '7' },
+    day: { eyebrow: 'Today', line: ['All ', '3', ' habits for today are done.'], figure: '3' },
+    statusDone: 'done',
+  },
+};
+
+const KIND = { streak: 'streak', goal: 'goal', level: 'level', 'day done': 'day',
+  'reduced motion': 'day', dismissed: null };
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'day done', loc: 'pt-BR', gone: false,
+    queue: ['day'], qi: 0 };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  /* Two triggers on one log QUEUE in the shared store's own order: priority then arrival
+     (celebration-queue.ts:70-80, sortCelebrationQueue:82). A streak (0) outranks a level up (3),
+     so the queued next state holds those two. */
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    gone: next.state === 'dismissed',
+    queue: next.state === 'queued next' ? ['streak', 'level'] : [KIND[next.state]].filter(Boolean),
+    qi: 0 });
+
+  /* The ring is the static cue: it holds its finished value after the motion ends. */
+  ringNode(reduced) {
+    return H('svg', { width: 44, height: 44, viewBox: '0 0 34 34', 'aria-hidden': 'true',
+      style: { flex: '0 0 auto' } },
+      H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--status-empty)', strokeWidth: 1.5 }),
+      H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--fg-1)', strokeWidth: 2.5,
+        strokeLinecap: 'round', strokeDasharray: '97.39', transform: 'rotate(-90 17 17)',
+        /* No fill mode: the finished ring is the resting style, so it holds on a frozen timeline. */
+        style: reduced ? undefined : { animation: 'cel-sweep 280ms var(--ease-out)',
+          animationDelay: '60ms' } }));
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['day done', 'streak', 'goal', 'level', 'queued next', 'reduced motion', 'dismissed'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      noop: () => {},
+      showReport: this.props.showReport !== false,
+      hostTitle: t.hostTitle, menuLabel: t.menu, createLabel: t.create, account: t.account,
+      navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const reduced = st === 'reduced motion';
+    /* One panel at a time: completing the active one promotes the next (enqueueCelebrationItem:184). */
+    const kind = s.gone ? null : s.queue[s.qi];
+    const fact = kind ? t[kind] : null;
+
+    const panel = fact ? H('div', { role: 'status', key: kind,
+      style: Object.assign({ marginInline: 16, display: 'flex', alignItems: 'center', gap: 16,
+        padding: 24, background: 'var(--bg-elev)', borderRadius: 'var(--r-card)',
+        boxShadow: 'var(--sh-2), inset 0 0 0 1px var(--hairline)' },
+        reduced ? {} : { animation: 'cel-rise 280ms var(--ease-out) both' }) },
+      this.ringNode(reduced),
+      H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+          letterSpacing: '.06em', textTransform: 'uppercase' } }, fact.eyebrow),
+        H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.45, textWrap: 'pretty' } },
+          fact.line[0], mock(fact.line[1]), fact.line[2])),
+      H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close,
+        onClick: () => this.setState((p) => p.qi + 1 < p.queue.length ? { qi: p.qi + 1 } : { gone: true }),
+        style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+        H(D.Icon, { name: 'x', size: 20 }))) : null;
+
+    return Object.assign(base, {
+      panel: panel,
+      /* Hoje's composer, prop for prop (Hoje is the authority for this surface): state, the live-state
+         chips at Hoje's default count, limitReason, the full words vocabulary, and both handlers. */
+      composer: H(D.Composer, { state: 'resting', chips: t.chips.slice(0, 4),
+        limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
+        words: t.composerWords,
+        onOpen: () => {}, onChipPress: () => {} }),
+      hostRows: t.rows.map((r) => ({
+        icon: r.e, title: r.name, meta: mock(r.time),
+        trailing: H(D.StatusRing, { status: 'done', size: 30, label: t.statusDone }),
+      })),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'hoje', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>

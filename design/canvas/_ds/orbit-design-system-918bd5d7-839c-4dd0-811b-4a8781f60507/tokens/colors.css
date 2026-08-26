@@ -1,0 +1,98 @@
+/* Orbit colour tokens. Tier 1 primitives name a value; tier 2 semantics name a job.
+   Mode and hue blocks repoint semantics only. No literals below the primitives. */
+:root{
+  /* primitives: dark canvas + surface ladder (white alpha over #09090B, never lighter hexes) */
+  --p-canvas:#09090B;
+  --p-card:rgba(250,250,250,0.04);
+  --p-field:rgba(250,250,250,0.06);
+  --p-well:rgba(250,250,250,0.08);
+  --p-elev:#1C1C1E;               /* overlay panel: OPAQUE, sits over arbitrary content */
+  --p-elev2:rgba(250,250,250,0.12);
+  --p-hover:rgba(250,250,250,0.14);
+  --p-sunk:rgba(0,0,0,0.28);
+  --p-hair:rgba(255,255,255,0.08);
+  --p-hair-ghost:rgba(255,255,255,0.10);
+  --p-hair-strong:rgba(255,255,255,0.16);
+  --p-fg1:#F4F4F6; --p-fg2:#C9C9CC; --p-fg3:#8F8F93; --p-fg4:#5D5D60;
+
+  /* primitives: light (not dark reversed; every pair remeasured) */
+  --p-l-canvas:#FAFAFA; --p-l-card:#FFFFFF; --p-l-field:#FFFFFF;
+  --p-l-well:rgba(9,9,11,0.04); --p-l-elev:#FFFFFF; --p-l-elev2:#FFFFFF;
+  --p-l-hover:rgba(9,9,11,0.06); --p-l-sunk:rgba(9,9,11,0.04);
+  --p-l-hair:rgba(9,9,11,0.08); --p-l-hair-ghost:rgba(9,9,11,0.10); --p-l-hair-strong:rgba(9,9,11,0.16);
+  --p-l-fg1:#1A1A1D; --p-l-fg2:#424247; --p-l-fg3:#68686D; --p-l-fg4:#89898D;
+
+  /* primitives: THE accent, warm orange, the only one. Granted by Thomas 2026-08-16.
+     Rose is retired. Treatment is always a dark fill with #FFFFFF on it. */
+  --p-orange-dark:#C4530F; --p-orange-text:#C85716; --p-orange-rgb:196,83,15; /* @kind color */ --p-orange-lmtext:#C15109;
+  --p-on-fill:#FFFFFF;
+
+  /* primitives: status. Five of seven states are neutral; only these two carry a hue. */
+  --p-overdue:#FE9A00; --p-bad:#FB2C36; --p-on-status:#020618;
+  --p-l-overdue:#946A00; /* hue 81.2, 36.4deg from the accent; 4.66:1 on #FAFAFA, white on it 4.86:1 */ --p-l-bad:#E7000B; --p-l-on-bad:#FFFFFF;
+
+  /* The habit colour palette was deleted 2026-08-16. Colour-as-data (D30) and the tinted
+     monochrome emoji (D31) are both reversed: the accent is rationed to four roles and every
+     status is unbound from it, so eight more meaning-bearing colours reopen the defect this
+     redesign exists to close. A habit is told apart by its emoji, its name and its ring. */
+
+  --p-scrim:rgba(0,0,0,0.55);
+  --p-transparent:rgba(0,0,0,0);
+
+  /* semantics: dark is primary */
+  --bg:var(--p-canvas);
+  --bg-card:var(--p-card);
+  --bg-field:var(--p-field);
+  --bg-well:var(--p-well);
+  --bg-elev:var(--p-elev);
+  --bg-elev-2:var(--p-elev2);
+  --bg-hover:var(--p-hover);
+  --bg-sunk:var(--p-sunk);
+  --hairline:var(--p-hair);
+  --border-control:var(--p-hair);
+  --hairline-ghost:var(--p-hair-ghost);
+  --hairline-strong:var(--p-hair-strong);
+  --fg-1:var(--p-fg1); --fg-2:var(--p-fg2); --fg-3:var(--p-fg3); --fg-4:var(--p-fg4);
+
+
+  --primary:var(--p-orange-dark);
+  --primary-soft:var(--p-orange-text); /* @kind color */ /* accent TEXT, canvas only: 4.58:1 on canvas, 4.28:1 on a card. Never on a raised surface; there, emphasis is a weight step, not a hue */
+  --fg-on-primary:var(--p-on-fill);
+  --primary-rgb:var(--p-orange-rgb); /* @kind color */
+  --primary-pressed:color-mix(in oklab, var(--primary) 84%, var(--p-canvas));
+  --primary-hover:color-mix(in oklab, var(--primary) 94%, var(--p-canvas));
+  --primary-dim:color-mix(in oklab, var(--primary) 18%, var(--bg));
+
+  --status-done:var(--fg-1);   /* UNBOUND from the accent: done is a neutral disc */
+  --status-empty:var(--fg-4);
+  --status-frozen:var(--fg-2);  /* DAY-SCOPED: the streak day strip only. A freeze is never a habit status. */
+  --status-overdue:var(--p-overdue);
+  --status-bad:var(--p-bad);
+  --fg-on-bad:var(--p-on-status);
+  --fg-on-overdue:var(--p-on-status);
+  --scrim:var(--p-scrim);
+  --sel-alpha:0.32; /* @kind other */
+  --selection-bg:rgba(var(--primary-rgb), var(--sel-alpha));
+
+  --surface-card:var(--bg-card);
+  --surface-overlay:var(--bg-elev);
+  --text-body:var(--fg-1);
+  --text-secondary:var(--fg-2);
+  --text-meta:var(--fg-3);
+}
+[data-mode="light"]{
+  --bg:var(--p-l-canvas); --bg-card:var(--p-l-card); --bg-field:var(--p-l-field);
+  --bg-well:var(--p-l-well); --bg-elev:var(--p-l-elev); --bg-elev-2:var(--p-l-elev2);
+  --bg-hover:var(--p-l-hover); --bg-sunk:var(--p-l-sunk);
+  --hairline:var(--p-l-hair); --border-control:var(--p-l-hair);
+  --hairline-ghost:var(--p-l-hair-ghost); --hairline-strong:var(--p-l-hair-strong);
+  --fg-1:var(--p-l-fg1); --fg-2:var(--p-l-fg2); --fg-3:var(--p-l-fg3); --fg-4:var(--p-l-fg4);
+  --primary-soft:var(--p-orange-lmtext);
+  --status-overdue:var(--p-l-overdue); --status-bad:var(--p-l-bad); --fg-on-bad:var(--p-l-on-bad); --fg-on-overdue:#FFFFFF;
+  --status-done:var(--fg-1); --status-empty:var(--fg-4); --status-frozen:var(--fg-2);
+  --primary-dim:color-mix(in oklab, var(--primary) 18%, var(--bg));
+  --sel-alpha:0.18; /* @kind other */
+  --selection-bg:rgba(var(--primary-rgb), var(--sel-alpha));
+  --surface-card:var(--bg-card); --surface-overlay:var(--bg-elev);
+  --text-body:var(--fg-1); --text-secondary:var(--fg-2); --text-meta:var(--fg-3);
+}
