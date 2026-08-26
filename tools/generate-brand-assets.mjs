@@ -8,7 +8,10 @@ import sharp from "sharp"
 
 const USAGE = `usage: generate-brand-assets.mjs --write [--root <path>]
 
-  Regenerates every Orbit platform raster from design/brand/orbit-mark.svg.
+  Regenerates every Orbit platform raster from the three canonical sources under
+  design/brand/: orbit-mark.svg carries the 1024 geometry, orbit-mark-accent.svg
+  carries the accent moon every coloured raster needs, and orbit-mark-16.svg is
+  the native redraw every raster below roughly 20px needs. All three are required.
   Existing generated files are replaced non-interactively.
 
   --write        write the complete generated asset set

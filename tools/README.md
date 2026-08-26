@@ -72,7 +72,7 @@ These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `generate-brand-assets.mjs` | Regenerates the launcher layers, splash, notification silhouette, web icons, OG composite and Play feature graphic from the canonical Orbit mark. Outputs use the platform canvas and ink tokens with no baked mask radius. | `node tools/generate-brand-assets.mjs --write` |
+| `generate-brand-assets.mjs` | Regenerates the launcher layers, splash, notification silhouette, web icons, OG composite and Play feature graphic from the three canonical Orbit mark sources, `orbit-mark.svg` for the 1024 geometry, `orbit-mark-accent.svg` for every coloured raster and `orbit-mark-16.svg` for the native redraw below roughly 20px. Each one is asserted before any render, so a missing or edited source fails rather than producing a silently wrong set. Outputs use the platform canvas and ink tokens with no baked mask radius. | `node tools/generate-brand-assets.mjs --write` |
 
 ## Harness self-test
 
