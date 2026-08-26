@@ -55,3 +55,16 @@ export function captureRouteProbeId(
     .join('-')
   return `capture-route-${slug || 'root'}`
 }
+
+/**
+ * The locale and theme a render is allowed to expose, as one comparable value.
+ *
+ * Applying a capture tuple is asynchronous, because `i18n.changeLanguage` is. Readiness therefore
+ * cannot be a boolean an effect flips: an effect is passive, so the render that FIRST sees a new
+ * tuple commits before it runs, and that commit would expose the route probe while the previous
+ * locale is still on screen. Comparing this key against the last applied one decides readiness
+ * during render instead, so a tuple that has not finished applying can never be capture-ready.
+ */
+export function captureTupleKey(preferences: CapturePreferences | null): string {
+  return preferences ? `${preferences.locale}|${preferences.theme}` : 'none'
+}

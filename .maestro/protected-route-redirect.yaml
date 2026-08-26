@@ -1,0 +1,16 @@
+# Proves a protected route redirects an unauthenticated session to login.
+#
+# This is deliberately NOT a capture flow, so it does not live in surfaces/. It opens the PROTECTED
+# route's deep link and asserts the LOGIN probe, which is a positive claim: only a real redirect
+# satisfies it. The check it replaced inferred the redirect from a Maestro non-zero exit, which any
+# unrelated Maestro breakage also produces, so it proved nothing.
+appId: org.useorbit.app
+---
+- openLink: ${CAPTURE_LINK}
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible:
+    id: "capture-route-login"
+- assertNotVisible:
+    id: "capture-route-about"
+- takeScreenshot: ${CAPTURE_PATH}

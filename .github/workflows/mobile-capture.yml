@@ -80,7 +80,13 @@ jobs:
           api-level: 35
           target: google_apis
           arch: x86_64
-          profile: pixel_9
+          # The action turns this into `avdmanager create avd --device '<profile>'`, so the profile
+          # has to exist in the runner's device catalogue, NOT in a local SDK. ubuntu-latest ships
+          # Android Command Line Tools 12.0, whose newest phone is pixel_7_pro; pixel_9 arrived in a
+          # later release. Naming one this catalogue lacks fails AVD creation with "No device found
+          # matching --device", the emulator never boots, and every later step reads as a capture
+          # bug instead. Raise this only alongside a confirmed runner-image tools bump.
+          profile: pixel_7
           cores: 4
           ram-size: 4096M
           heap-size: 512M
@@ -115,19 +121,26 @@ jobs:
               --driver adb \
               --output .artifacts/mobile-capture/adb-fallback
 
-            set +e
-            node tools/capture-surfaces-mobile.mjs \
-              --surface m-route-about \
-              --theme dark \
-              --locale en \
-              --output .artifacts/mobile-capture/unreachable
-            unreachable_exit=$?
-            set -e
-            if [ "${unreachable_exit}" -ne 3 ]; then
-              echo "Expected the protected route to report unreachable with exit 3, got ${unreachable_exit}." >&2
-              exit 1
-            fi
-            grep -q 'route-assertion-failed' .artifacts/mobile-capture/unreachable/report.json
+            # The protected route is proven by where it LANDS, not by a failure. A Maestro non-zero
+            # exit is undifferentiated: a driver timeout, a crashed app and a real redirect all look
+            # the same, so the old exit-3 check passed for the wrong reasons. This asserts the login
+            # probe instead, which only a real redirect can satisfy. The deep link comes from the
+            # tool's own buildCaptureDeepLink so the two never drift apart.
+            about_link=$(node --input-type=module -e "
+              import { readFileSync } from 'node:fs'
+              import { buildCaptureDeepLink } from './tools/capture-surfaces-mobile.mjs'
+              const manifest = JSON.parse(readFileSync('.claude/manifests/surfaces.json', 'utf8'))
+              const cell = manifest.cells.find((entry) => entry.platform === 'mobile' && entry.surfaceId === 'm-route-about')
+              if (!cell) { console.error('m-route-about is not in the manifest'); process.exit(1) }
+              console.log(buildCaptureDeepLink(cell, 'dark', 'en'))
+            ")
+            echo "Protected route deep link: ${about_link}"
+
+            CAPTURE_LINK="${about_link}" CAPTURE_PATH=protected-route-redirect \
+              maestro test \
+                --debug-output .artifacts/mobile-capture/protected \
+                --flatten-debug-output \
+                .maestro/protected-route-redirect.yaml
 
       - name: Upload capture evidence
         if: always()

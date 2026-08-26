@@ -34,6 +34,7 @@ import { useGlobalSearchParams } from 'expo-router'
 import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated'
 import {
   captureBuildEnabled,
+  captureTupleKey,
   resolveCapturePreferences,
   type CapturePreferences,
 } from './capture-mode'
@@ -107,7 +108,10 @@ function AuthInitializer({
   children: ReactNode
 }>) {
   const initialize = useAuthStore((s) => s.initialize)
-  const [ready, setReady] = useState(false)
+  const captureTuple = captureTupleKey(capturePreferences)
+  const [appliedCaptureTuple, setAppliedCaptureTuple] = useState<string | null>(null)
+  /** Derived during render, never flipped by an effect: see captureTupleKey. */
+  const ready = appliedCaptureTuple === captureTuple
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
@@ -125,9 +129,12 @@ function AuthInitializer({
   })
 
   useEffect(() => {
+    /**
+     * A tuple that changes mid-boot abandons the boot in flight. Without this, the older boot could
+     * resolve last and publish its own tuple as applied, gating a render that is already correct.
+     */
+    let abandoned = false
     async function boot() {
-      /** Re-gates a capture re-run: changeLanguage below is async, so a stale ready captures the previous locale. */
-      setReady(false)
       let isAuthenticated = false
 
       try {
@@ -147,10 +154,13 @@ function AuthInitializer({
         try { await clearPersistedQueryCache() } catch {}
       }
 
-      setReady(true)
+      if (!abandoned) setAppliedCaptureTuple(captureTuple)
     }
     void boot()
-  }, [capturePreferences, initialize])
+    return () => {
+      abandoned = true
+    }
+  }, [captureTuple, capturePreferences, initialize])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {

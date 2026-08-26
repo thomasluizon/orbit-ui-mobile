@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -48,6 +48,35 @@ const captureSurfacesMobileCases = () => {
     "an unsupported surface is listed and exits unreachable",
     ["--surface", overlay.surfaceId, "--output", join(root, "mobile-capture-unreachable"), "--dry-run"],
     { status: 3, stdout: /UNREACHABLE \(4\):[\s\S]*needs-surface-flow/ },
+  )
+
+  // The protected-route signal mobile-capture.yml runs. It is a POSITIVE assertion by design: the
+  // exit code cannot carry this claim, because a runtime Maestro failure is undifferentiated. These
+  // pin the two halves that make the signal meaningful, so weakening either one goes red here.
+  const protectedFlowPath = join(REPO_ROOT, ".maestro", "protected-route-redirect.yaml")
+  T("the protected-route flow exists outside the capture surfaces directory", existsSync(protectedFlowPath))
+
+  const protectedFlow = existsSync(protectedFlowPath) ? readFileSync(protectedFlowPath, "utf8") : ""
+  T(
+    "the protected-route flow asserts the LOGIN probe, never the protected one",
+    protectedFlow.includes('id: "capture-route-login"') &&
+      /assertNotVisible:[\s\S]*id: "capture-route-about"/.test(protectedFlow) &&
+      !/assertVisible:\s*\n\s*id: "capture-route-about"/.test(protectedFlow),
+    protectedFlow,
+  )
+  T(
+    "the protected-route flow takes its deep link from the environment, not a hard-coded URL",
+    protectedFlow.includes("${CAPTURE_LINK}") && !protectedFlow.includes("orbit://"),
+    protectedFlow,
+  )
+
+  const aboutCell = manifest.cells.find(
+    (cell) => cell.platform === "mobile" && cell.surfaceId === "m-route-about",
+  )
+  T(
+    "the protected route is still in the manifest, so the workflow can build its deep link",
+    Boolean(aboutCell) && buildCaptureDeepLink(aboutCell, "dark", "en").startsWith("orbit://"),
+    JSON.stringify(aboutCell),
   )
 }
 

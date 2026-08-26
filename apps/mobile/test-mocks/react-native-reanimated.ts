@@ -146,4 +146,9 @@ export function createAnimatedComponent<Component>(component: Component): Compon
   return component
 }
 
+/** Providers renders <ReducedMotionConfig> to pin motion for capture builds. */
+export function ReducedMotionConfig(_props: { mode: string }) {
+  return null
+}
+
 export default Reanimated

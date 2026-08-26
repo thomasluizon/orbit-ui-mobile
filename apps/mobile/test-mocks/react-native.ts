@@ -131,6 +131,11 @@ export const Dimensions = {
   }),
 }
 
+/** The theme layer reads the OS scheme; tests pin it so a render never depends on the host. */
+export function useColorScheme(): 'light' | 'dark' {
+  return 'dark'
+}
+
 export function useWindowDimensions() {
   return { width: 412, height: 892, scale: 1, fontScale: 1 }
 }
@@ -169,7 +174,7 @@ export const BackHandler = {
 }
 
 export const AccessibilityInfo = {
-  isReduceMotionEnabled: async () => false,
+  isReduceMotionEnabled: () => Promise.resolve(false),
   addEventListener: (_event: string, _listener: (enabled: boolean) => void) => ({
     remove: () => {},
   }),
