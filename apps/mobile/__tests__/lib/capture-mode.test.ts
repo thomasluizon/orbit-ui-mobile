@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Animated } from 'react-native'
 import {
   captureRouteProbeId,
   resolveCapturePreferences,
@@ -65,6 +66,44 @@ describe('mobile capture mode', () => {
     driver.timing('value', { toValue: 1, duration: 280, useNativeDriver: true })
     driver.spring('value', { toValue: 1, useNativeDriver: true })
     const child = animation()
+
+    expect(timing).toHaveBeenNthCalledWith(1, 'value', {
+      delay: 0,
+      duration: 0,
+      toValue: 1,
+      useNativeDriver: true,
+    })
+    expect(timing).toHaveBeenNthCalledWith(2, 'value', {
+      delay: 0,
+      duration: 0,
+      toValue: 1,
+      useNativeDriver: true,
+    })
+    expect(driver.loop(child)).toBe(child)
+    expect(driver.stagger(80, [child])).toBe(parallel.mock.results[0]?.value)
+    expect(parallel).toHaveBeenCalledWith([child])
+  })
+
+  it('pins the native Animated driver once for the capture process', () => {
+    const timing = vi.spyOn(Animated, 'timing')
+    const parallel = vi.spyOn(Animated, 'parallel')
+
+    pinCaptureAnimationDurations()
+    pinCaptureAnimationDurations()
+
+    const driver = Animated as unknown as CaptureAnimatedDriver
+    const child = animation()
+    driver.timing('value', {
+      delay: 80,
+      duration: 280,
+      toValue: 1,
+      useNativeDriver: true,
+    })
+    driver.spring('value', {
+      delay: 80,
+      toValue: 1,
+      useNativeDriver: true,
+    })
 
     expect(timing).toHaveBeenNthCalledWith(1, 'value', {
       delay: 0,

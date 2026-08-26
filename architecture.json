@@ -25392,6 +25392,7 @@
         "apps/mobile/__tests__/lib/overlay-stack.test.ts",
         "apps/mobile/__tests__/lib/pending-notification-deletes.test.ts",
         "apps/mobile/__tests__/lib/persistent-reminder.test.ts",
+        "apps/mobile/__tests__/lib/providers-capture-readiness.test.tsx",
         "apps/mobile/__tests__/lib/push-notification-permissions.test.ts",
         "apps/mobile/__tests__/lib/query-client.test.ts",
         "apps/mobile/__tests__/lib/queued-api-mutation.test.ts",

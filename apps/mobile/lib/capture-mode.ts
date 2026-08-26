@@ -7,12 +7,12 @@ export interface CapturePreferences {
   theme: ThemeMode
 }
 
-type SearchParameter = string | string[] | undefined
+type SearchParameter = string | string[]
 
 export const captureBuildEnabled =
   process.env.EXPO_PUBLIC_CAPTURE_MODE === 'true'
 
-function firstParameter(value: SearchParameter): string | undefined {
+function firstParameter(value: SearchParameter | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
 
