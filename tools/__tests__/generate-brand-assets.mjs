@@ -60,6 +60,14 @@ export const cases = async () => {
     )
   }
 
+  const featureGraphic = join(outputRoot, "apps", "mobile", "store", "feature-graphic.png")
+  const featureGraphicMetadata = await sharp(featureGraphic).metadata()
+  T(
+    "generate-brand-assets.mjs: Play feature graphic is a 24-bit RGB PNG with no alpha channel",
+    featureGraphicMetadata.channels === 3 && featureGraphicMetadata.hasAlpha === false,
+    JSON.stringify(featureGraphicMetadata),
+  )
+
   const foreground = join(outputRoot, "apps", "mobile", "assets", "adaptive-icon-foreground.png")
   const { info: foregroundInk } = await sharp(foreground)
     .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })

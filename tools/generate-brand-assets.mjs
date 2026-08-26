@@ -83,7 +83,10 @@ const generatedAssets = [
   // upscaled with resizeMode 'cover' and the silhouette softens on exactly the densest screens.
   { path: "apps/mobile/assets/notification-icon.png", width: 96, height: 96, ink: WHITE, scale: 0.8 },
   { path: "apps/mobile/assets/splash-icon.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.4, accent: true },
-  { path: "apps/mobile/store/feature-graphic.png", width: 1024, height: 500, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
+  // Google Play accepts this listing asset as 24-bit RGB PNG but rejects an alpha channel, even
+  // when every alpha value is opaque. Other canvases retain alpha because their platform contracts
+  // need transparency or accept RGBA.
+  { path: "apps/mobile/store/feature-graphic.png", width: 1024, height: 500, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true, opaque: true },
   // app/icon.png is a Next.js App Router FILE CONVENTION, not an ordinary public asset. It is the
   // browser-tab icon Next serves for the app segment, so leaving it out of this list is how the old
   // mark survived every previous regeneration: it is the one icon that metadata.icons does not
@@ -201,8 +204,10 @@ async function renderAsset(sources, asset) {
   const left = Math.floor((asset.width - info.width) / 2)
   const top = Math.floor((asset.height - info.height) / 2)
 
-  return canvas
-    .composite([{ input: mark, left, top }])
+  const composed = canvas.composite([{ input: mark, left, top }])
+  if (asset.opaque) composed.removeAlpha()
+
+  return composed
     .png({ compressionLevel: 9 })
     .toBuffer()
 }
