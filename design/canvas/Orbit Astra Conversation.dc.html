@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Astra" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ navHeader }}" composer="{{ composer }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <div aria-busy="{{ feedBusy }}" style="display:flex;flex-direction:column;gap:16px;padding:16px;background:var(--bg-elev);min-height:100%">
+
+          <sc-for list="{{ turns }}" as="turn" hint-placeholder-count="2">
+            <sc-if value="{{ turn.isMe }}" hint-placeholder-val="{{ true }}">
+              <p style="align-self:flex-end;max-width:80%;background:var(--bg-well);border-radius:16px;padding:12px 16px;font-size:16px;line-height:1.5;color:var(--fg-1);text-wrap:pretty">{{ turn.text }}</p>
+            </sc-if>
+            <sc-if value="{{ turn.isProse }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <p style="font-size:16px;line-height:1.5;color:var(--fg-1);text-wrap:pretty">{{ turn.text }}</p>
+                <sc-if value="{{ turn.hasCopy }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ turn.onCopy }}" dc-props="{{ copyProps }}" hint-size="auto,40px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ turn.copyIcon }}" size="{{ n16 }}" hint-size="16px,16px"></x-import>
+                    <span>{{ turn.copyLabel }}</span>
+                  </x-import>
+                </sc-if>
+              </div>
+            </sc-if>
+            <sc-if value="{{ turn.isInline }}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="display:flex;align-items:flex-start;gap:12px;padding:12px;background:var(--bg-well);border-radius:var(--r-well)">
+                <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:22px;color:{{ turn.iconColor }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ turn.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                </span>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                  <p style="font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ turn.text }}</p>
+                  <sc-if value="{{ turn.hasAction }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ turn.onAction }}" hint-size="auto,40px">{{ turn.actionLabel }}</x-import>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ turn.isNode }}" hint-placeholder-val="{{ false }}">
+              {{ turn.node }}
+            </sc-if>
+          </sc-for>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" conversation="{{ panel }}" conversation-label="{{ panelAria }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" account="{{ account }}" on-create="{{ noop }}" create-label="{{ createLabel }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column">
+              <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ behindTitle }}</p>
+              <p style="font-family:var(--font-mono);font-size:12px;line-height:1.4;color:var(--fg-3);font-variant-numeric:tabular-nums" data-mock="true">{{ behindDate }}</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ behindRows }}" as="b" hint-placeholder-count="3">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ b.icon }}" title="{{ b.title }}" meta="{{ b.meta }}" trailing="{{ b.trailing }}" menu-label="{{ menuLabel }}" on-click="{{ noop }}" on-menu="{{ noop }}" hint-size="100%,68px"></x-import>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </x-import>
+        
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The conversation exists so a person can say what they did or what they want and have it happen. It is not a transcript and not a help desk: every answer that touches data comes back as a block with controls in it, because a read only card is a screenshot of the app pasted into a chat. Prose appears only where there is nothing to operate on.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>empty, preview, preview acting, stale, habits, goals, goals empty, clarification, metrics, breakdown, conflict, batch failed, the five operation outcomes, streaming, busy, recording, transcribing, attachments, offline, at limit, model error, copy, loading. A plan axis sits beside the state, free or Pro, defaulting to free: at limit free and at limit Pro came OFF the state axis in the same edit, because a plan is an account fact that survives a state change, and one at limit state now reads its ceiling from the plan, 5 against 50 (D70 item 1). Reached by using the screen rather than the axis: recording by pressing the microphone, transcribing by pressing stop, the transcript landing in the field as composing, the attachment tray by attaching, a remove per item, the empty state’s suggestions each opening a drawn answer, and the goal rows and chip leaving for Progresso. The logging check, the pagination, the frequency pills, the accept confirmation and the copy control all work.</p>
+      <p><span style="color:var(--fg-3)">preview&nbsp;&nbsp;</span>one batch preview, per item edit, one accept. Three actions, approve edit reject, never a single OK, because a single OK gives the person no way to change one line without discarding the rest. The payload is withheld until approval, so the preview is a preview: nothing in it has been written. It never auto dismisses. Rejecting it collapses the block in place to one line naming what was declined: keeping the block with spent actions would read as broken rather than finished, and removing it would leave a person scrolling back unable to tell a decline from a failure. An irreversible row differs from a reversible one by the frame's own neutral mark, so it is a shape and a word rather than colour alone, and because one row is irreversible the frame states in the action row that the accept asks for a confirmation. Bulk log and bulk skip carry none, since both are reversible. Answered 2026-08-18: a partially failed bulk create keeps the rows it created and the retry covers only the failures. There is no batch undo, so the partially failed frame offers the retry and nothing that promises a rollback.</p>
+      <p><span style="color:var(--fg-3)">habits&nbsp;&nbsp;</span>the same two controls the list has everywhere: the trailing ring logs optimistically and rides in the row's control slot, and the label is the tap target that opens the habit. The chat teaches no new gesture. Pagination pages in place and the header count moves with it, so a reply never drills out into a full list.</p>
+      <p><span style="color:var(--fg-3)">clarification&nbsp;&nbsp;</span>one short question with tappable answers, which the contract requires whenever Astra cannot resolve what was said. It is not politeness: guessing between two habits with the same verb writes the wrong log, and a wrong log is worse than a question.</p>
+      <p><span style="color:var(--fg-3)">metrics&nbsp;&nbsp;</span>one overview answering how the period went, three real figures and a chip through to Progresso. No per habit drill in inside the chat, and no chart: the numbers are rows, which is what the system can draw honestly.</p>
+      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>the sixth block (goal-list-card.tsx, rendered by message-bubble.tsx:165-166 off message.goalList; [[orbit:goals]] is D69’s third directive token). One row per goal through the same BlockFrame as the other five: the name, its figure with the deadline where one exists (chat.goalList.percentage, .progress, .deadline), and its ring in the row’s control slot, the done disc at 100 because completion is never the accent. A goal row opens the goal, because the chat opens the goal detail from a card today (chat/page.tsx:214), exactly as a habit row opens the habit (:208), and the chip goes through to Progresso. Its own empty line (chat.goalList.empty) says a goal starts from a habit or from an ask, so the empty block still routes somewhere real.</p>
+      <p><span style="color:var(--fg-3)">breakdown&nbsp;&nbsp;</span>rows plus a frequency control per row, each one the row's own control rather than a single group under the list, so a cadence is changed where it is read. Every row it would change carries the proposed flag, which the frame renders at fg-3 inside a dashed hairline, and it never takes the accent. When the proposal collides with something that already exists the block says so above the actions, with the caution glyph and the name of the thing it collides with.</p>
+      <p><span style="color:var(--fg-3)">block rules&nbsp;&nbsp;</span>loading, resting or acting, never half of two: in acting every row shows the acting glyph and the actions are disabled as one, rather than one row spinning inside a resting block. Text streams and the block arrives whole, so the streaming state shows prose mid-stream with no block yet, and no block animates its own reveal. A stale block says so and offers a refresh instead of acting on state that already moved.</p>
+      <p><span style="color:var(--fg-3)">announce&nbsp;&nbsp;</span>announcements are card scoped: each block body is its own polite live region, so a result is read where it happened, and the feed carries aria-busy for the length of a batch rather than announcing every row into the page.</p>
+      <p><span style="color:var(--fg-3)">operation&nbsp;&nbsp;</span>five typed outcomes, each with its risk class stated as a neutral badge: pending confirmation on a destructive batch, step up where identity has to be reconfirmed, denied where the account cannot do it, unsupported by policy where Astra is not the place, and the terminal succeeded. Failed is the same per item shape as the partially failed batch. Risk is low, destructive or high, stated in the frame's header slot beside the count, and on the destructive batch every row also carries the frame's irreversible mark, so risk is never carried by one badge alone. Step up, answered 2026-08-18: it is a hand off, and the hand off is structural now rather than a drawing choice. StepUp has no children prop and no slot of any kind, and every prop on it is a string, a boolean or a handler, so no caller can nest a credential field into it. A credential field inside a chat is the shape of a phishing screen, and prose lost to that defect twice before the type carried it.</p>
+      <p><span style="color:var(--fg-3)">boundaries&nbsp;&nbsp;</span>managing the subscription, the API keys and the account left the chat and live only in Perfil, so those three arrive as unsupported by policy with one action that opens Perfil. Astra never pitches the paywall and never starts a checkout, which is why the denied outcome states the boundary and stops there, with no upgrade action anywhere on this surface.</p>
+      <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>the allowance is daily, 5 free and 50 Pro, one at limit state reading its ceiling from the plan axis. Both refusals say the list keeps working and that speaking does not spend a message, and neither carries an upgrade path: Astra never pitches the paywall and never starts a checkout, so this screen passes the plan axis and still has no route to Orbit Pro. That is not an omission: the axis exists to draw the two ceilings honestly, and the no-upsell boundary is the decision. The refusal arrives on the stream as an inline error event, so it renders in the thread where the answer would have been. Nothing says when the allowance returns, because no endpoint returns that moment.</p>
+      <p><span style="color:var(--fg-3)">busy&nbsp;&nbsp;</span>the concurrent limit is exactly one, so a second message while one is in flight is refused rather than queued. The composer's own busy state carries it: the send control goes neutral and inactive rather than accent, which is what separates refused from accepted, and the refusal sits inline under the bar. There is no queue and no draft buffer, because a queued message would act on state the person can no longer see.</p>
+      <p><span style="color:var(--fg-3)">composer&nbsp;&nbsp;</span>the composer carries its whole shipping contract now. Voice (chat-composer-bar.tsx:10,263,283,288): the microphone is neutral at rest, recording replaces the field with the live row and an accent stop, transcribing shows the word with the stop inactive and neutral, and the transcript lands in the field as composing. Speaking spends NOTHING from the daily allowance (ChatController.cs:107 transcribes with no TryConsumeAiMessage), so the allowance refusals say so and no cost line sits anywhere near the microphone. Attachments (:390-402): a file and an image control beside the microphone, both unavailable while offline because that is what the app does, and a pending tray above the field with a named remove per item (:149,:189). Offline has a way back (:103-104,128): the retry sits inside the offline reason line, and passing it narrows the words contract to require the retry word. All three vocabularies arrive from this document in both locales, required by the component with no default in either.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>the first thing a person sees (chat-empty-state.tsx): the Astra mark, the title, the prompt over the suggestions (chat.suggestion.prompt), and the suggestions themselves, each opening a drawn answer. Under them the one line saying what Astra is not, aiDisclosure.notMedicalAdvice, at fg-4 and never styled as a warning: it is a fact, not an alarm.</p>
+      <p><span style="color:var(--fg-3)">copy&nbsp;&nbsp;</span>the copy control is explicit and always visible on both platforms, never hover only, since a touch device has no hover and a copy affordance that appears on hover does not exist on a phone.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. 44 is the touch token for the log ring and the row edit, 40 the frequency pill and the small button, 52 the compact row, 32 the emoji well.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on chips, badges, strip cells and the emoji well, 12 on wells and inline events, 16 on the person's own message, 20 on blocks, 28 on the shell and the panel edge, 999 on interactive.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: one filled action, the block's accept, which is the only thing on the surface that commits anything; plus current position on the composer's focus ring and send, and the selected frequency pill as current position. Where a block has no accept, as in clarification, metrics and every terminal outcome, the surface has no filled action at all. Wide: the sidebar create owns the fill, so accept steps down to the neutral fg-1 fill. Completion is neutral: a done row's check is status-done, never the accent.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover #B74E12, 6.09:1 pressed #A24716. primary-soft on the canvas 4.58:1, used only for the active nav item. Dark status-overdue #FE9A00 carries the caution glyph and the light pair is #946A00 at 4.66:1 on #FAFAFA with white on it at 4.86:1. status-bad is used for a failed row's glyph and nowhere else. The three known limits are left as they are.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: each block's count, the times in the habit rows, the figures in the metrics block, the allowance in both refusals, and the counts inside Astra's own sentences. Base date Tuesday 18 August 2026, clock read as 19:20.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every answer that touches data can be acted on where it appears, and none of them is a read only card. 2 nothing is written before an accept, and one accept covers the batch while each row can still be changed alone. 3 the chat reuses the app's gestures and adds none.</p>
+      <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>the metrics block has no server schema at all. The other four blocks have one, so this is the only block on the surface whose payload does not exist yet: it needs a new schema returning a period, a completion rate, a days logged count and a most consistent habit, which is ticket #333 on the api.</p>
+      <p><span style="color:var(--fg-3)">frame&nbsp;&nbsp;</span>all five blocks are authored through BlockFrame's props and no block reaches for a frame class name. The row control, the proposed flag and the irreversible mark are the component's now, so the local versions are gone: the hand built frame markup for the preview, the habit list and the breakdown, the dashed hairline drawn around a proposed row, the caution glyph and coloured meta that stood in for an irreversible row, the risk badge composed above the actions, the shared day pill group under the breakdown rows, the empty value that suppressed the composer's atLimit placeholder, and the thread level line that stood in for a composer busy state.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle went stale a SEVENTH round: checked before use as instructed, it lacked the composer’s entire voice, attachment and retry contract (onVoice with voiceWords, the recording and transcribing states, onAttach with attachWords and the tray, onRetry with the narrowed words) while the source carried all of it; the whole mirror was re-synced from the source project and confirmed carrying it before this document leaned on any of it. Still composed around the system: 1 ShellWide’s conversation slot takes markup, but an x-import cannot fill a named prop from a template, so the wide panel’s turn list is still built as a node while the 412 overlay’s is authored markup; the blocks are shared between the two. 2 BlockFrame has no slot for a collision, so the breakdown’s conflict line rides inside the actions node. 3 there is no inline event component, so the refusals and the model error are composed from bg-well, a hairline and one Icon. 4 the frame ellipsises a row label, so a row’s meta stays short; the preview drops its per row pencil at 380 and the deletion row states the habit as its label with the verb in the meta. 5 the empty state’s suggestion pills are composed, since the composer’s chips belong to the composer and the empty state’s live in the feed.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const line = (parts, marks) => H(F, null, parts.map((p, i) =>
+  marks.indexOf(i) >= 0 ? H('span', { key: i, 'data-mock': 'true' }, p) : p));
+
+const PT_DAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const EN_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
+    panelAria: 'Conversa com o Astra', close: 'Fechar conversa', menu: 'Mais opções',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    dayOn: (d) => PT_DAY[d] + ', ativo', dayOff: (d) => PT_DAY[d] + ', inativo',
+    behindTitle: 'Hoje', behindDate: '18 de agosto',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'Espera a resposta anterior. O Astra responde um pedido por vez.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+      retry: 'Tentar de novo',
+    },
+    voiceWords: { start: 'Falar', stop: 'Parar gravação', listening: 'Ouvindo', transcribing: 'Transcrevendo' },
+    attachWords: { file: 'Anexar arquivo', image: 'Anexar imagem', remove: (n) => 'Remover ' + n },
+    attachNames: { file: 'treino-agosto.pdf', image: 'foto-da-corrida.jpg' },
+    voiceResult: 'Registrar a caminhada de hoje',
+    emptyTitle: 'Fale com o Astra sobre a sua rotina',
+    emptyPrompt: 'Algumas coisas que dá para pedir',
+    disclosure: 'O Astra não é conselho médico.',
+    gl: {
+      ask: 'Como estão as minhas metas',
+      title: 'Suas metas', count: '3',
+      rows: [
+        { name: '30 dias de movimento', pct: 40, figure: ['', '12', ' de ', '30', ' dias'], deadline: 'até 14 set' },
+        { name: 'Ler 12 livros', pct: 33, figure: ['', '4', ' de ', '12', ' livros'], deadline: 'até 31 dez' },
+        { name: 'Correr 5 quilômetros', pct: 100, figure: ['', '5', ' de ', '5', ' km'] },
+      ],
+      empty: 'Nenhuma meta ainda. Uma meta nasce de um hábito, ou de um pedido aqui.',
+      open: (n) => 'Abrir ' + n, ring: (n) => 'Progresso de ' + n, chip: 'Ver no Progresso',
+      emptyAsk: 'Quais metas eu tenho',
+    },
+    chips: ['Registrar a caminhada', 'Como foi a semana', 'Dividir a rotina da casa', 'Como estão as metas'],
+    proposed: 'Proposto pelo Astra',
+    edit: 'Editar item', approve: 'Aprovar', editAll: 'Editar', reject: 'Rejeitar',
+    copy: 'Copiar', copied: 'Copiado',
+    statusDone: 'feito', statusEmpty: 'pendente', statusActing: 'salvando', statusFailed: 'não salvou',
+    irreversibleMark: 'definitivo',
+    pvConfirmNote: 'Apagar um hábito não pode ser desfeito, então aprovar pede uma confirmação.',
+    opConfirmNote: 'Apagar não pode ser desfeito, e tudo dentro deles vai também.',
+
+    pv: {
+      ask: 'Reorganiza a minha manhã: água às 07:00, alongamento às 07:10, e apaga o hábito de café',
+      prose: 'Isto é o que eu vou fazer. Nada foi salvo ainda.',
+      title: 'Mudar a manhã', count: '3',
+      rows: [
+        { label: 'Água da manhã', meta: 'para 07:00' },
+        { label: 'Alongamento', meta: 'para 07:10' },
+        { label: 'Café da manhã', meta: 'apagar', irreversible: true },
+      ],
+      staleMessage: 'A manhã mudou desde que o Astra montou este bloco.',
+      refresh: 'Montar de novo',
+      confirmTitle: 'Aprovar estas 3 mudanças?',
+      confirmBody: 'Uma delas apaga um hábito e os 2 itens dentro dele, e isso não dá para desfazer.',
+      cancel: 'Cancelar', confirm: 'Aprovar',
+      done: 'As 3 mudanças foram salvas.',
+      rejected: 'As 3 mudanças foram rejeitadas. Nada foi salvo.',
+    },
+
+    hl: {
+      ask: 'O que falta hoje',
+      title: 'Hábitos de hoje',
+      more: 'Mostrar mais',
+      pool: [
+        { emoji: '\uD83D\uDCA7', name: 'Água da manhã', time: '08:00', status: 'done' },
+        { emoji: '\uD83D\uDEB6', name: 'Caminhada', time: '18:00', status: 'overdue' },
+        { emoji: '\uD83E\uDDD8', name: 'Alongamento', time: '21:00', status: 'empty' },
+        { emoji: '\uD83D\uDCD6', name: 'Leitura da noite', time: '22:00', status: 'empty' },
+        { emoji: '\uD83E\uDDF9', name: 'Louça', time: '20:00', status: 'done' },
+        { emoji: '\uD83D\uDC55', name: 'Roupa lavada', time: '19:00', status: 'empty' },
+        { emoji: '\uD83D\uDEBF', name: 'Banheiro', time: '20:30', status: 'empty' },
+        { emoji: '\uD83C\uDFB8', name: 'Violão', time: '17:00', status: 'empty' },
+      ],
+      log: (n) => 'Registrar ' + n, unlog: (n) => 'Desfazer o registro de ' + n,
+      open: (n) => 'Abrir ' + n,
+    },
+
+    cl: {
+      ask: 'Registra a caminhada',
+      title: 'Qual caminhada?',
+      answers: ['Caminhada da manhã', 'Caminhada da noite', 'As duas'],
+    },
+
+    mt: {
+      ask: 'Como foi a semana',
+      title: 'Últimos 7 dias', count: '7',
+      rows: [
+        { label: 'Taxa de conclusão', meta: '78%' },
+        { label: 'Dias com registro', meta: '6 de 7' },
+        { label: 'Hábito mais constante', meta: 'Caminhada' },
+      ],
+      chip: 'Ver no Progresso',
+    },
+
+    bd: {
+      ask: 'A rotina da casa está grande demais',
+      title: 'Dividir "Rotina da casa"', count: '3',
+      rows: [
+        { label: 'Louça', cadences: ['toda segunda e quinta', 'todo dia', 'uma vez por semana'] },
+        { label: 'Roupa lavada', cadences: ['todo sábado', 'duas vezes por semana', 'uma vez por semana'] },
+        { label: 'Banheiro', cadences: ['todo domingo', 'todo dia', 'uma vez por semana'] },
+      ],
+      freqAria: (n) => 'Frequência de ' + n + ', toque para mudar',
+      conflict: 'Já existe um hábito chamado "Louça" nas segundas.',
+    },
+
+    bf: {
+      ask: 'Registra tudo que eu fiz: água, caminhada, alongamento, leitura e louça',
+      prose: ['', '3', ' foram registrados. ', '2', ' não salvaram.'],
+      title: 'Registro em lote', count: '5',
+      retry: ['Tentar os ', '2', ' que faltaram'],
+      rows: [
+        { label: 'Água da manhã', meta: '08:00', status: 'done' },
+        { label: 'Caminhada', meta: '18:00', status: 'done' },
+        { label: 'Alongamento', meta: '21:00', status: 'done' },
+        { label: 'Leitura da noite', status: 'failed' },
+        { label: 'Louça', status: 'failed' },
+      ],
+    },
+
+    op: {
+      riskLow: 'risco baixo', riskDestructive: 'destrutivo', riskHigh: 'risco alto',
+      pendingAsk: 'Apaga os hábitos que eu não registro há um mês',
+      pendingTitle: 'Apagar 4 hábitos', pendingCount: '4',
+      pendingRows: [
+        { label: 'Violão', days: '34' },
+        { label: 'Meditação', days: '41' },
+        { label: 'Diário', days: '52' },
+        { label: 'Corrida longa', days: '38' },
+      ],
+      pendingMeta: ['', ' dias'],
+      pendingProse: 'Nenhum deles tem registro há mais de um mês. Nada foi apagado ainda.',
+      pendingConfirm: 'Apagar os 4', pendingCancel: 'Cancelar',
+
+      stepAsk: 'Apaga todos os meus registros de agosto',
+      stepTitle: 'Confirmar identidade', stepCount: '31',
+      stepProse: 'Isto apaga 31 dias de registros. Confirme a identidade antes, no aparelho.',
+      stepAction: 'Confirmar identidade',
+      stepRow: 'Apagar registros de agosto', stepRowMeta: [' dias'],
+
+      deniedAsk: 'Exporta tudo que eu registrei em CSV',
+      deniedTitle: 'Exportar registros',
+      deniedProse: 'A exportação não está disponível nesta conta.',
+      deniedRow: 'Exportar em CSV', deniedRowMeta: 'não disponível',
+
+      policyAsk: 'Cancela a minha assinatura',
+      policyTitle: 'Assinatura',
+      policyProse: 'A assinatura é gerida no Perfil. O Astra não mexe nisso.',
+      policyRow: 'Gerir assinatura', policyRowMeta: 'só no Perfil',
+      policyAction: 'Abrir Perfil',
+
+      doneAsk: 'Apaga o hábito de violão',
+      doneTitle: 'Apagado', doneCount: '1',
+      doneProse: 'O violão saiu da lista com os 2 itens dentro.',
+      doneRows: [{ label: 'Violão', meta: 'apagado', status: 'done' }],
+    },
+
+    stream: { ask: 'O que eu deixei passar esta semana', text: 'A caminhada não aconteceu na terça e na quinta, e a leitura' },
+    busy: { ask: 'Registra a água', prose: 'Registrando a água' },
+    limitFree: ['As ', '5', ' mensagens de hoje foram usadas. A lista continua funcionando: marcar um hábito não passa pelo Astra, e falar pelo microfone também não usa mensagem.'],
+    limitPro: ['As ', '50', ' mensagens de hoje foram usadas. A lista continua funcionando: marcar um hábito não passa pelo Astra, e falar pelo microfone também não usa mensagem.'],
+    limitAsk: 'Reorganiza a minha semana',
+    modelAsk: 'Monta uma rotina de noite',
+    modelError: 'O Astra não conseguiu responder agora.',
+    modelRetry: 'Tentar de novo',
+    copyAsk: 'Escreve uma frase para eu lembrar por que eu comecei',
+    copyText: 'Você começou porque queria terminar o dia sem dever nada a si mesma. Três hábitos por dia, não trinta.',
+    loadingTitle: 'Montando o bloco', loading: 'Carregando',
+  },
+  en: {
+    intl: 'en-GB', lang: 'en',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
+    panelAria: 'Conversation with Astra', close: 'Close conversation', menu: 'More options',
+    navLabel: 'Main navigation', palette: 'Search',
+    dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    dayOn: (d) => EN_DAY[d] + ', on', dayOff: (d) => EN_DAY[d] + ', off',
+    behindTitle: 'Today', behindDate: '18 August',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Wait for the previous answer. Astra takes one request at a time.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+      retry: 'Try again',
+    },
+    voiceWords: { start: 'Speak', stop: 'Stop recording', listening: 'Listening', transcribing: 'Transcribing' },
+    attachWords: { file: 'Attach a file', image: 'Attach an image', remove: (n) => 'Remove ' + n },
+    attachNames: { file: 'august-training.pdf', image: 'run-photo.jpg' },
+    voiceResult: "Log today's walk",
+    emptyTitle: 'Talk to Astra about your routine',
+    emptyPrompt: 'Some things you can ask',
+    disclosure: 'Astra is not medical advice.',
+    gl: {
+      ask: 'How are my goals doing',
+      title: 'Your goals', count: '3',
+      rows: [
+        { name: '30 days of moving', pct: 40, figure: ['', '12', ' of ', '30', ' days'], deadline: 'by 14 Sep' },
+        { name: 'Read 12 books', pct: 33, figure: ['', '4', ' of ', '12', ' books'], deadline: 'by 31 Dec' },
+        { name: 'Run 5 kilometres', pct: 100, figure: ['', '5', ' of ', '5', ' km'] },
+      ],
+      empty: 'No goals yet. A goal starts from a habit, or from an ask right here.',
+      open: (n) => 'Open ' + n, ring: (n) => 'Progress of ' + n, chip: 'See it on Progress',
+      emptyAsk: 'What goals do I have',
+    },
+    chips: ['Log the walk', 'How the week went', 'Split the house routine', 'How are my goals'],
+    proposed: 'Proposed by Astra',
+    edit: 'Edit item', approve: 'Approve', editAll: 'Edit', reject: 'Reject',
+    copy: 'Copy', copied: 'Copied',
+    statusDone: 'done', statusEmpty: 'pending', statusActing: 'saving', statusFailed: 'did not save',
+    irreversibleMark: 'permanent',
+    pvConfirmNote: 'Deleting a habit cannot be undone, so approving asks for a confirmation.',
+    opConfirmNote: 'Deleting cannot be undone, and everything inside them goes too.',
+
+    pv: {
+      ask: 'Rearrange my morning: water at 07:00, stretching at 07:10, and delete the coffee habit',
+      prose: 'This is what I am about to do. Nothing is saved yet.',
+      title: 'Change the morning', count: '3',
+      rows: [
+        { label: 'Morning water', meta: 'to 07:00' },
+        { label: 'Stretching', meta: 'to 07:10' },
+        { label: 'Morning coffee', meta: 'delete', irreversible: true },
+      ],
+      staleMessage: 'The morning changed since Astra built this block.',
+      refresh: 'Build it again',
+      confirmTitle: 'Approve these 3 changes?',
+      confirmBody: 'One of them deletes a habit and the 2 items inside it, and that cannot be undone.',
+      cancel: 'Cancel', confirm: 'Approve',
+      done: 'The 3 changes are saved.',
+      rejected: 'The 3 changes were rejected. Nothing was saved.',
+    },
+
+    hl: {
+      ask: 'What is left today',
+      title: "Today's habits",
+      more: 'Show more',
+      pool: [
+        { emoji: '\uD83D\uDCA7', name: 'Morning water', time: '08:00', status: 'done' },
+        { emoji: '\uD83D\uDEB6', name: 'Walk', time: '18:00', status: 'overdue' },
+        { emoji: '\uD83E\uDDD8', name: 'Stretching', time: '21:00', status: 'empty' },
+        { emoji: '\uD83D\uDCD6', name: 'Evening reading', time: '22:00', status: 'empty' },
+        { emoji: '\uD83E\uDDF9', name: 'Dishes', time: '20:00', status: 'done' },
+        { emoji: '\uD83D\uDC55', name: 'Laundry', time: '19:00', status: 'empty' },
+        { emoji: '\uD83D\uDEBF', name: 'Bathroom', time: '20:30', status: 'empty' },
+        { emoji: '\uD83C\uDFB8', name: 'Guitar', time: '17:00', status: 'empty' },
+      ],
+      log: (n) => 'Log ' + n, unlog: (n) => 'Undo the log for ' + n,
+      open: (n) => 'Open ' + n,
+    },
+
+    cl: {
+      ask: 'Log the walk',
+      title: 'Which walk?',
+      answers: ['Morning walk', 'Evening walk', 'Both'],
+    },
+
+    mt: {
+      ask: 'How did the week go',
+      title: 'Last 7 days', count: '7',
+      rows: [
+        { label: 'Completion rate', meta: '78%' },
+        { label: 'Days logged', meta: '6 of 7' },
+        { label: 'Most consistent habit', meta: 'Walk' },
+      ],
+      chip: 'See it on Progress',
+    },
+
+    bd: {
+      ask: 'The house routine is too big',
+      title: 'Split "House routine"', count: '3',
+      rows: [
+        { label: 'Dishes', cadences: ['every Monday and Thursday', 'every day', 'once a week'] },
+        { label: 'Laundry', cadences: ['every Saturday', 'twice a week', 'once a week'] },
+        { label: 'Bathroom', cadences: ['every Sunday', 'every day', 'once a week'] },
+      ],
+      freqAria: (n) => 'Frequency of ' + n + ', tap to change',
+      conflict: 'A habit called "Dishes" already exists on Mondays.',
+    },
+
+    bf: {
+      ask: 'Log everything I did: water, the walk, stretching, reading and dishes',
+      prose: ['', '3', ' were logged. ', '2', ' did not save.'],
+      title: 'Batch log', count: '5',
+      retry: ['Retry the ', '2', ' that failed'],
+      rows: [
+        { label: 'Morning water', meta: '08:00', status: 'done' },
+        { label: 'Walk', meta: '18:00', status: 'done' },
+        { label: 'Stretching', meta: '21:00', status: 'done' },
+        { label: 'Evening reading', status: 'failed' },
+        { label: 'Dishes', status: 'failed' },
+      ],
+    },
+
+    op: {
+      riskLow: 'low risk', riskDestructive: 'destructive', riskHigh: 'high risk',
+      pendingAsk: 'Delete the habits I have not logged in a month',
+      pendingTitle: 'Delete 4 habits', pendingCount: '4',
+      pendingRows: [
+        { label: 'Guitar', days: '34' },
+        { label: 'Meditation', days: '41' },
+        { label: 'Journal', days: '52' },
+        { label: 'Long run', days: '38' },
+      ],
+      pendingMeta: ['', ' days'],
+      pendingProse: 'None of them has been logged in over a month. Nothing is deleted yet.',
+      pendingConfirm: 'Delete the 4', pendingCancel: 'Cancel',
+
+      stepAsk: 'Delete all my August logs',
+      stepTitle: 'Confirm identity', stepCount: '31',
+      stepProse: 'This deletes 31 days of logs. Confirm your identity on the device first.',
+      stepAction: 'Confirm identity',
+      stepRow: 'Delete the August logs', stepRowMeta: [' days'],
+
+      deniedAsk: 'Export everything I logged as CSV',
+      deniedTitle: 'Export logs',
+      deniedProse: 'Export is not available on this account.',
+      deniedRow: 'Export as CSV', deniedRowMeta: 'not available',
+
+      policyAsk: 'Cancel my subscription',
+      policyTitle: 'Subscription',
+      policyProse: 'The subscription is managed in Profile. Astra does not touch it.',
+      policyRow: 'Manage subscription', policyRowMeta: 'only in Profile',
+      policyAction: 'Open Profile',
+
+      doneAsk: 'Delete the guitar habit',
+      doneTitle: 'Deleted', doneCount: '1',
+      doneProse: 'Guitar left the list with the 2 items inside it.',
+      doneRows: [{ label: 'Guitar', meta: 'deleted', status: 'done' }],
+    },
+
+    stream: { ask: 'What did I let slip this week', text: 'The walk did not happen on Tuesday or Thursday, and the reading' },
+    busy: { ask: 'Log the water', prose: 'Logging the water' },
+    limitFree: ["Today's ", '5', ' messages have been used. The list still works: marking a habit does not go through Astra, and speaking into the microphone does not use a message either.'],
+    limitPro: ["Today's ", '50', ' messages have been used. The list still works: marking a habit does not go through Astra, and speaking into the microphone does not use a message either.'],
+    limitAsk: 'Rearrange my week',
+    modelAsk: 'Build me an evening routine',
+    modelError: 'Astra could not answer just now.',
+    modelRetry: 'Try again',
+    copyAsk: 'Write me a line to remember why I started',
+    copyText: 'You started because you wanted to end the day owing yourself nothing. Three habits a day, not thirty.',
+    loadingTitle: 'Building the block', loading: 'Loading',
+  },
+};
+
+const GLYPH = { done: 'check', acting: 'dots', failed: 'alert-triangle' };
+const NO_CHIPS = ['busy', 'at limit', 'offline', 'empty', 'model error', 'loading', 'streaming'];
+/* These four are composer states over an ordinary feed, so the thread behind them stays the habits one. */
+const COMPOSER_STATES = ['recording', 'transcribing', 'attachments', 'offline'];
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'preview', loc: 'pt-BR', plan: 'free',
+    page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
+    voicePhase: null, atts: [], draft: '' };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._c); clearTimeout(this._vT); }
+
+  onCC = (next) => {
+    clearTimeout(this._vT);
+    const t = T[next.locale] || T['pt-BR'];
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+      plan: next.plan || 'free',
+      page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
+      acting: next.state === 'preview acting',
+      voicePhase: next.state === 'recording' ? 'recording' : next.state === 'transcribing' ? 'transcribing' : null,
+      draft: '',
+      atts: next.state === 'attachments'
+        ? [{ id: 'a1', kind: 'file', name: t.attachNames.file }, { id: 'a2', kind: 'image', name: t.attachNames.image }]
+        : [] });
+  };
+
+  /* Voice toggles: press to record, press the stop to transcribe; the transcript lands in the field.
+     Speaking spends nothing from the allowance (ChatController.cs:107 transcribes with no
+     TryConsumeAiMessage), so no cost line sits anywhere near the microphone. */
+  onVoice = () => {
+    const ph = this.state.voicePhase;
+    if (ph === 'transcribing') return;
+    if (!ph) return this.setState({ voicePhase: 'recording' });
+    this.setState({ voicePhase: 'transcribing' });
+    clearTimeout(this._vT);
+    this._vT = setTimeout(() => this.setState({ voicePhase: null,
+      draft: (T[this.state.loc] || T['pt-BR']).voiceResult }), 1200);
+  };
+  onAttach = (kind) => this.setState((p) => {
+    const t = T[p.loc] || T['pt-BR'];
+    return { atts: p.atts.concat([{ id: 'a' + Date.now() % 100000, kind: kind, name: t.attachNames[kind] }]) };
+  });
+
+  copy = (text) => {
+    if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+    this.setState({ copied: true });
+    clearTimeout(this._c);
+    this._c = setTimeout(() => this.setState({ copied: false }), 1600);
+  };
+
+  me = (text) => ({ isMe: true, text: text });
+  prose = (text, extra) => Object.assign({ isProse: true, text: text }, extra || {});
+  inline = (text, icon, color, extra) => Object.assign(
+    { isInline: true, text: text, icon: icon, iconColor: color }, extra || {});
+  node = (n) => ({ isNode: true, node: n });
+
+  /* Every answer that touches data is a block, so prose only carries what has nothing to operate on. */
+  block(props) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H(D.BlockFrame, props);
+  }
+
+  /* The risk class sits in the frame's header slot, beside the count. */
+  risk(word) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H(D.Badge, { variant: 'outline' }, word);
+  }
+
+  /* ShellWide's conversation slot takes markup, but a template cannot fill a named prop, so the
+     wide panel's turn list is built here. Every block is a BlockFrame node shared with the 412 feed. */
+  panelFeed(v) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
+      v.navHeader,
+      H('div', { 'aria-busy': v.feedBusy, style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex',
+        flexDirection: 'column', gap: 16, padding: 16 } },
+        v.turns.map((turn, i) => {
+          if (turn.isMe) return H('p', { key: i, style: { alignSelf: 'flex-end', maxWidth: '80%',
+            background: 'var(--bg-well)', borderRadius: 16, padding: '12px 16px', fontSize: 16,
+            lineHeight: 1.5, color: 'var(--fg-1)', textWrap: 'pretty' } }, turn.text);
+          if (turn.isProse) return H('div', { key: i, style: { display: 'flex', flexDirection: 'column',
+            gap: 8, alignItems: 'flex-start' } },
+            H('p', { style: { fontSize: 16, lineHeight: 1.5, color: 'var(--fg-1)', textWrap: 'pretty' } }, turn.text),
+            turn.hasCopy ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: turn.onCopy,
+              style: { paddingInline: '14px 16px' } },
+              H(D.Icon, { name: turn.copyIcon, size: 16 }), H('span', null, turn.copyLabel)) : null);
+          if (turn.isInline) return H('div', { key: i, role: 'status', style: { display: 'flex',
+            alignItems: 'flex-start', gap: 12, padding: 12, background: 'var(--bg-well)',
+            borderRadius: 'var(--r-well)' } },
+            H('span', { 'aria-hidden': 'true', style: { flex: '0 0 auto', display: 'grid', placeItems: 'center',
+              width: 20, height: 22, color: turn.iconColor } }, H(D.Icon, { name: turn.icon, size: 20 })),
+            H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8,
+              alignItems: 'flex-start' } },
+              H('p', { style: { fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)', textWrap: 'pretty' } }, turn.text),
+              turn.hasAction ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: turn.onAction },
+                turn.actionLabel) : null));
+          return H(F, { key: i }, turn.node);
+        })),
+      H('div', { style: { flex: '0 0 auto', paddingBlock: 12 } }, v.composer));
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'goals', 'goals empty',
+        'clarification', 'metrics', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
+        'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
+        'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n16: 16, n18: 18, n20: 20, n24: 24, noop: () => {},
+      showReport: this.props.showReport !== false,
+      proposedLabel: t.proposed, menuLabel: t.menu, createLabel: t.create, account: t.account,
+      panelAria: t.panelAria, behindTitle: t.behindTitle,
+      navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+    const acting = s.acting;
+    const stale = st === 'stale';
+    const approved = s.approved;
+
+    /* --- block 1, the preview: one batch, per item edit, one accept --- */
+    const pvRows = t.pv.rows.map((r) => ({
+      label: r.label,
+      meta: acting ? t.statusActing : approved ? t.statusDone : r.meta,
+      irreversible: !!r.irreversible && !approved,
+      status: acting ? 'acting' : approved ? 'done' : undefined,
+      statusLabel: acting ? t.statusActing : t.statusDone,
+    }));
+    /* Once written there is nothing left to act on, so the footer states the outcome
+       rather than parking a dead control. */
+    const pvActions = approved
+      ? H('p', { role: 'status', style: { fontSize: 'var(--fs-sm)', lineHeight: 1.45, color: 'var(--fg-2)' } }, t.pv.done)
+      : stale
+        ? H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'preview' }) }, t.pv.refresh)
+        : H(F, null,
+            H(D.Button, { size: 'sm', variant: filled, loading: acting, disabled: acting,
+              onClick: () => this.setState({ confirm: true }) }, t.approve),
+            H(D.Button, { size: 'sm', variant: 'ghost', disabled: acting, onClick: () => {} }, t.editAll),
+            H('span', { style: { flex: 1 } }),
+            H(D.Button, { size: 'sm', variant: 'ghost', disabled: acting,
+              onClick: () => this.setState({ rejected: true }) }, t.reject));
+
+    /* --- block 2, the habit list: pages in place, never drills out --- */
+    const perPage = 3;
+    const shown = t.hl.pool.slice(0, s.page * perPage);
+    const hlRows = shown.map((h, i) => {
+      const status = s.logs[i] || h.status;
+      return {
+        /* The row body opens the habit, so the label is the tap target; the ring is its own control. */
+        label: H('button', { type: 'button', 'aria-label': t.hl.open(h.name), onClick: () => {},
+          style: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', minWidth: 0, border: 0,
+            padding: 0, background: 'var(--p-transparent)', cursor: 'pointer', textAlign: 'start',
+            fontFamily: 'var(--font-sans)' } },
+          H('span', { 'aria-hidden': 'true', style: { width: 32, height: 32, flex: '0 0 auto',
+            borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', display: 'grid',
+            placeItems: 'center', fontSize: 16 } }, h.emoji),
+          H('span', { style: { flex: 1, minWidth: 0, fontSize: 16, color: 'var(--fg-1)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, h.name)),
+        meta: mock(h.time),
+        control: H('button', { type: 'button',
+          'aria-label': status === 'done' ? t.hl.unlog(h.name) : t.hl.log(h.name),
+          onClick: () => this.setState((p) => ({ logs: Object.assign({}, p.logs,
+            { [i]: (p.logs[i] || h.status) === 'done' ? 'empty' : 'done' }) })),
+          style: { width: 44, height: 44, flex: '0 0 auto', display: 'grid', placeItems: 'center',
+            border: 0, borderRadius: 'var(--r-pill)', background: 'var(--p-transparent)', cursor: 'pointer' } },
+          H(D.StatusRing, { status: status, size: 24,
+            label: status === 'done' ? t.statusDone : t.statusEmpty })),
+      };
+    });
+
+    /* --- block 5, the breakdown: proposed rows plus one frequency control --- */
+    const bdRows = t.bd.rows.map((r, i) => {
+      const at = s.freq[i] || 0;
+      return {
+        label: r.label, proposed: true,
+        control: H('button', { type: 'button', 'aria-label': t.bd.freqAria(r.label),
+          onClick: () => this.setState((p) => ({ freq: Object.assign({}, p.freq,
+            { [i]: ((p.freq[i] || 0) + 1) % r.cadences.length }) })),
+          style: { height: 44, flex: '0 0 auto', paddingInline: 12, border: 0, borderRadius: 'var(--r-pill)',
+            background: 'var(--bg-well)', color: 'var(--fg-2)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            fontFamily: 'var(--font-sans)', fontSize: 14, whiteSpace: 'nowrap', cursor: 'pointer',
+            transition: 'background-color var(--dur-fast) var(--ease-standard)' } },
+          r.cadences[at]),
+      };
+    });
+
+    const previewBlock = this.block({
+      title: t.pv.title, count: mock(t.pv.count),
+      state: acting ? 'acting' : stale ? 'stale' : 'resting',
+      staleMessage: t.pv.staleMessage,
+      items: pvRows,
+      irreversibleLabel: t.irreversibleMark,
+      confirmNote: approved ? '' : t.pvConfirmNote,
+      /* Correction on this block is its own Editar action, so the rows carry no second pencil:
+         it would compete with the irreversible mark for a 380 panel row. */
+      actions: pvActions,
+    });
+
+    const habitsBlock = this.block({
+      title: t.hl.title,
+      count: mock(shown.length + (t.lang === 'en' ? ' of ' : ' de ') + t.hl.pool.length),
+      items: hlRows,
+      actions: shown.length < t.hl.pool.length
+        ? H(D.Button, { size: 'sm', variant: 'ghost',
+            onClick: () => this.setState((p) => ({ page: p.page + 1 })) }, t.hl.more)
+        : undefined,
+    });
+
+    const breakdownBlock = this.block({
+      title: t.bd.title, count: mock(t.bd.count),
+      items: bdRows,
+      proposedLabel: t.proposed,
+      onEditItem: () => {}, editLabel: t.edit,
+      /* BlockFrame has no collision slot, so the conflict line rides in the actions node. */
+      actions: H(F, null,
+        st === 'conflict' ? H('p', { style: { flex: '1 0 100%', display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 14, lineHeight: 1.45, color: 'var(--fg-2)', textWrap: 'pretty' } },
+          H('span', { 'aria-hidden': 'true', style: { flex: '0 0 auto', display: 'grid', placeItems: 'center',
+            color: 'var(--status-overdue)' } }, H(D.Icon, { name: 'alert-triangle', size: 16 })),
+          t.bd.conflict) : null,
+        H(D.Button, { size: 'sm', variant: filled, onClick: () => {} }, t.approve),
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.editAll),
+        H('span', { style: { flex: 1 } }),
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.reject)),
+    });
+
+    /* The sixth block: goals (goal-list-card.tsx, rendered by message-bubble.tsx:165-166 off
+       message.goalList; [[orbit:goals]] is D69's third directive token). One row per goal: its ring,
+       its figure, its deadline where it has one. A row opens the goal, because the chat opens the
+       goal detail from a card today (chat/page.tsx:214), exactly as a habit row opens the habit (:208). */
+    const goProgresso = () => { window.location.href = encodeURI('Orbit Progresso.dc.html'); };
+    const goalsBlock = (empty) => this.block({
+      title: t.gl.title, count: empty ? undefined : mock(t.gl.count),
+      items: empty ? [] : t.gl.rows.map((g) => ({
+        label: H('button', { type: 'button', 'aria-label': t.gl.open(g.name), onClick: goProgresso,
+          style: { display: 'block', width: '100%', minWidth: 0, border: 0, padding: 0,
+            background: 'var(--p-transparent)', cursor: 'pointer', textAlign: 'start',
+            fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--fg-1)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, g.name),
+        meta: g.deadline
+          ? H('span', null, line(g.figure, [1, 3]), ' \u00B7 ', mock(g.deadline))
+          : line(g.figure, [1, 3]),
+        /* Completion is neutral: a goal at 100 is the done disc, below it the ring sweeps. */
+        control: g.pct >= 100
+          ? H(D.StatusRing, { status: 'done', size: 28, label: t.statusDone })
+          : H(D.ProgressRing, { value: g.pct, size: 28, label: t.gl.ring(g.name) }),
+      })),
+      actions: H(F, null,
+        empty ? H('p', { style: { flex: '1 0 100%', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-3)',
+          textWrap: 'pretty' } }, t.gl.empty) : null,
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: goProgresso }, t.gl.chip)),
+    });
+
+    /* The empty state is the first thing a person sees (chat-empty-state.tsx): the title, the prompt
+       over the suggestions, and the one line saying what Astra is not (aiDisclosure.notMedicalAdvice). */
+    const emptyNode = H('div', { style: { flex: 1, minHeight: 420, display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', gap: 24 } },
+      H(D.EmptyState, { mark: 'astra', title: t.emptyTitle }),
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' } },
+        H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.emptyPrompt),
+        H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' } },
+          t.chips.map((c, i) => H('button', { key: i, type: 'button',
+            onClick: () => this.setState({ st: ['habits', 'metrics', 'breakdown', 'goals'][i] || 'habits' }),
+            style: { height: 44, paddingInline: 14, flex: '0 0 auto', borderRadius: 'var(--r-pill)', border: 0,
+              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', fontWeight: 500,
+              background: 'var(--bg-well)', color: 'var(--fg-2)',
+              boxShadow: 'inset 0 0 0 1px var(--hairline)' } }, c)))),
+      H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-4)', textAlign: 'center' } }, t.disclosure));
+
+    const turnsFor = () => {
+      switch (COMPOSER_STATES.indexOf(st) >= 0 ? 'habits' : st) {
+        case 'empty':
+          return [this.node(emptyNode)];
+        case 'goals':
+          return [this.me(t.gl.ask), this.node(goalsBlock(false))];
+        case 'goals empty':
+          return [this.me(t.gl.emptyAsk), this.node(goalsBlock(true))];
+        case 'preview':
+        case 'preview acting':
+        case 'stale':
+          /* A rejected preview collapses in place to one line naming what was declined: a block with
+             dead actions reads as broken, and removing it entirely makes a decline look like a
+             failure to anyone scrolling back. */
+          if (s.rejected) {
+            return [this.me(t.pv.ask), this.prose(t.pv.prose),
+              this.inline(t.pv.rejected, 'x', 'var(--fg-3)')];
+          }
+          return [this.me(t.pv.ask), this.prose(t.pv.prose), this.node(previewBlock)];
+        case 'habits':
+          return [this.me(t.hl.ask), this.node(habitsBlock)];
+        case 'clarification':
+          return [this.me(t.cl.ask), this.node(this.block({
+            title: t.cl.title,
+            actions: H(F, null, t.cl.answers.map((a, i) =>
+              H(D.Button, { key: i, size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'habits' }) }, a))),
+          }))];
+        case 'metrics':
+          return [this.me(t.mt.ask), this.node(this.block({
+            title: t.mt.title, count: mock(t.mt.count),
+            items: t.mt.rows.map((r) => ({ label: r.label, meta: mock(r.meta) })),
+            actions: H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.mt.chip),
+          }))];
+        case 'breakdown':
+        case 'conflict':
+          return [this.me(t.bd.ask), this.node(breakdownBlock)];
+        case 'batch failed':
+          return [this.me(t.bf.ask), this.prose(line(t.bf.prose, [1, 3])), this.node(this.block({
+            title: t.bf.title, count: mock(t.bf.count), state: 'partiallyFailed',
+            items: t.bf.rows.map((r) => ({ label: r.label, status: r.status,
+              statusLabel: r.status === 'done' ? t.statusDone : t.statusFailed,
+              meta: r.status === 'failed' ? t.statusFailed : mock(r.meta) })),
+            actions: H(D.Button, { size: 'sm', variant: filled, onClick: () => {} }, line(t.bf.retry, [1])),
+          }))];
+        case 'op pending':
+          return [this.me(t.op.pendingAsk), this.prose(t.op.pendingProse), this.node(this.block({
+            title: t.op.pendingTitle, count: mock(t.op.pendingCount),
+            risk: this.risk(t.op.riskDestructive),
+            irreversibleLabel: t.irreversibleMark,
+            confirmNote: t.opConfirmNote,
+            items: t.op.pendingRows.map((r) => ({ label: r.label, irreversible: true,
+              meta: line([t.op.pendingMeta[0], r.days, t.op.pendingMeta[1]], [1]) })),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.op.pendingCancel),
+              H(D.Button, { size: 'sm', variant: 'destructive', onClick: () => this.setState({ st: 'op done' }) },
+                t.op.pendingConfirm)),
+          }))];
+        case 'op step up':
+          return [this.me(t.op.stepAsk), this.prose(t.op.stepProse), this.node(this.block({
+            title: t.op.stepTitle, count: mock(t.op.stepCount),
+            risk: this.risk(t.op.riskHigh),
+            items: [{ label: t.op.stepRow,
+              meta: H('span', null, mock(t.op.stepCount), t.op.stepRowMeta[0]) }],
+            actions: H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.op.stepAction),
+          }))];
+        case 'op denied':
+          return [this.me(t.op.deniedAsk), this.prose(t.op.deniedProse), this.node(this.block({
+            title: t.op.deniedTitle, risk: this.risk(t.op.riskLow),
+            items: [{ label: t.op.deniedRow, meta: t.op.deniedRowMeta }],
+          }))];
+        case 'op policy':
+          return [this.me(t.op.policyAsk), this.prose(t.op.policyProse), this.node(this.block({
+            title: t.op.policyTitle, risk: this.risk(t.op.riskLow),
+            items: [{ label: t.op.policyRow, meta: t.op.policyRowMeta }],
+            actions: H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.op.policyAction),
+          }))];
+        case 'op done':
+          return [this.me(t.op.doneAsk), this.prose(t.op.doneProse), this.node(this.block({
+            title: t.op.doneTitle, count: mock(t.op.doneCount), risk: this.risk(t.op.riskDestructive),
+            items: t.op.doneRows.map((r) => ({ label: r.label, meta: r.meta, status: 'done',
+              statusLabel: t.statusDone })),
+          }))];
+        case 'streaming':
+          return [this.me(t.stream.ask), this.prose(H(F, null, t.stream.text,
+            H('span', { 'aria-hidden': 'true', style: { display: 'inline-block', width: 2, height: '1em',
+              marginInlineStart: 2, verticalAlign: '-0.15em', background: 'var(--fg-3)' } })))];
+        case 'busy':
+          return [this.me(t.busy.ask), this.prose(t.busy.prose)];
+        case 'at limit':
+          /* One state, two ceilings: the plan axis carries which allowance was spent, 5 or 50. */
+          return [this.me(t.limitAsk),
+            this.inline(line(s.plan === 'Pro' ? t.limitPro : t.limitFree, [1]), 'clock', 'var(--fg-3)')];
+        case 'model error':
+          return [this.me(t.modelAsk), this.inline(t.modelError, 'alert-circle', 'var(--status-bad)',
+            { hasAction: true, actionLabel: t.modelRetry, onAction: () => this.setState({ st: 'preview' }) })];
+        case 'copy':
+          return [this.me(t.copyAsk), this.prose(t.copyText, {
+            hasCopy: true, copyLabel: s.copied ? t.copied : t.copy,
+            copyIcon: s.copied ? 'check' : 'copy',
+            onCopy: () => this.copy(t.copyText),
+          })];
+        case 'loading':
+          return [this.me(t.pv.ask), this.node(this.block({
+            title: t.loadingTitle, state: 'loading', skeletonRows: 3,
+          }))];
+        default:
+          return [];
+      }
+    };
+
+    const v = Object.assign(base, {
+      turns: turnsFor(),
+      feedBusy: (st === 'loading' || st === 'busy' || acting) ? true : undefined,
+      copyProps: { style: { paddingInline: '14px 16px' } },
+      conversationOpen: true,
+
+      navHeader: H(D.NavHeader, {
+        title: H('span', { translate: 'no' }, 'Astra'),
+        trailing: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: () => {},
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+          H(D.Icon, { name: 'x', size: 20 })),
+      }),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      behindDate: t.behindDate,
+      behindRows: t.hl.pool.slice(0, 3).map((h) => ({
+        icon: h.emoji, title: h.name, meta: mock(h.time),
+        trailing: H(D.StatusRing, { status: h.status, size: 30,
+          label: h.status === 'done' ? t.statusDone : t.statusEmpty }),
+      })),
+
+      /* The composer carries the full contract: voice with its four words, attachments with the tray
+         and a named remove per item, and the offline retry, which narrows words to require retry. */
+      composer: (() => {
+        const atLimit = st === 'at limit';
+        const cState = s.voicePhase ? s.voicePhase
+          : st === 'offline' ? 'offline'
+          : atLimit ? 'atLimit'
+          : st === 'busy' ? 'busy'
+          : s.draft ? 'composing' : 'resting';
+        const props = {
+          state: cState,
+          chips: NO_CHIPS.indexOf(st) >= 0 ? [] : t.chips,
+          words: t.composerWords,
+          value: s.draft || undefined,
+          onChange: (val) => this.setState({ draft: val }),
+          onOpen: () => {}, onChipPress: () => {},
+          onVoice: this.onVoice, voiceWords: t.voiceWords,
+          onAttach: this.onAttach, attachWords: t.attachWords,
+          attachments: s.atts,
+          onAttachRemove: (id) => this.setState((p) => ({ atts: p.atts.filter((a) => a.id !== id) })),
+        };
+        /* .reason is a flex row, so each sentence arrives as one child. */
+        if (atLimit) props.limitReason = H('span', null, line(s.plan === 'Pro' ? t.limitPro : t.limitFree, [1]));
+        if (cState === 'offline') props.onRetry = () => this.setState({ st: 'habits' });
+        return H(D.Composer, props);
+      })(),
+
+      sheet: s.confirm ? H(D.Sheet, { open: true, title: t.pv.confirmTitle,
+        onClose: () => this.setState({ confirm: false }),
+        actions: H(F, null,
+          H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ confirm: false }) }, t.pv.cancel),
+          H(D.Button, { size: 'sm', variant: 'destructive',
+            onClick: () => this.setState({ confirm: false, approved: true }) }, t.pv.confirm)) },
+        H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.pv.confirmBody)) : null,
+    });
+    v.panel = s.width === 'wide' ? this.panelFeed(v) : null;
+    return v;
+  }
+}
+</script>
+</body>
+</html>

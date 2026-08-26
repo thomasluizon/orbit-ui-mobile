@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Verificação" style="display:flex;gap:32px;align-items:flex-start">
+
+    <div style="{{ frameStyle }}">
+      <div style="{{ innerStyle }}">
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-3)">{{ eyebrow }}</p>
+          <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;text-wrap:pretty">{{ title }}</p>
+          <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ body }}</p>
+        </div>
+
+        <sc-if value="{{ showField }}" hint-placeholder-val="{{ true }}">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OtpInput" length="{{ n6 }}" value="{{ code }}" on-change="{{ onCode }}" error="{{ codeError }}" hint="{{ hintNode }}" disabled="{{ codeDisabled }}" label="{{ codeAria }}" hint-size="304px,84px"></x-import>
+        </sc-if>
+
+        <sc-if value="{{ showConfirm }}" hint-placeholder-val="{{ true }}">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ checking }}" disabled="{{ confirmBlocked }}" on-click="{{ onConfirm }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ confirmLabel }}</x-import>
+        </sc-if>
+
+        <sc-if value="{{ showResendRow }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+            <sc-if value="{{ resendReady }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onResend }}" hint-size="auto,40px">{{ resendLabel }}</x-import>
+            </sc-if>
+            <sc-if value="{{ resendWaiting }}" hint-placeholder-val="{{ true }}">
+              <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ cooldownLine }}</p>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showExpired }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" on-click="{{ onResend }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ newChallengeLabel }}</x-import>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showExhausted }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ exhaustedNotice }}" hint-size="100%,96px"></x-import>
+            <p style="font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ lockCountdown }}</p>
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPerfil }}" hint-size="auto,40px">{{ backToProfileLabel }}</x-import>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showSuccess }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start">
+            <p role="status" style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ succBody }}</p>
+            <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ proLine }}</p>
+            </sc-if>
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" on-click="{{ goEntrar }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ signOutLabel }}</x-import>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding-top:8px">
+          <sc-if value="{{ showNote }}" hint-placeholder-val="{{ true }}">
+            <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ neverInChatNote }}</p>
+          </sc-if>
+          <sc-if value="{{ showCancel }}" hint-placeholder-val="{{ true }}">
+            <a href="Orbit Perfil.dc.html" style="font-size:16px;line-height:1.5">{{ cancelLabel }}</a>
+          </sc-if>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The step up challenge guards the two operations that can outlive a session, and nothing draws it today. It states which operation is being confirmed at the top, in the eyebrow, because a code screen that does not name what it authorises is indistinguishable from a phishing page.</p>
+      <p><span style="color:var(--fg-3)">operations&nbsp;&nbsp;</span>two, not three. Delete account ships this challenge today: AuthController.cs:295-325, request-deletion then confirm-deletion. API keys is Thomas's decision, tracked as ticket #342 on the api: today ApiKeysController.cs mints a key behind ordinary session auth with no re-check, and a key outlives the session and grants the whole MCP surface, so this screen is ahead of the backend and #342 is what closes that gap. Billing is not a step up operation and is not in the enum: it hands off to the Stripe customer portal, which authenticates the person itself, so a code before opening it is friction that buys no security.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>challenge, typing, checking, wrong code, resend ready, expired, exhausted, deactivated, deactivated pro. Hover, focus-visible and press are live. NO plan axis: the screen has no gate, and the Pro variant of the deactivation date is a date, not a gate, so the absent switch is a decision rather than an oversight.</p>
+      <p><span style="color:var(--fg-3)">hand off&nbsp;&nbsp;</span>this screen is the hand off. The conversation sends a person here rather than asking for a code where they stand, and it is reached from Perfil only. A credential field inside a chat has the shape of a phishing screen, so the note at the end says plainly that Orbit never asks for a code in a conversation.</p>
+      <p><span style="color:var(--fg-3)">before&nbsp;&nbsp;</span>the step before this one belongs to Perfil: the app asks for a plain confirmation first, with its own warning card, and only then sends the code (delete-account-modal.tsx:128-137 and :50-61), and the code step can walk back to it (:150). So the operation named in the eyebrow was already confirmed once, this screen is the SECOND gate and not the first, and the way back from here is the cancel link, which routes to Perfil. The app runs the whole thing as a modal inside Perfil; drawing it as a full screen that takes over is this redesign’s own position, and it stays.</p>
+      <p><span style="color:var(--fg-3)">success&nbsp;&nbsp;</span>the code being right is the most consequential thing on the screen, and it does NOT delete: ConfirmAccountDeletionCommand.cs:41-51 voids the challenge and deactivates the account with a date SEVEN DAYS out, or seven days after the plan expires for an account with Pro (:44-46), capped at 30 days (AppConstants.cs:44), and the endpoint returns that date (AuthController.cs:320). The deactivated state carries the date in the person’s own date format with data-mock, says the account comes back whole if they sign in before then, which is true (VerifyCodeCommand.cs:104-109), and its one action signs them out (delete-account-modal.tsx:163), landing on Entrar. The Pro variant states the plan’s own end date on its own line, because a person who paid needs to know the plan is not being thrown away.</p>
+      <p><span style="color:var(--fg-3)">constraints&nbsp;&nbsp;</span>four real numbers, each drawn rather than described, and each from the account deletion flow rather than the agent platform: the 5 minute, 5 attempt step up in AgentPlatformSettings.cs:9-11 governs a pending agent operation, which this screen is not. The challenge lasts 10 minutes, RequestAccountDeletionCommand.cs:44, so the hint states the window and the expiry is its own state. Resend has a 60 second cooldown, RequestAccountDeletionCommand.cs:33, and the challenge ARRIVES with that cooldown already running, because this screen is opened by the send itself (RequestAccountDeletionCommand.cs:28-34 refuses a second code within 60 seconds): the plain challenge state shows the mono countdown, and only resend ready holds the control. There are 3 attempts (AppConstants.cs:42, checked at ConfirmAccountDeletionCommand.cs:27), and they are neither per challenge nor per hour: the counter is keyed delete-attempts:{email} (ConfirmAccountDeletionCommand.cs:68) over a rolling 15 minute window (:64, AppConstants.cs:43), PER EMAIL ADDRESS, so a new challenge does not restore them.</p>
+      <p><span style="color:var(--fg-3)">failures&nbsp;&nbsp;</span>three, and they differ in what they offer. A wrong code leaves the field usable and states the attempts remaining over their 15 minute window, because retyping is the fix and a count without a window is half a fact. An expired challenge disables the field and offers a new challenge, because retyping a dead code cannot work. Exhausted attempts void the challenge entirely: the notice states the 15 minute lock the way Entrar’s lock states its own, says plainly that a new code does not restore the attempts, and offers NO action that would be refused, because starting again from Perfil inside those fifteen minutes hits the same per-email wall. The quiet route back to Perfil is the way out of the screen, never presented as the way to try again.</p>
+      <p><span style="color:var(--fg-3)">attempts&nbsp;&nbsp;</span>the count is stated as attempts remaining rather than attempts used, because the number a person needs is how much room is left. It is never phrased as a warning and never named as a mistake.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per state where a way forward exists: confirm while the challenge is live, a new challenge when it expired, sign out on the deactivated states. Exhausted carries NO filled action at all, because every forward action there would be refused for fifteen minutes, and the route back to Perfil is a quiet ghost. Current position is the focused field ring and the active digit cell. The resend is a quiet ghost, so the primary and the secondary path are never confusable.</p>
+      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>no shell: a challenge takes over, so there is no tab bar to wander off through and no composer, and cancelling is an explicit link rather than an escape. At the wide width it is the same column centred in a panel.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. status-bad carries the wrong code, ringing every cell because the code is wrong as a whole, paired with a sentence stating the attempts left. The exhausted notice is neutral, because a spent attempt count is a boundary rather than a fault.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the cooldown, the attempts remaining and their 15 minute window, the 10 minute window, the address the code went to, the lock countdown, and the deactivation dates on both success variants all carry data-mock.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 the screen names the operation it authorises. 2 each failure offers only an action that can succeed, and the exhausted state offers none that would be refused. 3 no code is ever requested outside this screen. 4 the success state promises only what the server returns: the date, and the way back before it.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the OtpInput gap is closed by wave 3: one real input spans the cells, so typing, backspace, autofill and pasting a whole code are the component's, and the wrong code message is its error state. Still composed: 1 attempts and cooldown are mono lines, there being no counter affordance in the system. 2 CapacityNotice carries the exhausted state, which is a rate limit rather than a plan ceiling.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether cancelling should say the operation was abandoned, which no endpoint confirms. Whether the deactivated state should offer anything besides signing out, which the app does not.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;},&quot;operation&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;del&quot;,&quot;keys&quot;],&quot;default&quot;:&quot;del&quot;,&quot;tsType&quot;:&quot;'del' | 'keys'&quot;,&quot;section&quot;:&quot;Operação&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const EMAIL = 'marina@exemplo.com';
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR',
+    ops: { keys: 'Chaves de API', del: 'Apagar a conta' },
+    eyebrow: (op) => 'Confirmar: ' + op,
+    title: 'Digite o código que enviamos',
+    body: ['Enviamos 6 dígitos para ', EMAIL, '. Ele confirma só esta ação.'],
+    codeAria: 'Código de 6 dígitos',
+    hint: ['O código vale ', '10', ' minutos.'],
+    confirm: 'Confirmar',
+    resend: 'Enviar outro código',
+    cooldown: ['Você pode pedir outro em ', '0:47'],
+    wrong: (left) => ['O código não confere. Você tem ', left, ' tentativas nos próximos ', '15', ' minutos.'],
+    wrongOne: (left) => ['O código não confere. Você tem ', left, ' tentativa nos próximos ', '15', ' minutos.'],
+    expiredTitle: 'Este código expirou',
+    expiredBody: ['Ele valia ', '10', ' minutos. Peça outro para continuar.'],
+    newChallenge: 'Enviar outro código',
+    exhaustedTitle: 'As tentativas acabaram',
+    exhaustedBody: 'Este código não vale mais.',
+    exhaustedNotice: ['Depois de ', '3', ' tentativas, a verificação deste email fica bloqueada por ', '15', ' minutos. Um novo código não devolve as tentativas.'],
+    lockIn: ['Liberado em ', '14:38'],
+    backToProfile: 'Voltar para o Perfil',
+    succTitle: (d) => ['A conta encerra em ', d, ''],
+    succDate: '24 de agosto de 2026',
+    succDatePro: '12 de setembro de 2026',
+    proExpiry: '5 de setembro de 2026',
+    succBody: 'Até lá, entrar de novo cancela o encerramento e a conta volta inteira.',
+    proLine: (d) => ['O plano Pro vale até ', d, '. A conta encerra ', '7', ' dias depois dele.'],
+    signOut: 'Sair da conta',
+    neverInChat: 'O Orbit nunca pede este código em uma conversa, nem por email ou mensagem. Ele só é pedido aqui.',
+    cancel: 'Cancelar esta ação',
+  },
+  en: {
+    lang: 'en',
+    ops: { keys: 'API keys', del: 'Delete account' },
+    eyebrow: (op) => 'Confirming: ' + op,
+    title: 'Enter the code we sent',
+    body: ['We sent 6 digits to ', EMAIL, '. It confirms this one action.'],
+    codeAria: '6 digit code',
+    hint: ['The code lasts ', '10', ' minutes.'],
+    confirm: 'Confirm',
+    resend: 'Send another code',
+    cooldown: ['You can ask for another in ', '0:47'],
+    wrong: (left) => ['That code does not match. You have ', left, ' attempts in the next ', '15', ' minutes.'],
+    wrongOne: (left) => ['That code does not match. You have ', left, ' attempt in the next ', '15', ' minutes.'],
+    expiredTitle: 'This code expired',
+    expiredBody: ['It lasted ', '10', ' minutes. Ask for another to carry on.'],
+    newChallenge: 'Send another code',
+    exhaustedTitle: 'The attempts ran out',
+    exhaustedBody: 'This code no longer works.',
+    exhaustedNotice: ['After ', '3', ' attempts, verification for this email is locked for ', '15', ' minutes. A new code does not restore the attempts.'],
+    lockIn: ['Open again in ', '14:38'],
+    backToProfile: 'Back to Profile',
+    succTitle: (d) => ['The account closes on ', d, ''],
+    succDate: '24 August 2026',
+    succDatePro: '12 September 2026',
+    proExpiry: '5 September 2026',
+    succBody: 'Until then, signing in again cancels the closure and the account comes back whole.',
+    proLine: (d) => ['The Pro plan runs until ', d, '. The account closes ', '7', ' days after it.'],
+    signOut: 'Sign out',
+    neverInChat: 'Orbit never asks for this code in a conversation, by email or by message. It is only ever asked for here.',
+    cancel: 'Cancel this action',
+  },
+};
+
+const SEED = { typing: '4192', checking: '419277', 'wrong code': '' };
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'challenge', loc: 'pt-BR', code: null };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    code: null });
+
+  goPerfil = () => { window.location.href = encodeURI('Orbit Perfil.dc.html'); };
+  /* Success's one action signs the person out (delete-account-modal.tsx:163), landing on sign in. */
+  goEntrar = () => { window.location.href = encodeURI('Orbit Entrar.dc.html'); };
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const wide = s.width === 'wide';
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['challenge', 'typing', 'checking', 'wrong code', 'resend ready', 'expired',
+        'exhausted', 'deactivated', 'deactivated pro'],
+      n6: 6, goPerfil: this.goPerfil, goEntrar: this.goEntrar,
+      showReport: this.props.showReport !== false,
+      codeAria: t.codeAria, confirmLabel: t.confirm, resendLabel: t.resend,
+      newChallengeLabel: t.newChallenge, backToProfileLabel: t.backToProfile,
+      neverInChatNote: t.neverInChat, cancelLabel: t.cancel,
+      frameStyle: wide
+        ? 'width:1416px;min-height:820px;display:grid;place-items:center;background:var(--bg);border-radius:var(--r-sheet);box-shadow:inset 0 0 0 1px var(--hairline)'
+        : 'width:412px;min-height:820px;background:var(--bg);border-radius:var(--r-sheet);box-shadow:inset 0 0 0 1px var(--hairline);display:flex;flex-direction:column',
+      innerStyle: wide
+        ? 'width:440px;display:flex;flex-direction:column;gap:24px;padding:32px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)'
+        : 'display:flex;flex-direction:column;gap:24px;padding:32px 16px 16px',
+      fullWidth: { style: { width: '100%' } },
+      /* No shell here, so nothing competes for the accent and the forward action keeps it. */
+      filled: 'primary',
+    };
+    if (!D) return base;
+
+    const expired = st === 'expired';
+    const exhausted = st === 'exhausted';
+    const success = st === 'deactivated' || st === 'deactivated pro';
+    const isPro = st === 'deactivated pro';
+    const wrong = st === 'wrong code';
+    const checking = st === 'checking';
+    /* The challenge arrives with its cooldown ALREADY RUNNING: this screen is opened by the send, and
+       RequestAccountDeletionCommand.cs:28-34 refuses a second code within 60 seconds of it. Only the
+       resend ready state has the control. */
+    const resendReady = st === 'resend ready';
+    const code = s.code != null ? s.code : (SEED[st] || '');
+    /* 3 attempts, AppConstants.cs:42: one has been spent in the wrong code fixture. */
+    const left = 2;
+
+    const succDate = isPro ? t.succDatePro : t.succDate;
+    const title = expired ? t.expiredTitle : exhausted ? t.exhaustedTitle
+      : success ? H(F, null, t.succTitle('')[0], mock(succDate), t.succTitle('')[2]) : t.title;
+    const body = expired ? H(F, null, t.expiredBody[0], mock(t.expiredBody[1]), t.expiredBody[2])
+      : exhausted ? t.exhaustedBody
+      : success ? null
+      : H(F, null, t.body[0], mock(t.body[1]), t.body[2]);
+
+    const wrongWords = (left === 1 ? t.wrongOne : t.wrong)('');
+    return Object.assign(base, {
+      eyebrow: t.eyebrow(t.ops[this.props.operation === 'keys' ? 'keys' : 'del']),
+      title: title, body: body,
+
+      showField: !success,
+      code: code,
+      /* The component owns the typing: it strips to digits and truncates itself, and the wrong code
+         message is its error state, ringing every cell because the code is wrong as a whole. */
+      onCode: (v) => this.setState({ code: v }),
+      codeDisabled: expired || exhausted || checking,
+      codeError: wrong ? H(F, null, wrongWords[0], mock(String(left)), wrongWords[2], mock(wrongWords[3]), wrongWords[4]) : undefined,
+      hintNode: (expired || exhausted) ? null : H(F, null, t.hint[0], mock(t.hint[1]), t.hint[2]),
+
+      showConfirm: !expired && !exhausted && !success,
+      checking: checking,
+      confirmBlocked: checking || code.length < 6,
+      onConfirm: () => this.setState({ st: 'checking' }),
+
+      /* The resend control is absent while the 60 second cooldown runs, not disabled. */
+      showResendRow: !expired && !exhausted && !success,
+      resendReady: resendReady,
+      resendWaiting: !resendReady,
+      cooldownLine: H(F, null, t.cooldown[0], mock(t.cooldown[1])),
+      /* A resend opens a fresh 60 second cooldown, so it lands back on the counting state. */
+      onResend: () => this.setState({ st: 'challenge', code: '' }),
+
+      showExpired: expired,
+      showExhausted: exhausted,
+      exhaustedNotice: H(F, null, t.exhaustedNotice[0], mock(t.exhaustedNotice[1]),
+        t.exhaustedNotice[2], mock(t.exhaustedNotice[3]), t.exhaustedNotice[4]),
+      lockCountdown: H(F, null, t.lockIn[0], mock(t.lockIn[1])),
+
+      showSuccess: success, isPro: isPro,
+      succBody: t.succBody,
+      proLine: isPro ? H(F, null, t.proLine('')[0], mock(t.proExpiry), t.proLine('')[2],
+        mock(t.proLine('')[3]), t.proLine('')[4]) : null,
+      signOutLabel: t.signOut,
+
+      showNote: !success,
+      showCancel: !exhausted && !success,
+    });
+  }
+}
+</script>
+</body>
+</html>

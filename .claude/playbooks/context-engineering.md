@@ -81,7 +81,8 @@ suite. A design spec can be a rendered page. A taste can be a rubric a verifier 
 This is a diagnosis of the #539 failure, not a style note. The measured causes were "the
 spec is subtractive" and "nothing in the loop rendered a picture", and `DESIGN.md` carried exactly
 one mechanical rule with everything else as prose adjectives. D42 is the correction: ticket 0 ships
-`design/reference.html` alongside the prose, and where the two disagree the rendered page wins.
+the granted canvas under `design/canvas/` alongside the prose. Information architecture wins on
+whether a surface exists, bans win over every drawing, and the granted drawing wins below those two.
 
 ## 7. Memory is a tool now, not a file section
 

@@ -1,0 +1,12 @@
+/* Orbit spacing. Exactly these ten values, nothing between them:
+   0 4 8 12 16 24 32 48 64 96. Use flex/grid gap, never a margin between siblings.
+   The gap between two groups is at least twice the gap inside a group. */
+:root{
+  --s-0:0; /* @kind spacing */ --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px;
+  --s-6:32px; --s-7:48px; --s-8:64px; --s-9:96px;
+  --pad-card:var(--s-5);   /* card and panel padding: 24 */
+  --pad-row:var(--s-4);    /* list row padding: 16 */
+  --row-h:68px;            /* habit row */
+  --row-h-compact:52px;    /* settings / plain list row */
+  --touch-min:44px; --touch-comfy:56px;
+}

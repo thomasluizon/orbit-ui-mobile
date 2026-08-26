@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Assinatura" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:16px">
+
+          <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ loadingLabel }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ loadFailed }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ loadErrorMessage }}" action="{{ loadErrorAction }}" hint-size="100%,200px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+
+              <div style="display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline)">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <p style="flex:1;min-width:0;font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ planName }}</p>
+                  <sc-if value="{{ hasBadge }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ badgeWord }}</x-import>
+                  </sc-if>
+                </div>
+                <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ planLine }}</p>
+                <sc-if value="{{ hasFacts }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px">
+                    <sc-for list="{{ facts }}" as="f" hint-placeholder-count="2">
+                      <div style="display:flex;align-items:baseline;gap:12px;min-height:24px">
+                        <span style="flex:1;min-width:0;font-size:14px;color:var(--fg-3)">{{ f.label }}</span>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-2);flex:0 0 auto;font-variant-numeric:tabular-nums">{{ f.value }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+
+              <sc-if value="{{ hasStore }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;align-items:flex-start;gap:12px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                    <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:20px;margin-top:2px;color:var(--fg-4)">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ storeIcon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                    </span>
+                    <p style="flex:1;min-width:0;font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ storeLine }}</p>
+                  </div>
+                  <sc-if value="{{ hasStoreAction }}" hint-placeholder-val="{{ true }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ portalOpening }}" disabled="{{ actionBlocked }}" on-click="{{ onManage }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ manageLabel }}</x-import>
+                  </sc-if>
+                  <sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+                    <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ offlineReason }}</p>
+                  </sc-if>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ portalFailed }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                  <p style="font-size:16px;line-height:1.5;color:var(--fg-1);text-wrap:pretty">{{ portalErrorLine }}</p>
+                  <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ portalErrorFix }}</p>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" size="sm" on-click="{{ onManage }}" hint-size="auto,40px">{{ retryLabel }}</x-import>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ lapsed }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline)">
+                  <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty">{{ lapsedTitle }}</p>
+                  <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ lapsedBody }}</p>
+                  <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty"><span data-mock="true">{{ lapsedReason }}</span></p>
+                  <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px">
+                    <sc-for list="{{ lostList }}" as="l" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:flex-start;gap:8px;min-height:24px">
+                        <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:16px;height:20px;color:var(--fg-4)">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n14 }}" hint-size="14px,14px"></x-import>
+                        </span>
+                        <span style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-3)">{{ l }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="padding-top:8px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" on-click="{{ goPro }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ resubscribeLabel }}</x-import>
+                  </div>
+                </div>
+              </sc-if>
+
+              {{ paymentNode }}
+              {{ usageNode }}
+              {{ invoicesNode }}
+
+              <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ handOffNote }}</p>
+
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
+
+            <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ loadingLabel }}" hint-size="100%,260px"></x-import>
+            </sc-if>
+
+            <sc-if value="{{ loadFailed }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ loadErrorMessage }}" action="{{ loadErrorAction }}" hint-size="100%,200px"></x-import>
+            </sc-if>
+
+            <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:24px">
+
+                <div style="display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline)">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <p style="flex:1;min-width:0;font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ planName }}</p>
+                    <sc-if value="{{ hasBadge }}" hint-placeholder-val="{{ false }}">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ badgeWord }}</x-import>
+                    </sc-if>
+                  </div>
+                  <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ planLine }}</p>
+                  <sc-if value="{{ hasFacts }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px">
+                      <sc-for list="{{ facts }}" as="f" hint-placeholder-count="2">
+                        <div style="display:flex;align-items:baseline;gap:12px;min-height:24px">
+                          <span style="flex:1;min-width:0;font-size:14px;color:var(--fg-3)">{{ f.label }}</span>
+                          <span data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-2);flex:0 0 auto;font-variant-numeric:tabular-nums">{{ f.value }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <sc-if value="{{ hasStore }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div style="display:flex;align-items:flex-start;gap:12px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                      <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:20px;margin-top:2px;color:var(--fg-4)">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ storeIcon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                      </span>
+                      <p style="flex:1;min-width:0;font-size:14px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ storeLine }}</p>
+                    </div>
+                    <sc-if value="{{ hasStoreAction }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" loading="{{ portalOpening }}" disabled="{{ actionBlocked }}" on-click="{{ onManage }}" hint-size="auto,50px">{{ manageLabel }}</x-import>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+                      <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ offlineReason }}</p>
+                    </sc-if>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ portalFailed }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-well);border-radius:var(--r-well)">
+                    <p style="font-size:16px;line-height:1.5;color:var(--fg-1);text-wrap:pretty">{{ portalErrorLine }}</p>
+                    <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ portalErrorFix }}</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" size="sm" on-click="{{ onManage }}" hint-size="auto,40px">{{ retryLabel }}</x-import>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ lapsed }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline)">
+                    <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty">{{ lapsedTitle }}</p>
+                    <p style="font-size:16px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ lapsedBody }}</p>
+                    <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty"><span data-mock="true">{{ lapsedReason }}</span></p>
+                    <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px">
+                      <sc-for list="{{ lostList }}" as="l" hint-placeholder-count="3">
+                        <div style="display:flex;align-items:flex-start;gap:8px;min-height:24px">
+                          <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:16px;height:20px;color:var(--fg-4)">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n14 }}" hint-size="14px,14px"></x-import>
+                          </span>
+                          <span style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-3)">{{ l }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="padding-top:8px;display:flex">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" on-click="{{ goPro }}" hint-size="auto,50px">{{ resubscribeLabel }}</x-import>
+                    </div>
+                  </div>
+                </sc-if>
+
+                {{ paymentNode }}
+                {{ usageNode }}
+                {{ invoicesNode }}
+
+                <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ handOffNote }}</p>
+
+              </div>
+            </sc-if>
+
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Assinatura answers what am I paying for, and lets a person change or stop it. Most people who open this surface after buying land here rather than on the pitch, so it is written as the primary billing screen and not as an appendix to one.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>Stripe, Play, trial, lifetime, canceled, past due, lapsed, portal opening, portal failed, offline, load failed, loading. Hover, focus-visible and press are live. This screen carries no plan axis of its own, because the plan situation IS its state axis: this document and Orbit Pro are the two halves of one route, upgrade/page.tsx:95 shows the pitch when the account is not Pro and :123 shows this dashboard when it is, so a free account lands on the pitch and never here.</p>
+      <p><span style="color:var(--fg-3)">two paths&nbsp;&nbsp;</span>the Stripe and Play variants are structurally different, not cosmetically. A subscription bought through Google Play cannot open the Stripe portal, so the Play variant sends the person to the Play dashboard instead, with its own line naming where the subscription lives and why the change happens there. Nothing in the Play variant offers a portal, and nothing in the Stripe variant mentions Play. Drawing one and relabelling it would ship a button that cannot work.</p>
+      <p><span style="color:var(--fg-3)">portal&nbsp;&nbsp;</span>the Stripe path has its own two states, because opening a hosted portal is a request that can fail on its own: opening keeps the screen and puts the action in its loading state, and a failure states what happened, states the fix and offers a retry rather than a dead end. That failure is the portal itself not opening, which is a different thing from the subscription failing to load, and it is drawn separately.</p>
+      <p><span style="color:var(--fg-3)">billing&nbsp;&nbsp;</span>the billing dashboard the app ships is drawn in the app, not pointed at the provider. The invoice history (billing-dashboard.tsx:190-238) is a title and one row per invoice, each stating its reason from the four the code produces (:22-25, subscription created, subscription cycle, subscription updated, manual) and its status from the three (:32-34, paid, open, void), with the download as ListRow’s real per row action (:237-238). The earlier line here that sent people to the provider for receipts was false, the third false absence this run, and it is deleted. The payment method (:133-159) states the card brand, its last digits and its expiry, with the change action handing off to the portal like every other billing change. The usage figure (usage-stats.tsx) shows the thing the subscription buys, AI messages against the ceiling, with its bar. A billing LOAD failure (:81-89) is its own state with its own retry, a different thing from the portal failing to open, and both are drawn.</p>
+      <p><span style="color:var(--fg-3)">lifetime&nbsp;&nbsp;</span>read only, and it says so: no portal, no cancel, no interval, and no action at all, because there is nothing to change and no screen in the product can sell one. It states what it is and stops.</p>
+      <p><span style="color:var(--fg-3)">lapsed&nbsp;&nbsp;</span>the live defect: a lapsed plan currently reads as free with no account of what changed, so a person is left to work out why the calendar stopped syncing. Here it says the subscription ended, names the day it ended, and lists what is no longer on, in the same neutral tone as everything else. It carries one action to subscribe again, which leaves for Orbit Pro, the pitch half of this route, and no alarm colour, because lapsing is not an error. The reason it ended is decided (2026-08-20): named whenever it is actionable, phrased as a circumstance and never as blame, so a declined card is told to the person who can fix it; when the reason is not actionable the line is withheld entirely and the screen says only that the subscription ended. The reason line is drawn here carrying data-mock, since no endpoint produces it yet.</p>
+      <p><span style="color:var(--fg-3)">canceled&nbsp;&nbsp;</span>canceled and past due are real badged states (billing-dashboard.tsx:105, :108) and neither is lapsed: a canceled plan is still running and will not renew, so its line says when access ends (:115) while every other paying state says when it renews (:116); a past due plan keeps running while the provider retries, and the line says updating the card in the portal fixes it, a circumstance and never blame. Both keep the portal action, no alarm colour on either.</p>
+      <p><span style="color:var(--fg-3)">trial&nbsp;&nbsp;</span>a trial reads as plan pro with a separate trial flag, so the badge is derived from the two together and never read off the plan field, which says only pro or free. The badge states the trial and the facts state the day count. Nothing offers to start, extend or restart one, because nothing can.</p>
+      <p><span style="color:var(--fg-3)">hand off&nbsp;&nbsp;</span>billing is a hand off and not a step up, because the Stripe portal authenticates the person itself, so a code before opening it buys no security; the product's two step up operations stay account deletion and API keys. No card field, no address field and no credential appears anywhere in this document; the note at the end says the change happens with the provider. That is also why the action is a single button rather than a form.</p>
+      <p><span style="color:var(--fg-3)">offline&nbsp;&nbsp;</span>mobile renders offline on this screen, so the action is disabled with its reason beside it rather than failing on tap. The plan facts stay visible, because they were already loaded; only the hand off needs the network.</p>
+      <p><span style="color:var(--fg-3)">prices&nbsp;&nbsp;</span>no price is typed. The amount and interval on the card come from the same pricing response the pitch uses, and the renewal date comes from the subscription. Both are fixtures in the logic, labelled as standing in for the response.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Card padding 24, well padding 16, the action at the 50 button height.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells, 20 on the plan card, 28 on the shell, 999 on buttons and the badge is 8.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>at most one filled action per state, and several states have none: lifetime has no action at all, and the Play variant's single action is the one filled thing on the screen. The badge is the neutral well rather than an accent chip, since a badge sits on a card and accent text is canvas only. Nothing here marks completion.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. No status colour appears: a lapsed plan and a failed portal are both boundaries rather than errors, so both use neutral tokens and say what to do.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the amount, the renewal date, the trial day count, the purchase date, the card’s last digits and expiry, the usage figures, and every invoice’s date and amount. The lapsed reason line keeps its data-mock, since no endpoint produces it yet (api #344).</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no state offers an action the payment provider cannot perform. 2 the trial badge is derived from the plan and the flag together. 3 no credential is collected and no price is typed.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried ListRow’s action, so nothing was re-synced and the invoice download rides the real per row button. 1 PlanCard is a selectable purchase card, so the current plan is composed rather than reusing it: this card is a statement, not a choice. 2 there is no store or provider row in the system, so the Play and Stripe lines are composed from a well and a glyph, and the payment method row the same way. 3 ErrorState centres its message and takes one action, which suits the failed LOAD, now drawn with it, but not an inline portal failure, so that one stays composed beside the action it belongs to.</p>
+      <p><span style="color:var(--fg-3)">decided&nbsp;&nbsp;</span>1 the lapsed reason is named whenever it is actionable, as a circumstance and never as blame, following the standing rule that copy names the circumstance, never the person; when it is not actionable the line is withheld entirely. 2 the Play variant deep links to the specific subscription, not the dashboard, on the condition that the implementing ticket confirms the URL shape against Google's own documentation rather than assuming it: never assuming an external interface is a standing rule, and a guessed deep link fails silently in the person's hands.</p>
+      <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>the lapsed reason has no source today: HandleWebhookCommand.cs:207-210 runs the same CancelStripeSubscription() for canceled and unpaid, User.cs:249-254 nulls the subscription id and clears the entitlement and stores nothing else, SubscriptionStatusResponse (SubscriptionDtos.cs:7-18) carries no reason field, and no invoice.payment_failed handler exists in the repository. Ticket #344 on the api carries it; the reason line here renders mock data so the shape is ready the moment the field exists.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+/* Stands in for the subscription and pricing responses. No amount is typed into the layout. */
+const SUB = { symbol: 'R$', annualAmount: '199,00', renewal: '17/08/2027', bought: '17/08/2026', trialDays: '7',
+  cardBrand: 'Visa', cardLast: '4242', cardExp: '08/27', used: '12', cap: '50' };
+/* Stands in for the invoice response (billing-dashboard.tsx:190-238): each carries one of the four
+   reasons (:22-25) and one of the three statuses (:32-34). */
+const INVOICES = [
+  { date: '17/08/2026', amount: '199,00', reason: 'cycle', status: 'open' },
+  { date: '17/08/2025', amount: '199,00', reason: 'updated', status: 'paid' },
+  { date: '02/03/2025', amount: '0,00', reason: 'manual', status: 'void' },
+  { date: '17/08/2024', amount: '149,00', reason: 'created', status: 'paid' },
+];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina',
+    title: 'Assinatura', back: 'Voltar',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    proName: 'Orbit Pro', freeName: 'Plano grátis', lifetimeName: 'Orbit Pro para sempre',
+    badgeTrial: 'Teste', badgeLifetime: 'Vitalício',
+    proLine: 'As 50 mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos do Astra.',
+    trialLine: 'O teste está valendo, com tudo do Pro liberado. Se você não assinar, a conta volta para o plano grátis.',
+    lifetimeLine: 'Você tem o Pro para sempre. Não há nada para renovar, e não há nada para cancelar.',
+    freeLine: 'As 5 mensagens por dia continuam valendo. A sua lista e os seus registros não mudam.',
+    factAmount: 'Valor', factRenewal: 'Renova em', factTrialDays: 'Dias de teste', factBought: 'Comprado em',
+    perYear: ' por ano',
+    stripeLine: 'A sua assinatura é cobrada pelo Stripe. Trocar de plano, mudar o cartão ou cancelar acontece no portal deles.',
+    playLine: 'Você assinou pelo Google Play, então a cobrança é gerida por lá. Trocar de plano ou cancelar acontece no painel de assinaturas do Play.',
+    manageStripe: 'Abrir o portal do Stripe', managePlay: 'Abrir o Google Play',
+    offlineReason: 'Sem conexão. O portal abre quando a conexão voltar.',
+    portalError: 'O portal não abriu.',
+    portalErrorFix: 'Isto costuma ser a conexão ou uma janela bloqueada pelo navegador. Tente de novo, e a sua assinatura continua como está.',
+    retry: 'Tentar de novo',
+    lapsedTitle: 'A sua assinatura terminou',
+    lapsedBody: 'A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança.',
+    lapsedReason: 'O cartão foi recusado na renovação. Atualizar o cartão no provedor resolve.',
+    lost: ['As mensagens do Astra voltaram para 5 por dia.', 'A agenda do Google não sincroniza mais.',
+      'A retrospectiva do período parou.'],
+    resubscribe: 'Assinar de novo',
+    canceledBadge: 'Cancelada', pastDueBadge: 'Em atraso',
+    canceledLine: 'A assinatura foi cancelada e não renova. Tudo do Pro continua ligado até o fim do período.',
+    pastDueLine: 'A última cobrança não passou. Tudo do Pro continua ligado enquanto o provedor tenta de novo; atualizar o cartão no portal resolve.',
+    factAccessUntil: 'Acesso até',
+    payTitle: 'Forma de pagamento',
+    payCard: (brand, last) => brand + ' terminando em ' + last,
+    payExpires: (v) => ['Expira em ', mock(v)],
+    payChange: 'Trocar',
+    usageTitle: 'Mensagens do Astra',
+    usageOf: (a, b) => [mock(a), ' de ', mock(b), ' hoje'],
+    invTitle: 'Histórico de cobrança',
+    invReasons: { created: 'Assinatura criada', cycle: 'Renovação', updated: 'Assinatura alterada', manual: 'Cobrança manual' },
+    invStatus: { paid: 'paga', open: 'em aberto', void: 'anulada' },
+    invDownload: (d) => 'Baixar a fatura de ' + d,
+    loadError: 'Não foi possível carregar a assinatura. Verifique a conexão e tente de novo.',
+    handOff: 'Qualquer mudança de cobrança acontece com o provedor. O Orbit não guarda os dados do seu cartão e nunca pede a sua senha aqui.',
+    loading: 'Carregando',
+  },
+  en: {
+    lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina',
+    title: 'Subscription', back: 'Back',
+    navLabel: 'Main navigation', palette: 'Search',
+    proName: 'Orbit Pro', freeName: 'Free plan', lifetimeName: 'Orbit Pro for life',
+    badgeTrial: 'Trial', badgeLifetime: 'Lifetime',
+    proLine: 'The 50 messages a day are on, along with the calendar, the retrospective and Astra noticing things.',
+    trialLine: 'The trial is running with everything in Pro switched on. If you do not subscribe, the account goes back to the free plan.',
+    lifetimeLine: 'You have Pro for life. There is nothing to renew, and nothing to cancel.',
+    freeLine: 'The 5 messages a day still apply. Your list and your logs do not change.',
+    factAmount: 'Amount', factRenewal: 'Renews on', factTrialDays: 'Trial days', factBought: 'Bought on',
+    perYear: ' a year',
+    stripeLine: 'Your subscription is billed by Stripe. Changing plan, changing the card or cancelling happens in their portal.',
+    playLine: 'You subscribed through Google Play, so billing is handled there. Changing plan or cancelling happens in the Play subscriptions dashboard.',
+    manageStripe: 'Open the Stripe portal', managePlay: 'Open Google Play',
+    offlineReason: 'No connection. The portal opens when the connection comes back.',
+    portalError: 'The portal did not open.',
+    portalErrorFix: 'This is usually the connection or a window the browser blocked. Try again, and your subscription stays exactly as it is.',
+    retry: 'Try again',
+    lapsedTitle: 'Your subscription ended',
+    lapsedBody: 'The account went back to the free plan. Your habits, logs and goals are all still here, unchanged.',
+    lapsedReason: 'The card was declined at renewal. Updating the card with the provider fixes it.',
+    lost: ['Astra messages went back to 5 a day.', 'Google Calendar no longer syncs.',
+      'The periodic retrospective stopped.'],
+    resubscribe: 'Subscribe again',
+    canceledBadge: 'Canceled', pastDueBadge: 'Past due',
+    canceledLine: 'The subscription is canceled and will not renew. Everything in Pro stays on until the period ends.',
+    pastDueLine: 'The last charge did not go through. Everything in Pro stays on while the provider retries; updating the card in the portal fixes it.',
+    factAccessUntil: 'Access until',
+    payTitle: 'Payment method',
+    payCard: (brand, last) => brand + ' ending in ' + last,
+    payExpires: (v) => ['Expires ', mock(v)],
+    payChange: 'Change',
+    usageTitle: 'Astra messages',
+    usageOf: (a, b) => [mock(a), ' of ', mock(b), ' today'],
+    invTitle: 'Billing history',
+    invReasons: { created: 'Subscription created', cycle: 'Renewal', updated: 'Subscription updated', manual: 'Manual charge' },
+    invStatus: { paid: 'paid', open: 'open', void: 'void' },
+    invDownload: (d) => 'Download the invoice from ' + d,
+    loadError: 'We could not load the subscription. Check the connection and try again.',
+    handOff: 'Any billing change happens with the provider. Orbit never holds your card details and never asks for your password here.',
+    loading: 'Loading',
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'stripe', loc: 'pt-BR', portal: null };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    portal: null });
+  /* The other half of this route: upgrade/page.tsx:95 shows the pitch when the account is not Pro
+     and :123 shows this dashboard when it is. */
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['stripe', 'play', 'trial', 'lifetime', 'canceled', 'past due', 'lapsed',
+        'portal opening', 'portal failed', 'offline', 'load failed', 'loading'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n4: 4, n14: 14, n20: 20, noop: () => {},
+      showReport: this.props.showReport !== false,
+      loadingLabel: t.loading, retryLabel: t.retry, offlineReason: t.offlineReason,
+      portalErrorLine: t.portalError, portalErrorFix: t.portalErrorFix,
+      lapsedTitle: t.lapsedTitle, lapsedBody: t.lapsedBody, resubscribeLabel: t.resubscribe,
+      receiptsNote: t.receipts, handOffNote: t.handOff, account: t.account,
+      navLabelWord: t.navLabel, paletteWord: t.palette, lapsedReason: t.lapsedReason,
+      fullWidth: { style: { width: '100%' } },
+    };
+    if (!D) return base;
+
+    const loading = st === 'loading';
+    const loadFailed = st === 'load failed';
+    const play = st === 'play';
+    const lifetime = st === 'lifetime';
+    const lapsed = st === 'lapsed';
+    /* Canceled is not lapsed: it is still running and it will not renew (billing-dashboard.tsx:105,
+       :115). Past due keeps running while the provider retries (:108, :116). */
+    const canceled = st === 'canceled';
+    const pastDue = st === 'past due';
+    /* A trial is plan pro plus a separate flag, so the badge is derived from both, never from plan. */
+    const plan = lapsed ? 'free' : 'pro';
+    const trialFlag = st === 'trial';
+    const isTrial = plan === 'pro' && trialFlag;
+    const offline = st === 'offline';
+    const portal = s.portal != null ? s.portal
+      : (st === 'portal opening' ? 'opening' : st === 'portal failed' ? 'failed' : null);
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+
+    const facts = lifetime
+      ? [{ label: t.factBought, value: SUB.bought }]
+      : isTrial
+        ? [{ label: t.factTrialDays, value: SUB.trialDays }]
+        : lapsed
+          ? []
+          : canceled
+            /* :115 says when access ends on a canceled plan; :116 says when it renews otherwise. */
+            ? [{ label: t.factAmount, value: SUB.symbol + ' ' + SUB.annualAmount + t.perYear },
+               { label: t.factAccessUntil, value: SUB.renewal }]
+            : [{ label: t.factAmount, value: SUB.symbol + ' ' + SUB.annualAmount + t.perYear },
+               { label: t.factRenewal, value: SUB.renewal }];
+
+    /* The payment method (billing-dashboard.tsx:133-159): brand and last digits, expiry, change. */
+    const paymentNode = (!play && !lifetime && !lapsed && !loading) ? H('div', { style: { display: 'flex',
+      flexDirection: 'column', gap: 8 } },
+      H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, t.payTitle),
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+        background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+        H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
+          H(D.Icon, { name: 'credit-card', size: 20 })),
+        H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
+          H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-1)' } },
+            t.payCard(SUB.cardBrand, ''), mock(SUB.cardLast)),
+          H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+            fontVariantNumeric: 'tabular-nums' } }, H(F, null, t.payExpires(SUB.cardExp)))),
+        H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ portal: 'opening' }) }, t.payChange))) : null;
+
+    /* The usage figure (upgrade/usage-stats.tsx): what the subscription buys, against its ceiling. */
+    const usageNode = (!lapsed && !loading) ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, t.usageTitle),
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums' } }, H(F, null, t.usageOf(SUB.used, SUB.cap)))),
+      H(D.ProgressBar, { value: 12, max: 50, label: t.usageTitle })) : null;
+
+    /* The invoice history lives IN THE APP (billing-dashboard.tsx:190-238): one row per invoice, its
+       reason from the four, its status from the three, and a download on each through ListRow's
+       real per row action. */
+    const invoicesNode = (!lifetime && !loading) ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+      H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, t.invTitle),
+      H('div', { style: { marginInline: -16 } },
+        INVOICES.map((inv, i) => H(D.ListRow, { key: i,
+          title: t.invReasons[inv.reason],
+          description: t.invStatus[inv.status],
+          value: H('span', null, mock(inv.date), ' \u00B7 ', mock(SUB.symbol + ' ' + inv.amount)),
+          chevron: false,
+          action: { icon: 'download', label: t.invDownload(inv.date), onPress: () => {} } })))) : null;
+
+    return Object.assign(base, {
+      loading: loading, ready: !loading && !loadFailed, filled: filled, offline: offline,
+      loadFailed: loadFailed, loadErrorMessage: t.loadError,
+      loadErrorAction: H(D.Button, { size: 'sm', variant: filled,
+        onClick: () => this.setState({ st: 'stripe' }) }, t.retry),
+      goPro: this.goPro,
+      paymentNode: paymentNode, usageNode: usageNode, invoicesNode: invoicesNode,
+
+      planName: lapsed ? t.freeName : lifetime ? t.lifetimeName : t.proName,
+      hasBadge: isTrial || lifetime || canceled || pastDue,
+      badgeWord: lifetime ? t.badgeLifetime : canceled ? t.canceledBadge : pastDue ? t.pastDueBadge : t.badgeTrial,
+      planLine: lapsed ? t.freeLine : lifetime ? t.lifetimeLine : canceled ? t.canceledLine
+        : pastDue ? t.pastDueLine : isTrial ? t.trialLine : t.proLine,
+      hasFacts: facts.length > 0, facts: facts,
+
+      /* Lifetime and lapsed have no provider to send anyone to. */
+      hasStore: !lifetime && !lapsed,
+      storeIcon: play ? 'brand-google-play' : 'credit-card',
+      storeLine: play ? t.playLine : t.stripeLine,
+      hasStoreAction: !lifetime && !lapsed,
+      manageLabel: play ? t.managePlay : t.manageStripe,
+      portalOpening: portal === 'opening',
+      actionBlocked: offline || portal === 'opening',
+      onManage: () => this.setState({ portal: 'opening' }),
+      portalFailed: portal === 'failed' && !play,
+
+      lapsed: lapsed, lostList: t.lost,
+      hasReceipts: !lifetime && !lapsed,
+
+      header: H('div', { style: { display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 16px 8px 8px', boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.back, onClick: () => {},
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+          H(D.Icon, { name: 'arrow-left', size: 20 })),
+        H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500 } }, t.title)),
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+    });
+  }
+}
+</script>
+</body>
+</html>

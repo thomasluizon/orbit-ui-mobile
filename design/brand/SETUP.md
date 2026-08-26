@@ -81,8 +81,9 @@ C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile\design
 ```
 
 Take it from a working tree on `redesign/main`. It is real frontend code, it is small, and every byte
-in it belongs to the new system. It carries `reference.html`, which is the rendered authority, and
-`brand/`, which carries the mark, the glyph and the three type families.
+in it belongs to the new system. It carries the granted canvas under `canvas/`, whose authority is
+subject to the D42 ladder in `DESIGN.md`, and `brand/`, which carries the mark, the glyph and the
+three type families. The old `superseded/reference.html` is historical and carries no authority.
 
 Confirm the branch before you drag, because the folder path is identical on every branch:
 
@@ -103,8 +104,9 @@ has no Figma export, so one will not appear from this work either. Skip the fiel
 
 Drag these 9 files. Every path is relative to `design/brand/`.
 
-**Type, 3 files.** Upload the TTF files, never the `woff2` data inside `reference.html`. Those are
-subsets and do not carry the whole character set, which breaks pt-BR copy.
+**Type, 3 files.** Upload the TTF files, never the `woff2` data inside
+`superseded/reference.html`. Those are subsets and do not carry the whole character set, which
+breaks pt-BR copy.
 
 ```
 fonts/Geist[wght].ttf
