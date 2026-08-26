@@ -546,6 +546,20 @@ ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'type-fixtures')
 const SUBJECT = join(FIXTURES, 'subject.tsx')
 
+// CI sets this and a developer machine does not, and that single difference hid #379 for weeks:
+// the ten cases below passed here and threw on the runner. Pinning it makes both take one path.
+process.env.CI = 'true'
+
+/**
+ * `disallowAutomaticSingleRunInference` is load-bearing, not a performance knob (#379).
+ *
+ * `CI=true` makes typescript-eslint infer a single run, and a single run parses one file path
+ * once. Every case below is a different source under the SAME path, so from the second case on
+ * the parser drops the fixture project and builds an isolated `noResolve` program instead. There
+ * `./icons` resolves to nothing, the checker raises "has no exported member", and naming the
+ * module for that message walks into a TypeScript path bug and throws. A RuleTester is a
+ * long-running process linting one path many times, which is the case this flag exists for.
+ */
 const typedTester = new RuleTester({
   languageOptions: {
     parser: tsParser,
@@ -555,6 +569,7 @@ const typedTester = new RuleTester({
       ecmaFeatures: { jsx: true },
       project: './tsconfig.json',
       tsconfigRootDir: FIXTURES,
+      disallowAutomaticSingleRunInference: true,
     },
   },
 })
