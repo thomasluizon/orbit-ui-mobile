@@ -25490,6 +25490,7 @@
         "apps/web/__tests__/hooks/use-login-flow.test.ts",
         "apps/web/__tests__/hooks/use-notifications.test.ts",
         "apps/web/__tests__/hooks/use-tags.test.ts",
+        "apps/web/__tests__/manifest.test.ts",
         "apps/web/__tests__/pages/achievements.test.tsx",
         "apps/web/__tests__/pages/advanced.test.tsx",
         "apps/web/__tests__/pages/ai-settings-page.test.tsx",
