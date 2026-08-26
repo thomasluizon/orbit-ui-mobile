@@ -198,6 +198,10 @@ function maestroExecutable() {
   return candidates.find((candidate) => existsSync(candidate)) ?? "maestro"
 }
 
+export function maestroEnvironmentArguments(variables) {
+  return Object.entries(variables).flatMap(([name, value]) => ["-e", `${name}=${value}`])
+}
+
 function maestroCapture(cell, options, outputBase) {
   const maestro = maestroExecutable()
   const flow = join(FLOW_DIRECTORY, `${cell.surfaceId}.yaml`)
@@ -210,16 +214,16 @@ function maestroCapture(cell, options, outputBase) {
   // directory would leave the hard-coded bundledPng path pointing at the PREVIOUS run's screenshot.
   // Clearing it first keeps that path correct by construction rather than by naming luck.
   rmSync(debugOutput, { recursive: true, force: true })
-  const args = ["test", "--debug-output", debugOutput, "--flatten-debug-output"]
+  const args = [
+    "test",
+    ...maestroEnvironmentArguments({ CAPTURE_LINK: link, CAPTURE_PATH: captureName }),
+    "--debug-output", debugOutput,
+    "--flatten-debug-output",
+  ]
   if (options.serial) args.push("--device", options.serial)
   args.push(flow)
   const startedAt = Date.now()
-  const result = runProcess(maestro, args, {
-    env: {
-      CAPTURE_LINK: link,
-      CAPTURE_PATH: captureName,
-    },
-  })
+  const result = runProcess(maestro, args)
   if (!result.error && result.status === 0 && existsSync(bundledPng)) {
     copyFileSync(bundledPng, `${pngBase}.png`)
   }

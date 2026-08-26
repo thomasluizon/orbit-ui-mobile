@@ -45,8 +45,9 @@ about_link=$(node --input-type=module -e "
 ")
 echo "Protected route deep link: ${about_link}"
 
-CAPTURE_LINK="${about_link}" CAPTURE_PATH=protected-route-redirect \
-  maestro test \
+maestro test \
+    -e "CAPTURE_LINK=${about_link}" \
+    -e CAPTURE_PATH=protected-route-redirect \
     --debug-output .artifacts/mobile-capture/protected \
     --flatten-debug-output \
     .maestro/protected-route-redirect.yaml

@@ -3,6 +3,7 @@ import { join } from "node:path"
 
 import {
   buildCaptureDeepLink,
+  maestroEnvironmentArguments,
   mobileUnreachableReason,
   planMobileCaptures,
   summarizeCommandOutput,
@@ -24,6 +25,17 @@ const captureSurfacesMobileCases = () => {
   T(
     "deep links carry explicit app-level theme and locale parameters",
     buildCaptureDeepLink(login, login.theme, login.locale) === "orbit://login?captureTheme=dark&captureLocale=pt-BR",
+  )
+
+  T(
+    "Maestro flow variables are injected through its CLI environment map",
+    JSON.stringify(maestroEnvironmentArguments({
+      CAPTURE_LINK: "orbit://login?captureTheme=dark&captureLocale=pt-BR",
+      CAPTURE_PATH: "m-route-login--default--dark--pt-BR",
+    })) === JSON.stringify([
+      "-e", "CAPTURE_LINK=orbit://login?captureTheme=dark&captureLocale=pt-BR",
+      "-e", "CAPTURE_PATH=m-route-login--default--dark--pt-BR",
+    ]),
   )
 
   const diagnostic = `root cause\n${"x".repeat(100)}\nstack tail`
