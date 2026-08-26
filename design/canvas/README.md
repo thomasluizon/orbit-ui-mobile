@@ -128,6 +128,8 @@ sessions and prose did not:
   that reads as a real measurement.
 * `Columns` has no date, start, interval or ordering prop at all, so a category set cannot become a time
   axis whose gaps carry meaning.
+* `Button` discriminates on `iconOnly`, so a glyph-only control cannot be built without the word that
+  names it, the same guarantee `Fab.label` and `NavHeader.backLabel` already carry.
 * `Sheet.open` accepts only the literal `true`, so a kept-and-toggled instance does not compile.
 * `StepUp` has no `children` and no node-typed prop, so a credential field cannot be nested into it.
 * `Toast` is four discriminated kinds; `lost` cannot be constructed without both what was lost and the
