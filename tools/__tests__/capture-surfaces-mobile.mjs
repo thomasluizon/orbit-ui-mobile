@@ -68,10 +68,17 @@ const captureSurfacesMobileCases = () => {
     const probeDirectory = join(root, "João-%TEMP%!probe")
     mkdirSync(probeDirectory, { recursive: true })
     const batchProbe = join(probeDirectory, "mobile-capture-argv-probe.cmd")
+    const nodeProbe = join(probeDirectory, "mobile-capture-argv-probe.mjs")
+    const probeOutput = join(probeDirectory, "mobile-capture-argv-probe.json")
     const wrapperPath = join(root, "mobile capture wrapper.cmd")
     // Keep the expansion quoted inside the probe too. An unquoted `%~3` would let cmd.exe parse the
-    // successfully delivered ampersand a second time while executing the diagnostic echo itself.
-    writeFileSync(batchProbe, "@echo off\r\necho [\"%~3\"]\r\necho [\"%~4\"]\r\n")
+    // successfully delivered ampersand a second time. The Node probe writes explicitly as UTF-8 so
+    // the assertion does not depend on cmd.exe's active OEM output code page.
+    writeFileSync(batchProbe, '@echo off\r\nnode "%~dp0mobile-capture-argv-probe.mjs" "%~3" "%~4"\r\n')
+    writeFileSync(
+      nodeProbe,
+      'import { writeFileSync } from "node:fs"\nwriteFileSync(process.env.ORBIT_CAPTURE_PROBE_OUTPUT, JSON.stringify(process.argv.slice(2)), "utf8")\n',
+    )
     const probeInvocation = processInvocation(
       batchProbe,
       ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath],
@@ -80,15 +87,16 @@ const captureSurfacesMobileCases = () => {
     writeFileSync(wrapperPath, probeInvocation.wrapperSource)
     const probe = spawnSync(probeInvocation.command, probeInvocation.args, {
       encoding: "utf8",
-      env: { ...process.env, ...probeInvocation.env },
+      env: { ...process.env, ...probeInvocation.env, ORBIT_CAPTURE_PROBE_OUTPUT: probeOutput },
       shell: false,
       ...probeInvocation.spawnOptions,
     })
+    const probeArguments = probe.status === 0 ? JSON.parse(readFileSync(probeOutput, "utf8")) : null
     T(
       "the real Windows command processor preserves Unicode, ampersands, percent signs, and exclamation marks",
       probe.status === 0 &&
-        probe.stdout.trim() === `["CAPTURE_LINK=${windowsDeepLink}"]\r\n["${windowsFlowPath}"]`,
-      JSON.stringify({ status: probe.status, stdout: probe.stdout, stderr: probe.stderr }),
+        JSON.stringify(probeArguments) === JSON.stringify([`CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath]),
+      JSON.stringify({ status: probe.status, arguments: probeArguments, stdout: probe.stdout, stderr: probe.stderr }),
     )
 
     const failingBatch = join(root, "mobile-capture-exit-probe.cmd")
