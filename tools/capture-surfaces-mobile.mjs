@@ -244,12 +244,19 @@ async function adbCapture(cell, options, outputBase) {
   return captureResult(cell, pngPath, startedAt, screenshot, "adb-screencap")
 }
 
+export function summarizeCommandOutput(output, maxCharacters = 8000) {
+  if (output.length <= maxCharacters) return output
+  const half = Math.floor(maxCharacters / 2)
+  const omitted = output.length - (half * 2)
+  return `${output.slice(0, half)}\n... ${omitted} characters omitted ...\n${output.slice(-half)}`
+}
+
 function commandOutput(commandResult) {
   const streams = [commandResult.stderr, commandResult.stdout]
     .filter((stream) => typeof stream === "string" && stream.trim().length > 0)
     .map((stream) => stream.trim())
   if (streams.length === 0) return ""
-  return `: ${streams.join(" | ").slice(-1200)}`
+  return `: ${summarizeCommandOutput(streams.join(" | "))}`
 }
 
 function captureResult(cell, pngPath, startedAt, commandResult, command) {

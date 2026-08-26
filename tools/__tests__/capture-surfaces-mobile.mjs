@@ -5,6 +5,7 @@ import {
   buildCaptureDeepLink,
   mobileUnreachableReason,
   planMobileCaptures,
+  summarizeCommandOutput,
 } from "../capture-surfaces-mobile.mjs"
 import { REPO_ROOT, T, check, root } from "./_harness.mjs"
 
@@ -23,6 +24,16 @@ const captureSurfacesMobileCases = () => {
   T(
     "deep links carry explicit app-level theme and locale parameters",
     buildCaptureDeepLink(login, login.theme, login.locale) === "orbit://login?captureTheme=dark&captureLocale=pt-BR",
+  )
+
+  const diagnostic = `root cause\n${"x".repeat(100)}\nstack tail`
+  const summarizedDiagnostic = summarizeCommandOutput(diagnostic, 40)
+  T(
+    "failed driver diagnostics preserve both the root cause and stack tail",
+    summarizedDiagnostic.startsWith("root cause") &&
+      summarizedDiagnostic.endsWith("stack tail") &&
+      summarizedDiagnostic.includes("characters omitted"),
+    summarizedDiagnostic,
   )
 
   const overlay = manifest.cells.find((cell) => cell.platform === "mobile" && cell.kind === "overlay")

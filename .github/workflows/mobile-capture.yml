@@ -101,3 +101,4 @@ jobs:
           name: mobile-surface-capture
           path: .artifacts/mobile-capture
           if-no-files-found: error
+          include-hidden-files: true
