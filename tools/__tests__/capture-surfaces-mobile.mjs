@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -6,6 +7,7 @@ import {
   maestroEnvironmentArguments,
   mobileUnreachableReason,
   planMobileCaptures,
+  processInvocation,
   summarizeCommandOutput,
 } from "../capture-surfaces-mobile.mjs"
 import { REPO_ROOT, T, check, root } from "./_harness.mjs"
@@ -37,6 +39,42 @@ const captureSurfacesMobileCases = () => {
       "-e", "CAPTURE_PATH=m-route-login--default--dark--pt-BR",
     ]),
   )
+
+  const windowsDeepLink = "orbit://login?captureTheme=dark&captureLocale=pt-BR"
+  const windowsInvocation = processInvocation(
+    "C:\\Program Files\\Maestro\\maestro.cmd",
+    ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, "flow.yaml"],
+    { platform: "win32", powerShell: "powershell.exe" },
+  )
+  T(
+    "Windows batch launch carries the complete deep link outside cmd.exe parsing",
+    windowsInvocation.command === "powershell.exe" &&
+      windowsInvocation.args.includes("-EncodedCommand") &&
+      JSON.parse(windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENTS)[2] ===
+        `"CAPTURE_LINK=${windowsDeepLink}"`,
+    JSON.stringify(windowsInvocation),
+  )
+
+  if (process.platform === "win32") {
+    const batchProbe = join(root, "mobile-capture-argv-probe.cmd")
+    // Keep the expansion quoted inside the probe too. An unquoted `%~3` would let cmd.exe parse the
+    // successfully delivered ampersand a second time while executing the diagnostic echo itself.
+    writeFileSync(batchProbe, "@echo off\r\necho [\"%~3\"]\r\n")
+    const probeInvocation = processInvocation(
+      batchProbe,
+      ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, "flow.yaml"],
+    )
+    const probe = spawnSync(probeInvocation.command, probeInvocation.args, {
+      encoding: "utf8",
+      env: { ...process.env, ...probeInvocation.env },
+      shell: false,
+    })
+    T(
+      "the real Windows command processor preserves the deep link ampersand",
+      probe.status === 0 && probe.stdout.trim() === `["CAPTURE_LINK=${windowsDeepLink}"]`,
+      JSON.stringify({ status: probe.status, stdout: probe.stdout, stderr: probe.stderr }),
+    )
+  }
 
   const diagnostic = `root cause\n${"x".repeat(100)}\nstack tail`
   const summarizedDiagnostic = summarizeCommandOutput(diagnostic, 40)

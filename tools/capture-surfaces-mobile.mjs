@@ -180,14 +180,55 @@ export function planMobileCaptures(manifest, options, flowDirectory = FLOW_DIREC
 }
 
 function runProcess(command, args, options = {}) {
-  return spawnSync(command, args, {
+  const invocation = processInvocation(command, args)
+  return spawnSync(invocation.command, invocation.args, {
     cwd: REPOSITORY_ROOT,
     encoding: options.binary ? null : "utf8",
-    env: { ...process.env, ...(options.env ?? {}) },
+    env: { ...process.env, ...(options.env ?? {}), ...(invocation.env ?? {}) },
     maxBuffer: 32 * 1024 * 1024,
-    shell: process.platform === "win32" && /\.(?:bat|cmd)$/i.test(command),
+    shell: false,
     windowsHide: true,
   })
+}
+
+export function processInvocation(
+  command,
+  args,
+  {
+    platform = process.platform,
+    powerShell = process.env.SystemRoot
+      ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+      : "powershell.exe",
+  } = {},
+) {
+  if (platform !== "win32" || !/\.(?:bat|cmd)$/i.test(command)) return { command, args }
+  const escapedArgs = args.map((value) => {
+    const text = String(value)
+    if (/[\0\r\n"%!]/u.test(text)) {
+      throw new Error("Windows batch arguments cannot contain NUL, newlines, quotes, percent signs, or exclamation marks")
+    }
+    // Windows PowerShell does not quote native arguments that contain `=` or `&` but no spaces when
+    // the target is a batch file. Literal quote characters force its cmd.exe bridge to preserve the
+    // complete value; the batch runtime removes those delimiters before Maestro sees argv.
+    return `"${text}"`
+  })
+  // `cmd.exe` parses `&` before a batch file receives its argv, even when Node supplied the value
+  // as one array element. Keep the command and argv in process-local environment values; the literal
+  // quote delimiters above make PowerShell's batch-file bridge preserve each complete argument.
+  const script = [
+    "$command = $env:ORBIT_MOBILE_CAPTURE_COMMAND",
+    "$arguments = @(ConvertFrom-Json -InputObject $env:ORBIT_MOBILE_CAPTURE_ARGUMENTS)",
+    "& $command @arguments",
+    "exit $LASTEXITCODE",
+  ].join("\n")
+  return {
+    command: powerShell,
+    args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+    env: {
+      ORBIT_MOBILE_CAPTURE_COMMAND: command,
+      ORBIT_MOBILE_CAPTURE_ARGUMENTS: JSON.stringify(escapedArgs),
+    },
+  }
 }
 
 function maestroExecutable() {
