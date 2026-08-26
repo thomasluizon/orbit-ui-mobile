@@ -148,6 +148,14 @@ const captureSurfacesMobileCases = () => {
   const blocked = mobileUnreachableReason(overlay)
   T("surfaces without deterministic entry points are reported as unreachable", blocked?.reason === "needs-surface-flow", JSON.stringify(blocked))
 
+  const onboarding = manifest.cells.find((cell) => cell.surfaceId === "m-route-onboarding-index")
+  const blockedOnboarding = mobileUnreachableReason(onboarding)
+  T(
+    "capture builds classify first-run onboarding as unreachable instead of intercepting deep links",
+    blockedOnboarding?.reason === "missing-flow",
+    JSON.stringify(blockedOnboarding),
+  )
+
   const output = join(root, "mobile-capture-dry-run")
   check(
     "capture-surfaces-mobile.mjs",

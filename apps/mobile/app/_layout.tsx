@@ -279,7 +279,10 @@ function RootLayoutNav() {
         ) : null}
         {captureBuildEnabled ? (
           <View
+            accessibilityLabel={captureProbeId}
+            accessible
             collapsable={false}
+            importantForAccessibility="yes"
             pointerEvents="none"
             style={styles.captureProbe}
             testID={captureProbeId}
