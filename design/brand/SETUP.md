@@ -144,8 +144,9 @@ time and carries no `<text>`.
 
 Every file paints with `fill="currentColor"` and none carries a hex. Upload them as they are.
 
-**Raster: none.** No PNG set exists. `#80` owns the app icons, store graphics, OG images, splash and
-notification icon, and it derives them from the two files above.
+**Raster exports live in `png/`.** `#80` added the canonical 16, 48, 128 and 512 mark sizes plus the
+512 platform icon, and derives them together with the app icons, store graphics, OG images, splash
+and notification icon through `node tools/generate-brand-assets.mjs --write`.
 
 **Do not look for the nine files an earlier revision of this document listed.** `mark-24-neutral.svg`,
 `mark-16.svg`, `astra-24.svg`, `lockup-horizontal-neutral.svg`, `icon-512-orange.svg` and the four

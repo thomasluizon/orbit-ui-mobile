@@ -6,6 +6,11 @@ import sharp from "sharp"
 import { REPO_ROOT, T, check, root } from "./_harness.mjs"
 
 const expectedAssets = [
+  ["design/brand/png/orbit-mark-native-16.png", 16, 16],
+  ["design/brand/png/orbit-mark-accent-48.png", 48, 48],
+  ["design/brand/png/orbit-mark-accent-128.png", 128, 128],
+  ["design/brand/png/orbit-mark-accent-512.png", 512, 512],
+  ["design/brand/png/orbit-platform-icon-512.png", 512, 512],
   ["apps/mobile/assets/adaptive-icon-background.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-foreground.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-monochrome.png", 1024, 1024],
@@ -47,7 +52,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 16 brand assets/ },
+    { status: 0, stdout: /generated 21 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -120,7 +125,46 @@ export const cases = async () => {
     return accent
   }
 
-  for (const relativePath of ["apps/mobile/assets/icon.png", "apps/web/public/pwa-512x512.png"]) {
+  const pixelsOf = async (input) => sharp(input).ensureAlpha().raw().toBuffer()
+  const nativeSource = readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mark-16.svg"), "utf8")
+    .replaceAll("currentColor", "#F4F4F6")
+  const accentSource = readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mark-accent.svg"), "utf8")
+    .replaceAll("var(--primary, currentColor)", "#C4530F")
+    .replaceAll("currentColor", "#F4F4F6")
+  const canonicalSourceChecks = [
+    ["design/brand/png/orbit-mark-native-16.png", Buffer.from(nativeSource), 16],
+    ["design/brand/png/orbit-mark-accent-128.png", Buffer.from(accentSource), 128],
+  ]
+  for (const [relativePath, source, size] of canonicalSourceChecks) {
+    const generated = join(outputRoot, ...relativePath.split("/"))
+    const directSourceRender = await sharp(source).resize(size, size).png().toBuffer()
+    const generatedPixels = await pixelsOf(generated)
+    const sourcePixels = await pixelsOf(directSourceRender)
+    let sourceCanvasMatches = generatedPixels.length === sourcePixels.length
+    for (let index = 0; sourceCanvasMatches && index < generatedPixels.length; index += 4) {
+      // Compositing onto a transparent Sharp canvas can round an anti-aliased RGB channel by one;
+      // alpha must match exactly and no colour channel may move beyond that measured rounding.
+      sourceCanvasMatches =
+        generatedPixels[index + 3] === sourcePixels[index + 3] &&
+        Math.abs(generatedPixels[index] - sourcePixels[index]) <= 1 &&
+        Math.abs(generatedPixels[index + 1] - sourcePixels[index + 1]) <= 1 &&
+        Math.abs(generatedPixels[index + 2] - sourcePixels[index + 2]) <= 1
+    }
+    T(
+      `generate-brand-assets.mjs: ${relativePath} is a direct render of its canonical source canvas`,
+      sourceCanvasMatches,
+      `${relativePath} does not match a direct ${size}px source render`,
+    )
+  }
+
+  for (const relativePath of [
+    "design/brand/png/orbit-mark-accent-48.png",
+    "design/brand/png/orbit-mark-accent-128.png",
+    "design/brand/png/orbit-mark-accent-512.png",
+    "design/brand/png/orbit-platform-icon-512.png",
+    "apps/mobile/assets/icon.png",
+    "apps/web/public/pwa-512x512.png",
+  ]) {
     T(
       `generate-brand-assets.mjs: ${relativePath} keeps the accent moon`,
       (await accentPixelCount(relativePath)) > 0,
@@ -135,6 +179,7 @@ export const cases = async () => {
     "apps/mobile/assets/adaptive-icon-monochrome.png",
     "apps/mobile/assets/notification-icon.png",
     "apps/web/public/favicon-16.png",
+    "design/brand/png/orbit-mark-native-16.png",
   ]) {
     T(
       `generate-brand-assets.mjs: ${relativePath} carries no accent`,

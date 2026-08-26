@@ -71,6 +71,14 @@ const WHITE = "#FFFFFF"
 const ACCENT = "#C4530F"
 
 const generatedAssets = [
+  // Canonical brand exports. The native 16 drawing stays monochrome; the larger marks preserve the
+  // 1024 source canvas and the identity's accent moon. These are source assets for consumers that
+  // do not own a platform-specific canvas contract.
+  { path: "design/brand/png/orbit-mark-native-16.png", width: 16, height: 16, ink: FOREGROUND, nativeMark: true },
+  { path: "design/brand/png/orbit-mark-accent-48.png", width: 48, height: 48, ink: FOREGROUND, accent: true, sourceCanvas: true },
+  { path: "design/brand/png/orbit-mark-accent-128.png", width: 128, height: 128, ink: FOREGROUND, accent: true, sourceCanvas: true },
+  { path: "design/brand/png/orbit-mark-accent-512.png", width: 512, height: 512, ink: FOREGROUND, accent: true, sourceCanvas: true },
+  { path: "design/brand/png/orbit-platform-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
   { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: 0.6 },
@@ -148,12 +156,7 @@ async function renderNativeMark(source, ink, size) {
   return sharp(Buffer.from(bakedSource)).resize(size, size).png().toBuffer()
 }
 
-/** The accent treatment: body in `ink`, moon in the accent. Trimmed and resized like the monochrome
- *  path, but WITHOUT the flatten-every-pixel step, which is what would erase the moon.
- *
- *  The var() expression is substituted BEFORE `currentColor`, because it contains that literal as its
- *  own fallback and a naive replace would turn the moon back into the body colour. */
-async function renderAccentMark(source, ink, accent, targetWidth) {
+function bakeAccentSource(source, ink, accent) {
   const bakedSource = source
     .replaceAll("var(--primary, currentColor)", accent)
     .replaceAll("currentColor", ink)
@@ -161,6 +164,24 @@ async function renderAccentMark(source, ink, accent, targetWidth) {
   if (bakedSource.includes("currentColor") || bakedSource.includes("var(")) {
     throw new Error("orbit-mark-accent.svg still carries an unresolved colour after baking")
   }
+
+  return bakedSource
+}
+
+/** A canonical export keeps the complete source viewBox. The source's margins are part of the
+ *  granted drawing; platform-specific assets use the trimmed scale path below instead. */
+async function renderSourceCanvasMark(source, ink, accent, size) {
+  const bakedSource = bakeAccentSource(source, ink, accent)
+  return sharp(Buffer.from(bakedSource)).resize(size, size).png().toBuffer()
+}
+
+/** The accent treatment: body in `ink`, moon in the accent. Trimmed and resized like the monochrome
+ *  path, but WITHOUT the flatten-every-pixel step, which is what would erase the moon.
+ *
+ *  The var() expression is substituted BEFORE `currentColor`, because it contains that literal as its
+ *  own fallback and a naive replace would turn the moon back into the body colour. */
+async function renderAccentMark(source, ink, accent, targetWidth) {
+  const bakedSource = bakeAccentSource(source, ink, accent)
 
   const trimmed = await sharp(Buffer.from(bakedSource))
     .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -191,6 +212,14 @@ async function renderAsset(sources, asset) {
 
   if (asset.nativeMark) {
     const mark = await renderNativeMark(source, asset.ink, asset.width)
+    return canvas
+      .composite([{ input: mark, left: 0, top: 0 }])
+      .png({ compressionLevel: 9 })
+      .toBuffer()
+  }
+
+  if (asset.sourceCanvas) {
+    const mark = await renderSourceCanvasMark(source, asset.ink, ACCENT, asset.width)
     return canvas
       .composite([{ input: mark, left: 0, top: 0 }])
       .png({ compressionLevel: 9 })
