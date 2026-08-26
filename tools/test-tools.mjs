@@ -77,6 +77,7 @@ const CASE_MODULES = [
   ["check-dashes.mjs", "check-dashes"],
   ["check-push-target.mjs", "check-push-target"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
+  ["check-suppressions-ratchet.mjs", "check-suppressions-ratchet"],
   ["check-workspace-overrides.mjs", "check-workspace-overrides"],
   ["comment-ticket.mjs", "comment-ticket"],
   ["compose-prompt.mjs", "compose-prompt"],

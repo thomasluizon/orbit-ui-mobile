@@ -2,7 +2,7 @@ name: arch-map
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, redesign/main]
   push:
     branches: [main]
 

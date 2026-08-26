@@ -13,7 +13,7 @@ name: Guards
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, redesign/main]
     # `labeled` and `unlabeled` are load-bearing, not tidiness. Two of these jobs carry a
     # label escape hatch (ratchet:reseed, parity:exempt),
     # and `edited` covers title, body and base but NOT labels. Without these
