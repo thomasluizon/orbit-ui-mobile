@@ -11,9 +11,9 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { dirname, isAbsolute, join, relative, resolve } from "node:path"
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { homedir, tmpdir } from "node:os"
+import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const TOOLS_DIR = dirname(fileURLToPath(import.meta.url))
@@ -180,15 +180,46 @@ export function planMobileCaptures(manifest, options, flowDirectory = FLOW_DIREC
 }
 
 function runProcess(command, args, options = {}) {
-  const invocation = processInvocation(command, args)
-  return spawnSync(invocation.command, invocation.args, {
-    cwd: REPOSITORY_ROOT,
-    encoding: options.binary ? null : "utf8",
-    env: { ...process.env, ...(options.env ?? {}), ...(invocation.env ?? {}) },
-    maxBuffer: 32 * 1024 * 1024,
-    shell: false,
-    windowsHide: true,
-  })
+  let wrapperDirectory = null
+  let wrapperPath = null
+  if (process.platform === "win32" && /\.(?:bat|cmd)$/i.test(command)) {
+    wrapperDirectory = mkdtempSync(join(tmpdir(), "orbit-mobile-capture-"))
+    wrapperPath = join(wrapperDirectory, "invoke.cmd")
+  }
+  try {
+    const invocation = processInvocation(command, args, { wrapperPath })
+    if (invocation.wrapperSource) writeFileSync(wrapperPath, invocation.wrapperSource)
+    return spawnSync(invocation.command, invocation.args, {
+      cwd: REPOSITORY_ROOT,
+      encoding: options.binary ? null : "utf8",
+      env: { ...process.env, ...(options.env ?? {}) },
+      maxBuffer: 32 * 1024 * 1024,
+      shell: false,
+      windowsHide: true,
+      ...(invocation.spawnOptions ?? {}),
+    })
+  } finally {
+    if (wrapperDirectory) rmSync(wrapperDirectory, { recursive: true, force: true })
+  }
+}
+
+function windowsBatchValue(value) {
+  const text = String(value)
+  if (/[\0\r\n"]/u.test(text)) {
+    throw new Error("Windows batch arguments cannot contain NUL, newlines, or quotes")
+  }
+  // Percent signs are expanded while cmd.exe reads batch source. Doubling them emits one literal
+  // percent sign. Delayed expansion is disabled in the wrapper, so exclamation marks stay literal.
+  return `"${text.replaceAll("%", "%%")}"`
+}
+
+export function windowsBatchWrapperSource(command, args) {
+  return [
+    "@echo off",
+    "setlocal DisableDelayedExpansion",
+    [windowsBatchValue(command), ...args.map(windowsBatchValue)].join(" "),
+    "",
+  ].join("\r\n")
 }
 
 export function processInvocation(
@@ -196,47 +227,72 @@ export function processInvocation(
   args,
   {
     platform = process.platform,
-    powerShell = process.env.SystemRoot
-      ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-      : "powershell.exe",
+    commandProcessor = process.env.ComSpec ?? "cmd.exe",
+    wrapperPath = null,
   } = {},
 ) {
   if (platform !== "win32" || !/\.(?:bat|cmd)$/i.test(command)) return { command, args }
-  const escapedArgs = args.map((value) => {
-    const text = String(value)
-    if (/[\0\r\n"]/u.test(text)) {
-      throw new Error("Windows batch arguments cannot contain NUL, newlines, or quotes")
-    }
-    // Windows PowerShell does not quote native arguments that contain `=` or `&` but no spaces when
-    // the target is a batch file. Literal quote characters force its cmd.exe bridge to preserve the
-    // complete value; the batch runtime removes those delimiters before Maestro sees argv.
-    return `"${text}"`
-  })
-  // `cmd.exe` parses `&` before a batch file receives its argv, even when Node supplied the value
-  // as one array element. Keep the command and argv in process-local environment values; the literal
-  // quote delimiters above make PowerShell's batch-file bridge preserve each complete argument.
-  const script = [
-    "$command = $env:ORBIT_MOBILE_CAPTURE_COMMAND",
-    "$arguments = @(ConvertFrom-Json -InputObject $env:ORBIT_MOBILE_CAPTURE_ARGUMENTS)",
-    "& $command @arguments",
-    "exit $LASTEXITCODE",
-  ].join("\n")
+  if (!wrapperPath) throw new Error("Windows batch invocation requires a wrapper path")
   return {
-    command: powerShell,
-    args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
-    env: {
-      ORBIT_MOBILE_CAPTURE_COMMAND: command,
-      ORBIT_MOBILE_CAPTURE_ARGUMENTS: JSON.stringify(escapedArgs),
-    },
+    command: commandProcessor,
+    args: ["/d", "/s", "/v:off", "/c", `""${wrapperPath}""`],
+    spawnOptions: { windowsVerbatimArguments: true },
+    wrapperSource: windowsBatchWrapperSource(command, args),
   }
 }
 
-function maestroExecutable() {
-  if (process.env.MAESTRO_BIN) return process.env.MAESTRO_BIN
-  const candidates = process.platform === "win32"
-    ? ["maestro.bat", "maestro.cmd", "maestro"].map((name) => join(homedir(), ".maestro", "bin", name))
-    : [join(homedir(), ".maestro", "bin", "maestro")]
-  return candidates.find((candidate) => existsSync(candidate)) ?? "maestro"
+export function resolveWindowsPathCommand(
+  command,
+  {
+    pathValue = process.env.PATH ?? "",
+    pathExtensions = process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD",
+    exists = existsSync,
+  } = {},
+) {
+  const extensions = extname(command) ? [""] : pathExtensions.split(";").filter(Boolean)
+  for (const rawDirectory of pathValue.split(";")) {
+    const directory = rawDirectory.replace(/^"|"$/g, "")
+    if (!directory) continue
+    for (const extension of extensions) {
+      const candidate = join(directory, `${command}${extension}`)
+      if (exists(candidate)) return candidate
+    }
+  }
+  return null
+}
+
+export function maestroExecutable(
+  {
+    env = process.env,
+    platform = process.platform,
+    homeDirectory = homedir(),
+    exists = existsSync,
+  } = {},
+) {
+  const configured = env.MAESTRO_BIN
+  if (configured) {
+    if (platform !== "win32" || isAbsolute(configured) || /[\\/]/.test(configured)) return configured
+    const resolved = resolveWindowsPathCommand(configured, {
+      pathValue: env.PATH,
+      pathExtensions: env.PATHEXT,
+      exists,
+    })
+    if (resolved) return resolved
+    throw new Error(`MAESTRO_BIN command was not found on PATH: ${configured}`)
+  }
+  const candidates = platform === "win32"
+    ? ["maestro.bat", "maestro.cmd", "maestro"].map((name) => join(homeDirectory, ".maestro", "bin", name))
+    : [join(homeDirectory, ".maestro", "bin", "maestro")]
+  const installed = candidates.find((candidate) => exists(candidate))
+  if (installed) return installed
+  if (platform !== "win32") return "maestro"
+  const resolved = resolveWindowsPathCommand("maestro", {
+    pathValue: env.PATH,
+    pathExtensions: env.PATHEXT,
+    exists,
+  })
+  if (resolved) return resolved
+  throw new Error("Maestro CLI was not found in ~/.maestro/bin or on PATH")
 }
 
 export function maestroEnvironmentArguments(variables) {

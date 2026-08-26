@@ -1,13 +1,15 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
   buildCaptureDeepLink,
+  maestroExecutable,
   maestroEnvironmentArguments,
   mobileUnreachableReason,
   planMobileCaptures,
   processInvocation,
+  resolveWindowsPathCommand,
   summarizeCommandOutput,
 } from "../capture-surfaces-mobile.mjs"
 import { REPO_ROOT, T, check, root } from "./_harness.mjs"
@@ -45,31 +47,38 @@ const captureSurfacesMobileCases = () => {
   const windowsInvocation = processInvocation(
     "C:\\Program Files\\Maestro\\maestro.cmd",
     ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath],
-    { platform: "win32", powerShell: "powershell.exe" },
+    {
+      platform: "win32",
+      commandProcessor: "cmd.exe",
+      wrapperPath: "C:\\Temp\\orbit mobile capture\\invoke.cmd",
+    },
   )
   T(
-    "Windows batch launch carries the complete deep link outside cmd.exe parsing",
-    windowsInvocation.command === "powershell.exe" &&
-      windowsInvocation.args.includes("-EncodedCommand") &&
-      JSON.parse(windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENTS)[2] ===
-        `"CAPTURE_LINK=${windowsDeepLink}"` &&
-      JSON.parse(windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENTS)[3] === `"${windowsFlowPath}"`,
+    "Windows batch launch isolates values in a one-shot wrapper with literal percent and bang handling",
+    windowsInvocation.command === "cmd.exe" &&
+      windowsInvocation.spawnOptions.windowsVerbatimArguments === true &&
+      windowsInvocation.wrapperSource.includes(`"CAPTURE_LINK=${windowsDeepLink}"`) &&
+      windowsInvocation.wrapperSource.includes('"C:\\captures\\100%%!ready\\flow.yaml"') &&
+      windowsInvocation.wrapperSource.includes("setlocal DisableDelayedExpansion"),
     JSON.stringify(windowsInvocation),
   )
 
   if (process.platform === "win32") {
     const batchProbe = join(root, "mobile-capture-argv-probe.cmd")
+    const wrapperPath = join(root, "mobile capture wrapper.cmd")
     // Keep the expansion quoted inside the probe too. An unquoted `%~3` would let cmd.exe parse the
     // successfully delivered ampersand a second time while executing the diagnostic echo itself.
     writeFileSync(batchProbe, "@echo off\r\necho [\"%~3\"]\r\necho [\"%~4\"]\r\n")
     const probeInvocation = processInvocation(
       batchProbe,
       ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath],
+      { wrapperPath },
     )
+    writeFileSync(wrapperPath, probeInvocation.wrapperSource)
     const probe = spawnSync(probeInvocation.command, probeInvocation.args, {
       encoding: "utf8",
-      env: { ...process.env, ...probeInvocation.env },
       shell: false,
+      ...probeInvocation.spawnOptions,
     })
     T(
       "the real Windows command processor preserves ampersands, percent signs, and exclamation marks",
@@ -77,7 +86,40 @@ const captureSurfacesMobileCases = () => {
         probe.stdout.trim() === `["CAPTURE_LINK=${windowsDeepLink}"]\r\n["${windowsFlowPath}"]`,
       JSON.stringify({ status: probe.status, stdout: probe.stdout, stderr: probe.stderr }),
     )
+
+    const failingBatch = join(root, "mobile-capture-exit-probe.cmd")
+    const failingWrapper = join(root, "mobile capture exit wrapper.cmd")
+    writeFileSync(failingBatch, "@echo off\r\nexit /b 7\r\n")
+    const failingInvocation = processInvocation(failingBatch, [], { wrapperPath: failingWrapper })
+    writeFileSync(failingWrapper, failingInvocation.wrapperSource)
+    const failingProbe = spawnSync(failingInvocation.command, failingInvocation.args, {
+      encoding: "utf8",
+      shell: false,
+      ...failingInvocation.spawnOptions,
+    })
+    T(
+      "the real Windows command processor preserves the wrapped batch exit code",
+      failingProbe.status === 7,
+      JSON.stringify({ status: failingProbe.status, stdout: failingProbe.stdout, stderr: failingProbe.stderr }),
+    )
   }
+
+  const pathDirectory = join(root, "maestro-path-bin")
+  const pathMaestro = join(pathDirectory, "maestro.CMD")
+  mkdirSync(pathDirectory, { recursive: true })
+  writeFileSync(pathMaestro, "@echo off\r\n")
+  T(
+    "Windows PATH resolution finds a command extension before shell-free spawning",
+    resolveWindowsPathCommand("maestro", {
+      pathValue: `C:\\missing;"${pathDirectory}"`,
+      pathExtensions: ".EXE;.CMD",
+    }) === pathMaestro &&
+      maestroExecutable({
+        env: { PATH: pathDirectory, PATHEXT: ".EXE;.CMD" },
+        platform: "win32",
+        homeDirectory: join(root, "missing-home"),
+      }) === pathMaestro,
+  )
 
   const diagnostic = `root cause\n${"x".repeat(100)}\nstack tail`
   const summarizedDiagnostic = summarizeCommandOutput(diagnostic, 40)
