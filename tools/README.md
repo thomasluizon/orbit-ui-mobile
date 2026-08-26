@@ -86,6 +86,12 @@ Use `--driver adb` when Maestro is unavailable. That fallback opens the same dee
 
 A protected route therefore cannot be proven by this tool's exit code. `.maestro/protected-route-redirect.yaml` proves it positively instead: it opens the protected route's deep link and asserts the LOGIN probe is visible and the protected one is not. `mobile-capture.yml` runs it directly, building the deep link from this tool's exported `buildCaptureDeepLink` so the two cannot drift.
 
+## Brand assets
+
+| Tool | What it does | Usage |
+|---|---|---|
+| `generate-brand-assets.mjs` | Regenerates the canonical 16, 48, 128 and 512 brand PNGs, platform icon, launcher layers, splash, notification silhouette, web icons, OG composite and Play feature graphic from the three canonical Orbit mark sources, `orbit-mark.svg` for the 1024 geometry, `orbit-mark-accent.svg` for every coloured raster and `orbit-mark-16.svg` for the native redraw below roughly 20px. Each one is validated before any render, so a missing or structurally invalid source fails rather than producing a silently wrong set. Outputs use the platform canvas and ink tokens with no baked mask radius. | `node tools/generate-brand-assets.mjs --write` |
+
 ## Harness self-test
 
 | Tool | What it does | Usage |

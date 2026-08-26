@@ -14,7 +14,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#020618"
+      "backgroundColor": "#09090B"
     },
     "ios": {
       "supportsTablet": false,
@@ -24,8 +24,10 @@
       "icon": "./assets/icon.png",
       "playStoreUrl": "https://play.google.com/store/apps/details?id=org.useorbit.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#22094f"
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "backgroundColor": "#09090B"
       },
       "versionCode": 30,
       "package": "org.useorbit.app",
@@ -90,7 +92,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#7f46f7"
+          "color": "#C4530F"
         }
       ],
       [

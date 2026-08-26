@@ -114,7 +114,7 @@ components take `onPress`. So a single shared declaration cannot type both platf
 handler name is a platform adapter under the parity rule, the same way the storage and styling layers
 are, so the split is allowed; what is not allowed is the two sides drifting on anything below it.
 
-*The `any`s.* Every one of the 48 contracts uses `any`, 95 times in total, for node-typed slots like
+*The `any`s.* Every one of the 48 contracts uses `any`, 94 times in total, for node-typed slots like
 `children`, `trailing` and `control`. That is fine while these files are inert reference material,
 and it stops being fine the moment a group moves: `packages/shared/eslint.config.mjs` turns
 `@typescript-eslint/no-explicit-any` off only for test files, so a contract landing as ordinary
@@ -128,6 +128,9 @@ sessions and prose did not:
   that reads as a real measurement.
 * `Columns` has no date, start, interval or ordering prop at all, so a category set cannot become a time
   axis whose gaps carry meaning.
+* `Button` accepts only visible text on its ordinary path. Passing a glyph or any other opaque node
+  requires `iconOnly: true` and the word in `label`, the same guarantee `Fab.label` and
+  `NavHeader.backLabel` already carry.
 * `Sheet.open` accepts only the literal `true`, so a kept-and-toggled instance does not compile.
 * `StepUp` has no `children` and no node-typed prop, so a credential field cannot be nested into it.
 * `Toast` is four discriminated kinds; `lost` cannot be constructed without both what was lost and the

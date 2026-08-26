@@ -14,37 +14,40 @@
 
 It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for the `orbit-landing-page` mirror. A rule is cross-platform unless it names a platform.
 
-**Provenance.** The direction is the 2026-08-05 direction ADR, amended by D68 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and a rendered `design/reference.html` disagree, **the page wins and this prose is the defect** (D42).
+**Provenance.** The direction is the 2026-08-05 direction ADR, amended by D68 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and the granted canvas disagree, **the drawing wins and this prose is the defect** (D42).
 
-**D42 covers `design/reference.html` AND the granted canvas export** (amended 2026-08-25).
-**Thomas granted the twenty-one-screen Claude Design export on 2026-08-25.** It is committed at
+**D42, amended 2026-08-25: there are exactly two sources, this document and the granted canvas.**
+Thomas granted the twenty-one-screen Claude Design export on 2026-08-25. It is committed at
 `design/canvas/`, with the design system's 166 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
-**Precedence, in this order. Read it as a ladder, not as one rule.**
+**Precedence, in this order:**
 
 1. **`## Information architecture` outranks everything**, including every drawing, on whether a
    surface should exist at all and what job it does.
-2. **`## Bans` outranks every drawing.** A granted export cannot authorise a banned value. If a
-   drawing contains decorative glow, a gradient wash, Liquid Glass, or any other banned treatment,
-   **the drawing is the defect**: file it against the canvas and build without it. A grant makes an
-   export authoritative over prose; it does not make it authoritative over a prohibition.
+2. **`## Bans` outranks every drawing.** A grant makes an export authoritative over prose; it never
+   makes one authoritative over a prohibition. A drawing carrying decorative glow, a gradient wash,
+   Liquid Glass or any other banned treatment **is the defect**: build without it and file it.
 3. **Below those two, the granted drawing wins.** For how a surface looks, measures, spaces, states
-   and behaves, a drawing in `design/canvas/` outranks the prose in this document, and the prose is
-   the defect. A number typed into a component that disagrees with a token under the
-   `tokens/` directory named above is wrong,
-   whatever this document says.
+   and behaves, a drawing in `design/canvas/` outranks the prose here, and the prose is the defect.
+   A number that disagrees with a token under the `tokens/` directory named above is wrong, whatever
+   this document says.
 
 Read the drawing for the surface you are building before you read the section here that describes it.
 
-An export Thomas has NOT granted still carries no authority. The eleven documents from the pass that
-predates `## Information architecture` are quarantined in `design/canvas/superseded/` for exactly
-that reason: they draw a habit tracker with a chat tab, they still show Goals and Retrospective as
-separate screens, and one of them ships a habit-limit figure that exists nowhere in the code. Never
-build from them.
+**`design/superseded/reference.html` is STALE and carries no authority** (2026-08-25). It predates the canvas
+and disagrees with it, for instance on `--primary-hover`, where it lightens the accent on hover while
+the canvas darkens it. It is moved to `design/superseded/`; only historical and asset-context
+citations point there, and no authority consumer does. The earlier wording of D42, which scoped
+authority to that page, is withdrawn.
 
-**Known canvas defect:** `Orbit Calendario.dc.html` draws a `linear-gradient`, which rule 2 above
-makes non-authoritative. It is filed as `#370` and corrected at source.
+An export Thomas has NOT granted also carries no authority. The eleven documents from the pass that
+predates `## Information architecture` are quarantined in `design/canvas/superseded/`: they draw a
+habit tracker with a chat tab, still show Goals and Retrospective as separate screens, and one ships
+a habit-limit figure that exists nowhere in the code. Never build from them.
+
+**Known canvas defect:** `Orbit Calendario.dc.html` draws a `linear-gradient`, which rule 2 makes
+non-authoritative. Filed as `#370` and corrected at source.
 
 **Every sentence below changes an implementation choice.** Nothing here is advice.
 
@@ -465,7 +468,7 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 
 **The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. It is now `#946A00` at **hue 81.2**, which clears the accent by **36.4 degrees**, measures 4.66:1 on `#FAFAFA` and carries white at 4.86:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
 
-**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** `design/reference.html` never repoints it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. The page is incomplete here rather than authoritative, so the floor decides.
+**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** Nothing repointed it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. That is a gap to close rather than authoritative, so the floor decides.
 
 ### Measured contrast, and three limits that are open
 
@@ -725,7 +728,7 @@ Grabber (mobile presentation only) · header (title, optional description, close
 
 ### States
 
-All eight, by name: default · hover · focus · active · disabled · loading · error · empty. `design/reference.html` renders the overlay at **both short content and long content**, so the sizing and scroll rules are visible rather than described.
+All eight, by name: default · hover · focus · active · disabled · loading · error · empty. The canvas draws the overlay at **both short content and long content** in `design/canvas/Orbit Sobreposicoes.dc.html`, so the sizing and scroll rules are visible rather than described.
 
 ## Buttons
 

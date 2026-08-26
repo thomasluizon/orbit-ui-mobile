@@ -81,8 +81,9 @@ C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile\design
 ```
 
 Take it from a working tree on `redesign/main`. It is real frontend code, it is small, and every byte
-in it belongs to the new system. It carries `reference.html`, which is the rendered authority, and
-`brand/`, which carries the mark, the glyph and the three type families.
+in it belongs to the new system. It carries the granted canvas under `canvas/`, whose authority is
+subject to the D42 ladder in `DESIGN.md`, and `brand/`, which carries the mark, the glyph and the
+three type families. The old `superseded/reference.html` is historical and carries no authority.
 
 Confirm the branch before you drag, because the folder path is identical on every branch:
 
@@ -103,8 +104,9 @@ has no Figma export, so one will not appear from this work either. Skip the fiel
 
 Drag these 9 files. Every path is relative to `design/brand/`.
 
-**Type, 3 files.** Upload the TTF files, never the `woff2` data inside `reference.html`. Those are
-subsets and do not carry the whole character set, which breaks pt-BR copy.
+**Type, 3 files.** Upload the TTF files, never the `woff2` data inside
+`superseded/reference.html`. Those are subsets and do not carry the whole character set, which
+breaks pt-BR copy.
 
 ```
 fonts/Geist[wght].ttf
@@ -140,17 +142,18 @@ mark itself, not a 28 box (`DESIGN.md:269`), the 12 separates ink from ink rathe
 boxes, and the viewBox is exactly the ink, so the file carries no baked margin. Its wordmark is Space Grotesk 600 converted to outlines, so it needs no font at render
 time and carries no `<text>`.
 
-Every file paints with `fill="currentColor"` and none carries a hex. Upload them as they are.
+Every SVG file paints with `fill="currentColor"` and none carries a hex. Upload them as they are.
 
-**Raster: none.** No PNG set exists. `#80` owns the app icons, store graphics, OG images, splash and
-notification icon, and it derives them from the two files above.
+**Raster exports live in `png/`.** `#80` added the canonical 16, 48, 128 and 512 mark sizes plus the
+512 platform icon, and derives them together with the app icons, store graphics, OG images, splash
+and notification icon through `node tools/generate-brand-assets.mjs --write`.
 
 **Do not look for the nine files an earlier revision of this document listed.** `mark-24-neutral.svg`,
 `mark-16.svg`, `astra-24.svg`, `lockup-horizontal-neutral.svg`, `icon-512-orange.svg` and the four
-`png/` files were the drafts PR #735 shipped to make the accent decidable. Every one of them is
-deleted and `png/` no longer exists. Their replacements ship under different names, listed above:
-`#365` built the native 16px redraw, the horizontal lockup and the accent treatment, and none of them
-reuses a draft filename. It did NOT build a 24 grid variant, because `DESIGN.md:267` forbids one.
+`png/` files were the drafts PR #735 shipped to make the accent decidable. Every one of those draft
+files is deleted. `png/` exists again only for the generated exports listed in `README.md`, and none
+reuses a draft filename. `#365` built the native 16px redraw, the horizontal lockup and the accent
+treatment. It did NOT build a 24 grid variant, because `DESIGN.md:267` forbids one.
 
 **Expect the mark to render BLACK in an upload preview, not near white.** `currentColor` resolves
 against the SVG document's own root when the file is loaded as an image, and that document sets no
