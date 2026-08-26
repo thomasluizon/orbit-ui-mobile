@@ -3,6 +3,7 @@ import { Animated } from 'react-native'
 import {
   captureRouteProbeId,
   resolveCapturePreferences,
+  shouldExposeOnboardingRoute,
 } from '@/lib/capture-mode'
 import {
   pinCaptureAnimationDurations,
@@ -37,6 +38,13 @@ describe('mobile capture mode', () => {
     expect(
       resolveCapturePreferences(true, { captureLocale: 'en' }),
     ).toBeNull()
+  })
+
+  it('keeps first-run onboarding out of capture builds so deep links remain authoritative', () => {
+    expect(shouldExposeOnboardingRoute(true, false, false)).toBe(false)
+    expect(shouldExposeOnboardingRoute(false, false, false)).toBe(true)
+    expect(shouldExposeOnboardingRoute(false, true, false)).toBe(false)
+    expect(shouldExposeOnboardingRoute(false, false, true)).toBe(false)
   })
 
   it('identifies colliding root routes by their router group', () => {

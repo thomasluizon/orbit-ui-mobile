@@ -37,6 +37,14 @@ export function resolveCapturePreferences(
   return { locale, theme }
 }
 
+export function shouldExposeOnboardingRoute(
+  captureEnabled: boolean,
+  isAuthenticated: boolean,
+  onboardingLocallyDone: boolean,
+): boolean {
+  return !captureEnabled && !isAuthenticated && !onboardingLocallyDone
+}
+
 export function captureRouteProbeId(
   pathname: string,
   topSegment: string | undefined,

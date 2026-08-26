@@ -62,6 +62,7 @@ import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
   captureBuildEnabled,
   captureRouteProbeId,
+  shouldExposeOnboardingRoute,
 } from '@/lib/capture-mode'
 
 const SLIDE_FROM_RIGHT_SCREENS = [
@@ -99,7 +100,13 @@ function RootStackScreens({
         contentStyle: { backgroundColor: screenBackgroundColor },
       }}
     >
-      <Stack.Protected guard={!isAuthenticated && !onboardingLocallyDone}>
+      <Stack.Protected
+        guard={shouldExposeOnboardingRoute(
+          captureBuildEnabled,
+          isAuthenticated,
+          onboardingLocallyDone,
+        )}
+      >
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
