@@ -204,8 +204,8 @@ export function processInvocation(
   if (platform !== "win32" || !/\.(?:bat|cmd)$/i.test(command)) return { command, args }
   const escapedArgs = args.map((value) => {
     const text = String(value)
-    if (/[\0\r\n"%!]/u.test(text)) {
-      throw new Error("Windows batch arguments cannot contain NUL, newlines, quotes, percent signs, or exclamation marks")
+    if (/[\0\r\n"]/u.test(text)) {
+      throw new Error("Windows batch arguments cannot contain NUL, newlines, or quotes")
     }
     // Windows PowerShell does not quote native arguments that contain `=` or `&` but no spaces when
     // the target is a batch file. Literal quote characters force its cmd.exe bridge to preserve the

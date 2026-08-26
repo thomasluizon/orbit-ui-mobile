@@ -41,9 +41,10 @@ const captureSurfacesMobileCases = () => {
   )
 
   const windowsDeepLink = "orbit://login?captureTheme=dark&captureLocale=pt-BR"
+  const windowsFlowPath = "C:\\captures\\100%!ready\\flow.yaml"
   const windowsInvocation = processInvocation(
     "C:\\Program Files\\Maestro\\maestro.cmd",
-    ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, "flow.yaml"],
+    ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath],
     { platform: "win32", powerShell: "powershell.exe" },
   )
   T(
@@ -51,7 +52,8 @@ const captureSurfacesMobileCases = () => {
     windowsInvocation.command === "powershell.exe" &&
       windowsInvocation.args.includes("-EncodedCommand") &&
       JSON.parse(windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENTS)[2] ===
-        `"CAPTURE_LINK=${windowsDeepLink}"`,
+        `"CAPTURE_LINK=${windowsDeepLink}"` &&
+      JSON.parse(windowsInvocation.env.ORBIT_MOBILE_CAPTURE_ARGUMENTS)[3] === `"${windowsFlowPath}"`,
     JSON.stringify(windowsInvocation),
   )
 
@@ -59,10 +61,10 @@ const captureSurfacesMobileCases = () => {
     const batchProbe = join(root, "mobile-capture-argv-probe.cmd")
     // Keep the expansion quoted inside the probe too. An unquoted `%~3` would let cmd.exe parse the
     // successfully delivered ampersand a second time while executing the diagnostic echo itself.
-    writeFileSync(batchProbe, "@echo off\r\necho [\"%~3\"]\r\n")
+    writeFileSync(batchProbe, "@echo off\r\necho [\"%~3\"]\r\necho [\"%~4\"]\r\n")
     const probeInvocation = processInvocation(
       batchProbe,
-      ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, "flow.yaml"],
+      ["test", "-e", `CAPTURE_LINK=${windowsDeepLink}`, windowsFlowPath],
     )
     const probe = spawnSync(probeInvocation.command, probeInvocation.args, {
       encoding: "utf8",
@@ -70,8 +72,9 @@ const captureSurfacesMobileCases = () => {
       shell: false,
     })
     T(
-      "the real Windows command processor preserves the deep link ampersand",
-      probe.status === 0 && probe.stdout.trim() === `["CAPTURE_LINK=${windowsDeepLink}"]`,
+      "the real Windows command processor preserves ampersands, percent signs, and exclamation marks",
+      probe.status === 0 &&
+        probe.stdout.trim() === `["CAPTURE_LINK=${windowsDeepLink}"]\r\n["${windowsFlowPath}"]`,
       JSON.stringify({ status: probe.status, stdout: probe.stdout, stderr: probe.stderr }),
     )
   }
