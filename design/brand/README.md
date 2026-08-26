@@ -129,5 +129,6 @@ other weight is legal.
    axis to **300**. `DESIGN.md` bans weights below 300 and loads only 500 and 600, so any tool that
    takes the default instance renders the wrong weight. Set 500 or 600 by hand and check it.
 
-The three `woff2` files inside `design/reference.html` are **subsets**, so they do not carry the whole
-character set. Use the TTF files here for anything that renders new copy, and keep pt-BR in mind.
+The three `woff2` files inside `design/superseded/reference.html` are **subsets**, so they do not
+carry the whole character set. That page is historical and has no design authority. Use the TTF
+files here for anything that renders new copy, and keep pt-BR in mind.
