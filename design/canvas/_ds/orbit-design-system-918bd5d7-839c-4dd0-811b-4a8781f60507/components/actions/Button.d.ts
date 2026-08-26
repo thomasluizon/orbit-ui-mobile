@@ -23,7 +23,7 @@ interface ButtonBase {
 /** The ordinary button: its visible text is its accessible name. */
 export interface LabelledButtonProps extends ButtonBase {
   /** the visible label, which names the control */
-  children: any;
+  children: string;
   iconOnly?: never;
   label?: never;
 }
