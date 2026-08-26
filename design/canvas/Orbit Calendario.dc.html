@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" plans="{{ planAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Calendario" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" composer="{{ composer }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:16px">
+
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+              <p style="font-family:var(--font-display);font-size:var(--fs-2xl);line-height:1.15;font-weight:500;letter-spacing:-0.02em">{{ monthName }}</p>
+              <p data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.4;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ yearLabel }}</p>
+            </div>
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+            </x-import>
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+            </x-import>
+          </div>
+
+          {{ viewSwitch }}
+          {{ viewBody }}
+
+          <sc-if value="{{ showError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ errorMessage }}" action="{{ errorAction }}" hint-size="100%,200px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ showGrid }}" hint-placeholder-val="{{ true }}">
+            <sc-if value="{{ showGridLoading }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="grid" rows="{{ skRows }}" cols="{{ n7 }}" cell="{{ n44 }}" gap="4px" label="{{ loadingLabel }}" hint-size="100%,300px"></x-import>
+            </sc-if>
+            <sc-if value="{{ showMonthGrid }}" hint-placeholder-val="{{ true }}">
+              <div onPointerDown="{{ swipeDown }}" onPointerUp="{{ swipeUp }}" style="touch-action:pan-y">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.MonthGrid" weekday-labels="{{ weekdays }}" label="{{ gridLabel }}" gap="4px" hint-size="100%,320px">
+                <sc-for list="{{ cells }}" as="c" hint-placeholder-count="35">
+                  <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayCell" day="{{ c.d0 }}" outside-month="{{ true }}" words="{{ cellWords }}" hint-size="44px,44px"></x-import>
+                  </sc-if>
+                  <sc-if value="{{ c.future }}" hint-placeholder-val="{{ false }}">
+                    <span role="img" aria-label="{{ c.aria }}" style="width:44px;height:44px;display:grid;place-items:center">
+                      <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-4)">{{ c.d }}</span>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ c.canLog }}" hint-placeholder-val="{{ false }}">
+                    <span style="{{ c.wrap }}">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayCell" day="{{ c.d }}" done="{{ c.done }}" scheduled="{{ c.sched }}" today="{{ c.today }}" label="{{ c.label }}" words="{{ cellWords }}" loggable="{{ true }}" on-press="{{ c.tap }}" hint-size="44px,44px"></x-import>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ c.stated }}" hint-placeholder-val="{{ true }}">
+                    <span style="{{ c.wrap }}">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayCell" day="{{ c.d }}" done="{{ c.done }}" scheduled="{{ c.sched }}" today="{{ c.today }}" label="{{ c.label }}" words="{{ cellWords }}" hint-size="44px,44px"></x-import>
+                    </span>
+                  </sc-if>
+                </sc-for>
+              </x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showLegend }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-wrap:wrap;gap:12px">
+                <sc-for list="{{ legend }}" as="g" hint-placeholder-count="4">
+                  <span style="display:flex;align-items:center;gap:6px">
+                    <span aria-hidden="true" style="{{ g.swatch }}"></span>
+                    <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3)">{{ g.word }}</span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            {{ recToggle }}
+            <sc-if value="{{ showEmptyLine }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+                <p style="font-size:var(--fs-md);line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ emptyLine }}</p>
+                <sc-if value="{{ showEmptyAction }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" size="sm" on-click="{{ noop }}" hint-size="auto,40px">{{ createLabel }}</x-import>
+                </sc-if>
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <sc-if value="{{ showDay }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:16px;padding:16px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <p style="font-size:var(--fs-lg);line-height:1.3;font-weight:500">{{ dayTitle }}</p>
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.4;color:var(--fg-3)">{{ daySummary }}</p>
+              </div>
+
+              <sc-if value="{{ dayLoggable }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                  <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CheckRow" label="{{ r.label }}" value="{{ r.time }}" checked="{{ r.done }}" on-change="{{ r.toggle }}" hint-size="100%,52px"></x-import>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ dayReadOnly }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                  <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ r.label }}" value="{{ r.valueText }}" trailing="{{ r.ring }}" read-only="{{ true }}" hint-size="100%,52px"></x-import>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ dayNothing }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:var(--fs-sm);line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ nothingLine }}</p>
+              </sc-if>
+
+              {{ goDayRow }}
+              <sc-if value="{{ hasEvents }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2);line-height:1.4">{{ eventsTitle }}</p>
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <sc-for list="{{ events }}" as="e" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EventRow" time="{{ e.time }}" title="{{ e.title }}" source="{{ e.source }}" hint-size="100%,52px"></x-import>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              {{ syncLine }}
+              <sc-if value="{{ showPaywall }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ paywallMessage }}" body="{{ paywallBody }}" action="{{ paywallAction }}" hint-size="100%,120px"></x-import>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showDaySkeleton }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n5 }}" label="{{ loadingLabel }}" hint-size="100%,270px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="calendario" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:24px">
+
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px">
+                <p style="font-family:var(--font-display);font-size:var(--fs-2xl);line-height:1.15;font-weight:500;letter-spacing:-0.02em">{{ monthName }}</p>
+                <p data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-sm);line-height:1.4;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ yearLabel }}</p>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+              </x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+              </x-import>
+            </div>
+
+            {{ viewSwitch }}
+            {{ viewBody }}
+
+            <sc-if value="{{ showError }}" hint-placeholder-val="{{ false }}">
+              <div style="max-width:420px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ errorMessage }}" action="{{ errorAction }}" hint-size="100%,200px"></x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showSplit }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:flex-start;gap:24px">
+
+                <div style="flex:0 0 auto;width:368px;display:flex;flex-direction:column;gap:24px">
+                  <sc-if value="{{ showGrid }}" hint-placeholder-val="{{ true }}">
+                    <sc-if value="{{ showGridLoading }}" hint-placeholder-val="{{ false }}">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="grid" rows="{{ skRows }}" cols="{{ n7 }}" cell="{{ n44 }}" gap="4px" label="{{ loadingLabel }}" hint-size="100%,300px"></x-import>
+                    </sc-if>
+                    <sc-if value="{{ showMonthGrid }}" hint-placeholder-val="{{ true }}">
+                      <div onPointerDown="{{ swipeDown }}" onPointerUp="{{ swipeUp }}" style="touch-action:pan-y">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.MonthGrid" weekday-labels="{{ weekdays }}" label="{{ gridLabel }}" gap="4px" hint-size="100%,320px">
+                        <sc-for list="{{ cells }}" as="c" hint-placeholder-count="35">
+                          <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayCell" day="{{ c.d0 }}" outside-month="{{ true }}" words="{{ cellWords }}" hint-size="44px,44px"></x-import>
+                          </sc-if>
+                          <sc-if value="{{ c.future }}" hint-placeholder-val="{{ false }}">
+                            <span role="img" aria-label="{{ c.aria }}" style="width:44px;height:44px;display:grid;place-items:center">
+                              <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-4)">{{ c.d }}</span>
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ c.canLog }}" hint-placeholder-val="{{ false }}">
+                            <span style="{{ c.wrap }}">
+                              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayCell" day="{{ c.d }}" done="{{ c.done }}" scheduled="{{ c.sched }}" today="{{ c.today }}" label="{{ c.label }}" words="{{ cellWords }}" loggable="{{ true }}" on-press="{{ c.tap }}" hint-size="44px,44px"></x-import>
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ c.stated }}" hint-placeholder-val="{{ true }}">
+                            <span style="{{ c.wrap }}">
+                              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayCell" day="{{ c.d }}" done="{{ c.done }}" scheduled="{{ c.sched }}" today="{{ c.today }}" label="{{ c.label }}" words="{{ cellWords }}" hint-size="44px,44px"></x-import>
+                            </span>
+                          </sc-if>
+                        </sc-for>
+                      </x-import>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ showLegend }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;flex-wrap:wrap;gap:12px">
+                        <sc-for list="{{ legend }}" as="g" hint-placeholder-count="4">
+                          <span style="display:flex;align-items:center;gap:6px">
+                            <span aria-hidden="true" style="{{ g.swatch }}"></span>
+                            <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3)">{{ g.word }}</span>
+                          </span>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    {{ recToggle }}
+            <sc-if value="{{ showEmptyLine }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+                        <p style="font-size:var(--fs-md);line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ emptyLine }}</p>
+                        <sc-if value="{{ showEmptyAction }}" hint-placeholder-val="{{ false }}">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ filled }}" size="sm" on-click="{{ noop }}" hint-size="auto,40px">{{ createLabel }}</x-import>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                  </sc-if>
+
+                  <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:24px">
+                  <sc-if value="{{ showDay }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
+                      <div style="display:flex;flex-direction:column;gap:2px">
+                        <p style="font-size:var(--fs-lg);line-height:1.3;font-weight:500">{{ dayTitle }}</p>
+                        <p style="font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.4;color:var(--fg-3)">{{ daySummary }}</p>
+                      </div>
+
+                      <sc-if value="{{ dayLoggable }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                          <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CheckRow" label="{{ r.label }}" value="{{ r.time }}" checked="{{ r.done }}" on-change="{{ r.toggle }}" hint-size="100%,52px"></x-import>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ dayReadOnly }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                          <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ r.label }}" value="{{ r.valueText }}" trailing="{{ r.ring }}" read-only="{{ true }}" hint-size="100%,52px"></x-import>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ dayNothing }}" hint-placeholder-val="{{ false }}">
+                        <p style="font-size:var(--fs-sm);line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ nothingLine }}</p>
+                      </sc-if>
+
+                      {{ goDayRow }}
+              <sc-if value="{{ hasEvents }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                          <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2);line-height:1.4">{{ eventsTitle }}</p>
+                          <div style="display:flex;flex-direction:column;gap:4px">
+                            <sc-for list="{{ events }}" as="e" hint-placeholder-count="2">
+                              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EventRow" time="{{ e.time }}" title="{{ e.title }}" source="{{ e.source }}" hint-size="100%,52px"></x-import>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-if>
+
+                      {{ syncLine }}
+              <sc-if value="{{ showPaywall }}" hint-placeholder-val="{{ false }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ paywallMessage }}" body="{{ paywallBody }}" action="{{ paywallAction }}" hint-size="100%,120px"></x-import>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ showDaySkeleton }}" hint-placeholder-val="{{ false }}">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n5 }}" label="{{ loadingLabel }}" hint-size="100%,270px"></x-import>
+                  </sc-if>
+                </div>
+
+              </div>
+            </sc-if>
+
+          </div>
+        </x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Calendário answers where the time actually went. Four views of one content, the shipping four (page.tsx:56): month, week, range and agenda, switched with SegmentedControl because they are views of the same thing. It is an orientation view and a way to fix one specific day, not a second habit list: one ring per day, never one ring per habit per day, and the only loggable list on the screen belongs to the selected day in the month view.</p>
+      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>week lays the week against the clock (calendar-week-view.tsx over calendar-time-grid.tsx): a habit with a due time sits at its hour inside its day column, and a habit with none sits in the any-time strip above the clock, never at an invented hour; future day columns dim and hour marks follow the clock setting. Range has its own header (page.tsx:324): a fourteen day span stated as two dates, paged as a span, its days as read only cells with the three figures computed over the same span. Agenda lists the days ahead with each day’s habits read only. The agenda is drawn at BOTH widths: the shipping build gates it to desktop (page.tsx:77 folds it back to month below the breakpoint, :259 pushes the tab only when isDesktop), and that gate is a parity defect the code should lose, because the parity contract allows navigation chrome, the palette and hover affordances, and a whole view is none of those. The recurring toggle (show-recurring-toggle.tsx) is a real switch deciding whether recurring habits appear at all; every habit in this fixture recurs, so turning it off empties the month honestly rather than hiding what the switch means. Paging works by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages the month.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>loading, month, week, range, agenda, a month with nothing in it, error, the read only day, and the selected day with its habits and its imported events. A plan axis sits beside the state, free or Pro, defaulting to free; the old sync boundary state came off the axis because the boundary is the free side of the plan, not a state of the month. Reached by using the screen: the views through the switcher, paging by swipe as well as by the chevrons, the recurring toggle, and the day route out. A day is always selected in the month view, opening on today.</p>
+      <p><span style="color:var(--fg-3)">ring&nbsp;&nbsp;</span>the month response is a list of habits and a dictionary of logs, with no per day status in it, so every ring here is arithmetic done on the device, from one count per day that the cell, the month figures and the day panel all read. Logging a habit on the open day moves its arc, turns the cell to the full disc when the last one lands, and moves both figures with it. Nothing on the screen speaks as if the server judged the day: the labels count, they do not rank, and no cell carries a word like good or bad. Four shapes carry the four outcomes and colour only reinforces them: no ring at all for a day with nothing scheduled, a hollow ring for a day with nothing logged, a partial arc for a day part done, and a filled neutral disc for a day fully logged. The arc sweeps the exact completed over scheduled proportion and is never rounded: a ring can draw any angle, so rounding would buy no legibility and would lose the difference between one of three and two of three. The legend lists the three marks and the loggable well; it does not list the day with nothing scheduled, because that day carries no mark and a swatch for it would be an empty circle explaining an absence. Completion is neutral, so the full day is fg-1 and the accent is spent on the unfinished arc. The cells take the raw done and scheduled counts, and DayCell derives both the outcome and the exact fraction, so a hand computed outcome cannot drift from the arc.</p>
+      <p><span style="color:var(--fg-3)">excluded&nbsp;&nbsp;</span>a habit with no schedule never appears, and the log dictionary is built for top level habits only, so a sub habit's completion never reaches a cell. No cell claims to summarise what is inside a habit, and the selected day lists top level habits only for the same reason.</p>
+      <p><span style="color:var(--fg-3)">day&nbsp;&nbsp;</span>the selected day panel carries the completion summary line (calendar-day-detail.tsx:116), its own no habits line (:106), and a route out: goToDay (:241) opens that day on Hoje, drawn as the row that leaves for the Hoje document. A habit to avoid speaks its own vocabulary on a day (:74-79): a completed one reads cedeu and a missed one reads resistiu, against feito and sem registro for an ordinary habit, so the panel never says the opposite of what the app says; the word rides beside the time and the ring, never colour alone. The read only rows now carry their ring in ListRow’s trailing slot, whose contract names this exact case, the ring as the row’s passenger.</p>
+      <p><span style="color:var(--fg-3)">boundary&nbsp;&nbsp;</span>only the last seven days can be logged, and the type now enforces it: a loggable day is a DayCell button that requires onPress, every other day is role img and rejects one, so a dead handler is a type error rather than a discipline this document remembers. The window is stated before anything is tapped: the seven loggable cells sit on a raised well, a read only cell carries its outcome in its accessible name, and the legend names the difference. The read only day panel shows what happened with no completion control, no error and no explanation, because nothing failed and nothing is being refused. Navigation is not bounded: paging back and forward is free, since the restriction is on writing.</p>
+      <p><span style="color:var(--fg-3)">settings&nbsp;&nbsp;</span>the week start and the clock are the person's own settings, resolved on the server, so neither is assumed. The grid rotates to the week start rather than hardcoding Monday, and every time on the screen is formatted by the clock setting rather than fixed to 24 hours. Both are drawn as tweaks so either can be checked.</p>
+      <p><span style="color:var(--fg-3)">freeze&nbsp;&nbsp;</span>no freeze is drawn here. A freeze marks a user day and the history the API serves reaches back thirty days, while this grid pages back much further, so a marker would appear on recent cells and vanish on older months: the same day would tell two different stories depending on when it was opened. Freezes live on Progresso, which is always inside that window.</p>
+      <p><span style="color:var(--fg-3)">events&nbsp;&nbsp;</span>imported Google events sit beside the day's habits rather than behind a sync surface, so the integration is visible by existing. They are read only here, they carry the calendar glyph and their source is named on the row, so an event is never mistaken for a habit.</p>
+      <p><span style="color:var(--fg-3)">pro&nbsp;&nbsp;</span>calendar sync is Pro (D70 item 4) and both sides are drawn. Free gets the boundary in the place the events would sit: neutral tokens, one line naming what it is, one action that leaves for Orbit Pro, nothing disabled and no habit data withheld. Pro gets the imported events beside the day’s habits, the connection line, the last sync time and the auto sync switch: googleCalendarAutoSyncEnabled, googleCalendarAutoSyncStatus, googleCalendarLastSyncedAt and hasGoogleConnection are all real fields (profile.ts:52-54,38). The status vocabulary is the app’s own, so the line states the connection and the time rather than inventing status words.</p>
+      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>the grid loads as Skeleton's grid variant, held at the same seven columns, 44 cell and 4 gap, so the cells land without reflow and there is no spinner; the weekday header arrives with the month. The tiles use the component's own loading state, and the day panel is a shaped list of the same height as the real one.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>a month with nothing scheduled still draws its dates and still pages, because the dates are real and only the rings are missing, so the chrome does not change shape on an account with no habits. The line sits inside the grid group where the legend would be, rather than replacing the grid, and the legend drops because there is no mark to explain. The tiles state no data rather than zero, since zero would claim a measurement was taken, and one line plus one action offers the way out. A month ahead of today borrows the same treatment with no action, since nothing there can be created into the past.</p>
+      <p><span style="color:var(--fg-3)">rate&nbsp;&nbsp;</span>the three figures are the shipping three (page.tsx:244-251): best streak, total logs, missed, all computed on the device from the same per day counts the rings read, over the days that had something scheduled, up to and including today. The month rate this document used to draw is not among them and is gone from this screen; the reasoning about what window a month rate covers, counting only scheduled days and only lived days, stays recorded here for the surfaces that actually render one, like the habit detail’s 30 day rate.</p>
+      <p><span style="color:var(--fg-3)">tiles&nbsp;&nbsp;</span>three tiles, three columns, labels short enough to hold one line in Portuguese, which is the longer locale. Values are tabular, so the tiles align on their own baseline regardless of digits. The range view computes the same three over its own span.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 is the cell and the touch token, the ring inside it is 34, and the grid gap is 4 so a week reads as a run rather than seven separate objects.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells and event rows, 20 on the day panel and the tiles, 28 on the shell, 999 on the cells and interactive.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position is the Calendário tab, today's ring and the selected cell, which takes the same tint and ring the day pills use elsewhere; unfinished progress is the partial arc; the composer keeps its focus and send. In the ordinary state there is no filled action at all, which is correct for a view whose job is orientation, and the two states that need one, the empty month and the sync boundary, carry exactly one. Wide: the sidebar create is the one filled action, so those two step down to the neutral fg-1 fill.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The day number on a full cell is the canvas colour on fg-1, which is the same pairing the done disc uses elsewhere. fg-4 carries only the future numbers and the weekday header, both on the canvas, and no state depends on it alone.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>data-mock rides the year, both tile values and the read only day's times. Day numerals render inside DayCell, the loggable day's times inside CheckRow and event times inside EventRow, which take plain strings, so those carry no marker until the components take a node. Base date Monday 17 August 2026, which puts the loggable window on the 11th to the 17th. The two tile figures are computed from the same per day count the rings read. A past month is generated from the same weekday shape the current month's fixture follows, so paging back shows a fully lived month rather than a repeat of this one.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 one ring per day, and no cell asserts anything the month response does not carry. 2 whether a day can be logged is visible before it is tapped, and a day that cannot be logged is not a control at all. 3 no freeze appears on a surface that can page outside the freeze window.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried CanvasControls’ plans axis and ListRow’s trailing slot, so nothing was re-synced, the fourth consecutive check that needed none. One stale claim in this paragraph is corrected: it said neither ListRow nor DayCell has a trailing status slot, and ListRow HAS one whose contract names this exact case, so the read only ring now rides it rather than the value slot. Still composed around the system: 1 DayCell has no selected treatment, so the selected day’s tint and ring ride a wrapper span, selection being the screen’s state rather than the day’s. 2 DayCell states loggability through control affordances a phone cannot show before touch, so the raised well behind the seven loggable cells rides the same wrapper and the legend still names it. 3 DayCell has no future variant in the loggable union here, so the future numeral stays composed in the month grid. 4 the week’s clock grid, the any-time strip and the agenda’s day groups are composed, since no time grid or agenda component exists. 5 the sync line is composed from a well, the refresh glyph and a Switch.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>the schedule read returns instances 90 days ahead, so paging forward runs out of schedule after three months, and whether the chevron should stop there is a product call and is not drawn. The values googleCalendarAutoSyncStatus can carry are the app’s, so the sync line states the connection and the last time rather than drawing a status ladder it cannot name. The range span is drawn at fourteen days; the shipping range view’s own span controls live in its header, and their exact vocabulary is the app’s.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;weekStart&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;monday&quot;,&quot;sunday&quot;],&quot;default&quot;:&quot;monday&quot;,&quot;tsType&quot;:&quot;'monday' | 'sunday'&quot;,&quot;section&quot;:&quot;Configuração da pessoa&quot;},&quot;clock&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;24h&quot;,&quot;12h&quot;],&quot;default&quot;:&quot;24h&quot;,&quot;tsType&quot;:&quot;'24h' | '12h'&quot;,&quot;section&quot;:&quot;Configuração da pessoa&quot;},&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+/* Monday 17 August 2026. 1 August 2026 is a Saturday. */
+const YEAR = 2026, MONTH = 7, TODAY = 17, WINDOW = 7;
+/* Scheduled occurrences per weekday, Sunday first: the shape the current month's fixture follows. */
+const SCHED_BY_DOW = [0, 5, 5, 5, 5, 5, 3];
+/* A past month is fully lived, so every scheduled day in it carries a completion count. */
+const PAST_LOG = [5, 4, 5, 3, 5, 5, 2, 5, 4, 5];
+/* [scheduled, logged] per day of the current month up to today. Nothing here is a status. */
+const FIX = [null, [3, 3], [0, 0], [5, 5], [5, 4], [5, 5], [5, 2], [5, 0], [3, 3], [0, 0], [5, 5],
+  [5, 5], [5, 3], [5, 5], [5, 1], [3, 0], [0, 0], [5, 3]];
+
+const HABITS = [
+  { pt: 'Água da manhã', en: 'Morning water', t: '07:00' },
+  { pt: 'Rotina da casa', en: 'House routine', t: '09:00' },
+  { pt: 'Caminhada', en: 'Walk', t: '18:00' },
+  { pt: 'Alongamento', en: 'Stretching', t: '21:00' },
+  /* A habit to avoid: on a day it speaks its own vocabulary (calendar-day-detail.tsx:74-79). */
+  { pt: 'Doce depois do jantar', en: 'Sweets after dinner', t: '20:00', bad: true },
+];
+/* One habit with no due time: on the week's clock it sits in the any-time strip, never at an hour. */
+const UNTIMED = { pt: 'Violão', en: 'Guitar', days: [2, 4, 6] };
+const EVENTS = {
+  17: [{ t: '10:00', pt: 'Reunião de equipe', en: 'Team meeting' }, { t: '15:30', pt: 'Dentista', en: 'Dentist' }],
+  6: [{ t: '08:30', pt: 'Consulta', en: 'Appointment' }],
+};
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
+    dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    prev: 'Mês anterior', next: 'Mês seguinte',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    grid: 'Dias do mês',
+    legend: { none: 'nada programado', missed: 'nada registrado', partial: 'em parte', full: 'tudo registrado', live: 'pode registrar' },
+    ariaFuture: 'ainda não chegou',
+    ariaSelected: 'selecionado',
+    cellWords: { none: 'nada registrado', partial: 'em parte', full: 'tudo registrado',
+      notScheduled: 'nada programado', future: 'ainda não chegou', of: 'de',
+      today: 'hoje', selected: 'selecionado', readOnly: 'somente leitura' },
+    today: 'Hoje',
+    summaryLogged: (a, b) => [mock(a), ' de ', mock(b), ' registrados'],
+    summaryNone: 'nada programado',
+    nothing: 'Nenhum hábito estava programado neste dia.',
+    events: 'Na sua agenda',
+    paywall: ['Sincronizar com o Google Calendar faz parte do Orbit Pro.', 'Com ele, os seus compromissos aparecem ao lado dos hábitos do dia.'],
+    paywallAction: 'Ver o Pro',
+    statDays: 'Dias completos', statRate: 'Taxa do mês',
+    emptyStat: 'sem dados',
+    emptyMonth: 'Nenhum hábito estava programado neste mês.',
+    futureMonth: 'Este mês ainda não chegou.',
+    loading: 'Carregando',
+    error: 'Não foi possível carregar o mês. Verifique a conexão e tente de novo.',
+    retry: 'Tentar de novo',
+    statusDone: 'feito', statusEmpty: 'sem registro',
+    statusIndulged: 'cedeu', statusResisted: 'resistiu',
+    viewLabel: 'Visualização',
+    views: { month: 'Mês', week: 'Semana', range: 'Período', agenda: 'Agenda' },
+    recLabel: 'Mostrar hábitos recorrentes',
+    statBest: 'Melhor sequência', statLogs: 'Registros', statMiss: 'Sem registro',
+    goDay: 'Abrir este dia no Hoje',
+    anytime: 'Sem hora certa',
+    syncOn: 'Google Calendar conectado', syncLast: (v) => ['Última sincronização ', mock(v)],
+    syncAuto: 'Sincronizar sozinho',
+    rangeLabel: (a, b) => [mock(a), ' a ', mock(b)],
+    rangePrev: 'Período anterior', rangeNext: 'Período seguinte',
+    agendaToday: 'Hoje',
+    swipeHint: 'Arraste para o lado para mudar o mês',
+    composerWords: {
+      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
+      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
+      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
+    },
+    chips: ['Registrar ontem', 'O que faltou nesta semana', 'Mudar os horários', 'Sincronizar a agenda'],
+  },
+  en: {
+    intl: 'en-GB', lang: 'en',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
+    dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    prev: 'Previous month', next: 'Next month',
+    navLabel: 'Main navigation', palette: 'Search',
+    grid: 'Days of the month',
+    legend: { none: 'nothing due', missed: 'nothing logged', partial: 'part done', full: 'all logged', live: 'can log' },
+    ariaFuture: 'not yet',
+    ariaSelected: 'selected',
+    cellWords: { none: 'nothing logged', partial: 'part done', full: 'all logged',
+      notScheduled: 'nothing due', future: 'not yet', of: 'of',
+      today: 'today', selected: 'selected', readOnly: 'read only' },
+    today: 'Today',
+    summaryLogged: (a, b) => [mock(a), ' of ', mock(b), ' logged'],
+    summaryNone: 'nothing due',
+    nothing: 'No habit was scheduled on this day.',
+    events: 'On your calendar',
+    paywall: ['Syncing with Google Calendar is part of Orbit Pro.', 'With it, your commitments show up beside the habits for the day.'],
+    paywallAction: 'See Pro',
+    statDays: 'Days complete', statRate: 'Month rate',
+    emptyStat: 'no data',
+    emptyMonth: 'No habit was scheduled in this month.',
+    futureMonth: 'This month has not arrived yet.',
+    loading: 'Loading',
+    error: 'We could not load the month. Check the connection and try again.',
+    retry: 'Try again',
+    statusDone: 'done', statusEmpty: 'not logged',
+    statusIndulged: 'indulged', statusResisted: 'resisted',
+    viewLabel: 'View',
+    views: { month: 'Month', week: 'Week', range: 'Range', agenda: 'Agenda' },
+    recLabel: 'Show recurring habits',
+    statBest: 'Best streak', statLogs: 'Logs', statMiss: 'Missed',
+    goDay: 'Open this day on Today',
+    anytime: 'No set time',
+    syncOn: 'Google Calendar connected', syncLast: (v) => ['Last synced ', mock(v)],
+    syncAuto: 'Sync on its own',
+    rangeLabel: (a, b) => [mock(a), ' to ', mock(b)],
+    rangePrev: 'Previous range', rangeNext: 'Next range',
+    agendaToday: 'Today',
+    swipeHint: 'Swipe sideways to change the month',
+    composerWords: {
+      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
+      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
+      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Astra comes back when the connection does.',
+    },
+    chips: ['Log yesterday', 'What slipped this week', 'Change the times', 'Sync my calendar'],
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'month', loc: 'pt-BR', plan: 'free',
+    sel: null, logs: {}, mOff: 0, view: 'month', recOn: true, autoSync: true, rngOff: 0 };
+
+  componentDidMount() {
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+    plan: next.plan || 'free',
+    sel: null, logs: {}, mOff: 0, recOn: true, autoSync: true, rngOff: 0,
+    view: (next.state === 'week' || next.state === 'range' || next.state === 'agenda') ? next.state : 'month' });
+  goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
+  goHoje = () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); };
+  /* Paging by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages. */
+  swipeDown = (e) => { this._sw = { x: e.clientX, y: e.clientY }; };
+  swipeUp = (e) => {
+    const sw = this._sw;
+    this._sw = null;
+    if (!sw) return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    this.setState((p) => ({ mOff: (p.mOff || 0) + (dx < 0 ? 1 : -1), sel: null }));
+  };
+
+  /* The clock is the person's setting, so no time is written in one format and read in another. */
+  fmt(t, h12) {
+    if (!h12) return t;
+    const p = t.split(':');
+    let h = parseInt(p[0], 10);
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + p[1] + ' ' + ap;
+  }
+
+  /* Scheduled occurrences for one day. An account with no habits schedules nothing in any month. */
+  schedFor(off, y, m, d) {
+    if (this._empty) return 0;
+    /* show-recurring-toggle.tsx: with recurring off, this fixture schedules nothing, because every
+       habit in it recurs; the grid empties honestly rather than hiding the toggle's meaning. */
+    if (!this.state.recOn) return 0;
+    if (off > 0) return 0;
+    if (off === 0) { const f = FIX[d]; return f ? f[0] : 0; }
+    return SCHED_BY_DOW[new Date(y, m, d).getDay()];
+  }
+
+  baseDone(off, y, m, d) {
+    const sched = this.schedFor(off, y, m, d);
+    if (!sched) return 0;
+    if (off === 0) { const f = FIX[d]; return f ? f[1] : 0; }
+    return Math.min(sched, PAST_LOG[(d - 1) % PAST_LOG.length]);
+  }
+
+  /* One done-count per day: the fixture plus whatever has been logged since. The ring, the month
+     figures and the panel all read this, so a log cannot move one and leave the others behind. */
+  doneFor(off, y, m, d) {
+    const sched = this.schedFor(off, y, m, d);
+    if (!sched) return 0;
+    const b = this.baseDone(off, y, m, d);
+    let n = 0;
+    for (let i = 0; i < sched; i++) {
+      const ov = this.state.logs[off + ':' + d + ':' + i];
+      if (ov != null ? ov : i < b) n += 1;
+    }
+    return n;
+  }
+
+  dayShape(off, y, m, d) {
+    if (off > 0 || (off === 0 && d > TODAY)) return { future: true };
+    const sched = this.schedFor(off, y, m, d);
+    const done = this.doneFor(off, y, m, d);
+    if (sched === 0) return { none: true, sched: 0, done: 0 };
+    if (done >= sched) return { full: true, sched: sched, done: done };
+    if (done === 0) return { hollow: true, sched: sched, done: 0 };
+    return { arc: true, sched: sched, done: done };
+  }
+
+  /* The week against the clock (calendar-week-view.tsx over calendar-time-grid.tsx): a habit with a
+     due time sits at its hour; a habit with none sits in the any-time strip, never on the clock. */
+  weekNode(t, h12, weekStart) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const H0 = 6, H1 = 23, PX = 26;
+    const monday = 17 - ((new Date(YEAR, MONTH, 17).getDay() - weekStart + 7) % 7);
+    const days = [];
+    for (let i = 0; i < 7; i++) days.push(monday + i);
+    const wide = s.width === 'wide';
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, maxWidth: wide ? 720 : undefined } },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, t.anytime),
+        H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+          H('span', { style: { height: 28, display: 'inline-flex', alignItems: 'center', paddingInline: 10,
+            borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', color: 'var(--fg-2)',
+            fontSize: 'var(--fs-xs)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } },
+            (t.lang === 'en' ? UNTIMED.en : UNTIMED.pt)))),
+      H('div', { style: { display: 'flex', gap: 2 } },
+        H('div', { style: { width: 34, flex: '0 0 auto', position: 'relative', height: (H1 - H0 + 1) * PX } },
+          [8, 12, 16, 20].map((hh) => H('p', { key: hh, style: { position: 'absolute', top: (hh - H0) * PX - 7,
+            insetInlineEnd: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-4)',
+            fontVariantNumeric: 'tabular-nums' } }, this.fmt(('0' + hh).slice(-2) + ':00', h12)))),
+        days.map((d, i) => {
+          const dow = new Date(YEAR, MONTH, d).getDay();
+          const schedCount = this.schedFor(0, YEAR, MONTH, d);
+          const future = d > TODAY;
+          return H('div', { key: i, style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+            H('p', { style: { textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+              color: d === TODAY ? 'var(--fg-1)' : 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' } },
+              t.dayShort[dow], ' ', mock(String(d))),
+            H('div', { style: { position: 'relative', height: (H1 - H0 + 1) * PX, background: 'var(--bg-card)',
+              borderRadius: 'var(--r-well)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)',
+              opacity: future ? 0.45 : 1 } },
+              HABITS.slice(0, schedCount).map((h, j) => {
+                const hh = parseInt(h.t.split(':')[0], 10);
+                const nm = t.lang === 'en' ? h.en : h.pt;
+                return H('div', { key: j, title: nm + ' \u00B7 ' + this.fmt(h.t, h12),
+                  style: { position: 'absolute', insetInline: 2, top: (hh - H0) * PX + 1, height: PX - 3,
+                    borderRadius: 6, background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                    display: 'flex', alignItems: 'center', paddingInline: 4, overflow: 'hidden' } },
+                  H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-2)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    fontVariantNumeric: 'tabular-nums' } },
+                    wide ? nm : mock(this.fmt(h.t, h12))));
+              })));
+        })));
+  }
+
+  /* The range view with its own header (page.tsx:324): a fourteen day span, paged as a span. */
+  rangeNode(t, weekStart) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const len = 14;
+    const end = TODAY + (s.rngOff || 0) * len;
+    const start = end - len + 1;
+    const fmtD = (d) => new Date(YEAR, MONTH, d).toLocaleDateString(t.intl, { day: 'numeric', month: 'short' });
+    const lead = ((new Date(YEAR, MONTH, start).getDay() - weekStart) + 7) % 7;
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push(H(D.DayCell, { key: 'p' + i, day: 0, outsideMonth: true, words: t.cellWords }));
+    for (let d = start; d <= end; d++) {
+      const inMonth = d >= 1 && d <= 31;
+      if (!inMonth) { cells.push(H(D.DayCell, { key: d, day: ((d + 30) % 31) + 1, outsideMonth: true, words: t.cellWords })); continue; }
+      const sh = this.dayShape(0, YEAR, MONTH, d);
+      const label = new Date(YEAR, MONTH, d).toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
+      if (sh.future) cells.push(H(D.DayCell, { key: d, day: d, outcome: 'future', words: t.cellWords, label: label }));
+      else cells.push(H(D.DayCell, { key: d, day: d, done: sh.done, scheduled: sh.sched,
+        today: d === TODAY, words: t.cellWords, label: label }));
+    }
+    let sched = 0, done = 0, bestRun = 0, run = 0;
+    for (let d = Math.max(1, start); d <= Math.min(end, TODAY); d++) {
+      const ds = this.schedFor(0, YEAR, MONTH, d);
+      if (!ds) { continue; }
+      const dn = this.doneFor(0, YEAR, MONTH, d);
+      sched += ds; done += dn;
+      if (dn > 0) { run += 1; if (run > bestRun) bestRun = run; } else run = 0;
+    }
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: s.width === 'wide' ? 420 : undefined } },
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+        H('p', { style: { flex: 1, minWidth: 0, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)',
+          color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' } }, H(F, null, t.rangeLabel(fmtD(Math.max(1, start)), fmtD(Math.min(31, end))))),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.rangePrev,
+          onClick: () => this.setState((p) => ({ rngOff: (p.rngOff || 0) - 1 })),
+          style: { width: 44, height: 44, paddingInline: 0 } }, H(D.Icon, { name: 'chevron-left', size: 20 })),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.rangeNext,
+          onClick: () => this.setState((p) => ({ rngOff: Math.min(0, (p.rngOff || 0) + 1) })),
+          style: { width: 44, height: 44, paddingInline: 0 } }, H(D.Icon, { name: 'chevron-right', size: 20 }))),
+      H(D.MonthGrid, { weekdayLabels: t.dayShort.slice(weekStart).concat(t.dayShort.slice(0, weekStart)),
+        label: t.views.range, gap: '4px' }, cells),
+      H('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 } },
+        H(D.StatTile, { label: t.statBest, value: mock(String(bestRun)) }),
+        H(D.StatTile, { label: t.statLogs, value: mock(String(done)) }),
+        H(D.StatTile, { label: t.statMiss, value: mock(String(Math.max(0, sched - done))) })));
+  }
+
+  /* The agenda: the days ahead as a list. Drawn at BOTH widths: the shipping desktop only gate
+     (page.tsx:77,:259) is a parity defect, not a sanctioned divergence. */
+  agendaNode(t, h12) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const out = [];
+    for (let d = TODAY; d < TODAY + 7 && d <= 31; d++) {
+      const schedCount = this.schedFor(0, YEAR, MONTH, d);
+      const date = new Date(YEAR, MONTH, d);
+      const head = (d === TODAY ? t.agendaToday + ', ' : '')
+        + date.toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
+      out.push(H('div', { key: d, style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } },
+          head.replace(/^./, (c) => c.toUpperCase())),
+        schedCount === 0
+          ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.summaryNone)
+          : H('div', { style: { marginInline: -16 } },
+              HABITS.slice(0, schedCount).map((h, i) => H(D.ListRow, { key: i,
+                title: t.lang === 'en' ? h.en : h.pt,
+                value: this.fmt(h.t, h12), readOnly: true })))));
+    }
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: s.width === 'wide' ? 560 : undefined } }, out);
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
+      stateAxis: ['loading', 'month', 'week', 'range', 'agenda', 'empty month', 'error', 'read only day', 'selected day'],
+      planAxis: ['free', 'Pro'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n7: 7, n16: 16, n20: 20, n24: 24, n44: 44, n5: 5, noop: () => {},
+      showReport: this.props.showReport !== false,
+      gridLabel: t.grid, loadingLabel: t.loading, createLabel: t.create,
+      cellWords: t.cellWords, navLabelWord: t.navLabel, paletteWord: t.palette,
+      statBestLabel: t.statBest, statLogsLabel: t.statLogs, statMissLabel: t.statMiss, emptyStat: t.emptyStat,
+      eventsTitle: t.events, nothingLine: t.nothing,
+      emptyLine: t.emptyMonth,
+    };
+    if (!D) return base;
+
+    const h12 = this.props.clock === '12h';
+    const weekStart = this.props.weekStart === 'sunday' ? 0 : 1;
+    const loading = st === 'loading';
+    const emptyMonth = st === 'empty month';
+    const error = st === 'error';
+    const readOnlyDay = st === 'read only day';
+    const pro = s.plan === 'Pro';
+    /* Calendar sync is Pro (D70 item 4): free draws the boundary where the events would sit, Pro
+       draws the events, the sync state and the last sync time. */
+    const paywall = !pro;
+    const view = s.view || 'month';
+    const isMonth = view === 'month';
+    const filled = s.width === '412' ? 'primary' : 'secondary';
+
+    /* Paging is free in both directions and stays free on an account with no habits: the dates are
+       real, so the chrome keeps its shape when the rings have nothing to draw. */
+    this._empty = emptyMonth;
+    const mOff = s.mOff || 0;
+    const first = new Date(YEAR, MONTH + mOff, 1);
+    const y = first.getFullYear(), m = first.getMonth();
+    const monthLen = new Date(y, m + 1, 0).getDate();
+    const isCurrent = mOff === 0, isPast = mOff < 0, isFuture = mOff > 0;
+    const sel = s.sel != null ? s.sel : (isCurrent ? (readOnlyDay ? 6 : TODAY) : isPast ? monthLen : 1);
+    const firstLog = TODAY - WINDOW + 1;
+    const selLive = isCurrent && sel >= firstLog && sel <= TODAY;
+    const selFuture = isFuture || (isCurrent && sel > TODAY);
+
+    const lead = (first.getDay() - weekStart + 7) % 7;
+    const weeks = Math.ceil((lead + monthLen) / 7);
+    /* DayCell derives the outcome and the exact arc from done/scheduled, and the seven day window is
+       the discriminated union: a loggable cell is a button requiring onPress, everything else is
+       role img and takes none. Selection and the loggable well are the screen's state, not the day's,
+       so both ride a wrapper around the cell. */
+    const cells = [];
+    if (!loading) {
+      for (let i = 0; i < lead; i++) cells.push({ pad: true, d0: 0 });
+      for (let d = 1; d <= monthLen; d++) {
+        const sh = this.dayShape(mOff, y, m, d);
+        const date = new Date(y, m, d);
+        const dateWords = date.toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
+        if (sh.future) { cells.push({ future: true, d: d, aria: dateWords + ', ' + t.ariaFuture }); continue; }
+        const live = isCurrent && d >= firstLog && d <= TODAY;
+        const isToday = isCurrent && d === TODAY;
+        const isSel = d === sel;
+        cells.push({
+          canLog: live, stated: !live, d: d,
+          done: sh.done, sched: sh.sched,
+          today: isToday,
+          label: dateWords + (isSel ? ', ' + t.ariaSelected : ''),
+          wrap: Object.assign({ position: 'relative', display: 'grid', placeItems: 'center',
+            width: 44, height: 44, borderRadius: 'var(--r-pill)' },
+            isSel ? { background: 'var(--primary-dim)', boxShadow: 'inset 0 0 0 2px var(--primary)' }
+              : live ? { background: 'var(--bg-well)' } : null),
+          tap: live ? () => this.setState({ sel: d }) : undefined,
+        });
+      }
+    }
+
+    const sw = (extra) => 'width:14px;height:14px;flex:0 0 auto;border-radius:var(--r-pill);' + extra;
+    /* Only the marks are listed. A day with nothing due carries no mark, so a swatch for it would be
+       an empty circle explaining an absence, and its own label already says so. */
+    const legend = [
+      { word: t.legend.full, swatch: sw('background:var(--fg-1)') },
+      { word: t.legend.partial, swatch: sw('box-shadow:inset 0 0 0 1.5px var(--status-empty);background:linear-gradient(90deg,var(--primary) 0 45%,transparent 45% 100%)') },
+      { word: t.legend.missed, swatch: sw('box-shadow:inset 0 0 0 1.5px var(--status-empty)') },
+      { word: t.legend.live, swatch: sw('background:var(--bg-well);box-shadow:inset 0 0 0 1px var(--hairline)') },
+    ];
+
+    /* The month rate: completions over scheduled OCCURRENCES, counting only days that had something
+       scheduled, up to and including today in the current month and the whole of a past month, since
+       every day in a past month has been lived. Days with nothing scheduled are not successes, and
+       days not yet lived are not failures, so neither enters the divisor. */
+    const lastCounted = isCurrent ? TODAY : isPast ? monthLen : 0;
+    let sched = 0, done = 0, bestRun = 0, run = 0;
+    for (let d = 1; d <= lastCounted; d++) {
+      const ds = this.schedFor(mOff, y, m, d);
+      if (!ds) continue;
+      const dn = this.doneFor(mOff, y, m, d);
+      sched += ds; done += dn;
+      if (dn > 0) { run += 1; if (run > bestRun) bestRun = run; } else run = 0;
+    }
+
+    const selShape = this.dayShape(mOff, y, m, sel);
+    const selDate = new Date(y, m, sel);
+    const selHabits = HABITS.slice(0, selShape.sched || 0);
+    const selBase = this.baseDone(mOff, y, m, sel);
+    const dayRows = selHabits.map((h, i) => {
+      const key = mOff + ':' + sel + ':' + i;
+      const on = s.logs[key] != null ? s.logs[key] : i < selBase;
+      const time = this.fmt(h.t, h12);
+      /* A habit to avoid speaks its own words on a day (calendar-day-detail.tsx:74-79): completed
+         reads indulged, missed reads resisted, against done and not logged for an ordinary habit. */
+      const word = h.bad ? (on ? t.statusIndulged : t.statusResisted) : (on ? t.statusDone : t.statusEmpty);
+      const ringStatus = h.bad ? (on ? 'bad' : 'done') : (on ? 'done' : 'empty');
+      return {
+        label: t.lang === 'en' ? h.en : h.pt,
+        time: h.bad ? time + ' \u00B7 ' + word : time, done: on,
+        valueText: H('span', null, mock(time), ' \u00B7 ', word),
+        /* ListRow's trailing slot is this exact case by its own contract: a row about a day carrying
+           its StatusRing, the ring as the row's passenger. */
+        ring: H(D.StatusRing, { status: ringStatus, size: 24, label: word }),
+        toggle: () => this.setState((p) => ({ logs: Object.assign({}, p.logs, { [key]: !on }) })),
+      };
+    });
+    const evs = (EVENTS[sel] || []).map((e) => ({ title: t.lang === 'en' ? e.en : e.pt,
+      time: this.fmt(e.t, h12), source: 'Google Calendar' }));
+
+    return Object.assign(base, {
+      monthName: first.toLocaleDateString(t.intl, { month: 'long' }).replace(/^./, (c) => c.toUpperCase()),
+      yearLabel: String(y),
+      prevProps: { 'aria-label': t.prev, style: { width: 44, height: 44, paddingInline: 0 } },
+      nextProps: { 'aria-label': t.next, style: { width: 44, height: 44, paddingInline: 0 } },
+      onPrev: () => this.setState((p) => ({ mOff: (p.mOff || 0) - 1, sel: null })),
+      onNext: () => this.setState((p) => ({ mOff: (p.mOff || 0) + 1, sel: null })),
+
+      weekdays: t.dayShort.slice(weekStart).concat(t.dayShort.slice(0, weekStart)),
+      cells: cells, legend: legend, skRows: weeks,
+      swipeDown: this.swipeDown, swipeUp: this.swipeUp,
+      showMonthGrid: !error && !loading, showGridLoading: loading,
+      showGrid: !error && isMonth, showSplit: !error && isMonth,
+      showLegend: !error && !emptyMonth && !isFuture && s.recOn,
+      showError: error, errorMessage: t.error,
+      errorAction: H(D.Button, { size: 'sm', variant: filled, onClick: () => this.setState({ st: 'month' }) }, t.retry),
+
+      showEmptyLine: (emptyMonth || isFuture) && !loading && !error, filled: filled,
+      emptyLine: (isFuture && !emptyMonth) ? t.futureMonth : t.emptyMonth,
+      showEmptyAction: emptyMonth && !isFuture,
+
+      /* Four views of the same content (page.tsx:56), so the switcher is SegmentedControl. */
+      viewSwitch: (!error && !loading) ? H(D.SegmentedControl, { label: t.viewLabel, value: view,
+        onChange: (id) => this.setState({ view: id, st: ['week', 'range', 'agenda'].indexOf(st) >= 0 ? 'month' : st }),
+        options: ['month', 'week', 'range', 'agenda'].map((id) => ({ id: id, label: t.views[id] })) }) : null,
+      viewBody: (!error && !loading && !isMonth)
+        ? (view === 'week' ? this.weekNode(t, h12, weekStart)
+          : view === 'range' ? this.rangeNode(t, weekStart)
+          : this.agendaNode(t, h12)) : null,
+      recToggle: (isMonth && !error && !loading && !emptyMonth && !isFuture)
+        ? H('div', { style: { paddingBlock: 4 } },
+            H(D.Switch, { label: t.recLabel, checked: s.recOn, onChange: (v) => this.setState({ recOn: v, sel: null }) }))
+        : null,
+
+      showDay: !error && !loading && !selFuture && isMonth,
+      showDaySkeleton: loading,
+      dayTitle: (isCurrent && sel === TODAY)
+        ? t.today + ', ' + selDate.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' })
+        : selDate.toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' })
+            .replace(/^./, (c) => c.toUpperCase()),
+      daySummary: selShape.sched
+        ? H(F, null, t.summaryLogged(dayRows.filter((r) => r.done).length, selShape.sched))
+        : t.summaryNone,
+      dayLoggable: selLive && selHabits.length > 0,
+      dayReadOnly: !selLive && selHabits.length > 0,
+      dayNothing: selHabits.length === 0,
+      dayRows: dayRows,
+
+      hasEvents: !paywall && evs.length > 0, events: evs,
+      /* goToDay (calendar-day-detail.tsx:241): the day panel's route out, onto Hoje. */
+      goDayRow: H('div', { style: { marginInline: -16 } },
+        H(D.ListRow, { icon: 'arrow-up-right', title: t.goDay, chevron: false, onClick: this.goHoje })),
+      /* The Pro side of the sync: connection, auto sync and the last sync time are real fields
+         (profile.ts:52-54,38). The status vocabulary is the app's; the time is a fixture. */
+      syncLine: (!paywall) ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, padding: 12,
+        background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+          H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
+            H(D.Icon, { name: 'refresh', size: 16 })),
+          H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, t.syncOn),
+          H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+            fontVariantNumeric: 'tabular-nums' } }, H(F, null, t.syncLast('09:12')))),
+        H(D.Switch, { label: t.syncAuto, checked: s.autoSync, onChange: (v) => this.setState({ autoSync: v }) })) : null,
+      showPaywall: paywall,
+      paywallMessage: t.paywall[0], paywallBody: t.paywall[1],
+      paywallAction: H(D.Button, { size: 'sm', variant: filled, onClick: this.goPro }, t.paywallAction),
+
+      showStats: !error && isMonth,
+      statState: loading ? 'loading' : (emptyMonth || isFuture || !s.recOn) ? 'empty' : 'default',
+      /* page.tsx:244-251: best streak, total logs, missed. All three from the same per day counts. */
+      statBestValue: mock(String(bestRun)),
+      statLogsValue: mock(String(done)),
+      statMissValue: mock(String(Math.max(0, sched - done))),
+
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      account: t.account,
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'calendario', onSelect: () => {} }),
+      composer: H(D.Composer, { state: 'resting', chips: error ? [] : t.chips, words: t.composerWords,
+        onOpen: () => {}, onChipPress: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>

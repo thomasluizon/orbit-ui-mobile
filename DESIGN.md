@@ -16,7 +16,35 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **Provenance.** The direction is the 2026-08-05 direction ADR, amended by D68 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and a rendered `design/reference.html` disagree, **the page wins and this prose is the defect** (D42).
 
-**D42 is scoped to `design/reference.html` and to nothing else** (clarified 2026-08-16). A rendered page outranks this prose only when it is the artefact Thomas granted. **A Claude Design export in `design/canvas/` carries no authority until Thomas grants that specific export**, and `## Information architecture` outranks every export on whether a surface should exist at all. The eleven documents currently in `design/canvas/` are granted by nobody: they are a record of what the canvas produces from a prompt that described the old screens, and one of them ships a habit-limit figure that exists nowhere in the code.
+**D42 covers `design/reference.html` AND the granted canvas export** (amended 2026-08-25).
+**Thomas granted the twenty-one-screen Claude Design export on 2026-08-25.** It is committed at
+`design/canvas/`, with the design system's 166 token values under
+`design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
+
+**Precedence, in this order. Read it as a ladder, not as one rule.**
+
+1. **`## Information architecture` outranks everything**, including every drawing, on whether a
+   surface should exist at all and what job it does.
+2. **`## Bans` outranks every drawing.** A granted export cannot authorise a banned value. If a
+   drawing contains decorative glow, a gradient wash, Liquid Glass, or any other banned treatment,
+   **the drawing is the defect**: file it against the canvas and build without it. A grant makes an
+   export authoritative over prose; it does not make it authoritative over a prohibition.
+3. **Below those two, the granted drawing wins.** For how a surface looks, measures, spaces, states
+   and behaves, a drawing in `design/canvas/` outranks the prose in this document, and the prose is
+   the defect. A number typed into a component that disagrees with a token under the
+   `tokens/` directory named above is wrong,
+   whatever this document says.
+
+Read the drawing for the surface you are building before you read the section here that describes it.
+
+An export Thomas has NOT granted still carries no authority. The eleven documents from the pass that
+predates `## Information architecture` are quarantined in `design/canvas/superseded/` for exactly
+that reason: they draw a habit tracker with a chat tab, they still show Goals and Retrospective as
+separate screens, and one of them ships a habit-limit figure that exists nowhere in the code. Never
+build from them.
+
+**Known canvas defect:** `Orbit Calendario.dc.html` draws a `linear-gradient`, which rule 2 above
+makes non-authoritative. It is filed as `#370` and corrected at source.
 
 **Every sentence below changes an implementation choice.** Nothing here is advice.
 

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+@keyframes wr-in{from{transform:translateY(16px)}to{transform:none}}
+@keyframes wr-sweep{from{stroke-dashoffset:97.39}to{stroke-dashoffset:0}}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Wrapped" style="display:flex;gap:32px;align-items:flex-start">
+
+    <div style="{{ frameStyle }}">
+
+      <sc-if value="{{ coverOn }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;justify-content:center;gap:24px;padding:32px 24px">
+          {{ coverMark }}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-3)">{{ coverEyebrow }}</p>
+            <p style="font-family:var(--font-display);font-size:34px;line-height:1.1;font-weight:500;letter-spacing:-0.03em;text-wrap:pretty">{{ coverTitle }}</p>
+            <p style="font-size:16px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ coverSub }}</p>
+          </div>
+          <div role="group" aria-label="{{ periodGroupLabel }}" style="display:flex;gap:8px;flex-wrap:wrap">{{ periodChips }}</div>
+          {{ coverBody }}
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ playerOn }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;flex:0 0 auto">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-3)">{{ eyebrow }}</p>
+            <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ periodLabel }}</p>
+          </div>
+          <span data-wr-close="1" style="display:contents">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onClose }}" dc-props="{{ closeProps }}" hint-size="44px,44px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="x" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+            </x-import>
+          </span>
+        </div>
+
+        <div style="{{ pageStyle }}">
+          {{ page }}
+          {{ tapZones }}
+        </div>
+
+        <div style="padding:16px;flex:0 0 auto">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Pager" count="{{ pageCount }}" index="{{ pageIndex }}" on-back="{{ onPrev }}" on-forward="{{ onNext }}" forward-slot="{{ closingActions }}" back-label="{{ backLabel }}" forward-label="{{ nextLabel }}" label="{{ progressLabel }}" hint-size="100%,68px"></x-import>
+        </div>
+      </sc-if>
+
+      {{ shareLayer }}
+
+    </div>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Wrapped closes a period and is meant to feel worth it. It is not a report: one figure per page, no table, no comparison against other people, and no advice. A cover chooses the period and starts the player; the player is six to eight pages, paged by hand, and a person can leave at any point.</p>
+      <p><span style="color:var(--fg-3)">reaching it&nbsp;&nbsp;</span>three real routes, none of them a nav row. The closed period notification is the primary way in and Progresso carries the fallback entry at its top, decided 2026-08-20 and still the authority. The app also reaches it from the retrospective surface (retrospective-dashboard.tsx:264), with its back going to the profile (page.tsx:30), and Perfil's more of Orbit group added its row on 2026-08-21. More than one route is not a contradiction; the earlier sentence here reading as if the screen had no entry is deleted.</p>
+      <p><span style="color:var(--fg-3)">cover&nbsp;&nbsp;</span>the entry screen the app renders before the player (page.tsx:32-41, all of wrapped-cover.tsx): the mark, the eyebrow, the title and subtitle, the period chips, and one Start action with the four states the app has around it. Loading (wrapped-cover.tsx:77-81) is the skeleton. Failure (:83-95) states the fix and retries, wired the way page.tsx:40 wires refetch. Empty (:97-104) is the satellite glyph and one line, and it is the isRecapShareEmpty case (share-card.ts:60-61, no completions AND no active days): Start stays visible and disabled with that line as its adjacent reason, because the app refuses to start the player on an empty period (page.tsx:38). Ready enables Start, which is what opens the player; nothing else does.</p>
+      <p><span style="color:var(--fg-3)">period&nbsp;&nbsp;</span>chosen, never pinned: RECAP_SHARE_PERIODS (share-card.ts:5) is week, month and year, drawn as chips on the cover (wrapped-cover.tsx:56-65), and choosing one reloads the recap without entering the player (page.tsx:23-26). The eyebrow, the period line and every page's words follow the chosen period, and the period line states the rolling window the API actually serves (RetrospectivePeriodRange.Resolve ends today; month is today.AddDays(-30) at :28), so nothing is stamped with a calendar month the data does not hold. The API itself knows FIVE periods (RetrospectivePeriodRange.cs:13 adds quarter and semester); two have no chip anywhere in the app, so no chip is invented for them here.</p>
+      <p><span style="color:var(--fg-3)">pages&nbsp;&nbsp;</span>the app builds the slide list at buildWrappedSlides:28-46: intro, completions, active days, consistency, streak, the top habit when the period has one, and share. This document draws all of them plus the goals page it already carried, so the count is seven or eight, and Pager takes the real count rather than a constant. Active days is metrics.activeDays with the completion rate in its line (wrapped-slide.tsx:64-75). The streak page draws TWO numbers: the figure is bestStreak and the line under it carries currentStreak (:85-94). The top habit is metrics.topHabits[0] with its emoji, its name clamped to two lines and its own completion rate (:95-119), the only page that names one of the person's own habits; it exists only when the period has one, which is what moves the count. The goals page keeps its honest note: no producer exists anywhere and #341 owes one.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>cover, cover loading, cover failed, cover empty, the pages by name, the share page's rendering, failed, unsupported and sheet, reduced motion and thin period. Hover, focus-visible and press are live. NO plan axis, because there is no gate: Wrapped calls the recap (GamificationController.cs:55), whose handler carries no gate at all and whose own comment says Free / ungated (GetRecapQuery.cs:28). The retrospective Pro gate (PayGateService.cs:141) has exactly one caller, GetRetrospectiveQuery.cs:58, and Wrapped is not it. A screen with no gate does not grow a dead switch.</p>
+      <p><span style="color:var(--fg-3)">figures&nbsp;&nbsp;</span>every drawn figure names its producer in the recap metrics: total completions, active days with the completion rate, best and current streak, the weekday consistency array, and the top habit. Goal completions has no producer: no source returns one, and needs api carries it rather than passing it off as real. The period cannot be served as a calendar period either (the rolling window above). An earlier sentence here said the retrospective endpoint's Pro gate stood between people and Wrapped; that was FALSE, the gate's one caller is the retrospective and Wrapped calls the ungated recap, and the sentence is gone.</p>
+      <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>#341: a closed period payload Wrapped can honestly draw: a true calendar period rather than a rolling window, a goal completions count, and past periods kept reachable permanently. Access outside the Pro gate is OFF the list: it is already true, because the recap is ungated. Wrapped cannot ship until #341 lands; nothing in the drawing changes, the drawing is what #341 has to serve.</p>
+      <p><span style="color:var(--fg-3)">weekday&nbsp;&nbsp;</span>the consistency array is indexed by weekday starting Monday, not by seven consecutive dates, and the page is drawn with Columns, whose contract carries no date, start, interval or ordering prop, so the set cannot be handed a time axis and cannot become a chart whose gaps carry meaning. The labels are weekday initials, the copy names the strongest and the weakest weekday, and no date appears anywhere on that page. Reading it as a week would be a factual error about what the array holds, and the component is what makes that misreading unbuildable.</p>
+      <p><span style="color:var(--fg-3)">player&nbsp;&nbsp;</span>driven three ways, and they are the same action. Tap zones cover the page (wrapped-player.tsx:115-133): a left zone goes back and is disabled on the first page, the right zone is twice its width and goes forward, and on the last page both are gone, so the share is never under an invisible button. The keyboard pages too (:36-40): right arrow forward, left arrow back, Escape closes, and focus lands on the close control when the player opens (:32-34). Pager stays at the foot carrying the same paging, the segments and the last page rule, which is the recorded decision; the zones and the keys sit on top of it, so paging by any of the three is one action, not three behaviours.</p>
+      <p><span style="color:var(--fg-3)">delight&nbsp;&nbsp;</span>this is the one place the budget is spent in full, and it is still transform and opacity only: each page's parts rise 16px on a short stagger and the ring sweeps once. Nothing fades: every part is fully opaque at rest and only its position or its length animates, so a paused timeline, a slow device or a dropped frame shows the page offset rather than empty. The ring carries no fill mode at all, so its resting style is the finished one, and Columns draws its resting state with no entrance of its own, so the weekday set arrives whole inside its block's rise. It is spent per page rather than once, which is the whole difference between this screen and every other one.</p>
+      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>every page arrives at its final state with no rise, no stagger and no sweep. Nothing is removed but the movement, and no page depends on motion to be understood.</p>
+      <p><span style="color:var(--fg-3)">empty and thin&nbsp;&nbsp;</span>two different things. Empty is no completions and no active days (isRecapShareEmpty, share-card.ts:60-61), and the app refuses to start the player at all (page.tsx:38), so empty lives on the COVER, before anything is paged. Thin is a period with a little in it: the player runs, the figures render as they are with no encouragement and no padding, the weekday page states plainly that there is not enough to compare, and the top habit page is simply absent when no habit stands out. It never says a small number is good, and it never says it is bad.</p>
+      <p><span style="color:var(--fg-3)">sharing&nbsp;&nbsp;</span>sharing outward is the reason this screen survived the cut, and it ships on both platforms today: the card is rendered on the device and handed to the platform as a PNG. The share IS the referral loop: the shared link is {BaseUrl}/r/{referralCode}?recap={period} (GetRecapQuery.cs:57), the person's referral code is generated right there if they have none (:38), and wrapped-slide.tsx:212 hands that link to the platform beside the image. The card carries a picture and the share carries an invitation, which is what makes this a growth loop rather than an export. It is not the social layer, which was internal, is deleted, and is absent here: no feed, no friends, no cheers, no in app recipient, and no way to send anything to another Orbit account. The share leaves the product entirely, which is the point of it.</p>
+      <p><span style="color:var(--fg-3)">card&nbsp;&nbsp;</span>the shared artefact is one composed image, not the pages. It carries the period, the mark, the figure that matters most and the two that support it, at 9 by 16 so a story frame does not crop it. It holds no controls at all, because it becomes a file: nothing in it can be tapped, and nothing in it depends on the app being open. The pager is how a person reads the period; the card is what leaves. Its weekday renders in the three letter form (seg, Mon), and the weekday page uses the same form so the two never disagree: that is a layout decision on this card, not a style preference. The weekday sentence is the card's widest line and the first to break, and three letters always fit in both languages, so nobody should lengthen it back.</p>
+      <p><span style="color:var(--fg-3)">share states&nbsp;&nbsp;</span>the share page carries share and download SIDE BY SIDE (wrapped-slide.tsx:236-260): share renders only when the platform can share files, and when it cannot, download becomes the filled action, never a fallback screen, because the image is made on the device either way. Both actions go busy while the image renders (:239-243), and a failure is one line above them stating the fix (:230-234). The hand off draws the platform's own sheet with the file it is handing over, its destination list neutral slots named as the system's rather than invented brand targets, and saving states the file it saved.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action. On the cover it is Start; in the player it is Pager's forward control, and on the last page forwardSlot replaces that control with the share, download beside it as a plain action, or download filled where the platform cannot share. Current position is Pager's current segment and the selected period chip. The figures themselves are neutral, because every one of them is a completed fact and completion never takes the accent; the ring sweeps in the accent while travelling and lands fg-1.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32 48, gap only. The display figures sit at 60 and 44, the largest in the product, which is the licence this screen has and no other screen does.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The weekday columns are Columns' neutral fg-3 fills over the bg-well track, with no currentId passed, because a closed period has no current position.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every figure carries data-mock: the completions, the active days and their rate, both streak numbers, the goal count, the top habit's rate, the period line and the card's numbers. The seven weekday rates render inside Columns, which takes plain numbers, so they carry no marker until the component takes a node.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every drawn figure names its producer, and the one without (goal completions) is carried by needs api rather than passed off as real. 2 the weekday page cannot be read as a timeline. 3 the empty period cannot start the player, and the thin one reads without judgement. 4 no gate, so no plan switch: the recap is free today and the axis does not invent one.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>Pager owns the segments, the controls and the last page rule, and Columns owns the weekday set. Still composed: 1 no shell fits, because this screen replaces the shell rather than sitting in it, which is why neither shell appears. 2 the cover is composed from the mark, the chips and Button, since no cover component exists and EmptyState's shape carries no period picker. 3 the tap zones are composed transparent buttons, aria hidden and out of the tab order, because Pager already carries the accessible controls for the same action. 4 Pager composes its segments directly above its controls, so the segment row sits at the foot rather than as a story-style top strip, which is not a system component and is not rebuilt here.</p>
+      <p><span style="color:var(--fg-3)">decided&nbsp;&nbsp;</span>the closed period notification is the way in and Progresso carries the fallback entry (2026-08-20). Every past period stays reachable, permanently (Thomas, 2026-08-20); nothing currently stores this, so it is part of the #341 api work. The last page's primary action is the share (2026-08-20).</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the pages should auto advance, which every story format does and which this one deliberately does not, because it is a close rather than a broadcast. Whether quarter and semester, the two periods the API knows and the app never offers, should ever get chips.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+
+/* Producers: the recap metrics (GetRecapQuery, ungated) carry totalCompletions, activeDays, the
+   completion rate, bestStreak, currentStreak, the weekday consistency array and topHabits. goals has
+   no producer anywhere yet: that is api #341, and the goals page waits on it. */
+const DATA = {
+  week: { completions: 19, activeDays: 6, rate: '79%', streak: 6, current: 4, goals: 0,
+    weekday: [0.8, 0.6, 1, 0.4, 0.8, 0.2, 0.6], topHabit: { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', rate: '71%' } },
+  month: { completions: 84, activeDays: 26, rate: '84%', streak: 12, current: 5, goals: 2,
+    weekday: [0.90, 0.71, 0.83, 0.62, 0.86, 0.38, 0.45], topHabit: { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', rate: '87%' } },
+  year: { completions: 812, activeDays: 289, rate: '81%', streak: 21, current: 5, goals: 9,
+    weekday: [0.84, 0.71, 0.79, 0.66, 0.81, 0.42, 0.51], topHabit: { e: '\uD83D\uDCA7', pt: 'Água da manhã', en: 'Morning water', rate: '92%' } },
+};
+const THIN = { completions: 6, activeDays: 4, rate: '31%', streak: 2, current: 0, goals: 0,
+  weekday: [0.28, 0.14, 0.00, 0.14, 0.28, 0.00, 0.14], topHabit: null };
+const PERIODS = ['week', 'month', 'year'];
+
+const T = {
+  'pt-BR': {
+    intl: 'pt-BR', lang: 'pt-BR',
+    per: {
+      week: { chip: 'Semana', eyebrow: 'Fechamento da semana', line: 'os últimos 7 dias',
+        coverTitle: 'Feche a semana.', introTitle: 'A sua semana ficou assim.', unit: 'na semana' },
+      month: { chip: 'Mês', eyebrow: 'Fechamento do mês', line: 'os últimos 30 dias',
+        coverTitle: 'Feche o mês.', introTitle: 'O seu mês ficou assim.', unit: 'no mês' },
+      year: { chip: 'Ano', eyebrow: 'Fechamento do ano', line: 'os últimos 365 dias',
+        coverTitle: 'Feche o ano.', introTitle: 'O seu ano ficou assim.', unit: 'no ano' },
+    },
+    coverEyebrow: 'Orbit Wrapped',
+    coverSub: 'Os registros do período, uma página de cada vez.',
+    periodGroup: 'Período',
+    start: 'Começar', retry: 'Tentar de novo', loading: 'Carregando',
+    coverFailed: 'Não deu para carregar o fechamento. Verifique a conexão e tente de novo.',
+    coverEmpty: 'Nada registrado nesse período. Escolha outro período para ver um fechamento.',
+    close: 'Fechar', progress: 'Páginas', next: 'Continuar', back: 'Voltar',
+    noData: 'sem dados',
+    share: 'Compartilhar', saveLabel: 'Salvar imagem',
+    savedLine: 'Salvo como orbit-recap.png',
+    failLine: 'A imagem não ficou pronta. Tente de novo.',
+    cardStreak: 'dias seguidos', cardGoals: 'metas fechadas',
+    cardCompletions: (u) => 'registros ' + u,
+    cardBest: (d) => ['o seu dia mais firme foi ', d],
+    cardThin: 'o período começou devagar',
+    sheetTitle: 'Compartilhar', fileName: 'orbit-recap.png', fileMeta: '1080 × 1920',
+    platformNote: 'A lista de destinos é do sistema, não do Orbit.',
+    cardLabel: 'Imagem do fechamento',
+    p1Body: 'Uma página de cada vez, e você pode sair quando quiser.',
+    p2Label: (u) => 'registros ' + u,
+    p2Body: 'Cada um foi um toque seu, num dia que você escolheu aparecer.',
+    pAdLabel: 'dias com registro',
+    pAdBody: (r) => ['Nesses dias, você completou ', r, ' do que marcou.'],
+    p3Label: 'dias seguidos',
+    p3Body: (c) => ['A maior sequência do período. A atual está em ', c, c === '1' ? ' dia.' : ' dias.'],
+    p3Zero: 'A sequência não passou de um dia neste período.',
+    p4Title: 'Os seus dias da semana',
+    p4Body: (best, worst) => ['Você aparece mais na ', best, ' e menos no ', worst, '.'],
+    p4Thin: 'Ainda não há registros suficientes para comparar os dias da semana.',
+    p4Note: 'Isto é a média de cada dia da semana no período, não uma linha de sete dias.',
+    pThLabel: 'o hábito mais presente',
+    pThBody: (r) => ['Feito ', r, ' das vezes no período.'],
+    p5Label: 'metas fechadas',
+    p5Body: 'Fechar uma meta é mais raro que registrar um dia, e conta mais.',
+    p5Zero: 'Nenhuma meta fechou neste período. As que estão abertas continuam.',
+    pShTitle: 'Leve o fechamento com você',
+    days: ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'],
+    dayShort: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'],
+  },
+  en: {
+    intl: 'en-GB', lang: 'en',
+    per: {
+      week: { chip: 'Week', eyebrow: 'Closing the week', line: 'the last 7 days',
+        coverTitle: 'Close the week.', introTitle: 'Your week looked like this.', unit: 'this week' },
+      month: { chip: 'Month', eyebrow: 'Closing the month', line: 'the last 30 days',
+        coverTitle: 'Close the month.', introTitle: 'Your month looked like this.', unit: 'this month' },
+      year: { chip: 'Year', eyebrow: 'Closing the year', line: 'the last 365 days',
+        coverTitle: 'Close the year.', introTitle: 'Your year looked like this.', unit: 'this year' },
+    },
+    coverEyebrow: 'Orbit Wrapped',
+    coverSub: "The period's logs, one page at a time.",
+    periodGroup: 'Period',
+    start: 'Start', retry: 'Try again', loading: 'Loading',
+    coverFailed: 'We could not load the recap. Check the connection and try again.',
+    coverEmpty: 'Nothing logged in this period. Pick another period to see a recap.',
+    close: 'Close', progress: 'Pages', next: 'Continue', back: 'Back',
+    noData: 'no data',
+    share: 'Share', saveLabel: 'Save image',
+    savedLine: 'Saved as orbit-recap.png',
+    failLine: 'The image did not come out. Try again.',
+    cardStreak: 'days running', cardGoals: 'goals closed',
+    cardCompletions: (u) => 'logs ' + u,
+    cardBest: (d) => ['your steadiest day was ', d],
+    cardThin: 'the period started slowly',
+    sheetTitle: 'Share', fileName: 'orbit-recap.png', fileMeta: '1080 × 1920',
+    platformNote: 'The destination list belongs to the system, not to Orbit.',
+    cardLabel: 'Recap image',
+    p1Body: 'One page at a time, and you can leave whenever you like.',
+    p2Label: (u) => 'logs ' + u,
+    p2Body: 'Each one was a tap of yours, on a day you chose to show up.',
+    pAdLabel: 'days with a log',
+    pAdBody: (r) => ['On those days you completed ', r, ' of what you set.'],
+    p3Label: 'days running',
+    p3Body: (c) => ['Your longest streak of the period. The current one is at ', c, c === '1' ? ' day.' : ' days.'],
+    p3Zero: 'The streak did not pass a single day this period.',
+    p4Title: 'Your days of the week',
+    p4Body: (best, worst) => ['You show up most on ', best, ' and least on ', worst, '.'],
+    p4Thin: 'There is not enough logged yet to compare the days of the week.',
+    p4Note: 'This is the average for each weekday across the period, not a line of seven days.',
+    pThLabel: 'the habit that showed up most',
+    pThBody: (r) => ['Done ', r, ' of the times this period.'],
+    p5Label: 'goals closed',
+    p5Body: 'Closing a goal is rarer than logging a day, and it counts for more.',
+    p5Zero: 'No goal closed this period. The open ones carry on.',
+    pShTitle: 'Take the recap with you',
+    days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    dayShort: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+  },
+};
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'cover', loc: 'pt-BR',
+    view: 'cover', coverPhase: 'ready', period: 'month',
+    page: 0, share: null, saved: false, rendering: false };
+
+  componentDidMount() {
+    /* The keyboard drives the player (wrapped-player.tsx:36-40): arrows page, Escape closes. */
+    this._keys = (e) => {
+      const s = this.state;
+      if (s.view !== 'player') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (s.share) this.setState({ share: null });
+        else this.closePlayer();
+      } else if (!s.share && e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
+      else if (!s.share && e.key === 'ArrowLeft') { e.preventDefault(); this.prev(); }
+    };
+    document.addEventListener('keydown', this._keys);
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() {
+    clearInterval(this._t); clearTimeout(this._cvT); clearTimeout(this._rdT);
+    document.removeEventListener('keydown', this._keys);
+  }
+
+  onCC = (next) => {
+    clearTimeout(this._cvT); clearTimeout(this._rdT);
+    const cover = { cover: 'ready', 'cover loading': 'loading', 'cover failed': 'failed', 'cover empty': 'empty' };
+    const pageMap = { intro: 0, completions: 1, 'active days': 2, weekday: 3, streak: 4, 'top habit': 5,
+      goals: 6, share: 99, 'share rendering': 99, 'share failed': 99, 'share unsupported': 99,
+      'share sheet': 99, 'reduced motion': 3, 'thin period': 3 };
+    const st = next.state;
+    this.setState({ mode: next.mode, width: next.width, st: st, locale: undefined, loc: next.locale,
+      view: cover[st] ? 'cover' : 'player',
+      coverPhase: cover[st] || 'ready',
+      page: pageMap[st] != null ? pageMap[st] : 0,
+      share: st === 'share sheet' ? 'sheet' : null,
+      saved: false,
+      rendering: st === 'share rendering' });
+  };
+
+  count() {
+    const thin = this.state.st === 'thin period';
+    const data = thin ? THIN : DATA[this.state.period];
+    return data.topHabit ? 8 : 7;
+  }
+  next = () => this.setState((p) => ({ page: Math.min(this.count() - 1, p.page + 1) }));
+  prev = () => this.setState((p) => ({ page: Math.max(0, p.page - 1) }));
+  /* Focus lands on close when the player opens (wrapped-player.tsx:32-34). */
+  startPlayer = () => this.setState({ view: 'player', page: 0, share: null, saved: false, rendering: false },
+    () => setTimeout(() => { const b = document.querySelector('[data-wr-close] button'); if (b) b.focus(); }, 50));
+  closePlayer = () => this.setState({ view: 'cover', coverPhase: 'ready', share: null, saved: false, rendering: false });
+  /* Choosing a period reloads the recap and stays out of the player (page.tsx:23-26). */
+  pickPeriod = (p) => {
+    if (p === this.state.period && this.state.coverPhase === 'ready') return;
+    clearTimeout(this._cvT);
+    this.setState({ period: p, view: 'cover', coverPhase: 'loading' });
+    this._cvT = setTimeout(() => this.setState({ coverPhase: 'ready' }), 600);
+  };
+  /* Both actions go busy while the image renders (wrapped-slide.tsx:239-243). */
+  pressShare = () => {
+    clearTimeout(this._rdT);
+    this.setState({ rendering: true, saved: false });
+    this._rdT = setTimeout(() => this.setState({ rendering: false, share: 'sheet' }), 900);
+  };
+  pressDownload = () => {
+    clearTimeout(this._rdT);
+    this.setState({ rendering: true, saved: false });
+    this._rdT = setTimeout(() => this.setState({ rendering: false, saved: true }), 900);
+  };
+
+  rise(i, reduced) {
+    return reduced ? {} : { animation: 'wr-in 320ms var(--ease-out) both', animationDelay: (i * 90) + 'ms' };
+  }
+
+  figure(value, label, body, reduced, big) {
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' } },
+      H('p', { style: Object.assign({ fontFamily: 'var(--font-display)', fontSize: big ? 60 : 44,
+        lineHeight: 1, fontWeight: 600, letterSpacing: '-0.03em' }, this.rise(0, reduced)) }, mock(value)),
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-lg)', color: 'var(--fg-2)' },
+        this.rise(1, reduced)) }, label),
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-3)',
+        textWrap: 'pretty', maxWidth: '40ch' }, this.rise(2, reduced)) }, body));
+  }
+
+  weekdayPage(t, data, reduced, thin) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const rates = data.weekday;
+    let bi = 0, wi = 0;
+    rates.forEach((v, i) => { if (v > rates[bi]) bi = i; if (v < rates[wi]) wi = i; });
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'flex-start' } },
+      H('p', { style: Object.assign({ fontFamily: 'var(--font-display)', fontSize: 28, lineHeight: 1.15,
+        fontWeight: 500, letterSpacing: '-0.02em' }, this.rise(0, reduced)) }, t.p4Title),
+      H('div', { style: Object.assign({ alignSelf: 'stretch' }, this.rise(1, reduced)) },
+        H(D.Columns, { height: 160, showValues: true, label: t.p4Title, emptyLabel: t.noData,
+          columns: rates.map((v, i) => ({ id: 'wd' + i, label: t.dayShort[i], value: Math.round(v * 100) })) })),
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-2)',
+        textWrap: 'pretty', maxWidth: '40ch' }, this.rise(2, reduced)) },
+        thin ? t.p4Thin : H(F, null, t.p4Body(t.days[bi], t.days[wi]))),
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-4)',
+        textWrap: 'pretty', maxWidth: '46ch' }, this.rise(3, reduced)) }, t.p4Note));
+  }
+
+  ringPage(t, data, reduced) {
+    const body = data.streak > 1
+      ? H(F, null, t.p3Body(String(data.current))[0], mock(String(data.current)), t.p3Body(String(data.current))[2])
+      : t.p3Zero;
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'flex-start' } },
+      H('svg', { width: 88, height: 88, viewBox: '0 0 34 34', 'aria-hidden': 'true',
+        style: Object.assign({}, this.rise(0, reduced)) },
+        H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--status-empty)', strokeWidth: 1.5 }),
+        H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--fg-1)', strokeWidth: 2.5,
+          strokeLinecap: 'round', strokeDasharray: '97.39', transform: 'rotate(-90 17 17)',
+          style: reduced ? undefined : { animation: 'wr-sweep 320ms var(--ease-out)', animationDelay: '90ms' } })),
+      this.figure(String(data.streak), t.p3Label, body, reduced, false));
+  }
+
+  /* metrics.topHabits[0]: emoji, name clamped to two lines, its own rate (wrapped-slide.tsx:95-119). */
+  topHabitPage(t, data, reduced) {
+    const th = data.topHabit;
+    const name = th[t.lang === 'en' ? 'en' : 'pt'];
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' } },
+      H('div', { style: Object.assign({ width: 88, height: 88, borderRadius: 'var(--r-well)',
+        background: 'var(--bg-well)', display: 'grid', placeItems: 'center', fontSize: 44 },
+        this.rise(0, reduced)), role: 'img', 'aria-label': name }, th.e),
+      H('p', { style: Object.assign({ fontFamily: 'var(--font-display)', fontSize: 34, lineHeight: 1.1,
+        fontWeight: 500, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: '100%' }, this.rise(1, reduced)) }, name),
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-lg)', color: 'var(--fg-2)' }, this.rise(2, reduced)) }, t.pThLabel),
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-3)',
+        textWrap: 'pretty', maxWidth: '40ch' }, this.rise(3, reduced)) },
+        H(F, null, t.pThBody('')[0], mock(th.rate), t.pThBody('')[2])));
+  }
+
+  cardNode(t, per, data, thin) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const rates = data.weekday;
+    let bi = 0;
+    rates.forEach((v, i) => { if (v > rates[bi]) bi = i; });
+    const fig = (value, label) => H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
+      H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-display)', fontSize: 34,
+        lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em' } }, value),
+      H('p', { style: { fontSize: 'var(--fs-base)', color: 'var(--fg-2)' } }, label));
+    return H('div', { role: 'img', 'aria-label': t.cardLabel,
+      style: { width: 360, height: 640, flex: '0 0 auto', background: 'var(--bg-card)',
+        borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        padding: 32, display: 'flex', flexDirection: 'column', gap: 24, overflow: 'hidden' } },
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' } },
+        H(D.OrbitMark, { size: 28 }),
+        H('p', { translate: 'no', style: { fontFamily: 'var(--font-display)', fontSize: 20,
+          fontWeight: 600, letterSpacing: '-0.02em' } }, 'Orbit'),
+        H('span', { style: { flex: 1 } }),
+        H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+          color: 'var(--fg-3)' } }, per.line)),
+      H('div', { style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', gap: 24 } },
+        H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+          H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-display)', fontSize: 88,
+            lineHeight: 0.92, fontWeight: 600, letterSpacing: '-0.04em' } }, String(data.completions)),
+          H('p', { style: { fontSize: 'var(--fs-lg)', color: 'var(--fg-2)', textWrap: 'pretty' } },
+            t.cardCompletions(per.unit))),
+        H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          fig(String(data.streak), t.cardStreak),
+          fig(String(data.goals), t.cardGoals))),
+      H('p', { style: { flex: '0 0 auto', fontSize: 'var(--fs-base)', lineHeight: 1.5,
+        color: 'var(--fg-3)', textWrap: 'pretty' } },
+        thin ? t.cardThin : H(F, null, t.cardBest(t.days[bi]))));
+  }
+
+  /* The share page: the card preview, then share and download side by side in the pager's slot. The
+     save is always there; it is never a fallback screen. */
+  sharePage(t, per, data, thin, reduced, st) {
+    const card = this.cardNode(t, per, data, thin);
+    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' } },
+      H('p', { style: Object.assign({ fontFamily: 'var(--font-display)', fontSize: 28, lineHeight: 1.15,
+        fontWeight: 500, letterSpacing: '-0.02em', textWrap: 'pretty' }, this.rise(0, reduced)) }, t.pShTitle),
+      H('div', { style: Object.assign({ width: 216, height: 384, flex: '0 0 auto' }, this.rise(1, reduced)) },
+        H('div', { style: { transform: 'scale(0.6)', transformOrigin: 'top left' } }, card)),
+      st === 'share failed'
+        ? H('p', { role: 'alert', style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--status-bad)' } }, t.failLine)
+        : this.state.saved
+          ? H('p', { role: 'status', style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)',
+              color: 'var(--fg-2)' } }, t.savedLine)
+          : null);
+  }
+
+  shareLayerNode(t, per, data, thin) {
+    const s = this.state;
+    if (s.share !== 'sheet') return null;
+    const card = this.cardNode(t, per, data, thin);
+    return H('div', { style: { position: 'absolute', inset: 0, zIndex: 3, display: 'flex',
+      flexDirection: 'column', justifyContent: 'flex-end' } },
+      H('div', { onClick: () => this.setState({ share: null }),
+        style: { position: 'absolute', inset: 0, background: 'var(--scrim)' } }),
+      H('div', { role: 'dialog', 'aria-modal': 'true', style: { position: 'relative',
+        background: 'var(--bg-elev)', borderTopLeftRadius: 'var(--r-sheet)',
+        borderTopRightRadius: 'var(--r-sheet)', padding: 24, display: 'flex',
+        flexDirection: 'column', gap: 16 } },
+        H('p', { style: { fontSize: 'var(--fs-lg)', fontWeight: 500 } }, t.sheetTitle),
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+          H('div', { style: { width: 54, height: 96, flex: '0 0 auto', borderRadius: 8,
+            overflow: 'hidden', background: 'var(--bg-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)', display: 'grid', placeItems: 'center' } },
+            H('div', { style: { transform: 'scale(0.15)', transformOrigin: 'center' } }, card)),
+          H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
+            H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--fs-sm)', color: 'var(--fg-1)' } }, t.fileName),
+            H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, t.fileMeta))),
+        H('div', { 'aria-hidden': 'true', style: { display: 'flex', gap: 12 } },
+          [0, 1, 2, 3].map((i) => H('div', { key: i, style: { flex: 1, height: 56,
+            borderRadius: 'var(--r-well)', background: 'var(--bg-well)' } }))),
+        H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-4)',
+          textWrap: 'pretty' } }, t.platformNote)));
+  }
+
+  coverBodyNode(t, filled412) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const phase = this.state.coverPhase;
+    const startStyle = this.state.width === '412' ? { width: '100%' } : undefined;
+    if (phase === 'loading') return H(D.Skeleton, { variant: 'settings', rows: 3, label: t.loading });
+    if (phase === 'failed') return H(D.ErrorState, { message: t.coverFailed,
+      action: H(D.Button, { size: 'sm', variant: 'primary', onClick: () => {
+        clearTimeout(this._cvT);
+        this.setState({ coverPhase: 'loading' });
+        this._cvT = setTimeout(() => this.setState({ coverPhase: 'ready' }), 600);
+      } }, t.retry) });
+    if (phase === 'empty') {
+      /* isRecapShareEmpty: Start stays visible and disabled, the line above is its reason. */
+      return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' } },
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+          H('span', { style: { width: 56, height: 56, borderRadius: 'var(--r-well)', background: 'var(--bg-well)',
+            display: 'grid', placeItems: 'center', color: 'var(--fg-3)', flex: '0 0 auto' }, 'aria-hidden': 'true' },
+            H(D.Icon, { name: 'satellite', size: 24 })),
+          H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)',
+            textWrap: 'pretty', maxWidth: '34ch' } }, t.coverEmpty)),
+        H(D.Button, { variant: 'primary', disabled: true, style: startStyle }, t.start));
+    }
+    return H(D.Button, { variant: 'primary', onClick: this.startPlayer, style: startStyle }, t.start);
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const wide = s.width === 'wide';
+    const per = (t.per && t.per[s.period]) || {};
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['cover', 'cover loading', 'cover failed', 'cover empty', 'intro', 'completions',
+        'active days', 'weekday', 'streak', 'top habit', 'goals', 'share', 'share rendering',
+        'share failed', 'share unsupported', 'share sheet', 'reduced motion', 'thin period'],
+      n20: 20,
+      showReport: this.props.showReport !== false,
+      coverOn: s.view === 'cover', playerOn: s.view === 'player',
+      coverEyebrow: t.coverEyebrow, coverTitle: per.coverTitle, coverSub: t.coverSub,
+      periodGroupLabel: t.periodGroup,
+      eyebrow: per.eyebrow, periodLabel: per.line, progressLabel: t.progress,
+      nextLabel: t.next, backLabel: t.back, pageCount: 7, pageIndex: 0,
+      closeProps: { 'aria-label': t.close, style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+      frameStyle: (wide ? 'width:900px;' : 'width:412px;')
+        + 'position:relative;height:820px;background:var(--bg);border-radius:var(--r-sheet);box-shadow:inset 0 0 0 1px var(--hairline);display:flex;flex-direction:column;overflow:hidden',
+      pageStyle: 'position:relative;flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;justify-content:center;'
+        + (wide ? 'padding:48px 64px' : 'padding:24px 16px'),
+    };
+    if (!D) return base;
+
+    const reduced = st === 'reduced motion';
+    const thin = st === 'thin period';
+    const data = thin ? THIN : DATA[s.period];
+    const hasTop = !!data.topHabit;
+    const count = hasTop ? 8 : 7;
+    const page = Math.min(s.page != null ? s.page : 0, count - 1);
+    const unsupported = st === 'share unsupported';
+
+    base.coverMark = H(D.OrbitMark, { size: 96 });
+    base.periodChips = PERIODS.map((p) => {
+      const on = s.period === p;
+      return H('button', { key: p, type: 'button', 'aria-pressed': on, onClick: () => this.pickPeriod(p),
+        style: { height: 44, paddingInline: 16, flex: '0 0 auto', borderRadius: 'var(--r-pill)', border: 0,
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', fontWeight: 500,
+          background: on ? 'var(--primary-dim)' : 'var(--bg-well)', color: on ? 'var(--fg-1)' : 'var(--fg-2)',
+          boxShadow: on ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' } },
+        t.per[p].chip);
+    });
+    base.coverBody = this.coverBodyNode(t);
+
+    const pages = [
+      H('div', { key: 'p1', style: { display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' } },
+        H('div', { style: Object.assign({}, this.rise(0, reduced)) }, H(D.OrbitMark, { size: 48 })),
+        H('p', { style: Object.assign({ fontFamily: 'var(--font-display)', fontSize: wide ? 44 : 34,
+          lineHeight: 1.1, fontWeight: 500, letterSpacing: '-0.03em', textWrap: 'pretty' },
+          this.rise(1, reduced)) }, per.introTitle),
+        H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55,
+          color: 'var(--fg-3)' }, this.rise(2, reduced)) }, t.p1Body)),
+      H('div', { key: 'p2' }, this.figure(String(data.completions), t.p2Label(per.unit), t.p2Body, reduced, true)),
+      /* Active days: the figure, with the completion rate in its line (wrapped-slide.tsx:64-75). */
+      H('div', { key: 'pad' }, this.figure(String(data.activeDays), t.pAdLabel,
+        H(F, null, t.pAdBody('')[0], mock(data.rate), t.pAdBody('')[2]), reduced, true)),
+      H('div', { key: 'p4' }, this.weekdayPage(t, data, reduced, thin)),
+      H('div', { key: 'p3' }, this.ringPage(t, data, reduced)),
+    ];
+    if (hasTop) pages.push(H('div', { key: 'pth' }, this.topHabitPage(t, data, reduced)));
+    pages.push(H('div', { key: 'p5' }, this.figure(String(data.goals), t.p5Label,
+      data.goals > 0 ? t.p5Body : t.p5Zero, reduced, true)));
+    pages.push(H('div', { key: 'psh' }, this.sharePage(t, per, data, thin, reduced, st)));
+
+    const last = page === count - 1;
+    const shareBtn = H(D.Button, { variant: 'primary', loading: s.rendering, onClick: this.pressShare }, t.share);
+    const dlPlain = H(D.Button, { variant: 'ghost', loading: s.rendering, onClick: this.pressDownload }, t.saveLabel);
+    const dlFilled = H(D.Button, { variant: 'primary', loading: s.rendering, onClick: this.pressDownload }, t.saveLabel);
+
+    return Object.assign(base, {
+      page: pages[page],
+      pageIndex: page, pageCount: count,
+      /* Share and download side by side; download filled where the platform cannot share files. */
+      closingActions: unsupported
+        ? dlFilled
+        : wide
+          ? H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } }, dlPlain, shareBtn)
+          : H('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8 } }, shareBtn, dlPlain),
+      /* Tap zones (wrapped-player.tsx:115-133): left back, disabled on the first page; right twice as
+         wide, forward; both gone on the last page. Pointer convenience only, so out of the tab order:
+         Pager below carries the accessible controls for the same action. */
+      tapZones: last ? null : H('div', { 'aria-hidden': 'true',
+        style: { position: 'absolute', inset: 0, display: 'flex', zIndex: 2 } },
+        H('button', { type: 'button', tabIndex: -1, disabled: page === 0, onClick: this.prev,
+          style: { flex: 1, background: 'var(--p-transparent)', border: 0, padding: 0,
+            cursor: page === 0 ? 'default' : 'pointer' } }),
+        H('button', { type: 'button', tabIndex: -1, onClick: this.next,
+          style: { flex: 2, background: 'var(--p-transparent)', border: 0, padding: 0, cursor: 'pointer' } })),
+      shareLayer: this.shareLayerNode(t, per, data, thin),
+      onPrev: this.prev,
+      onNext: this.next,
+      onClose: this.closePlayer,
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+<link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+<script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+<style>
+body{background:var(--bg)}
+a{color:var(--fg-2);text-decoration:none}
+a:hover{color:var(--fg-1)}
+</style>
+</helmet>
+<div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
+
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cc }}" on-change="{{ onCC }}" states="{{ stateAxis }}" hint-size="100%,44px"></x-import>
+
+  <div data-screen-label="Avisos" style="display:flex;gap:32px;align-items:flex-start">
+
+    <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" tab-bar="{{ tabBar }}" notice="{{ notice }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px">
+
+          <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="list" rows="{{ n5 }}" label="{{ loadingLabel }}" hint-size="100%,360px"></x-import>
+          </sc-if>
+
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding-top:48px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ emptyTitle }}" hint-size="100%,220px"></x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ hasList }}" hint-placeholder-val="{{ true }}">
+            <div role="list" style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ items }}" as="it" hint-placeholder-count="4">
+                <div role="listitem" style="{{ it.wrapStyle }}"><button type="button" aria-label="{{ it.aria }}" onClick="{{ it.open }}" style="{{ it.rowStyle }}" style-hover="background:var(--bg-hover)" style-focus-visible="outline:2px solid var(--primary);outline-offset:-2px">
+                  <span aria-hidden="true" style="width:8px;flex:0 0 auto;display:grid;place-items:center;align-self:stretch;padding-top:6px">
+                    <sc-if value="{{ it.unread }}" hint-placeholder-val="{{ true }}">
+                      <span style="width:8px;height:8px;border-radius:var(--r-pill);background:var(--fg-1)"></span>
+                    </sc-if>
+                  </span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;text-align:start">
+                    <span style="display:flex;align-items:baseline;gap:8px">
+                      <span style="{{ it.titleStyle }}">{{ it.title }}</span>
+                      <span data-mock="true" style="flex:0 0 auto;font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ it.when }}</span>
+                    </span>
+                    <span style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ it.body }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;padding-top:2px">
+                      <span aria-hidden="true" style="display:grid;place-items:center;width:14px;height:14px;color:var(--fg-4)">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ it.icon }}" size="{{ n14 }}" hint-size="14px,14px"></x-import>
+                      </span>
+                      <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ it.target }}</span>
+                    </span>
+                  </span>
+                </button>{{ it.delBtn }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;width:1416px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" notice="{{ notice }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+
+            <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="list" rows="{{ n5 }}" label="{{ loadingLabel }}" hint-size="100%,360px"></x-import>
+            </sc-if>
+
+            <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding-top:48px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ emptyTitle }}" hint-size="100%,220px"></x-import>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ hasList }}" hint-placeholder-val="{{ true }}">
+              <div role="list" style="display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ items }}" as="it" hint-placeholder-count="4">
+                  <div role="listitem" style="{{ it.wrapStyle }}"><button type="button" aria-label="{{ it.aria }}" onClick="{{ it.open }}" style="{{ it.rowStyle }}" style-hover="background:var(--bg-hover)" style-focus-visible="outline:2px solid var(--primary);outline-offset:-2px">
+                    <span aria-hidden="true" style="width:8px;flex:0 0 auto;display:grid;place-items:center;align-self:stretch;padding-top:6px">
+                      <sc-if value="{{ it.unread }}" hint-placeholder-val="{{ true }}">
+                        <span style="width:8px;height:8px;border-radius:var(--r-pill);background:var(--fg-1)"></span>
+                      </sc-if>
+                    </span>
+                    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;text-align:start">
+                      <span style="display:flex;align-items:baseline;gap:8px">
+                        <span style="{{ it.titleStyle }}">{{ it.title }}</span>
+                        <span data-mock="true" style="flex:0 0 auto;font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ it.when }}</span>
+                      </span>
+                      <span style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ it.body }}</span>
+                      <span style="display:flex;align-items:center;gap:6px;padding-top:2px">
+                        <span aria-hidden="true" style="display:grid;place-items:center;width:14px;height:14px;color:var(--fg-4)">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ it.icon }}" size="{{ n14 }}" hint-size="14px,14px"></x-import>
+                        </span>
+                        <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ it.target }}</span>
+                      </span>
+                    </span>
+                  </button>{{ it.delBtn }}</div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+          </div>
+        </x-import>
+        {{ sheet }}
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
+    <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Avisos answers what did I miss. It is a list of things that happened while the person was away, and every row leads somewhere: the payload carries a title, a body, a link, an optional habit, a read flag and a timestamp, and the row renders all six of those and nothing invented.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>unread, all read, one item, full list, detail, delete queued, clear all, empty, loading. Hover, focus-visible and press are live. Reached by using the screen rather than the axis: the sheet by tapping a row, the queued delete from a row’s own control or the sheet’s, the undo from the toast, the row coming back when it is taken, and the cleared list from the clear all confirmation. No plan axis: this screen has no gate, and a screen with no gate does not grow a dead switch.</p>
+      <p><span style="color:var(--fg-3)">bell&nbsp;&nbsp;</span>one control, two placements: the mobile shell header and the web sidebar. The count is a neutral pill, fg-1 with canvas text, because an unread count is not a next action, not a current position and not progress toward anything, so none of the accent's four roles covers it. At zero the pill is absent rather than showing a nought, since a nought is a number a person does not need. The count is capped in copy at 9 and over, because the exact figure past that changes nothing a person would do.</p>
+      <p><span style="color:var(--fg-3)">read&nbsp;&nbsp;</span>read and unread differ by more than colour, in three ways at once: an unread row carries a filled dot in a reserved column, its title is a weight step up, and it sits on the card surface while a read row sits flat on the canvas. The dot column is reserved on every row, so nothing shifts when a row is read, and the list never reorders under the person's thumb. Mark all read is drawn in the header as a quiet ghost action, absent at zero unread rather than disabled, the same rule the sign in screen's resend follows: never offer a control that would do nothing. The endpoint and the control both ship today, so the earlier claim here that no endpoint exposes it was wrong: NotificationController.cs:44 is [HttpPut("read-all")], handled by MarkAllNotificationsReadCommand, the bell renders the control at apps/web/components/navigation/notification-bell.tsx:278-282 and apps/mobile/components/navigation/notification-bell.tsx:66, 278, and apps/mobile/lib/offline-queue.ts:183 queues it while offline. No decision removed it, and a capability the app has today is never dropped without one.</p>
+      <p><span style="color:var(--fg-3)">acts&nbsp;&nbsp;</span>a row opens the notification’s own sheet (notification-detail-modal.tsx): the mono timestamp eyebrow with the target beside it, the body in full rather than truncated forever, and the three shipping actions, view (:54-55) as the primary leading to the row’s stated target, mark as read (:59-60), absent once the row is read, and delete (:63-64), destructive and last. A row can also be deleted where it sits: each row carries a real 44px delete, a SIBLING of the row body in ListRow’s action treatment, never nested inside it, its glyph in status-bad paired with the word in its accessible name. The delete is QUEUED, not immediate (notification-bell.tsx:186-192 through pending-notification-deletes.ts): the row leaves at once, a neutral Toast in the shell’s notice slot carries notifications.deleteQueued with notifications.deleteUndo as its action, taking the undo brings the row back, and the toast leaves when the queue commits or the undo lands, never on its own timer, which is the component’s rule. Clear all (useDeleteAllNotifications, the showDeleteAllConfirm gate at notification-bell.tsx:159,165) sits beside mark all read, absent when the list is empty rather than disabled, and it asks first, names how many go, and says there is no way back, because there is not one: the undoable delete says it can be undone, and the one that cannot says that instead.</p>
+      <p><span style="color:var(--fg-3)">links&nbsp;&nbsp;</span>every link points at one of the four destinations or at a habit, and the row states its target in mono so the destination is visible before the tap. The streak notification goes to Progresso, which is where the streak and its repair live. This is drawn as fixed: the shipping payload still writes links to routes the four destination shell removed, so an existing notification can land nowhere, and ticket #334 files the API cleanup.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>the mark at 96, one line, and no action, because there is nothing for a person to do about an empty inbox and an action here would be an invitation to somewhere they were not going. It parks no figure and no upgrade call.</p>
+      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>the list's own shape, three lines per row, aria-busy, no spinner. The bell keeps its count while the list loads, since the count arrives with the unread total rather than with the list.</p>
+      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>this is a pushed screen rather than a destination, so it carries the tab bar but no composer. The header is two lines, because the two list actions, the bell and the title cannot share one 412 row in Portuguese, the longer locale: back, the title and the bell on the first, mark all read and clear all under them, each keeping its visible word. The composer note stands: the composer belongs to the four destinations, and Astra has nothing to add to a list of things that already happened. At the wide width the bell rides the shell's header slot, because the sidebar has no bell slot yet, which is the one component change this screen needs.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Rows are 16 of padding with an 8 gap between them, the dot column is 8 wide, and the row keeps a 44 minimum.</p>
+      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on the rows, 20 on the empty state's own surface, 28 on the shell, 999 on the bell, the pill and the dot.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position on the Hoje tab and the focus ring. The sheet’s view action is the one filled action while the sheet is open; the list itself has none, because every row is the action. The delete controls carry status-bad on the glyph only, paired with the word in the accessible name. Wide: the sidebar create is the one filled action, so the sheet’s view steps down to the neutral fill.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>the unread title is fg-1 on the card at 15.9:1 and the read title is fg-2 on the canvas at 9.6:1. The body and the target sit at fg-3 and fg-4: fg-3 touches the known 4.40:1 hover limit only while a row is under the pointer, and fg-4 carries the timestamp and the target, both non-essential duplicates of what the title already says.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the bell count, every timestamp, the count inside the clear all question, and the figures inside the notification bodies. Base date Monday 17 August 2026, clock read as 19:20.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every row leads to a destination that exists, and the sheet’s view goes there. 2 read and unread are distinguishable with colour removed. 3 the bell never shows a nought and never carries the accent. 4 the undoable delete offers its undo, and clear all promises nothing it cannot do.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried Toast and ListRow’s action, so nothing was re-synced. Still composed around the system: 1 ShellWide has no bell slot, so the bell rides its header; the sidebar is where the IA puts it. 2 there is no notification row in the system, so the row is composed from a button, a dot, a title, a body and a mono target, and its per row delete follows ListRow’s action treatment: a composed sibling of the body, inside the row’s shared surface, which lives on the wrapper so the action never floats beside the card. 3 Badge is a static label and takes no count semantics, so the pill is composed to sit on the bell. 4 Skeleton’s list variant draws two lines per row where this row has three, so the loading height is a little short of the real list.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a notification whose habit has since been deleted should render at all, since the payload keeps the habit id and the row would lead nowhere.</p>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+const H = React.createElement;
+const F = React.Fragment;
+const mock = (v) => H('span', { 'data-mock': 'true' }, v);
+const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
+const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+
+/* Every link points at one of the four destinations or at a habit. The streak goes to /progress. */
+const ITEMS = [
+  { id: 'streak', route: 'progresso', icon: 'chart-line', when: '2 h', read: false,
+    pt: ['A sua sequência está em 12 dias', 'Você tem 2 congelamentos guardados para usar em um dia perdido.'],
+    en: ['Your streak is at 12 days', 'You have 2 freezes saved to spend on a missed day.'] },
+  { id: 'walk', route: 'habit', habitPt: 'Caminhada', habitEn: 'Walk', icon: 'circle-dot', when: '4 h', read: false,
+    pt: ['A caminhada não aconteceu às 18:00', 'O Astra pode mover para as 20:00 se hoje à noite for melhor.'],
+    en: ['The walk did not happen at 18:00', 'Astra can move it to 20:00 if tonight works better.'] },
+  { id: 'summary', route: 'hoje', icon: 'home', when: '9 h', read: false,
+    pt: ['3 hábitos para hoje', 'A água já está registrada. Faltam 2.'],
+    en: ['3 habits for today', 'The water is logged. 2 to go.'] },
+  { id: 'week', route: 'calendario', icon: 'calendar', when: 'ontem', whenEn: 'yesterday', read: true,
+    pt: ['A semana passada fechou em 86%', 'Segunda e quinta foram os dias completos.'],
+    en: ['Last week closed at 86%', 'Monday and Thursday were the complete days.'] },
+  { id: 'goal', route: 'progresso', icon: 'chart-line', when: 'ontem', whenEn: 'yesterday', read: true,
+    pt: ['A meta de leitura passou de 4 livros', 'Faltam 8 para os 12 do ano.'],
+    en: ['The reading goal passed 4 books', '8 to go for the 12 this year.'] },
+  { id: 'house', route: 'habit', habitPt: 'Rotina da casa', habitEn: 'House routine', icon: 'circle-dot',
+    when: '2 d', whenEn: '2 d', read: true,
+    pt: ['A rotina da casa ficou pela metade', 'O banheiro é o item que sobra mais.'],
+    en: ['The house routine came in half done', 'The bathroom is the item left over most.'] },
+  { id: 'plan', route: 'perfil', icon: 'user', when: '3 d', read: true,
+    pt: ['O resumo do dia está ligado', 'Você pode desligar em Perfil quando quiser.'],
+    en: ['The daily summary is on', 'You can turn it off in Profile whenever you like.'] },
+  { id: 'freeze', route: 'progresso', icon: 'chart-line', when: '4 d', read: true,
+    pt: ['Um congelamento entrou na sua conta', 'Ele vale para um dia perdido, e você tem 3 no máximo.'],
+    en: ['A freeze landed in your account', 'It covers one missed day, and 3 is the most you can hold.'] },
+  { id: 'water', route: 'habit', habitPt: 'Água da manhã', habitEn: 'Morning water', icon: 'circle-dot',
+    when: '5 d', read: true,
+    pt: ['A água da manhã está em 14 dias seguidos', 'É o hábito mais firme da sua lista.'],
+    en: ['Morning water is at 14 days running', 'It is the steadiest habit on your list.'] },
+  { id: 'stretch', route: 'habit', habitPt: 'Alongamento', habitEn: 'Stretching', icon: 'circle-dot',
+    when: '6 d', read: true,
+    pt: ['O alongamento não aconteceu 4 vezes', 'Talvez 21:00 seja tarde demais.'],
+    en: ['Stretching did not happen 4 times', 'Maybe 21:00 is too late.'] },
+  { id: 'month', route: 'calendario', icon: 'calendar', when: '8 d', read: true,
+    pt: ['Julho fechou em 87%', '18 dias completos no mês.'],
+    en: ['July closed at 87%', '18 complete days in the month.'] },
+  { id: 'keys', route: 'perfil', icon: 'user', when: '12 d', read: true,
+    pt: ['Uma chave de API foi criada', 'Se não foi você, revogue em Perfil.'],
+    en: ['An API key was created', 'If that was not you, revoke it in Profile.'] },
+];
+
+const T = {
+  'pt-BR': {
+    lang: 'pt-BR',
+    tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
+    title: 'Avisos', back: 'Voltar',
+    navLabel: 'Navegação principal', palette: 'Buscar',
+    markAll: 'Marcar tudo como lido',
+    bell: 'Avisos', bellCount: (n) => 'Avisos, ' + n + ' sem ler',
+    routes: { hoje: 'Hoje', calendario: 'Calendario', progresso: 'Progresso', perfil: 'Perfil' },
+    openIn: (where) => 'Abrir em ' + where,
+    unreadWord: 'sem ler', readWord: 'lido',
+    emptyTitle: 'Nada para ver aqui',
+    loading: 'Carregando',
+    markRead: 'Marcar como lido', del: 'Apagar',
+    delAria: (n) => 'Apagar: ' + n,
+    deleteQueued: 'O aviso saiu da lista.', deleteUndo: 'Desfazer',
+    clearAll: 'Limpar tudo',
+    clearTitle: 'Apagar todos os avisos?',
+    clearBody: (n) => ['Os ', n, ' avisos saem da lista. Não há como desfazer.'],
+    clearGo: 'Apagar', cancel: 'Cancelar',
+  },
+  en: {
+    lang: 'en',
+    tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
+    title: 'Alerts', back: 'Back',
+    navLabel: 'Main navigation', palette: 'Search',
+    markAll: 'Mark all read',
+    bell: 'Alerts', bellCount: (n) => 'Alerts, ' + n + ' unread',
+    routes: { hoje: 'Today', calendario: 'Calendar', progresso: 'Progress', perfil: 'Profile' },
+    openIn: (where) => 'Open in ' + where,
+    unreadWord: 'unread', readWord: 'read',
+    emptyTitle: 'Nothing to see here',
+    loading: 'Loading',
+    markRead: 'Mark as read', del: 'Delete',
+    delAria: (n) => 'Delete: ' + n,
+    deleteQueued: 'The alert left the list.', deleteUndo: 'Undo',
+    clearAll: 'Clear all',
+    clearTitle: 'Delete all alerts?',
+    clearBody: (n) => ['All ', n, ' alerts leave the list. There is no way to undo this.'],
+    clearGo: 'Delete', cancel: 'Cancel',
+  },
+};
+
+/* Rows lead to a document that exists. */
+const DOCS = { hoje: 'Orbit Hoje.dc.html', calendario: 'Orbit Calendario.dc.html',
+  progresso: 'Orbit Progresso.dc.html', perfil: 'Orbit Perfil.dc.html', habit: 'Orbit Habit Detail.dc.html' };
+
+class Component extends DCLogic {
+  state = { mode: 'dark', width: '412', st: 'unread', loc: 'pt-BR', read: {},
+    hidden: {}, gone: {}, toast: null, detail: null, confirm: false, cleared: false };
+
+  componentDidMount() {
+    this._esc = (e) => {
+      if (e.key !== 'Escape') return;
+      if (this.state.confirm) this.setState({ confirm: false });
+      else if (this.state.detail) this.setState({ detail: null });
+    };
+    document.addEventListener('keydown', this._esc);
+    if (!window.OrbitDesignSystem_918bd5) {
+      this._t = setInterval(() => {
+        if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
+      }, 60);
+    }
+  }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._qT); document.removeEventListener('keydown', this._esc); }
+
+  onCC = (next) => {
+    clearTimeout(this._qT);
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, read: {},
+      hidden: next.state === 'delete queued' ? { walk: true } : {},
+      gone: {}, cleared: false,
+      toast: next.state === 'delete queued' ? 'walk' : null,
+      detail: next.state === 'detail' ? 'walk' : null,
+      confirm: next.state === 'clear all' });
+  };
+
+  goTo = (route) => { window.location.href = encodeURI(DOCS[route] || DOCS.hoje); };
+  /* The delete is QUEUED (pending-notification-deletes.ts, notification-bell.tsx:186-192): the row
+     leaves at once, the toast carries the undo, and the undo brings the row back. The timer below is
+     the pending queue committing, not the toast dismissing itself. */
+  queueDelete = (id) => {
+    clearTimeout(this._qT);
+    this.setState((p) => ({ hidden: Object.assign({}, p.hidden, { [id]: true }), toast: id, detail: null }));
+    this._qT = setTimeout(() => this.setState((p) => ({
+      gone: Object.assign({}, p.gone, { [id]: true }), toast: p.toast === id ? null : p.toast })), 4000);
+  };
+  undoDelete = (id) => {
+    clearTimeout(this._qT);
+    this.setState((p) => {
+      const hidden = Object.assign({}, p.hidden);
+      delete hidden[id];
+      return { hidden: hidden, toast: null };
+    });
+  };
+
+  bellNode(t, count) {
+    const D = window.OrbitDesignSystem_918bd5;
+    /* An unread count is not an action, a position or progress, so it takes none of the accent. */
+    return H('button', { type: 'button', 'aria-label': count > 0 ? t.bellCount(count) : t.bell,
+      onClick: () => {},
+      style: { position: 'relative', width: 44, height: 44, flex: '0 0 auto', display: 'grid',
+        placeItems: 'center', border: 0, background: 'var(--p-transparent)', color: 'var(--fg-2)',
+        borderRadius: 'var(--r-pill)', cursor: 'pointer' } },
+      H(D.Icon, { name: 'bell', size: 24 }),
+      count > 0 ? H('span', { 'data-mock': 'true', 'aria-hidden': 'true',
+        style: { position: 'absolute', top: 0, right: 0, minWidth: 20, height: 20, paddingInline: 6,
+          borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', color: 'var(--bg)',
+          fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', lineHeight: '20px',
+          textAlign: 'center', boxShadow: '0 0 0 3px var(--bg)' } },
+        count > 9 ? '9+' : String(count)) : null);
+  }
+
+  renderVals() {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    const t = T[s.loc] || T['pt-BR'];
+    const st = s.st;
+    const base = {
+      mode: s.mode, lang: t.lang, onCC: this.onCC,
+      cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
+      stateAxis: ['unread', 'all read', 'one item', 'full list', 'detail', 'delete queued',
+        'clear all', 'empty', 'loading'],
+      is412: s.width === '412', isWide: s.width === 'wide',
+      n5: 5, n14: 14, noop: () => {},
+      showReport: this.props.showReport !== false,
+      emptyTitle: t.emptyTitle, loadingLabel: t.loading,
+      createLabel: t.create, account: t.account, navLabelWord: t.navLabel, paletteWord: t.palette,
+    };
+    if (!D) return base;
+
+    const loading = st === 'loading';
+    const en = t.lang === 'en';
+    const pool = st === 'one item' ? ITEMS.slice(1, 2)
+      : st === 'full list' ? ITEMS
+      : ITEMS.slice(0, 6);
+
+    const rows = (loading || st === 'empty' || s.cleared) ? [] : pool
+      .filter((it) => !s.hidden[it.id] && !s.gone[it.id])
+      .map((it) => {
+        const readFlag = s.read[it.id] != null ? s.read[it.id]
+          : (st === 'all read' ? true : it.read);
+        const unread = !readFlag;
+        const where = it.route === 'habit' ? (en ? it.habitEn : it.habitPt) : t.routes[it.route];
+        const copy = en ? it.en : it.pt;
+        return {
+          id: it.id, route: it.route,
+          title: copy[0], body: copy[1],
+          when: (en && it.whenEn) ? it.whenEn : it.when,
+          icon: it.icon, target: where,
+          unread: unread,
+          aria: copy[0] + '. ' + (unread ? t.unreadWord : t.readWord) + '. ' + t.openIn(where),
+          /* The card surface lives on the WRAPPER, so the delete sits inside the row's shared
+             surface the way ListRow's action does; the hover lives on the body alone, so the row
+             never lights while the pointer is on the action. */
+          wrapStyle: 'display:flex;align-items:stretch;gap:4px;border-radius:var(--r-well);'
+            + (unread ? 'background:var(--bg-card);box-shadow:inset 0 0 0 1px var(--hairline)' : ''),
+          rowStyle: 'flex:1;min-width:0;display:flex;align-items:flex-start;gap:12px;min-height:44px;padding:16px;border:0;cursor:pointer;font-family:var(--font-sans);border-radius:var(--r-well);transition:background-color var(--dur-hover) var(--ease-standard);background:var(--p-transparent)',
+          titleStyle: 'flex:1;min-width:0;font-size:16px;line-height:1.4;text-wrap:pretty;'
+            + (unread ? 'font-weight:500;color:var(--fg-1)' : 'font-weight:400;color:var(--fg-2)'),
+          /* The row opens the notification's own sheet (notification-detail-modal.tsx). */
+          open: () => this.setState({ detail: it.id }),
+          /* ListRow's action treatment on a composed row: a real 44px button, a SIBLING of the row
+             body, never nested inside it; status-bad on the glyph, the word in the accessible name. */
+          delBtn: H('button', { type: 'button', 'aria-label': t.delAria(copy[0]),
+            onClick: () => this.queueDelete(it.id),
+            style: { width: 44, minHeight: 44, alignSelf: 'center', flex: '0 0 auto', display: 'grid',
+              placeItems: 'center', border: 0, borderRadius: 'var(--r-pill)',
+              background: 'var(--p-transparent)', color: 'var(--status-bad)', cursor: 'pointer',
+              transition: 'background-color var(--dur-fast) var(--ease-standard)' } },
+            H(D.Icon, { name: 'trash', size: 20 })),
+        };
+      });
+
+    const empty = !loading && rows.length === 0;
+    const count = rows.filter((r) => r.unread).length;
+    const detailIt = s.detail ? pool.filter((it) => it.id === s.detail)[0] : null;
+
+    return Object.assign(base, {
+      loading: loading, isEmpty: empty, hasList: !loading && !empty,
+      items: rows,
+      /* Two word-actions, the bell and the title cannot share one 412 row in pt-BR, the longer
+         locale, so the header is two lines: the top line is back, title and bell, and the two list
+         actions sit on their own line under it, each keeping its visible word. Both stay absent
+         rather than disabled when they would do nothing. */
+      header: H('div', { style: { display: 'flex', flexDirection: 'column',
+        boxShadow: 'inset 0 -1px 0 var(--hairline)' } },
+        H('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px 0 8px' } },
+          H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.back, onClick: () => {},
+            style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } },
+            H(D.Icon, { name: 'arrow-left', size: 20 })),
+          H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, t.title),
+          this.bellNode(t, count)),
+        (count > 0 || rows.length > 0) ? H('div', { style: { display: 'flex', alignItems: 'center',
+          gap: 8, flexWrap: 'wrap', padding: '0 12px 8px 8px' } },
+          /* Absent at zero unread rather than disabled: a control that would do nothing is not offered. */
+          count > 0 ? H(D.Button, { variant: 'ghost', size: 'sm',
+            onClick: () => this.setState((p) => {
+              const read = Object.assign({}, p.read);
+              pool.forEach((it) => { read[it.id] = true; });
+              return { read: read };
+            }) }, t.markAll) : null,
+          /* Clear all (useDeleteAllNotifications, notification-bell.tsx:159,165): absent when the list
+             is empty, and it asks first because there is no way back from it. */
+          rows.length > 0 ? H(D.Button, { variant: 'ghost', size: 'sm',
+            onClick: () => this.setState({ confirm: true }) }, t.clearAll) : null) : null),
+      /* The queued delete's toast: neutral, one line, the undo as its action. It dismisses when the
+         queue commits or the undo is taken, never on its own timer. */
+      notice: s.toast ? H(D.Toast, { kind: 'neutral', icon: 'trash', message: t.deleteQueued,
+        actionLabel: t.deleteUndo, onAction: () => this.undoDelete(s.toast) }) : null,
+      sheet: s.confirm
+        ? H(D.Sheet, { open: true, title: t.clearTitle, onClose: () => this.setState({ confirm: false }),
+            actions: H(F, null,
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ confirm: false }) }, t.cancel),
+              H(D.Button, { size: 'sm', variant: 'destructive',
+                onClick: () => this.setState({ confirm: false, cleared: true, toast: null }) }, t.clearGo)) },
+            H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } },
+              H(F, null, t.clearBody(mock(String(rows.length)))[0], t.clearBody(mock(String(rows.length)))[1], t.clearBody('')[2])))
+        : detailIt
+        ? (() => {
+            /* notification-detail-modal.tsx: the mono timestamp eyebrow, the body in full, and the
+               three actions, view leading to the row's stated target, mark as read, and delete. */
+            const copy = en ? detailIt.en : detailIt.pt;
+            const where = detailIt.route === 'habit' ? (en ? detailIt.habitEn : detailIt.habitPt) : t.routes[detailIt.route];
+            const isRead = s.read[detailIt.id] != null ? s.read[detailIt.id] : (st === 'all read' ? true : detailIt.read);
+            const close = () => this.setState({ detail: null });
+            return H(D.Sheet, { open: true, title: copy[0], onClose: close,
+              actions: H(F, null,
+                H(D.Button, { size: 'sm', variant: s.width === '412' ? 'primary' : 'secondary',
+                  onClick: () => this.goTo(detailIt.route) }, t.openIn(where)),
+                isRead ? null : H(D.Button, { size: 'sm', variant: 'ghost',
+                  onClick: () => this.setState((p) => ({ read: Object.assign({}, p.read, { [detailIt.id]: true }) })) }, t.markRead),
+                H('span', { style: { flex: 1 } }),
+                H(D.Button, { size: 'sm', variant: 'destructive',
+                  onClick: () => this.queueDelete(detailIt.id) }, t.del)) },
+              H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 8 } },
+                H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-4)',
+                  fontVariantNumeric: 'tabular-nums' } }, mock((en && detailIt.whenEn) ? detailIt.whenEn : detailIt.when),
+                  ' \u00B7 ', where),
+                H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.55, textWrap: 'pretty' } }, copy[1])));
+          })()
+        : null,
+      navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+        activeId: 'hoje', onSelect: () => {} }),
+    });
+  }
+}
+</script>
+</body>
+</html>
