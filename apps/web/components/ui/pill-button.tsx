@@ -27,12 +27,14 @@ export function Button({
   children,
   iconOnly,
   label,
+  formId,
 }: Readonly<ButtonProps>) {
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
     <button
       type={onClick ? 'button' : 'submit'}
+      form={formId}
       onClick={loading ? undefined : onClick}
       disabled={disabled || loading}
       aria-busy={loading || undefined}

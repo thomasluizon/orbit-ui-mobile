@@ -53,10 +53,13 @@ describe('redesign primitives on mobile', () => {
           { id: 'zero', label: 'Zero', value: 0 },
           { id: 'ten', label: 'Ten', value: 10 },
         ]}
+        label="Results"
         emptyLabel="No measurements"
       />,
     )
-    const zero = tree.root.find((node) => prop(node, 'accessibilityLabel') === 'Zero: 0')
+    expect(prop(tree.root.findAllByType('View')[0]!, 'accessible')).toBe(false)
+    const zero = tree.root.find((node) => prop(node, 'accessibilityLabel') === 'Results. Zero: 0')
+    expect(prop(zero, 'accessibilityRole')).toBe('image')
     const fill = zero.findAllByType('View').find((node) => {
       const style = prop<StyleArray | undefined>(node, 'style')
       return style?.[1]?.height === 2

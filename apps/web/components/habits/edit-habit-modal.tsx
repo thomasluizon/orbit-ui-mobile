@@ -229,15 +229,12 @@ export function EditHabitModal({
               {t('common.cancel')}
             </PillButton>
             <PillButton
-
-
-
+              formId={formId}
               disabled={
                 updateHabit.isPending ||
                 detailFieldsPending ||
                 watchedTitle.trim().length === 0
               }
-
             >
               {t('common.save')}
             </PillButton>

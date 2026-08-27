@@ -7,5 +7,7 @@ export interface PlanCardProps {
   /** e.g. a Badge like "2 MESES GRÁTIS" */
   badge?: ReactNode
   selected?: boolean
+  disabled?: boolean
+  loading?: boolean
   onClick?: () => void
 }

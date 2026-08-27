@@ -15,7 +15,7 @@ export function Columns({
   const allZero = measuredMax === 0
 
   return (
-    <div className="flex w-full items-end gap-4" style={{ height }} role="img" aria-label={label}>
+    <div className="flex w-full items-end gap-4" style={{ height }} role="group" aria-label={label}>
       {columns.map((column) => {
         const ratio = scaleMax > 0 ? Math.min(1, Math.max(0, column.value / scaleMax)) : 0
         const isCurrent = column.id === currentId
@@ -25,6 +25,7 @@ export function Columns({
           <div
             key={column.id}
             className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"
+            role="img"
             aria-label={`${column.label}: ${accessibleValue}`}
             data-current={isCurrent || undefined}
             data-zero={column.value === 0 || undefined}

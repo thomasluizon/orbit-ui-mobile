@@ -34,4 +34,15 @@ describe('PlanCard', () => {
     render(<PlanCard name="Pro Yearly" price="$4.16" selected />)
     expect(screen.getByRole('button')).toHaveAttribute('data-selected', 'true')
   })
+
+  it('blocks activation and exposes disabled and busy state while loading', () => {
+    const onClick = vi.fn()
+    render(<PlanCard name="Pro Yearly" price="$4.16" loading onClick={onClick} />)
+    const button = screen.getByRole('button')
+
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(button)
+    expect(onClick).not.toHaveBeenCalled()
+  })
 })

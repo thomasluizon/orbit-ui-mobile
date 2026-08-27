@@ -102,4 +102,25 @@ describe('PlanSelection', () => {
     fireEvent.click(screen.getByRole('button', { name: /upgrade\.free/ }))
     expect(onStayFree).toHaveBeenCalledTimes(1)
   })
+
+  it('locks every choice while a paid checkout is pending', () => {
+    const onCheckout = vi.fn()
+    const onStayFree = vi.fn()
+    renderSelection({ checkoutLoading: 'yearly', onCheckout, onStayFree })
+
+    const free = screen.getByRole('button', { name: /upgrade\.free/ })
+    const yearly = screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })
+    const monthly = screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })
+
+    expect(free).toBeDisabled()
+    expect(yearly).toBeDisabled()
+    expect(yearly).toHaveAttribute('aria-busy', 'true')
+    expect(monthly).toBeDisabled()
+
+    fireEvent.click(free)
+    fireEvent.click(yearly)
+    fireEvent.click(monthly)
+    expect(onStayFree).not.toHaveBeenCalled()
+    expect(onCheckout).not.toHaveBeenCalled()
+  })
 })

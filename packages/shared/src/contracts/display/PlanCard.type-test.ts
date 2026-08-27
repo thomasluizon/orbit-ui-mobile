@@ -3,6 +3,7 @@ import type { PlanCardProps } from './PlanCard'
 const acceptPlanCard = (_props: PlanCardProps): void => undefined
 
 acceptPlanCard({ name: 'Yearly', price: '$40', badge: 'Save', selected: true })
+acceptPlanCard({ name: 'Yearly', price: '$40', disabled: true, loading: true })
 
 // @ts-expect-error selected is the only visual axis
 acceptPlanCard({ name: 'Yearly', price: '$40', variant: 'hero' })
@@ -12,3 +13,5 @@ acceptPlanCard({ name: 'Yearly', price: '$40', tone: 'accent' })
 acceptPlanCard({ name: 'Yearly', price: '$40', color: 'orange' })
 // @ts-expect-error plan cards do not accept highlight
 acceptPlanCard({ name: 'Yearly', price: '$40', highlight: true })
+// @ts-expect-error loading is boolean state
+acceptPlanCard({ name: 'Yearly', price: '$40', loading: 'yes' })

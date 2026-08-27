@@ -15,6 +15,20 @@ describe('PillButton', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
+  it('submits an associated form outside the button subtree', () => {
+    const onSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => event.preventDefault())
+    render(
+      <>
+        <form id="habit-form" onSubmit={onSubmit} />
+        <PillButton formId="habit-form">Create</PillButton>
+      </>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
   it('does not fire onClick when disabled', () => {
     const onClick = vi.fn()
     render(

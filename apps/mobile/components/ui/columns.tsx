@@ -20,17 +20,19 @@ export function Columns({
   const allZero = measuredMax === 0
 
   return (
-    <View style={[styles.columns, { height }]} accessibilityRole="image" accessibilityLabel={label}>
+    <View style={[styles.columns, { height }]} accessible={false}>
       {columns.map((column) => {
         const ratio = scaleMax > 0 ? Math.min(1, Math.max(0, column.value / scaleMax)) : 0
         const isCurrent = column.id === currentId
         const accessibleValue = allZero ? emptyLabel : String(column.value)
+        const accessibleLabel = `${column.label}: ${accessibleValue}`
 
         return (
           <View
             key={column.id}
             style={styles.column}
-            accessibilityLabel={`${column.label}: ${accessibleValue}`}
+            accessibilityRole="image"
+            accessibilityLabel={label ? `${label}. ${accessibleLabel}` : accessibleLabel}
             testID={isCurrent ? 'column-current' : 'column-neutral'}
           >
             {showValues ? (

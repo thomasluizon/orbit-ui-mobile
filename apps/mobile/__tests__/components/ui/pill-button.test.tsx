@@ -47,6 +47,12 @@ describe('PillButton (mobile)', () => {
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
+  it('does not forward the web-only form association hint to Pressable', () => {
+    const tree = renderPill(<PillButton formId="habit-form">Create</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    expect(button.props.formId).toBeUndefined()
+  })
+
   it('exposes the disabled state', () => {
     const tree = renderPill(
       <PillButton onClick={() => {}} disabled>

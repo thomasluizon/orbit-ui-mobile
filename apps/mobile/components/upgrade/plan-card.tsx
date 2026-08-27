@@ -4,15 +4,25 @@ import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 /** Selectable plan card with the accent reserved for the chosen state. */
-export function PlanCard({ name, badge, price, selected = false, onClick }: Readonly<PlanCardProps>) {
+export function PlanCard({
+  name,
+  badge,
+  price,
+  selected = false,
+  disabled = false,
+  loading = false,
+  onClick,
+}: Readonly<PlanCardProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const unavailable = disabled || loading
 
   return (
     <Pressable
-      onPress={onClick}
+      onPress={unavailable ? undefined : onClick}
+      disabled={unavailable}
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
+      accessibilityState={{ checked: selected, disabled: unavailable, busy: loading }}
       style={({ pressed }) => [
         styles.card,
         selected
@@ -27,6 +37,7 @@ export function PlanCard({ name, badge, price, selected = false, onClick }: Read
               borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
             },
         pressed ? styles.cardPressed : null,
+        unavailable ? styles.disabled : null,
       ]}
     >
       <View style={styles.nameRow}>
@@ -49,6 +60,9 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     transform: [{ scale: 0.99 }],
+  },
+  disabled: {
+    opacity: 0.4,
   },
   nameRow: {
     flexDirection: 'row',

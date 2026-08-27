@@ -8,6 +8,7 @@ acceptButton({ children: 'Continue', variant: 'secondary' })
 acceptButton({ children: 'Continue', variant: 'destructive' })
 acceptButton({ children: 'Continue', variant: 'caution' })
 acceptButton({ children: 'icon', iconOnly: true, label: 'Back' })
+acceptButton({ children: 'Create', formId: 'create-habit-form' })
 
 // @ts-expect-error a sixth variant is not representable
 acceptButton({ children: 'Continue', variant: 'accent' })
@@ -21,3 +22,5 @@ acceptButton({ children: 'icon', iconOnly: true })
 acceptButton({ children: 'Continue', label: 'Continue' })
 // @ts-expect-error iconOnly and label must be supplied together
 acceptButton({ children: 'Continue', label: 'Continue', iconOnly: false })
+// @ts-expect-error form ids are strings
+acceptButton({ children: 'Create', formId: 42 })

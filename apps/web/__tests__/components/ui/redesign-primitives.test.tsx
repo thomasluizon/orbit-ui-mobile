@@ -20,7 +20,9 @@ describe('redesign primitives on web', () => {
       />,
     )
 
-    expect(screen.getByLabelText('Zero: 0')).toBeInTheDocument()
+    expect(screen.getByRole('group')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Zero: 0' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Ten: 10' })).toBeInTheDocument()
     const zeroFill = container.querySelector('[data-zero] [aria-hidden="true"] > span')
     expect(zeroFill).toHaveStyle({ height: '2px' })
   })

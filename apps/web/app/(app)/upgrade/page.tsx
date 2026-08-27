@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
@@ -35,7 +35,8 @@ export default function UpgradePage() {
   const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource && !profile?.isLifetimePro
   const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
 
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
+  const checkoutPendingRef = useRef(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [portalError, setPortalError] = useState('')
 
@@ -50,6 +51,9 @@ export default function UpgradePage() {
   const showGradient = !isManageView || showsProPanel
 
   const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
+    if (checkoutPendingRef.current) return
+
+    checkoutPendingRef.current = true
     setCheckoutLoading(interval)
     setCheckoutError('')
     try {
@@ -73,6 +77,7 @@ export default function UpgradePage() {
     } catch (err: unknown) {
       setCheckoutError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
+      checkoutPendingRef.current = false
       setCheckoutLoading(null)
     }
   }, [t])

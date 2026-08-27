@@ -337,12 +337,8 @@ export function CreateHabitModal({
               {t('common.cancel')}
             </PillButton>
             <PillButton
-
-
-
+              formId={formId}
               disabled={isPending || watchedTitle.trim().length === 0}
-
-
             >
               {t('common.create')}
             </PillButton>

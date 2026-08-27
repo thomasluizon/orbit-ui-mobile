@@ -15,6 +15,8 @@ interface ButtonBase {
   loading?: boolean
   disabled?: boolean
   onClick?: () => void
+  /** Associates a web submit button with a form outside its DOM subtree. Native ignores this adapter hint. */
+  formId?: string
 }
 
 /** The ordinary button: its visible text is its accessible name. */

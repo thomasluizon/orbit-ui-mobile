@@ -50,11 +50,30 @@ describe('PlanCard (mobile)', () => {
     const unselected = renderPlan()
     expect(unselected.root.findByType('Pressable').props.accessibilityState).toEqual({
       checked: false,
+      disabled: false,
+      busy: false,
     })
 
     const selected = renderPlan({ selected: true })
     expect(selected.root.findByType('Pressable').props.accessibilityState).toEqual({
       checked: true,
+      disabled: false,
+      busy: false,
     })
+  })
+
+  it('blocks presses and exposes disabled and busy state while loading', () => {
+    const onClick = vi.fn()
+    const tree = renderPlan({ loading: true, onClick })
+    const card = tree.root.findByType('Pressable')
+
+    expect(card.props.disabled).toBe(true)
+    expect(card.props.onPress).toBeUndefined()
+    expect(card.props.accessibilityState).toEqual({
+      checked: false,
+      disabled: true,
+      busy: true,
+    })
+    expect(onClick).not.toHaveBeenCalled()
   })
 })

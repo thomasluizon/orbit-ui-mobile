@@ -197,6 +197,9 @@ describe('EditHabitModal', () => {
     mockHabitDetailResult = { data: null, isPending: false, error: null }
     mockUpdateMutateAsync.mockResolvedValue({})
     mockValidateAll.mockReturnValue(null)
+    mockFormWatch.mockImplementation((field?: string) =>
+      field === 'title' ? 'Exercise' : undefined,
+    )
     mockFormGetValues.mockReturnValue({
       title: 'Exercise',
       description: '',
@@ -251,6 +254,18 @@ describe('EditHabitModal', () => {
     )
     expect(screen.getByText('common.cancel')).toBeDefined()
     expect(screen.getByText('common.save')).toBeDefined()
+  })
+
+  it('submits through the named Save footer action', async () => {
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => {
+      expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('renders the form fields component', () => {
