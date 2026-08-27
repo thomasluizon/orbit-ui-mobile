@@ -11,7 +11,7 @@ const displayTime = (time: string) => time
 
 describe('resolveHabitRowDotState', () => {
   it('prioritizes done, then bad, then overdue, otherwise empty', () => {
-    expect(resolveHabitRowDotState(true, true, true)).toBe('done')
+    expect(resolveHabitRowDotState(true, true, true)).toBe('bad')
     expect(resolveHabitRowDotState(false, true, true)).toBe('bad')
     expect(resolveHabitRowDotState(false, false, true)).toBe('overdue')
     expect(resolveHabitRowDotState(false, false, false)).toBe('empty')

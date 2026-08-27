@@ -218,9 +218,9 @@ const captureSurfacesMobileCases = () => {
     { status: 3, stdout: /UNREACHABLE \(4\):[\s\S]*needs-surface-flow/ },
   )
 
-  // The protected-route signal mobile-capture.yml runs. It is a POSITIVE assertion by design: the
-  // exit code cannot carry this claim, because a runtime Maestro failure is undifferentiated. These
-  // pin the two halves that make the signal meaningful, so weakening either one goes red here.
+  // The protected-route signal. It is a POSITIVE assertion by design: the exit code cannot carry
+  // this claim, because a runtime Maestro failure is undifferentiated. These pin the two halves
+  // that make the signal meaningful, so weakening either one goes red here.
   const protectedFlowPath = join(REPO_ROOT, ".maestro", "protected-route-redirect.yaml")
   T("the protected-route flow exists outside the capture surfaces directory", existsSync(protectedFlowPath))
 

@@ -343,7 +343,7 @@ describe('HabitList', () => {
     expect(deleteMutateAsync).toHaveBeenCalledWith('habit-1')
   })
 
-  it('renders the habit description preview when present', () => {
+  it('omits the habit description from the canonical row', () => {
     seedHabits([
       createMockHabit({ id: 'habit-desc', title: 'Meditate', description: 'Ten minutes of breathing' }),
     ])
@@ -358,7 +358,7 @@ describe('HabitList', () => {
     const descriptionNodes = tree.root.findAll(
       (node: any) => node.props?.children === 'Ten minutes of breathing',
     )
-    expect(descriptionNodes.length).toBeGreaterThan(0)
+    expect(descriptionNodes).toHaveLength(0)
   })
 
   it('omits the description preview when the habit has none', () => {

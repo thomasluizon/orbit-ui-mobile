@@ -568,6 +568,7 @@ describe("TodayScreen", () => {
   });
 
   it("dedupes descendant successes before prompting parent logs for bulk actions", async () => {
+    uiState.isSelectMode = true;
     const root = createMockHabit({
       id: "root",
       title: "Root",
@@ -610,7 +611,8 @@ describe("TodayScreen", () => {
     const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await (bulkBar.props.onLog as () => Promise<void>)();
+      (bulkBar.props.onLog as () => void)();
+      await Promise.resolve();
     });
 
     expect(markRecentlyCompleted).toHaveBeenCalledWith("parent");
@@ -943,7 +945,8 @@ describe("TodayScreen overdue bulk selection", () => {
     const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await (bulkBar.props.onLog as () => Promise<void>)();
+      (bulkBar.props.onLog as () => void)();
+      await Promise.resolve();
     });
 
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
@@ -961,7 +964,8 @@ describe("TodayScreen overdue bulk selection", () => {
     const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await (bulkBar.props.onSkip as () => Promise<void>)();
+      (bulkBar.props.onSkip as () => void)();
+      await Promise.resolve();
     });
 
     expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);

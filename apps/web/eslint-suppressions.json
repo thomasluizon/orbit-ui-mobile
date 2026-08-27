@@ -839,14 +839,6 @@
       "count": 1
     }
   },
-  "components/habits/bulk-action-bar-v2.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/habits/checklist-templates.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -1025,30 +1017,9 @@
       "count": 4
     }
   },
-  "components/habits/habit-list.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/react19-api": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
   "components/habits/habit-list/date-group-section.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/habits/habit-list/drill-content.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/habits/habit-list/empty-state.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/habits/habit-list/move-parent-overlay.tsx": {
@@ -1057,45 +1028,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/habits/habit-row-check-circle.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/habits/habit-row-content.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/habits/habit-row-leading.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/habits/habit-row-menu.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/habits/habit-row-trailing.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/habits/habit-row.tsx": {
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/habits/reschedule-sheet.tsx": {

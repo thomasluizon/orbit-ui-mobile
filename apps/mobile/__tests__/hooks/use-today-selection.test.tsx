@@ -9,7 +9,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   store: {
-    activeView: String('today'),
+    activeView: 'today',
     isSelectMode: false,
     selectedHabitIds: new Set<string>(),
     toggleSelectMode: vi.fn(),

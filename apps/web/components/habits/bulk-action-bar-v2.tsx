@@ -19,8 +19,8 @@ const SELECT_ALL_BUTTON_STYLE = {
   fontFamily: 'var(--font-sans)',
   fontSize: 12,
   fontWeight: 500,
-  padding: '14px 10px',
-  margin: '-10px -4px',
+  padding: '12px 8px',
+  margin: '-8px -4px',
   textDecoration: 'underline',
   textUnderlineOffset: 3,
   textDecorationColor: 'var(--hairline-strong)',
@@ -67,7 +67,7 @@ function BulkBtn({ icon: Icon, label, color, onClick, disabled = false }: Readon
         color,
       }}
     >
-      <Icon size={22} strokeWidth={1.8} />
+      <Icon size={20} strokeWidth={1.8} />
     </button>
   )
 }
@@ -93,12 +93,12 @@ export function BulkActionBarV2({
   return createPortal(
     <motion.div
       data-testid="bulk-action-bar"
-      className="fixed left-1/2 -translate-x-1/2 z-50 flex flex-col bottom-[88px] w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] md:sticky md:left-auto md:translate-x-0 md:mx-auto md:bottom-6 md:w-fit md:max-w-[480px]"
+      className="fixed bottom-6 left-1/2 z-50 flex w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] -translate-x-1/2 flex-col md:sticky md:left-auto md:mx-auto md:w-fit md:max-w-[480px] md:translate-x-0"
       style={{
         gap: 8,
         background: 'var(--bg-sheet)',
         borderRadius: 20,
-        padding: '12px 14px',
+        padding: '12px 16px',
         boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
       }}
       initial={{

@@ -17,7 +17,6 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
-import Animated, { FadeInDown } from 'react-native-reanimated'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
@@ -54,7 +53,6 @@ import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -186,7 +184,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const deviceLocale = i18n.language
     const router = useRouter()
     const pathname = usePathname()
-    const prefersReducedMotion = usePrefersReducedMotion()
     const { profile } = useProfile()
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
@@ -250,6 +247,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       : topLevelHabits[0]?.id
     const totalCount = habitsQuery.data?.totalCount ?? 0
     const isLoading = habitsQuery.isLoading
+    const isError = habitsQuery.isError
     const isFetching = habitsQuery.isFetching
     const refetch = habitsQuery.refetch
     const getChildren = habitsQuery.getChildren
@@ -741,12 +739,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    const skipImmediately = useCallback(async (skippedId: string) => {
+    const skipHabit = useCallback(async (habitId: string) => {
       try {
-        await skipMutation.mutateAsync({ habitId: skippedId })
-        skippedChildIdsRef.current.add(skippedId)
-        markRecentlyCompleted(skippedId)
-        checkAndPromptParentLog(skippedId)
+        await skipMutation.mutateAsync({ habitId })
+        skippedChildIdsRef.current.add(habitId)
+        markRecentlyCompleted(habitId)
+        checkAndPromptParentLog(habitId)
       } catch {
       }
     }, [
@@ -1006,6 +1004,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           isDrillCard?: boolean
           onLongPressCard?: () => void
           tourTargetId?: string
+          panelStart?: boolean
+          panelEnd?: boolean
         },
       ) => {
         const progress = hasChildren
@@ -1017,7 +1017,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             key={habit.id}
             habit={habit}
             selectedDate={selectedDate}
-            depth={depth}
+            depth={depth === 0 ? 0 : 1}
+            panelStart={options?.panelStart}
+            panelEnd={options?.panelEnd}
             hasChildren={hasChildren}
             isExpanded={!collapsedIds.has(habit.id)}
             childrenDone={progress.done}
@@ -1034,7 +1036,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               },
               onUnlog: () => logMutation.mutate({ habitId: habit.id }),
               onSkip: () => {
-                void skipImmediately(habit.id)
+                void skipHabit(habit.id)
               },
               onReschedule: habit.isOverdue
                 ? () => {
@@ -1107,7 +1109,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         selectedIds,
         onLogHabit,
         logMutation,
-        skipImmediately,
+        skipHabit,
         toggleExpand,
         promptDelete,
         duplicateImmediately,
@@ -1124,55 +1126,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    const renderAllViewChildren = useCallback(
-      (parentId: string, depth: number) => {
-        function walk(
-          currentParentId: string,
-          currentDepth: number,
-        ): ReactElement[] | null {
-          if (
-            collapsedIds.has(currentParentId) ||
-            currentDepth >= maxHabitDepth
-          ) {
-            return null
-          }
-          const children = getVisibleChildren(currentParentId)
-          if (children.length === 0) return null
-
-          return children.map((child) => {
-            const visibleChildren = getVisibleChildren(child.id)
-            return (
-              <View key={child.id} style={styles.allViewChild}>
-                {renderHabitCard(
-                  child,
-                  currentDepth,
-                  visibleChildren.length > 0,
-                  child.hasSubHabits,
-                )}
-                {walk(child.id, currentDepth + 1)}
-              </View>
-            )
-          })
-        }
-
-        return walk(parentId, depth)
-      },
-      // react-doctor-disable-next-line exhaustive-deps -- maxHabitDepth is the extracted appConfig.limits.maxHabitDepth and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      [
-        collapsedIds,
-        getVisibleChildren,
-        maxHabitDepth,
-        renderHabitCard,
-        styles.allViewChild,
-      ],
-    )
-
     /* No Reanimated entering animation here: a layout animation nested inside a
        react-native-draggable-flatlist cell fights the cell's own translateY transform
        and mis-positions rows. https://github.com/thomasluizon/orbit-ui-mobile/pull/486 */
     const renderItem = useCallback(
-      ({ item, drag }: RenderItemParams<DragItem>) =>
-        renderHabitCard(
+      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
+        const index = getIndex() ?? 0
+        const nextItem = activeDragItems[index + 1]
+        return renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1185,9 +1146,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               item.habit.id === tourCardHabitId
                 ? 'tour-habit-card'
                 : undefined,
+            panelStart: item.depth === 0,
+            panelEnd: !nextItem || nextItem.depth === 0,
           },
-        ),
-      [isDndEnabled, prepareDrag, renderHabitCard, tourCardHabitId],
+        )
+      },
+      [
+        activeDragItems,
+        isDndEnabled,
+        prepareDrag,
+        renderHabitCard,
+        tourCardHabitId,
+      ],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
@@ -1243,55 +1213,49 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListDateGroupSection
           group={group}
           overdueLabel={t('habits.overdue')}
-          renderHabit={(habit, index) => {
-            const children = getVisibleChildren(habit.id)
+          renderHabit={(habit) => {
+            const panelItems = buildFlatHabitItems(
+              [habit],
+              collapsedIds,
+              getVisibleChildren,
+            )
             return (
-              <Animated.View
-                entering={
-                  prefersReducedMotion
-                    ? undefined
-                    : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
-                }
-              >
-                {renderHabitCard(
-                  habit,
-                  0,
-                  children.length > 0,
-                  habit.hasSubHabits,
+              <View>
+                {panelItems.map((item, index) =>
+                  renderHabitCard(
+                    item.habit,
+                    item.depth,
+                    item.hasChildren,
+                    item.hasSubHabits,
+                    {
+                      panelStart: index === 0,
+                      panelEnd: index === panelItems.length - 1,
+                    },
+                  ),
                 )}
-                {renderAllViewChildren(habit.id, 1)}
-              </Animated.View>
+              </View>
             )
           }}
         />
       ),
       [
+        collapsedIds,
         getVisibleChildren,
-        prefersReducedMotion,
-        renderAllViewChildren,
         renderHabitCard,
         t,
       ],
     )
 
     const renderDrillItem = useCallback<ListRenderItem<NormalizedHabit>>(
-      ({ item: child, index }) => (
-        <Animated.View
-          entering={
-            prefersReducedMotion
-              ? undefined
-              : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
-          }
-        >
-          <DrillHabitItem
-            child={child}
-            styles={styles}
-            getDrillChildren={drill.getDrillChildren}
-            renderHabitCard={renderHabitCard}
-          />
-        </Animated.View>
+      ({ item: child }) => (
+        <DrillHabitItem
+          child={child}
+          styles={styles}
+          getDrillChildren={drill.getDrillChildren}
+          renderHabitCard={renderHabitCard}
+        />
       ),
-      [drill.getDrillChildren, prefersReducedMotion, renderHabitCard, styles],
+      [drill.getDrillChildren, renderHabitCard, styles],
     )
 
     const drillFooter = useMemo(
@@ -1392,6 +1356,33 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               styles.skeletonContainer,
               bulkBarStyle,
             ]}
+            refreshControl={refreshControl}
+            onScrollBeginDrag={onScrollBeginDrag}
+            showsVerticalScrollIndicator={false}
+          />
+          {commonOverlays}
+        </>
+      )
+    }
+
+    if (isError && !habitsQuery.data) {
+      return (
+        <>
+          <FlatList
+            data={[]}
+            keyExtractor={() => 'load-error'}
+            renderItem={undefined}
+            ListHeaderComponent={listHeaderComponent}
+            ListEmptyComponent={
+              <HabitListEmptyState
+                title={t('habits.loadError')}
+                description=""
+                actionLabel={t('common.retry')}
+                onAction={() => void refetch()}
+                variant="secondary"
+              />
+            }
+            contentContainerStyle={[styles.listContent, bulkBarStyle]}
             refreshControl={refreshControl}
             onScrollBeginDrag={onScrollBeginDrag}
             showsVerticalScrollIndicator={false}

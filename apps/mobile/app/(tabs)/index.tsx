@@ -647,7 +647,7 @@ export default function TodayScreen() {
           testID="bulk-action-bar"
           style={[
             styles.bulkActionBarWrap,
-            { bottom: 20 + insets.bottom },
+            { bottom: 24 + insets.bottom },
             bulkBarAnimatedStyle,
           ]}
         >

@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from 'react'
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useCallback, useMemo } from 'react'
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
@@ -13,6 +13,8 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Menu, useAnchoredMenu } from '@/components/ui/menu'
+import { ChevronDown } from '@/components/ui/icons'
+import { SelectCheck } from '@/components/ui/select-check'
 import { HabitRowContent } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
@@ -88,8 +90,8 @@ function runMenuAction(actions: HabitRowActions, id: string): void {
 interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
-  /** 0 = parent row, >0 = child row (renders tree line connector). */
-  depth?: number
+  /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
+  depth?: 0 | 1
   isSelectMode?: boolean
   isSelected?: boolean
   hasChildren?: boolean
@@ -98,10 +100,96 @@ interface HabitRowProps {
   childrenTotal?: number
   actions?: HabitRowActions
   style?: StyleProp<ViewStyle>
+  panelStart?: boolean
+  panelEnd?: boolean
+}
+
+function HabitRowStructuralColumn({
+  selectMode,
+  selected,
+  title,
+  hasChildren,
+  expanded,
+  actions,
+  tokens,
+  collapseLabel,
+  expandLabel,
+}: Readonly<{
+  selectMode: boolean
+  selected: boolean
+  title: string
+  hasChildren: boolean
+  expanded: boolean
+  actions: HabitRowActions
+  tokens: ReturnType<typeof createTokensV2>
+  collapseLabel: string
+  expandLabel: string
+}>) {
+  if (selectMode) {
+    return (
+      <View style={styles.structuralColumn}>
+        <SelectCheck selected={selected} onPress={actions.onToggleSelection} accessibilityLabel={title} />
+      </View>
+    )
+  }
+  if (!hasChildren) return <View style={styles.structuralColumn} />
+  return (
+    <Pressable
+      onPress={actions.onToggleExpand}
+      accessibilityRole="button"
+      accessibilityLabel={expanded ? collapseLabel : expandLabel}
+      accessibilityState={{ expanded }}
+      style={({ pressed }) => [styles.structuralColumn, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}
+    >
+      <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
+        <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
+      </View>
+    </Pressable>
+  )
+}
+
+function resolveTitleColor(
+  done: boolean,
+  child: boolean,
+  tokens: ReturnType<typeof createTokensV2>,
+): string {
+  if (done) return tokens.fg3
+  return child ? tokens.fg2 : tokens.fg1
+}
+
+function buildRowStyle({
+  child,
+  selected,
+  panelStart,
+  panelEnd,
+  tokens,
+}: Readonly<{
+  child: boolean
+  selected: boolean
+  panelStart: boolean
+  panelEnd: boolean
+  tokens: ReturnType<typeof createTokensV2>
+}>): ViewStyle {
+  return {
+    minHeight: child ? 52 : 68,
+    marginHorizontal: 16,
+    marginBottom: panelEnd ? 12 : 0,
+    paddingLeft: child ? 24 : 0,
+    backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
+    borderColor: tokens.hairline,
+    borderTopWidth: panelStart ? StyleSheet.hairlineWidth : 0,
+    borderBottomWidth: panelEnd ? StyleSheet.hairlineWidth : 0,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: panelStart ? 20 : 0,
+    borderTopRightRadius: panelStart ? 20 : 0,
+    borderBottomLeftRadius: panelEnd ? 20 : 0,
+    borderBottomRightRadius: panelEnd ? 20 : 0,
+  }
 }
 
 /**
- * Habit row: emoji · title · inline meta · trailing status dot.
+ * Habit row: structural column · emoji well · title/meta · trailing status.
  */
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRow({
@@ -116,6 +204,8 @@ export function HabitRow({
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
+  panelStart = true,
+  panelEnd = true,
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -123,7 +213,7 @@ export function HabitRow({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { displayTime } = useTimeFormat()
 
-  const isChild = depth > 0
+  const isChild = depth === 1
   const todayStr = formatAPIDate(new Date())
   const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
 
@@ -152,9 +242,6 @@ export function HabitRow({
     locale,
   })
 
-  const streak = habit.currentStreak ?? 0
-  const showStreak = streak >= 2 && !isChild && !isSelectMode
-
   const dotState = resolveHabitRowDotState(isDoneForRange, habit.isBadHabit, isOverdue)
 
   const emoji = habit.emoji
@@ -165,8 +252,6 @@ export function HabitRow({
     open: openAnchoredMenu,
     close: closeAnchoredMenu,
   } = useAnchoredMenu()
-  const menuActivityAt = useRef(0)
-
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
     () => buildMenuItems(actions, isSelectMode, t),
@@ -174,115 +259,105 @@ export function HabitRow({
   )
 
   const openMenu = useCallback(() => {
-    menuActivityAt.current = Date.now()
     openAnchoredMenu()
   }, [openAnchoredMenu])
 
   const closeMenu = useCallback(() => {
-    menuActivityAt.current = Date.now()
     closeAnchoredMenu()
   }, [closeAnchoredMenu])
 
-  const handlePress = () => {
-    if (Date.now() - menuActivityAt.current < 500) return
-    if (isSelectMode) {
-      actions.onToggleSelection?.()
-    } else {
-      actions.onDetail?.()
-    }
-  }
-
-  const handleToggleStatus = () => {
-    if (isDoneForRange) {
-      actions.onUnlog?.()
-    } else {
-      actions.onLog?.()
-    }
-  }
+  const handlePress = isSelectMode ? actions.onToggleSelection : actions.onDetail
+  const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
+  const handleToggleStatus = () => toggleStatusAction?.()
 
   const titleSize = isChild ? 14 : 16
   const emojiSize = isChild ? 16 : 22
-  const wellSize = isChild ? 36 : 46
-  const wellRadius = isChild ? 12 : 14
+  const wellSize = isChild ? 32 : 46
+  const wellRadius = 12
 
-  const titleColor = isDoneForRange ? tokens.fg3 : tokens.fg1
-
-  const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
+  const titleColor = resolveTitleColor(isDoneForRange, isChild, tokens)
+  const rowStyle = buildRowStyle({
+    child: isChild,
+    selected: isSelected,
+    panelStart,
+    panelEnd,
+    tokens,
+  })
 
   const rowAccessibilityLabel = useMemo(
     () =>
       buildHabitRowAccessibilityLabel({
         title: habit.title,
         dotState,
-        linkedGoal,
-        showStreak,
-        streak,
+        linkedGoal: false,
+        showStreak: false,
+        streak: 0,
         t,
       }),
     // react-doctor-disable-next-line exhaustive-deps -- streak is the extracted habit.currentStreak and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [habit.title, dotState, linkedGoal, showStreak, streak, t],
+    [habit.title, dotState, t],
   )
 
-  const indentPx = depth * 16
-
   return (
-    <View style={style}>
-      <Pressable
-        onPress={handlePress}
-        onLongPress={
-          isSelectMode ? undefined : actions.onLongPressCard
-        }
-        delayLongPress={300}
-        accessibilityRole="button"
-        accessibilityLabel={rowAccessibilityLabel}
-        style={({ pressed }) => {
-          const pressedBackground = pressed ? tokens.bgElevPressed : tokens.bgCard
-          return [
-            styles.row,
-            {
-              backgroundColor: isSelected ? tokens.bgSunk : pressedBackground,
-              borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
-              marginLeft: 20 + indentPx,
-              marginRight: 20,
-              marginBottom: 10,
-            },
-            pressed ? styles.rowPressed : null,
-          ]
-        }}
+    <View>
+      <View
+        testID="habit-row"
+        style={[
+          styles.row,
+          rowStyle,
+          style,
+        ]}
       >
-        <HabitRowLeading
-          habitTitle={habit.title}
-          emoji={emoji}
-          emojiSize={emojiSize}
-          wellSize={wellSize}
-          wellRadius={wellRadius}
-          isSelectMode={isSelectMode}
-          isSelected={isSelected}
+        <HabitRowStructuralColumn
+          selectMode={isSelectMode}
+          selected={isSelected}
+          title={habit.title}
           hasChildren={hasChildren}
-          isExpanded={isExpanded}
-          onToggleSelection={actions.onToggleSelection}
-          onToggleExpand={actions.onToggleExpand}
+          expanded={isExpanded}
+          actions={actions}
           tokens={tokens}
+          collapseLabel={t('common.collapse')}
+          expandLabel={t('common.expand')}
         />
 
-        <HabitRowContent
-          habit={habit}
-          titleSize={titleSize}
-          titleColor={titleColor}
-          isDoneForRange={isDoneForRange}
-          metaParts={metaParts}
-          showStreak={showStreak}
-          streak={streak}
-          tokens={tokens}
-        />
+        <Pressable
+          onPress={handlePress}
+          onLongPress={isSelectMode ? undefined : actions.onLongPressCard}
+          delayLongPress={300}
+          accessibilityRole="button"
+          accessibilityLabel={rowAccessibilityLabel}
+          style={({ pressed }) => [
+            styles.bodyButton,
+            { paddingVertical: isChild ? 4 : 8 },
+            pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+          ]}
+        >
+          <HabitRowLeading
+            habitTitle={habit.title}
+            emoji={emoji}
+            emojiSize={emojiSize}
+            wellSize={wellSize}
+            wellRadius={wellRadius}
+            tokens={tokens}
+          />
+
+          <HabitRowContent
+            habit={habit}
+            titleSize={titleSize}
+            titleColor={titleColor}
+            isDoneForRange={isDoneForRange}
+            metaParts={metaParts}
+            tokens={tokens}
+          />
+        </Pressable>
 
         <HabitRowTrailing
           habit={habit}
+          depth={depth}
           isSelectMode={isSelectMode}
           hasChildren={hasChildren}
           childrenDone={childrenDone}
           childrenTotal={childrenTotal}
-          linkedGoal={linkedGoal}
           isDoneForRange={isDoneForRange}
           canLog={canLog}
           dotState={dotState}
@@ -292,11 +367,8 @@ export function HabitRow({
           tokens={tokens}
           onToggleStatus={handleToggleStatus}
           onOpenMenu={openMenu}
-          onMenuActivity={() => {
-            menuActivityAt.current = Date.now()
-          }}
         />
-      </Pressable>
+      </View>
 
       {hasMenuActions ? (
         <Menu
