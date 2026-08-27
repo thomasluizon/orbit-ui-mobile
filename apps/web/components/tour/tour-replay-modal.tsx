@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTourStore } from '@/stores/tour-store'
 import { resetTour } from '@/app/actions/profile'
@@ -103,9 +103,9 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
   )
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      open
+      onClose={() => (onOpenChange)(false)}
       title={t('tour.replay.modalTitle')}
     >
       <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
@@ -196,6 +196,6 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
           })}
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

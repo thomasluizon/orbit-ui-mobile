@@ -53,8 +53,8 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(127,70,247,0.06)',
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
     open ? React.createElement('Sheet', null, children) : null,
 }))
 

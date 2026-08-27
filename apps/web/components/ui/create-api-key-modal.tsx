@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { MAX_API_KEY_NAME_LENGTH, parseApiKeyExpiryUtc } from '@orbit/shared/validation'
 import type { AgentScopeOption } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -143,11 +143,10 @@ export function CreateApiKeyModal({
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      open
+      onClose={isRevealState ? undefined : () => onOpenChange(false)}
       title={overlayTitle}
-      dismissible={!isRevealState}
     >
       {isRevealState ? (
         <RevealStep
@@ -178,7 +177,7 @@ export function CreateApiKeyModal({
           onCancel={() => onOpenChange(false)}
         />
       )}
-    </AppOverlay>
+    </Sheet>) : null
   )
 }
 

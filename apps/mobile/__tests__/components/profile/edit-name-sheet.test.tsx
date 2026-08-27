@@ -57,8 +57,8 @@ vi.mock('@/lib/queued-api-mutation', () => ({
     mockPerformQueuedApiMutation(...args),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
   }: {

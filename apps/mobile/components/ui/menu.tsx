@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import {
   Modal,
@@ -17,6 +17,33 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const DEFAULT_WIDE_FROM = 900
 const PANEL_WIDTH = 280
+
+export interface AnchoredMenuController {
+  anchorRef: RefObject<NativeView | null>
+  visible: boolean
+  open: () => void
+  close: () => void
+  toggle: () => void
+}
+
+export function useAnchoredMenu(): AnchoredMenuController {
+  const anchorRef = useRef<NativeView>(null)
+  const [visible, setVisible] = useState(false)
+  const open = useCallback(() => setVisible(true), [])
+  const close = useCallback(() => setVisible(false), [])
+  const toggle = useCallback(() => {
+    if (visible) close()
+    else open()
+  }, [close, open, visible])
+  return { anchorRef, visible, open, close, toggle }
+}
+
+export function MenuAnchorHost({
+  anchorRef,
+  children,
+}: Readonly<{ anchorRef: RefObject<NativeView | null>; children: ReactNode }>) {
+  return <View ref={anchorRef} collapsable={false}>{children}</View>
+}
 
 type MeasurableAnchor = NativeView & {
   measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => void
@@ -103,7 +130,7 @@ function MenuItems({
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return items?.map((item) => {
-    const disabled = item.disabled === true && item.badge == null
+    const disabled = item.disabled === true && !item.badge
     return (
       <Pressable
         key={item.id}

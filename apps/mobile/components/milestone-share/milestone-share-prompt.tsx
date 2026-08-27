@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
@@ -7,7 +7,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
@@ -105,13 +105,8 @@ export function MilestoneSharePrompt() {
   }
 
   return (
-    <BottomSheetModal open={variant !== null} onClose={dismiss} snapPoints={['85%']} contentManagesScroll>
-      {variant ? (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+    variant !== null ? (<Sheet open onClose={dismiss}>
+      <View style={styles.content}>
           <View style={styles.cardWrap}>
             <MilestoneShareCard ref={shareRef} variant={variant} referralUrl={referralUrl} />
           </View>
@@ -149,9 +144,8 @@ export function MilestoneSharePrompt() {
               )}
             </Pressable>
           </View>
-        </ScrollView>
-      ) : null}
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 

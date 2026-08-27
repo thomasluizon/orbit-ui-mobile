@@ -10,7 +10,7 @@ import {
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -133,9 +133,9 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={handleOpenChange}
+      {open ? (<Sheet
+        open
+        onClose={() => (handleOpenChange)(false)}
         title={
           step === 'info'
             ? t('profile.freshStart.heading')
@@ -160,7 +160,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             onReset={() => void handleReset()}
           />
         )}
-      </AppOverlay>
+      </Sheet>) : null}
 
       {showAnimation && <FreshStartAnimation onComplete={handleAnimationComplete} />}
     </>

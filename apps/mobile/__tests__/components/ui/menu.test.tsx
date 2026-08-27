@@ -2,6 +2,8 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
 
+vi.unmock('@/components/ui/sheet')
+
 vi.mock('@lodev09/react-native-true-sheet', () => ({
   TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode }> {
     present = vi.fn(() => Promise.resolve())

@@ -2,10 +2,10 @@ import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
@@ -171,22 +171,12 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
-        onClose={onClose}
+      {open ? (<Sheet
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={t('goals.detail.edit')}
-        snapPoints={['70%', '90%']}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        contentManagesScroll
       >
-        <KeyboardAwareBottomSheetScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.form}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
-        >
+        <View style={styles.form}>
           <Text style={styles.eyebrow}>{eyebrowLabel}</Text>
 
           <View>
@@ -241,20 +231,12 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
               {t('common.save')}
             </PillButton>
           </View>
-        </KeyboardAwareBottomSheetScrollView>
-      </BottomSheetModal>
-      <ConfirmDialog
+        </View>
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

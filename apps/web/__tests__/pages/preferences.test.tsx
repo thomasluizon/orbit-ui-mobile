@@ -58,8 +58,8 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, title, description, children }: {
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, title, description, children }: {
     open: boolean; title?: string; description?: string; children?: React.ReactNode
   }) => {
     if (!open) return null

@@ -1,8 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
-  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  Animated,
-  Modal,
   View,
   Text,
   Pressable,
@@ -24,14 +21,14 @@ import { Calendar, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
-import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
-import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { YearPicker } from '@/components/ui/year-picker'
+import { Sheet } from '@/components/ui/sheet'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-interface AppDatePickerProps {
+interface DateFieldProps {
   value: string
   onChange: (value: string) => void
   placeholder?: string
@@ -73,7 +70,7 @@ function DatePickerMonthNav({
           pressed ? { opacity: 0.2 } : null,
         ]}
       >
-        <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
+        <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg3} />
       </Pressable>
 
       <View style={styles.monthLabelGroup}>
@@ -109,7 +106,7 @@ function DatePickerMonthNav({
           pressed ? { opacity: 0.2 } : null,
         ]}
       >
-        <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
+        <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg3} />
       </Pressable>
     </View>
   )
@@ -204,11 +201,11 @@ function DatePickerBody({
   )
 }
 
-export function AppDatePicker({
+export function DateField({
   value,
   onChange,
   placeholder,
-}: Readonly<AppDatePickerProps>) {
+}: Readonly<DateFieldProps>) {
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -219,48 +216,8 @@ export function AppDatePicker({
   const weekStartsOn = profile?.weekStartDay ?? 0
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
-  const [visible, setVisible] = useState(false)
   const [pickerMode, setPickerMode] = useState<'days' | 'years'>('days')
   const [viewDate, setViewDate] = useState(new Date())
-  const dialogMotion = useResolvedMotionPreset('dialog')
-  const progress = useMemo(() => new Animated.Value(0), [])
-
-  const [prevOpen, setPrevOpen] = useState(isOpen)
-  if (isOpen !== prevOpen) {
-    setPrevOpen(isOpen)
-    if (isOpen) setVisible(true)
-  }
-
-  // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  useEffect(() => {
-    if (isOpen) {
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: dialogMotion.enterDuration,
-        easing: toAnimatedEasing(dialogMotion.enterEasing),
-        useNativeDriver: true,
-      }).start()
-      return
-    }
-
-    Animated.timing(progress, {
-      toValue: 0,
-      duration: dialogMotion.exitDuration,
-      easing: toAnimatedEasing(dialogMotion.exitEasing),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        setVisible(false)
-      }
-    })
-  }, [
-    dialogMotion.enterDuration,
-    dialogMotion.enterEasing,
-    dialogMotion.exitDuration,
-    dialogMotion.exitEasing,
-    isOpen,
-    progress,
-  ])
 
   const selectedDate = value ? parseISO(value) : null
 
@@ -337,15 +294,6 @@ export function AppDatePicker({
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
 
-  const dialogTranslateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [dialogMotion.shift, 0],
-  })
-  const dialogScale = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
-  })
-
   return (
     <>
       <Pressable
@@ -373,33 +321,8 @@ export function AppDatePicker({
         <Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />
       </Pressable>
 
-      {visible ? (
-        <Modal
-          visible
-          transparent
-          animationType="none"
-          onRequestClose={closePicker}
-        >
-        <Pressable
-          style={styles.root}
-          onPress={closePicker}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.close')}
-        >
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.backdrop, { opacity: progress }]}
-          />
-          <Animated.View
-            style={[
-              styles.dialog,
-              {
-                opacity: progress,
-                transform: [{ translateY: dialogTranslateY }, { scale: dialogScale }],
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
+      {isOpen ? (
+        <Sheet open title={t('common.selectDate')} onClose={closePicker}>
             <DatePickerMonthNav
               pickerMode={pickerMode}
               monthLead={monthLead}
@@ -425,9 +348,7 @@ export function AppDatePicker({
               tokens={tokens}
               styles={styles}
             />
-          </Animated.View>
-        </Pressable>
-        </Modal>
+        </Sheet>
       ) : null}
     </>
   )
@@ -441,12 +362,12 @@ function createStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      minHeight: 54,
+      minHeight: 56,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: 14,
-      paddingVertical: 10,
+      borderRadius: radius.md,
+      paddingVertical: 8,
       paddingHorizontal: 16,
     },
     triggerText: {
@@ -458,26 +379,6 @@ function createStyles(tokens: AppTokens) {
     },
     triggerPlaceholder: {
       color: tokens.fg3,
-    },
-    root: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 24,
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0,0,0,0.50)',
-    },
-    dialog: {
-      width: '100%',
-      maxWidth: 320,
-      backgroundColor: tokens.bgSheet,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      padding: 10,
-      ...shadowsV2.shadow2,
     },
     monthNav: {
       flexDirection: 'row',
@@ -502,7 +403,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 13,
       fontVariant: ['tabular-nums'],
       paddingHorizontal: 4,
-      paddingVertical: 2,
+      paddingVertical: 0,
     },
     navHidden: {
       opacity: 0,
@@ -525,7 +426,6 @@ function createStyles(tokens: AppTokens) {
       borderRadius: radius.full,
       justifyContent: 'center',
       alignItems: 'center',
-      margin: 1,
     },
     dayCellSelected: {
       backgroundColor: tokens.primary,

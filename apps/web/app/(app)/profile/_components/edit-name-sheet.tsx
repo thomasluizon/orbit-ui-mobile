@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -71,9 +71,9 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      open
+      onClose={() => (onOpenChange)(false)}
       title={t('profile.editName.title')}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>
@@ -115,6 +115,6 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
           </PillButton>
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

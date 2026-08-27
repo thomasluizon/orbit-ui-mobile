@@ -26,22 +26,22 @@ vi.mock('@/hooks/use-share-card', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children }: { open: boolean; children?: React.ReactNode }) =>
-    open ? <div data-testid="share-card-sheet">{children}</div> : null,
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children }: { open: boolean; children?: React.ReactNode }) =>
+    open ? <div data-testid="share-card-panel">{children}</div> : null,
 }))
 
 vi.mock('@/components/share/share-card', () => ({
-  ShareCard: React.forwardRef<HTMLDivElement>(function ShareCard(_props, ref) {
+  ShareCard: ({ ref }: { ref?: React.Ref<HTMLDivElement> }) => {
     return <div ref={ref} data-testid="share-card" />
-  }),
+  },
 }))
 
-import { ShareCardSheet } from '@/components/share/share-card-sheet'
+import { ShareCardPanel } from '@/components/share/share-card-panel'
 
-describe('ShareCardSheet', () => {
+describe('ShareCardPanel', () => {
   it('announces the fetch error and retries the recap on demand', () => {
-    render(<ShareCardSheet open onOpenChange={vi.fn()} />)
+    render(<ShareCardPanel open onOpenChange={vi.fn()} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('shareCard.error')
 

@@ -8,7 +8,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { useUIStore } from '@/stores/ui-store'
@@ -106,14 +106,13 @@ export function MilestoneSharePrompt() {
   }
 
   return (
-    <AppOverlay
-      open={variant !== null}
-      onOpenChange={(open) => {
+    variant !== null ? (<Sheet
+      open
+      onClose={() => ((open) => {
         if (!open) dismiss()
-      }}
+      })(false)}
     >
-      {variant && (
-        <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
+      <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
           <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />
 
           <p
@@ -174,8 +173,7 @@ export function MilestoneSharePrompt() {
               {t('milestoneShare.later')}
             </button>
           </div>
-        </div>
-      )}
-    </AppOverlay>
+      </div>
+    </Sheet>) : null
   )
 }

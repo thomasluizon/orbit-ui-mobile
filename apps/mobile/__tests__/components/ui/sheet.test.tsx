@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { Sheet } from '@/components/ui/sheet'
 
+vi.unmock('@/components/ui/sheet')
+
 const { present, dismiss } = vi.hoisted(() => ({
   present: vi.fn(() => Promise.resolve()),
   dismiss: vi.fn(() => Promise.resolve()),

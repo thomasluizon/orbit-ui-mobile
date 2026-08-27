@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { Sheet } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -18,7 +18,6 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
@@ -50,11 +49,63 @@ function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
 }
 
+function hasCreateHabitChanges({
+  formDirty,
+  selectedTagIds,
+  selectedGoalIds,
+  subHabits,
+  reminderTimes,
+  initialTagIds,
+  initialGoalIds,
+  initialSubHabits,
+  initialReminderTimes,
+}: Readonly<{
+  formDirty: boolean
+  selectedTagIds: string[]
+  selectedGoalIds: string[]
+  subHabits: SubHabitEntry[]
+  reminderTimes: number[]
+  initialTagIds: string
+  initialGoalIds: string
+  initialSubHabits: string
+  initialReminderTimes: string
+}>): boolean {
+  const tagSnapshot = JSON.stringify([...selectedTagIds].sort((a, b) => a.localeCompare(b)))
+  const goalSnapshot = JSON.stringify([...selectedGoalIds].sort((a, b) => a.localeCompare(b)))
+  const subHabitSnapshot = JSON.stringify(subHabits.map((entry) => entry.value))
+  return formDirty || tagSnapshot !== initialTagIds || goalSnapshot !== initialGoalIds ||
+    subHabitSnapshot !== initialSubHabits || JSON.stringify(reminderTimes) !== initialReminderTimes
+}
+
 interface CreateHabitModalProps {
   open: boolean
   onClose: () => void
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
+}
+
+function useSubHabitAccessGate({
+  open,
+  isSubHabitMode,
+  profile,
+  navigateToUpgrade,
+}: Readonly<{
+  open: boolean
+  isSubHabitMode: boolean
+  profile: ReturnType<typeof useProfile>['profile']
+  navigateToUpgrade: () => void
+}>) {
+  useEffect(() => {
+    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
+    navigateToUpgrade()
+  }, [isSubHabitMode, navigateToUpgrade, open, profile])
+}
+
+function resolveCreateSheetTitle(
+  isSubHabitMode: boolean,
+  t: (key: string) => string,
+): string {
+  return t(isSubHabitMode ? 'habits.createSubHabit' : 'habits.createHabit')
 }
 
 // react-doctor-disable-next-line no-giant-component -- form-modal shell already decomposed into create-habit-modal/* and HabitFormFields subcomponents; the remaining body is cohesive submit/suggest/reset orchestration, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -125,37 +176,31 @@ export function CreateHabitModal({
     }) ?? []
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty =
-    formHelpers.form.formState.isDirty ||
-    JSON.stringify(
-      [...tags.selectedTagIds].sort((left, right) => left.localeCompare(right)),
-    ) !== initialTagIdsSnapshot ||
-    JSON.stringify(
-      [...selectedGoalIds].sort((left, right) => left.localeCompare(right)),
-    ) !== initialGoalIdsSnapshot ||
-    JSON.stringify(subHabits.map((entry) => entry.value)) !==
-      initialSubHabitsSnapshot ||
-    JSON.stringify(reminderTimes) !== initialReminderTimesSnapshot
+  const isDirty = hasCreateHabitChanges({
+    formDirty: formHelpers.form.formState.isDirty,
+    selectedTagIds: tags.selectedTagIds,
+    selectedGoalIds,
+    subHabits,
+    reminderTimes,
+    initialTagIds: initialTagIdsSnapshot,
+    initialGoalIds: initialGoalIdsSnapshot,
+    initialSubHabits: initialSubHabitsSnapshot,
+    initialReminderTimes: initialReminderTimesSnapshot,
+  })
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: onClose,
   })
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
-
   const navigateToUpgrade = useCallback(() => {
-    scheduleExitAction(() => router.push('/upgrade'))
     onClose()
-  }, [onClose, router, scheduleExitAction])
+    router.push('/upgrade')
+  }, [onClose, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  useEffect(() => {
-    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
-    // react-doctor-disable-next-line no-prop-callback-in-effect -- access gate: closes the sub-habit modal and redirects non-pro users to /upgrade; a side-effecting gate, not a state sync to the parent https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    navigateToUpgrade()
-  }, [isSubHabitMode, navigateToUpgrade, open, profile])
+  useSubHabitAccessGate({ open, isSubHabitMode, profile, navigateToUpgrade })
 
   const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
@@ -393,28 +438,17 @@ export function CreateHabitModal({
   const addSubHabit = useCallback(() => {
     setSubHabits((prev) => [...prev, createSubHabitEntry()])
   }, [])
+  const sheetTitle = resolveCreateSheetTitle(isSubHabitMode, t)
+  const lockedGeneral = parentHabit?.isGeneral ?? null
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
-        onClose={onClose}
-        onDidDismiss={runExitAction}
-        title={
-          isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')
-        }
-        snapPoints={['62%', '95%']}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        contentManagesScroll
+      {open ? (<Sheet
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
+        title={sheetTitle}
       >
-        <KeyboardAwareBottomSheetScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
-        >
+        <View style={styles.scrollContent}>
           <HabitFormFields
             formHelpers={formHelpers}
             tags={tags}
@@ -428,7 +462,7 @@ export function CreateHabitModal({
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
             isSuggesting={suggestion.isPending}
-            lockedGeneral={parentHabit ? parentHabit.isGeneral : null}
+            lockedGeneral={lockedGeneral}
             onUpgrade={navigateToUpgrade}
           >
             {!isSubHabitMode ? (
@@ -444,7 +478,7 @@ export function CreateHabitModal({
               />
             ) : null}
           </HabitFormFields>
-        </KeyboardAwareBottomSheetScrollView>
+        </View>
 
         <View style={styles.footer}>
           <PillButton
@@ -463,19 +497,11 @@ export function CreateHabitModal({
             {t('common.create')}
           </PillButton>
         </View>
-      </BottomSheetModal>
-      <ConfirmDialog
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )
@@ -574,9 +600,9 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       alignSelf: 'flex-start',
-      gap: 7,
+      gap: 8,
       paddingHorizontal: 14,
-      paddingVertical: 9,
+      paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,

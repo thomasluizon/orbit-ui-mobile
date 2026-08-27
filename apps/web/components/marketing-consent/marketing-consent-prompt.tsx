@@ -7,7 +7,7 @@ import { Mail } from '@/components/ui/icons'
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -84,11 +84,11 @@ export function MarketingConsentPrompt() {
   }
 
   return (
-    <AppOverlay
-      open={visible}
-      onOpenChange={(open) => {
+    visible ? (<Sheet
+      open
+      onClose={() => ((open) => {
         if (!open) setVisible(false)
-      }}
+      })(false)}
       title={t('marketingConsent.prompt.title')}
     >
       <LazyMotion features={domAnimation}>
@@ -159,6 +159,6 @@ export function MarketingConsentPrompt() {
           </m.div>
         </div>
       </LazyMotion>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

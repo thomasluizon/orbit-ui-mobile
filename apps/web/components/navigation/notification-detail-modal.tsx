@@ -8,7 +8,7 @@ import {
   isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 
 interface NotificationDetailModalProps {
   open: boolean
@@ -44,11 +44,11 @@ export function NotificationDetailModal({
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      open
+      onClose={() => (onOpenChange)(false)}
       title={notification.title}
-      footer={
+      actions={
         <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
           {canView && (
             <QuietLink primary onClick={handleView}>
@@ -96,7 +96,7 @@ export function NotificationDetailModal({
           </p>
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }
 

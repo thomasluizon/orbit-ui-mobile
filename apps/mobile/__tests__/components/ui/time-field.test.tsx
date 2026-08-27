@@ -3,7 +3,7 @@ import { Pressable } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 
-import { AppTimePicker } from '@/components/ui/app-time-picker'
+import { TimeField } from '@/components/ui/time-field'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -22,28 +22,17 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
-    i18n: { language: 'pt-BR' },
+    i18n: { language: mockUses24HourClock ? 'pt-BR' : 'en-US' },
   }),
 }))
 
-function columns(tree: any): any[] {
-  return tree.root.findAll((node: any) => node.type === 'ScrollView')
-}
-
-function optionIn(column: any, label: string): any {
-  return column
-    .findAll((node: any) => node.type === Pressable)
-    .find((node: any) => node.props.accessibilityLabel === label)
-}
-
-function doneButton(tree: any): any {
-  return tree.root.find(
-    (node: any) =>
-      node.type === Pressable && node.props.accessibilityLabel === 'common.done',
+function radioOption(tree: any, label: string): any {
+  return tree.root.findAllByType(Pressable).find(
+    (node: any) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === label,
   )
 }
 
-describe('AppTimePicker', () => {
+describe('TimeField', () => {
   beforeEach(() => {
     mockUses24HourClock = true
   })
@@ -52,8 +41,9 @@ describe('AppTimePicker', () => {
     let tree: any
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
-        <AppTimePicker value="14:30" onChange={vi.fn()} placeholder="HH:MM" />,
+        <TimeField value="14:30" onChange={vi.fn()} placeholder="HH:MM" />,
       )
     })
 
@@ -68,74 +58,51 @@ describe('AppTimePicker', () => {
     )
   })
 
-  it('shows 24-hour columns (00–23, no AM/PM) and applies the chosen time', async () => {
+  it('shows half-hour radio rows in 24-hour locale format and applies one choice', async () => {
     const onChange = vi.fn()
     let tree: any
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
-        <AppTimePicker value="14:30" onChange={onChange} placeholder="HH:MM" />,
+        <TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />,
       )
     })
 
     const [textTrigger] = tree.root.findAllByType(Pressable)
     await TestRenderer.act(async () => {
+await Promise.resolve()
       textTrigger.props.onPress()
     })
 
-    const [hoursColumn, minutesColumn, periodColumn] = columns(tree)
-    expect(periodColumn).toBeUndefined()
-    expect(optionIn(hoursColumn, '00')).toBeDefined()
-    expect(optionIn(hoursColumn, '23')).toBeDefined()
-
-    await TestRenderer.act(async () => {
-      optionIn(hoursColumn, '07')!.props.onPress()
-    })
-    await TestRenderer.act(async () => {
-      optionIn(minutesColumn, '45')!.props.onPress()
-    })
-    await TestRenderer.act(async () => {
-      doneButton(tree).props.onPress()
-    })
-
-    expect(onChange).toHaveBeenCalledWith('07:45')
+    const label = formatLocaleTime('07:30', 'pt-BR', { hour: 'numeric', minute: '2-digit' })
+    expect(radioOption(tree, label)).toBeDefined()
+    await TestRenderer.act(async () => { await Promise.resolve(); return radioOption(tree, label).props.onPress(); })
+    expect(onChange).toHaveBeenCalledWith('07:30')
   })
 
-  it('shows 12-hour columns (1–12 + AM/PM) and converts the selection to 24-hour for the API', async () => {
+  it('shows the same choices in 12-hour locale format while preserving the API value', async () => {
     mockUses24HourClock = false
     const onChange = vi.fn()
     let tree: any
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
-        <AppTimePicker value="14:30" onChange={onChange} placeholder="HH:MM" />,
+        <TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />,
       )
     })
 
     const [textTrigger] = tree.root.findAllByType(Pressable)
     await TestRenderer.act(async () => {
+await Promise.resolve()
       textTrigger.props.onPress()
     })
 
-    const [hoursColumn, minutesColumn, periodColumn] = columns(tree)
-    expect(periodColumn).toBeDefined()
-    expect(optionIn(hoursColumn, '12')).toBeDefined()
-    expect(optionIn(hoursColumn, '00')).toBeUndefined()
-
-    await TestRenderer.act(async () => {
-      optionIn(hoursColumn, '09')!.props.onPress()
-    })
-    await TestRenderer.act(async () => {
-      optionIn(periodColumn, 'PM')!.props.onPress()
-    })
-    await TestRenderer.act(async () => {
-      optionIn(minutesColumn, '15')!.props.onPress()
-    })
-    await TestRenderer.act(async () => {
-      doneButton(tree).props.onPress()
-    })
-
-    expect(onChange).toHaveBeenCalledWith('21:15')
+    const label = formatLocaleTime('21:30', 'en-US', { hour: 'numeric', minute: '2-digit' })
+    expect(radioOption(tree, label)).toBeDefined()
+    await TestRenderer.act(async () => { await Promise.resolve(); return radioOption(tree, label).props.onPress(); })
+    expect(onChange).toHaveBeenCalledWith('21:30')
   })
 
   it('renders a clear button when value is set and onClear is provided', async () => {
@@ -143,8 +110,9 @@ describe('AppTimePicker', () => {
     let tree: any
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
-        <AppTimePicker value="14:30" onChange={vi.fn()} onClear={onClear} />,
+        <TimeField value="14:30" onChange={vi.fn()} onClear={onClear} />,
       )
     })
 
@@ -156,6 +124,7 @@ describe('AppTimePicker', () => {
     expect(clearButton).toBeDefined()
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       clearButton.props.onPress()
     })
 
@@ -166,8 +135,9 @@ describe('AppTimePicker', () => {
     let tree: any
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
-        <AppTimePicker value="" onChange={vi.fn()} onClear={vi.fn()} />,
+        <TimeField value="" onChange={vi.fn()} onClear={vi.fn()} />,
       )
     })
 

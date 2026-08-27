@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Sheet } from '@/components/ui/sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -41,6 +41,28 @@ import {
 
 function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: crypto.randomUUID(), value }
+}
+
+interface CreateHabitSnapshot {
+  tagIds: string
+  goalIds: string
+  subHabits: string
+  reminderTimes: string
+}
+
+function hasCreateHabitChanges(
+  formDirty: boolean,
+  selectedTagIds: ReadonlySet<string>,
+  selectedGoalIds: readonly string[],
+  subHabits: readonly SubHabitEntry[],
+  reminderTimes: readonly number[],
+  snapshot: CreateHabitSnapshot,
+): boolean {
+  const tagIds = JSON.stringify([...selectedTagIds].sort((left, right) => left.localeCompare(right)))
+  const goalIds = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right)))
+  const subHabitValues = JSON.stringify(subHabits.map((entry) => entry.value))
+  return formDirty || tagIds !== snapshot.tagIds || goalIds !== snapshot.goalIds ||
+    subHabitValues !== snapshot.subHabits || JSON.stringify(reminderTimes) !== snapshot.reminderTimes
 }
 
 interface CreateHabitModalProps {
@@ -101,12 +123,14 @@ export function CreateHabitModal({
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty =
-    formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.tagIds ||
-    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.goalIds ||
-    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSnapshot.subHabits ||
-    JSON.stringify(reminderTimes) !== initialSnapshot.reminderTimes
+  const isDirty = hasCreateHabitChanges(
+    formHelpers.form.formState.isDirty,
+    tags.selectedTagIds,
+    selectedGoalIds,
+    subHabits,
+    reminderTimes,
+    initialSnapshot,
+  )
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => onOpenChange(false),
@@ -311,23 +335,14 @@ export function CreateHabitModal({
     setSubHabits((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
-  return (
-    <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+  function renderCreateSheet() {
+    if (!open) return null
+    return (
+      <Sheet
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
-        description={
-          isSubHabitMode
-            ? t('habits.form.createSubHabitDescription')
-            : t('habits.form.createDescription')
-        }
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        initialFocusRef={titleInputRef}
-        panelWidth="wide"
-        footer={
+        actions={(
           <div className="flex items-center justify-end" style={{ gap: 12 }}>
             <PillButton
               variant="ghost"
@@ -343,52 +358,65 @@ export function CreateHabitModal({
               {t('common.create')}
             </PillButton>
           </div>
-        }
+        )}
       >
-        <form id={formId} onSubmit={(e) => void handleSubmit(e)}>
-        <HabitFormFields
-          formHelpers={formHelpers}
-          titleInputRef={titleInputRef}
-          tags={tags}
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={toggleGoal}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={setReminderTimes}
-          onReminderEnabledChange={handleReminderEnabledChange}
-          expandAdvancedSignal={expandAdvancedSignal}
-          onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
-          isSuggesting={suggestion.isPending}
-          lockedGeneral={parentHabit?.isGeneral ?? null}
-        >
-          {!isSubHabitMode && (
-            <SubHabitEditor
-              subHabits={subHabits}
-              hasProAccess={hasProAccess}
-              onUpdateSubHabit={updateSubHabitValue}
-              onRemoveSubHabit={removeSubHabit}
-              onAddSubHabit={() =>
-                setSubHabits((prev) => [...prev, createSubHabitEntry()])
-              }
-              onUpgrade={() => router.push('/upgrade')}
-            />
-          )}
-        </HabitFormFields>
+        <p className="mb-4 text-sm text-[var(--fg-3)]">
+          {isSubHabitMode
+            ? t('habits.form.createSubHabitDescription')
+            : t('habits.form.createDescription')}
+        </p>
+        <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+          <HabitFormFields
+            formHelpers={formHelpers}
+            titleInputRef={titleInputRef}
+            tags={tags}
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={toggleGoal}
+            reminderTimes={reminderTimes}
+            onReminderTimesChange={setReminderTimes}
+            onReminderEnabledChange={handleReminderEnabledChange}
+            expandAdvancedSignal={expandAdvancedSignal}
+            onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+            isSuggesting={suggestion.isPending}
+            lockedGeneral={parentHabit?.isGeneral ?? null}
+          >
+            {!isSubHabitMode ? (
+              <SubHabitEditor
+                subHabits={subHabits}
+                hasProAccess={hasProAccess}
+                onUpdateSubHabit={updateSubHabitValue}
+                onRemoveSubHabit={removeSubHabit}
+                onAddSubHabit={() =>
+                  setSubHabits((prev) => [...prev, createSubHabitEntry()])
+                }
+                onUpgrade={() => router.push('/upgrade')}
+              />
+            ) : null}
+          </HabitFormFields>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
-        open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
-      />
+      </Sheet>
+    )
+  }
+
+  return (
+    <>
+      {renderCreateSheet()}
+      {dismissGuard.showDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
+  (nextOpen => {
+    if (!nextOpen) dismissGuard.cancelDismiss();
+  })(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (dismissGuard.cancelDismiss)();
+    (nextOpen => {
+      if (!nextOpen) dismissGuard.cancelDismiss();
+    })(false);
+  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
+    (dismissGuard.confirmDismiss)();
+    (nextOpen => {
+      if (!nextOpen) dismissGuard.cancelDismiss();
+    })(false);
+  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
     </>
   )
 }

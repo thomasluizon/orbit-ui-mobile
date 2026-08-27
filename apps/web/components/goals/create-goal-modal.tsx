@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Sheet } from '@/components/ui/sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
@@ -201,13 +201,10 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
 
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+      {open ? (<Sheet
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('goals.create')}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
       >
         <form id="create-goal-form" onSubmit={(e) => void onSubmit(e)} noValidate>
           <div style={{ padding: '4px 0 0' }}>
@@ -267,20 +264,22 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             </PillButton>
           </div>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
-        open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
-      />
+      </Sheet>) : null}
+      {dismissGuard.showDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
+  (nextOpen => {
+    if (!nextOpen) dismissGuard.cancelDismiss();
+  })(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (dismissGuard.cancelDismiss)();
+    (nextOpen => {
+      if (!nextOpen) dismissGuard.cancelDismiss();
+    })(false);
+  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
+    (dismissGuard.confirmDismiss)();
+    (nextOpen => {
+      if (!nextOpen) dismissGuard.cancelDismiss();
+    })(false);
+  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
     </>
   )
 }

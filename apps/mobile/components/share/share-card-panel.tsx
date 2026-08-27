@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
+import type { Recap } from '@orbit/shared/types/gamification'
 import {
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
@@ -10,7 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import { useRecap } from '@/hooks/use-recap'
 import { useShareCard } from '@/hooks/use-share-card'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
@@ -19,14 +20,54 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShareCard } from './share-card'
 
-interface ShareCardSheetProps {
+interface ShareCardPanelProps {
   open: boolean
   onClose: () => void
   displayName?: string
 }
 
+interface LoadedShareCardProps {
+  recap: Recap
+  displayName?: string
+  shareRef: ReturnType<typeof useShareCard>['shareRef']
+  isSharing: boolean
+  hasError: boolean
+  share: ReturnType<typeof useShareCard>['share']
+  styles: ReturnType<typeof createStyles>
+}
+
+function LoadedShareCard({
+  recap,
+  displayName,
+  shareRef,
+  isSharing,
+  hasError,
+  share,
+  styles,
+}: Readonly<LoadedShareCardProps>) {
+  const { t } = useTranslation()
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
+      style={styles.cardBlock}
+    >
+      <View style={styles.cardWrap}>
+        <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
+      </View>
+      {hasError ? <Text style={styles.errorText}>{t('shareCard.shareError')}</Text> : null}
+      <PillButton
+        loading={isSharing}
+        disabled={isSharing}
+        onClick={() => void share(t('shareCard.shareTitle'))}
+      >
+        {t('shareCard.share')}
+      </PillButton>
+    </Animated.View>
+  )
+}
+
 /** Recap share preview: period selector → recap fetch → branded ShareCard + native share. Reused by Profile + Retrospective. */
-export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCardSheetProps>) {
+export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCardPanelProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -39,18 +80,12 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
   const showCard = !isLoading && !isError && recap && !isEmpty
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      open
       onClose={onClose}
       title={t('shareCard.title')}
-      snapPoints={['70%', '92%']}
-      contentManagesScroll
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         <View style={styles.periodRow}>
           {RECAP_SHARE_PERIODS.map((value) => (
             <Chip key={value} active={period === value} onPress={() => setPeriod(value)}>
@@ -83,30 +118,18 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
         ) : null}
 
         {showCard ? (
-          <Animated.View
-            entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
-            style={styles.cardBlock}
-          >
-            <View style={styles.cardWrap}>
-              <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
-            </View>
-
-            {hasError ? <Text style={styles.errorText}>{t('shareCard.shareError')}</Text> : null}
-
-            <PillButton
-
-              loading={isSharing}
-              disabled={isSharing}
-              onClick={() => void share(t('shareCard.shareTitle'))}
-
-
-            >
-              {t('shareCard.share')}
-            </PillButton>
-          </Animated.View>
+          <LoadedShareCard
+            recap={recap}
+            displayName={displayName}
+            shareRef={shareRef}
+            isSharing={isSharing}
+            hasError={hasError}
+            share={share}
+            styles={styles}
+          />
         ) : null}
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 
@@ -117,17 +140,17 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     content: {
       paddingHorizontal: 16,
-      paddingBottom: 28,
+      paddingBottom: 24,
       gap: 16,
     },
     periodRow: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 6,
+      gap: 4,
     },
     loadingStack: {
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     cardSkeleton: {
       borderRadius: 20,
@@ -143,7 +166,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     emptyState: {
       paddingVertical: 24,
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     emptyText: {
       textAlign: 'center',

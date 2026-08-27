@@ -1,12 +1,17 @@
 import type { SheetProps } from './Sheet'
 
-export function sheetTypeTests(): void {
-  const bare: SheetProps = {}
-  const open: SheetProps = { open: true }
-  // @ts-expect-error false means the sheet should be unmounted
-  const closed: SheetProps = { open: false }
-  const dynamicOpen = Boolean(Date.now())
-  // @ts-expect-error a dynamic boolean permits a kept and toggled sheet
-  const toggled: SheetProps = { open: dynamicOpen }
-  void [bare, open, closed, toggled]
-}
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
+
+type BareSheet = Accepts<Record<never, never>, SheetProps>
+type OpenSheet = Accepts<{ open: true }, SheetProps>
+
+// @ts-expect-error false means the sheet should be unmounted
+type ClosedSheet = Accepts<{ open: false }, SheetProps>
+
+// @ts-expect-error a dynamic boolean permits a kept and toggled sheet
+type ToggledSheet = Accepts<{ open: boolean }, SheetProps>
+
+export type SheetTypeAssertions = BareSheet | OpenSheet | ClosedSheet | ToggledSheet

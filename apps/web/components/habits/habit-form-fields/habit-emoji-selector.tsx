@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
-import { CenteredOverlay } from '@/components/ui/centered-overlay'
+import { Sheet } from '@/components/ui/sheet'
 
 interface HabitEmojiSelectorProps {
   selectedEmoji: string
@@ -57,12 +57,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
         {selectedEmoji || <Plus size={22} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
       </button>
 
-      <CenteredOverlay
-        open={pickerOpen}
-        onDismiss={closePicker}
-        ariaLabel={t('habits.form.emojiPickerTitle')}
-        panelClassName="w-full max-w-xl overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] shadow-[var(--shadow-3),inset_0_0_0_1px_var(--hairline)]"
-      >
+      {pickerOpen ? <Sheet open title={t('habits.form.emojiPickerTitle')} onClose={closePicker}>
         <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
           <div className="flex items-center gap-3">
             <span
@@ -127,7 +122,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
             })}
           </div>
 
-          <div className="max-h-[min(420px,55vh)] overflow-y-auto pr-1">
+          <div className="pr-1">
             {filteredCategories.length === 0 ? (
               <p className="py-8 text-center text-sm text-[var(--fg-3)]">{t('habits.form.emojiPickerEmpty')}</p>
             ) : filteredCategories.map((category) => (
@@ -165,7 +160,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
             ))}
           </div>
         </div>
-      </CenteredOverlay>
+      </Sheet> : null}
     </>
   )
 }

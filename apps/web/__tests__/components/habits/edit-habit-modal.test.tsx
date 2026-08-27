@@ -128,8 +128,8 @@ vi.mock('@/lib/habit-request-builders', () => ({
   buildUpdateHabitRequest: vi.fn(() => ({})),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
     title,

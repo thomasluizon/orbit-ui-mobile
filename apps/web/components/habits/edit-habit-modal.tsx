@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Sheet } from '@/components/ui/sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -44,6 +44,21 @@ interface EditHabitModalProps {
   lockedGeneral?: boolean | null
 }
 
+function hasEditHabitChanges(
+  formDirty: boolean,
+  selectedTagIds: ReadonlySet<string>,
+  selectedGoalIds: readonly string[],
+  reminderTimes: readonly number[],
+  initialTagIds: string,
+  initialGoalIds: string,
+  initialReminderTimes: string,
+): boolean {
+  const tagIds = JSON.stringify([...selectedTagIds].sort((left, right) => left.localeCompare(right)))
+  const goalIds = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right)))
+  return formDirty || tagIds !== initialTagIds || goalIds !== initialGoalIds ||
+    JSON.stringify(reminderTimes) !== initialReminderTimes
+}
+
 export function EditHabitModal({
   open,
   onOpenChange,
@@ -77,11 +92,15 @@ export function EditHabitModal({
   const watchedTitle = coalesceFormText(formHelpers.form.watch('title'))
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty =
-    formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds ||
-    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds ||
-    JSON.stringify(reminderTimes) !== initialReminderTimes
+  const isDirty = hasEditHabitChanges(
+    formHelpers.form.formState.isDirty,
+    tags.selectedTagIds,
+    selectedGoalIds,
+    reminderTimes,
+    initialTagIds,
+    initialGoalIds,
+    initialReminderTimes,
+  )
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => onOpenChange(false),
@@ -207,19 +226,14 @@ export function EditHabitModal({
     }
   }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
 
-  return (
-    <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+  function renderEditSheet() {
+    if (!open) return null
+    return (
+      <Sheet
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('habits.editHabit')}
-        description={t('habits.form.editDescription')}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        initialFocusRef={titleInputRef}
-        panelWidth="wide"
-        footer={
+        actions={(
           <div className="flex items-center justify-end" style={{ gap: 12 }}>
             <PillButton
               variant="ghost"
@@ -239,47 +253,58 @@ export function EditHabitModal({
               {t('common.save')}
             </PillButton>
           </div>
-        }
+        )}
       >
-        <form id={formId} onSubmit={(e) => void handleSubmit(e)}>
-        <fieldset
-          disabled={detailFieldsPending}
-          aria-busy={detailFieldsPending || undefined}
-          className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
-            detailFieldsPending ? 'pointer-events-none opacity-60' : ''
-          }`}
-        >
-        <HabitFormFields
-          formHelpers={formHelpers}
-          titleInputRef={titleInputRef}
-          tags={tags}
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={toggleGoal}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={setReminderTimes}
-          hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
-          onSuggestSetup={() => void handleSuggest()}
-          isSuggesting={suggestion.isPending}
-          lockedGeneral={resolvedLockedGeneral}
-          defaultExpanded
-        />
-        </fieldset>
+        <p className="mb-4 text-sm text-[var(--fg-3)]">
+          {t('habits.form.editDescription')}
+        </p>
+        <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+          <fieldset
+            disabled={detailFieldsPending}
+            aria-busy={detailFieldsPending || undefined}
+            className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
+              detailFieldsPending ? 'pointer-events-none opacity-60' : ''
+            }`}
+          >
+            <HabitFormFields
+              formHelpers={formHelpers}
+              titleInputRef={titleInputRef}
+              tags={tags}
+              selectedGoalIds={selectedGoalIds}
+              atGoalLimit={atGoalLimit}
+              onToggleGoal={toggleGoal}
+              reminderTimes={reminderTimes}
+              onReminderTimesChange={setReminderTimes}
+              hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
+              onSuggestSetup={() => void handleSuggest()}
+              isSuggesting={suggestion.isPending}
+              lockedGeneral={resolvedLockedGeneral}
+              defaultExpanded
+            />
+          </fieldset>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
-        open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
-      />
+      </Sheet>
+    )
+  }
+
+  return (
+    <>
+      {renderEditSheet()}
+      {dismissGuard.showDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
+  (nextOpen => {
+    if (!nextOpen) dismissGuard.cancelDismiss();
+  })(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (dismissGuard.cancelDismiss)();
+    (nextOpen => {
+      if (!nextOpen) dismissGuard.cancelDismiss();
+    })(false);
+  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
+    (dismissGuard.confirmDismiss)();
+    (nextOpen => {
+      if (!nextOpen) dismissGuard.cancelDismiss();
+    })(false);
+  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
     </>
   )
 }

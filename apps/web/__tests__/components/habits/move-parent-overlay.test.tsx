@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
     footer,

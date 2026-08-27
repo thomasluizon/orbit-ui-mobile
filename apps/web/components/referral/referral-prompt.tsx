@@ -12,7 +12,7 @@ import {
   canPromptReferral,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useUIStore } from '@/stores/ui-store'
@@ -102,11 +102,11 @@ export function ReferralPrompt() {
 
   return (
     <>
-      <AppOverlay
-        open={visibleKey !== null}
-        onOpenChange={(open) => {
+      {visibleKey !== null ? (<Sheet
+        open
+        onClose={() => ((open) => {
           if (!open) dismiss()
-        }}
+        })(false)}
         title={title}
       >
         <LazyMotion features={domAnimation}>
@@ -177,7 +177,7 @@ export function ReferralPrompt() {
             </m.div>
           </div>
         </LazyMotion>
-      </AppOverlay>
+      </Sheet>) : null}
       <ReferralDrawer open={showDrawer} onOpenChange={setShowDrawer} />
     </>
   )

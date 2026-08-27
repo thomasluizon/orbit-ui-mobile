@@ -4,7 +4,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shared/validation'
-import { AppTimePicker } from '@/components/ui/app-time-picker'
+import { TimeField } from '@/components/ui/time-field'
 import { Switch } from '@/components/ui/settings-row'
 
 interface ScheduledReminderSectionProps {
@@ -140,7 +140,7 @@ export function ScheduledReminderSection({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <AppTimePicker
+                  <TimeField
                     value={time}
                     ariaLabel={t('habits.form.scheduledReminderTimePlaceholder')}
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}

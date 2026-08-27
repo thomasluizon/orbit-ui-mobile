@@ -20,7 +20,7 @@ import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -102,11 +102,10 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
   )
 
   return (
-    <BottomSheetModal
-      open={visible}
+    visible ? (<Sheet
+      open
       onClose={onClose}
       title={t('tour.replay.modalTitle')}
-      snapPoints={['80%']}
     >
       <View style={styles.body}>
         <PillButton
@@ -159,7 +158,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
           })}
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

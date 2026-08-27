@@ -30,8 +30,8 @@ vi.mock('@/app/actions/profile', () => ({
   resetAccount: (...args: unknown[]) => mockResetAccount(...args),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     onOpenChange,
     title,

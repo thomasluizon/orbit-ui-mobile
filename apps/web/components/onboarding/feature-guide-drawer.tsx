@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 
 type SectionKey =
   | 'astra'
@@ -129,7 +129,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
   const items = sectionItems[activeSection]
 
   return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={t('onboarding.featureGuide.title')}>
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')}>
       <div className="overlay-bleed">
         <div
           role="tablist"
@@ -189,6 +189,6 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           </div>
         ))}
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

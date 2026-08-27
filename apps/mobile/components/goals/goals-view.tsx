@@ -10,16 +10,16 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
-import { Check, Filter } from "@/components/ui/icons";
+import { Filter } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { Goal, GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import {
-  AnchoredMenu,
+  Menu,
   MenuAnchorHost,
   useAnchoredMenu,
-} from "@/components/ui/anchored-menu";
+} from "@/components/ui/menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SkeletonLine } from "@/components/ui/skeleton";
@@ -76,7 +76,6 @@ export function GoalsView({
   const {
     anchorRef: filterMenuButtonRef,
     visible: showFilterMenu,
-    anchorRect: filterMenuAnchorRect,
     close: closeFilterMenu,
     toggle: toggleFilterMenu,
   } = useAnchoredMenu();
@@ -191,46 +190,18 @@ export function GoalsView({
         onScrollBeginDrag={onScrollBeginDrag}
       />
 
-      <AnchoredMenu
-        visible={showFilterMenu}
-        anchorRect={filterMenuAnchorRect}
+      <Menu
+        open={showFilterMenu}
+        anchorRef={filterMenuButtonRef}
         onClose={closeFilterMenu}
-        width={200}
-        estimatedHeight={200}
-      >
-        {statusFilters.map((filter) => {
-          const active = activeFilter === filter.key;
-          return (
-            <Pressable
-              key={filter.key ?? "all"}
-              style={({ pressed }) => [
-                styles.menuItem,
-                {
-                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                },
-              ]}
-              onPress={() => handleFilterChange(filter.key)}
-              accessibilityRole="menuitem"
-              accessibilityState={{ selected: active }}
-            >
-              <View style={styles.menuCheck}>
-                {active ? (
-                  <Check size={14} color={tokens.primary} strokeWidth={2} />
-                ) : null}
-              </View>
-              <Text
-                style={[
-                  styles.menuLabel,
-                  active ? styles.menuLabelActive : null,
-                  { color: active ? tokens.fg1 : tokens.fg2 },
-                ]}
-              >
-                {filter.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </AnchoredMenu>
+        title={t("goals.filters.statusFilter")}
+        items={statusFilters.map((filter) => ({
+          id: filter.key ?? "all",
+          label: filter.label,
+          badge: activeFilter === filter.key ? t("common.done") : undefined,
+        }))}
+        onSelect={(id) => handleFilterChange(id === "all" ? null : id as GoalStatus)}
+      />
     </View>
   );
 }

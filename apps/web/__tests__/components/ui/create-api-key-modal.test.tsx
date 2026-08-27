@@ -9,8 +9,8 @@ vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
     if (!open) return null
     return (
       <div data-testid="overlay">

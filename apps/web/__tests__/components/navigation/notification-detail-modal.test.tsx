@@ -17,8 +17,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, title, footer }: {
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children, title, footer }: {
     open: boolean; children: React.ReactNode; title?: string; footer?: React.ReactNode
   }) => {
     if (!open) return null

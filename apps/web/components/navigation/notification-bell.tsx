@@ -18,10 +18,9 @@ import {
   useDeleteNotification,
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
-import { Popover } from '@/components/ui/popover'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { NotificationDetailModal } from './notification-detail-modal'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { useAppToast } from '@/hooks/use-app-toast'
 import {
   cancelPendingNotificationDelete,
@@ -29,6 +28,8 @@ import {
   queuePendingNotificationDelete,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
+import { Sheet } from '@/components/ui/sheet'
+import { PillButton } from '@/components/ui/pill-button'
 
 const glyphIconMap = {
   streak: Flame,
@@ -245,33 +246,13 @@ export function NotificationBell() {
 
   return (
     <>
-      <Popover
-        trigger={trigger}
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        placement="bottom-end"
-        className="w-80 md:w-[380px] max-h-96 md:max-h-[min(60dvh,520px)] flex flex-col overflow-hidden"
-      >
-        <div
-          className="flex items-center justify-between"
-          style={{
-            padding: '12px 16px',
-            gap: 12,
-            borderBottom: '1px solid var(--hairline)',
-          }}
-        >
-          <h3
-            className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              fontWeight: 500,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {t('notifications.title')}
-          </h3>
-          <div className="flex shrink-0 items-center gap-2">
+      {trigger}
+      {isOpen ? (
+        <Sheet
+          open
+          title={t('notifications.title')}
+          onClose={() => setIsOpen(false)}
+          actions={<div className="flex shrink-0 items-center gap-2">
             {visibleUnreadCount > 0 && (
               <button
                 type="button"
@@ -296,12 +277,11 @@ export function NotificationBell() {
                 <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
-          </div>
-        </div>
-
+          </div>}
+        >
         <ul
           id="notification-dropdown"
-          className="stagger-enter flex-1 overflow-y-auto list-none m-0 p-0"
+          className="stagger-enter list-none m-0 p-0"
           aria-label={t('notifications.title')}
         >
           {isLoading && visibleNotifications.length === 0 && (
@@ -361,7 +341,8 @@ export function NotificationBell() {
             </LazyMotion>
           )}
         </ul>
-      </Popover>
+        </Sheet>
+      ) : null}
 
       {selectedNotification && (
         <NotificationDetailModal
@@ -375,16 +356,14 @@ export function NotificationBell() {
           onDelete={handleModalDelete}
         />
       )}
-      <ConfirmDialog
-        open={showDeleteAllConfirm}
-        onOpenChange={setShowDeleteAllConfirm}
-        title={t('notifications.deleteAllConfirmTitle')}
-        description={t('notifications.deleteAllConfirmDescription')}
-        confirmLabel={t('notifications.deleteAll')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={() => deleteAll.mutate()}
-        variant="danger"
-      />
+      {showDeleteAllConfirm ? <Sheet open title={t('notifications.deleteAllConfirmTitle')} onClose={() => {
+  (setShowDeleteAllConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (setShowDeleteAllConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (() => deleteAll.mutate())();
+    (setShowDeleteAllConfirm)(false);
+  }}>{t('notifications.deleteAll')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('notifications.deleteAllConfirmDescription')}</p></Sheet> : null}
     </>
   )
 }

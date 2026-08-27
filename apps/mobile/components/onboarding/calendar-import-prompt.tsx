@@ -6,7 +6,7 @@ import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -68,17 +68,14 @@ export function CalendarImportPrompt() {
   if (!sheetMounted) return null
 
   return (
-    <BottomSheetModal
-      open={shouldShow}
+    shouldShow ? (<Sheet
+      open
       onClose={() => {
         void dismissPrompt()
-      }}
-      onDidDismiss={() => {
         runExitAction()
         setSheetMounted(false)
       }}
       title={t('onboarding.wizard.calendarTitle')}
-      snapPoints={['50%']}
     >
       <View style={styles.content}>
         <Text style={styles.description}>
@@ -98,7 +95,7 @@ export function CalendarImportPrompt() {
           <Text style={styles.quietText}>{t('common.later')}</Text>
         </Pressable>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

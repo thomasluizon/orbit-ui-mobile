@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import {
   canPromptReferral,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -105,19 +105,13 @@ export function ReferralPrompt() {
 
   return (
     <>
-      <BottomSheetModal
-        open={visibleKey !== null}
+      {visibleKey !== null ? (<Sheet
+        open
         onClose={dismiss}
         title={title}
-        contentKey={visibleKey ?? undefined}
-        snapPoints={['60%']}
-        contentManagesScroll
+        key={visibleKey}
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.content}>
           <Animated.Text entering={enterAnimation(70)} style={styles.eyebrow}>
             {t('referral.prompt.eyebrow')}
           </Animated.Text>
@@ -143,8 +137,8 @@ export function ReferralPrompt() {
               <Text style={styles.laterText}>{t('referral.prompt.later')}</Text>
             </Pressable>
           </Animated.View>
-        </ScrollView>
-      </BottomSheetModal>
+        </View>
+      </Sheet>) : null}
       <ReferralDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
     </>
   )

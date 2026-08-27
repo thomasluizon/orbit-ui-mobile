@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ScrollView } from 'react-native'
+import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -9,7 +9,7 @@ import {
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
@@ -298,21 +298,17 @@ export function PreferencePickerSheet({
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
   return (
-    <BottomSheetModal
-      open={activePicker !== null}
-      onClose={onClose}
-      onDidDismiss={onDidDismiss}
-      title={activePicker ? pickerTitles[activePicker] : undefined}
-      contentKey={activePicker ?? 'none'}
-      snapPoints={['55%']}
-      contentManagesScroll
+    activePicker !== null ? (<Sheet
+      open
+      onClose={() => {
+        onClose()
+        onDidDismiss()
+      }}
+      title={pickerTitles[activePicker]}
+      key={activePicker}
     >
-      <ScrollView
-        style={styles.sheetScroll}
-        contentContainerStyle={styles.sheetContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {activePicker && pickerDescriptions[activePicker] ? (
+      <View style={styles.sheetContent}>
+        {pickerDescriptions[activePicker] ? (
           <Text style={[styles.sheetDescription, { color: tokens.fg3 }]}>
             {pickerDescriptions[activePicker]}
           </Text>
@@ -382,7 +378,7 @@ export function PreferencePickerSheet({
               }}
             />
           ))}
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }

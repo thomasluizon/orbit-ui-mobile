@@ -8,7 +8,7 @@ import {
   isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -56,12 +56,13 @@ export function NotificationDetailModal({
   }
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={onClose}
-      onDidDismiss={runExitAction}
+    open ? (<Sheet
+      open
+      onClose={() => {
+        onClose()
+        runExitAction()
+      }}
       title={notification.title}
-      snapPoints={['50%', '92%']}
     >
       <View style={styles.container}>
         <Text style={styles.timestamp}>
@@ -95,7 +96,7 @@ export function NotificationDetailModal({
           />
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
@@ -139,7 +140,7 @@ const quietActionStyles = StyleSheet.create({
   chip: {
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',

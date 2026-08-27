@@ -3,8 +3,8 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Sheet } from '@/components/ui/sheet'
+
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalAskAstraRow } from './goal-ask-astra-row'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -26,6 +26,7 @@ import {
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
+import { PillButton } from '@/components/ui/pill-button'
 
 export type { GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 
@@ -164,16 +165,90 @@ export function GoalDetailDrawer({
 
   const unitSuffix = goal?.unit ? `  ·  ${goal.unit}` : ''
 
+  function renderGoalBody() {
+    if (!goal) return null
+    const isActive = goal.status === 'Active'
+    const canEditProgress = isActive && !goal.isProgressDerived
+
+    return (
+      <div className="overlay-bleed">
+        <div
+          className="t-eyebrow"
+          style={{
+            padding: '10px 20px',
+            borderBottom: '1px solid var(--hairline)',
+          }}
+        >
+          {isStreak
+            ? t('goals.form.typeStreak')
+            : `${t('goals.form.typeStandard')}${unitSuffix}`}
+        </div>
+
+        <GoalProgressBlock
+          progressPercentage={goal.progressPercentage}
+          progressFillColor={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
+          progressText={progressText}
+          showEdit={canEditProgress && !showProgressForm}
+          onEdit={openManualProgressForm}
+        />
+
+        {canEditProgress && showProgressForm ? (
+          <GoalProgressForm
+            progressValue={progressValue}
+            progressNote={progressNote}
+            isUpdating={isUpdatingProgress}
+            progressExceedsTarget={progressExceedsTarget}
+            onProgressValueChange={setProgressValue}
+            onProgressNoteChange={setProgressNote}
+            onSubmit={() => void submitProgress()}
+            onCancel={() => requestProgressDismiss('form')}
+            labelValue={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+            labelNote={t('goals.progressNote')}
+            labelSave={t('common.save')}
+            labelCancel={t('common.cancel')}
+            labelExceedsTarget={t('goals.form.progressExceedsTarget')}
+          />
+        ) : null}
+
+        {isActive ? (
+          <GoalMetricsPanel
+            metrics={metrics}
+            unit={goal.unit}
+            isLoading={isLoadingDetail}
+            isStreak={isStreak}
+          />
+        ) : null}
+
+        <GoalDetailCollections
+          isStreak={isStreak}
+          linkedHabits={goal.linkedHabits}
+          entries={detail?.progressHistory ?? []}
+          unit={goal.unit}
+          formatDate={formatDate}
+        />
+
+        {loadError ? <GoalLoadError onRetry={() => void refetchDetail()} /> : null}
+
+        <GoalActionFooter
+          isActive={isActive}
+          isUpdatingStatus={isUpdatingStatus}
+          onMarkCompleted={() => void markCompleted()}
+          onMarkAbandoned={() => void markAbandoned()}
+          onReactivate={() => void reactivate()}
+          onEdit={() => setShowEditModal(true)}
+          onDelete={() => setShowDeleteConfirm(true)}
+        />
+      </div>
+    )
+  }
+
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+      {open ? (<Sheet
+        open
+        onClose={isProgressDirty ? undefined : () => onOpenChange(false)}
         title={goal?.title ?? ''}
-        canDismiss={!isProgressDirty}
-        isDirty={isProgressDirty}
-        onAttemptDismiss={() => requestProgressDismiss('drawer')}
-        footer={
+        actions={
           goal ? (
             <GoalAskAstraRow
               onClick={handleAskAstra}
@@ -182,83 +257,8 @@ export function GoalDetailDrawer({
           ) : undefined
         }
       >
-        {goal && (
-          <div className="overlay-bleed">
-            <div
-              className="t-eyebrow"
-              style={{
-                padding: '10px 20px',
-                borderBottom: '1px solid var(--hairline)',
-              }}
-            >
-              {isStreak
-                ? t('goals.form.typeStreak')
-                : `${t('goals.form.typeStandard')}${unitSuffix}`}
-            </div>
-
-            <GoalProgressBlock
-              progressPercentage={goal.progressPercentage}
-              progressFillColor={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
-              progressText={progressText}
-              showEdit={
-                goal.status === 'Active' &&
-                !goal.isProgressDerived &&
-                !showProgressForm
-              }
-              onEdit={openManualProgressForm}
-            />
-
-            {showProgressForm &&
-              goal.status === 'Active' &&
-              !goal.isProgressDerived && (
-              <GoalProgressForm
-                progressValue={progressValue}
-                progressNote={progressNote}
-                isUpdating={isUpdatingProgress}
-                progressExceedsTarget={progressExceedsTarget}
-                onProgressValueChange={setProgressValue}
-                onProgressNoteChange={setProgressNote}
-                onSubmit={() => void submitProgress()}
-                onCancel={() => requestProgressDismiss('form')}
-                labelValue={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-                labelNote={t('goals.progressNote')}
-                labelSave={t('common.save')}
-                labelCancel={t('common.cancel')}
-                labelExceedsTarget={t('goals.form.progressExceedsTarget')}
-              />
-            )}
-
-            {goal.status === 'Active' && (
-              <GoalMetricsPanel
-                metrics={metrics}
-                unit={goal.unit}
-                isLoading={isLoadingDetail}
-                isStreak={isStreak}
-              />
-            )}
-
-            <GoalDetailCollections
-              isStreak={isStreak}
-              linkedHabits={goal.linkedHabits}
-              entries={detail?.progressHistory ?? []}
-              unit={goal.unit}
-              formatDate={formatDate}
-            />
-
-            {loadError && <GoalLoadError onRetry={() => void refetchDetail()} />}
-
-            <GoalActionFooter
-              isActive={goal.status === 'Active'}
-              isUpdatingStatus={isUpdatingStatus}
-              onMarkCompleted={() => void markCompleted()}
-              onMarkAbandoned={() => void markAbandoned()}
-              onReactivate={() => void reactivate()}
-              onEdit={() => setShowEditModal(true)}
-              onDelete={() => setShowDeleteConfirm(true)}
-            />
-          </div>
-        )}
-      </AppOverlay>
+        {renderGoalBody()}
+      </Sheet>) : null}
 
       {goal && (
         <EditGoalModal
@@ -268,31 +268,31 @@ export function GoalDetailDrawer({
         />
       )}
 
-      <ConfirmDialog
-        open={showProgressDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) cancelProgressDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        variant="warning"
-        onConfirm={confirmProgressDismiss}
-        onCancel={cancelProgressDismiss}
-      />
+      {showProgressDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
+  (nextOpen => {
+    if (!nextOpen) cancelProgressDismiss();
+  })(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (cancelProgressDismiss)();
+    (nextOpen => {
+      if (!nextOpen) cancelProgressDismiss();
+    })(false);
+  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
+    (confirmProgressDismiss)();
+    (nextOpen => {
+      if (!nextOpen) cancelProgressDismiss();
+    })(false);
+  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
 
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title={t('goals.detail.delete')}
-        description={t('goals.detail.deleteConfirm')}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={() => void confirmDelete()}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm ? <Sheet open title={t('goals.detail.delete')} onClose={() => {
+  (setShowDeleteConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (() => setShowDeleteConfirm(false))();
+    (setShowDeleteConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (() => void confirmDelete())();
+    (setShowDeleteConfirm)(false);
+  }}>{t('common.delete')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('goals.detail.deleteConfirm')}</p></Sheet> : null}
     </>
   )
 }

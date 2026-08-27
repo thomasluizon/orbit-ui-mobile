@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
-import { View, Text, Pressable, type ListRenderItemInfo } from 'react-native'
-import Animated, { LinearTransition, ReduceMotion, ZoomIn } from 'react-native-reanimated'
+import { View, Text, Pressable } from 'react-native'
+import Animated, { ReduceMotion, ZoomIn } from 'react-native-reanimated'
 import { Bell, CheckCheck, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -11,13 +11,13 @@ import {
   useDeleteNotification,
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SkeletonLine } from '@/components/ui/skeleton'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationRow } from './notification-row'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { useAppToast } from '@/hooks/use-app-toast'
 import { plural } from '@/lib/plural'
 import { createTokensV2 } from '@/lib/theme'
@@ -33,6 +33,7 @@ import {
   type AppTokens,
   type NotificationBellStyles,
 } from './notification-bell.styles'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface NotificationListActionsProps {
   tokens: AppTokens
@@ -222,7 +223,7 @@ export function NotificationBell() {
     }
   }
 
-  function renderNotification({ item, index }: ListRenderItemInfo<NotificationItem>) {
+  function renderNotification(item: NotificationItem, index: number) {
     return (
       <NotificationRow
         item={item}
@@ -263,12 +264,10 @@ export function NotificationBell() {
         )}
       </Pressable>
 
-      <BottomSheetModal
-        open={isOpen}
+      {isOpen ? (<Sheet
+        open
         onClose={() => setIsOpen(false)}
         title={t('notifications.title')}
-        snapPoints={['88%', '96%']}
-        contentManagesScroll
       >
         <NotificationListActions
           tokens={tokens}
@@ -278,27 +277,20 @@ export function NotificationBell() {
           onMarkAllRead={() => markAllAsRead.mutate()}
           onDeleteAll={() => setShowDeleteAllConfirm(true)}
         />
-        <Animated.FlatList
-          style={styles.listScroll}
-          data={visibleNotifications}
-          keyExtractor={(item) => item.id}
-          renderItem={renderNotification}
-          showsVerticalScrollIndicator={false}
-          itemLayoutAnimation={LinearTransition}
-          ListEmptyComponent={
+        <View style={[
+          withDrawerContentInset(styles.listContent),
+          visibleNotifications.length === 0 && styles.emptyListContainer,
+        ]}>
+          {visibleNotifications.length === 0 ? (
             <NotificationListEmpty
               styles={styles}
               isLoading={isLoading}
               isError={isError}
               onRetry={() => void refetch()}
             />
-          }
-          contentContainerStyle={[
-            withDrawerContentInset(styles.listContent),
-            visibleNotifications.length === 0 && styles.emptyListContainer,
-          ]}
-        />
-      </BottomSheetModal>
+          ) : visibleNotifications.map(renderNotification)}
+        </View>
+      </Sheet>) : null}
 
       {selectedNotification && (
         <NotificationDetailModal
@@ -312,16 +304,14 @@ export function NotificationBell() {
           onDelete={handleDetailDelete}
         />
       )}
-      <ConfirmDialog
-        open={showDeleteAllConfirm}
-        onOpenChange={setShowDeleteAllConfirm}
-        title={t('notifications.deleteAllConfirmTitle')}
-        description={t('notifications.deleteAllConfirmDescription')}
-        confirmLabel={t('notifications.deleteAll')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={() => deleteAll.mutate()}
-        variant="danger"
-      />
+      {showDeleteAllConfirm ? <Sheet open title={t('notifications.deleteAllConfirmTitle')} onClose={() => {
+  (setShowDeleteAllConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (setShowDeleteAllConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (() => deleteAll.mutate())();
+    (setShowDeleteAllConfirm)(false);
+  }}>{t('notifications.deleteAll')}</PillButton></>}><Text>{t('notifications.deleteAllConfirmDescription')}</Text></Sheet> : null}
     </View>
   )
 }

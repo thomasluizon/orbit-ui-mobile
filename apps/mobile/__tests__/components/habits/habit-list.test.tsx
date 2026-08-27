@@ -170,9 +170,9 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
   RescheduleSheet: () => null,
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title }: any) =>
-    open ? React.createElement('BottomSheetModal', { title }, children) : null,
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children, title }: any) =>
+    open ? React.createElement('Sheet', { title }, children) : null,
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({

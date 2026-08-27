@@ -4,9 +4,12 @@ import { plural } from "@/lib/plural";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
+import { Sheet } from '@/components/ui/sheet'
+import { PillButton } from '@/components/ui/pill-button'
+import { Text } from 'react-native'
 
 interface TodayModalsProps {
   showCreateModal: boolean;
@@ -25,9 +28,6 @@ interface TodayModalsProps {
   showBulkLogConfirm: boolean;
   onBulkLogOpenChange: (open: boolean) => void;
   onConfirmBulkLog: () => void;
-  showBulkSkipConfirm: boolean;
-  onBulkSkipOpenChange: (open: boolean) => void;
-  onConfirmBulkSkip: () => void;
   selectedCount: number;
   showCreateGoalModal: boolean;
   onCloseCreateGoal: () => void;
@@ -58,9 +58,6 @@ export function TodayModals({
   showBulkLogConfirm,
   onBulkLogOpenChange,
   onConfirmBulkLog,
-  showBulkSkipConfirm,
-  onBulkSkipOpenChange,
-  onConfirmBulkSkip,
   selectedCount,
   showCreateGoalModal,
   onCloseCreateGoal,
@@ -92,44 +89,27 @@ export function TodayModals({
         parentIsGeneral={editHabitParentIsGeneral}
       />
 
-      <ConfirmDialog
-        open={showBulkDeleteConfirm}
-        onOpenChange={onBulkDeleteOpenChange}
-        title={t("habits.bulkDeleteTitle")}
-        description={plural(
-          t("habits.bulkDeleteMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkDeleteConfirm")}
-        onConfirm={onConfirmBulkDelete}
-        variant="danger"
-      />
+      {showBulkDeleteConfirm ? <Sheet open title={t("habits.bulkDeleteTitle")} onClose={() => {
+  (onBulkDeleteOpenChange)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (onBulkDeleteOpenChange)(false);
+  }}>{t("common.cancel")}</PillButton><PillButton variant="destructive" onClick={() => {
+    (onConfirmBulkDelete)();
+    (onBulkDeleteOpenChange)(false);
+  }}>{t("habits.bulkDeleteConfirm")}</PillButton></>}><Text>{plural(t("habits.bulkDeleteMessage", {
+      count: selectedCount
+    }), selectedCount)}</Text></Sheet> : null}
 
-      <ConfirmDialog
-        open={showBulkLogConfirm}
-        onOpenChange={onBulkLogOpenChange}
-        title={t("habits.bulkLogTitle")}
-        description={plural(
-          t("habits.bulkLogMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkLogConfirm")}
-        onConfirm={onConfirmBulkLog}
-        variant="success"
-      />
-
-      <ConfirmDialog
-        open={showBulkSkipConfirm}
-        onOpenChange={onBulkSkipOpenChange}
-        title={t("habits.bulkSkipTitle")}
-        description={plural(
-          t("habits.bulkSkipMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkSkipConfirm")}
-        onConfirm={onConfirmBulkSkip}
-        variant="warning"
-      />
+      {showBulkLogConfirm ? <Sheet open title={t("habits.bulkLogTitle")} onClose={() => {
+  (onBulkLogOpenChange)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (onBulkLogOpenChange)(false);
+  }}>{t("common.cancel")}</PillButton><PillButton variant="primary" onClick={() => {
+    (onConfirmBulkLog)();
+    (onBulkLogOpenChange)(false);
+  }}>{t("habits.bulkLogConfirm")}</PillButton></>}><Text>{plural(t("habits.bulkLogMessage", {
+      count: selectedCount
+    }), selectedCount)}</Text></Sheet> : null}
 
       <CreateGoalModal open={showCreateGoalModal} onClose={onCloseCreateGoal} />
 

@@ -19,7 +19,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -63,9 +63,9 @@ const dangerPillStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
+    gap: 8,
     borderRadius: 999,
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 26,
     width: '100%',
   },
@@ -449,15 +449,16 @@ export function DeleteAccountModal({
   }
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={onClose}
-      onDidDismiss={runExitAction}
+    open ? (<Sheet
+      open
+      onClose={() => {
+        onClose()
+        runExitAction()
+      }}
       title={t('profile.deleteAccount.title')}
-      snapPoints={['70%']}
     >
       {deleteContent}
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

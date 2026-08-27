@@ -27,8 +27,8 @@ vi.mock('motion/react', () => {
   }
 })
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
     title,

@@ -28,8 +28,8 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: h.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useUpdateHabit: () => ({ mutateAsync: h.mutateAsync, isPending: false }) }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => h.reschedule }))
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, footer }: { open: boolean; children?: ReactNode; footer?: ReactNode }) =>
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children, footer }: { open: boolean; children?: ReactNode; footer?: ReactNode }) =>
     open ? (
       <div>
         {children}

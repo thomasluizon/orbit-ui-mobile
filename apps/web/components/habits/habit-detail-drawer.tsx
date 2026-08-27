@@ -3,8 +3,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Sheet } from '@/components/ui/sheet'
+
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -26,6 +26,7 @@ import {
   formatLocaleDate,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -153,21 +154,23 @@ export function HabitDetailDrawer({
         />
       )}
 
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+      {open ? (<Sheet
+        open
+        onClose={() => onOpenChange(false)}
         title={habit?.title}
-        titleContent={
-          habit ? (
-            <HabitDetailHeader habit={habit} summaryStrip={summaryStrip} />
-          ) : undefined
-        }
-        description={habit?.description ?? undefined}
-        expandable
-        onExpandDescription={() => setDescriptionViewerOpen(true)}
       >
         {habit && (
           <div className="overlay-bleed">
+            <HabitDetailHeader habit={habit} summaryStrip={summaryStrip} showTitle={false} />
+            {habit.description ? (
+              <button
+                type="button"
+                className="mx-6 mb-3 block rounded-[12px] bg-[var(--bg-well)] p-3 text-start text-sm text-[var(--fg-2)]"
+                onClick={() => setDescriptionViewerOpen(true)}
+              >
+                {habit.description}
+              </button>
+            ) : null}
             {liveChecklist.length > 0 && (
               <>
                 <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
@@ -225,33 +228,29 @@ export function HabitDetailDrawer({
             <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
           </div>
         )}
-      </AppOverlay>
+      </Sheet>) : null}
 
-      <ConfirmDialog
-        open={showChecklistLogPrompt}
-        onOpenChange={setShowChecklistLogPrompt}
-        title={t('habits.checklistCompleteTitle')}
-        description={t('habits.checklistCompleteMessage', {
-          name: habit?.title ?? '',
-        })}
-        confirmLabel={t('habits.checklistCompleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={() => void confirmChecklistLog()}
-        onCancel={() => setShowChecklistLogPrompt(false)}
-        variant="success"
-      />
+      {showChecklistLogPrompt ? <Sheet open title={t('habits.checklistCompleteTitle')} onClose={() => {
+  (setShowChecklistLogPrompt)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (() => setShowChecklistLogPrompt(false))();
+    (setShowChecklistLogPrompt)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
+    (() => void confirmChecklistLog())();
+    (setShowChecklistLogPrompt)(false);
+  }}>{t('habits.checklistCompleteConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('habits.checklistCompleteMessage', {
+      name: habit?.title ?? ''
+    })}</p></Sheet> : null}
 
-      <ConfirmDialog
-        open={showChecklistClearConfirm}
-        onOpenChange={setShowChecklistClearConfirm}
-        title={t('habits.checklistClearTitle')}
-        description={t('habits.checklistClearMessage')}
-        confirmLabel={t('habits.form.clearChecklist')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmChecklistClear}
-        onCancel={() => setShowChecklistClearConfirm(false)}
-        variant="danger"
-      />
+      {showChecklistClearConfirm ? <Sheet open title={t('habits.checklistClearTitle')} onClose={() => {
+  (setShowChecklistClearConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (() => setShowChecklistClearConfirm(false))();
+    (setShowChecklistClearConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (confirmChecklistClear)();
+    (setShowChecklistClearConfirm)(false);
+  }}>{t('habits.form.clearChecklist')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('habits.checklistClearMessage')}</p></Sheet> : null}
     </>
   )
 }

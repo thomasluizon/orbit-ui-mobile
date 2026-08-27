@@ -12,8 +12,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
     onClose,

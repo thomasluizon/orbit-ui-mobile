@@ -1,6 +1,10 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
+import { useUIStore } from '@/stores/ui-store'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -12,8 +16,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ getQueryData: () => undefined }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
   }: {
@@ -47,10 +51,6 @@ vi.mock('@/hooks/use-share-card', () => ({
     share: vi.fn(),
   }),
 }))
-
-import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
-import { useUIStore } from '@/stores/ui-store'
-import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
 const TestRenderer = require('react-test-renderer')
 

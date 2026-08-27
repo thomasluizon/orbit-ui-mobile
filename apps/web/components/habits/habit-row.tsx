@@ -1,9 +1,9 @@
 'use client'
 
-import { type MouseEvent } from 'react'
+import { useRef, useState, type MouseEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { useContextMenu } from '@/components/ui/context-menu'
+import { Menu } from '@/components/ui/menu'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
@@ -140,7 +140,8 @@ export function HabitRow({
     t,
   })
 
-  const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
+  const [contextOpen, setContextOpen] = useState(false)
+  const rowRef = useRef<HTMLDivElement>(null)
 
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
@@ -167,7 +168,12 @@ export function HabitRow({
   const row = (
     <div
       onClick={handleRowClick}
-      onContextMenu={onContextMenu}
+      ref={rowRef}
+      onContextMenu={(event) => {
+        if (contextMenuItems.length === 0) return
+        event.preventDefault()
+        setContextOpen(true)
+      }}
       // react-doctor-disable-next-line prefer-tag-over-role -- the row wraps nested interactive controls (status-dot button, overflow menu) that a native <button> cannot legally contain; div+role=button with full Enter/Space keyboard handling is the accessible pattern here https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       role="button"
       tabIndex={0}
@@ -241,7 +247,15 @@ export function HabitRow({
   return (
     <>
       {row}
-      {contextMenu}
+      <Menu
+        open={contextOpen}
+        presentation="anchored"
+        anchorRef={rowRef}
+        title={t('habits.actions.more')}
+        items={contextMenuItems.map(({ onRun: _onRun, ...item }) => item)}
+        onClose={() => setContextOpen(false)}
+        onSelect={(id) => contextMenuItems.find((item) => item.id === id)?.onRun()}
+      />
     </>
   )
 }

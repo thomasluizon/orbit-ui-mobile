@@ -10,8 +10,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ getQueryData: () => undefined }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
   }: {

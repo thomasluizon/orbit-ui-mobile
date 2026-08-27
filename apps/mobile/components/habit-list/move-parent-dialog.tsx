@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGlyph } from '@/components/ui/select-check'
@@ -36,6 +36,15 @@ interface MoveParentDialogProps {
 const SEARCH_THRESHOLD = 8
 
 type Styles = ReturnType<typeof createStyles>
+
+function MoveDialogDescription({
+  title,
+  text,
+  styles,
+}: Readonly<{ title: string | null; text: string; styles: Styles }>) {
+  if (!title) return null
+  return <Text style={styles.moveDialogDescription}>{text}</Text>
+}
 
 function MoveTargetRow({
   option,
@@ -147,19 +156,17 @@ export function MoveParentDialog({
   }
 
   return (
-    <BottomSheetModal
-      open={visible}
-      onClose={handleClose}
+    visible ? (<Sheet
+      open
+      onClose={isPending ? undefined : handleClose}
       title={t('habits.moveParent.title')}
-      canDismiss={!isPending}
-      contentManagesScroll
     >
       <View style={styles.sheetBody}>
-        {movingHabitTitle ? (
-          <Text style={styles.moveDialogDescription}>
-            {t('habits.moveParent.description', { name: movingHabitTitle })}
-          </Text>
-        ) : null}
+        <MoveDialogDescription
+          title={movingHabitTitle}
+          text={t('habits.moveParent.description', { name: movingHabitTitle })}
+          styles={styles}
+        />
 
         {showSearch ? (
           <View style={styles.searchWrap}>
@@ -192,13 +199,7 @@ export function MoveParentDialog({
           <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
         ) : null}
 
-        <ScrollView
-          style={styles.moveOptionsList}
-          contentContainerStyle={styles.moveOptionsContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- bounded move-target picker inside a bottom sheet; search collapses long lists (threshold 8) and nesting a VirtualizedList in the sheet ScrollView is discouraged https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
+        <View style={styles.moveOptionsContent}>
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}
@@ -216,7 +217,7 @@ export function MoveParentDialog({
               {t('habits.moveParent.noSearchResults')}
             </Text>
           ) : null}
-        </ScrollView>
+        </View>
 
         <View style={styles.footer}>
           <PillButton
@@ -237,7 +238,7 @@ export function MoveParentDialog({
           </PillButton>
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
@@ -286,7 +287,7 @@ function createStyles(tokens: AppTokensV2) {
       borderRadius: 14,
       borderWidth: 1,
       paddingHorizontal: 12,
-      paddingVertical: 9,
+      paddingVertical: 8,
     },
     moveOptionDefault: {
       borderColor: tokens.hairline,
@@ -360,7 +361,7 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 11,
       lineHeight: 15,
       color: tokens.fg3,
-      marginTop: 5,
+      marginTop: 4,
     },
     moveDialogEmpty: {
       fontFamily: 'Rubik_400Regular',

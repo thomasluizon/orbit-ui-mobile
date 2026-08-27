@@ -11,7 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildRescheduleUpdateRequest } from '@/lib/habit-request-builders'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -258,11 +258,11 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      open
+      onClose={() => (onOpenChange)(false)}
       title={t('habits.reschedule.title')}
-      footer={renderFooter()}
+      actions={renderFooter()}
     >
       <div className="stagger-enter">
         <div className="flex items-center" style={{ gap: 8, marginBottom: 12 }}>
@@ -289,6 +289,6 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
 
         {renderBody()}
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

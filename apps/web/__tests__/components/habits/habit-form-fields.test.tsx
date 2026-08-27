@@ -53,8 +53,8 @@ vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: () => <div data-testid="goal-linking-field" />,
 }))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: () => <div data-testid="app-date-picker" />,
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: () => <div data-testid="app-date-picker" />,
 }))
 
 vi.mock('@/components/ui/app-select', () => ({

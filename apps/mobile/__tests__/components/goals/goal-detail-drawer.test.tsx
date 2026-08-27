@@ -87,24 +87,17 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
-/* WHY: like the real wrapper, the mock stays in the tree when `open` is false -
-   TrueSheet only fires didDismiss after a close, so modelling close as unmount
-   would green-light flows production cannot execute.
-   https://sheet.lodev09.com/guides/navigation */
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title, onAttemptDismiss, onDidDismiss }: any) =>
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children, title, onClose, actions }: any) =>
     React.createElement(
-      'BottomSheetModal',
-      { title, open },
+      'Sheet',
+      { title, open: true },
       React.createElement('Pressable', {
         accessibilityLabel: 'attempt-dismiss',
-        onPress: () => onAttemptDismiss?.(),
-      }),
-      React.createElement('Pressable', {
-        accessibilityLabel: 'sheet-did-dismiss',
-        onPress: () => onDidDismiss?.(),
+        onPress: () => onClose?.(),
       }),
       children,
+      actions,
     ),
 }))
 
@@ -258,7 +251,7 @@ describe('GoalDetailDrawer', () => {
       )
     })
 
-    const sheet = tree.root.findByType('BottomSheetModal')
+    const sheet = tree.root.findByType('Sheet')
     const textContent = collectText(tree.toJSON())
 
     expect(sheet.props.title).toBe('Read 12 books (synced)')
@@ -442,13 +435,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
 
     press(tree, 'goals.detail.delete')
-    const confirm = tree.root
-      .findAll(
-        (n: any) =>
-          n.props.accessibilityLabel === 'confirm:goals.detail.delete' &&
-          typeof n.props.onPress === 'function',
-      )
-      .at(0)
+    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-md' }).at(0)
     await TestRenderer.act(async () => {
       await confirm.props.onPress()
     })
@@ -463,13 +450,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
 
     press(tree, 'goals.detail.delete')
-    const confirm = tree.root
-      .findAll(
-        (n: any) =>
-          n.props.accessibilityLabel === 'confirm:goals.detail.delete' &&
-          typeof n.props.onPress === 'function',
-      )
-      .at(0)
+    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-md' }).at(0)
     await TestRenderer.act(async () => {
       await confirm.props.onPress()
     })
@@ -478,10 +459,6 @@ describe('GoalDetailDrawer', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  /* WHY: replicates the goal-list host contract (drawer mounted while
-     selectedGoalId is set, close only clears `open`) so the exit action is
-     proven to survive the close the way production actually runs it.
-     https://sheet.lodev09.com/guides/navigation */
   function GoalListHostReplica() {
     const [selectedGoalId, setSelectedGoalId] = React.useState<string | null>(null)
     const [showDetail, setShowDetail] = React.useState(false)
@@ -505,7 +482,7 @@ describe('GoalDetailDrawer', () => {
     )
   }
 
-  it('seeds a chat draft and navigates to Astra only after the host-mounted sheet finishes dismissing', () => {
+  it('seeds a chat draft, closes the mounted sheet, and navigates to Astra', () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     let tree: any
     TestRenderer.act(() => {
@@ -513,7 +490,7 @@ describe('GoalDetailDrawer', () => {
     })
 
     press(tree, 'open-goal-detail')
-    expect(tree.root.findByType('BottomSheetModal').props.open).toBe(true)
+    expect(tree.root.findByType('Sheet').props.open).toBe(true)
 
     press(tree, 'ask-astra')
 
@@ -521,18 +498,9 @@ describe('GoalDetailDrawer', () => {
       'orbit-chat-draft',
       'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
     )
-    expect(mockPush).not.toHaveBeenCalled()
-
-    const sheet = tree.root.findByType('BottomSheetModal')
-    expect(sheet.props.open).toBe(false)
-
-    press(tree, 'sheet-did-dismiss')
-
     expect(mockPush).toHaveBeenCalledWith('/chat')
     expect(mockPush).toHaveBeenCalledTimes(1)
-
-    press(tree, 'sheet-did-dismiss')
-    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(tree.root.findAllByType('Sheet')).toHaveLength(0)
   })
 
   it('runs status mutations from the active action footer', () => {

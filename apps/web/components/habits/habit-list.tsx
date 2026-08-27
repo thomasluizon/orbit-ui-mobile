@@ -519,17 +519,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [habitToReschedule, setHabitToReschedule] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
-  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
-  const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
-  const [showSkipConfirm, setShowSkipConfirm] = useState(false)
-  const [habitToSkip, setHabitToSkip] = useState<string | null>(null)
-  const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
-  const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
-
-  const [showAutoLogParent, setShowAutoLogParent] = useState(false)
-  const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
-  const [autoLogParentMode, setAutoLogParentMode] = useState<'log' | 'skip'>('log')
-  const autoLogParentHabit = autoLogParentId ? habitsById.get(autoLogParentId) ?? null : null
 
   const [showMoveParentOverlay, setShowMoveParentOverlay] = useState(false)
   const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
@@ -555,21 +544,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     if (total > 0 && done >= total) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
         promptedParentIdsRef.current.add(parent.id)
-        setAutoLogParentId(parent.id)
-        setAutoLogParentMode(loggedDone > 0 ? 'log' : 'skip')
-        setShowAutoLogParent(true)
+        void settleCompletedParent(parent.id, loggedDone > 0 ? 'log' : 'skip')
       }
     } else {
       promptedParentIdsRef.current.delete(parent.id)
     }
   }
 
-  async function confirmAutoLogParent() {
-    const parentId = autoLogParentId
-    if (!parentId) return
-    const mode = autoLogParentMode
-    setShowAutoLogParent(false)
-    setAutoLogParentId(null)
+  async function settleCompletedParent(parentId: string, mode: 'log' | 'skip') {
     markRecentlyCompleted(parentId)
     try {
       if (mode === 'skip') {
@@ -581,6 +563,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       }
       checkAndPromptParentLog(parentId)
     } catch {
+      promptedParentIdsRef.current.delete(parentId)
       clearRecentlyCompleted(parentId)
     }
   }
@@ -674,28 +657,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setShowDeleteConfirm(true)
   }
 
-  function promptDuplicate(habitId: string) {
-    const habit = habitsById.get(habitId)
-    if (!habit) return
-    setHabitToDuplicate(habit)
-    setShowDuplicateConfirm(true)
-  }
-
-  async function confirmDuplicate() {
-    if (!habitToDuplicate) return
-    const id = habitToDuplicate.id
+  async function duplicateImmediately(id: string) {
     try {
       await duplicateHabitMut.mutateAsync(id)
     } catch {
-    } finally {
-      setHabitToDuplicate(null)
-      setShowDuplicateConfirm(false)
     }
-  }
-
-  function promptSkip(habitId: string) {
-    setHabitToSkip(habitId)
-    setShowSkipConfirm(true)
   }
 
   function startAddSubHabit(parentId: string) {
@@ -722,18 +688,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  async function confirmSkip() {
-    if (!habitToSkip) return
-    const skippedId = habitToSkip
+  async function skipImmediately(skippedId: string) {
     try {
       await skipHabit.mutateAsync({ habitId: skippedId })
       skippedChildIdsRef.current.add(skippedId)
       markRecentlyCompleted(skippedId)
       checkAndPromptParentLog(skippedId)
     } catch {
-    } finally {
-      setHabitToSkip(null)
-      setShowSkipConfirm(false)
     }
   }
 
@@ -755,37 +716,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       clearRecentlyCompleted(habitId)
     }
   }
-  async function confirmForceLog() {
-    if (!forceLogHabitId) return
-    markRecentlyCompleted(forceLogHabitId)
-    try {
-      await logHabit.mutateAsync({ habitId: forceLogHabitId })
-      handleLogged(forceLogHabitId, false)
-    } catch {
-      clearRecentlyCompleted(forceLogHabitId)
-    } finally {
-      setForceLogHabitId(null)
-      setShowForceLogConfirm(false)
-    }
-  }
-
-const isPostponeAction = useMemo(() => {
-    if (!habitToSkip) return false
-    const habit = habitsById.get(habitToSkip)
-    return habit ? !habit.frequencyUnit : false
-  }, [habitToSkip, habitsById])
-
-  const skipConfirmMessage = useMemo(() => {
-    if (isPostponeAction) return t('habits.postponeConfirmMessage')
-    if (habitToSkip) {
-      const habit = habitsById.get(habitToSkip)
-      if (habit?.flexibleTarget != null) {
-        return t('habits.skipConfirmMessageFlexible')
-      }
-    }
-    return t('habits.skipConfirmMessage')
-  }, [isPostponeAction, habitToSkip, habitsById, t])
-
   useImperativeHandle(ref, () => ({
     collapseAll,
     expandAll,
@@ -891,12 +821,9 @@ const isPostponeAction = useMemo(() => {
         actions={{
           onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
-          onForceLogParent: () => {
-            setForceLogHabitId(habit.id)
-            setShowForceLogConfirm(true)
-          },
-          onSkip: () => promptSkip(habit.id),
-          onDuplicate: () => promptDuplicate(habit.id),
+          onForceLogParent: () => void handleDirectLog(habit.id),
+          onSkip: () => void skipImmediately(habit.id),
+          onDuplicate: () => void duplicateImmediately(habit.id),
           onEdit: () => {
             setHabitToEdit(habit)
             const onSaved = options?.isDrillCard ? () => drill.refreshCurrent() : null
@@ -1166,42 +1093,6 @@ const isPostponeAction = useMemo(() => {
         onCancelDelete={() => {
           setHabitToDelete(null)
           setShowDeleteConfirm(false)
-        }}
-        showDuplicateConfirm={showDuplicateConfirm}
-        onDuplicateOpenChange={(open) => {
-          setShowDuplicateConfirm(open)
-          if (!open) setHabitToDuplicate(null)
-        }}
-        duplicateName={habitToDuplicate?.title ?? ''}
-        onConfirmDuplicate={() => void confirmDuplicate()}
-        onCancelDuplicate={() => {
-          setHabitToDuplicate(null)
-          setShowDuplicateConfirm(false)
-        }}
-        showSkipConfirm={showSkipConfirm}
-        onSkipOpenChange={setShowSkipConfirm}
-        isPostponeAction={isPostponeAction}
-        skipConfirmMessage={skipConfirmMessage}
-        onConfirmSkip={() => void confirmSkip()}
-        onCancelSkip={() => {
-          setHabitToSkip(null)
-          setShowSkipConfirm(false)
-        }}
-        showForceLogConfirm={showForceLogConfirm}
-        onForceLogOpenChange={setShowForceLogConfirm}
-        onConfirmForceLog={() => void confirmForceLog()}
-        onCancelForceLog={() => {
-          setForceLogHabitId(null)
-          setShowForceLogConfirm(false)
-        }}
-        showAutoLogParent={showAutoLogParent}
-        autoLogParentMode={autoLogParentMode}
-        onAutoLogParentOpenChange={setShowAutoLogParent}
-        autoLogParentName={autoLogParentHabit?.title ?? ''}
-        onConfirmAutoLogParent={() => void confirmAutoLogParent()}
-        onCancelAutoLogParent={() => {
-          setAutoLogParentId(null)
-          setShowAutoLogParent(false)
         }}
       />
 

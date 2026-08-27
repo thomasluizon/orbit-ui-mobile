@@ -1,18 +1,63 @@
+import type { ReactNode } from 'react'
 import type { StepUpProps } from './StepUp'
 
-export function stepUpTypeTests(): void {
-  const valid: StepUpProps = { message: 'Sign in again.', actionLabel: 'Sign in', onAction: () => {} }
-  // @ts-expect-error message is required
-  const noMessage: StepUpProps = { actionLabel: 'Sign in', onAction: () => {} }
-  // @ts-expect-error actionLabel is required
-  const noActionLabel: StepUpProps = { message: 'Sign in again.', onAction: () => {} }
-  // @ts-expect-error onAction is required
-  const noAction: StepUpProps = { message: 'Sign in again.', actionLabel: 'Sign in' }
-  // @ts-expect-error StepUp has no child slot
-  const child: StepUpProps = { message: 'Sign in again.', actionLabel: 'Sign in', onAction: () => {}, children: 'field' }
-  // @ts-expect-error StepUp has no disabled state
-  const disabled: StepUpProps = { message: 'Sign in again.', actionLabel: 'Sign in', onAction: () => {}, disabled: true }
-  // @ts-expect-error errors belong to the sign-in surface
-  const error: StepUpProps = { message: 'Sign in again.', actionLabel: 'Sign in', onAction: () => {}, error: 'No' }
-  void [valid, noMessage, noActionLabel, noAction, child, disabled, error]
-}
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
+
+type ValidStepUp = Accepts<{
+  message: 'Sign in again.'
+  actionLabel: 'Sign in'
+  onAction: () => void
+}, StepUpProps>
+
+// @ts-expect-error message is required
+type NoMessage = Accepts<{ actionLabel: 'Sign in'; onAction: () => void }, StepUpProps>
+
+// @ts-expect-error actionLabel is required
+type NoActionLabel = Accepts<{ message: 'Sign in again.'; onAction: () => void }, StepUpProps>
+
+// @ts-expect-error onAction is required
+type NoAction = Accepts<{ message: 'Sign in again.'; actionLabel: 'Sign in' }, StepUpProps>
+
+// @ts-expect-error StepUp has no child slot
+type Child = Accepts<{
+  message: 'Sign in again.'
+  actionLabel: 'Sign in'
+  onAction: () => void
+  children: ReactNode
+}, StepUpProps>
+
+// @ts-expect-error StepUp has no disabled state
+type DisabledStepUp = Accepts<{
+  message: 'Sign in again.'
+  actionLabel: 'Sign in'
+  onAction: () => void
+  disabled: true
+}, StepUpProps>
+
+// @ts-expect-error errors belong to the sign-in surface
+type ErrorStepUp = Accepts<{
+  message: 'Sign in again.'
+  actionLabel: 'Sign in'
+  onAction: () => void
+  error: 'No'
+}, StepUpProps>
+
+// @ts-expect-error node values cannot pass through the message prop
+type NodeMessage = Accepts<{
+  message: ReactNode
+  actionLabel: 'Sign in'
+  onAction: () => void
+}, StepUpProps>
+
+export type StepUpTypeAssertions =
+  | ValidStepUp
+  | NoMessage
+  | NoActionLabel
+  | NoAction
+  | Child
+  | DisabledStepUp
+  | ErrorStepUp
+  | NodeMessage

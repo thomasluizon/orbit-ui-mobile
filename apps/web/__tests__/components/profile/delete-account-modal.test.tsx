@@ -25,8 +25,8 @@ vi.mock('@/app/actions/auth', () => ({
   confirmDeletion: (...args: unknown[]) => mockConfirmDeletion(...args),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     onOpenChange,
     title,

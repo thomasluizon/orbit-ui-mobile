@@ -21,7 +21,7 @@ import {
 } from '@/lib/offline-mutations'
 import * as offlineQueue from '@/lib/offline-queue'
 import { clearPersistedQueryCache } from '@/lib/query-client'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
@@ -66,9 +66,9 @@ const dangerPillStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
+    gap: 8,
     borderRadius: 999,
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 26,
     width: '100%',
   },
@@ -177,15 +177,14 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
+      {open ? (<Sheet
+        open
         onClose={onClose}
         title={
           resetStep === 'info'
             ? t('profile.freshStart.heading')
             : t('profile.freshStart.confirmHeading')
         }
-        snapPoints={['85%']}
       >
         {resetStep === 'info' ? (
           <View style={styles.body}>
@@ -312,7 +311,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             </View>
           </View>
         )}
-      </BottomSheetModal>
+      </Sheet>) : null}
 
       {showFreshStartAnim && (
         <FreshStartAnimation onComplete={handleFreshStartComplete} />

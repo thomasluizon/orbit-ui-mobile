@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
-import { CenteredOverlay } from '@/components/ui/centered-overlay'
+import { Sheet } from '@/components/ui/sheet'
 
 interface CalendarHeaderProps {
   monthLabel: string
@@ -103,14 +103,9 @@ export function CalendarHeader({
         </button>
       </div>
 
-      <CenteredOverlay
-        open={isYearOpen}
-        onDismiss={() => setIsYearOpen(false)}
-        ariaLabel={selectYearLabel}
-        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
-      >
+      {isYearOpen ? <Sheet open title={selectYearLabel} onClose={() => setIsYearOpen(false)}>
         <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
-      </CenteredOverlay>
+      </Sheet> : null}
     </div>
   )
 }

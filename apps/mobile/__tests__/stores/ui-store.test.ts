@@ -176,9 +176,7 @@ describe("mobile ui store", () => {
             isFetching: false,
             allCollapsed: false,
             showControlsMenu: false,
-            controlsMenuAnchorRect: null,
             showFreqMenu: false,
-            freqMenuAnchorRect: null,
             controlsButtonRef:
               React.createRef<import("react-native").View | null>(),
             freqMenuButtonRef:

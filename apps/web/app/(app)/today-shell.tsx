@@ -1,9 +1,10 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search, X, Filter, Check } from '@/components/ui/icons'
+import { useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Search, X, Filter } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppLogo } from '@/components/ui/app-logo'
-import { Popover } from '@/components/ui/popover'
+import { Menu } from '@/components/ui/menu'
 import { ControlsMenu, type ControlsMenuProps } from '@/components/habits/controls-menu'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
@@ -404,94 +405,40 @@ function FrequencyFunnel({
   triggerAriaLabel,
   allLabel,
 }: Readonly<FrequencyFunnelProps>) {
-  return (
-    <Popover
-      placement="bottom-end"
-      className="min-w-[180px]"
-      trigger={
-        <button
-          type="button"
-          aria-label={triggerAriaLabel}
-          aria-pressed={selected != null}
-          className="icon-btn touch-target-y shrink-0"
-          style={{
-            width: 36,
-            height: 36,
-            background: selected ? 'var(--selection-bg)' : undefined,
-            boxShadow: selected
-              ? 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.45)'
-              : 'none',
-          }}
-        >
-          <Filter
-            size={18}
-            strokeWidth={1.8}
-            color={selected ? 'var(--primary)' : 'var(--fg-2)'}
-            aria-hidden="true"
-          />
-        </button>
-      }
-    >
-      {(close) => (
-        <>
-          <FrequencyMenuRow
-            active={!selected}
-            label={allLabel}
-            onClick={() => {
-              onChange(null)
-              close()
-            }}
-          />
-          {options.map((opt) => (
-            <FrequencyMenuRow
-              key={opt.key}
-              active={selected === opt.key}
-              label={opt.label}
-              onClick={() => {
-                onChange(selected === opt.key ? null : opt.key)
-                close()
-              }}
-            />
-          ))}
-        </>
-      )}
-    </Popover>
-  )
-}
+  const [open, setOpen] = useState(false)
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const items = [
+    { id: 'all', label: allLabel, badge: selected == null ? '✓' : undefined },
+    ...options.map((option) => ({
+      id: option.key,
+      label: option.label,
+      badge: selected === option.key ? '✓' : undefined,
+    })),
+  ]
 
-interface FrequencyMenuRowProps {
-  active: boolean
-  label: string
-  onClick: () => void
-}
-
-function FrequencyMenuRow({ active, label, onClick }: Readonly<FrequencyMenuRowProps>) {
   return (
-    <button
-      type="button"
-      role="menuitemradio"
-      aria-checked={active}
-      onClick={onClick}
-      className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-sunk)]"
-      style={{
-        padding: '8px 10px',
-        gap: 10,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        fontWeight: active ? 600 : 500,
-        color: active ? 'var(--fg-1)' : 'var(--fg-2)',
-        textAlign: 'left',
-        borderRadius: 8,
-      }}
-    >
-      <span
-        className="inline-flex shrink-0 items-center justify-center"
-        style={{ width: 16, color: 'var(--primary)' }}
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        aria-label={triggerAriaLabel}
+        aria-pressed={selected != null}
+        aria-expanded={open}
+        className="icon-btn touch-target-y shrink-0"
+        style={{ width: 36, height: 36, background: selected ? 'var(--selection-bg)' : undefined }}
+        onClick={() => setOpen((current) => !current)}
       >
-        {active ? <Check size={16} strokeWidth={2} /> : null}
-      </span>
-      {label}
-    </button>
+        <Filter size={18} strokeWidth={1.8} color={selected ? 'var(--primary)' : 'var(--fg-2)'} aria-hidden="true" />
+      </button>
+      <Menu
+        open={open}
+        anchorRef={anchorRef}
+        title={triggerAriaLabel}
+        items={items}
+        onClose={() => setOpen(false)}
+        onSelect={(id) => onChange(id === 'all' ? null : selected === id ? null : id as FreqKey)}
+      />
+    </>
   )
 }
 

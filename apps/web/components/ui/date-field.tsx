@@ -19,19 +19,19 @@ import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { YearPicker } from '@/components/ui/year-picker'
-import { CenteredOverlay } from '@/components/ui/centered-overlay'
+import { Sheet } from '@/components/ui/sheet'
 
-interface AppDatePickerProps {
+interface DateFieldProps {
   value: string
   onChange: (value: string) => void
   placeholder?: string
 }
 
-export function AppDatePicker({
+export function DateField({
   value,
   onChange,
   placeholder,
-}: Readonly<AppDatePickerProps>) {
+}: Readonly<DateFieldProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
@@ -152,27 +152,22 @@ export function AppDatePicker({
         aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
+        className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-4)]" />
       </button>
 
-      <CenteredOverlay
-        open={isOpen}
-        onDismiss={closePicker}
-        ariaLabelledBy={dialogLabelId}
-        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
-      >
+      {isOpen ? <Sheet open title={t('common.selectDate')} onClose={closePicker}>
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
-            className={`p-[13px] rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-3 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
-            <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+            <ChevronLeft size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
           </button>
           <span id={dialogLabelId} className="flex items-center gap-1" aria-live="polite">
             {monthLead && (
@@ -183,7 +178,7 @@ export function AppDatePicker({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="relative text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-[10px]"
+              className="relative text-xs font-medium rounded-md px-1 py-1 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-2"
               style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -191,11 +186,11 @@ export function AppDatePicker({
           </span>
           <button
             type="button"
-            className={`p-[13px] rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-3 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >
-            <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+            <ChevronRight size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
           </button>
         </div>
 
@@ -252,7 +247,7 @@ export function AppDatePicker({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className={`flex aspect-square w-full items-center justify-center rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] ${
+                          className={`mx-auto flex size-8 items-center justify-center rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] ${
                             isCurrentMonth
                               ? 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
                               : 'text-[var(--fg-3)]'
@@ -277,7 +272,7 @@ export function AppDatePicker({
             </tbody>
           </table>
         )}
-      </CenteredOverlay>
+      </Sheet> : null}
     </div>
   )
 }

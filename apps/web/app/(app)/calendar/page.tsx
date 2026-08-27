@@ -39,7 +39,7 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -457,9 +457,9 @@ export default function CalendarPage() {
         )}
       </div>
 
-      <AppOverlay
-        open={isDayDetailOpen && !showInlineDayPanel}
-        onOpenChange={setIsDayDetailOpen}
+      {isDayDetailOpen && !showInlineDayPanel ? (<Sheet
+        open
+        onClose={() => (setIsDayDetailOpen)(false)}
         title={dayDetailTitle}
       >
         <CalendarDayDetail
@@ -468,7 +468,7 @@ export default function CalendarPage() {
           showRecurring={showRecurring}
           onShowRecurringChange={setShowRecurring}
         />
-      </AppOverlay>
+      </Sheet>) : null}
     </div>
   )
 }

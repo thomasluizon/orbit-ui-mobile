@@ -20,7 +20,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { setItem: vi.fn(async () => undefined), getItem: vi.fn(async () => null) },
+  default: { setItem: vi.fn(async () => { await Promise.resolve(); return undefined; }), getItem: vi.fn(async () => { await Promise.resolve(); return null; }) },
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -34,7 +34,7 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -45,8 +45,8 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
     open ? React.createElement('Sheet', null, children) : null,
 }))
 

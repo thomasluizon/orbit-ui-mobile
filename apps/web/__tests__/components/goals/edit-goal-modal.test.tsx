@@ -25,15 +25,15 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
     if (!open) return null
     return <div data-testid="overlay">{title && <h2>{title}</h2>}{children}</div>
   },
 }))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
     <input data-testid="date-picker" value={value} onChange={(e) => onChange(e.target.value)} />
   ),
 }))

@@ -11,7 +11,7 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
 import { GoalsView } from '@/components/goals/goals-view'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { TodayHeader, TodayTabs, TodayDateNavigation, TodayUtilityRow } from './today-shell'
@@ -22,6 +22,8 @@ import {
   TodayHabitsListShell,
 } from './today-sections'
 import type { TodayView } from './use-today-page'
+import { Sheet } from '@/components/ui/sheet'
+import { PillButton } from '@/components/ui/pill-button'
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const { nav, currentActiveView } = view
@@ -175,48 +177,36 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
             onSelectAll={selection.selectAll}
             onDeselectAll={selection.deselectAll}
             onBulkLog={() => selection.setShowBulkLogConfirm(true)}
-            onBulkSkip={() => selection.setShowBulkSkipConfirm(true)}
+            onBulkSkip={() => void selection.confirmBulkSkip()}
             onBulkDelete={() => selection.setShowBulkDeleteConfirm(true)}
             onCancel={view.toggleSelectMode}
           />
         ) : null}
       </AnimatePresence>
 
-      <ConfirmDialog
-        open={selection.showBulkDeleteConfirm}
-        onOpenChange={selection.setShowBulkDeleteConfirm}
-        title={t('habits.bulkDeleteTitle')}
-        description={plural(t('habits.bulkDeleteMessage', { count }), count)}
-        confirmLabel={t('habits.bulkDeleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={() => void selection.confirmBulkDelete()}
-        onCancel={() => selection.setShowBulkDeleteConfirm(false)}
-      />
+      {selection.showBulkDeleteConfirm ? <Sheet open title={t('habits.bulkDeleteTitle')} onClose={() => {
+  (selection.setShowBulkDeleteConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (() => selection.setShowBulkDeleteConfirm(false))();
+    (selection.setShowBulkDeleteConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (() => void selection.confirmBulkDelete())();
+    (selection.setShowBulkDeleteConfirm)(false);
+  }}>{t('habits.bulkDeleteConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{plural(t('habits.bulkDeleteMessage', {
+      count
+    }), count)}</p></Sheet> : null}
 
-      <ConfirmDialog
-        open={selection.showBulkLogConfirm}
-        onOpenChange={selection.setShowBulkLogConfirm}
-        title={t('habits.bulkLogTitle')}
-        description={plural(t('habits.bulkLogMessage', { count }), count)}
-        confirmLabel={t('habits.bulkLogConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="success"
-        onConfirm={() => void selection.confirmBulkLog()}
-        onCancel={() => selection.setShowBulkLogConfirm(false)}
-      />
-
-      <ConfirmDialog
-        open={selection.showBulkSkipConfirm}
-        onOpenChange={selection.setShowBulkSkipConfirm}
-        title={t('habits.bulkSkipTitle')}
-        description={plural(t('habits.bulkSkipMessage', { count }), count)}
-        confirmLabel={t('habits.bulkSkipConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="warning"
-        onConfirm={() => void selection.confirmBulkSkip()}
-        onCancel={() => selection.setShowBulkSkipConfirm(false)}
-      />
+      {selection.showBulkLogConfirm ? <Sheet open title={t('habits.bulkLogTitle')} onClose={() => {
+  (selection.setShowBulkLogConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (() => selection.setShowBulkLogConfirm(false))();
+    (selection.setShowBulkLogConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
+    (() => void selection.confirmBulkLog())();
+    (selection.setShowBulkLogConfirm)(false);
+  }}>{t('habits.bulkLogConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{plural(t('habits.bulkLogMessage', {
+      count
+    }), count)}</p></Sheet> : null}
 
       <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />
     </>

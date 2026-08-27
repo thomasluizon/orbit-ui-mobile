@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { ProfileActionButton } from '@/app/(app)/profile/_components/profile-action-button'
-import { ShareCardSheet } from './share-card-sheet'
+import { ShareCardPanel } from './share-card-panel'
 
 interface ShareCardEntryButtonProps {
   variant?: 'row' | 'chip'
@@ -33,7 +33,7 @@ export function ShareCardEntryButton({
           <Share2 size={16} strokeWidth={1.8} aria-hidden="true" />
         </button>
       )}
-      <ShareCardSheet open={open} onOpenChange={setOpen} displayName={displayName} />
+      <ShareCardPanel open={open} onOpenChange={setOpen} displayName={displayName} />
     </>
   )
 }

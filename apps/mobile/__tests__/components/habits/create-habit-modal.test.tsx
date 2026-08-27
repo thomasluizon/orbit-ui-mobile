@@ -217,14 +217,14 @@ describe('CreateHabitModal (mobile)', () => {
   it('renders nothing when closed', () => {
     const tree = renderModal(<CreateHabitModal open={false} onClose={vi.fn()} />)
     expect(
-      tree.root.findAll((node: any) => node.type === 'BottomSheetModal'),
+      tree.root.findAll((node: any) => node.type === 'Sheet'),
     ).toHaveLength(0)
   })
 
   it('renders the sheet titled habits.createHabit when open', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(
-      tree.root.findAll((node: any) => node.type === 'BottomSheetModal'),
+      tree.root.findAll((node: any) => node.type === 'Sheet'),
     ).toHaveLength(1)
     expect(hasText(tree.root, 'habits.createHabit')).toBe(true)
   })
@@ -333,6 +333,7 @@ describe('CreateHabitModal (mobile)', () => {
     const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       findSubmit(tree.root).props.onPress()
     })
 
@@ -347,6 +348,7 @@ describe('CreateHabitModal (mobile)', () => {
     const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       findSubmit(tree.root).props.onPress()
     })
 
@@ -361,6 +363,7 @@ describe('CreateHabitModal (mobile)', () => {
     const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
 
     await TestRenderer.act(async () => {
+await Promise.resolve()
       findSubmit(tree.root).props.onPress()
     })
 
@@ -368,7 +371,7 @@ describe('CreateHabitModal (mobile)', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('redirects non-pro users out of sub-habit mode only after the sheet dismisses', () => {
+  it('closes and redirects non-pro users out of sub-habit mode', () => {
     mockHasProAccess = false
     const onClose = vi.fn()
     const parentHabit = createMockHabit({ id: 'p-1', title: 'Parent' })
@@ -378,12 +381,6 @@ describe('CreateHabitModal (mobile)', () => {
     )
 
     expect(onClose).toHaveBeenCalled()
-    expect(mockPush).not.toHaveBeenCalled()
-
-    tree.updateModal(
-      <CreateHabitModal open={false} onClose={onClose} parentHabit={parentHabit} />,
-    )
-
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
     expect(mockPush).toHaveBeenCalledTimes(1)
   })

@@ -16,8 +16,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ getQueryData: () => undefined }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
   }: {

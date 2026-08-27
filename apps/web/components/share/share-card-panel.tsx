@@ -18,20 +18,20 @@ import {
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useRecap } from '@/hooks/use-recap'
 import { useShareCard } from '@/hooks/use-share-card'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { ShareCard } from './share-card'
 
-interface ShareCardSheetProps {
+interface ShareCardPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   displayName?: string
 }
 
 /** Recap share preview: period selector → recap fetch → branded ShareCard + share/download. Reused by Profile + Retrospective. */
-export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<ShareCardSheetProps>) {
+export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<ShareCardPanelProps>) {
   const t = useTranslations()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
@@ -52,11 +52,11 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
   }
 
   return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={t('shareCard.title')}>
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('shareCard.title')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 4 }}>
         <div
           className="flex items-center [justify-content:safe_center]"
-          style={{ gap: 6, overflowX: 'auto' }}
+          style={{ gap: 4, overflowX: 'auto' }}
         >
           {RECAP_SHARE_PERIODS.map((value) => (
             <Chip
@@ -71,7 +71,7 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
         </div>
 
         {isLoading && (
-          <div className="flex flex-col items-center" style={{ gap: 14 }} aria-hidden="true">
+          <div className="flex flex-col items-center" style={{ gap: 12 }} aria-hidden="true">
             <div
               className="skeleton-pulse w-full rounded-[20px]"
               style={{ maxWidth: 360, height: 430, background: 'var(--bg-elev-2)' }}
@@ -95,7 +95,7 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
         )}
 
         {!isLoading && !isError && recap && isEmpty && (
-          <div className="flex flex-col items-center" style={{ gap: 14, padding: '24px 0' }}>
+          <div className="flex flex-col items-center" style={{ gap: 12, padding: '24px 0' }}>
             <SatelliteGlyph />
             <p style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--fg-3)' }}>
               {t('shareCard.empty')}
@@ -118,6 +118,7 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
                   ease: cardEnterMotion.enterEasing,
                 },
               }}
+              exit={{ opacity: 0, y: cardEnterMotion.shift }}
             >
               <div className="flex justify-center">
                 <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
@@ -129,7 +130,7 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
                 </p>
               )}
 
-              <div className="flex w-full" style={{ gap: 10, maxWidth: 360, marginInline: 'auto' }}>
+              <div className="flex w-full" style={{ gap: 8, maxWidth: 360, marginInline: 'auto' }}>
                 {canShareFiles && (
                   <PillButton
 
@@ -157,6 +158,6 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
         </AnimatePresence>
         </LazyMotion>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

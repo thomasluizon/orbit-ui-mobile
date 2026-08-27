@@ -50,8 +50,8 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(0,0,0,0.15)',
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
   }: {

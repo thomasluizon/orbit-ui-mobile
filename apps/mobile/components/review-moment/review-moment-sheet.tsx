@@ -6,7 +6,7 @@ import {
   parseReviewMomentKey,
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { AstraAvatar } from '@/components/ui/astra-avatar'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -101,9 +101,8 @@ export function ReviewMomentSheet() {
   }
 
   return (
-    <BottomSheetModal open={variant !== null} onClose={snoozeAndClose} snapPoints={['62%']}>
-      {variant ? (
-        <View style={styles.content}>
+    variant !== null ? (<Sheet open onClose={snoozeAndClose}>
+      <View style={styles.content}>
           <AstraAvatar size={96} label={t('reviewMoment.eyebrow')} />
           <Text style={styles.eyebrow}>{t('reviewMoment.eyebrow')}</Text>
           <Text style={styles.title}>
@@ -145,9 +144,8 @@ export function ReviewMomentSheet() {
               )}
             </Pressable>
           </View>
-        </View>
-      ) : null}
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 

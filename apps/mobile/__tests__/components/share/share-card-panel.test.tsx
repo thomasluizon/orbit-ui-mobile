@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ShareCardSheet } from '@/components/share/share-card-sheet'
+import { ShareCardPanel } from '@/components/share/share-card-panel'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -10,8 +10,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
   }: {
@@ -58,11 +58,11 @@ type RenderedTree = {
   unmount: () => void
 }
 
-describe('ShareCardSheet (mobile)', () => {
+describe('ShareCardPanel (mobile)', () => {
   it('retries the recap fetch from the error state', async () => {
     let tree: RenderedTree | null = null
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ShareCardSheet open onClose={vi.fn()} />)
+      tree = TestRenderer.create(<ShareCardPanel open onClose={vi.fn()} />)
       await Promise.resolve()
     })
 

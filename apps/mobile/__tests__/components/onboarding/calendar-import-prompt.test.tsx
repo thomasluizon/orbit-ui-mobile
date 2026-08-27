@@ -24,7 +24,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -35,8 +35,8 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
     open ? React.createElement('Sheet', null, children) : null,
 }))
 

@@ -51,7 +51,7 @@ import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { buildCalendarMonthModel } from "@/lib/calendar-month-model";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { Sheet } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { PillButton } from "@/components/ui/pill-button";
@@ -542,19 +542,16 @@ export default function CalendarScreen() {
         </ScrollView>
       )}
 
-      <BottomSheetModal
-        open={isDayDetailOpen}
-        onClose={closeDayDetail}
-        onDidDismiss={runExitAction}
+      {isDayDetailOpen ? (<Sheet
+        open
+        onClose={() => {
+          closeDayDetail()
+          runExitAction()
+        }}
         title={formattedSelectedDate}
-        contentKey={selectedDay ?? undefined}
-        contentManagesScroll
+        key={selectedDay ?? undefined}
       >
-        <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={styles.sheetContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.sheetContent}>
           <CalendarDayDetail
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
@@ -566,8 +563,8 @@ export default function CalendarScreen() {
             t={t}
             tokens={tokens}
           />
-        </ScrollView>
-      </BottomSheetModal>
+        </View>
+      </Sheet>) : null}
     </SafeAreaView>
   );
 }

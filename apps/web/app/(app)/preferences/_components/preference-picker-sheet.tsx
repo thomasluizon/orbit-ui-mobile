@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { LANGUAGE_OPTIONS } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -50,16 +50,14 @@ export function PreferencePickerSheet({
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
   const t = useTranslations()
+  if (activePicker === null) return null
 
   return (
-    <AppOverlay
-      open={activePicker !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
-      title={activePicker ? pickerTitles[activePicker] : undefined}
-      description={activePicker ? pickerDescriptions[activePicker] : undefined}
-      footer={
+    <Sheet
+      open
+      onClose={onClose}
+      title={pickerTitles[activePicker]}
+      actions={
         activePicker === 'scheme' ? (
           <PillButton
             variant="secondary"
@@ -72,6 +70,9 @@ export function PreferencePickerSheet({
         ) : undefined
       }
     >
+      <p className="mb-3 text-sm text-[var(--fg-3)]">
+        {pickerDescriptions[activePicker]}
+      </p>
       {activePicker === 'language' &&
         LANGUAGE_OPTIONS.map((lang, index) => (
           <RadioRow
@@ -126,6 +127,6 @@ export function PreferencePickerSheet({
             }}
           />
         ))}
-    </AppOverlay>
+    </Sheet>
   )
 }

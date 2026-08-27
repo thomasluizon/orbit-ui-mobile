@@ -6,7 +6,7 @@ import { Crown } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
@@ -43,13 +43,13 @@ export function TrialExpiredModal() {
   if (!isOpen) return null
 
   return (
-    <AppOverlay
-      open={true}
-      onOpenChange={(open) => {
+    <Sheet
+      open
+      onClose={() => ((open) => {
         if (!open) dismiss()
-      }}
+      })(false)}
       title={t('trial.expired.heading')}
-      footer={
+      actions={
         <div className="flex flex-col" style={{ gap: 10 }}>
           <PillButton
             variant="primary"
@@ -130,6 +130,6 @@ export function TrialExpiredModal() {
           ))}
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>
   )
 }

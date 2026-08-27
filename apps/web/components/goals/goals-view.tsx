@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { Check, Filter } from '@/components/ui/icons'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { Filter } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Popover } from '@/components/ui/popover'
+import { Menu } from '@/components/ui/menu'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useGoals } from '@/hooks/use-goals'
 import { useUIStore } from '@/stores/ui-store'
@@ -21,6 +21,8 @@ export function GoalsView() {
   const t = useTranslations()
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const filterAnchorRef = useRef<HTMLButtonElement>(null)
 
   const { data, isFetched } = useGoals(activeFilter)
 
@@ -88,61 +90,31 @@ export function GoalsView() {
               {activeFilterLabel}
             </span>
           )}
-          <Popover
-            placement="bottom-end"
-            className="min-w-[180px]"
-            trigger={
-              <button
-                type="button"
-                aria-label={t('goals.filters.statusFilter')}
-                aria-pressed={activeFilter != null}
-                className={`icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)] ${
-                  activeFilter ? 'icon-btn-ring bg-[var(--bg-elev)] text-[var(--fg-1)]' : ''
-                }`}
-              >
-                <Filter size={18} strokeWidth={1.8} />
-              </button>
-            }
+          <button
+            ref={filterAnchorRef}
+            type="button"
+            aria-label={t('goals.filters.statusFilter')}
+            aria-pressed={activeFilter != null}
+            aria-expanded={filterOpen}
+            className={`icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)] ${
+              activeFilter ? 'icon-btn-ring bg-[var(--bg-elev)] text-[var(--fg-1)]' : ''
+            }`}
+            onClick={() => setFilterOpen((current) => !current)}
           >
-            {(close) => (
-              <>
-                {statusFilters.map((filter) => {
-                  const active = activeFilter === filter.key
-                  return (
-                    <button
-                      key={filter.key ?? 'all'}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={active}
-                      onClick={() => {
-                        handleFilterChange(filter.key)
-                        close()
-                      }}
-                      className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
-                      style={{
-                        padding: '12px 12px',
-                        gap: 10,
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 14,
-                        fontWeight: active ? 600 : 500,
-                        color: active ? 'var(--fg-1)' : 'var(--fg-2)',
-                        textAlign: 'left',
-                        borderRadius: 6,
-                      }}
-                    >
-                      <span
-                        className="inline-flex shrink-0 items-center justify-center"
-                        style={{ width: 14, color: 'var(--primary)' }}
-                      >
-                        {active ? <Check size={14} strokeWidth={2} /> : null}
-                      </span>
-                      {filter.label}
-                    </button>
-                  )
-                })}
-              </>
-            )}
-          </Popover>
+            <Filter size={18} strokeWidth={1.8} />
+          </button>
+          <Menu
+            open={filterOpen}
+            anchorRef={filterAnchorRef}
+            title={t('goals.filters.statusFilter')}
+            items={statusFilters.map((filter) => ({
+              id: filter.key ?? 'all',
+              label: filter.label,
+              badge: activeFilter === filter.key ? t('common.done') : undefined,
+            }))}
+            onClose={() => setFilterOpen(false)}
+            onSelect={(id) => handleFilterChange(id === 'all' ? null : id as GoalStatus)}
+          />
         </div>
       }
     >

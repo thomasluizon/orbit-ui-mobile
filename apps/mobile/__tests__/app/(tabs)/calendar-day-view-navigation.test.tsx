@@ -45,11 +45,11 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: (props: SheetStubProps) => {
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: (props: SheetStubProps) => {
     latestSheetProps = props
     return props.open
-      ? require('react').createElement('BottomSheetModal', null, props.children)
+      ? require('react').createElement('Sheet', null, props.children)
       : null
   },
 }))
@@ -126,7 +126,7 @@ function findGridDayCell(root: TestNode, dayNumber: number) {
 }
 
 function sheetProps() {
-  if (!latestSheetProps) throw new Error('BottomSheetModal never rendered')
+  if (!latestSheetProps) throw new Error('Sheet never rendered')
   return latestSheetProps
 }
 

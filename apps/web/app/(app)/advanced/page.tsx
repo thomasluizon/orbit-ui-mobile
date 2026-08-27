@@ -12,7 +12,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
@@ -21,6 +21,8 @@ import {
   McpConnectionInstructions,
   WidgetInfoOverlay,
 } from '@/components/advanced/advanced-sections'
+import { Sheet } from '@/components/ui/sheet'
+import { PillButton } from '@/components/ui/pill-button'
 
 export default function AdvancedPage() {
   const t = useTranslations()
@@ -123,20 +125,22 @@ export default function AdvancedPage() {
           apiError={createKeyError}
         />
 
-        <ConfirmDialog
-          open={revokingKeyId !== null}
-          onOpenChange={(open) => {
-            if (!open) setRevokingKeyId(null)
-          }}
-          title={t('orbitMcp.revoke')}
-          description={t('orbitMcp.revokeConfirm')}
-          cancelLabel={t('orbitMcp.cancel')}
-          confirmLabel={t('orbitMcp.confirm')}
-          variant="danger"
-          onConfirm={() => {
-            if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
-          }}
-        />
+        {revokingKeyId !== null ? <Sheet open title={t('orbitMcp.revoke')} onClose={() => {
+  (open => {
+    if (!open) setRevokingKeyId(null);
+  })(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (open => {
+      if (!open) setRevokingKeyId(null);
+    })(false);
+  }}>{t('orbitMcp.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (() => {
+      if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId);
+    })();
+    (open => {
+      if (!open) setRevokingKeyId(null);
+    })(false);
+  }}>{t('orbitMcp.confirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('orbitMcp.revokeConfirm')}</p></Sheet> : null}
       </div>
     </div>
   )

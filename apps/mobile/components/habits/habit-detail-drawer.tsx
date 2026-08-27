@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native'
@@ -9,9 +8,9 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Expand } from '@/components/ui/icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -38,6 +37,7 @@ import {
 } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -96,12 +96,7 @@ function HabitDetailContent({
 }: Readonly<HabitDetailContentProps>) {
   const { t } = useTranslation()
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="always"
-    >
+    <View style={withDrawerContentInset(styles.scrollContent)}>
       <HabitDetailHeader
         habit={habit}
         tokens={tokens}
@@ -210,7 +205,7 @@ function HabitDetailContent({
         askPrompt={askPrompt}
         onPress={onAskAstra}
       />
-    </ScrollView>
+    </View>
   )
 }
 
@@ -332,58 +327,49 @@ export function HabitDetailDrawer({
         />
       ) : null}
 
-      <ConfirmDialog
-        open={showChecklistCompleteConfirm}
-        onOpenChange={setShowChecklistCompleteConfirm}
-        title={t('habits.checklistCompleteTitle')}
-        description={t('habits.checklistCompleteMessage', {
-          name: habit?.title ?? '',
-        })}
-        confirmLabel={t('habits.checklistCompleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="success"
-        onConfirm={() => {
-          void (async () => {
-          if (!habit) return
-          try {
-            await logHabit.mutateAsync({ habitId: habit.id })
-            onLogged?.(habit.id)
-          } catch (error: unknown) {
-            showError(
-              getFriendlyErrorMessage(
-                error,
-                (key, values) => t(key, values),
-                'errors.logHabit',
-                'habit',
-              ),
-            )
-          } finally {
-            setShowChecklistCompleteConfirm(false)
-          }
-          })()
+      {showChecklistCompleteConfirm ? <Sheet open title={t('habits.checklistCompleteTitle')} onClose={() => {
+  (setShowChecklistCompleteConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (setShowChecklistCompleteConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
+    (() => {
+      void (async () => {
+        if (!habit) return;
+        try {
+          await logHabit.mutateAsync({
+            habitId: habit.id
+          });
+          onLogged?.(habit.id);
+        } catch (error: unknown) {
+          showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit', 'habit'));
+        } finally {
+          setShowChecklistCompleteConfirm(false);
+        }
+      })();
+    })();
+    (setShowChecklistCompleteConfirm)(false);
+  }}>{t('habits.checklistCompleteConfirm')}</PillButton></>}><Text>{t('habits.checklistCompleteMessage', {
+      name: habit?.title ?? ''
+    })}</Text></Sheet> : null}
+
+      {showChecklistClearConfirm ? <Sheet open title={t('habits.checklistClearTitle')} onClose={() => {
+  (setShowChecklistClearConfirm)(false);
+}} actions={<><PillButton variant="ghost" onClick={() => {
+    (() => setShowChecklistClearConfirm(false))();
+    (setShowChecklistClearConfirm)(false);
+  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
+    (confirmChecklistClear)();
+    (setShowChecklistClearConfirm)(false);
+  }}>{t('habits.form.clearChecklist')}</PillButton></>}><Text>{t('habits.checklistClearMessage')}</Text></Sheet> : null}
+
+      {open ? (<Sheet
+        open
+        onClose={() => {
+          onClose()
+          runExitAction()
         }}
-      />
-
-      <ConfirmDialog
-        open={showChecklistClearConfirm}
-        onOpenChange={setShowChecklistClearConfirm}
-        title={t('habits.checklistClearTitle')}
-        description={t('habits.checklistClearMessage')}
-        confirmLabel={t('habits.form.clearChecklist')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={confirmChecklistClear}
-        onCancel={() => setShowChecklistClearConfirm(false)}
-      />
-
-      <BottomSheetModal
-        open={open}
-        onClose={onClose}
-        onDidDismiss={runExitAction}
         title={habit?.title}
-        contentKey={habitId}
-        snapPoints={['68%', '92%']}
-        contentManagesScroll
+        key={habitId}
       >
         {habit ? (
           <HabitDetailContent
@@ -405,7 +391,7 @@ export function HabitDetailDrawer({
             onAskAstra={handleAskAstra}
           />
         ) : null}
-      </BottomSheetModal>
+      </Sheet>) : null}
     </>
   )
 }

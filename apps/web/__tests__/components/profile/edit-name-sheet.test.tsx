@@ -25,8 +25,8 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     title,
     children,

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -81,11 +81,10 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      open
       onClose={onClose}
       title={t('profile.editName.title')}
-      snapPoints={['55%']}
     >
       <View style={styles.body}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>
@@ -123,7 +122,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
           </PillButton>
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

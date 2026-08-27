@@ -1,24 +1,42 @@
 import type { MenuProps } from './Menu'
 
-export function menuTypeTests(): void {
-  const selectId = (_id: string) => {}
-  const valid: MenuProps = {
-    presentation: 'auto',
-    align: 'end',
-    items: [{ id: 'delete', label: 'Delete', badge: 'Pro', destructive: true }],
-    onSelect: selectId,
-  }
-  // @ts-expect-error presentation is a closed union
-  const badPresentation: MenuProps = { presentation: 'popover' }
-  // @ts-expect-error align is a closed union
-  const badAlign: MenuProps = { align: 'center' }
-  // @ts-expect-error badge is one string, not a collection
-  const twoBadges: MenuProps = { items: [{ id: 'pro', label: 'Pro', badge: ['Pro', 'New'] }] }
-  // @ts-expect-error destructive belongs to an item
-  const destructiveMenu: MenuProps = { destructive: true }
-  // @ts-expect-error disabled belongs to an item
-  const disabledMenu: MenuProps = { disabled: true }
-  // @ts-expect-error selection receives only the item id
-  const wideHandler: MenuProps = { onSelect: (_id: string, _item: unknown) => {} }
-  void [valid, badPresentation, badAlign, twoBadges, destructiveMenu, disabledMenu, wideHandler]
-}
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
+
+type ValidMenu = Accepts<{
+  presentation: 'auto'
+  align: 'end'
+  items: [{ id: 'delete'; label: 'Delete'; badge: 'Pro'; destructive: true }]
+  onSelect: (id: string) => void
+}, MenuProps>
+
+// @ts-expect-error presentation is a closed union
+type BadPresentation = Accepts<{ presentation: 'popover' }, MenuProps>
+
+// @ts-expect-error align is a closed union
+type BadAlign = Accepts<{ align: 'center' }, MenuProps>
+
+// @ts-expect-error badge is one string, not a collection
+type TwoBadges = Accepts<{
+  items: [{ id: 'pro'; label: 'Pro'; badge: ['Pro', 'New'] }]
+}, MenuProps>
+
+// @ts-expect-error destructive belongs to an item
+type DestructiveMenu = Accepts<{ destructive: true }, MenuProps>
+
+// @ts-expect-error disabled belongs to an item
+type DisabledMenu = Accepts<{ disabled: true }, MenuProps>
+
+// @ts-expect-error selection receives only the item id
+type WideHandler = Accepts<{ onSelect: (id: string, item: unknown) => void }, MenuProps>
+
+export type MenuTypeAssertions =
+  | ValidMenu
+  | BadPresentation
+  | BadAlign
+  | TwoBadges
+  | DestructiveMenu
+  | DisabledMenu
+  | WideHandler

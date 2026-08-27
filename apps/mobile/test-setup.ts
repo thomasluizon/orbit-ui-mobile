@@ -132,8 +132,8 @@ vi.mock('@/lib/theme-provider', () => ({
   useThemeContext: () => null,
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
     children,
     title,
@@ -155,7 +155,7 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
     }, [open, onDidDismiss])
     return open
       ? React.createElement(
-          'BottomSheetModal',
+          'Sheet',
           null,
           title ? React.createElement('Text', null, title) : null,
           children,
@@ -171,15 +171,17 @@ vi.mock('@/hooks/use-ad-mob', () => ({
     rewardsClaimedToday: 0,
     dailyRewardCap: 3,
     shouldShowAds: () => true,
-    initialize: async () => {},
-    showInterstitialIfDue: async () => {},
-    showRewardedAd: async () => false,
+    initialize: async () => {
+await Promise.resolve()},
+    showInterstitialIfDue: async () => {
+await Promise.resolve()},
+    showRewardedAd: async () => { await Promise.resolve(); return false; },
     markRewardClaimed: () => {},
   }),
 }))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
     React.createElement('TextInput', {
       testID: 'date-picker',
       value,
