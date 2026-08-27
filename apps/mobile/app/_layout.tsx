@@ -15,7 +15,7 @@ import {
 } from 'expo-router'
 import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
-import { Providers } from '@/lib/providers'
+import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
@@ -169,6 +169,7 @@ function RootLayoutNav() {
   const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const captureReady = useCaptureReady()
   const { profile } = useProfile()
   const { initialize: initializeAdMob } = useAdMob()
   useTimezoneAutoSync(profile)
@@ -277,7 +278,7 @@ function RootLayoutNav() {
         {showBottomNav ? (
           <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
         ) : null}
-        {captureBuildEnabled ? (
+        {captureBuildEnabled && captureReady ? (
           <View
             accessibilityLabel={captureProbeId}
             accessible

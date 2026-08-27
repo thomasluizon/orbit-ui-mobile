@@ -1,4 +1,12 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -50,6 +58,12 @@ function syncWidgetDataSafely() {
 
 interface ProvidersProps {
   children: ReactNode
+}
+
+const CaptureReadinessContext = createContext(true)
+
+export function useCaptureReady() {
+  return useContext(CaptureReadinessContext)
 }
 
 function OfflineManager() {
@@ -115,6 +129,8 @@ function AuthInitializer({
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
+  /** Expo Router's warm-link transition must retain its navigator while the next tuple applies. */
+  const [hasMountedApp, setHasMountedApp] = useState(false)
   const [fontsLoaded] = useFonts({
     Rubik_400Regular,
     Rubik_500Medium,
@@ -181,10 +197,11 @@ function AuthInitializer({
   const appReady = ready && fontsLoaded && onboardingDraftHydrated
 
   useEffect(() => {
-    if (ready && fontsLoaded && onboardingDraftHydrated) void SplashScreen.hideAsync()
-  }, [ready, fontsLoaded, onboardingDraftHydrated])
+    if (!appReady) return
+    void SplashScreen.hideAsync().finally(() => setHasMountedApp(true))
+  }, [appReady])
 
-  if (!appReady) {
+  if (!appReady && !hasMountedApp) {
     return (
       <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={runtimeTokens.primary} />
@@ -193,12 +210,28 @@ function AuthInitializer({
   }
 
   return (
-    <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
-      <View style={{ flex: 1 }}>
-        <OfflineManager />
-        {children}
-      </View>
-    </ThemeProvider>
+    <CaptureReadinessContext.Provider value={appReady}>
+      <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
+        <View style={{ flex: 1 }}>
+          <OfflineManager />
+          {children}
+          {!appReady ? (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: runtimeTokens.bg,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <ActivityIndicator size="large" color={runtimeTokens.primary} />
+            </View>
+          ) : null}
+        </View>
+      </ThemeProvider>
+    </CaptureReadinessContext.Provider>
   )
 }
 

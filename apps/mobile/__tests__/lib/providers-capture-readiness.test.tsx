@@ -1,8 +1,8 @@
 /**
  * A capture re-run changes locale and theme through the deep link, and applying a locale is
- * asynchronous. These tests pin the window that used to leak: the render that first sees a new
- * capture tuple must not expose the app tree, because the route probe inside it is what Maestro
- * asserts before it screenshots. Gating in a passive effect was one commit too late.
+ * asynchronous. These tests pin both readiness boundaries: initial boot must not expose the app
+ * tree, while a later tuple must keep the Expo Router navigator mounted and only withdraw its
+ * route probe until the new locale is ready. Unmounting the warm navigator makes Expo Router loop.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { View } from 'react-native'
@@ -134,6 +134,12 @@ function childRendered(tree: { root: { findAllByProps: (p: object) => unknown[] 
   return tree.root.findAllByProps({ testID: CHILD }).length > 0
 }
 
+function childReadiness(
+  tree: { root: { findAllByProps: (p: object) => { props: { accessibilityLabel?: string } }[] } },
+) {
+  return tree.root.findAllByProps({ testID: CHILD })[0]?.props.accessibilityLabel ?? null
+}
+
 describe('capture readiness gating', () => {
   beforeEach(() => {
     searchParameters = { captureLocale: 'en', captureTheme: 'dark' }
@@ -141,14 +147,17 @@ describe('capture readiness gating', () => {
     changeLanguage.mockClear()
   })
 
-  it('does not expose the app tree until a later capture tuple has applied its language', async () => {
-    const { Providers } = await import('@/lib/providers')
+  it('keeps the warm navigator mounted while the later tuple applies its language', async () => {
+    const { Providers, useCaptureReady } = await import('@/lib/providers')
+    const CaptureChild = () => (
+      <View testID={CHILD} accessibilityLabel={useCaptureReady() ? 'ready' : 'waiting'} />
+    )
 
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <Providers>
-          <View testID={CHILD} />
+          <CaptureChild />
         </Providers>,
       )
       await Promise.resolve()
@@ -160,6 +169,7 @@ describe('capture readiness gating', () => {
     applyPendingLanguage()
     await flush()
     expect(childRendered(tree)).toBe(true)
+    expect(childReadiness(tree)).toBe('ready')
     expect(changeLanguage).toHaveBeenCalledWith('en')
 
     /** A capture re-run swaps the tuple. changeLanguage stays pending, so this render must gate. */
@@ -167,28 +177,33 @@ describe('capture readiness gating', () => {
     await TestRenderer.act(async () => {
       tree.update(
         <Providers>
-          <View testID={CHILD} />
+          <CaptureChild />
         </Providers>,
       )
       await Promise.resolve()
     })
 
-    expect(childRendered(tree)).toBe(false)
+    expect(childRendered(tree)).toBe(true)
+    expect(childReadiness(tree)).toBe('waiting')
 
     applyPendingLanguage()
     await flush()
     expect(childRendered(tree)).toBe(true)
+    expect(childReadiness(tree)).toBe('ready')
     expect(changeLanguage).toHaveBeenLastCalledWith('pt-BR')
   })
 
   it('keeps an abandoned boot from marking a superseded tuple as applied', async () => {
-    const { Providers } = await import('@/lib/providers')
+    const { Providers, useCaptureReady } = await import('@/lib/providers')
+    const CaptureChild = () => (
+      <View testID={CHILD} accessibilityLabel={useCaptureReady() ? 'ready' : 'waiting'} />
+    )
 
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <Providers>
-          <View testID={CHILD} />
+          <CaptureChild />
         </Providers>,
       )
       await Promise.resolve()
@@ -199,7 +214,7 @@ describe('capture readiness gating', () => {
     await TestRenderer.act(async () => {
       tree.update(
         <Providers>
-          <View testID={CHILD} />
+          <CaptureChild />
         </Providers>,
       )
       await Promise.resolve()
@@ -222,17 +237,21 @@ describe('capture readiness gating', () => {
     })
 
     expect(childRendered(tree)).toBe(true)
+    expect(childReadiness(tree)).toBe('ready')
     expect(changeLanguage).toHaveBeenLastCalledWith('pt-BR')
   })
 
   it('does not restart capture boot when router arrays keep their semantic values', async () => {
-    const { Providers } = await import('@/lib/providers')
+    const { Providers, useCaptureReady } = await import('@/lib/providers')
+    const CaptureChild = () => (
+      <View testID={CHILD} accessibilityLabel={useCaptureReady() ? 'ready' : 'waiting'} />
+    )
 
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <Providers>
-          <View testID={CHILD} />
+          <CaptureChild />
         </Providers>,
       )
       await Promise.resolve()
@@ -241,6 +260,7 @@ describe('capture readiness gating', () => {
     applyPendingLanguage()
     await flush()
     expect(childRendered(tree)).toBe(true)
+    expect(childReadiness(tree)).toBe('ready')
     expect(changeLanguage).toHaveBeenCalledTimes(1)
 
     for (let render = 0; render < 3; render += 1) {
@@ -248,7 +268,7 @@ describe('capture readiness gating', () => {
       await TestRenderer.act(async () => {
         tree.update(
           <Providers>
-            <View testID={CHILD} />
+            <CaptureChild />
           </Providers>,
         )
         await Promise.resolve()
