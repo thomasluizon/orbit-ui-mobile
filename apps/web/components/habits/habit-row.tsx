@@ -1,10 +1,11 @@
 'use client'
 
-import { type MouseEvent } from 'react'
 import { useTranslations } from 'next-intl'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useContextMenu } from '@/components/ui/context-menu'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import { ChevronDown } from '@/components/ui/icons'
+import { SelectCheck } from '@/components/ui/select-check'
 import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
@@ -35,12 +36,11 @@ export interface HabitRowActions {
   onEnterSelectMode?: () => void
 }
 
-/** Linear-tight habit row: emoji / chevron / title (wraps to two lines) / inline meta / status dot / streak.
- *  Sub-habit rows ("child") render a tree-line connector to the parent column. */
+/** Canonical two-level habit row. List grouping owns its surrounding panel. */
 interface HabitRowProps {
   habit: NormalizedHabit
   /** Derived display state (computed by caller from instances/logs). */
-  state?: StatusDotState
+  state?: HabitStatus
   /** Inline tokens between title and trailing dot (frequency, time, X/Y checklist, overdue, bad). */
   meta?: HabitRowMetaToken[]
   /** Whether the status dot may be tapped to log for the selected date. When false and not done,
@@ -50,8 +50,8 @@ interface HabitRowProps {
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
   child?: boolean
-  /** Nesting depth (0 = top-level). Drives the left indent so hierarchy is visible. */
-  depth?: number
+  /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
+  depth?: 0 | 1
   selectMode?: boolean
   selected?: boolean
   /** Parent expand/collapse. Caller is responsible for managing expanded state. */
@@ -69,12 +69,76 @@ interface HabitRowProps {
   actions?: HabitRowActions
 }
 
+function hasHabitMenuActions(
+  actions: HabitRowActions,
+  canSelect: boolean,
+  canDrillInto: boolean,
+): boolean {
+  return Boolean(
+    actions.onEdit ||
+    actions.onDuplicate ||
+    actions.onMoveParent ||
+    actions.onAddSubHabit ||
+    actions.onSkip ||
+    actions.onReschedule ||
+    actions.onDelete ||
+    canSelect ||
+    canDrillInto,
+  )
+}
+
+function HabitRowStructuralColumn({
+  selectMode,
+  selected,
+  title,
+  hasChildren,
+  expanded,
+  onToggleSelection,
+  onToggleExpand,
+  collapseLabel,
+  expandLabel,
+}: Readonly<{
+  selectMode: boolean
+  selected: boolean
+  title: string
+  hasChildren: boolean
+  expanded: boolean
+  onToggleSelection?: () => void
+  onToggleExpand?: () => void
+  collapseLabel: string
+  expandLabel: string
+}>) {
+  if (selectMode) {
+    return (
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center">
+        <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} />
+      </span>
+    )
+  }
+  if (!hasChildren) return <span aria-hidden="true" className="h-11 w-11 shrink-0" />
+  return (
+    <button
+      type="button"
+      onClick={onToggleExpand}
+      aria-label={expanded ? collapseLabel : expandLabel}
+      aria-expanded={expanded}
+      className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+    >
+      <ChevronDown
+        size={20}
+        strokeWidth={1.8}
+        aria-hidden="true"
+        style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+      />
+    </button>
+  )
+}
+
 export function HabitRow({
   habit,
   state = 'empty',
   meta = EMPTY_META,
   canLog = true,
-  streak,
   child = false,
   depth = 0,
   selectMode = false,
@@ -83,7 +147,6 @@ export function HabitRow({
   hasSubHabits = false,
   expanded = false,
   childProgress,
-  showLinkedGoalDot = false,
   tourTargetId,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
@@ -104,27 +167,14 @@ export function HabitRow({
   } = actions
   const canSelect = !selectMode && !!onEnterSelectMode
   const canDrillInto = hasSubHabits && !!onDrillInto
-  const hasMenuActions = !!(
-    onEdit ||
-    onDuplicate ||
-    actions.onMoveParent ||
-    onAddSubHabit ||
-    onSkip ||
-    actions.onReschedule ||
-    onDelete ||
-    canSelect ||
-    canDrillInto
-  )
+  const hasMenuActions = hasHabitMenuActions(actions, canSelect, canDrillInto)
 
   const isDone = state === 'done'
-  const isSkip = state === 'skip'
-  const titleSize = child ? 14 : 16
-  const emojiSize = child ? 16 : 22
-  const wellSize = child ? 36 : 46
-  const wellRadius = child ? 12 : 14
-  const showStreak = !child && !selectMode && streak != null && streak >= 2
-
-  const indentPx = depth * 16
+  const isChild = child || depth === 1
+  const titleSize = isChild ? 14 : 16
+  const emojiSize = isChild ? 16 : 22
+  const wellSize = isChild ? 32 : 46
+  const wellRadius = 12
 
   const contextMenuItems = buildHabitRowContextMenuItems({
     selectMode,
@@ -153,79 +203,66 @@ export function HabitRow({
     else onLog?.()
   }
 
-  function handleExpand(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
-    onToggleExpand?.()
-  }
-
   function getTitleColor(): string {
     if (isDone) return 'var(--fg-3)'
-    if (isSkip) return 'var(--fg-3)'
-    return 'var(--fg-1)'
+    return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
   }
 
   const row = (
     <div
-      onClick={handleRowClick}
-      onContextMenu={onContextMenu}
-      // react-doctor-disable-next-line prefer-tag-over-role -- the row wraps nested interactive controls (status-dot button, overflow menu) that a native <button> cannot legally contain; div+role=button with full Enter/Space keyboard handling is the accessible pattern here https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleRowClick()
-        }
-      }}
       data-tour={tourTargetId}
       data-testid="habit-row"
       data-habit-title={habit.title}
-      className={
-        `relative flex items-center cursor-pointer shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform,box-shadow] duration-[160ms] ease-[var(--ease-standard)] active:scale-[0.99] ${
-          selected
-            ? 'bg-[var(--bg-sunk)]'
-            : 'bg-[var(--bg-card)] hover:bg-[var(--bg-elev-pressed)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
-        }`
-      }
+      data-depth={depth}
+      data-status={state}
+      className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
-        gap: 14,
-        padding: '14px 16px',
-        borderRadius: 18,
-        marginLeft: 20 + indentPx,
-        marginRight: 20,
-        marginBottom: 10,
+        minHeight: isChild ? 52 : 68,
+        paddingInlineStart: isChild ? 24 : 0,
       }}
     >
-      <HabitRowLeading
-        title={habit.title}
-        emoji={habit.emoji}
-        emojiSize={emojiSize}
-        wellSize={wellSize}
-        wellRadius={wellRadius}
+      <HabitRowStructuralColumn
         selectMode={selectMode}
         selected={selected}
+        title={habit.title}
         hasChildren={hasChildren}
         expanded={expanded}
         onToggleSelection={onToggleSelection}
-        onExpand={handleExpand}
+        onToggleExpand={onToggleExpand}
+        collapseLabel={t('common.collapse')}
+        expandLabel={t('common.expand')}
       />
 
-      <HabitRowContent
-        habit={habit}
-        titleSize={titleSize}
-        titleColor={getTitleColor()}
-        isDone={isDone}
-        meta={meta}
-        showStreak={showStreak}
-        streak={streak}
-      />
+      <button
+        type="button"
+        onClick={handleRowClick}
+        onContextMenu={onContextMenu}
+        className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+        style={{ gap: 12, paddingBlock: isChild ? 4 : 8 }}
+      >
+        <HabitRowLeading
+          title={habit.title}
+          emoji={habit.emoji}
+          emojiSize={emojiSize}
+          wellSize={wellSize}
+          wellRadius={wellRadius}
+        />
+
+        <HabitRowContent
+          habit={habit}
+          titleSize={titleSize}
+          titleColor={getTitleColor()}
+          isDone={isDone}
+          meta={meta}
+        />
+      </button>
 
       <HabitRowTrailing
         habit={habit}
         selectMode={selectMode}
         hasChildren={hasChildren}
         childProgress={childProgress}
-        showLinkedGoalDot={showLinkedGoalDot}
+        depth={depth}
         state={state}
         isDone={isDone}
         canLog={canLog}

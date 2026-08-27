@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useImperativeHandle, type Ref } from 'react'
 import {
   ArrowLeft,
   Home,
@@ -42,10 +42,11 @@ import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-pare
 import {
   buildDragItemsFlat,
   buildMoveParentOptions,
+  groupDragItemsByPanel,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
 } from './habit-list/tree-helpers'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -82,7 +83,16 @@ import {
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
+const HABIT_PANEL_STYLE = {
+  marginInline: 16,
+  overflow: 'hidden',
+  borderRadius: 20,
+  background: 'var(--bg-card)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline-ghost, var(--hairline))',
+} as const
+
 interface HabitListProps {
+  ref?: Ref<HabitListHandle>
   view?: 'today' | 'all' | 'general'
   selectedDate?: Date
   showCompleted?: boolean
@@ -111,7 +121,8 @@ export interface HabitListHandle {
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 // react-doctor-disable-next-line no-giant-component -- top-level habit-list surface owning query data, visibility, drill navigation, collapse state, and the full confirm-dialog cluster as one imperative-handle unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
+export function HabitList({
+  ref,
   view = 'today',
   selectedDate,
   showCompleted = false,
@@ -124,7 +135,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   onCreate,
   onSeeUpcoming,
   onAllCollapsedChange,
-}, ref) {
+}: Readonly<HabitListProps>) {
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
@@ -428,6 +439,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   const [dragOverrideItems, setDragOverrideItems] = useState<DragItem[] | null>(null)
   const activeDragItems = dragOverrideItems ?? dragItems
+  const dragPanels = useMemo(() => groupDragItemsByPanel(dragItems), [dragItems])
+  const activeDragPanels = useMemo(
+    () => groupDragItemsByPanel(activeDragItems),
+    [activeDragItems],
+  )
 
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 5 },
@@ -521,8 +537,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
   const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
-  const [showSkipConfirm, setShowSkipConfirm] = useState(false)
-  const [habitToSkip, setHabitToSkip] = useState<string | null>(null)
   const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
   const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
 
@@ -693,11 +707,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  function promptSkip(habitId: string) {
-    setHabitToSkip(habitId)
-    setShowSkipConfirm(true)
-  }
-
   function startAddSubHabit(parentId: string) {
     if (profile?.hasProAccess === false) {
       router.push('/upgrade')
@@ -722,18 +731,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  async function confirmSkip() {
-    if (!habitToSkip) return
-    const skippedId = habitToSkip
+  async function handleSkip(habitId: string) {
     try {
-      await skipHabit.mutateAsync({ habitId: skippedId })
-      skippedChildIdsRef.current.add(skippedId)
-      markRecentlyCompleted(skippedId)
-      checkAndPromptParentLog(skippedId)
+      await skipHabit.mutateAsync({ habitId })
+      skippedChildIdsRef.current.add(habitId)
+      markRecentlyCompleted(habitId)
+      checkAndPromptParentLog(habitId)
     } catch {
-    } finally {
-      setHabitToSkip(null)
-      setShowSkipConfirm(false)
     }
   }
 
@@ -768,23 +772,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       setShowForceLogConfirm(false)
     }
   }
-
-const isPostponeAction = useMemo(() => {
-    if (!habitToSkip) return false
-    const habit = habitsById.get(habitToSkip)
-    return habit ? !habit.frequencyUnit : false
-  }, [habitToSkip, habitsById])
-
-  const skipConfirmMessage = useMemo(() => {
-    if (isPostponeAction) return t('habits.postponeConfirmMessage')
-    if (habitToSkip) {
-      const habit = habitsById.get(habitToSkip)
-      if (habit?.flexibleTarget != null) {
-        return t('habits.skipConfirmMessageFlexible')
-      }
-    }
-    return t('habits.skipConfirmMessage')
-  }, [isPostponeAction, habitToSkip, habitsById, t])
 
   useImperativeHandle(ref, () => ({
     collapseAll,
@@ -823,9 +810,10 @@ const isPostponeAction = useMemo(() => {
   function deriveRowState(
     habit: NormalizedHabit,
     recentlyCompleted: boolean,
-  ): StatusDotState {
-    if (recentlyCompleted || habit.isCompleted || habit.isLoggedInRange) return 'done'
+  ): HabitStatus {
     if (habit.isBadHabit) return 'bad'
+    const completed = recentlyCompleted || habit.isCompleted || habit.isLoggedInRange
+    if (completed) return 'done'
     const status = computeHabitCardStatus(habit, view === 'today' ? cardSelectedDate : undefined)
     if (status === 'overdue') return 'overdue'
     return 'empty'
@@ -842,6 +830,9 @@ const isPostponeAction = useMemo(() => {
     }
     if (habit.isOverdue && !habit.isCompleted) {
       tokens.push({ kind: 'overdue', label: t('habits.overdue') })
+    }
+    if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
+      tokens.push({ kind: 'bad', label: t('habits.statusDot.bad') })
     }
     if (!habit.isCompleted && selectedDateStr === todayStr) {
       const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
@@ -861,7 +852,8 @@ const isPostponeAction = useMemo(() => {
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
-    const isChild = depth > 0
+    const displayDepth: 0 | 1 = depth === 0 ? 0 : 1
+    const isChild = displayDepth === 1
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, recentlyCompleted)
     const meta = buildMetaTokens(habit)
@@ -880,7 +872,7 @@ const isPostponeAction = useMemo(() => {
         canLog={canLog}
         streak={habit.currentStreak}
         child={isChild}
-        depth={depth}
+        depth={displayDepth}
         selectMode={isSelectMode}
         selected={selectedHabitIds?.has(habit.id) ?? false}
         hasChildren={hasChildren}
@@ -895,7 +887,7 @@ const isPostponeAction = useMemo(() => {
             setForceLogHabitId(habit.id)
             setShowForceLogConfirm(true)
           },
-          onSkip: () => promptSkip(habit.id),
+          onSkip: () => { void handleSkip(habit.id) },
           onDuplicate: () => promptDuplicate(habit.id),
           onEdit: () => {
             setHabitToEdit(habit)
@@ -926,6 +918,20 @@ const isPostponeAction = useMemo(() => {
     return <HabitListSkeleton />
   }
 
+  if (habitsQuery.isError && !habitsQuery.data) {
+    return (
+      <HabitListEmptyState
+        title={t('habits.loadError')}
+        description=""
+        actionLabel={t('common.retry')}
+        onAction={() => {
+          void habitsQuery.refetch()
+        }}
+        variant="secondary"
+      />
+    )
+  }
+
   function renderAllViewChildren(parentId: string, depth: number): React.ReactNode {
     if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
     const children = getVisibleChildren(parentId)
@@ -948,7 +954,7 @@ const isPostponeAction = useMemo(() => {
     if (drill.currentParent) {
       return (
         <>
-          <div className="flex items-center" style={{ padding: '4px 20px 10px', gap: 12 }}>
+          <div className="flex items-center" style={{ padding: '4px 16px 8px', gap: 12 }}>
             <button
               type="button"
               aria-label={t('common.goBack')}
@@ -978,7 +984,7 @@ const isPostponeAction = useMemo(() => {
               </h3>
               <p
                 style={{
-                  margin: '2px 0 0',
+                  margin: 0,
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   letterSpacing: '0.02em',
@@ -997,15 +1003,15 @@ const isPostponeAction = useMemo(() => {
               type="button"
               className="flex items-center appearance-none border-0 bg-transparent cursor-pointer text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
               style={{
-                gap: 6,
-                padding: '10px 20px',
+                gap: 4,
+                padding: '8px 16px',
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontWeight: 500,
               }}
               onClick={drill.drillReset}
             >
-              <Home size={13} strokeWidth={1.8} aria-hidden="true" />
+              <Home size={16} strokeWidth={1.8} aria-hidden="true" />
               {t('habits.backToHabits')}
             </button>
           )}
@@ -1057,9 +1063,9 @@ const isPostponeAction = useMemo(() => {
         <>
           {dateGroups.map((group) => (
             <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
-              <div className="stagger-enter">
+              <div className="flex flex-col" style={{ gap: 12 }}>
                 {group.habits.map((habit) => (
-                  <div key={habit.id}>
+                  <div key={habit.id} style={HABIT_PANEL_STYLE}>
                     {renderHabitCard(
                       habit,
                       0,
@@ -1088,17 +1094,21 @@ const isPostponeAction = useMemo(() => {
             items={activeDragItems.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className={isDragging ? 'is-dragging stagger-enter' : 'stagger-enter'}>
-              {activeDragItems.map((item) => (
-                <SortableHabitItem key={item.id} id={item.id}>
-                  {renderHabitCard(
-                    item.habit,
-                    item.depth,
-                    item.hasChildren,
-                    item.hasSubHabits,
-                    { isDraggingList: isDragging },
-                  )}
-                </SortableHabitItem>
+            <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
+              {activeDragPanels.map((panel) => (
+                <div key={panel[0]?.id} style={HABIT_PANEL_STYLE}>
+                  {panel.map((item) => (
+                    <SortableHabitItem key={item.id} id={item.id}>
+                      {renderHabitCard(
+                        item.habit,
+                        item.depth,
+                        item.hasChildren,
+                        item.hasSubHabits,
+                        { isDraggingList: isDragging },
+                      )}
+                    </SortableHabitItem>
+                  ))}
+                </div>
               ))}
             </div>
           </SortableContext>
@@ -1107,15 +1117,15 @@ const isPostponeAction = useMemo(() => {
     }
 
     return (
-      <div className="stagger-enter">
-        {dragItems.map((item) => (
-          <div key={item.id}>
-            {renderHabitCard(
+      <div className="flex flex-col" style={{ gap: 12 }}>
+        {dragPanels.map((panel) => (
+          <div key={panel[0]?.id} style={HABIT_PANEL_STYLE}>
+            {panel.map((item) => renderHabitCard(
               item.habit,
               item.depth,
               item.hasChildren,
               item.hasSubHabits,
-            )}
+            ))}
           </div>
         ))}
       </div>
@@ -1178,15 +1188,6 @@ const isPostponeAction = useMemo(() => {
           setHabitToDuplicate(null)
           setShowDuplicateConfirm(false)
         }}
-        showSkipConfirm={showSkipConfirm}
-        onSkipOpenChange={setShowSkipConfirm}
-        isPostponeAction={isPostponeAction}
-        skipConfirmMessage={skipConfirmMessage}
-        onConfirmSkip={() => void confirmSkip()}
-        onCancelSkip={() => {
-          setHabitToSkip(null)
-          setShowSkipConfirm(false)
-        }}
         showForceLogConfirm={showForceLogConfirm}
         onForceLogOpenChange={setShowForceLogConfirm}
         onConfirmForceLog={() => void confirmForceLog()}
@@ -1220,4 +1221,4 @@ const isPostponeAction = useMemo(() => {
       />
     </div>
   )
-})
+}

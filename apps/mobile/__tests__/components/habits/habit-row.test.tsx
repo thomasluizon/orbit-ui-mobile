@@ -48,11 +48,12 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
   return collectStrings(tree!.toJSON())
 }
 
-describe('HabitRow tags (mobile)', () => {
-  it('renders the habit tag names on the row', () => {
+describe('HabitRow canonical content (mobile)', () => {
+  it('omits descriptions and tags from the canonical row', () => {
     const texts = renderRowText(
       createMockHabit({
         title: 'Read',
+        description: 'A long preview',
         tags: [
           { id: '1', name: 'Learning', color: '#7c3aed' },
           { id: '2', name: 'Evening', color: '#10b981' },
@@ -60,26 +61,21 @@ describe('HabitRow tags (mobile)', () => {
       }),
     )
 
-    expect(texts).toContain('Learning')
-    expect(texts).toContain('Evening')
+    expect(texts).toContain('Read')
+    expect(texts).not.toContain('A long preview')
+    expect(texts).not.toContain('Learning')
+    expect(texts).not.toContain('Evening')
   })
 
-  it('caps visible tags at three and shows a +N overflow counter', () => {
+  it('uses the first uppercase letter when an emoji is missing', () => {
     const texts = renderRowText(
       createMockHabit({
-        title: 'Read',
-        tags: Array.from({ length: 10 }, (_, i) => ({
-          id: String(i),
-          name: `Tag${i}`,
-          color: '#7c3aed',
-        })),
+        title: 'read',
+        emoji: null,
       }),
     )
 
-    expect(texts).toContain('Tag0')
-    expect(texts).toContain('Tag2')
-    expect(texts).not.toContain('Tag3')
-    expect(texts.join('')).toContain('+7')
+    expect(texts).toContain('R')
   })
 })
 

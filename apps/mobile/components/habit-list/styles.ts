@@ -32,32 +32,32 @@ function alpha(color: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`
 }
 
-/** Builds the habit-list StyleSheet from the resolved navy+violet token bag. */
+/** Builds the habit-list StyleSheet from the active semantic token bag. */
 export function createStyles(tokens: AppTokens) {
   const skeletonBone = alpha(tokens.fg1, 0.08)
 
   return StyleSheet.create({
     skeletonContainer: {
       paddingTop: 8,
-      paddingBottom: 100,
-      gap: 10,
+      paddingBottom: 96,
+      gap: 12,
     },
     skeletonCard: {
-      marginHorizontal: 20,
+      marginHorizontal: 16,
       backgroundColor: tokens.bgCard,
-      borderRadius: 18,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     skeletonCircle: {
       width: 46,
       height: 46,
-      borderRadius: 14,
+      borderRadius: 12,
       backgroundColor: skeletonBone,
     },
     skeletonContent: {
@@ -85,24 +85,20 @@ export function createStyles(tokens: AppTokens) {
 
     sectionInset: {},
     listContent: {
-      paddingBottom: 100,
+      paddingBottom: 96,
     },
     listContentWithBulkBar: {
-      paddingBottom: 220,
+      paddingBottom: 96 + 96 + 24,
     },
     groupedList: {
-      paddingBottom: 100,
+      paddingBottom: 96,
     },
-    allViewChild: {
-      gap: 6,
-    },
-
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
       marginBottom: 8,
     },
     drillBackBtn: {
@@ -122,9 +118,9 @@ export function createStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       alignSelf: 'flex-start',
-      gap: 6,
-      paddingVertical: 10,
-      paddingHorizontal: 20,
+      gap: 4,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
     },
     drillResetText: {
       fontFamily: 'Rubik_500Medium',
@@ -132,7 +128,7 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.primary,
     },
     drillSkeletons: {
-      gap: 10,
+      gap: 12,
     },
     drillErrorWrap: {
       alignItems: 'center',
@@ -151,15 +147,15 @@ export function createStyles(tokens: AppTokens) {
       letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
       color: tokens.fg3,
-      marginTop: 2,
+      marginTop: 0,
     },
     drillAddBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingVertical: 14,
-      marginHorizontal: 20,
+      paddingVertical: 12,
+      marginHorizontal: 16,
     },
     drillAddBtnText: {
       fontFamily: 'Rubik_500Medium',

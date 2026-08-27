@@ -1,20 +1,26 @@
 import { StyleSheet } from 'react-native'
 
-export const MAX_VISIBLE_TAGS = 3
-
 export const styles = StyleSheet.create({
   row: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    borderRadius: 18,
-    borderWidth: 1,
     position: 'relative',
+    overflow: 'hidden',
   },
-  rowPressed: {
-    transform: [{ scale: 0.99 }],
+  structuralColumn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  bodyButton: {
+    flex: 1,
+    minWidth: 0,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   emojiWell: {
     alignItems: 'center',
@@ -24,7 +30,7 @@ export const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 4,
   },
   title: {
     fontFamily: 'Rubik_500Medium',
@@ -36,74 +42,22 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
-  description: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 1,
-    overflow: 'hidden',
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flexShrink: 0,
-  },
-  tagDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  tagName: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    maxWidth: 132,
-  },
-  tagOverflow: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-    flexShrink: 0,
-  },
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  linkedGoalDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  childProgressText: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-  },
-  checkCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
   menuButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 999,
-    margin: -3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 6,

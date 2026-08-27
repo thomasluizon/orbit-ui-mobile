@@ -8,7 +8,7 @@ import { Popover } from '@/components/ui/popover'
 import { CheckCircle } from './habit-row-check-circle'
 import { HabitRowMenu } from './habit-row-menu'
 import type { HabitRowActions } from './habit-row'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 
 function resolveLogAction(
   childProgress: { done: number; total: number } | undefined,
@@ -25,7 +25,7 @@ function resolveParentRingColor(isBadHabit: boolean): string | undefined {
 
 function resolveParentRingTrackColor(
   isBadHabit: boolean,
-  state: StatusDotState,
+  state: HabitStatus,
 ): string | undefined {
   if (isBadHabit) return 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
   if (state === 'overdue') return 'color-mix(in srgb, var(--status-overdue) 40%, transparent)'
@@ -34,11 +34,11 @@ function resolveParentRingTrackColor(
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
+  depth: 0 | 1
   selectMode: boolean
   hasChildren: boolean
   childProgress?: { done: number; total: number }
-  showLinkedGoalDot: boolean
-  state: StatusDotState
+  state: HabitStatus
   isDone: boolean
   canLog: boolean
   hasMenuActions: boolean
@@ -48,14 +48,14 @@ interface HabitRowTrailingProps {
   onToggleStatus: () => void
 }
 
-/** Trailing cluster of a habit row: linked-goal dot, parent-ring or status dot, and the overflow menu. */
+/** Trailing cluster of a habit row: parent ring or status ring, then overflow. */
 // react-doctor-disable-next-line no-many-boolean-props -- these are derived per-row display flags computed once by HabitRow and passed straight through; they are not independent configuration axes and splitting the cluster adds indirection without benefit https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing({
   habit,
+  depth,
   selectMode,
   hasChildren,
   childProgress,
-  showLinkedGoalDot,
   state,
   isDone,
   canLog,
@@ -80,35 +80,10 @@ export function HabitRowTrailing({
   const statusDotLabelKey = `habits.statusDot.${state}`
 
   return (
-    <div className="flex items-center shrink-0" style={{ gap: 10 }}>
-      {showLinkedGoalDot && (
-        <span
-          role="img"
-          aria-label={t('habits.detail.linkedGoal')}
-          className="rounded-full"
-          style={{
-            width: 5,
-            height: 5,
-            background: 'var(--primary)',
-          }}
-        />
-      )}
+    <div className="flex items-center shrink-0" style={{ gap: 8 }}>
       {!selectMode &&
         (hasChildren ? (
           <>
-            {childProgress && childProgress.total > 0 && (
-              <span
-                aria-hidden="true"
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: 'var(--fg-3)',
-                }}
-              >
-                {childProgress.done}/{childProgress.total}
-              </span>
-            )}
             <button
               type="button"
               aria-label={
@@ -121,13 +96,12 @@ export function HabitRowTrailing({
                 const parentAction = isDone ? actions.onUnlog : resolveLogAction(childProgress, actions)
                 parentAction?.()
               }}
-              className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
-              style={{ padding: 7, margin: -7 }}
+              className="appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center cursor-pointer rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96]"
             >
               <ParentRing
                 done={childProgress?.done ?? 0}
                 total={childProgress?.total ?? 0}
-                size={30}
+                size={depth === 1 ? 24 : 30}
                 color={resolveParentRingColor(habit.isBadHabit)}
                 trackColor={resolveParentRingTrackColor(habit.isBadHabit, state)}
               />
@@ -136,9 +110,9 @@ export function HabitRowTrailing({
         ) : (
           <CheckCircle
             state={state}
-            tone={habit.isBadHabit ? 'bad' : 'default'}
             onToggle={onToggleStatus}
             disabled={!canLog && !isDone}
+            size={depth === 1 ? 24 : 30}
             ariaLabel={`${t(statusDotLabelKey)}, ${
               isDone ? t('habits.actions.unlog') : t('habits.logHabit')
             }`}
@@ -154,14 +128,9 @@ export function HabitRowTrailing({
               aria-label={t('habits.actions.more')}
               onClick={(event) => event.stopPropagation()}
               className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-              style={{
-                width: 34,
-                height: 34,
-                margin: '-3px',
-                cursor: 'pointer',
-              }}
+              style={{ width: 44, height: 44, cursor: 'pointer' }}
             >
-              <MoreVertical size={18} strokeWidth={1.8} />
+              <MoreVertical size={20} strokeWidth={1.8} />
             </button>
           }
         >

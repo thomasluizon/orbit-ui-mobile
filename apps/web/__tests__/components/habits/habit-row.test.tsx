@@ -2,102 +2,47 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 import { HabitRow } from '@/components/habits/habit-row'
 
-describe('HabitRow description preview', () => {
-  it('renders a single-line description below the title when present', () => {
+describe('HabitRow canonical content', () => {
+  it('renders title and meta, not descriptions or tags', () => {
     render(
       <HabitRow
-        habit={createMockHabit({ title: 'Meditate', description: 'Ten minutes of breathing' })}
+        habit={createMockHabit({
+          title: 'Meditate',
+          description: 'Ten minutes of breathing',
+          tags: [{ id: '1', name: 'Evening', color: '#7c3aed' }],
+        })}
+        meta={['Daily']}
       />,
     )
-
     expect(screen.getByText('Meditate')).toBeDefined()
-    expect(screen.getByText('Ten minutes of breathing')).toBeDefined()
-  })
-
-  it('omits the description when the habit has none', () => {
-    render(<HabitRow habit={createMockHabit({ title: 'Run', description: null })} />)
-
-    expect(screen.getByText('Run')).toBeDefined()
+    expect(screen.getByText('Daily')).toBeDefined()
     expect(screen.queryByText('Ten minutes of breathing')).toBeNull()
+    expect(screen.queryByText('Evening')).toBeNull()
   })
 
-  it('renders the description on child (sub-habit) rows too', () => {
-    render(
-      <HabitRow
-        habit={createMockHabit({ title: 'Sub-habit', description: 'Child preview' })}
-        child
-        depth={1}
-      />,
-    )
+  it('uses the first uppercase letter when an emoji is missing', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'read', emoji: null })} />)
+    expect(screen.getByText('R')).toBeDefined()
+  })
 
-    expect(screen.getByText('Child preview')).toBeDefined()
+  it('renders child geometry at display depth one', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
+    expect(screen.getByTestId('habit-row')).toHaveAttribute('data-depth', '1')
   })
 })
 
 describe('HabitRow check circle accessible name', () => {
-  it('announces the state and the log action when the habit is loggable', () => {
+  it('announces the state and log action when loggable', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Meditate' })} />)
-
-    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute(
-      'aria-label',
-      'habits.statusDot.empty, habits.logHabit',
-    )
+    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.empty, habits.logHabit')
   })
 
-  it('announces the unlog action when the habit is done', () => {
-    render(
-      <HabitRow habit={createMockHabit({ title: 'Meditate' })} state="done" />,
-    )
-
-    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute(
-      'aria-label',
-      'habits.statusDot.done, habits.actions.unlog',
-    )
-  })
-})
-
-describe('HabitRow tags', () => {
-  it('renders the habit tag names on the row', () => {
-    render(
-      <HabitRow
-        habit={createMockHabit({
-          title: 'Read',
-          tags: [
-            { id: '1', name: 'Learning', color: '#7c3aed' },
-            { id: '2', name: 'Evening', color: '#10b981' },
-          ],
-        })}
-      />,
-    )
-
-    expect(screen.getByText('Learning')).toBeDefined()
-    expect(screen.getByText('Evening')).toBeDefined()
-  })
-
-  it('caps visible tags at three and shows a +N overflow counter for the rest', () => {
-    render(
-      <HabitRow
-        habit={createMockHabit({
-          title: 'Read',
-          tags: Array.from({ length: 10 }, (_, i) => ({
-            id: String(i),
-            name: `Tag${i}`,
-            color: '#7c3aed',
-          })),
-        })}
-      />,
-    )
-
-    expect(screen.getByText('Tag0')).toBeDefined()
-    expect(screen.getByText('Tag1')).toBeDefined()
-    expect(screen.getByText('Tag2')).toBeDefined()
-    expect(screen.queryByText('Tag3')).toBeNull()
-    expect(screen.getByText('+7')).toBeDefined()
+  it('announces the unlog action when done', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'Meditate' })} state="done" />)
+    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.done, habits.actions.unlog')
   })
 })

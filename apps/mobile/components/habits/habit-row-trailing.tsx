@@ -1,32 +1,31 @@
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
 import { MenuAnchorHost } from '@/components/ui/anchored-menu'
 import { ParentRing } from '@/components/ui/parent-ring'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
 import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
+  depth: 0 | 1
   isSelectMode: boolean
   hasChildren: boolean
   childrenDone: number
   childrenTotal: number
-  linkedGoal: boolean
   isDoneForRange: boolean
   canLog: boolean
-  dotState: StatusDotState
+  dotState: HabitStatus
   hasMenuActions: boolean
   menuButtonRef: React.RefObject<View | null>
   actions: HabitRowActions
   tokens: ReturnType<typeof createTokensV2>
   onToggleStatus: () => void
   onOpenMenu: () => void
-  onMenuActivity: () => void
 }
 
 function resolveLogAction(
@@ -39,7 +38,7 @@ function resolveLogAction(
 
 function resolveParentRingTrackColor(
   habit: NormalizedHabit,
-  dotState: StatusDotState,
+  dotState: HabitStatus,
   tokens: ReturnType<typeof createTokensV2>,
 ) {
   if (habit.isBadHabit) return `${tokens.statusBad}66`
@@ -57,11 +56,11 @@ function resolveParentRingColor(
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing({
   habit,
+  depth,
   isSelectMode,
   hasChildren,
   childrenDone,
   childrenTotal,
-  linkedGoal,
   isDoneForRange,
   canLog,
   dotState,
@@ -71,25 +70,13 @@ export function HabitRowTrailing({
   tokens,
   onToggleStatus,
   onOpenMenu,
-  onMenuActivity,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   return (
     <View style={styles.trailing}>
-      {linkedGoal ? (
-        <View
-          style={[
-            styles.linkedGoalDot,
-            { backgroundColor: tokens.primary },
-          ]}
-        />
-      ) : null}
       {!isSelectMode &&
         (hasChildren && childrenTotal > 0 ? (
           <>
-            <Text style={[styles.childProgressText, { color: tokens.fg3 }]}>
-              {childrenDone}/{childrenTotal}
-            </Text>
             <Pressable
               onPress={() => {
                 const parentAction = isDoneForRange
@@ -104,7 +91,7 @@ export function HabitRowTrailing({
               <ParentRing
                 done={childrenDone}
                 total={childrenTotal}
-                size={30}
+                size={depth === 1 ? 24 : 30}
                 color={resolveParentRingColor(habit.isBadHabit, tokens)}
                 trackColor={resolveParentRingTrackColor(habit, dotState, tokens)}
               />
@@ -113,7 +100,6 @@ export function HabitRowTrailing({
         ) : (
           <CheckCircle
             state={dotState}
-            tone={habit.isBadHabit ? 'bad' : 'default'}
             onToggle={onToggleStatus}
             disabled={!canLog && !isDoneForRange}
             accessibilityLabel={`${t(
@@ -124,12 +110,12 @@ export function HabitRowTrailing({
                 : t('habits.logHabit')
             }`}
             tokens={tokens}
+            size={depth === 1 ? 24 : 30}
           />
         ))}
       {!isSelectMode && hasMenuActions ? (
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
-            onPressIn={onMenuActivity}
             onPress={onOpenMenu}
             hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
@@ -145,7 +131,7 @@ export function HabitRowTrailing({
             ]}
           >
             <MoreVertical
-              size={18}
+              size={20}
               color={tokens.fg3}
               strokeWidth={1.8}
             />
