@@ -335,17 +335,31 @@ function maestroCapture(cell, options, outputBase) {
   return captureResult(cell, `${pngBase}.png`, startedAt, result, "maestro")
 }
 
+export function adbShellQuote(value) {
+  return `'${String(value).replaceAll("'", `'\\''`)}'`
+}
+
+export function adbStartArguments(target, serial) {
+  const prefix = serial ? ["-s", serial] : []
+  const command = [
+    "am start -W -a android.intent.action.VIEW -d",
+    adbShellQuote(target),
+    adbShellQuote(APP_ID),
+  ].join(" ")
+  return [...prefix, "shell", command]
+}
+
 async function adbCapture(cell, options, outputBase) {
   const adb = process.env.ADB_BIN || "adb"
   const target = buildCaptureDeepLink(cell, cell.theme, cell.locale)
-  const prefix = options.serial ? ["-s", options.serial] : []
-  const started = runProcess(adb, [...prefix, "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", target, APP_ID])
+  const started = runProcess(adb, adbStartArguments(target, options.serial))
   if (started.error || started.status !== 0) {
     return captureResult(cell, null, Date.now(), started, "adb-am-start")
   }
   await new Promise((resolveWait) => setTimeout(resolveWait, options.settleMs))
   const pngPath = join(outputBase, `${captureFilename(cell)}.png`)
   const startedAt = Date.now()
+  const prefix = options.serial ? ["-s", options.serial] : []
   const screenshot = runProcess(adb, [...prefix, "exec-out", "screencap", "-p"], { binary: true })
   if (!screenshot.error && screenshot.status === 0 && Buffer.isBuffer(screenshot.stdout)) {
     writeFileSync(pngPath, screenshot.stdout)

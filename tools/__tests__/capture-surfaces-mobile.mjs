@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
+  adbStartArguments,
   buildCaptureDeepLink,
   maestroExecutable,
   maestroEnvironmentArguments,
@@ -29,6 +30,17 @@ const captureSurfacesMobileCases = () => {
   T(
     "deep links carry explicit app-level theme and locale parameters",
     buildCaptureDeepLink(login, login.theme, login.locale) === "orbit://login?captureTheme=dark&captureLocale=pt-BR",
+  )
+
+  T(
+    "adb fallback quotes the complete deep link for Android's remote shell",
+    JSON.stringify(adbStartArguments("orbit://privacy?captureTheme=dark&captureLocale=pt-BR", "emulator-5554")) ===
+      JSON.stringify([
+        "-s",
+        "emulator-5554",
+        "shell",
+        "am start -W -a android.intent.action.VIEW -d 'orbit://privacy?captureTheme=dark&captureLocale=pt-BR' 'org.useorbit.app'",
+      ]),
   )
 
   T(
