@@ -15,6 +15,7 @@ import {
 } from 'expo-router'
 import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
+import * as Linking from 'expo-linking'
 import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -61,7 +62,7 @@ import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
   captureBuildEnabled,
-  captureRequestProbeId,
+  captureRequestProbeIdFromUrl,
   captureRouteProbeId,
   shouldExposeOnboardingRoute,
 } from '@/lib/capture-mode'
@@ -167,10 +168,8 @@ function RootStackScreens({
 function RootLayoutNav() {
   const router = useRouter()
   const pathname = usePathname()
-  const { from, captureSurface } = useGlobalSearchParams<{
-    from?: string | string[]
-    captureSurface?: string | string[]
-  }>()
+  const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
+  const linkingUrl = Linking.useLinkingURL()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const captureReady = useCaptureReady()
@@ -187,9 +186,9 @@ function RootLayoutNav() {
 
   const topSegment = segments[0] as string | undefined
   const captureProbeId = captureRouteProbeId(pathname, topSegment)
-  const captureRequestId = captureRequestProbeId(
+  const captureRequestId = captureRequestProbeIdFromUrl(
     captureBuildEnabled,
-    captureSurface,
+    linkingUrl,
   )
   const hideAppShellChrome =
     topSegment === 'login' ||

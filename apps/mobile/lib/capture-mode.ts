@@ -61,6 +61,20 @@ export function captureRequestProbeId(
   return `capture-request-${surfaceId}`
 }
 
+export function captureRequestProbeIdFromUrl(
+  captureEnabled: boolean,
+  linkingUrl: string | null,
+): string | null {
+  if (!captureEnabled || !linkingUrl) return null
+
+  try {
+    const surfaceId = new URL(linkingUrl).searchParams.get('captureSurface')
+    return captureRequestProbeId(captureEnabled, surfaceId ?? undefined)
+  } catch {
+    return null
+  }
+}
+
 export function captureRouteProbeId(
   pathname: string,
   topSegment: string | undefined,

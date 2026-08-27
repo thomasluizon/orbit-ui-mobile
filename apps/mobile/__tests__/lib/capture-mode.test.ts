@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Animated } from 'react-native'
 import {
   captureRequestProbeId,
+  captureRequestProbeIdFromUrl,
   captureRouteProbeId,
   resolveCapturePreferences,
   shouldExposeOnboardingRoute,
@@ -75,6 +76,18 @@ describe('mobile capture mode', () => {
     )
     expect(captureRequestProbeId(false, 'm-route-about')).toBeNull()
     expect(captureRequestProbeId(true, '../about')).toBeNull()
+  })
+
+  it('derives the request probe from the raw received URL, independent of router params', () => {
+    const aboutLink =
+      'orbit://about?captureTheme=dark&captureLocale=en&captureSurface=m-route-about'
+
+    expect(captureRequestProbeIdFromUrl(true, aboutLink)).toBe(
+      'capture-request-m-route-about',
+    )
+    expect(captureRequestProbeIdFromUrl(false, aboutLink)).toBeNull()
+    expect(captureRequestProbeIdFromUrl(true, null)).toBeNull()
+    expect(captureRequestProbeIdFromUrl(true, 'not a URL')).toBeNull()
   })
 
   it('pins timing, spring, loop, and stagger motion for capture builds', () => {
