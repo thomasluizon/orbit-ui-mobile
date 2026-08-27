@@ -1048,18 +1048,14 @@ describe('HabitList', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-a'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('confirm-action-habits.skipConfirmTitle'))
+      await Promise.resolve()
     })
 
     expect(screen.queryByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeNull()
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-b'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('confirm-action-habits.skipConfirmTitle'))
+      await Promise.resolve()
     })
 
     expect(screen.getByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeDefined()
@@ -1072,16 +1068,12 @@ describe('HabitList', () => {
     )
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-b'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('confirm-action-habits.skipConfirmTitle'))
+      await Promise.resolve()
     })
     expect(screen.queryByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeNull()
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-a'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('confirm-action-habits.skipConfirmTitle'))
+      await Promise.resolve()
     })
     expect(screen.getByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeDefined()
   })
@@ -1213,7 +1205,7 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
   })
 
-  it('skips an overdue habit with no date after confirmation', () => {
+  it('skips an overdue habit with no date immediately', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -1226,9 +1218,10 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
-    fireEvent.click(screen.getByTestId('skip-overdue-1'))
-
-    fireEvent.click(screen.getByTestId('confirm-action-habits.postponeConfirmTitle'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('skip-overdue-1'))
+      await Promise.resolve()
+    })
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
   })

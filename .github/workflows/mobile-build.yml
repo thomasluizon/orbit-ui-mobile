@@ -1,0 +1,70 @@
+name: Mobile Android Build
+
+# The only pull-request-time proof that the Android app still compiles. The
+# emulator capture that used to carry this build was deleted: every one of its
+# failures came from the emulator half (QEMU hangs, a corrupt NDK download, a
+# dead adb daemon), never from the compile, and it screenshot three
+# unauthenticated routes that said nothing about the change under review. The
+# compile is the part worth gating on, so it runs alone.
+
+on:
+  pull_request:
+    branches: [main, redesign/main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mobile-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Android release build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # app.config.js points `googleServicesFile` at ./google-services.json,
+      # which is gitignored and therefore absent from a CI checkout. Capture
+      # mode drops that key, which is how the deleted workflow built here at
+      # all. The trade is explicit: this gate proves the native module graph
+      # and the Gradle release assemble still compile, and it does NOT cover
+      # the Firebase google-services step, which only a real release build runs.
+      EXPO_PUBLIC_CAPTURE_MODE: "true"
+      EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "true"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle caching
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      # Runs the Expo prebuild and the Gradle release assemble across the whole
+      # native module graph, which is where a broken native dependency or a
+      # Gradle change actually surfaces. ARM slices only, matching what ships;
+      # the x86_64 slice existed for the emulator that no longer runs here.
+      - name: Build the release APK
+        run: npm run android:apk -w @orbit/mobile

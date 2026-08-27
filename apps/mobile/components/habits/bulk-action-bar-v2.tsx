@@ -99,7 +99,7 @@ export function BulkActionBarV2({
           ]}
         >
           <CheckCircle2
-            size={22}
+            size={20}
             color={tokens.primary}
             strokeWidth={1.8}
           />
@@ -119,7 +119,7 @@ export function BulkActionBarV2({
           ]}
         >
           <FastForward
-            size={22}
+            size={20}
             color={tokens.statusSkip}
             strokeWidth={1.8}
           />
@@ -139,7 +139,7 @@ export function BulkActionBarV2({
           ]}
         >
           <Trash2
-            size={22}
+            size={20}
             color={tokens.statusBad}
             strokeWidth={1.8}
           />
@@ -156,7 +156,7 @@ export function BulkActionBarV2({
             pressed ? styles.pressedScale : null,
           ]}
         >
-          <X size={22} color={tokens.fg2} strokeWidth={1.8} />
+          <X size={20} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
     </View>
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   bar: {
     borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
   },
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   selectAllBtn: {
     paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
   },
   selectAllText: {
     fontFamily: 'Rubik_500Medium',
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',

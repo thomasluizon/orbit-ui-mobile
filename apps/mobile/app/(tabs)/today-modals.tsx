@@ -22,12 +22,6 @@ interface TodayModalsProps {
   showBulkDeleteConfirm: boolean;
   onBulkDeleteOpenChange: (open: boolean) => void;
   onConfirmBulkDelete: () => void;
-  showBulkLogConfirm: boolean;
-  onBulkLogOpenChange: (open: boolean) => void;
-  onConfirmBulkLog: () => void;
-  showBulkSkipConfirm: boolean;
-  onBulkSkipOpenChange: (open: boolean) => void;
-  onConfirmBulkSkip: () => void;
   selectedCount: number;
   showCreateGoalModal: boolean;
   onCloseCreateGoal: () => void;
@@ -55,12 +49,6 @@ export function TodayModals({
   showBulkDeleteConfirm,
   onBulkDeleteOpenChange,
   onConfirmBulkDelete,
-  showBulkLogConfirm,
-  onBulkLogOpenChange,
-  onConfirmBulkLog,
-  showBulkSkipConfirm,
-  onBulkSkipOpenChange,
-  onConfirmBulkSkip,
   selectedCount,
   showCreateGoalModal,
   onCloseCreateGoal,
@@ -103,32 +91,6 @@ export function TodayModals({
         confirmLabel={t("habits.bulkDeleteConfirm")}
         onConfirm={onConfirmBulkDelete}
         variant="danger"
-      />
-
-      <ConfirmDialog
-        open={showBulkLogConfirm}
-        onOpenChange={onBulkLogOpenChange}
-        title={t("habits.bulkLogTitle")}
-        description={plural(
-          t("habits.bulkLogMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkLogConfirm")}
-        onConfirm={onConfirmBulkLog}
-        variant="success"
-      />
-
-      <ConfirmDialog
-        open={showBulkSkipConfirm}
-        onOpenChange={onBulkSkipOpenChange}
-        title={t("habits.bulkSkipTitle")}
-        description={plural(
-          t("habits.bulkSkipMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkSkipConfirm")}
-        onConfirm={onConfirmBulkSkip}
-        variant="warning"
       />
 
       <CreateGoalModal open={showCreateGoalModal} onClose={onCloseCreateGoal} />

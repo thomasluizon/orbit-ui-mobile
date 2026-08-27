@@ -93,4 +93,13 @@ describe('HabitRow context menu', () => {
     fireEvent.contextMenu(screen.getByTestId('habit-row'))
     expect(screen.queryByRole('menu')).toBeNull()
   })
+
+  it('ignores context-menu events from the portalled overflow menu', () => {
+    renderRow({ onEdit: vi.fn() })
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.contextMenu(screen.getByRole('menuitem', { name: 'common.edit' }))
+
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+  })
 })

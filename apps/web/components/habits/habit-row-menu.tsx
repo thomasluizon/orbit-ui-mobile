@@ -100,10 +100,11 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
       className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-elev-pressed)]"
       style={{
         gap: 10,
-        padding: '11px 12px',
+        padding: '12px 12px',
         color,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
+        minHeight: 44,
         cursor: 'pointer',
       }}
     >

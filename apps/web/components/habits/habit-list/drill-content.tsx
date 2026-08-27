@@ -43,7 +43,7 @@ export function HabitListDrillContent({
 
   if (drillError) {
     return (
-      <div className="flex flex-col items-center text-center" style={{ padding: '32px 20px' }}>
+      <div className="flex flex-col items-center text-center" style={{ padding: '32px 16px' }}>
         <p
           role="alert"
           style={{
@@ -64,7 +64,7 @@ export function HabitListDrillContent({
 
   if (drillChildren.length > 0) {
     return (
-      <div className="stagger-enter">
+      <div>
         {drillChildren.map((child) =>
           renderHabitCard(
             child,
@@ -79,7 +79,7 @@ export function HabitListDrillContent({
           className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-3)] hover:text-[var(--primary-pressed)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
           style={{
             gap: 8,
-            padding: '12px 20px',
+            padding: '12px 16px',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 500,
@@ -94,7 +94,7 @@ export function HabitListDrillContent({
   }
 
   return (
-    <div className="flex flex-col items-center text-center" style={{ padding: '32px 20px' }}>
+    <div className="flex flex-col items-center text-center" style={{ padding: '32px 16px' }}>
       <p
         style={{
           margin: 0,

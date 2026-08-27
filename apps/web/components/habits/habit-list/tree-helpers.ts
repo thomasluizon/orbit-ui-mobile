@@ -13,6 +13,16 @@ export interface DragItem {
   hasSubHabits: boolean
 }
 
+/** Groups a flat pre-order list into the panels owned by each top-level habit. */
+export function groupDragItemsByPanel(items: DragItem[]): DragItem[][] {
+  const panels: DragItem[][] = []
+  for (const item of items) {
+    if (item.depth === 0 || panels.length === 0) panels.push([])
+    panels.at(-1)?.push(item)
+  }
+  return panels
+}
+
 export interface MoveTargetValidation {
   valid: boolean
   reason: string | null
