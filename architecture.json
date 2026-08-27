@@ -26093,6 +26093,7 @@
         "apps/mobile/__tests__/lib/checklist-template-storage.test.ts",
         "apps/mobile/__tests__/lib/google-auth.test.ts",
         "apps/mobile/__tests__/lib/habit-mutation-helpers.test.ts",
+        "apps/mobile/__tests__/screens/calendar-sync.test.tsx",
         "apps/mobile/__tests__/screens/calendar-views.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/shared/habit-utils.test.ts",
