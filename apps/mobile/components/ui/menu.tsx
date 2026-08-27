@@ -10,7 +10,7 @@ import {
   type View as NativeView,
 } from 'react-native'
 import { Icon } from '@/components/ui/icon'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { getAnchoredMenuPosition, getFallbackAnchorRect, type MenuAnchorRect } from '@/lib/anchored-menu'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -83,9 +83,7 @@ export function Menu({
 
   if (sheetPresentation) {
     return (
-      <Sheet open title={title} onClose={onClose}>
-        <MenuItems items={orderedItems} onClose={onClose} onSelect={onSelect} />
-      </Sheet>
+      <MenuSheet items={orderedItems} onClose={onClose} onSelect={onSelect} title={title} />
     )
   }
 
@@ -115,18 +113,49 @@ export function Menu({
             { backgroundColor: tokens.bgSheet, left: position.left, top: position.top },
           ]}
         >
-          <MenuItems items={orderedItems} onClose={onClose} onSelect={onSelect} />
+          <MenuItems
+            items={orderedItems}
+            onActivate={(id) => {
+              onSelect?.(id)
+              onClose?.()
+            }}
+          />
         </View>
       </View>
     </Modal>
   )
 }
 
-function MenuItems({
+/** The sheet presentation closes through the native dismissal before it reports the choice. */
+function MenuSheet({
   items,
   onSelect,
   onClose,
-}: Readonly<Pick<MenuProps, 'items' | 'onSelect' | 'onClose'>>) {
+  title,
+}: Readonly<Pick<MenuProps, 'items' | 'onSelect' | 'onClose' | 'title'>>) {
+  const { sheetRef, closeSheet } = useSheetHost()
+
+  return (
+    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+      <MenuItems
+        items={items}
+        onActivate={(id) =>
+          closeSheet(() => {
+            onClose?.()
+            onSelect?.(id)
+          })
+        }
+      />
+    </Sheet>
+  )
+}
+
+interface MenuItemsProps {
+  items: MenuProps['items']
+  onActivate: (id: string) => void
+}
+
+function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -138,10 +167,7 @@ function MenuItems({
         accessibilityRole="menuitem"
         accessibilityState={{ disabled }}
         disabled={disabled}
-        onPress={() => {
-          onSelect?.(item.id)
-          onClose?.()
-        }}
+        onPress={() => onActivate(item.id)}
         style={({ pressed }) => [
           styles.item,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,

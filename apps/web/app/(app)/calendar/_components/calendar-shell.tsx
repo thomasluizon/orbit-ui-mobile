@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface CalendarHeaderProps {
   monthLabel: string
@@ -34,10 +34,13 @@ export function CalendarHeader({
   onSelectYear,
 }: Readonly<CalendarHeaderProps>) {
   const [isYearOpen, setIsYearOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
 
   function handleSelectYear(nextYear: number) {
-    onSelectYear(nextYear)
-    setIsYearOpen(false)
+    closeSheet(() => {
+      setIsYearOpen(false)
+      onSelectYear(nextYear)
+    })
   }
 
   return (
@@ -103,7 +106,7 @@ export function CalendarHeader({
         </button>
       </div>
 
-      {isYearOpen ? <Sheet open title={selectYearLabel} onClose={() => setIsYearOpen(false)}>
+      {isYearOpen ? <Sheet ref={sheetRef} open title={selectYearLabel} onClose={() => setIsYearOpen(false)}>
         <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
       </Sheet> : null}
     </div>

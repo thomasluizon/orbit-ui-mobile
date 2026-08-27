@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   startAndroidUpdate,
@@ -39,10 +39,11 @@ function VersionUpdateSheet({
   onLater,
 }: Readonly<VersionUpdateSheetProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   if (!open) return null
 
   return (
-    <Sheet open onClose={onLater} title={title}>
+    <Sheet ref={sheetRef} open onClose={onLater} title={title}>
       <View style={styles.container}>
         <Text style={styles.title}>{latestVersion ? `Orbit ${latestVersion}` : title}</Text>
         {currentVersion && latestVersion ? (
@@ -51,8 +52,8 @@ function VersionUpdateSheet({
         <Text style={styles.description}>{description}</Text>
         <View style={styles.spacer} />
         <View style={styles.buttons}>
-          <PillButton onClick={onAction}>{actionLabel}</PillButton>
-          <PillButton variant="ghost" onClick={onLater}>
+          <PillButton onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('versionUpdate.laterCta')}
           </PillButton>
         </View>

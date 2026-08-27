@@ -139,12 +139,7 @@ function DeleteConfirmStep({
           disabled={deleteLoading}
           onPress={onRequestDeletion}
         />
-        <PillButton
-          variant="ghost"
-
-          disabled={deleteLoading}
-          onClick={onClose}
-        >
+        <PillButton variant="ghost" disabled={deleteLoading} onClick={onClose}>
           {t('common.cancel')}
         </PillButton>
       </View>
@@ -415,7 +410,7 @@ export function DeleteAccountModal({
         onRequestDeletion={() => {
           void handleRequestDeletion()
         }}
-        onClose={onClose}
+        onClose={() => closeSheet()}
       />
     )
   } else if (deleteStep === 'code') {

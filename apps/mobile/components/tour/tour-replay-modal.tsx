@@ -20,7 +20,7 @@ import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -41,6 +41,7 @@ interface TourReplayModalProps {
 
 export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -75,7 +76,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
   }, [visible])
 
   const handleReplayAll = useCallback(async () => {
-    onClose()
+    closeSheet(onClose)
 
     try {
       await apiClient(API.profile.tour, { method: 'DELETE' })
@@ -91,18 +92,21 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
     )
 
     startFullTour()
-  }, [onClose, queryClient, startFullTour])
+  }, [closeSheet, onClose, queryClient, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
-      onClose()
-      startSectionReplay(section)
+      closeSheet(() => {
+        onClose()
+        startSectionReplay(section)
+      })
     },
-    [onClose, startSectionReplay],
+    [closeSheet, onClose, startSectionReplay],
   )
 
   return (
     visible ? (<Sheet
+      ref={sheetRef}
       open
       onClose={onClose}
       title={t('tour.replay.modalTitle')}

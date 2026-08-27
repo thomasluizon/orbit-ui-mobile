@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 
@@ -49,6 +49,7 @@ interface UpdateGoalRequest {
 
 export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -146,13 +147,14 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
       }
 
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
-      onClose()
+      closeSheet(onClose)
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
       )
     }
   }, [
+    closeSheet,
     deadline,
     description,
     goal.id,
@@ -172,6 +174,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={t('goals.detail.edit')}

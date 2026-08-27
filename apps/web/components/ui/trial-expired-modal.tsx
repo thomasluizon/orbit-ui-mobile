@@ -6,7 +6,7 @@ import { Crown } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
@@ -21,6 +21,7 @@ const PAUSED_FEATURES = [
 
 export function TrialExpiredModal() {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
   const router = useRouter()
   const pathname = usePathname()
   const trialExpired = useTrialExpired()
@@ -35,7 +36,7 @@ export function TrialExpiredModal() {
     // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `mounted` (useIsClient) short-circuit at the head of this expression; localStorage is only read on the client, never during SSR https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     !localStorage.getItem(STORAGE_KEY)
 
-  function dismiss() {
+  function hide() {
     setDismissed(true)
     localStorage.setItem(STORAGE_KEY, '1')
   }
@@ -44,24 +45,25 @@ export function TrialExpiredModal() {
 
   return (
     <Sheet
+      ref={sheetRef}
       open
-      onClose={() => ((open) => {
-        if (!open) dismiss()
-      })(false)}
+      onClose={hide}
       title={t('trial.expired.heading')}
       actions={
         <div className="flex flex-col" style={{ gap: 10 }}>
           <PillButton
             variant="primary"
 
-            onClick={() => {
-              dismiss()
-              router.push('/upgrade')
-            }}
+            onClick={() =>
+              closeSheet(() => {
+                hide()
+                router.push('/upgrade')
+              })
+            }
           >
             {t('trial.expired.subscribe')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={dismiss}>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('trial.expired.continueFree')}
           </PillButton>
         </div>

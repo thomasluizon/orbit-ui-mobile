@@ -64,11 +64,11 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     const request = buildRescheduleUpdateRequest(habit, suggestion)
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      onOpenChange(false)
+      closeSheet(() => onOpenChange(false))
     } catch (mutationError: unknown) {
       showError(getFriendlyErrorMessage(mutationError, translate, 'errors.updateHabit', 'habit'))
     }
-  }, [habit, suggestion, updateHabit, onOpenChange, showError, translate])
+  }, [closeSheet, habit, suggestion, updateHabit, onOpenChange, showError, translate])
 
   const scheduleLabel = suggestion
     ? computeHabitFrequencyLabel(
@@ -175,9 +175,8 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         </PillButton>
         <PillButton
           variant="ghost"
-
           disabled={updateHabit.isPending}
-          onClick={() => onOpenChange(false)}
+          onClick={() => closeSheet()}
         >
           {t('habits.reschedule.dismiss')}
         </PillButton>

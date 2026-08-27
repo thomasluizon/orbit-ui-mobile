@@ -136,6 +136,59 @@ describe('RescheduleSheet (mobile)', () => {
     sheetTestControls.defer(false)
   })
 
+  it('applies the accepted suggestion, then closes only once the sheet dismisses', async () => {
+    mockProfile = { hasProAccess: true, language: 'en' }
+    mockReschedule.suggestion = createMockRescheduleSuggestion({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 2,
+      dueDate: '2025-02-01',
+      dueTime: null,
+    })
+    mockUpdateMutateAsync.mockResolvedValue(undefined)
+    const onOpenChange = vi.fn()
+    sheetTestControls.defer(true)
+
+    const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+
+    await TestRenderer.act(async () => {
+      pressButton(tree.root, 'habits.reschedule.accept')
+      await Promise.resolve()
+    })
+
+    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1)
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    sheetTestControls.defer(false)
+  })
+
+  it('dismisses a pro user through the sheet rather than unmounting it', () => {
+    mockProfile = { hasProAccess: true, language: 'en' }
+    mockReschedule.suggestion = createMockRescheduleSuggestion({})
+    const onOpenChange = vi.fn()
+    sheetTestControls.defer(true)
+
+    const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'habits.reschedule.dismiss')
+    })
+
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    sheetTestControls.defer(false)
+  })
+
   it('shows an error with a retry that refetches', () => {
     mockReschedule.error = new Error('unavailable')
 

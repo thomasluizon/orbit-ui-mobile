@@ -89,9 +89,12 @@ export function CalendarImportPrompt() {
         </PillButton>
         <Pressable
           style={styles.quietRow}
-          onPress={() => {
-            void dismissPrompt()
-          }}
+          onPress={() =>
+            closeSheet(() => {
+              setSheetMounted(false)
+              void dismissPrompt()
+            })
+          }
           accessibilityRole="button"
         >
           <Text style={styles.quietText}>{t('common.later')}</Text>

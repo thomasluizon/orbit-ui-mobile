@@ -10,7 +10,7 @@ import {
   canPromptReferral,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -52,6 +52,7 @@ export function ReferralPrompt() {
     armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showDrawer, setShowDrawer] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -95,19 +96,22 @@ export function ReferralPrompt() {
       : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
 
   function dismiss() {
-    setVisibleKey(null)
+    closeSheet()
   }
 
   function openDrawer() {
-    setVisibleKey(null)
-    setShowDrawer(true)
+    closeSheet(() => {
+      setVisibleKey(null)
+      setShowDrawer(true)
+    })
   }
 
   return (
     <>
       {visibleKey !== null ? (<Sheet
+        ref={sheetRef}
         open
-        onClose={dismiss}
+        onClose={() => setVisibleKey(null)}
         title={title}
         key={visibleKey}
       >

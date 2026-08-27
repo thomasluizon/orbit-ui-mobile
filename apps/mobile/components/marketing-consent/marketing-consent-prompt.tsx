@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -47,6 +47,7 @@ export function MarketingConsentPrompt() {
 
   const isArmed = armedPrompt?.kind === 'consent'
   const [visible, setVisible] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const mutation = useMutation({
@@ -93,12 +94,15 @@ export function MarketingConsentPrompt() {
   }, [isArmed, celebrationInFlight, visible, markEngagementPrompted])
 
   function answer(enabled: boolean) {
-    setVisible(false)
-    mutation.mutate(enabled)
+    closeSheet(() => {
+      setVisible(false)
+      mutation.mutate(enabled)
+    })
   }
 
   return (
     visible ? (<Sheet
+      ref={sheetRef}
       open
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}

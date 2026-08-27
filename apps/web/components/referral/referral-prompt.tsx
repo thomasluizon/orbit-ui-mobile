@@ -12,7 +12,7 @@ import {
   canPromptReferral,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useUIStore } from '@/stores/ui-store'
@@ -32,6 +32,7 @@ function enterTransition(delayMs: number) {
 /** One-shot milestone nudge: shows once no celebration is in flight and the re-prompt guard allows it, then hands off to the referral drawer. */
 export function ReferralPrompt() {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
   const prefersReducedMotion = useReducedMotion()
   const queryClient = useQueryClient()
   const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
@@ -92,21 +93,22 @@ export function ReferralPrompt() {
       : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
 
   function dismiss() {
-    setVisibleKey(null)
+    closeSheet()
   }
 
   function openDrawer() {
-    setVisibleKey(null)
-    setShowDrawer(true)
+    closeSheet(() => {
+      setVisibleKey(null)
+      setShowDrawer(true)
+    })
   }
 
   return (
     <>
       {visibleKey !== null ? (<Sheet
+        ref={sheetRef}
         open
-        onClose={() => ((open) => {
-          if (!open) dismiss()
-        })(false)}
+        onClose={() => setVisibleKey(null)}
         title={title}
       >
         <LazyMotion features={domAnimation}>

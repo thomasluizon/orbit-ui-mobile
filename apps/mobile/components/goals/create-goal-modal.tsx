@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 
@@ -44,6 +44,7 @@ interface CreateGoalRequest {
 
 export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -85,10 +86,11 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
 
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => {
-      resetForm()
-      onClose()
-    },
+    onDismiss: () =>
+      closeSheet(() => {
+        resetForm()
+        onClose()
+      }),
   })
 
   const fieldErrors = useMemo(() => {
@@ -153,14 +155,17 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
       if (deadline) request.deadline = deadline
 
       await createGoal.mutateAsync(request)
-      onClose()
-      resetForm()
+      closeSheet(() => {
+        onClose()
+        resetForm()
+      })
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'),
       )
     }
   }, [
+    closeSheet,
     createGoal,
     deadline,
     description,
@@ -176,6 +181,7 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={t('goals.create')}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 import { ChevronDown } from '@/components/ui/icons'
 import { RadioRow } from '@/components/ui/select-check'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -22,6 +22,7 @@ export function SelectionField({ value, onChange, options, label }: Readonly<Sel
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [open, setOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const selected = options.find((option) => option.value === value)
 
   return (
@@ -45,17 +46,19 @@ export function SelectionField({ value, onChange, options, label }: Readonly<Sel
         <ChevronDown size={20} strokeWidth={1.8} color={tokens.fg4} />
       </Pressable>
       {open ? (
-        <Sheet open title={label} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open title={label} onClose={() => setOpen(false)}>
           {options.map((option, index) => (
             <RadioRow
               key={option.value}
               label={option.label}
               selected={option.value === value}
               divider={index < options.length - 1}
-              onPress={() => {
-                onChange(option.value)
-                setOpen(false)
-              }}
+              onPress={() =>
+                closeSheet(() => {
+                  setOpen(false)
+                  onChange(option.value)
+                })
+              }
             />
           ))}
         </Sheet>

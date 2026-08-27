@@ -32,22 +32,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children, title, actions }: {
-    open: true
-    children: React.ReactNode
-    title?: string
-    actions?: React.ReactNode
-  }) => {
-    return (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        {children}
-        {actions}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 
@@ -82,7 +67,7 @@ describe('TrialExpiredModal', () => {
   it('renders the modal when trial is expired and not dismissed', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.heading')).toBeInTheDocument()
   })
 
@@ -131,9 +116,13 @@ describe('TrialExpiredModal', () => {
     expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
   })
 
-  it('dismisses when overlay onOpenChange is called with false', () => {
+  it('dismisses through the sheet when the close control is used', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
+
+    expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
   })
 })

@@ -8,7 +8,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { useUIStore } from '@/stores/ui-store'
@@ -41,6 +41,7 @@ function resolveVariant(
 /** Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to native share/download. */
 export function MilestoneSharePrompt() {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
   const queryClient = useQueryClient()
   const armedPrompt = useEngagementPromptStore((s) => s.armedPrompt)
   const markEngagementPrompted = useEngagementPromptStore((s) => s.markEngagementPrompted)
@@ -94,7 +95,7 @@ export function MilestoneSharePrompt() {
   const referralUrl = buildReferralUrl(cachedReferral?.code)
 
   function dismiss() {
-    setVisibleKey(null)
+    closeSheet()
   }
 
   function handleShare() {
@@ -107,10 +108,9 @@ export function MilestoneSharePrompt() {
 
   return (
     variant !== null ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={() => ((open) => {
-        if (!open) dismiss()
-      })(false)}
+      onClose={() => setVisibleKey(null)}
     >
       <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
           <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />

@@ -21,7 +21,7 @@ import {
 } from '@/lib/offline-mutations'
 import * as offlineQueue from '@/lib/offline-queue'
 import { clearPersistedQueryCache } from '@/lib/query-client'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
@@ -90,6 +90,7 @@ interface FreshStartModalProps {
 }
 
 export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -156,8 +157,10 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       ])
       queryClient.clear()
       await clearPersistedQueryCache()
-      onClose()
-      setShowFreshStartAnim(true)
+      closeSheet(() => {
+        onClose()
+        setShowFreshStartAnim(true)
+      })
     } catch (err: unknown) {
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
@@ -178,6 +181,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={onClose}
         title={
@@ -252,7 +256,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 label={t('common.continue')}
                 onPress={() => setResetStep('confirm')}
               />
-              <PillButton variant="ghost"  onClick={onClose}>
+              <PillButton variant="ghost" onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
             </View>
@@ -300,12 +304,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                   void handleResetAccount()
                 }}
               />
-              <PillButton
-                variant="ghost"
-
-                disabled={resetLoading}
-                onClick={onClose}
-              >
+              <PillButton variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
             </View>

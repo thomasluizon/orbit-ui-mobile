@@ -108,9 +108,12 @@ export function AstraImportPrompt() {
         </PillButton>
         <Pressable
           style={styles.quietRow}
-          onPress={() => {
-            void markSeen()
-          }}
+          onPress={() =>
+            closeSheet(() => {
+              setSheetMounted(false)
+              void markSeen()
+            })
+          }
           accessibilityRole="button"
         >
           <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>

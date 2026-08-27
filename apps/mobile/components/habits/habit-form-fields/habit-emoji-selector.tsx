@@ -6,7 +6,7 @@ import {
   HABIT_EMOJI_CATEGORIES,
   filterHabitEmojiCategories,
 } from "@orbit/shared/utils";
-import { Sheet } from '@/components/ui/sheet';
+import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { type AppTokens, createStyles } from "./styles";
 
@@ -25,6 +25,7 @@ export function HabitEmojiSelector({
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { sheetRef, closeSheet } = useSheetHost();
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const searchedCategories = useMemo(() => filterHabitEmojiCategories(query), [query]);
@@ -35,15 +36,17 @@ export function HabitEmojiSelector({
     [searchedCategories, selectedCategoryId],
   );
 
-  const closePicker = useCallback(() => {
+  const hidePicker = useCallback(() => {
     setPickerOpen(false);
     setQuery("");
     setSelectedCategoryId(null);
   }, []);
 
   function handleSelectEmoji(emoji: string) {
-    onSelect(emoji);
-    closePicker();
+    closeSheet(() => {
+      hidePicker();
+      onSelect(emoji);
+    });
   }
 
   function handleSelectCategory(categoryId: string) {
@@ -74,8 +77,9 @@ export function HabitEmojiSelector({
       </Pressable>
 
       {pickerOpen ? (<Sheet
+        ref={sheetRef}
         open
-        onClose={closePicker}
+        onClose={hidePicker}
         title={t("habits.form.emojiPickerTitle")}
       >
         <View style={styles.emojiSheetContent}>

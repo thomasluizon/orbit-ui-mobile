@@ -1,7 +1,8 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -43,7 +44,7 @@ vi.mock('@/components/ui/pill-button', () => ({
 }))
 
 function renderPrompt() {
-  let tree: { root: { findAllByType: (type: string) => unknown[] } } | null = null
+  let tree: any = null
   TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(CalendarImportPrompt))
   })
@@ -93,5 +94,48 @@ describe('CalendarImportPrompt gating', () => {
     mocks.profile = baseProfile()
     mocks.pathname = '/calendar-sync'
     expect(sheetCount(renderPrompt())).toBe(0)
+  })
+})
+
+/**
+ * Later used to call `dismissPrompt()` straight through, which flipped the
+ * gating state and unmounted a presented TrueSheet. It has to wait for the
+ * dismissal.
+ */
+describe('CalendarImportPrompt quiet dismissal', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('keeps the sheet mounted until the dismissal completes, then dismisses the prompt', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    const rows = tree.root.findAll(
+      (node: any) =>
+        node.type === 'Pressable' &&
+        node.findAll(
+          (child: any) => child.type === 'Text' && child.props.children === 'common.later',
+        ).length > 0,
+    )
+    const later = rows.at(-1)
+    if (!later) throw new Error('Later action not found')
+    TestRenderer.act(() => {
+      later.props.onPress()
+    })
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
   })
 })

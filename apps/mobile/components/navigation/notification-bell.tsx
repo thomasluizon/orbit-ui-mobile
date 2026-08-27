@@ -12,7 +12,7 @@ import {
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SkeletonLine } from '@/components/ui/skeleton'
@@ -149,6 +149,7 @@ function NotificationListEmpty({
 }
 
 export function NotificationBell() {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -204,12 +205,14 @@ export function NotificationBell() {
   }, [cancelPendingDelete, deleteNotification, showQueued, t])
 
   function handlePress(notification: NotificationItem) {
-    setSelectedNotification(notification)
-    setIsDetailOpen(true)
-    setIsOpen(false)
-    if (!notification.isRead) {
-      markAsRead.mutate(notification.id)
-    }
+    closeSheet(() => {
+      setIsOpen(false)
+      setSelectedNotification(notification)
+      setIsDetailOpen(true)
+      if (!notification.isRead) {
+        markAsRead.mutate(notification.id)
+      }
+    })
   }
 
   function handleDetailMarkAsRead(id: string) {
@@ -266,6 +269,7 @@ export function NotificationBell() {
       </Pressable>
 
       {isOpen ? (<Sheet
+        ref={sheetRef}
         open
         onClose={() => setIsOpen(false)}
         title={t('notifications.title')}

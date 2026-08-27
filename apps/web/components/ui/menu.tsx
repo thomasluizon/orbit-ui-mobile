@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 const DEFAULT_WIDE_FROM = 900
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
@@ -40,13 +40,43 @@ function useWidePresentation(wideFrom: number): boolean {
   return wide
 }
 
-interface MenuItemsProps {
+/** The sheet presentation closes through its exit transition before it reports the choice. */
+function MenuSheet({
+  items,
+  onSelect,
+  onClose,
+  title,
+}: Readonly<{
   items: readonly MenuItem[]
   onSelect?: (id: string) => void
   onClose?: () => void
+  title?: string
+}>) {
+  const { sheetRef, closeSheet } = useSheetHost()
+
+  return (
+    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+      <div role="menu" aria-label={title}>
+        <MenuItems
+          items={items}
+          onActivate={(id) =>
+            closeSheet(() => {
+              onClose?.()
+              onSelect?.(id)
+            })
+          }
+        />
+      </div>
+    </Sheet>
+  )
 }
 
-function MenuItems({ items, onSelect, onClose }: Readonly<MenuItemsProps>) {
+interface MenuItemsProps {
+  items: readonly MenuItem[]
+  onActivate: (id: string) => void
+}
+
+function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
   return (
     <div className="orbit-menu-items">
       {orderedItems(items).map((item) => {
@@ -59,10 +89,7 @@ function MenuItems({ items, onSelect, onClose }: Readonly<MenuItemsProps>) {
             disabled={disabled}
             data-destructive={item.destructive || undefined}
             className="orbit-menu-item"
-            onClick={() => {
-              onSelect?.(item.id)
-              onClose?.()
-            }}
+            onClick={() => onActivate(item.id)}
           >
             {item.icon ? <Icon name={item.icon} size={20} /> : null}
             <span className="orbit-menu-label">{item.label}</span>
@@ -168,13 +195,7 @@ export function Menu({
   if (!open || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return (
-      <Sheet open title={title} onClose={onClose}>
-        <div role="menu" aria-label={title}>
-          <MenuItems items={items} onSelect={onSelect} onClose={onClose} />
-        </div>
-      </Sheet>
-    )
+    return <MenuSheet items={items} onClose={onClose} onSelect={onSelect} title={title} />
   }
 
   if (!portalTarget) return null
@@ -189,7 +210,13 @@ export function Menu({
       style={position ? { left: position.left, top: position.top, transformOrigin: position.origin } : undefined}
       onKeyDown={handleMenuKeyDown}
     >
-      <MenuItems items={items} onSelect={onSelect} onClose={onClose} />
+      <MenuItems
+        items={items}
+        onActivate={(id) => {
+          onSelect?.(id)
+          onClose?.()
+        }}
+      />
     </div>,
     portalTarget,
   )

@@ -25238,6 +25238,7 @@
         "apps/mobile/__tests__/components/upgrade/plan-comparison-cards.test.tsx",
         "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/mobile/__tests__/components/upgrade/pricing-footer.test.tsx",
+        "apps/mobile/__tests__/components/version-update-drawer.test.tsx",
         "apps/mobile/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/mobile/__tests__/hooks/use-today-selection.test.tsx",
         "apps/mobile/__tests__/stores/ui-store.test.ts"

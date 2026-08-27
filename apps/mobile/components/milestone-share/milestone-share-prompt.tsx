@@ -7,7 +7,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
@@ -60,6 +60,7 @@ export function MilestoneSharePrompt() {
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
@@ -101,11 +102,11 @@ export function MilestoneSharePrompt() {
   const referralUrl = buildReferralUrl(cachedReferral?.code)
 
   function dismiss() {
-    setVisibleKey(null)
+    closeSheet()
   }
 
   return (
-    variant !== null ? (<Sheet open onClose={dismiss}>
+    variant !== null ? (<Sheet ref={sheetRef} open onClose={() => setVisibleKey(null)}>
       <View style={styles.content}>
           <View style={styles.cardWrap}>
             <MilestoneShareCard ref={shareRef} variant={variant} referralUrl={referralUrl} />

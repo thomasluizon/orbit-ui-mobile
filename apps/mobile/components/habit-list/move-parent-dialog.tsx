@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGlyph } from '@/components/ui/select-check'
@@ -127,6 +127,7 @@ export function MoveParentDialog({
   onConfirm,
   onSelectOption,
 }: Readonly<MoveParentDialogProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
@@ -150,15 +151,16 @@ export function MoveParentDialog({
 
   const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
-  const handleClose = () => {
+  const hideDialog = () => {
     setSearchQuery('')
     onClose()
   }
 
   return (
     visible ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={isPending ? undefined : handleClose}
+      onClose={isPending ? undefined : hideDialog}
       title={t('habits.moveParent.title')}
     >
       <View style={styles.sheetBody}>
@@ -223,7 +225,7 @@ export function MoveParentDialog({
           <PillButton
             variant="ghost"
             disabled={isPending}
-            onClick={handleClose}
+            onClick={() => closeSheet()}
 
           >
             {t('common.cancel')}

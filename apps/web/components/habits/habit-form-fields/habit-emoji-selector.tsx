@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface HabitEmojiSelectorProps {
   selectedEmoji: string
@@ -12,6 +12,7 @@ interface HabitEmojiSelectorProps {
 export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [query, setQuery] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const searchedCategories = useMemo(() => filterHabitEmojiCategories(query), [query])
@@ -22,15 +23,17 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
     [searchedCategories, selectedCategoryId],
   )
 
-  const closePicker = useCallback(() => {
+  const hidePicker = useCallback(() => {
     setPickerOpen(false)
     setQuery('')
     setSelectedCategoryId(null)
   }, [])
 
   function handleSelectEmoji(emoji: string) {
-    onSelect(emoji)
-    closePicker()
+    closeSheet(() => {
+      hidePicker()
+      onSelect(emoji)
+    })
   }
 
   function handleSelectCategory(categoryId: string) {
@@ -57,7 +60,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
         {selectedEmoji || <Plus size={22} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
       </button>
 
-      {pickerOpen ? <Sheet open title={t('habits.form.emojiPickerTitle')} onClose={closePicker}>
+      {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker}>
         <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
           <div className="flex items-center gap-3">
             <span
@@ -79,7 +82,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
           <button
             type="button"
             className="touch-target grid size-10 place-items-center rounded-full text-[var(--fg-2)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-colors duration-[var(--dur-fast)]"
-            onClick={closePicker}
+            onClick={() => closeSheet()}
             aria-label={t('common.close')}
           >
             <X size={20} strokeWidth={1.8} aria-hidden="true" />
