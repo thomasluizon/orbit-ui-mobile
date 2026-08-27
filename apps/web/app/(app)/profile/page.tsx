@@ -26,7 +26,6 @@ export default function ProfilePage() {
         <ProfileIdentityHeader
           isLoading={screen.isLoading}
           showPlanBadge={!!screen.showPlanBadge}
-          planBadgeTone={screen.planBadgeTone}
           planBadgeLabel={screen.planBadgeLabel}
           name={screen.profile?.name}
           identityLine={screen.identityLine}

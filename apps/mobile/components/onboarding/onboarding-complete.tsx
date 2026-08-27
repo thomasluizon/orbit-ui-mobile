@@ -187,17 +187,17 @@ export function OnboardingComplete({
 
       {profile?.isTrialActive && (
         <Animated.View style={riseSlot(0.4, 0.85)}>
-          <InfoCard
-            title={t('onboarding.flow.complete.trialTitle')}
-            desc={t('onboarding.flow.complete.trialDesc', {
-              date: formattedTrialEnd,
-            })}
-          />
+          <InfoCard>
+            <Text style={{ color: tokens.fg1 }}>{t('onboarding.flow.complete.trialTitle')}</Text>
+            <Text style={{ color: tokens.fg2 }}>
+              {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
+            </Text>
+          </InfoCard>
         </Animated.View>
       )}
 
       <Animated.View style={[styles.startBtnWrap, riseSlot(0.55, 1)]}>
-        <PillButton fullWidth onPress={onFinish}>
+        <PillButton  onClick={onFinish}>
           {finishLabel ?? t('onboarding.flow.complete.start')}
         </PillButton>
       </Animated.View>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { Check, Plus, Loader2 } from '@/components/ui/icons'
+import { Check, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
@@ -199,18 +199,18 @@ export function BreakdownSuggestion({
 
       <div className="flex gap-2 pt-1">
         <PillButton
-          className="flex-1 py-[11px]! text-[14px]!"
+
           disabled={validHabits.length === 0 || isSubmitting}
           onClick={() => {
             void handleConfirm()
           }}
-          leading={isSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : undefined}
+
         >
           {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
         </PillButton>
         <PillButton
           variant="ghost"
-          className="py-[11px]! text-[14px]! px-[18px]!"
+
           disabled={isSubmitting}
           onClick={onCancelled}
         >

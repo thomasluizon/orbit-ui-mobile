@@ -192,7 +192,7 @@ function DangerPillButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-[26px] py-4 text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-bad)',
@@ -291,7 +291,7 @@ function DeleteConfirmStep({
         <DangerPillButton disabled={loading} onClick={onRequestDeletion}>
           {loading ? t('profile.deleteAccount.sending') : t('profile.deleteAccount.sendCode')}
         </DangerPillButton>
-        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
+        <PillButton variant="ghost"  disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>
@@ -364,7 +364,7 @@ function DeleteCodeStep({
         >
           {loading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}
         </DangerPillButton>
-        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onBack}>
+        <PillButton variant="ghost"  disabled={loading} onClick={onBack}>
           {t('common.back')}
         </PillButton>
       </div>
@@ -397,7 +397,7 @@ function DeleteDeactivatedStep({
         className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
         style={{ paddingTop: 8 }}
       >
-        <PillButton fullWidth onClick={onLogout}>
+        <PillButton  onClick={onLogout}>
           {t('profile.logout')}
         </PillButton>
       </div>

@@ -215,9 +215,9 @@ function NextFreezeRow({
         />
       </View>
       <ProgressBar
-        progress={nextFreezeProgress}
+        value={nextFreezeProgress} max={1}
         label={t('streakDisplay.freeze.nextFreeze.label')}
-        color={tokens.statusFrozen}
+
       />
     </View>
   )

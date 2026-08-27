@@ -46,9 +46,9 @@ export function UpgradeRequiredScreen() {
         {i18n.t('forceUpdate.description')}
       </Text>
       <PillButton
-        onPress={openPlayListing}
-        accessibilityLabel={i18n.t('forceUpdate.cta')}
-        style={styles.cta}
+        onClick={openPlayListing}
+
+
       >
         {i18n.t('forceUpdate.cta')}
       </PillButton>

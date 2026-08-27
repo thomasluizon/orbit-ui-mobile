@@ -12,7 +12,7 @@ import { PillButton } from '@/components/ui/pill-button'
 const TestRenderer = require('react-test-renderer')
 
 const createHabitsBulk = vi.fn<
-  (items: Array<{ title: string; emoji?: string | null; tags?: string[] | null }>) => Promise<void>
+  (items: { title: string; emoji?: string | null; tags?: string[] | null }[]) => Promise<void>
 >(async () => {})
 const onCreated = vi.fn()
 const onCreateOwn = vi.fn()
@@ -118,7 +118,7 @@ describe('OnboardingTemplatePacks (mobile)', () => {
 
     const cta = tree.root.findByType(PillButton)
     await TestRenderer.act(async () => {
-      await (cta.props.onPress as () => Promise<void>)()
+      await (cta.props.onClick as () => Promise<void>)()
     })
 
     expect(createHabitsBulk).toHaveBeenCalledTimes(1)

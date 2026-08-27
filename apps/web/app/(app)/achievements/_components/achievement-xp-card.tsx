@@ -71,7 +71,7 @@ export function AchievementXpCard({
         </div>
 
         <ProgressBar
-          progress={xpProgress / 100}
+          value={xpProgress / 100} max={1}
           label={t('gamification.profileCard.xp', {
             current: formatNum(profile.totalXp),
             next: formatNum(profile.xpForNextLevel),

@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Download, Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
@@ -234,28 +233,22 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
       <div className="flex w-full" style={{ gap: 10, maxWidth: 360 }}>
         {canShareFiles && (
           <PillButton
-            className="min-w-0 flex-1"
-            busy={isSharing}
+
+            loading={isSharing}
             disabled={isSharing}
             onClick={handleShare}
-            leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+
           >
             {t('shareCard.share')}
           </PillButton>
         )}
         <PillButton
-          className="min-w-0 flex-1"
+
           variant={canShareFiles ? 'ghost' : 'primary'}
-          busy={isSharing}
+          loading={isSharing}
           disabled={isSharing}
           onClick={() => void download()}
-          leading={
-            <Download
-              size={18}
-              strokeWidth={1.8}
-              color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
-            />
-          }
+
         >
           {t('shareCard.download')}
         </PillButton>

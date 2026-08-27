@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
-import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -241,22 +240,20 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
           <View style={styles.footer}>
             <PillButton
               variant="ghost"
-              style={styles.footerButton}
+
               disabled={isSubmitting}
-              onPress={dismissGuard.requestDismiss}
-              accessibilityLabel={t('common.cancel')}
+              onClick={dismissGuard.requestDismiss}
+
             >
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              style={styles.footerButton}
-              onPress={() => void onSubmit()}
+
+              onClick={() => void onSubmit()}
               disabled={isSubmitting}
-              busy={isSubmitting}
-              leading={
-                <Check size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />
-              }
-              accessibilityLabel={t('goals.create')}
+              loading={isSubmitting}
+
+
             >
               {t('goals.create')}
             </PillButton>

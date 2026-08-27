@@ -118,7 +118,7 @@ export function OnboardingComplete({
           <div
             key={item.key}
             className="flex items-center justify-between"
-            style={{ padding: '11px 0', borderBottom: '1px solid var(--hairline)' }}
+            style={{ padding: '12px 0', borderBottom: '1px solid var(--hairline)' }}
           >
             <span
               style={{
@@ -141,10 +141,12 @@ export function OnboardingComplete({
             animationDelay: '380ms',
           }}
         >
-          <InfoCard
-            title={t('onboarding.flow.complete.trialTitle')}
-            desc={t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
-          />
+          <InfoCard>
+            <strong className="block text-[var(--fg-1)]">{t('onboarding.flow.complete.trialTitle')}</strong>
+            <p className="mt-1 text-sm text-[var(--fg-2)]">
+              {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
+            </p>
+          </InfoCard>
         </div>
       )}
 
@@ -155,7 +157,7 @@ export function OnboardingComplete({
           animationDelay: '440ms',
         }}
       >
-        <PillButton fullWidth onClick={onFinish}>
+        <PillButton  onClick={onFinish}>
           {finishLabel ?? t('onboarding.flow.complete.start')}
         </PillButton>
       </div>

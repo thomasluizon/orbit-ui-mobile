@@ -1,6 +1,11 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
+import { useUIStore } from '@/stores/ui-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -59,17 +64,12 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
-    onPress,
+    onClick,
   }: {
     children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+    onClick?: () => void
+  }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
-
-import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
-import { useUIStore } from '@/stores/ui-store'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
-import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -188,7 +188,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
 
     const [accept] = findByType(tree, 'PillButtonStub')
     await TestRenderer.act(async () => {
-      accept!.props.onPress?.()
+      ;(accept!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()
     })
 

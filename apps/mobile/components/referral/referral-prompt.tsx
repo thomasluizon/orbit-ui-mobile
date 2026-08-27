@@ -128,7 +128,7 @@ export function ReferralPrompt() {
             {t('referral.prompt.body', { discount })}
           </Animated.Text>
           <Animated.View entering={enterAnimation(140)} style={styles.actions}>
-            <PillButton fullWidth onPress={openDrawer}>
+            <PillButton  onClick={openDrawer}>
               {t('referral.prompt.cta')}
             </PillButton>
             <Pressable

@@ -30,7 +30,7 @@ export function HabitDetailStatsGrid({
         <SectionLabel>{t('habits.detail.stats')}</SectionLabel>
         <div className="flex" style={{ gap: 12, padding: '0 20px 12px' }}>
           <StatTile
-            emoji={isBadHabit ? '🛡️' : '🔥'}
+
             value={String(metrics.currentStreak)}
             label={
               isBadHabit
@@ -39,12 +39,12 @@ export function HabitDetailStatsGrid({
             }
           />
           <StatTile
-            emoji="🏆"
+
             value={String(metrics.longestStreak)}
             label={t('habits.detail.longestStreak')}
           />
           <StatTile
-            emoji="📈"
+
             value={`${Math.round(metrics.monthlyCompletionRate)}%`}
             label={t('habits.detail.monthlyRate')}
           />

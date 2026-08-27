@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 interface ProfileIdentityHeaderProps {
   isLoading: boolean
   showPlanBadge: boolean
-  planBadgeTone: 'soft' | 'violet'
   planBadgeLabel: string
   name?: string
   identityLine?: string
@@ -17,7 +16,6 @@ interface ProfileIdentityHeaderProps {
 export function ProfileIdentityHeader({
   isLoading,
   showPlanBadge,
-  planBadgeTone,
   planBadgeLabel,
   name,
   identityLine,
@@ -47,7 +45,7 @@ export function ProfileIdentityHeader({
         </>
       ) : (
         <>
-          {showPlanBadge && <Badge tone={planBadgeTone}>{planBadgeLabel}</Badge>}
+          {showPlanBadge && <Badge >{planBadgeLabel}</Badge>}
           <button
             type="button"
             aria-label={t('profile.editName.title')}

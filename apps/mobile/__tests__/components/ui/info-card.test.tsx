@@ -1,5 +1,6 @@
 import React from 'react'
 import { describe, expect, it } from 'vitest'
+import { Text } from 'react-native'
 
 import { InfoCard } from '@/components/ui/info-card'
 
@@ -15,19 +16,21 @@ function renderCard(element: React.ReactElement) {
 
 describe('InfoCard (mobile)', () => {
   it('renders title and description', () => {
-    const tree = renderCard(<InfoCard title="Astra" desc="Sua assistente de hábitos" />)
+    const tree = renderCard(<InfoCard><Text>Astra</Text><Text>Sua assistente de hábitos</Text></InfoCard>)
     const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
     expect(texts).toEqual(expect.arrayContaining(['Astra', 'Sua assistente de hábitos']))
   })
 
-  it('renders the default sparkles icon', () => {
-    const tree = renderCard(<InfoCard title="Astra" />)
-    expect(tree.root.findAllByType('Sparkles')).toHaveLength(1)
+  it('renders without an icon', () => {
+    const tree = renderCard(<InfoCard><Text>Astra</Text></InfoCard>)
+    expect(tree.root.findAllByType('Text')).toHaveLength(1)
   })
 
   it('renders a trailing slot', () => {
     const tree = renderCard(
-      <InfoCard title="Astra" trailing={React.createElement('TrailingNode')} />,
+      <InfoCard icon={React.createElement('LeadingNode')}>
+        {React.createElement('TrailingNode')}
+      </InfoCard>,
     )
     expect(tree.root.findAllByType('TrailingNode')).toHaveLength(1)
   })

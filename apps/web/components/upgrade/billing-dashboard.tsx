@@ -1,5 +1,5 @@
 import {
-  AlertTriangle, CreditCard, Download, Receipt, Settings,
+  AlertTriangle, CreditCard, Download, Receipt,
 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { Badge } from '@/components/ui/badge'
@@ -97,15 +97,15 @@ export function BillingDashboard({
           <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--hairline)' }}>
               <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
-              <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 3 }}>
+              <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 4 }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
                   {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
                 </span>
                 {billing.cancelAtPeriodEnd && (
-                  <Badge tone="amber">{t('upgrade.billing.plan.canceledBadge')}</Badge>
+                  <Badge >{t('upgrade.billing.plan.canceledBadge')}</Badge>
                 )}
                 {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
-                  <Badge tone="bad">{t('upgrade.billing.plan.pastDue')}</Badge>
+                  <Badge >{t('upgrade.billing.plan.pastDue')}</Badge>
                 )}
               </div>
             </div>
@@ -164,9 +164,9 @@ export function BillingDashboard({
           <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
             <PillButton
               variant="secondary"
-              fullWidth
+
               onClick={onOpenPortal}
-              leading={<Settings size={18} strokeWidth={1.8} aria-hidden="true" />}
+
             >
               {t('upgrade.billing.actions.manage')}
             </PillButton>
@@ -210,7 +210,7 @@ export function BillingDashboard({
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--fg-1)' }}>
                       {formatPrice(invoice.amountPaid, invoice.currency)}
                     </div>
-                    <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 3 }}>
+                    <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 4 }}>
                       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
                         {formatBillingDate(invoice.date, locale)} · {invoiceReasonLabelFn(invoice.billingReason, t)}
                       </span>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Download } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
@@ -145,13 +144,13 @@ export function VersionUpdateDrawer() {
 
           <View style={styles.buttons}>
             <PillButton
-              fullWidth
-              onPress={installAndroidUpdate}
-              leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
+
+              onClick={installAndroidUpdate}
+
             >
               {t('versionUpdate.restartCta')}
             </PillButton>
-            <PillButton variant="ghost" fullWidth onPress={handleAndroidLater}>
+            <PillButton variant="ghost"  onClick={handleAndroidLater}>
               {t('versionUpdate.laterCta')}
             </PillButton>
           </View>
@@ -186,13 +185,13 @@ export function VersionUpdateDrawer() {
 
         <View style={styles.buttons}>
           <PillButton
-            fullWidth
-            onPress={handleIosUpdate}
-            leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
+
+            onClick={handleIosUpdate}
+
           >
             {t('versionUpdate.updateCta')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onPress={handleIosLater}>
+          <PillButton variant="ghost"  onClick={handleIosLater}>
             {t('versionUpdate.laterCta')}
           </PillButton>
         </View>

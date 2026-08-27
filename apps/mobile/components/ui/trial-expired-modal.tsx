@@ -148,15 +148,15 @@ export function TrialExpiredModal() {
 
           <View style={styles.footer}>
             <PillButton
-              fullWidth
-              onPress={() => {
+
+              onClick={() => {
                 dismiss()
                 router.push(buildUpgradeHref(pathname || '/'))
               }}
             >
               {t('trial.expired.subscribe')}
             </PillButton>
-            <PillButton variant="ghost" fullWidth onPress={dismiss}>
+            <PillButton variant="ghost"  onClick={dismiss}>
               {t('trial.expired.continueFree')}
             </PillButton>
           </View>

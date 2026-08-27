@@ -86,7 +86,7 @@ export function CalendarSyncEventRow({
               </Text>
             ) : null}
             {event.isRecurring ? (
-              <Badge tone="soft">
+              <Badge >
                 {recurrenceLabel || t('calendar.recurring')}
               </Badge>
             ) : null}

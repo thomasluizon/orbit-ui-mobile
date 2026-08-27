@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useEffectEvent } from 'react'
-import { Loader2, Check, Settings2 } from '@/components/ui/icons'
+import { Check, Settings2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'
@@ -230,11 +230,11 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 
       <div style={{ marginTop: 12 }}>
         <PillButton
-          fullWidth
+
           disabled={!title.trim() || isCreating}
-          busy={isCreating}
+          loading={isCreating}
           onClick={() => void handleCreate()}
-          leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
+
         >
           {isCreating
             ? t('onboarding.flow.createHabit.creating')

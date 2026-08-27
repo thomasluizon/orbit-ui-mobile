@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -226,24 +226,19 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
           <View style={styles.footer}>
             <PillButton
               variant="ghost"
-              style={styles.footerButton}
+
               disabled={isSubmitting}
-              onPress={dismissGuard.requestDismiss}
-              accessibilityLabel={t('common.cancel')}
+              onClick={dismissGuard.requestDismiss}
+
             >
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              style={styles.footerButton}
-              onPress={() => void onSubmit()}
+              onClick={() => void onSubmit()}
               disabled={isSubmitting}
-              accessibilityLabel={t('common.save')}
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                t('common.save')
-              )}
+              {t('common.save')}
             </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>

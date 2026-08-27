@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, Orbit } from '@/components/ui/icons'
+import { ChevronRight } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import type { createTokensV2 } from '@/lib/theme'
 import type { createDrawerStyles } from './styles'
 
@@ -30,7 +31,7 @@ export function HabitAskAstraButton({
     >
       <View style={styles.askAstraContent}>
         <View style={styles.askAstraEyebrow}>
-          <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
+          <AstraGlyph size={12} color={tokens.primary} />
           <Text
             style={[
               styles.askAstraEyebrowText,

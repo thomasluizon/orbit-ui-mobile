@@ -85,7 +85,7 @@ export function CalendarImportPrompt() {
           {t('onboarding.wizard.calendarDescription')}
         </Text>
         <View style={styles.spacer} />
-        <PillButton fullWidth onPress={handleImport}>
+        <PillButton  onClick={handleImport}>
           {t('onboarding.wizard.calendarButton')}
         </PillButton>
         <Pressable

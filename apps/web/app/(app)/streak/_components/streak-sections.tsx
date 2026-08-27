@@ -46,20 +46,20 @@ export function StreakStatsRow({
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
       <div className="flex px-5" style={{ gap: 12 }}>
         <StatTile
-          emoji="🔥"
+
           value={streak}
           label={t('streakDisplay.detail.currentStreak')}
         />
         <StatTile
-          emoji="🏆"
+
           value={longestStreak}
           label={t('streakDisplay.detail.longestStreak')}
         />
         <StatTile
-          emoji="🎖️"
+
           value={t(getStreakTierLabelKey(streak))}
           label={t('streakDisplay.detail.tierTileLabel')}
-          phraseValue
+
         />
       </div>
     </div>
@@ -164,8 +164,8 @@ function StreakDayCell({
           aria-hidden="true"
           className="absolute"
           style={{
-            top: 7,
-            bottom: 7,
+            top: 8,
+            bottom: 8,
             left: runStart ? 5 : 0,
             right: runEnd ? 5 : 0,
             background: 'color-mix(in srgb, var(--status-overdue) 16%, transparent)',
@@ -512,9 +512,9 @@ function NextFreezeRow({
         />
       </div>
       <ProgressBar
-        progress={nextFreezeProgress}
+        value={nextFreezeProgress} max={1}
         label={t('streakDisplay.freeze.nextFreeze.label')}
-        color="var(--status-frozen)"
+
       />
     </div>
   )
@@ -554,7 +554,7 @@ function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
           href="/upgrade"
           className="relative shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96] after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-['']"
           style={{
-            padding: '9px 16px',
+            padding: '8px 16px',
             background: 'var(--primary)',
             color: 'var(--fg-on-primary)',
             fontFamily: 'var(--font-sans)',
@@ -575,7 +575,7 @@ function ChargeGauge({
   max,
 }: Readonly<{ banked: number; max: number }>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 5 }}>
+    <span className="inline-flex items-center" style={{ gap: 4 }}>
       {Array.from({ length: max }, (_, index) => `charge-pip-${index}`).map((pipKey, index) => {
         const filled = index < banked
         return (

@@ -1,6 +1,5 @@
 'use client'
 
-import { Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -40,16 +39,9 @@ export function GoalProgressBlock({
         {showEdit && (
           <div className="flex justify-center">
             <PillButton
-              fullWidth
-              className="mt-[14px] sm:max-w-[360px]"
-              leading={
-                <Plus
-                  size={18}
-                  strokeWidth={1.8}
-                  color="var(--fg-on-primary)"
-                  aria-hidden="true"
-                />
-              }
+
+
+
               onClick={onEdit}
             >
               {t('goals.updateProgress')}

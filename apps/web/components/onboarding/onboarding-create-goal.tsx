@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { Loader2, Check } from '@/components/ui/icons'
+import { Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'
@@ -255,11 +255,11 @@ export function OnboardingCreateGoal({
 
       <div style={{ marginTop: 12 }}>
         <PillButton
-          fullWidth
+
           disabled={!canCreate || isCreating}
-          busy={isCreating}
+          loading={isCreating}
           onClick={() => void handleCreate()}
-          leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
+
         >
           {isCreating
             ? t('onboarding.flow.createGoal.creating')

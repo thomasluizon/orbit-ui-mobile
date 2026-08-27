@@ -1,62 +1,36 @@
-import type { ReactNode } from 'react'
+import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
-  type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, darkenHex, primaryGlow, radius } from '@/lib/theme'
+import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
+import { createTokensV2, darkenHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface PillButtonProps {
-  variant?: ButtonVariant
-  size?: ButtonSize
-  onPress?: () => void
-  disabled?: boolean
-  busy?: boolean
-  fullWidth?: boolean
-  glow?: boolean
-  leading?: ReactNode
-  accessibilityLabel?: string
-  /** Omit (with a `leading` icon + `accessibilityLabel`) for an icon-only square control. */
-  children?: ReactNode
-  style?: StyleProp<ViewStyle>
-}
-
-/** Kit pill CTA in the canonical taxonomy: glowing `primary`, inverted
- *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
- *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
- *  from the shared `BUTTON_SIZES` geometry so the web mirror cannot drift.
- *  While `busy`, a spinner fills the leading slot, the label dims, and presses
- *  no-op. With a `leading` icon and no label child it renders an icon-only
- *  square (width = the size's height); pass `accessibilityLabel` for its name. */
-export function PillButton({
+/** The canonical five-variant pill action in the shared two-size geometry. */
+export function Button({
   variant = 'primary',
   size = 'md',
-  onPress,
+  onClick,
   disabled = false,
-  busy = false,
-  fullWidth = false,
-  glow = true,
-  leading,
-  accessibilityLabel,
+  loading = false,
   children,
-  style,
-}: Readonly<PillButtonProps>) {
+  iconOnly,
+  label,
+}: Readonly<ButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
-  const hasLabel = children !== undefined && children !== null && children !== ''
-  const iconOnly = !hasLabel && leading != null
 
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
     secondary: tokens.bg,
     ghost: tokens.fg1,
     destructive: tokens.fgOnBad,
+    caution: tokens.fgOnOverdue,
   }
 
   const variantStyle = (pressed: boolean): ViewStyle => {
@@ -75,6 +49,11 @@ export function PillButton({
         backgroundColor: pressed ? darkenHex(tokens.statusBad, 0.15) : tokens.statusBad,
       }
     }
+    if (variant === 'caution') {
+      return {
+        backgroundColor: pressed ? darkenHex(tokens.statusOverdue, 0.15) : tokens.statusOverdue,
+      }
+    }
     return {
       backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
     }
@@ -84,45 +63,37 @@ export function PillButton({
 
   return (
     <Pressable
-      onPress={busy ? undefined : onPress}
-      disabled={disabled}
+      onPress={loading ? undefined : onClick}
+      disabled={disabled || loading}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled, busy }}
+      accessibilityLabel={iconOnly ? label : undefined}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
           : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
-        variant === 'primary' && glow && !disabled ? primaryGlow(tokens) : null,
-        fullWidth ? styles.fullWidth : null,
         disabled ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
         pressed ? styles.pressedScale : null,
-        style,
       ]}
     >
-      {busy ? (
+      {loading ? (
         <ActivityIndicator size="small" color={textColorByVariant[variant]} />
-      ) : (
-        leading
+      ) : iconOnly ? children : null}
+      {iconOnly ? null : (
+        <Text
+          style={[
+            styles.label,
+            { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
+            loading ? styles.labelBusy : null,
+          ]}
+        >
+          {children}
+        </Text>
       )}
-      {hasLabel &&
-        // react-doctor-disable-next-line no-polymorphic-children -- deliberate label-or-node API: a string/number child renders as the themed label, any other node renders as-is; matches the web PillButton contract https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-        (typeof children === 'string' || typeof children === 'number' ? (
-          <Text
-            style={[
-              styles.label,
-              { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-              busy ? styles.labelBusy : null,
-            ]}
-          >
-            {children}
-          </Text>
-        ) : (
-          children
-        ))}
     </Pressable>
   )
 }
@@ -134,10 +105,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.full,
   },
-  fullWidth: {
-    alignSelf: 'stretch',
-    width: '100%',
-  },
   disabled: {
     opacity: 0.4,
   },
@@ -145,12 +112,14 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   pressedScale: {
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.96 }],
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
   },
   labelBusy: {
     opacity: 0.6,
   },
 })
+
+export { Button as PillButton }

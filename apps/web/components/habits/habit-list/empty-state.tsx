@@ -1,6 +1,5 @@
 'use client'
 
-import { Plus, Sparkles } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
@@ -81,11 +80,11 @@ export function HabitListEmptyState({
           className="flex flex-col items-center"
           style={{ marginTop: 8, gap: 12 }}
         >
-          {showAstraAction && (
+          {showAstraAction && askAstraLabel && (
             <PillButton
-              className="min-w-[240px]"
+
               onClick={onAskAstra}
-              leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+
             >
               {askAstraLabel}
             </PillButton>
@@ -93,9 +92,9 @@ export function HabitListEmptyState({
           {actionLabel && (
             <PillButton
               variant="ghost"
-              className="min-w-[240px]"
+
               onClick={onAction}
-              leading={<Plus size={18} strokeWidth={1.8} aria-hidden="true" />}
+
             >
               {actionLabel}
             </PillButton>

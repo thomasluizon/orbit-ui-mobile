@@ -170,7 +170,7 @@ export function PricingSection({
                     {t(`upgrade.plans.proFeatures.${feature.key}`)}
                   </Text>
                   {feature.key === 'retrospective' ? (
-                    <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
+                    <Badge >{t('upgrade.matrix.yearlyTag')}</Badge>
                   ) : null}
                 </View>
               )

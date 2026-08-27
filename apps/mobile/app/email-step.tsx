@@ -2,7 +2,6 @@ import { Text, View } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { FieldInput } from '@/components/ui/field-input'
-import { Spinner, GoogleIcon } from './login-atoms'
 import type { LoginStyles } from './login-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -36,7 +35,7 @@ export function EmailStep({
   onSignInWithGoogle,
   onOpenTerms,
   onOpenPrivacy,
-  tokens,
+  tokens: _tokens,
   styles,
   t,
   sendCodeLabel,
@@ -60,11 +59,11 @@ export function EmailStep({
       />
 
       <PillButton
-        fullWidth
-        onPress={onSendCode}
+
+        onClick={onSendCode}
         disabled={!canSubmitEmail}
-        busy={isSubmitting}
-        leading={isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined}
+        loading={isSubmitting}
+
       >
         {sendCodeLabel ?? t('auth.sendCode')}
       </PillButton>
@@ -77,17 +76,11 @@ export function EmailStep({
 
       <PillButton
         variant="ghost"
-        fullWidth
-        onPress={onSignInWithGoogle}
+
+        onClick={onSignInWithGoogle}
         disabled={isGoogleLoading || !isOnline}
-        busy={isGoogleLoading}
-        leading={
-          isGoogleLoading ? (
-            <Spinner size={20} color={tokens.fg1} />
-          ) : (
-            <GoogleIcon />
-          )
-        }
+        loading={isGoogleLoading}
+
       >
         {t('auth.signInWithGoogle')}
       </PillButton>

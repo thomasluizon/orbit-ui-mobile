@@ -20,7 +20,6 @@ import {
   CalendarDays,
   User,
   Play,
-  RotateCcw,
 } from '@/components/ui/icons'
 
 const SECTION_ICON_MAP = {
@@ -112,11 +111,11 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
       <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
         <div>
           <PillButton
-            fullWidth
+
             onClick={() => {
               void handleReplayAll()
             }}
-            leading={<RotateCcw size={18} strokeWidth={1.8} aria-hidden="true" />}
+
           >
             {t('tour.replay.replayAll')}
           </PillButton>

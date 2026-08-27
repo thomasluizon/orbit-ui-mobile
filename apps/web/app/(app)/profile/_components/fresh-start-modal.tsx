@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
 import {
   buildFreshStartDeletedItems,
@@ -29,7 +30,7 @@ function AmberPillButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-[26px] py-4 text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-overdue)',
@@ -79,6 +80,7 @@ interface FreshStartModalProps {
 export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModalProps>) {
   const t = useTranslations()
   const queryClient = useQueryClient()
+  const router = useRouter()
 
   const [step, setStep] = useState<'info' | 'confirm'>('info')
   const [confirmText, setConfirmText] = useState('')
@@ -122,7 +124,8 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   function handleAnimationComplete() {
     setShowAnimation(false)
     queryClient.clear()
-    globalThis.location.href = '/'
+    router.push('/')
+    router.refresh()
   }
 
   const deletedItems = buildFreshStartDeletedItems(t)
@@ -265,7 +268,7 @@ function FreshStartInfoStep({
         <AmberPillButton onClick={onContinue}>
           {t('common.continue')}
         </AmberPillButton>
-        <PillButton variant="ghost" fullWidth onClick={onCancel}>
+        <PillButton variant="ghost"  onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>
@@ -337,7 +340,7 @@ function FreshStartConfirmStep({
         <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
         </AmberPillButton>
-        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
+        <PillButton variant="ghost"  disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>

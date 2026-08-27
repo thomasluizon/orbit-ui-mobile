@@ -1,6 +1,8 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ShareCardSheet } from '@/components/share/share-card-sheet'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -22,11 +24,11 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
-    onPress,
+    onClick,
   }: {
     children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+    onClick?: () => void
+  }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
 
 const { refetch } = vi.hoisted(() => ({ refetch: vi.fn() }))
@@ -43,8 +45,6 @@ vi.mock('@/hooks/use-share-card', () => ({
     share: vi.fn(),
   }),
 }))
-
-import { ShareCardSheet } from '@/components/share/share-card-sheet'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -72,7 +72,7 @@ describe('ShareCardSheet (mobile)', () => {
     expect(retryButton).toBeDefined()
 
     await TestRenderer.act(async () => {
-      ;(retryButton!.props.onPress as () => void)()
+      ;(retryButton!.props.onClick as () => void)()
       await Promise.resolve()
     })
 

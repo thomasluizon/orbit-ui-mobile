@@ -454,7 +454,7 @@ function CalendarSyncPageContent() {
 
               <div className="md:flex md:justify-center" style={{ padding: '18px 20px 0' }}>
                 <PillButton
-                  fullWidth
+
                   disabled={selectedIds.size === 0 || !isOnline}
                   onClick={() => importSelected()}
                 >

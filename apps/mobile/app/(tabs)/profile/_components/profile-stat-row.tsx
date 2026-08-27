@@ -67,7 +67,7 @@ export function ProfileStatRow({
                 pressed ? styles.statPressed : null,
               ]}
             >
-              <StatTile emoji="🔥" value={streakValue} label={streakLabel} />
+              <StatTile  value={streakValue} label={streakLabel} />
             </Pressable>
           </View>
           {achievementsNavItem ? (
@@ -84,7 +84,7 @@ export function ProfileStatRow({
                 ]}
               >
                 <StatTile
-                  emoji="🏆"
+
                   value={achievementsTileValue}
                   label={achievementsLabel}
                 />

@@ -57,7 +57,7 @@ export function GoalProgressHistorySection({
           style={{
             padding: '10px 20px',
             borderBottom: '1px solid var(--hairline)',
-            gap: 3,
+            gap: 4,
           }}
         >
           <div className="flex items-center justify-between">
@@ -191,13 +191,13 @@ export function GoalProgressForm({
         maxLength={500}
       />
       <div className="flex items-center" style={{ gap: 12, marginTop: 2 }}>
-        <PillButton variant="ghost" className="flex-1" onClick={onCancel}>
+        <PillButton variant="ghost"  onClick={onCancel}>
           {labelCancel}
         </PillButton>
         <PillButton
-          className="flex-1"
+
           disabled={progressValue === null || isUpdating}
-          busy={isUpdating}
+          loading={isUpdating}
           onClick={onSubmit}
         >
           {labelSave}

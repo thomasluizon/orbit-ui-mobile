@@ -1,20 +1,24 @@
 import { Fragment, type ComponentType } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native'
 import {
   CalendarDays,
   Home,
-  type IconProps,
   Plus,
   User,
 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { AstraMark } from '@/components/ui/astra-avatar'
-import { createTokensV2, primaryGlow } from '@/lib/theme'
+import { Fab } from '@/components/ui/fab'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export type BottomTabId = 'today' | 'chat' | 'calendar' | 'profile'
 
-type IconComponent = ComponentType<IconProps>
+type IconComponent = ComponentType<{
+  size?: number
+  color?: ColorValue
+  strokeWidth?: number
+}>
 
 interface BottomTabBarProps {
   active: BottomTabId
@@ -53,8 +57,7 @@ export function BottomTabBar({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
 
-  const fabVisible = showFab && active !== 'chat'
-  const fabDisabled = active !== 'today'
+  const fabVisible = showFab && active === 'today'
 
   return (
     <View
@@ -67,39 +70,15 @@ export function BottomTabBar({
       ]}
     >
       {fabVisible ? (
-        <Pressable
-          onPress={fabDisabled ? undefined : onFab}
-          disabled={fabDisabled}
-          accessibilityRole="button"
-          accessibilityLabel={t('nav.create')}
-          accessibilityState={{ disabled: fabDisabled }}
-          style={({ pressed }) => [
-            styles.fab,
-            { backgroundColor: fabDisabled ? tokens.bgSheet : tokens.primary },
-            fabDisabled ? null : primaryGlow(tokens),
-            pressed && !fabDisabled ? styles.fabPressed : null,
-          ]}
-        >
-          <View
-            style={[
-              styles.fabRing,
-              { borderColor: tokens.bg },
-            ]}
-          />
-          {fabDisabled ? (
-            <View
-              style={[
-                styles.fabDisabledInnerRing,
-                { borderColor: tokens.hairline },
-              ]}
-            />
-          ) : null}
+        <View style={styles.fabPosition}>
+          <Fab label={t('nav.create')} onClick={onFab}>
           <Plus
             size={28}
-            color={fabDisabled ? tokens.fg3 : tokens.fgOnPrimary}
+            color={tokens.fgOnPrimary}
             strokeWidth={2.2}
           />
-        </Pressable>
+          </Fab>
+        </View>
       ) : null}
 
       <View style={styles.tabsRow}>
@@ -186,38 +165,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderTopWidth: 1,
   },
-  fab: {
+  fabPosition: {
     position: 'absolute',
     left: '50%',
     top: -30,
     marginLeft: -30,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
     zIndex: 2,
-  },
-  fabPressed: {
-    transform: [{ scale: 0.96 }],
-  },
-  fabRing: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    right: -6,
-    bottom: -6,
-    borderRadius: 36,
-    borderWidth: 6,
-  },
-  fabDisabledInnerRing: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 30,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   tabsRow: {
     flexDirection: 'row',

@@ -8,7 +8,7 @@ import {
   Plus,
   type IconProps,
 } from '@/components/ui/icons'
-import { AppLogo } from '@/components/ui/app-logo'
+import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
 import { resolveSidebarSectionRowPresentation } from '@/components/navigation/app-sidebar-presentation'
 
@@ -98,19 +98,8 @@ export function AppSidebar({
         }}
       >
         {!collapsed && (
-          <span className="flex select-none items-center" style={{ gap: 8 }}>
-            <AppLogo size={26} />
-            <span
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 22,
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                color: 'var(--fg-1)',
-              }}
-            >
-              {brandLabel}
-            </span>
+          <span className="flex select-none items-center">
+            <Lockup />
           </span>
         )}
         <button
@@ -152,16 +141,17 @@ export function AppSidebar({
             variant="primary"
             size="md"
             onClick={onCreate}
-            ariaLabel={createLabel}
-            title={createLabel}
-            leading={<Plus size={20} strokeWidth={2.2} />}
-          />
+            iconOnly
+            label={createLabel}
+          >
+            <Plus size={20} aria-hidden="true" />
+          </PillButton>
         ) : (
           <PillButton
             variant="primary"
             size="md"
             onClick={onCreate}
-            leading={<Plus size={18} strokeWidth={2.2} />}
+
           >
             {createLabel}
           </PillButton>

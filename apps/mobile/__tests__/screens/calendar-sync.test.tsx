@@ -27,10 +27,7 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     queryClient,
     eventsQuery: {
-      data: { status: "connected", events: [] } as
-        | { status: "connected"; events: unknown[] }
-        | { status: "not-connected" }
-        | undefined,
+      data: { status: "connected", events: [] },
       isLoading: false,
       isError: false,
       error: null as Error | null,
@@ -41,7 +38,7 @@ const mocks = vi.hoisted(() => {
       replace: vi.fn(),
     },
     profile: null as ReturnType<typeof createMockProfile> | null,
-    searchParams: {} as { mode?: string },
+    searchParams: {},
     suggestions: [] as unknown[],
     isOnline: true,
     bulkMutateAsync: vi.fn(),
@@ -215,13 +212,13 @@ vi.mock("@/components/ui/select-check", () => ({
 vi.mock("@/components/ui/pill-button", () => ({
   PillButton: ({
     children,
-    onPress,
+    onClick,
     disabled,
   }: {
     children?: unknown;
-    onPress?: () => void;
+    onClick?: () => void;
     disabled?: boolean;
-  }) => React.createElement("PillButton", { onPress, disabled }, children as never),
+  }) => React.createElement("PillButton", { onClick, disabled }, children as never),
 }));
 
 vi.mock("react-native", async (importOriginal) => {
@@ -366,7 +363,7 @@ describe("CalendarSyncScreen", () => {
     const metaNodes = tree.root.findAll(
       (node: { props: Record<string, unknown> }) =>
         typeof node.props.children === "string" &&
-        (node.props.children as string).includes("Work"),
+        (node.props.children).includes("Work"),
     );
     expect(metaNodes.length).toBeGreaterThan(0);
   });
@@ -442,13 +439,13 @@ describe("CalendarSyncScreen", () => {
 
     const importPill = tree.root.find(
       (node: TestNode) =>
-        typeof node.props.onPress === "function" &&
+        typeof node.props.onClick === "function" &&
         typeof node.props.children === "string" &&
-        (node.props.children as string).includes("calendar.importButton"),
+        (node.props.children).includes("calendar.importButton"),
     );
 
     await TestRenderer.act(async () => {
-      (importPill.props.onPress as () => void)();
+      (importPill.props.onClick as () => void)();
       await Promise.resolve();
       await Promise.resolve();
     });

@@ -8,9 +8,6 @@
     }
   },
   "app/(tabs)/calendar/_components/calendar-day-detail.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 1
     }
@@ -256,11 +253,6 @@
       "count": 1
     }
   },
-  "app/preferences-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "app/preferences-styles.ts": {
     "local/spacing-scale": {
       "count": 6
@@ -273,7 +265,7 @@
   },
   "app/retrospective-dashboard.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 2
     }
   },
   "app/retrospective-locked-states.tsx": {
@@ -327,21 +319,11 @@
       "count": 2
     }
   },
-  "app/wrapped-cover.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "app/wrapped-player.tsx": {
     "local/icon-size-grid": {
       "count": 2
     },
     "local/no-raw-gradient": {
-      "count": 1
-    }
-  },
-  "app/wrapped-slide.tsx": {
-    "local/icon-size-grid": {
       "count": 1
     }
   },
@@ -382,7 +364,7 @@
   },
   "components/chat/chat-input-area.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     }
   },
   "components/chat/chat-input-bar.tsx": {
@@ -498,11 +480,6 @@
       "count": 4
     }
   },
-  "components/goals/create-goal-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "components/goals/create-goal-modal/goal-deadline-field.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -529,16 +506,6 @@
     }
   },
   "components/goals/goal-detail-drawer/goal-action-footer.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/goal-detail-drawer/goal-ask-astra-button.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/goal-detail-drawer/goal-progress-block.tsx": {
     "local/icon-size-grid": {
       "count": 1
     }
@@ -585,12 +552,6 @@
     }
   },
   "components/habit-list/empty-state.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -625,9 +586,6 @@
     }
   },
   "components/habits/create-habit-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 12
     }
@@ -646,9 +604,6 @@
     }
   },
   "components/habits/edit-habit-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -672,11 +627,6 @@
     }
   },
   "components/habits/habit-detail-drawer.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/habits/habit-detail-drawer/habit-ask-astra-button.tsx": {
     "local/icon-size-grid": {
       "count": 1
     }
@@ -800,9 +750,6 @@
     }
   },
   "components/milestone-share/milestone-share-prompt.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 1
     }
@@ -811,11 +758,8 @@
     "local/icon-size-grid": {
       "count": 1
     },
-    "local/no-decorative-glow": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 9
+      "count": 5
     }
   },
   "components/navigation/notification-bell.styles.ts": {
@@ -892,9 +836,6 @@
     }
   },
   "components/onboarding/onboarding-features.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -910,9 +851,6 @@
     }
   },
   "components/onboarding/onboarding-meet-astra.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -948,7 +886,7 @@
   },
   "components/referral/referral-drawer.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 11
@@ -970,9 +908,6 @@
     }
   },
   "components/share/share-card-sheet.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -1003,7 +938,7 @@
   },
   "components/tour/tour-replay-modal.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 3
@@ -1089,14 +1024,6 @@
       "count": 2
     }
   },
-  "components/ui/badge.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/ui/bottom-sheet-app-text-input.tsx": {
     "local/spacing-scale": {
       "count": 3
@@ -1161,25 +1088,12 @@
       "count": 1
     }
   },
-  "components/ui/info-card.tsx": {
-    "local/no-sparkle-ai-marker": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/ui/offline-unavailable-state.tsx": {
     "local/icon-size-grid": {
       "count": 1
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/pill-button.tsx": {
-    "local/no-decorative-glow": {
-      "count": 1
     }
   },
   "components/ui/push-prompt.tsx": {
@@ -1229,11 +1143,6 @@
       "count": 5
     }
   },
-  "components/ui/stat-tile.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/ui/trial-banner.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -1265,33 +1174,15 @@
   },
   "components/upgrade/billing-dashboard.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 2
     },
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/upgrade/plan-card.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/upgrade/plan-comparison-cards.tsx": {
     "local/icon-size-grid": {
       "count": 4
-    }
-  },
-  "components/upgrade/play-billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/upgrade/pricing-footer.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
     }
   },
   "components/upgrade/pricing-section.tsx": {
@@ -1308,9 +1199,6 @@
     }
   },
   "components/version-update-drawer.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
     "local/spacing-scale": {
       "count": 5
     }

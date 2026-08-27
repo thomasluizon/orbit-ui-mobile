@@ -9,7 +9,6 @@ import {
   CreditCard,
   Download,
   Receipt,
-  Settings,
 } from '@/components/ui/icons'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
@@ -217,10 +216,10 @@ export function BillingDashboard({
         badges={
           <>
             {data.cancelAtPeriodEnd ? (
-              <Badge tone="amber">{t('upgrade.billing.plan.canceledBadge')}</Badge>
+              <Badge >{t('upgrade.billing.plan.canceledBadge')}</Badge>
             ) : null}
             {data.status === 'past_due' && !data.cancelAtPeriodEnd ? (
-              <Badge tone="bad">{t('upgrade.billing.plan.pastDue')}</Badge>
+              <Badge >{t('upgrade.billing.plan.pastDue')}</Badge>
             ) : null}
           </>
         }
@@ -267,10 +266,10 @@ export function BillingDashboard({
       <View style={styles.actionPad}>
         <PillButton
           variant="secondary"
-          fullWidth
-          onPress={onPortal}
+
+          onClick={onPortal}
           disabled={portalLoading || !isOnline}
-          leading={<Settings size={18} strokeWidth={1.8} color={tokens.bg} />}
+
         >
           {t('upgrade.billing.actions.manage')}
         </PillButton>

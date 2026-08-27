@@ -57,10 +57,10 @@ vi.mock('@/components/ui/chip', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onPress, accessibilityLabel }: Record<string, unknown>) =>
+  PillButton: ({ children, onClick }: Record<string, unknown>) =>
     React.createElement(
       'PillButton',
-      { onPress, accessibilityLabel },
+      { onClick },
       children as React.ReactNode,
     ),
 }))
@@ -115,7 +115,10 @@ function getExpiryInput(tree: { root: { findAll: (p: (n: any) => boolean) => any
 }
 
 function getSubmitButton(tree: { root: { findAll: (p: (n: any) => boolean) => any[] } }) {
-  return findByAccessibilityLabel(tree, 'orbitMcp.createKey')[0]
+  return tree.root.findAll(
+    (node: any) =>
+      node.type === 'PillButton' && flattenText(node.props?.children) === 'orbitMcp.createKey',
+  )[0]
 }
 
 describe('CreateApiKeyModal (mobile) — API-key expiry parity', () => {
@@ -146,7 +149,7 @@ describe('CreateApiKeyModal (mobile) — API-key expiry parity', () => {
     })
 
     await TestRenderer.act(async () => {
-      getSubmitButton(tree).props.onPress()
+      getSubmitButton(tree).props.onClick()
       await Promise.resolve()
     })
 
@@ -169,7 +172,7 @@ describe('CreateApiKeyModal (mobile) — API-key expiry parity', () => {
     })
 
     await TestRenderer.act(async () => {
-      getSubmitButton(tree).props.onPress()
+      getSubmitButton(tree).props.onClick()
       await Promise.resolve()
     })
 
@@ -187,7 +190,7 @@ describe('CreateApiKeyModal (mobile) — API-key expiry parity', () => {
     })
 
     await TestRenderer.act(async () => {
-      getSubmitButton(tree).props.onPress()
+      getSubmitButton(tree).props.onClick()
       await Promise.resolve()
     })
 

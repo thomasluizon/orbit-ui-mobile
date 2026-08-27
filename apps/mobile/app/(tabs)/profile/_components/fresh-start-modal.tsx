@@ -253,7 +253,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 label={t('common.continue')}
                 onPress={() => setResetStep('confirm')}
               />
-              <PillButton variant="ghost" fullWidth onPress={onClose}>
+              <PillButton variant="ghost"  onClick={onClose}>
                 {t('common.cancel')}
               </PillButton>
             </View>
@@ -303,9 +303,9 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               />
               <PillButton
                 variant="ghost"
-                fullWidth
+
                 disabled={resetLoading}
-                onPress={onClose}
+                onClick={onClose}
               >
                 {t('common.cancel')}
               </PillButton>

@@ -1,35 +1,16 @@
-import { Check } from '@/components/ui/icons'
+import type { PlanCardProps } from '@orbit/shared/contracts/display'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Badge } from '@/components/ui/badge'
-import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface PlanCardProps {
-  name: string
-  badge?: string
-  price: string
-  sub?: string
-  features?: string[]
-  selected: boolean
-  onSelect: () => void
-}
-
-/** Kit plan card: selectable radio card with name, badge, Inter price, and feature checklist. */
-export function PlanCard({
-  name,
-  badge,
-  price,
-  sub,
-  features = [],
-  selected,
-  onSelect,
-}: Readonly<PlanCardProps>) {
+/** Selectable plan card with the accent reserved for the chosen state. */
+export function PlanCard({ name, badge, price, selected = false, onClick }: Readonly<PlanCardProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
     <Pressable
-      onPress={onSelect}
+      onPress={onClick}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       style={({ pressed }) => [
@@ -48,104 +29,39 @@ export function PlanCard({
         pressed ? styles.cardPressed : null,
       ]}
     >
-      <View style={styles.headerRow}>
-        <View style={styles.headerBody}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.name, { color: tokens.fg1 }]}>{name}</Text>
-            {badge ? <Badge>{badge}</Badge> : null}
-          </View>
-          <Text style={[styles.price, { color: tokens.fg1 }]}>{price}</Text>
-          {sub ? <Text style={[styles.sub, { color: tokens.fg3 }]}>{sub}</Text> : null}
-        </View>
-        <View
-          style={[
-            styles.radio,
-            selected
-              ? { backgroundColor: tokens.primary }
-              : { borderWidth: 2, borderColor: tokens.fg3 },
-          ]}
-        >
-          {selected ? (
-            <View style={[styles.radioDot, { backgroundColor: tokens.fgOnPrimary }]} />
-          ) : null}
-        </View>
+      <View style={styles.nameRow}>
+        <Text style={[styles.name, { color: tokens.fg1 }]}>{name}</Text>
+        {badge}
       </View>
-      {features.length > 0 ? (
-        <View style={styles.features}>
-          {features.map((feature) => (
-            <View key={feature} style={styles.featureRow}>
-              <Check size={16} strokeWidth={2.4} color={tokens.primarySoft} />
-              <Text style={[styles.featureText, { color: tokens.fg2 }]}>{feature}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+      <Text style={[styles.price, { color: tokens.fg1 }]}>{price}</Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 22,
+    borderRadius: 20,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
   },
   cardPressed: {
     transform: [{ scale: 0.99 }],
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  headerBody: {
-    flex: 1,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
+    flex: 1,
   },
   name: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 20,
+    fontFamily: 'Geist_500Medium',
+    fontSize: 16,
   },
   price: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 22,
-  },
-  sub: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  radio: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioDot: {
-    width: 9,
-    height: 9,
-    borderRadius: radius.full,
-  },
-  features: {
-    marginTop: 16,
-    gap: 10,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  featureText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    flex: 1,
   },
 })

@@ -1,6 +1,7 @@
 'use client'
 
-import { ChevronRight, Orbit } from '@/components/ui/icons'
+import { ChevronRight } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslations } from 'next-intl'
 
 interface GoalAskAstraRowProps {
@@ -9,7 +10,7 @@ interface GoalAskAstraRowProps {
   style?: React.CSSProperties
 }
 
-/** Ask-Astra prompt row: Orbit glyph in a 28px primary-tint well, eyebrow and
+/** Ask-Astra prompt row: Astra glyph in a 28px primary-tint well, eyebrow and
  *  prompt copy beside it, chevron trailing. Rendered in the goal drawer footer. */
 export function GoalAskAstraRow({ onClick, className, style }: Readonly<GoalAskAstraRowProps>) {
   const t = useTranslations()
@@ -39,7 +40,7 @@ export function GoalAskAstraRow({ onClick, className, style }: Readonly<GoalAskA
             boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
           }}
         >
-          <Orbit size={15} strokeWidth={1.9} color="var(--primary)" />
+          <AstraGlyph size={15} color="var(--primary)" />
         </span>
         <div className="min-w-0 flex-1">
           <div

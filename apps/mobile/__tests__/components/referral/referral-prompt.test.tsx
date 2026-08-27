@@ -1,6 +1,10 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ReferralPrompt } from '@/components/referral/referral-prompt'
+import { useUIStore } from '@/stores/ui-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -31,16 +35,12 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
-    onPress,
+    onClick,
   }: {
     children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+    onClick?: () => void
+  }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
-
-import { ReferralPrompt } from '@/components/referral/referral-prompt'
-import { useUIStore } from '@/stores/ui-store'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -168,7 +168,7 @@ describe('ReferralPrompt (mobile)', () => {
 
     const [cta] = findByType(tree, 'PillButtonStub')
     await TestRenderer.act(async () => {
-      cta!.props.onPress?.()
+      ;(cta!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()
     })
 

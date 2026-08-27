@@ -148,12 +148,11 @@ function SupportForm({
       ) : null}
       <View style={styles.actionPad}>
         <PillButton
-          onPress={onSend}
+          onClick={onSend}
           disabled={!canSend}
-          busy={sending}
-          // eslint-disable-next-line local/no-fullbleed-button -- support form submit (allowlist: form submit)
-          fullWidth
-          accessibilityLabel={t('profile.support.send')}
+          loading={sending}
+
+
         >
           {t('profile.support.send')}
         </PillButton>

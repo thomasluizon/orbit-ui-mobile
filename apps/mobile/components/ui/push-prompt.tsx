@@ -162,10 +162,10 @@ export function PushPrompt() {
         <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
       )}
       <View style={styles.buttons}>
-        <PillButton fullWidth onPress={() => void handleEnable()}>
+        <PillButton  onClick={() => void handleEnable()}>
           {t('pushPrompt.enable')}
         </PillButton>
-        <PillButton variant="ghost" fullWidth onPress={dismiss}>
+        <PillButton variant="ghost"  onClick={dismiss}>
           {t('pushPrompt.later')}
         </PillButton>
       </View>

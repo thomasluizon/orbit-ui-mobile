@@ -1,58 +1,46 @@
-import type { CSSProperties } from 'react'
+import type { StatTileProps } from '@orbit/shared/contracts/display'
 
-interface StatTileProps {
-  emoji: string
-  value: string | number
-  label: string
-  /** Render the value as a compact phrase (dates, states) instead of a display numeral. */
-  phraseValue?: boolean
-  className?: string
-}
+/** A fixed-height stat surface whose loading and empty states never reflow the row. */
+export function StatTile(props: Readonly<StatTileProps>) {
+  const { label, state = 'default' } = props
 
-const numeralValueStyle: CSSProperties = {
-  fontFamily: 'var(--font-display)',
-  fontSize: 24,
-  fontWeight: 700,
-  color: 'var(--fg-1)',
-  letterSpacing: '-0.01em',
-  fontVariantNumeric: 'tabular-nums',
-}
-
-const phraseValueStyle: CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 15,
-  fontWeight: 600,
-  lineHeight: '20px',
-  color: 'var(--fg-1)',
-  textAlign: 'center',
-  minHeight: 29,
-  display: 'inline-flex',
-  alignItems: 'center',
-}
-
-/** Kit stat tile: emoji over an Inter numeral (or compact phrase) and a muted Rubik label. */
-export function StatTile({
-  emoji,
-  value,
-  label,
-  phraseValue = false,
-  className,
-}: Readonly<StatTileProps>) {
   return (
     <div
-      className={[
-        'flex flex-1 flex-col items-center gap-[6px] rounded-[18px] bg-[var(--bg-field)]',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{ padding: '18px 12px 16px', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+      className="flex min-h-[132px] flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-6 text-center"
+      style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+      data-state={state}
+      role={state === 'loading' ? 'status' : undefined}
+      aria-label={state === 'loading' ? props.loadingLabel : undefined}
+      aria-busy={state === 'loading' || undefined}
     >
-      <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-        {emoji}
-      </span>
-      <span style={phraseValue ? phraseValueStyle : numeralValueStyle}>{value}</span>
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-2)' }}>
+      {state === 'loading' ? (
+        <>
+          <span className="h-6 w-16 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" aria-hidden="true" />
+          <span className="h-5 w-20 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" aria-hidden="true" />
+        </>
+      ) : (
+        <span
+          style={{
+            color: state === 'empty' ? 'var(--fg-4)' : 'var(--fg-1)',
+            fontFamily: state === 'empty' ? 'var(--font-mono)' : 'var(--font-display)',
+            fontSize: state === 'empty' ? 12 : 24,
+            fontWeight: state === 'empty' ? 500 : 600,
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: '24px',
+          }}
+        >
+          {state === 'empty' ? props.emptyLabel : props.value}
+        </span>
+      )}
+      <span
+        className="line-clamp-2 min-h-10"
+        style={{
+          color: state === 'empty' ? 'var(--fg-3)' : 'var(--fg-2)',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          lineHeight: '20px',
+        }}
+      >
         {label}
       </span>
     </div>

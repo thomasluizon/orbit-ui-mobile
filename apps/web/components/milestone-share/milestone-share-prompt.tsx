@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, Share2 } from '@/components/ui/icons'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
@@ -140,28 +139,22 @@ export function MilestoneSharePrompt() {
             <div className="flex w-full" style={{ gap: 10 }}>
               {canShareFiles && (
                 <PillButton
-                  className="flex-1"
-                  busy={isSharing}
+
+                  loading={isSharing}
                   disabled={isSharing}
                   onClick={handleShare}
-                  leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+
                 >
                   {t('milestoneShare.share')}
                 </PillButton>
               )}
               <PillButton
-                className="flex-1"
+
                 variant={canShareFiles ? 'ghost' : 'primary'}
-                busy={isSharing}
+                loading={isSharing}
                 disabled={isSharing}
                 onClick={() => void download()}
-                leading={
-                  <Download
-                    size={18}
-                    strokeWidth={1.8}
-                    color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
-                  />
-                }
+
               >
                 {t('milestoneShare.download')}
               </PillButton>

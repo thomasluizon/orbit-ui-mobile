@@ -86,7 +86,7 @@ function MoveTargetRow({
         borderStyle: !selected && isRoot ? 'dashed' : 'solid',
         borderColor: !selected && isRoot ? 'var(--hairline-strong)' : 'transparent',
         borderRadius: 14,
-        padding: '9px 12px',
+        padding: '8px 12px',
       }}
     >
       <div className="flex items-center" style={{ gap: 10 }}>
@@ -158,7 +158,7 @@ function MoveTargetRow({
       {option.reason && (
         <p
           style={{
-            margin: '5px 0 0',
+            margin: '4px 0 0',
             paddingLeft: option.depth * 20,
             fontFamily: 'var(--font-sans)',
             // react-doctor-disable-next-line no-tiny-text -- intentional secondary suggestion-reason caption (meta scale per DESIGN.md), de-emphasized below the option label https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -224,19 +224,19 @@ export function MoveParentOverlay({
         <div className="flex" style={{ gap: 12 }}>
           <PillButton
             variant="ghost"
-            fullWidth
+
             disabled={isMoving}
             onClick={onClose}
-            className="flex-1"
+
           >
             {t('common.cancel')}
           </PillButton>
           <PillButton
-            fullWidth
+
             disabled={!canSubmit}
-            busy={isMoving}
+            loading={isMoving}
             onClick={onConfirm}
-            className="flex-1"
+
           >
             {isMoving ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
           </PillButton>

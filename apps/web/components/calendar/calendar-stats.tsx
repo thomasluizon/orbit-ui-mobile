@@ -24,7 +24,7 @@ export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
       }}
     >
       {stats.map((stat) => (
-        <StatTile key={stat.key} emoji={stat.emoji} value={stat.value} label={stat.label} />
+        <StatTile key={stat.key}  value={stat.value} label={stat.label} />
       ))}
     </div>
   )

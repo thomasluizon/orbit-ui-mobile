@@ -76,7 +76,7 @@ function ProCell({
     return (
       <View style={styles.matrixYearlyCell} accessible accessibilityLabel={t('upgrade.matrix.yearlyTag')}>
         <Check size={15} strokeWidth={2.4} color={tokens.primary} />
-        <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
+        <Badge >{t('upgrade.matrix.yearlyTag')}</Badge>
       </View>
     )
   }

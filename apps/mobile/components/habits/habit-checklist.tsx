@@ -362,9 +362,9 @@ export function HabitChecklist({
       {items.length > 0 && !editable && (
         <View style={styles.progressRow}>
           <ProgressBar
-            progress={items.length > 0 ? checkedCount / items.length : 0}
+            value={items.length > 0 ? checkedCount / items.length : 0} max={1}
             label={`${checkedCount}/${items.length}`}
-            style={styles.progressBar}
+
           />
           <Text style={styles.progressText}>
             {checkedCount}/{items.length}

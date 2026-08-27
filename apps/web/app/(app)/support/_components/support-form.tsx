@@ -1,6 +1,5 @@
 'use client'
 
-import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 import { SupportField } from './support-field'
@@ -20,7 +19,7 @@ export function SupportForm({
   subject,
   message,
   error,
-  isSending,
+  isSending: _isSending,
   disabled,
   onSubjectChange,
   onMessageChange,
@@ -72,12 +71,6 @@ export function SupportForm({
         <PillButton
           onClick={onSend}
           disabled={disabled}
-          fullWidth
-          leading={
-            isSending ? (
-              <Loader2 size={16} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
-            ) : undefined
-          }
         >
           {t('profile.support.send')}
         </PillButton>

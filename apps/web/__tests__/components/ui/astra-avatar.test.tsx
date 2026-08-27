@@ -34,12 +34,6 @@ describe('AstraMark', () => {
     expect(ring).toHaveAttribute('stroke', 'currentColor')
   })
 
-  it('adds the orbit animation class only when animated', () => {
-    const { container, rerender } = render(<AstraMark />)
-    expect(container.querySelector('svg')).not.toHaveClass('astra-orbit')
-    rerender(<AstraMark animate />)
-    expect(container.querySelector('svg')).toHaveClass('astra-orbit')
-  })
 })
 
 describe('AstraAvatar', () => {

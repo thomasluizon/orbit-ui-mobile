@@ -1,7 +1,8 @@
 'use client'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 interface EmptyStateAction {
   label: string
@@ -13,6 +14,7 @@ interface EmptyStateProps {
   title?: string
   description: string
   action?: EmptyStateAction
+  mark?: 'orbit' | 'astra'
   className?: string
 }
 
@@ -21,6 +23,7 @@ export function EmptyState({
   title,
   description,
   action,
+  mark = 'orbit',
   className,
 }: Readonly<EmptyStateProps>) {
   const renderAction = () => {
@@ -38,7 +41,7 @@ export function EmptyState({
       )
     }
     return (
-      <PillButton onClick={action.onClick} className="mt-[22px]">
+      <PillButton onClick={action.onClick} >
         {action.label}
       </PillButton>
     )
@@ -53,7 +56,7 @@ export function EmptyState({
         .filter(Boolean)
         .join(' ')}
     >
-      <SatelliteGlyph />
+      {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
 
       {title ? (
         <p

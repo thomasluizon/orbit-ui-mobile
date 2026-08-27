@@ -130,9 +130,9 @@ export function HabitChecklist({
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
           <ProgressBar
-            progress={items.length > 0 ? checkedCount / items.length : 0}
+            value={items.length > 0 ? checkedCount / items.length : 0} max={1}
             label={`${checkedCount}/${items.length}`}
-            className="flex-1"
+
           />
           <span
             className="text-[var(--fg-3)]"
@@ -227,8 +227,8 @@ export function HabitChecklist({
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 500,
-              padding: '13px 8px',
-              margin: '-13px -8px',
+              padding: '12px 8px',
+              margin: '-12px -8px',
             }}
             onClick={clearAll}
           >

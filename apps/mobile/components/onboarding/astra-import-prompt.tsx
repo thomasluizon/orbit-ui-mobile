@@ -104,7 +104,7 @@ export function AstraImportPrompt() {
           {t('onboarding.wizard.importDescription')}
         </Text>
         <View style={styles.spacer} />
-        <PillButton fullWidth onPress={() => void handleImport()}>
+        <PillButton  onClick={() => void handleImport()}>
           {t('onboarding.wizard.importButton')}
         </PillButton>
         <Pressable

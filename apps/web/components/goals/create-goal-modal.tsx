@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -252,24 +251,17 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
           >
             <PillButton
               variant="ghost"
-              className="flex-1"
+
               onClick={dismissGuard.requestDismiss}
             >
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              type="submit"
-              className="flex-1"
+
+
               disabled={isSubmitting}
-              busy={isSubmitting}
-              leading={
-                <Check
-                  size={18}
-                  strokeWidth={1.8}
-                  color="var(--fg-on-primary)"
-                  aria-hidden="true"
-                />
-              }
+              loading={isSubmitting}
+
             >
               {t('goals.create')}
             </PillButton>

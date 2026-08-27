@@ -3,12 +3,12 @@ import Animated, { FadeInDown, FadeInUp, ReduceMotion } from 'react-native-reani
 import {
   AlertTriangle,
   Lightbulb,
-  Orbit,
   RefreshCw,
   Star,
   TrendingUp,
   type Icon,
 } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslation } from 'react-i18next'
 import type {
   RetrospectiveHabitStat,
@@ -252,7 +252,7 @@ export function RetrospectiveDashboard({
       node: (
         <View style={styles.astraRow}>
           <View style={styles.astraEyebrowGroup}>
-            <Orbit size={11} color={tokens.primary} strokeWidth={1.7} />
+            <AstraGlyph size={11} color={tokens.primary} />
             <Text style={[styles.astraEyebrow, { color: tokens.fg3 }]}>
               {t('retrospective.astraEyebrow').toUpperCase()}
             </Text>
@@ -286,17 +286,17 @@ export function RetrospectiveDashboard({
       node: (
         <View style={styles.statTilesRow}>
           <StatTile
-            emoji="🎯"
+
             value={`${metrics.completionRate}%`}
             label={t('retrospective.metrics.completionRate')}
           />
           <StatTile
-            emoji="✅"
+
             value={metrics.totalCompletions}
             label={t('retrospective.metrics.logs')}
           />
           <StatTile
-            emoji="🔥"
+
             value={metrics.currentStreak}
             label={t('retrospective.metrics.currentStreak')}
           />

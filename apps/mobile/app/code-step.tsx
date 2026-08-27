@@ -5,7 +5,6 @@ import type { TextInput, TextInputKeyPressEvent } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { CodeInput } from '@/components/ui/code-input'
-import { Spinner } from './login-atoms'
 import type { LoginStyles } from './login-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -46,7 +45,7 @@ export function CodeStep({
   onResendCode,
   onBackToEmail,
   shakeOffset,
-  tokens,
+  tokens: _tokens,
   styles,
   t,
 }: Readonly<CodeStepProps>) {
@@ -80,11 +79,11 @@ export function CodeStep({
       </Animated.View>
 
       <PillButton
-        fullWidth
-        onPress={onVerifyCode}
+
+        onClick={onVerifyCode}
         disabled={!canSubmitCode}
-        busy={isSubmitting}
-        leading={isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined}
+        loading={isSubmitting}
+
       >
         {t('auth.verify')}
       </PillButton>

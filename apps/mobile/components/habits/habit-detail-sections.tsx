@@ -31,7 +31,7 @@ export function HabitDetailStatsRow({
     return (
       <View style={rowStyles.tilesRow}>
         <StatTile
-          emoji={isBadHabit ? '🛡️' : '🔥'}
+
           value={String(metrics.currentStreak)}
           label={
             isBadHabit
@@ -40,12 +40,12 @@ export function HabitDetailStatsRow({
           }
         />
         <StatTile
-          emoji="🏆"
+
           value={String(metrics.longestStreak)}
           label={t('habits.detail.longestStreak')}
         />
         <StatTile
-          emoji="📈"
+
           value={`${Math.round(metrics.monthlyCompletionRate)}%`}
           label={t('habits.detail.monthlyRate')}
         />

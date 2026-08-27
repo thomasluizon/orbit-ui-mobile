@@ -15,7 +15,7 @@ interface ProBadgeProps {
   label?: string
 }
 
-export function ProBadge({ alwaysVisible = false, style, label }: Readonly<ProBadgeProps>) {
+export function ProBadge({ alwaysVisible = false, style: _style, label }: Readonly<ProBadgeProps>) {
   const { t } = useTranslation()
   const { profile } = useProfile()
 
@@ -27,5 +27,5 @@ export function ProBadge({ alwaysVisible = false, style, label }: Readonly<ProBa
 
   const badgeLabel = label ?? (isTrialActive ? t('trial.proBadge') : t('common.proBadge'))
 
-  return <Badge style={style}>{badgeLabel}</Badge>
+  return <Badge >{badgeLabel}</Badge>
 }

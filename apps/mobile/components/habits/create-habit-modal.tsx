@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
-import { Check } from '@/components/ui/icons'
+import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -451,21 +450,15 @@ export function CreateHabitModal({
           <PillButton
             variant="ghost"
             disabled={isPending}
-            onPress={dismissGuard.requestDismiss}
+            onClick={dismissGuard.requestDismiss}
           >
             {t('common.cancel')}
           </PillButton>
           <PillButton
-            glow={false}
+
             disabled={submitDisabled}
-            onPress={() => void handleSubmit()}
-            leading={
-              isPending ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-              )
-            }
+            onClick={() => void handleSubmit()}
+
           >
             {t('common.create')}
           </PillButton>

@@ -94,7 +94,7 @@ function ProCell({ row, t }: Readonly<{ row: UpgradeFeatureMatrixRow; t: Transla
     return (
       <span className="inline-flex items-center justify-center gap-1.5">
         <Check size={15} strokeWidth={2.4} style={{ color: 'var(--primary)' }} aria-hidden="true" />
-        <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
+        <Badge >{t('upgrade.matrix.yearlyTag')}</Badge>
       </span>
     )
   }
@@ -130,7 +130,7 @@ export function PlanComparisonCards({ t }: Readonly<{ t: Translate }>) {
                     scope="colgroup"
                     style={{ padding: '18px 8px 8px', textAlign: 'left' }}
                   >
-                    <span className="flex items-center" style={{ gap: 7 }}>
+                    <span className="flex items-center" style={{ gap: 8 }}>
                       <Icon size={14} strokeWidth={1.8} style={{ color: 'var(--fg-3)' }} aria-hidden="true" />
                       <span
                         style={{

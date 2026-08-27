@@ -4,7 +4,6 @@ import Animated, {
   FadeInDown,
   ReduceMotion,
 } from "react-native-reanimated";
-import { ArrowRight } from "@/components/ui/icons";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { plural } from "@/lib/plural";
@@ -136,9 +135,9 @@ export function CalendarDayDetail({
 
       <PillButton
         variant="ghost"
-        style={styles.goToDayButton}
-        onPress={onGoToDay}
-        leading={<ArrowRight size={18} strokeWidth={1.8} color={tokens.fg1} />}
+
+        onClick={onGoToDay}
+
       >
         {t("calendar.goToDay")}
       </PillButton>

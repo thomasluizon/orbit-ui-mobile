@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Check, ChevronRight, Loader2 } from '@/components/ui/icons'
+import { Check, ChevronRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   buildBulkItemsFromPack,
@@ -92,7 +92,7 @@ export function OnboardingTemplatePacks({
               >
                 {pack.emoji}
               </span>
-              <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+              <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)' }}>
                   {t(templatePackNameKey(pack.id))}
                 </span>
@@ -173,11 +173,11 @@ export function OnboardingTemplatePacks({
 
       <div className="flex flex-col items-center" style={{ gap: 4 }}>
         <PillButton
-          fullWidth
+
           disabled={enabledCount === 0 || isCreating}
-          busy={isCreating}
+          loading={isCreating}
           onClick={() => void handleAdd()}
-          leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
+
         >
           {enabledCount === 1
             ? t('onboarding.flow.templatePacks.createCtaOne')

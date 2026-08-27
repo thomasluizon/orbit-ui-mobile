@@ -32,13 +32,13 @@ function pressableHeight(tree: any): number | undefined {
 
 describe('PillButton (mobile)', () => {
   it('renders its label', () => {
-    const tree = renderPill(<PillButton onPress={() => {}}>Continue</PillButton>)
+    const tree = renderPill(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(textContents(tree)).toContain('Continue')
   })
 
   it('fires onPress when pressed', () => {
     const onPress = vi.fn()
-    const tree = renderPill(<PillButton onPress={onPress}>Continue</PillButton>)
+    const tree = renderPill(<PillButton onClick={onPress}>Continue</PillButton>)
     const button = tree.root.findByType('Pressable')
     expect(button.props.accessibilityRole).toBe('button')
     TestRenderer.act(() => {
@@ -49,7 +49,7 @@ describe('PillButton (mobile)', () => {
 
   it('exposes the disabled state', () => {
     const tree = renderPill(
-      <PillButton onPress={() => {}} disabled>
+      <PillButton onClick={() => {}} disabled>
         Continue
       </PillButton>,
     )
@@ -58,30 +58,33 @@ describe('PillButton (mobile)', () => {
     expect(button.props.accessibilityState).toEqual({ disabled: true, busy: false })
   })
 
-  it('no-ops presses and shows a spinner while busy', () => {
+  it('no-ops presses and shows a spinner while loading', () => {
     const onPress = vi.fn()
     const tree = renderPill(
-      <PillButton onPress={onPress} busy>
+      <PillButton onClick={onPress} loading>
         Saving
       </PillButton>,
     )
     const button = tree.root.findByType('Pressable')
-    expect(button.props.accessibilityState).toEqual({ disabled: false, busy: true })
+    expect(button.props.accessibilityState).toEqual({ disabled: true, busy: true })
     expect(button.props.onPress).toBeUndefined()
     expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
   })
 
-  it('renders secondary, ghost, and destructive variants with a leading node', () => {
+  it('renders all five variants', () => {
     const tree = renderPill(
       <>
-        <PillButton variant="secondary" onPress={() => {}}>
+        <PillButton variant="secondary" onClick={() => {}}>
           Secondary
         </PillButton>
-        <PillButton variant="ghost" onPress={() => {}} leading={<></>}>
+        <PillButton variant="ghost" onClick={() => {}} >
           Ghost
         </PillButton>
-        <PillButton variant="destructive" onPress={() => {}}>
+        <PillButton variant="destructive" onClick={() => {}}>
           Delete
+        </PillButton>
+        <PillButton variant="caution" onClick={() => {}}>
+          Caution
         </PillButton>
       </>,
     )
@@ -89,28 +92,17 @@ describe('PillButton (mobile)', () => {
     expect(labels).toContain('Secondary')
     expect(labels).toContain('Ghost')
     expect(labels).toContain('Delete')
+    expect(labels).toContain('Caution')
   })
 
-  it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
-    const tree = renderPill(
-      <PillButton accessibilityLabel="Create" leading={<></>} />,
-    )
-    const pressable = tree.root.findByType('Pressable')
-    const flat = flattenStyle(pressable.props.style({ pressed: false }))
-    expect(flat.width).toBe(50)
-    expect(flat.height).toBe(50)
-    expect(tree.root.findAllByType('Text')).toHaveLength(0)
-  })
-
-  it('drives the pill height from the size scale (sm < md < lg)', () => {
-    expect(pressableHeight(renderPill(<PillButton size="sm" onPress={() => {}}>Small</PillButton>))).toBe(40)
-    expect(pressableHeight(renderPill(<PillButton onPress={() => {}}>Medium</PillButton>))).toBe(50)
-    expect(pressableHeight(renderPill(<PillButton size="lg" onPress={() => {}}>Large</PillButton>))).toBe(56)
+  it('drives the pill height from the two-size scale', () => {
+    expect(pressableHeight(renderPill(<PillButton size="sm" onClick={() => {}}>Small</PillButton>))).toBe(40)
+    expect(pressableHeight(renderPill(<PillButton onClick={() => {}}>Medium</PillButton>))).toBe(50)
   })
 
   it('darkens the destructive fill on press instead of dimming opacity (web parity)', () => {
     const tree = renderPill(
-      <PillButton variant="destructive" onPress={() => {}}>
+      <PillButton variant="destructive" onClick={() => {}}>
         Delete
       </PillButton>,
     )

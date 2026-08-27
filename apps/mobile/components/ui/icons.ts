@@ -1,6 +1,8 @@
 export {
   IconAlertTriangle as AlertTriangle,
+  IconAdjustmentsHorizontal as AdjustmentsHorizontal,
   IconArchiveOff as ArchiveX,
+  IconArrowLeft as ArrowLeft,
   IconArrowRight as ArrowRight,
   IconArrowUp as ArrowUp,
   IconArrowUpRight as ArrowUpRight,
@@ -55,9 +57,8 @@ export {
   IconMessage as MessageSquare,
   IconMicrophone as Mic,
   IconMoon as Moon,
+  IconMinus as Minus,
   IconDotsVertical as MoreVertical,
-  // Provisional, deleted by #351: https://github.com/thomasluizon/orbit-tickets/issues/210
-  IconCircleDot as Orbit,
   IconPalette as Palette,
   IconPaperclip as Paperclip,
   IconEdit as PenSquare,

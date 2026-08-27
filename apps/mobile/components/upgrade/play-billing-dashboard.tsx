@@ -1,4 +1,3 @@
-import { Settings } from '@/components/ui/icons'
 import { Text, View } from 'react-native'
 import { PillButton } from '@/components/ui/pill-button'
 import { PlanSummaryCard } from './plan-summary-card'
@@ -57,9 +56,9 @@ export function PlayBillingDashboard({
       <View style={styles.actionPad}>
         <PillButton
           variant="secondary"
-          fullWidth
-          onPress={onManagePlay}
-          leading={<Settings size={18} strokeWidth={1.8} color={tokens.bg} />}
+
+          onClick={onManagePlay}
+
         >
           {t('upgrade.billing.actions.managePlay')}
         </PillButton>

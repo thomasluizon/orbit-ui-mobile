@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  ActivityIndicator,
 } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { ShieldAlert } from "@/components/ui/icons";
@@ -183,7 +182,7 @@ export function PendingOperationCard({
         <View style={styles.headerText}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>{operationName}</Text>
-            <Badge tone="amber">{riskLabel}</Badge>
+            <Badge >{riskLabel}</Badge>
           </View>
           <Text style={styles.summary}>{operationSummary}</Text>
         </View>
@@ -203,16 +202,14 @@ export function PendingOperationCard({
             style={styles.codeInput}
           />
           <PillButton
-            style={styles.compactPill}
+
             disabled={isLoading || verificationCode.trim().length < 6}
-            onPress={() => {
+            onClick={() => {
               void handleVerify();
             }}
-            leading={
-              isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-            }
+
           >
-            <Text style={styles.primaryPillLabel}>{t("auth.verify")}</Text>
+            {t("auth.verify")}
           </PillButton>
           <Text style={styles.helper}>{t("auth.codeSent")}</Text>
         </View>
@@ -221,27 +218,23 @@ export function PendingOperationCard({
       {!challengeId && !successMessage ? (
         <View style={styles.actions}>
           <PillButton
-            style={styles.confirmPill}
+
             disabled={isLoading}
-            onPress={() => {
+            onClick={() => {
               void handleStart();
             }}
-            leading={
-              isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-            }
+
           >
-            <Text style={styles.primaryPillLabel}>
-              {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
-            </Text>
+            {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
           </PillButton>
           <PillButton
             variant="ghost"
-            style={styles.cancelPill}
+
             disabled={isLoading}
-            accessibilityLabel={t("common.cancel")}
-            onPress={() => setDismissed(true)}
+
+            onClick={() => setDismissed(true)}
           >
-            <Text style={styles.cancelPillLabel}>{t("common.cancel")}</Text>
+            {t("common.cancel")}
           </PillButton>
         </View>
       ) : null}

@@ -120,7 +120,7 @@ export function MarketingConsentPrompt() {
           {t('marketingConsent.prompt.body')}
         </Animated.Text>
         <Animated.View entering={enterAnimation(140)} style={styles.actions}>
-          <PillButton fullWidth onPress={() => answer(true)}>
+          <PillButton  onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
           <Pressable

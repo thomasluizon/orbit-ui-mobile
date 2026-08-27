@@ -188,7 +188,7 @@ export default function AuthCallbackScreen() {
             <TriangleAlert size={34} color={tokens.fg3} strokeWidth={1.8} />
           </View>
           <Text style={styles.errorTitle}>{errorState.message}</Text>
-          <PillButton onPress={() => router.replace('/login')}>
+          <PillButton onClick={() => router.replace('/login')}>
             {t('auth.backToLogin')}
           </PillButton>
         </>

@@ -158,7 +158,7 @@ export function ReferralPrompt() {
               animate={{ opacity: 1, y: 0 }}
               transition={enterTransition(140)}
             >
-              <PillButton fullWidth onClick={openDrawer}>
+              <PillButton  onClick={openDrawer}>
                 {t('referral.prompt.cta')}
               </PillButton>
               <button

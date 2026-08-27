@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { Check, Copy, Gift, Share2 } from '@/components/ui/icons'
+import { Check, Copy, Gift } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
@@ -71,7 +71,7 @@ function ReferralStatsSection({
       ) : null}
       <View style={styles.progressBlock}>
         <ProgressBar
-          progress={stats.successfulReferrals / stats.maxReferrals}
+          value={stats.successfulReferrals / stats.maxReferrals} max={1}
           label={t('referral.drawer.completed')}
         />
       </View>
@@ -190,9 +190,9 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
 
             <View style={styles.gutter}>
               <PillButton
-                fullWidth
-                onPress={() => void doShare()}
-                leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+
+                onClick={() => void doShare()}
+
               >
                 {t('referral.drawer.share')}
               </PillButton>
@@ -207,12 +207,12 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
             ) : null}
 
             <View style={styles.gutter}>
-              <InfoCard
-                title={t('referral.drawer.howItWorks')}
-                desc={t('referral.drawer.explanation', {
-                  discount: discountPercent,
-                })}
-              />
+              <InfoCard>
+                <Text style={{ color: tokens.fg1 }}>{t('referral.drawer.howItWorks')}</Text>
+                <Text style={{ color: tokens.fg2 }}>
+                  {t('referral.drawer.explanation', { discount: discountPercent })}
+                </Text>
+              </InfoCard>
             </View>
 
             <Text style={styles.disclaimer}>

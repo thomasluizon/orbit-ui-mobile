@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Check, ChevronRight } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import {
@@ -165,13 +165,11 @@ export function OnboardingTemplatePacks({
 
       <View style={styles.ctaWrap}>
         <PillButton
-          fullWidth
+
           disabled={enabledCount === 0 || isCreating}
-          busy={isCreating}
-          onPress={() => void handleAdd()}
-          leading={
-            isCreating ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-          }
+          loading={isCreating}
+          onClick={() => void handleAdd()}
+
         >
           {enabledCount === 1
             ? t('onboarding.flow.templatePacks.createCtaOne')

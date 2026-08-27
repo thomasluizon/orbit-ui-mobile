@@ -486,7 +486,7 @@ export default function CalendarSyncScreen() {
               {t('calendar.notConnectedDesc')}
             </Text>
             <PillButton
-              onPress={() => {
+              onClick={() => {
                 void handleConnect()
               }}
               disabled={isConnecting}
@@ -592,8 +592,8 @@ export default function CalendarSyncScreen() {
                 ) : null}
                 <View style={styles.actionPad}>
                   <PillButton
-                    fullWidth
-                    onPress={() => {
+
+                    onClick={() => {
                       void handleImportSelected()
                     }}
                     disabled={selectedCount === 0 || !isOnline}
@@ -647,7 +647,7 @@ export default function CalendarSyncScreen() {
               <SettingsRow key={habit.id} label={habit.title} accessory="none" />
             ))}
             <View style={styles.actionPad}>
-              <PillButton fullWidth onPress={() => router.replace('/')}>
+              <PillButton  onClick={() => router.replace('/')}>
                 {t('calendar.goToHabits')}
               </PillButton>
             </View>
@@ -675,8 +675,8 @@ export default function CalendarSyncScreen() {
               {displayedErrorMessage}
             </Text>
             <View style={styles.errorActions}>
-              <PillButton onPress={handleRetry}>{t('calendar.retry')}</PillButton>
-              <PillButton variant="ghost" onPress={handleBack}>
+              <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+              <PillButton variant="ghost" onClick={handleBack}>
                 {t('common.goBack')}
               </PillButton>
             </View>

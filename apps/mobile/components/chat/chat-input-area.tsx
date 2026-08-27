@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; adding a native image library is out of scope for a React Doctor burn-down and carries SDK 57 native-ABI/rebuild risk. The only <Image> here is a transient local-URI pick preview where expo-image's disk cache brings no benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Pressable, ScrollView, Image, Linking } from "react-native";
-import { Crown, FileText, X, WifiOff } from "@/components/ui/icons";
+import { FileText, X, WifiOff } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { InfoCard } from "@/components/ui/info-card";
@@ -253,11 +253,11 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
   const { t } = useTranslation();
   return (
     <View style={styles.limitBlock} accessibilityLiveRegion="polite">
-      <InfoCard title={t("chat.limitReachedError")} />
+      <InfoCard><Text>{t("chat.limitReachedError")}</Text></InfoCard>
       <PillButton
-        style={{ alignSelf: 'center' }}
-        leading={<Crown size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
-        onPress={onUpgrade}
+
+
+        onClick={onUpgrade}
       >
         {t("upgrade.subscribe")}
       </PillButton>

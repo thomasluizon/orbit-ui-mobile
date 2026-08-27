@@ -28,5 +28,6 @@ export function ProBadge({ alwaysVisible = false, className, label }: Readonly<P
 
   const badgeLabel = label ?? (isTrialActive ? t('trial.proBadge') : t('common.proBadge'))
 
-  return <Badge className={className}>{badgeLabel}</Badge>
+  void className
+  return <Badge>{badgeLabel}</Badge>
 }

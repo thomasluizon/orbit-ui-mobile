@@ -52,7 +52,7 @@ function AstraLauncher({ open, onOpen }: Readonly<{ open: boolean; onOpen: () =>
         style={{ boxShadow: '0 10px 30px rgba(var(--primary-rgb), 0.32)' }}
       />
       <span className="relative inline-flex items-center gap-2.5">
-        <AstraMark size={24} animate />
+        <AstraMark size={24} />
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}>
           Astra
         </span>
@@ -80,7 +80,7 @@ function AstraRailHeader({
           className="inline-flex shrink-0 items-center justify-center rounded-full"
           style={{ width: 38, height: 38, background: 'rgba(var(--primary-rgb), 0.16)' }}
         >
-          <AstraMark size={20} animate />
+          <AstraMark size={20} />
         </span>
         <span className="flex min-w-0 flex-col">
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)', lineHeight: 1.2 }}>
@@ -125,7 +125,7 @@ function AstraRailEmptyState({ onSelectSuggestion }: Readonly<{ onSelectSuggesti
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-      <AstraAvatar size={64} animate />
+        <AstraAvatar size={64} />
       <p
         className="text-balance"
         style={{ fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}

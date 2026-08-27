@@ -290,13 +290,12 @@ describe('CreateHabitModal', () => {
     expect(screen.getByTestId('habit-form-fields')).toBeDefined()
   })
 
-  it('renders cancel and a tight create button', () => {
+  it('renders named cancel and create actions', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('common.cancel')).toBeDefined()
-    const submit = screen.getByTestId('habit-create-submit')
-    expect(submit.textContent).toContain('common.create')
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'common.create' })).toBeDefined()
   })
 
   it('calls onOpenChange(false) when cancel is clicked', () => {

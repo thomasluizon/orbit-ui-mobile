@@ -103,9 +103,9 @@ export default function AchievementsScreen() {
               {t('gamification.page.lockedDescription')}
             </Text>
             <PillButton
-              onPress={() => router.push(buildUpgradeHref('/achievements'))}
-              accessibilityLabel={t('gamification.page.upgradeButton')}
-              style={styles.upgradeButton}
+              onClick={() => router.push(buildUpgradeHref('/achievements'))}
+
+
             >
               {t('gamification.page.upgradeButton')}
             </PillButton>
@@ -140,7 +140,7 @@ export default function AchievementsScreen() {
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>
               {t('common.error')}
             </Text>
-            <PillButton variant="ghost" onPress={() => void refetch()}>
+            <PillButton variant="ghost" onClick={() => void refetch()}>
               {t('common.retry')}
             </PillButton>
           </View>
@@ -177,7 +177,7 @@ export default function AchievementsScreen() {
                   </View>
                 </View>
 
-                <ProgressBar progress={xpProgress / 100} label={xpLine} />
+                <ProgressBar value={xpProgress / 100} max={1} label={xpLine} />
 
                 <View style={styles.xpTotalRow}>
                   <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
