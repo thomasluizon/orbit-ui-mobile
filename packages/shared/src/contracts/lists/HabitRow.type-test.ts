@@ -1,45 +1,100 @@
 import type { HabitRowProps } from './HabitRow'
 
-const acceptsHabitRow = (_props: HabitRowProps) => undefined
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
 
-acceptsHabitRow({ title: 'Walk', statusLabel: 'pending' })
-acceptsHabitRow({
-  title: 'Walk',
-  statusLabel: 'pending',
-  onLog: () => undefined,
-  logLabel: 'Log Walk',
-})
-acceptsHabitRow({ title: 'Walk', trailing: '2/3' })
-acceptsHabitRow({
-  title: 'Walk',
-  statusLabel: 'pending',
-  onMenu: () => undefined,
-  menuLabel: 'More options',
-})
+type Plain = Accepts<{ title: 'Walk'; statusLabel: 'pending' }, HabitRowProps>
+type LogAction = Accepts<{
+  title: 'Walk'
+  statusLabel: 'pending'
+  onLog: () => void
+  logLabel: 'Log Walk'
+}, HabitRowProps>
+type ReplacementTrailing = Accepts<{ title: 'Walk'; trailing: '2/3' }, HabitRowProps>
+type MenuAction = Accepts<{
+  title: 'Walk'
+  statusLabel: 'pending'
+  onMenu: () => void
+  menuLabel: 'More options'
+}, HabitRowProps>
 
 // @ts-expect-error a replacement trailing node cannot carry ring words
-acceptsHabitRow({ title: 'Walk', trailing: '2/3', statusLabel: 'pending' })
+type TrailingWithStatus = Accepts<{
+  title: 'Walk'
+  trailing: '2/3'
+  statusLabel: 'pending'
+}, HabitRowProps>
 // @ts-expect-error a replacement trailing node cannot carry a log action
-acceptsHabitRow({ title: 'Walk', trailing: '2/3', onLog: () => undefined })
+type TrailingWithLog = Accepts<{ title: 'Walk'; trailing: '2/3'; onLog: () => void }, HabitRowProps>
 // @ts-expect-error a replacement trailing node cannot carry a log label
-acceptsHabitRow({ title: 'Walk', trailing: '2/3', logLabel: 'Log Walk' })
+type TrailingWithLogLabel = Accepts<{
+  title: 'Walk'
+  trailing: '2/3'
+  logLabel: 'Log Walk'
+}, HabitRowProps>
 // @ts-expect-error a log action requires its accessible label
-acceptsHabitRow({ title: 'Walk', statusLabel: 'pending', onLog: () => undefined })
+type LogWithoutLabel = Accepts<{
+  title: 'Walk'
+  statusLabel: 'pending'
+  onLog: () => void
+}, HabitRowProps>
 // @ts-expect-error a log action requires the current status name
-acceptsHabitRow({ title: 'Walk', onLog: () => undefined, logLabel: 'Log Walk' })
-// @ts-expect-error a plain ring cannot carry a log action
-acceptsHabitRow({ title: 'Walk', statusLabel: 'pending', onLog: () => undefined })
+type LogWithoutStatus = Accepts<{
+  title: 'Walk'
+  onLog: () => void
+  logLabel: 'Log Walk'
+}, HabitRowProps>
 // @ts-expect-error a plain ring cannot carry a log label
-acceptsHabitRow({ title: 'Walk', statusLabel: 'pending', logLabel: 'Log Walk' })
+type PlainWithLogLabel = Accepts<{
+  title: 'Walk'
+  statusLabel: 'pending'
+  logLabel: 'Log Walk'
+}, HabitRowProps>
 // @ts-expect-error a plain ring requires its current status name
-acceptsHabitRow({ title: 'Walk' })
+type PlainWithoutStatus = Accepts<{ title: 'Walk' }, HabitRowProps>
 // @ts-expect-error a menu action requires its accessible label
-acceptsHabitRow({ title: 'Walk', statusLabel: 'pending', onMenu: () => undefined })
+type MenuWithoutLabel = Accepts<{
+  title: 'Walk'
+  statusLabel: 'pending'
+  onMenu: () => void
+}, HabitRowProps>
 // @ts-expect-error a menu label cannot exist without a menu action
-acceptsHabitRow({ title: 'Walk', statusLabel: 'pending', menuLabel: 'More options' })
+type MenuLabelWithoutAction = Accepts<{
+  title: 'Walk'
+  statusLabel: 'pending'
+  menuLabel: 'More options'
+}, HabitRowProps>
 // @ts-expect-error frozen belongs to a day, not a habit row
-acceptsHabitRow({ title: 'Walk', status: 'frozen', statusLabel: 'frozen' })
+type Frozen = Accepts<{
+  title: 'Walk'
+  status: 'frozen'
+  statusLabel: 'frozen'
+}, HabitRowProps>
 // @ts-expect-error skip advances the schedule and leaves the row
-acceptsHabitRow({ title: 'Walk', status: 'skip', statusLabel: 'skipped' })
+type Skipped = Accepts<{
+  title: 'Walk'
+  status: 'skip'
+  statusLabel: 'skipped'
+}, HabitRowProps>
 // @ts-expect-error only two inline display depths are representable
-acceptsHabitRow({ title: 'Walk', depth: 2, statusLabel: 'pending' })
+type Deep = Accepts<{ title: 'Walk'; depth: 2; statusLabel: 'pending' }, HabitRowProps>
+
+export type HabitRowTypeAssertions =
+  | Plain
+  | LogAction
+  | ReplacementTrailing
+  | MenuAction
+  | TrailingWithStatus
+  | TrailingWithLog
+  | TrailingWithLogLabel
+  | LogWithoutLabel
+  | LogWithoutStatus
+  | PlainWithLogLabel
+  | PlainWithoutStatus
+  | MenuWithoutLabel
+  | MenuLabelWithoutAction
+  | Frozen
+  | Skipped
+  | Deep

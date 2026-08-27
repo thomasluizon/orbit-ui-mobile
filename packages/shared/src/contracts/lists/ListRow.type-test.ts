@@ -1,22 +1,32 @@
 import type { ListRowAction, ListRowProps } from './ListRow'
 
-const acceptsListRow = (_props: ListRowProps) => undefined
-const acceptsListRowAction = (_action: ListRowAction) => undefined
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
 
-acceptsListRow({ title: 'Reminder', value: '08:00' })
-acceptsListRow({ title: 'Start date', readOnly: true })
-acceptsListRow({
-  title: 'Template',
-  action: { icon: 'trash', label: 'Delete template', onPress: () => undefined },
-})
+type Value = Accepts<{ title: 'Reminder'; value: '08:00' }, ListRowProps>
+type ReadOnly = Accepts<{ title: 'Start date'; readOnly: true }, ListRowProps>
+type Action = Accepts<{
+  title: 'Template'
+  action: { icon: 'trash'; label: 'Delete template'; onPress: () => void }
+}, ListRowProps>
 
 // @ts-expect-error a read-only row renders no control
-acceptsListRow({
-  title: 'Start date',
-  readOnly: true,
-  action: { icon: 'trash', label: 'Delete', onPress: () => undefined },
-})
+type ReadOnlyAction = Accepts<{
+  title: 'Start date'
+  readOnly: true
+  action: { icon: 'trash'; label: 'Delete'; onPress: () => void }
+}, ListRowProps>
 // @ts-expect-error an icon action requires an accessible label
-acceptsListRowAction({ icon: 'trash', onPress: () => undefined })
+type UnlabelledAction = Accepts<{ icon: 'trash'; onPress: () => void }, ListRowAction>
 // @ts-expect-error values are words, nodes belong in trailing
-acceptsListRow({ title: 'Reminder', value: { type: 'badge' } })
+type NodeValue = Accepts<{ title: 'Reminder'; value: { type: 'badge' } }, ListRowProps>
+
+export type ListRowTypeAssertions =
+  | Value
+  | ReadOnly
+  | Action
+  | ReadOnlyAction
+  | UnlabelledAction
+  | NodeValue

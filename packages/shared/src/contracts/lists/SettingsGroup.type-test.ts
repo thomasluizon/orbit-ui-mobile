@@ -1,12 +1,21 @@
 import type { SettingsGroupProps } from './SettingsGroup'
 
-const acceptsSettingsGroup = (_props: SettingsGroupProps) => undefined
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
 
-acceptsSettingsGroup({ items: [{ label: 'Language', value: 'English' }] })
+type Valid = Accepts<{
+  items: [{ label: 'Language'; value: 'English' }]
+}, SettingsGroupProps>
 
 // @ts-expect-error every item requires its visible label
-acceptsSettingsGroup({ items: [{ value: 'English' }] })
+type MissingLabel = Accepts<{ items: [{ value: 'English' }] }, SettingsGroupProps>
 // @ts-expect-error values are words, nodes belong in trailing
-acceptsSettingsGroup({ items: [{ label: 'Theme', value: { type: 'badge' } }] })
+type NodeValue = Accepts<{
+  items: [{ label: 'Theme'; value: { type: 'badge' } }]
+}, SettingsGroupProps>
 // @ts-expect-error arbitrary children cannot be inserted between rows
-acceptsSettingsGroup({ items: [], children: 'separator' })
+type Children = Accepts<{ items: []; children: 'separator' }, SettingsGroupProps>
+
+export type SettingsGroupTypeAssertions = Valid | MissingLabel | NodeValue | Children

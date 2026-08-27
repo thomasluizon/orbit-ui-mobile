@@ -1,13 +1,30 @@
 import type { RadioRowProps } from './RadioRow'
 
-const acceptsRadioRow = (_props: RadioRowProps) => undefined
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
 
-acceptsRadioRow({ label: 'Top level' })
-acceptsRadioRow({ label: 'Walk', disabled: true, reason: 'Maximum depth reached' })
+type Enabled = Accepts<{ label: 'Top level' }, RadioRowProps>
+type Disabled = Accepts<{
+  label: 'Walk'
+  disabled: true
+  reason: 'Maximum depth reached'
+}, RadioRowProps>
 
 // @ts-expect-error a refused choice must explain why
-acceptsRadioRow({ label: 'Walk', disabled: true })
+type DisabledWithoutReason = Accepts<{ label: 'Walk'; disabled: true }, RadioRowProps>
 // @ts-expect-error an enabled choice has no refusal reason
-acceptsRadioRow({ label: 'Walk', reason: 'Maximum depth reached' })
+type EnabledWithReason = Accepts<{
+  label: 'Walk'
+  reason: 'Maximum depth reached'
+}, RadioRowProps>
 // @ts-expect-error dashed styling is reserved for proposed values
-acceptsRadioRow({ label: 'Walk', dashed: true })
+type Dashed = Accepts<{ label: 'Walk'; dashed: true }, RadioRowProps>
+
+export type RadioRowTypeAssertions =
+  | Enabled
+  | Disabled
+  | DisabledWithoutReason
+  | EnabledWithReason
+  | Dashed

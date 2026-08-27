@@ -1,12 +1,20 @@
 import type { RowListProps } from './RowList'
 
-const acceptsRowList = (_props: RowListProps) => undefined
+type Accepts<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
 
-acceptsRowList({ children: 'rows', style: { display: 'grid' } })
+type Valid = Accepts<{
+  children: 'rows'
+  style: { display: 'grid' }
+}, RowListProps>
 
 // @ts-expect-error the container owns its only separation treatment
-acceptsRowList({ children: 'rows', separator: true })
+type Separator = Accepts<{ children: 'rows'; separator: true }, RowListProps>
 // @ts-expect-error dividers are not caller-configurable
-acceptsRowList({ children: 'rows', divider: true })
+type Divider = Accepts<{ children: 'rows'; divider: true }, RowListProps>
 // @ts-expect-error rules are not caller-configurable
-acceptsRowList({ children: 'rows', rule: true })
+type Rule = Accepts<{ children: 'rows'; rule: true }, RowListProps>
+
+export type RowListTypeAssertions = Valid | Separator | Divider | Rule
