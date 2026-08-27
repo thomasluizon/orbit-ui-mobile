@@ -8,7 +8,7 @@ const SECONDARY_ACTION_STYLE = {
   fontSize: 13,
   fontWeight: 500,
   padding: '12px 16px',
-  margin: '-6px 0',
+  margin: '-4px 0',
   textDecoration: 'underline',
   textUnderlineOffset: 4,
   textDecorationThickness: 1,
@@ -47,7 +47,7 @@ export function HabitListEmptyState({
   return (
     <div
       className="flex flex-col items-center justify-center text-center"
-      style={{ padding: '64px 36px', gap: 16 }}
+      style={{ padding: '64px 32px', gap: 16 }}
     >
       <SatelliteGlyph size={104} />
       <div
@@ -77,7 +77,7 @@ export function HabitListEmptyState({
       )}
       {showStackedActions ? (
         <div
-          className="flex flex-col items-center"
+          className="flex w-full max-w-[300px] flex-col items-stretch"
           style={{ marginTop: 8, gap: 12 }}
         >
           {showAstraAction && askAstraLabel && (
@@ -126,12 +126,12 @@ export function HabitListSkeleton() {
           key={i}
           className="flex items-center animate-pulse"
           style={{
-            padding: '14px 16px',
-            gap: 14,
-            borderRadius: 18,
+            padding: '12px 16px',
+            gap: 12,
+            borderRadius: 20,
             background: 'var(--bg-card)',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            margin: '0 20px 10px',
+            margin: '0 16px 12px',
           }}
         >
           <div
@@ -139,7 +139,7 @@ export function HabitListSkeleton() {
             style={{
               width: 46,
               height: 46,
-              borderRadius: 14,
+              borderRadius: 12,
               background: SKELETON_BONE,
             }}
           />

@@ -174,8 +174,8 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
             allSelected={selection.allSelected}
             onSelectAll={selection.selectAll}
             onDeselectAll={selection.deselectAll}
-            onBulkLog={() => selection.setShowBulkLogConfirm(true)}
-            onBulkSkip={() => selection.setShowBulkSkipConfirm(true)}
+            onBulkLog={() => void selection.confirmBulkLog()}
+            onBulkSkip={() => void selection.confirmBulkSkip()}
             onBulkDelete={() => selection.setShowBulkDeleteConfirm(true)}
             onCancel={view.toggleSelectMode}
           />
@@ -192,30 +192,6 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         variant="danger"
         onConfirm={() => void selection.confirmBulkDelete()}
         onCancel={() => selection.setShowBulkDeleteConfirm(false)}
-      />
-
-      <ConfirmDialog
-        open={selection.showBulkLogConfirm}
-        onOpenChange={selection.setShowBulkLogConfirm}
-        title={t('habits.bulkLogTitle')}
-        description={plural(t('habits.bulkLogMessage', { count }), count)}
-        confirmLabel={t('habits.bulkLogConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="success"
-        onConfirm={() => void selection.confirmBulkLog()}
-        onCancel={() => selection.setShowBulkLogConfirm(false)}
-      />
-
-      <ConfirmDialog
-        open={selection.showBulkSkipConfirm}
-        onOpenChange={selection.setShowBulkSkipConfirm}
-        title={t('habits.bulkSkipTitle')}
-        description={plural(t('habits.bulkSkipMessage', { count }), count)}
-        confirmLabel={t('habits.bulkSkipConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="warning"
-        onConfirm={() => void selection.confirmBulkSkip()}
-        onCancel={() => selection.setShowBulkSkipConfirm(false)}
       />
 
       <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />

@@ -854,14 +854,6 @@
       "count": 2
     }
   },
-  "components/habits/bulk-action-bar-v2.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/habits/checklist-templates.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -1043,11 +1035,6 @@
   "components/habits/habit-list/date-group-section.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/habits/habit-list/empty-state.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/habits/habit-list/move-parent-overlay.tsx": {

@@ -9,7 +9,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   store: {
-    activeView: 'today' as string,
+    activeView: 'today',
     isSelectMode: false,
     selectedHabitIds: new Set<string>(),
     toggleSelectMode: vi.fn(),
@@ -71,7 +71,7 @@ function renderSelection(options: RenderOptions = {}) {
     tree = TestRenderer.create(React.createElement(Harness))
   })
 
-  if (!ref.current || !tree) throw new Error('useTodaySelection did not render')
+  if (!ref.current) throw new Error('useTodaySelection did not render')
   mountedTrees.push(tree)
   return {
     api: ref as { current: SelectionApi },
@@ -149,14 +149,14 @@ describe('mobile useTodaySelection', () => {
     expect(closeControlsMenu).toHaveBeenCalled()
   })
 
-  it('opens bulk confirms only when at least one habit is selected', () => {
+  it('runs log and skip directly but confirms delete when habits are selected', () => {
     const empty = renderSelection()
     empty.api.current.handleOpenBulkDelete()
     empty.api.current.handleOpenBulkLog()
     empty.api.current.handleOpenBulkSkip()
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
-    expect(mocks.bulkActions.setShowBulkLogConfirm).not.toHaveBeenCalled()
-    expect(mocks.bulkActions.setShowBulkSkipConfirm).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.confirmBulkLog).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.confirmBulkSkip).not.toHaveBeenCalled()
 
     mocks.store.selectedHabitIds = new Set(['a'])
     const filled = renderSelection()
@@ -164,8 +164,8 @@ describe('mobile useTodaySelection', () => {
     filled.api.current.handleOpenBulkLog()
     filled.api.current.handleOpenBulkSkip()
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(true)
-    expect(mocks.bulkActions.setShowBulkLogConfirm).toHaveBeenCalledWith(true)
-    expect(mocks.bulkActions.setShowBulkSkipConfirm).toHaveBeenCalledWith(true)
+    expect(mocks.bulkActions.confirmBulkLog).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.confirmBulkSkip).toHaveBeenCalledTimes(1)
   })
 
   it('deselect-all delegates to the store clearSelection', () => {

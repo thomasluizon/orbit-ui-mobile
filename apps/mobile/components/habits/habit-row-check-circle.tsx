@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { createTokensV2 } from '@/lib/theme'
@@ -35,8 +35,8 @@ export function CheckCircle({
   useEffect(() => {
     if (state === 'done' && previousState.current !== 'done' && !prefersReducedMotion) {
       popScale.value = withSequence(
-        withSpring(1.18, { damping: 14 }),
-        withSpring(1),
+        withTiming(1.08, { duration: 80 }),
+        withTiming(1, { duration: 80 }),
       )
     }
     previousState.current = state

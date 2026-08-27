@@ -44,8 +44,8 @@ export function useTodaySelection({
   });
   const {
     setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
-    setShowBulkSkipConfirm,
+    confirmBulkLog,
+    confirmBulkSkip,
   } = bulkActions;
 
   const allLoadedIds =
@@ -108,13 +108,13 @@ export function useTodaySelection({
 
   const handleOpenBulkLog = useCallback(() => {
     if (selectedHabitIds.size === 0) return;
-    setShowBulkLogConfirm(true);
-  }, [selectedHabitIds, setShowBulkLogConfirm]);
+    void confirmBulkLog();
+  }, [confirmBulkLog, selectedHabitIds]);
 
   const handleOpenBulkSkip = useCallback(() => {
     if (selectedHabitIds.size === 0) return;
-    setShowBulkSkipConfirm(true);
-  }, [selectedHabitIds, setShowBulkSkipConfirm]);
+    void confirmBulkSkip();
+  }, [confirmBulkSkip, selectedHabitIds]);
 
   return {
     ...bulkActions,

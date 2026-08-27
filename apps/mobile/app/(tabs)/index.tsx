@@ -356,14 +356,8 @@ export default function TodayScreen() {
 
   const {
     showBulkDeleteConfirm,
-    showBulkLogConfirm,
-    showBulkSkipConfirm,
     setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
-    setShowBulkSkipConfirm,
     confirmBulkDelete,
-    confirmBulkLog,
-    confirmBulkSkip,
     clearSelection,
     allSelected,
     selectedCount,
@@ -659,7 +653,7 @@ export default function TodayScreen() {
           testID="bulk-action-bar"
           style={[
             styles.bulkActionBarWrap,
-            { bottom: 20 + insets.bottom },
+            { bottom: 24 + insets.bottom },
             bulkBarAnimatedStyle,
           ]}
         >
@@ -712,12 +706,6 @@ export default function TodayScreen() {
         showBulkDeleteConfirm={showBulkDeleteConfirm}
         onBulkDeleteOpenChange={setShowBulkDeleteConfirm}
         onConfirmBulkDelete={() => void confirmBulkDelete()}
-        showBulkLogConfirm={showBulkLogConfirm}
-        onBulkLogOpenChange={setShowBulkLogConfirm}
-        onConfirmBulkLog={() => void confirmBulkLog()}
-        showBulkSkipConfirm={showBulkSkipConfirm}
-        onBulkSkipOpenChange={setShowBulkSkipConfirm}
-        onConfirmBulkSkip={() => void confirmBulkSkip()}
         selectedCount={selectedCount}
         showCreateGoalModal={showCreateGoalModal}
         onCloseCreateGoal={() => setShowCreateGoalModal(false)}
