@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react'
-import { Pressable, Text } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { ListRow } from '@/components/ui/list-row'
 import { RadioRow } from '@/components/ui/radio-row'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -133,8 +134,22 @@ describe('list primitives on mobile', () => {
         <Text>Second</Text>
       </RowList>,
     )
-    const labels = tree.root.findAllByType(Text).map((node) => node.props.children)
-    expect(labels).toEqual(expect.arrayContaining(['First', 'Second']))
+    const [panel, firstRow, secondRow] = tree.root.findAllByType(View)
+    if (!panel || !firstRow || !secondRow) throw new Error('RowList structure did not render')
+    expect(tree.root.findAllByType(View)).toHaveLength(3)
+    expect(panel.props.children).toHaveLength(2)
+    expect(panel.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ borderRadius: 8 })]),
+    )
+    expect(firstRow.props.style).toBeUndefined()
+    expect(secondRow.props.style).toEqual({
+      borderTopColor: createTokensV2('purple', 'dark').hairline,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    })
+    expect(tree.root.findAllByType(Text).map((node) => node.props.children)).toEqual([
+      'First',
+      'Second',
+    ])
   })
 
   it('renders static and actionable SettingsGroup entries with optional content', () => {
@@ -152,6 +167,16 @@ describe('list primitives on mobile', () => {
     )
     const controls = tree.root.findAllByType(Pressable)
     expect(controls).toHaveLength(2)
+    expect(tree.root.findByType(View).props.children).toHaveLength(4)
+    expect(tree.root.findAllByType(Text).map((node) => node.props.children)).toEqual([
+      'Version',
+      'Profile',
+      'Thomas',
+      'Verified',
+      'Plan',
+      'Pro',
+      'Privacy',
+    ])
     for (const control of controls) {
       resolvePressedStyle(control)
       press(control)
