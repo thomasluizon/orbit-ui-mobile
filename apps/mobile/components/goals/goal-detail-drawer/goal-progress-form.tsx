@@ -1,4 +1,4 @@
-import { ActivityIndicator, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -69,23 +69,18 @@ export function GoalProgressForm({
       <View style={styles.progressFormActions}>
         <PillButton
           variant="ghost"
-          style={styles.progressFormButton}
-          onPress={onCancel}
-          accessibilityLabel={t('common.cancel')}
+
+          onClick={onCancel}
+
         >
           {t('common.cancel')}
         </PillButton>
         <PillButton
-          style={styles.progressFormButton}
-          onPress={onSubmit}
+          onClick={onSubmit}
           disabled={!progressValue || isUpdatingProgress}
-          accessibilityLabel={t('common.save')}
+          loading={isUpdatingProgress}
         >
-          {isUpdatingProgress ? (
-            <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-          ) : (
-            t('common.save')
-          )}
+          {t('common.save')}
         </PillButton>
       </View>
     </View>

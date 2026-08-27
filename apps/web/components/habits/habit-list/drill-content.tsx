@@ -55,7 +55,7 @@ export function HabitListDrillContent({
         >
           {drillError}
         </p>
-        <PillButton variant="ghost" className="mt-[18px]" onClick={onRetry}>
+        <PillButton variant="ghost"  onClick={onRetry}>
           {t('common.retry')}
         </PillButton>
       </div>
@@ -107,8 +107,8 @@ export function HabitListDrillContent({
       </p>
       <PillButton
         variant="ghost"
-        className="mt-[18px]"
-        leading={<Plus size={18} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+
+
         onClick={() => {
           if (currentParentId) onAddSubHabit(currentParentId)
         }}

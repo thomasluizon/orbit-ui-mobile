@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanCard } from '@/components/upgrade/plan-card'
+import { Badge } from '@/components/ui/badge'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { styles } from './styles'
@@ -12,7 +13,6 @@ export function PlanSelection({
   plans,
   yearlyOffer,
   monthlyPrice,
-  yearlyPrice,
   selectedInterval,
   onSelectInterval,
   onStayFree,
@@ -29,35 +29,26 @@ export function PlanSelection({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const yearlyCharge =
-    yearlyPrice ??
-    formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
   const monthlyCharge =
     monthlyPrice ??
     formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
-  const discountSuffix =
-    !yearlyPrice && plans.couponPercentOff
-      ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
-      : ''
 
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={t('upgrade.plan')} style={styles.planGroup}>
       <PlanCard
         name={t('upgrade.plans.yearly.name')}
-        badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
+        badge={<Badge>{t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}</Badge>}
         price={t('upgrade.plans.equivalent', {
           price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
         })}
-        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}${discountSuffix}`}
         selected={selectedInterval === 'yearly'}
-        onSelect={() => onSelectInterval('yearly')}
+        onClick={() => onSelectInterval('yearly')}
       />
       <PlanCard
         name={t('upgrade.plans.monthly.name')}
         price={`${monthlyCharge}${t('upgrade.plans.monthly.period')}`}
-        sub={t('upgrade.plans.monthly.note')}
         selected={selectedInterval === 'monthly'}
-        onSelect={() => onSelectInterval('monthly')}
+        onClick={() => onSelectInterval('monthly')}
       />
       <Pressable
         accessibilityRole="button"

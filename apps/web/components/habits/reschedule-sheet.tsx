@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarClock, Loader2, Sparkles } from '@/components/ui/icons'
+import { CalendarClock, Sparkles } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   computeHabitFrequencyLabel,
@@ -164,10 +164,10 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (!hasProAccess) {
       return (
         <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
-          <PillButton fullWidth onClick={() => router.push('/upgrade')}>
+          <PillButton  onClick={() => router.push('/upgrade')}>
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </div>
@@ -176,10 +176,10 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (error) {
       return (
         <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
-          <PillButton fullWidth onClick={() => void refetch()}>
+          <PillButton  onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </div>
@@ -188,15 +188,15 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     return (
       <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
         <PillButton
-          fullWidth
+
           disabled={!suggestion || updateHabit.isPending}
-          dataTestId="reschedule-accept"
-          leading={updateHabit.isPending ? <Loader2 className="size-[18px] animate-spin" /> : undefined}
+
+
           onClick={() => void handleAccept()}
         >
           {t('habits.reschedule.accept')}
         </PillButton>
-        <PillButton variant="ghost" fullWidth disabled={updateHabit.isPending} onClick={() => onOpenChange(false)}>
+        <PillButton variant="ghost"  disabled={updateHabit.isPending} onClick={() => onOpenChange(false)}>
           {t('habits.reschedule.dismiss')}
         </PillButton>
       </div>

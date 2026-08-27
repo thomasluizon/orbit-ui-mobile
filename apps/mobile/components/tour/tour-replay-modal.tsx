@@ -10,7 +10,6 @@ import {
   CalendarDays,
   User,
   Play,
-  RotateCcw,
 } from '@/components/ui/icons'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile, TourSection } from '@orbit/shared/types'
@@ -111,10 +110,10 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
     >
       <View style={styles.body}>
         <PillButton
-          fullWidth
-          onPress={() => void handleReplayAll()}
-          leading={<RotateCcw size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
-          style={styles.replayAll}
+
+          onClick={() => void handleReplayAll()}
+
+
         >
           {t('tour.replay.replayAll')}
         </PillButton>

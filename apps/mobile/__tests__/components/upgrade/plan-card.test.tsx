@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createElement, type ComponentProps } from 'react'
 
 import { PlanCard } from '@/components/upgrade/plan-card'
 
 const TestRenderer = require('react-test-renderer')
 
-function renderPlan(props: Partial<React.ComponentProps<typeof PlanCard>> = {}) {
+function renderPlan(props: Partial<ComponentProps<typeof PlanCard>> = {}) {
   let tree: any
   TestRenderer.act(() => {
     tree = TestRenderer.create(
@@ -12,7 +13,7 @@ function renderPlan(props: Partial<React.ComponentProps<typeof PlanCard>> = {}) 
         name="Anual"
         price="R$ 79,90"
         selected={false}
-        onSelect={() => {}}
+        onClick={() => {}}
         {...props}
       />,
     )
@@ -21,45 +22,58 @@ function renderPlan(props: Partial<React.ComponentProps<typeof PlanCard>> = {}) 
 }
 
 describe('PlanCard (mobile)', () => {
-  it('renders name, badge, price, sub, and features', () => {
+  it('renders name, badge, and price', () => {
     const tree = renderPlan({
-      badge: 'Economize 20%',
-      sub: 'por ano',
-      features: ['Astra ilimitada', 'Widgets'],
+      badge: createElement('BadgeNode'),
     })
     const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
     expect(texts).toEqual(
       expect.arrayContaining([
         'Anual',
-        'Economize 20%',
         'R$ 79,90',
-        'por ano',
-        'Astra ilimitada',
-        'Widgets',
       ]),
     )
   })
 
-  it('fires onSelect when pressed', () => {
-    const onSelect = vi.fn()
-    const tree = renderPlan({ onSelect })
+  it('fires onClick when pressed', () => {
+    const onClick = vi.fn()
+    const tree = renderPlan({ onClick })
     const card = tree.root.findByType('Pressable')
     expect(card.props.accessibilityRole).toBe('radio')
     TestRenderer.act(() => {
       card.props.onPress()
     })
-    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 
   it('exposes the selected state', () => {
     const unselected = renderPlan()
     expect(unselected.root.findByType('Pressable').props.accessibilityState).toEqual({
       checked: false,
+      disabled: false,
+      busy: false,
     })
 
     const selected = renderPlan({ selected: true })
     expect(selected.root.findByType('Pressable').props.accessibilityState).toEqual({
       checked: true,
+      disabled: false,
+      busy: false,
     })
+  })
+
+  it('blocks presses and exposes disabled and busy state while loading', () => {
+    const onClick = vi.fn()
+    const tree = renderPlan({ loading: true, onClick })
+    const card = tree.root.findByType('Pressable')
+
+    expect(card.props.disabled).toBe(true)
+    expect(card.props.onPress).toBeUndefined()
+    expect(card.props.accessibilityState).toEqual({
+      checked: false,
+      disabled: true,
+      busy: true,
+    })
+    expect(onClick).not.toHaveBeenCalled()
   })
 })

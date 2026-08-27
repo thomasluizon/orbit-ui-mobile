@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy, Gift, Loader2, Share2 } from '@/components/ui/icons'
+import { Check, Copy, Gift, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -156,8 +156,8 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
             {canShare && (
               <div className="sm:flex sm:justify-center" style={{ padding: '10px 20px 6px' }}>
                 <PillButton
-                  fullWidth
-                  leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+
+
                   onClick={() => void shareLink()}
                 >
                   {t('referral.drawer.share')}
@@ -194,7 +194,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 )}
                 <div style={{ padding: '12px 20px' }}>
                   <ProgressBar
-                    progress={stats.successfulReferrals / stats.maxReferrals}
+                    value={stats.successfulReferrals / stats.maxReferrals} max={1}
                     label={t('referral.drawer.completed')}
                   />
                 </div>
@@ -202,10 +202,12 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
             )}
 
             <div style={{ padding: '14px 20px 0' }}>
-              <InfoCard
-                title={t('referral.drawer.howItWorks')}
-                desc={t('referral.drawer.explanation', { discount: discountPercent })}
-              />
+              <InfoCard>
+                <strong className="block text-[var(--fg-1)]">{t('referral.drawer.howItWorks')}</strong>
+                <p className="mt-1 text-sm text-[var(--fg-2)]">
+                  {t('referral.drawer.explanation', { discount: discountPercent })}
+                </p>
+              </InfoCard>
             </div>
 
             <p

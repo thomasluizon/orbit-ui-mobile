@@ -38,9 +38,9 @@ export function UsageCard({
         </Text>
       </View>
       <ProgressBar
-        progress={usagePercent / 100}
+        value={usagePercent / 100} max={1}
         label={t('upgrade.billing.usage.aiMessages')}
-        color={usageUrgent ? tokens.statusOverdue : undefined}
+
       />
     </View>
   )

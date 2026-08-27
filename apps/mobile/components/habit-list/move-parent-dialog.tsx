@@ -222,16 +222,16 @@ export function MoveParentDialog({
           <PillButton
             variant="ghost"
             disabled={isPending}
-            onPress={handleClose}
-            style={styles.footerPill}
+            onClick={handleClose}
+
           >
             {t('common.cancel')}
           </PillButton>
           <PillButton
             disabled={!canSubmit}
-            busy={isPending}
-            onPress={onConfirm}
-            style={styles.footerPill}
+            loading={isPending}
+            onClick={onConfirm}
+
           >
             {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
           </PillButton>

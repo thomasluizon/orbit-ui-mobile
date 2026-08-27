@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Download, X } from '@/components/ui/icons'
+import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -93,13 +93,13 @@ export function UpdatePrompt({
         </p>
         <div className="flex flex-col" style={{ gap: 10, paddingTop: 10 }}>
           <PillButton
-            fullWidth
+
             onClick={onUpdate}
-            leading={<Download size={18} strokeWidth={1.8} />}
+
           >
             {t('updatePrompt.update')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onClick={handleDismiss}>
+          <PillButton variant="ghost"  onClick={handleDismiss}>
             {t('updatePrompt.later')}
           </PillButton>
         </div>

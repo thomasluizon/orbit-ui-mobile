@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
-import { ChevronRight, Orbit } from '@/components/ui/icons'
+import { ChevronRight } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslation } from 'react-i18next'
 import type { AppTokens, createStyles } from './styles'
 
@@ -25,7 +26,7 @@ export function GoalAskAstraButton({
       style={({ pressed }) => [styles.askAstra, pressed ? styles.askAstraPressed : null]}
     >
       <View style={styles.askAstraWell}>
-        <Orbit size={15} color={tokens.primary} strokeWidth={1.9} />
+        <AstraGlyph size={15} color={tokens.primary} />
       </View>
       <View style={styles.askAstraContent}>
         <Text style={styles.askAstraEyebrowText}>

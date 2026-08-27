@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useTranslation } from 'react-i18next'
@@ -103,8 +103,8 @@ function ApiKeyRevealPanel({
 
       <View style={styles.footerEnd}>
         <PillButton
-          onPress={onClose}
-          accessibilityLabel={t('orbitMcp.done')}
+          onClick={onClose}
+
         >
           {t('orbitMcp.done')}
         </PillButton>
@@ -135,7 +135,7 @@ interface ApiKeyCreateFormProps {
 }
 
 function ApiKeyCreateForm({
-  tokens,
+  tokens: _tokens,
   styles,
   availableScopes,
   keyName,
@@ -242,24 +242,19 @@ function ApiKeyCreateForm({
       <View style={styles.footer}>
         <PillButton
           variant="ghost"
-          style={styles.footerButton}
-          onPress={onCancel}
+
+          onClick={onCancel}
           disabled={isSubmitting}
-          accessibilityLabel={t('common.cancel')}
+
         >
           {t('common.cancel')}
         </PillButton>
         <PillButton
-          style={styles.footerButton}
-          onPress={onSubmit}
+          onClick={onSubmit}
           disabled={isSubmitting}
-          accessibilityLabel={t('orbitMcp.createKey')}
+          loading={isSubmitting}
         >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-          ) : (
-            t('orbitMcp.createKey')
-          )}
+          {t('orbitMcp.createKey')}
         </PillButton>
       </View>
     </>

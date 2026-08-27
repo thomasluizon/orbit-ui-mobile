@@ -1,13 +1,13 @@
 'use client'
 
 import {
-  Orbit,
   ListTree,
   CalendarDays,
   Trophy,
   BellRing,
   type Icon,
 } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useTranslations } from 'next-intl'
 
 interface FeatureRow {
@@ -17,7 +17,7 @@ interface FeatureRow {
 }
 
 const FEATURE_ROWS: FeatureRow[] = [
-  { Icon: Orbit, titleKey: 'onboarding.flow.features.chat.title', descKey: 'onboarding.flow.features.chat.desc' },
+  { Icon: AstraMark, titleKey: 'onboarding.flow.features.chat.title', descKey: 'onboarding.flow.features.chat.desc' },
   { Icon: ListTree, titleKey: 'onboarding.flow.features.subHabits.title', descKey: 'onboarding.flow.features.subHabits.desc' },
   { Icon: CalendarDays, titleKey: 'onboarding.flow.features.calendar.title', descKey: 'onboarding.flow.features.calendar.desc' },
   { Icon: Trophy, titleKey: 'onboarding.flow.features.achievements.title', descKey: 'onboarding.flow.features.achievements.desc' },
@@ -79,7 +79,7 @@ export function OnboardingFeatures() {
                 fontSize: 13.5,
                 color: 'var(--fg-3)',
                 lineHeight: 1.4,
-                marginTop: 3,
+                marginTop: 4,
               }}
             >
               {t(descKey)}

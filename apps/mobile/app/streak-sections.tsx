@@ -34,20 +34,20 @@ export function StreakStatsRow({
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
       <View style={styles.statsRow}>
         <StatTile
-          emoji="🔥"
+
           value={streak}
           label={t('streakDisplay.detail.currentStreak')}
         />
         <StatTile
-          emoji="🏆"
+
           value={longestStreak}
           label={t('streakDisplay.detail.longestStreak')}
         />
         <StatTile
-          emoji="🎖️"
+
           value={t(getStreakTierLabelKey(streak))}
           label={t('streakDisplay.detail.tierTileLabel')}
-          phraseValue
+
         />
       </View>
     </View>

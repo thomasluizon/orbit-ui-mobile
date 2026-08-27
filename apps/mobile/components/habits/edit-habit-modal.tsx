@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useWatch } from 'react-hook-form'
-import { Check } from '@/components/ui/icons'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -34,8 +33,6 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
-import { createTokensV2 } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
 
 interface EditHabitModalProps {
   open: boolean
@@ -59,8 +56,6 @@ export function EditHabitModal({
     [t],
   )
   const insets = useSafeAreaInsets()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(insets.bottom), [insets.bottom])
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
@@ -315,21 +310,15 @@ export function EditHabitModal({
           <PillButton
             variant="ghost"
             disabled={updateHabit.isPending}
-            onPress={dismissGuard.requestDismiss}
+            onClick={dismissGuard.requestDismiss}
           >
             {t('common.cancel')}
           </PillButton>
           <PillButton
-            glow={false}
+
             disabled={submitDisabled}
-            onPress={() => void handleSubmit()}
-            leading={
-              updateHabit.isPending ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-              )
-            }
+            onClick={() => void handleSubmit()}
+
           >
             {t('common.save')}
           </PillButton>

@@ -148,7 +148,7 @@ export function GoalCompletedCelebration() {
           }}
         >
           <div className="mx-auto w-full max-w-[360px]">
-            <PillButton fullWidth onClick={dismiss}>
+            <PillButton  onClick={dismiss}>
               {t('common.continue')}
             </PillButton>
           </div>

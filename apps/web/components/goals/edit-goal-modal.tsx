@@ -195,16 +195,16 @@ export function EditGoalModal({
           >
             <PillButton
               variant="ghost"
-              className="flex-1"
+
               onClick={dismissGuard.requestDismiss}
             >
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              type="submit"
-              className="flex-1"
+
+
               disabled={isSubmitting}
-              busy={isSubmitting}
+              loading={isSubmitting}
             >
               {t('common.save')}
             </PillButton>

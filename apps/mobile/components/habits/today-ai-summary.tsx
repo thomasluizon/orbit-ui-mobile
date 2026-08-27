@@ -109,7 +109,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           <View style={styles.headerRow}>
             <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
             <Text style={styles.eyebrow}>Astra</Text>
-            <Badge tone="outline">{t('aiDisclosure.isAiLabel')}</Badge>
+            <Badge variant="outline">{t('aiDisclosure.isAiLabel')}</Badge>
             <View
               style={styles.headerCue}
               accessibilityElementsHidden

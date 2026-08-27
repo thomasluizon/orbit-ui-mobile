@@ -14,7 +14,7 @@ interface PricingSectionProps {
   isLoadingPlans: boolean
   isPlansError: boolean
   trialDaysLeft: number | null
-  checkoutLoading: string | null
+  checkoutLoading: SubscriptionInterval | null
   checkoutError: string
   discountedAmount: (amount: number) => number
   onCheckout: (interval: SubscriptionInterval) => void

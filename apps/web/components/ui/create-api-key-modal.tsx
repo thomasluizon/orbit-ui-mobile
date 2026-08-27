@@ -370,7 +370,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <PillButton variant="ghost" onClick={onCancel} disabled={isSubmitting}>
           {t('common.cancel')}
         </PillButton>
-        <PillButton type="submit" disabled={isSubmitting}>
+        <PillButton  disabled={isSubmitting}>
           {isSubmitting ? t('common.loading') : t('orbitMcp.createKey')}
         </PillButton>
       </div>

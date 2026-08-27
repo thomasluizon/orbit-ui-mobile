@@ -3,10 +3,10 @@
 import type { ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
 import { Home, CalendarDays, User, Plus, type IconProps } from '@/components/ui/icons'
+import { Fab } from '@/components/ui/fab'
 import { AstraMark } from '@/components/ui/astra-avatar'
 
-/** Kit 4-tab bar (Home / Astra / Calendar / You) + centered 60px Plus FAB.
- *  FAB hidden on Astra (has its own composer); rendered disabled off Today. */
+/** Kit 4-tab bar (Home / Astra / Calendar / You) + centered 60px Plus FAB on Today. */
 export type BottomTab = 'today' | 'chat' | 'calendar' | 'profile'
 
 type IconComponent = ComponentType<IconProps>
@@ -42,40 +42,20 @@ export function BottomTabBar({
   tabs = DEFAULT_TABS,
 }: Readonly<BottomTabBarProps>) {
   const t = useTranslations('nav')
-  const fabVisible = showFab && active !== 'chat'
-  const fabDisabled = active !== 'today'
+  const fabVisible = showFab && active === 'today'
 
   return (
     <div className="relative shrink-0">
       {fabVisible && (
-        <button
-          type="button"
+        <div
           data-tour="tour-fab-button"
-          onClick={fabDisabled ? undefined : onFab}
-          aria-label={t('create')}
-          aria-disabled={fabDisabled}
-          disabled={fabDisabled}
-          className={
-            'absolute appearance-none border-0 flex items-center justify-center -translate-x-1/2 transition-[background-color,transform] duration-[160ms] ease-[var(--ease-standard)] ' +
-            (fabDisabled
-              ? 'bg-[var(--bg-sheet)] text-[var(--fg-3)]'
-              : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] active:scale-[0.96]')
-          }
-          style={{
-            left: '50%',
-            top: -30,
-            width: 60,
-            height: 60,
-            borderRadius: 999,
-            boxShadow: fabDisabled
-              ? '0 0 0 6px var(--bg), inset 0 0 0 1px var(--hairline)'
-              : '0 0 0 6px var(--bg), var(--primary-glow)',
-            cursor: fabDisabled ? 'not-allowed' : 'pointer',
-            zIndex: 2,
-          }}
+          className="absolute -translate-x-1/2"
+          style={{ left: '50%', top: -30, zIndex: 2 }}
         >
-          <Plus size={28} strokeWidth={2.2} color={fabDisabled ? 'var(--fg-3)' : 'var(--fg-on-primary)'} />
-        </button>
+          <Fab label={t('create')} onClick={onFab}>
+            <Plus size={28} strokeWidth={2.2} color="var(--fg-on-primary)" />
+          </Fab>
+        </div>
       )}
       <div
         className="grid"
@@ -131,7 +111,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       }
       style={{
         padding: '10px 0 12px',
-        gap: 5,
+        gap: 4,
       }}
     >
       <span className="relative">
@@ -142,7 +122,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
             className="absolute rounded-full"
             style={{
               top: -2,
-              right: -3,
+              right: -4,
               width: 6,
               height: 6,
               background: 'var(--primary)',

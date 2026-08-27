@@ -1,5 +1,4 @@
 import { Text, View } from 'react-native'
-import { Play } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { RingMotif } from '@/components/gamification/ring-motif'
@@ -62,8 +61,8 @@ export function WrappedCover({
       <View style={styles.ctaWrap}>
         <PillButton
           disabled={!canStart}
-          onPress={onStart}
-          leading={<Play size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+          onClick={onStart}
+
         >
           {t('wrapped.start')}
         </PillButton>

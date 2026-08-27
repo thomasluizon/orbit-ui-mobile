@@ -19,7 +19,7 @@ export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
     <View style={styles.row}>
       {stats.map((stat) => (
         <View key={stat.key} style={styles.cell}>
-          <StatTile emoji={stat.emoji} value={stat.value} label={stat.label} />
+          <StatTile  value={stat.value} label={stat.label} />
         </View>
       ))}
     </View>

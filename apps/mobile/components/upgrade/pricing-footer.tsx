@@ -1,5 +1,4 @@
 import { Text, View } from 'react-native'
-import { Sparkles } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
@@ -35,11 +34,11 @@ export function PricingFooter({
         <Text style={[styles.footerEcho, { color: tokens.fg3 }]}>{priceEcho}</Text>
       )}
       <PillButton
-        fullWidth
-        busy={checkoutLoading !== null}
+
+        loading={checkoutLoading !== null}
         disabled={disabled || checkoutLoading !== null}
-        onPress={() => onCheckout(selectedInterval)}
-        leading={<Sparkles size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+        onClick={() => onCheckout(selectedInterval)}
+
       >
         {ctaLabel}
       </PillButton>

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import {
   isRecapShareEmpty,
@@ -70,7 +69,7 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
         {!isLoading && isError ? (
           <View style={styles.errorState}>
             <Text style={styles.errorText}>{t('shareCard.error')}</Text>
-            <PillButton variant="ghost" onPress={() => void refetch()}>
+            <PillButton variant="ghost" onClick={() => void refetch()}>
               {t('common.retry')}
             </PillButton>
           </View>
@@ -95,12 +94,12 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
             {hasError ? <Text style={styles.errorText}>{t('shareCard.shareError')}</Text> : null}
 
             <PillButton
-              fullWidth
-              busy={isSharing}
+
+              loading={isSharing}
               disabled={isSharing}
-              onPress={() => void share(t('shareCard.shareTitle'))}
-              accessibilityLabel={t('shareCard.share')}
-              leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+              onClick={() => void share(t('shareCard.shareTitle'))}
+
+
             >
               {t('shareCard.share')}
             </PillButton>

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import type { useTranslations } from 'next-intl'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { GoogleIcon, Spinner } from './login-atoms'
 
 interface EmailStepProps {
   email: string
@@ -52,12 +51,12 @@ export function EmailStep({
           placeholder={t('auth.emailPlaceholder')}
         />
         <PillButton
-          type="submit"
-          fullWidth
+
+
           disabled={isSubmitting || !email.trim() || !isOnline}
-          busy={isSubmitting}
-          leading={isSubmitting ? <Spinner /> : undefined}
-          dataTestId="auth-send-code"
+          loading={isSubmitting}
+
+
         >
           {sendCodeLabel ?? t('auth.sendCode')}
         </PillButton>
@@ -79,11 +78,11 @@ export function EmailStep({
 
       <PillButton
         variant="ghost"
-        fullWidth
+
         disabled={isGoogleLoading || !isOnline}
-        busy={isGoogleLoading}
+        loading={isGoogleLoading}
         onClick={onSignInWithGoogle}
-        leading={isGoogleLoading ? <Spinner size={5} /> : <GoogleIcon />}
+
       >
         {t('auth.signInWithGoogle')}
       </PillButton>

@@ -7,7 +7,8 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -21,6 +22,7 @@ interface EmptyStateProps {
   title?: string
   description: string
   action?: EmptyStateAction
+  mark?: 'orbit' | 'astra'
   style?: StyleProp<ViewStyle>
 }
 
@@ -29,6 +31,7 @@ export function EmptyState({
   title,
   description,
   action,
+  mark = 'orbit',
   style,
 }: Readonly<EmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -36,7 +39,7 @@ export function EmptyState({
 
   return (
     <View style={[styles.container, style]}>
-      <SatelliteGlyph size={96} />
+      {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
       {title ? <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text> : null}
       <Text
         style={[
@@ -61,7 +64,7 @@ export function EmptyState({
             </Text>
           </Pressable>
         ) : (
-          <PillButton onPress={action.onPress} style={styles.primaryAction}>
+          <PillButton onClick={action.onPress} >
             {action.label}
           </PillButton>
         ))}

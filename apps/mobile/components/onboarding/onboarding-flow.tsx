@@ -231,7 +231,7 @@ function OnboardingFooter({
         </View>
         <View style={styles.footerCenter}>
           {canAdvance && (
-            <PillButton onPress={onNext}>
+            <PillButton onClick={onNext}>
               {isStarter
                 ? t('onboarding.flow.begin')
                 : t('onboarding.flow.next')}

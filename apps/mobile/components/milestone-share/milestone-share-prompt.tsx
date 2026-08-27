@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { Share2 } from '@/components/ui/icons'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
@@ -125,12 +124,12 @@ export function MilestoneSharePrompt() {
 
           <View style={styles.actions}>
             <PillButton
-              fullWidth
-              busy={isSharing}
+
+              loading={isSharing}
               disabled={isSharing}
-              onPress={() => void share(t('milestoneShare.shareTitle'))}
-              accessibilityLabel={t('milestoneShare.share')}
-              leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+              onClick={() => void share(t('milestoneShare.shareTitle'))}
+
+
             >
               {t('milestoneShare.share')}
             </PillButton>

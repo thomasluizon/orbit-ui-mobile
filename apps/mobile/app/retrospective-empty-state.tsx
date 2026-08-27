@@ -1,5 +1,5 @@
-import { View } from 'react-native'
-import { Orbit } from '@/components/ui/icons'
+import { Text, View } from 'react-native'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslation } from 'react-i18next'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
@@ -20,21 +20,18 @@ export function RetrospectiveEmptyState({
   return (
     <View style={styles.generateBlock}>
       <View style={styles.generateCardWrap}>
-        <InfoCard
-          icon={Orbit}
-          title={t('retrospective.astraEyebrow')}
-          desc={t('retrospective.empty')}
-        />
+        <InfoCard icon={<AstraGlyph size={24} color={tokens.fg3} />}>
+          <Text style={{ color: tokens.fg1 }}>{t('retrospective.astraEyebrow')}</Text>
+          <Text style={{ color: tokens.fg2 }}>{t('retrospective.empty')}</Text>
+        </InfoCard>
       </View>
       <View style={styles.generateBtnWrap}>
         <PillButton
-          onPress={onGenerate}
+          onClick={onGenerate}
           disabled={!isOnline}
-          fullWidth
-          accessibilityLabel={t('retrospective.generate')}
-          leading={
-            <Orbit size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-          }
+
+
+
         >
           {t('retrospective.generate')}
         </PillButton>

@@ -76,7 +76,6 @@ export function useProfileScreen() {
   }
 
   const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
-  const planBadgeTone: 'soft' | 'violet' = profile?.isTrialActive ? 'soft' : 'violet'
   const planBadgeLabel = profile?.isTrialActive
     ? t('trial.proBadge')
     : t('common.proBadge')
@@ -103,7 +102,6 @@ export function useProfileScreen() {
     accountNavItems,
     navTourMap: NAV_TOUR_MAP,
     showPlanBadge,
-    planBadgeTone,
     planBadgeLabel,
     identityLine,
     isExporting,

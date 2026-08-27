@@ -22,13 +22,10 @@ describe('BottomTabBar', () => {
     expect(onFab).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the FAB disabled and inert away from Today', () => {
+  it('hides the FAB away from Today', () => {
     const onFab = vi.fn()
     render(<BottomTabBar active="calendar" onFab={onFab} />)
-    const fab = screen.getByRole('button', { name: 'create' })
-    expect(fab).toBeDisabled()
-    expect(fab).toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(fab)
+    expect(screen.queryByRole('button', { name: 'create' })).not.toBeInTheDocument()
     expect(onFab).not.toHaveBeenCalled()
   })
 

@@ -9,6 +9,8 @@ import {
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils'
 
+import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+
 const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
   const router = { replace: vi.fn(), push: vi.fn(), navigate: vi.fn() }
   const capturedState: {
@@ -20,16 +22,16 @@ const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
     routerMock: router,
     pathnameState: { value: '/' },
     actionsMock: {
-      createHabit: vi.fn(async (input: { title: string }) => ({
+      createHabit: vi.fn((input: { title: string }) => Promise.resolve({
         id: '0',
         title: input.title,
       })),
-      createHabitsBulk: vi.fn(async () => undefined),
-      logHabit: vi.fn(async () => undefined),
-      createGoal: vi.fn(async () => undefined),
-      setWeekStartDay: vi.fn(async () => undefined),
-      setColorScheme: vi.fn(async () => undefined),
-      finishOnboarding: vi.fn(async () => undefined),
+      createHabitsBulk: vi.fn(() => Promise.resolve(undefined)),
+      logHabit: vi.fn(() => Promise.resolve(undefined)),
+      createGoal: vi.fn(() => Promise.resolve(undefined)),
+      setWeekStartDay: vi.fn(() => Promise.resolve(undefined)),
+      setColorScheme: vi.fn(() => Promise.resolve(undefined)),
+      finishOnboarding: vi.fn(() => Promise.resolve(undefined)),
       onImport: () => router.replace('/chat'),
     },
     captured: capturedState,
@@ -66,10 +68,10 @@ vi.mock('@/components/ui/gradient-top', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
-    onPress,
-  }: Readonly<{ children?: React.ReactNode; onPress?: () => void }>) => {
-    captured.beginPress = onPress
-    return React.createElement('PillButton', { onPress }, children)
+    onClick,
+  }: Readonly<{ children?: React.ReactNode; onClick?: () => void }>) => {
+    captured.beginPress = onClick
+    return React.createElement('PillButton', { onClick }, children)
   },
 }))
 
@@ -115,8 +117,6 @@ vi.mock('@/components/onboarding/onboarding-complete', () => ({
   OnboardingComplete: () => null,
 }))
 
-import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
-
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
 describe('OnboardingFlow helpers', () => {
@@ -157,11 +157,11 @@ describe('OnboardingFlow import handoff + resume', () => {
   })
 
   it('routes into Astra on import without completing onboarding', async () => {
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       TestRenderer.create(<OnboardingFlow />)
     })
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       captured.beginPress?.()
     })
 
@@ -176,14 +176,14 @@ describe('OnboardingFlow import handoff + resume', () => {
   it('hides the overlay while on the chat route and restores it after leaving chat', async () => {
     pathnameState.value = '/chat'
     let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingFlow />)
     })
     expect(captured.welcomeRendered).toBe(false)
 
     pathnameState.value = '/'
     captured.welcomeRendered = false
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree.update(<OnboardingFlow />)
     })
     expect(captured.welcomeRendered).toBe(true)

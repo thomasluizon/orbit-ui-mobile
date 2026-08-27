@@ -142,9 +142,9 @@ function DeleteConfirmStep({
         />
         <PillButton
           variant="ghost"
-          fullWidth
+
           disabled={deleteLoading}
-          onPress={onClose}
+          onClick={onClose}
         >
           {t('common.cancel')}
         </PillButton>
@@ -212,9 +212,9 @@ function DeleteCodeStep({
         />
         <PillButton
           variant="ghost"
-          fullWidth
+
           disabled={deleteLoading}
-          onPress={onBack}
+          onClick={onBack}
         >
           {t('common.back')}
         </PillButton>
@@ -266,7 +266,7 @@ function DeleteDeactivatedStep({
         </Text>
       </View>
       <View style={styles.modalActions}>
-        <PillButton fullWidth onPress={onLogout}>
+        <PillButton  onClick={onLogout}>
           {t('profile.logout')}
         </PillButton>
       </View>

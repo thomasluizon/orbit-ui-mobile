@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   AnimatePresence,
@@ -133,28 +132,22 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
               <div className="flex w-full" style={{ gap: 10, maxWidth: 360, marginInline: 'auto' }}>
                 {canShareFiles && (
                   <PillButton
-                    className="flex-1"
-                    busy={isSharing}
+
+                    loading={isSharing}
                     disabled={isSharing}
                     onClick={handleShare}
-                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+
                   >
                     {t('shareCard.share')}
                   </PillButton>
                 )}
                 <PillButton
-                  className="flex-1"
+
                   variant={canShareFiles ? 'ghost' : 'primary'}
-                  busy={isSharing}
+                  loading={isSharing}
                   disabled={isSharing}
                   onClick={() => void download()}
-                  leading={
-                    <Download
-                      size={18}
-                      strokeWidth={1.8}
-                      color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
-                    />
-                  }
+
                 >
                   {t('shareCard.download')}
                 </PillButton>

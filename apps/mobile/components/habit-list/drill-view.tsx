@@ -120,9 +120,9 @@ export function HabitListDrillView({
       </Text>
       <PillButton
         variant="ghost"
-        accessibilityLabel={t('common.retry')}
-        style={styles.drillRetryButton}
-        onPress={() => {
+
+
+        onClick={() => {
           void drill.refreshCurrent()
         }}
       >

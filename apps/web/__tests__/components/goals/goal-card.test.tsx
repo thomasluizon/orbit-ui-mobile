@@ -49,7 +49,8 @@ describe('GoalCard', () => {
     renderCard(makeGoal({ progressPercentage: 50 }))
     const progressbar = screen.getByRole('progressbar')
     expect(progressbar).toBeInTheDocument()
-    expect(progressbar).toHaveAttribute('aria-valuenow', '50')
+    expect(progressbar).toHaveAttribute('aria-valuenow', '0.5')
+    expect(progressbar).toHaveAttribute('aria-valuemax', '1')
   })
 
   it('renders progress text', () => {
@@ -128,7 +129,8 @@ describe('GoalCard', () => {
   it('caps progress bar width at 100%', () => {
     renderCard(makeGoal({ progressPercentage: 120 }))
     const progressbar = screen.getByRole('progressbar')
-    expect(progressbar).toHaveAttribute('aria-valuenow', '100')
+    expect(progressbar).toHaveAttribute('aria-valuenow', '1')
+    expect(progressbar).toHaveAttribute('data-complete', 'true')
   })
 
   it('caps the announced percentage at 100 for overflowing progress', () => {

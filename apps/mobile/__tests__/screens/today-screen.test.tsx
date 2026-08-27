@@ -35,6 +35,16 @@ type RenderedTree = {
     findByType: (type: string) => RenderedNode;
   };
 };
+
+function flattenText(node: unknown): string {
+  if (node == null) return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(flattenText).join("");
+  if (typeof node === "object" && "props" in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children);
+  }
+  return "";
+}
 const { todayShellMock } = vi.hoisted(() => ({
   todayShellMock: {
     TodayHeader: () => React.createElement("TodayHeader"),
@@ -736,7 +746,7 @@ describe("TodayScreen", () => {
 
     const retryPill = tree.root.findAll(
       (node) =>
-        node.props.accessibilityLabel === "common.retry" &&
+        flattenText(node.props.children) === "common.retry" &&
         typeof node.props.onPress === "function",
     )[0];
     if (!retryPill) {

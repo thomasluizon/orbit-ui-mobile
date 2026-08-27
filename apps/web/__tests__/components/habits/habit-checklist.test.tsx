@@ -57,12 +57,13 @@ describe('HabitChecklist', () => {
       expect(checkboxes).toHaveLength(3)
     })
 
-    it('shows progress bar with correct counts', () => {
+    it('shows checklist progress on the normalized shared scale', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} interactive />)
       const progressbar = screen.getByRole('progressbar')
       expect(progressbar).toBeDefined()
-      expect(progressbar.getAttribute('aria-valuenow')).toBe('33')
+      expect(progressbar.getAttribute('aria-valuenow')).toBe(String(1 / 3))
+      expect(progressbar.getAttribute('aria-valuemax')).toBe('1')
     })
 
     it('shows progress counter text', () => {
@@ -132,14 +133,15 @@ describe('HabitChecklist', () => {
       expect(span.className).toContain('line-through')
     })
 
-    it('shows 100% progress when all items are checked', () => {
+    it('shows complete progress when all items are checked', () => {
       const items = [
         { text: 'A', isChecked: true },
         { text: 'B', isChecked: true },
       ]
       render(<HabitChecklist items={items} interactive />)
       const progressbar = screen.getByRole('progressbar')
-      expect(progressbar.getAttribute('aria-valuenow')).toBe('100')
+      expect(progressbar.getAttribute('aria-valuenow')).toBe('1')
+      expect(progressbar).toHaveAttribute('data-complete', 'true')
     })
   })
 

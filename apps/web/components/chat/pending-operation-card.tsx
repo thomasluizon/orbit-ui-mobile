@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Loader2, ShieldAlert } from '@/components/ui/icons'
+import { ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
 import {
@@ -78,8 +78,6 @@ export function PendingOperationCard({
   const operationName = capabilityLabelKey ? t(capabilityLabelKey) : pendingOperation.displayName
   const operationSummary = t('chat.pendingOp.summary', { name: operationName })
   const primaryActionLabel = needsStepUp ? t('auth.sendCode') : t('common.confirm')
-  const loadingSpinner = isLoading ? <Loader2 className="size-3.5 animate-spin" /> : undefined
-
   async function handleStart() {
     setIsLoading(true)
     setError(null)
@@ -190,7 +188,7 @@ export function PendingOperationCard({
             >
               {operationName}
             </p>
-            <Badge tone="amber">{riskLabel}</Badge>
+            <Badge >{riskLabel}</Badge>
           </div>
           <p
             style={{
@@ -222,9 +220,9 @@ export function PendingOperationCard({
           />
           <div className="flex gap-2">
             <PillButton
-              className="flex-1 py-[11px]! text-[14px]!"
+
               disabled={isLoading || verificationCode.trim().length < 6}
-              leading={loadingSpinner}
+
               onClick={() => {
                 void handleVerify()
               }}
@@ -241,10 +239,10 @@ export function PendingOperationCard({
       {!challengeId && !successMessage && (
         <div className="flex gap-2">
           <PillButton
-            className="flex-1 py-[11px]! text-[14px]!"
+
             disabled={isLoading}
-            dataTestId="pending-op-confirm"
-            leading={loadingSpinner}
+
+
             onClick={() => {
               void handleStart()
             }}
@@ -253,9 +251,9 @@ export function PendingOperationCard({
           </PillButton>
           <PillButton
             variant="ghost"
-            className="py-[11px]! text-[14px]! px-[18px]!"
+
             disabled={isLoading}
-            dataTestId="pending-op-cancel"
+
             onClick={() => setIsExiting(true)}
           >
             {t('common.cancel')}

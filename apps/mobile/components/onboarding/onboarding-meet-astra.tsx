@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, Text, View } from 'react-native'
-import { Upload } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -68,7 +67,7 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
           ],
         }}
       >
-        <AstraAvatar size={116} animate label={t('chat.astraAvatarLabel')} />
+        <AstraAvatar size={116} label={t('chat.astraAvatarLabel')} />
       </Animated.View>
 
       <Text style={styles.title}>{t('onboarding.flow.meetAstra.title')}</Text>
@@ -100,9 +99,9 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
       {onImport && (
         <PillButton
           variant="ghost"
-          fullWidth
-          leading={<Upload size={18} color={tokens.fg1} strokeWidth={1.8} />}
-          onPress={onImport}
+
+
+          onClick={onImport}
         >
           {t('onboarding.flow.meetAstra.import')}
         </PillButton>

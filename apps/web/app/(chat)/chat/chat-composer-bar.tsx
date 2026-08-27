@@ -11,7 +11,6 @@ import {
   Square,
   ArrowUp,
   X,
-  Crown,
   Lock,
   Image as ImageIcon,
   Paperclip,
@@ -372,7 +371,7 @@ function ChatTextInputRow({
             fontSize: 16,
             color: 'var(--fg-1)',
             maxHeight: 120,
-            padding: '13px 0',
+            padding: '12px 0',
           }}
         />
         {limitLocked && (
@@ -566,10 +565,10 @@ export function ChatComposerBar({
             className="flex flex-col"
             style={{ paddingTop: 12, gap: 12 }}
           >
-            <InfoCard title={t('chat.limitReachedError')} />
+            <InfoCard>{t('chat.limitReachedError')}</InfoCard>
             <div className="flex justify-center">
               <PillButton
-                leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}
+
                 onClick={onUpgrade}
               >
                 {t('upgrade.subscribe')}

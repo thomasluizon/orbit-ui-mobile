@@ -36,15 +36,24 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
 }
 
 describe('PlanSelection', () => {
-  it('renders three plan cards with yearly as the glowing hero CTA', () => {
+  it('renders three plan-card choices with yearly selected as recommended', () => {
     renderSelection()
-    expect(screen.getByText('upgrade.free')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.plans.yearly.name')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.plans.monthly.name')).toBeInTheDocument()
-    expect(screen.getByTestId('paywall-checkout')).toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(3)
+    expect(screen.getByRole('button', { name: /upgrade\.free/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
   })
 
-  it('switches the hero CTA copy by trial state', () => {
+  it('keeps the same accessible plan choices across trial states', () => {
     const { unmount } = render(
       <PlanSelection
         plans={plans}
@@ -56,7 +65,10 @@ describe('PlanSelection', () => {
         t={t}
       />,
     )
-    expect(screen.getByTestId('paywall-checkout')).toHaveTextContent('upgrade.convert.trialCta')
+    expect(
+      screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.convert.trialCta')).not.toBeInTheDocument()
     unmount()
 
     render(
@@ -70,7 +82,10 @@ describe('PlanSelection', () => {
         t={t}
       />,
     )
-    expect(screen.getByTestId('paywall-checkout')).toHaveTextContent('upgrade.convert.freeCta')
+    expect(
+      screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.convert.freeCta')).not.toBeInTheDocument()
   })
 
   it('checks out the chosen interval and keeps the free escape hatch', () => {
@@ -78,13 +93,34 @@ describe('PlanSelection', () => {
     const onStayFree = vi.fn()
     renderSelection({ onCheckout, onStayFree })
 
-    fireEvent.click(screen.getByTestId('paywall-checkout'))
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
     expect(onCheckout).toHaveBeenCalledWith('yearly')
 
-    fireEvent.click(screen.getByRole('button', { name: 'upgrade.plans.monthly.cta' }))
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ }))
     expect(onCheckout).toHaveBeenCalledWith('monthly')
 
-    fireEvent.click(screen.getByRole('button', { name: 'upgrade.convert.stayFree' }))
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.free/ }))
     expect(onStayFree).toHaveBeenCalledTimes(1)
+  })
+
+  it('locks every choice while a paid checkout is pending', () => {
+    const onCheckout = vi.fn()
+    const onStayFree = vi.fn()
+    renderSelection({ checkoutLoading: 'yearly', onCheckout, onStayFree })
+
+    const free = screen.getByRole('button', { name: /upgrade\.free/ })
+    const yearly = screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })
+    const monthly = screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })
+
+    expect(free).toBeDisabled()
+    expect(yearly).toBeDisabled()
+    expect(yearly).toHaveAttribute('aria-busy', 'true')
+    expect(monthly).toBeDisabled()
+
+    fireEvent.click(free)
+    fireEvent.click(yearly)
+    fireEvent.click(monthly)
+    expect(onStayFree).not.toHaveBeenCalled()
+    expect(onCheckout).not.toHaveBeenCalled()
   })
 })

@@ -16,6 +16,7 @@ const Svg = createSvgComponent('Svg')
 
 export const Circle = createSvgComponent('Circle')
 export const Defs = createSvgComponent('Defs')
+export const G = createSvgComponent('G')
 export const Line = createSvgComponent('Line')
 export const LinearGradient = createSvgComponent('LinearGradient')
 export const Path = createSvgComponent('Path')

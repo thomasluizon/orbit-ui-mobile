@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import type { GoalMetricsViewModel } from '@orbit/shared/utils/goal-metrics'
 import {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from '@orbit/shared/utils/goal-metrics'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -107,16 +106,16 @@ export function GoalMetricsPanel({
 
       <View style={styles.tileRow}>
         <StatTile
-          emoji="📅"
+
           value={projectedValue}
           label={t('goals.metrics.projectedCompletion')}
-          phraseValue
+
         />
         <StatTile
-          emoji="⚡"
+
           value={paceTile.value}
           label={paceTile.label}
-          phraseValue={typeof paceTile.value === 'string'}
+
         />
       </View>
 
@@ -126,24 +125,16 @@ export function GoalMetricsPanel({
             {t('goals.metrics.habitAdherence')}
           </SectionLabel>
           {metrics.habitAdherence.map((habit) => {
-            const adherenceTone = getGoalHabitAdherenceTone(
-              habit.weeklyCompletionRate,
-            )
-            const barColor =
-              adherenceTone === 'success' || adherenceTone === 'primary'
-                ? tokens.primary
-                : tokens.statusOverdue
-
             return (
               <View key={habit.habitId} style={styles.adherenceRow}>
                 <Text style={styles.adherenceTitle} numberOfLines={1}>
                   {habit.habitTitle}
                 </Text>
                 <ProgressBar
-                  style={styles.adherenceBar}
-                  progress={Math.min(100, habit.weeklyCompletionRate) / 100}
+
+                  value={Math.min(100, habit.weeklyCompletionRate) / 100} max={1}
                   label={habit.habitTitle}
-                  color={barColor}
+
                 />
                 <Text style={styles.adherencePercent}>
                   {Math.round(habit.weeklyCompletionRate)}%

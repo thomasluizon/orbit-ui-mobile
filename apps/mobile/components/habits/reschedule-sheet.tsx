@@ -136,15 +136,15 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <View style={styles.actions}>
           <PillButton
-            fullWidth
-            onPress={() => {
+
+            onClick={() => {
               scheduleExitAction(() => router.push('/upgrade'))
               onOpenChange(false)
             }}
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onPress={() => onOpenChange(false)}>
+          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
@@ -153,10 +153,10 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (error) {
       return (
         <View style={styles.actions}>
-          <PillButton fullWidth onPress={() => void refetch()}>
+          <PillButton  onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onPress={() => onOpenChange(false)}>
+          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
@@ -165,18 +165,18 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     return (
       <View style={styles.actions}>
         <PillButton
-          fullWidth
+
           disabled={!suggestion || updateHabit.isPending}
-          busy={updateHabit.isPending}
-          onPress={() => void handleAccept()}
+          loading={updateHabit.isPending}
+          onClick={() => void handleAccept()}
         >
           {t('habits.reschedule.accept')}
         </PillButton>
         <PillButton
           variant="ghost"
-          fullWidth
+
           disabled={updateHabit.isPending}
-          onPress={() => onOpenChange(false)}
+          onClick={() => onOpenChange(false)}
         >
           {t('habits.reschedule.dismiss')}
         </PillButton>

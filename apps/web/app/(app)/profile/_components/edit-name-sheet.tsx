@@ -106,10 +106,10 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
           style={{ gap: 12, paddingTop: 8 }}
         >
           <PillButton
-            fullWidth
+
             onClick={handleSave}
             disabled={mutation.isPending}
-            busy={mutation.isPending}
+            loading={mutation.isPending}
           >
             {t('common.save')}
           </PillButton>

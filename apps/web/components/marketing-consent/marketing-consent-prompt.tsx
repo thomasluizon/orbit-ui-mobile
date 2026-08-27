@@ -140,7 +140,7 @@ export function MarketingConsentPrompt() {
             animate={{ opacity: 1, y: 0 }}
             transition={enterTransition(140)}
           >
-            <PillButton fullWidth onClick={() => answer(true)}>
+            <PillButton  onClick={() => answer(true)}>
               {t('marketingConsent.prompt.accept')}
             </PillButton>
             <button

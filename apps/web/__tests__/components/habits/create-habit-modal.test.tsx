@@ -218,6 +218,8 @@ describe('CreateHabitModal', () => {
     mockValidateAll.mockReturnValue(null)
     mockFormWatch.mockImplementation((field?: string) => {
       switch (field) {
+        case 'title':
+          return 'Test Habit'
         case 'dueTime':
           return ''
         case 'reminderEnabled':
@@ -290,13 +292,24 @@ describe('CreateHabitModal', () => {
     expect(screen.getByTestId('habit-form-fields')).toBeDefined()
   })
 
-  it('renders cancel and a tight create button', () => {
+  it('renders named cancel and create actions', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('common.cancel')).toBeDefined()
-    const submit = screen.getByTestId('habit-create-submit')
-    expect(submit.textContent).toContain('common.create')
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'common.create' })).toBeDefined()
+  })
+
+  it('submits through the named Create footer action', async () => {
+    renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => {
+      expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('calls onOpenChange(false) when cancel is clicked', () => {

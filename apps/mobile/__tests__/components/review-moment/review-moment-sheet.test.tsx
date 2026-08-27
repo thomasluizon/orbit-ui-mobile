@@ -1,6 +1,10 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
+import { useUIStore } from '@/stores/ui-store'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -23,11 +27,11 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
-    onPress,
+    onClick,
   }: {
     children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+    onClick?: () => void
+  }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
 
 vi.mock('@/components/ui/astra-avatar', () => ({
@@ -41,7 +45,7 @@ vi.mock('@/hooks/use-profile', () => ({
 const reviewReminder = vi.hoisted(() => ({
   isEligible: true,
   dismiss: vi.fn(),
-  requestReview: vi.fn(async () => true),
+  requestReview: vi.fn(() => Promise.resolve(true)),
 }))
 
 vi.mock('@/hooks/use-review-reminder', () => ({
@@ -51,10 +55,6 @@ vi.mock('@/hooks/use-review-reminder', () => ({
     requestReview: reviewReminder.requestReview,
   }),
 }))
-
-import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
-import { useUIStore } from '@/stores/ui-store'
-import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -239,7 +239,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     expect(cta).toHaveLength(1)
 
     await TestRenderer.act(async () => {
-      ;(cta[0]!.props.onPress as () => void)()
+      ;(cta[0]!.props.onClick as () => void)()
       await Promise.resolve()
     })
 

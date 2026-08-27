@@ -55,7 +55,7 @@ export function SlipAlertSection({
               >
                 {t('habits.form.slipAlert')}
               </span>
-              <Badge tone="soft">{t('common.proBadge')}</Badge>
+              <Badge >{t('common.proBadge')}</Badge>
             </div>
             <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 30 }}>
               {t('habits.form.slipAlertDescription')}
@@ -67,7 +67,7 @@ export function SlipAlertSection({
             style={{
               width: 48,
               height: 28,
-              padding: 3,
+              padding: 4,
               background: 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
             }}
           >

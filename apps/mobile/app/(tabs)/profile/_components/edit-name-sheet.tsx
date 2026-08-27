@@ -113,11 +113,11 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
         ) : null}
         <View style={styles.actions}>
           <PillButton
-            fullWidth
-            onPress={handleSave}
+
+            onClick={handleSave}
             disabled={mutation.isPending}
-            busy={mutation.isPending}
-            accessibilityLabel={t('common.save')}
+            loading={mutation.isPending}
+
           >
             {t('common.save')}
           </PillButton>

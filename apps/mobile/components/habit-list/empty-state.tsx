@@ -7,7 +7,6 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Plus, Sparkles } from '@/components/ui/icons'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
@@ -52,13 +51,11 @@ export function HabitListEmptyState({
   if (showStackedActions) {
     emptyActions = (
       <View style={styles.actions}>
-        {showAstraAction ? (
+        {showAstraAction && askAstraLabel ? (
           <PillButton
-            fullWidth
-            onPress={onAskAstra}
-            leading={
-              <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-            }
+
+            onClick={onAskAstra}
+
           >
             {askAstraLabel}
           </PillButton>
@@ -66,9 +63,9 @@ export function HabitListEmptyState({
         {actionLabel ? (
           <PillButton
             variant="ghost"
-            fullWidth
-            onPress={onAction}
-            leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
+
+            onClick={onAction}
+
           >
             {actionLabel}
           </PillButton>

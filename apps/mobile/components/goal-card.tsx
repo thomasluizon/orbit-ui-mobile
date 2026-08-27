@@ -33,22 +33,6 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: Readonly<
   useTourTarget(tourTargetId ?? '__noop__', cardRef)
   useTourTarget(tourTargetId ? 'tour-goal-progress' : '__noop__', progressRef)
 
-  const progressColor = useMemo(() => {
-    if (goal.status === 'Completed') return tokens.statusDone
-    if (goal.status === 'Abandoned') return tokens.fg3
-    if (isStreak) return tokens.statusOverdue
-    if (goal.progressPercentage >= 75) return tokens.statusDone
-    return tokens.primary
-  }, [
-    goal.status,
-    goal.progressPercentage,
-    isStreak,
-    tokens.statusOverdue,
-    tokens.statusDone,
-    tokens.primary,
-    tokens.fg3,
-  ])
-
   const progressTextColor = useMemo(() => {
     if (goal.status === 'Completed') return tokens.statusDone
     if (goal.status === 'Abandoned') return tokens.fg3
@@ -216,10 +200,10 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: Readonly<
         style={styles.progressRow}
       >
         <ProgressBar
-          style={styles.progressBar}
-          progress={progress / 100}
+
+          value={progress / 100} max={1}
           label={percentLabel}
-          color={progressColor}
+
         />
       </View>
     </Pressable>

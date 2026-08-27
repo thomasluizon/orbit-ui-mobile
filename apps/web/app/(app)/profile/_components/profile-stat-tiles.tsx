@@ -84,7 +84,7 @@ export function ProfileStatTiles({
         ariaLabel={`${streakValue} · ${streakLabel}`}
         onClick={onStreakClick}
       >
-        <StatTile emoji="🔥" value={streakValue} label={streakLabel} />
+        <StatTile  value={streakValue} label={streakLabel} />
       </StatTileButton>
       {showAchievements && (
         <StatTileButton
@@ -93,7 +93,7 @@ export function ProfileStatTiles({
           onClick={onAchievementsClick}
         >
           <StatTile
-            emoji="🏆"
+
             value={achievementsValue}
             label={achievementsLabel}
           />

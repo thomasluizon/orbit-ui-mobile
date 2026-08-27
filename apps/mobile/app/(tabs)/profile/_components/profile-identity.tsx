@@ -3,7 +3,7 @@ import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { Pencil } from '@/components/ui/icons'
 import type { createTokensV2 } from '@/lib/theme'
-import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
 import { SkeletonLine } from '@/components/ui/skeleton'
 import { sectionEntrance } from './profile-section-entrance'
 import type { ProfileStyles } from './profile-styles'
@@ -13,7 +13,6 @@ type Tokens = ReturnType<typeof createTokensV2>
 interface ProfileIdentityProps {
   isLoading: boolean
   showBadge: boolean
-  badgeTone: BadgeTone
   badgeLabel: string
   name: string | undefined
   identityLine: string | undefined
@@ -25,7 +24,6 @@ interface ProfileIdentityProps {
 export function ProfileIdentity({
   isLoading,
   showBadge,
-  badgeTone,
   badgeLabel,
   name,
   identityLine,
@@ -45,7 +43,7 @@ export function ProfileIdentity({
       ) : (
         <>
           {showBadge ? (
-            <Badge tone={badgeTone} style={styles.planBadge}>
+            <Badge  >
               {badgeLabel}
             </Badge>
           ) : null}

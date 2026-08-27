@@ -127,7 +127,7 @@ export function GoalCompletedCelebration() {
         <Animated.View
           style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
         >
-          <PillButton fullWidth onPress={dismiss}>
+          <PillButton  onClick={dismiss}>
             {t('common.continue')}
           </PillButton>
         </Animated.View>

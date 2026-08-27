@@ -207,7 +207,7 @@ describe('TodayRail', () => {
     expect(screen.getByText('64%')).toBeInTheDocument()
     expect(
       screen.getByRole('progressbar', { name: 'gamification.profileCard.level({"level":19})' }),
-    ).toHaveAttribute('aria-valuenow', '64')
+    ).toHaveAttribute('aria-valuenow', '0.64')
     expect(screen.getByText('gamification.profileCard.tileLabel')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
   })

@@ -49,8 +49,16 @@ describe('PlanSelection (mobile)', () => {
     const tree = renderSelection('yearly')
     const pressables = tree.root.findAllByType('Pressable')
     expect(pressables).toHaveLength(3)
-    expect(pressables[0].props.accessibilityState).toEqual({ checked: true })
-    expect(pressables[1].props.accessibilityState).toEqual({ checked: false })
+    expect(pressables[0].props.accessibilityState).toEqual({
+      checked: true,
+      disabled: false,
+      busy: false,
+    })
+    expect(pressables[1].props.accessibilityState).toEqual({
+      checked: false,
+      disabled: false,
+      busy: false,
+    })
   })
 
   it('selects monthly and exposes the quiet free escape hatch', () => {

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  ActivityIndicator,
 } from 'react-native'
 import { Check, Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -155,24 +154,20 @@ function BreakdownActions({
 
       <View style={styles.actions}>
         <PillButton
-          style={styles.confirmPill}
+
           disabled={validCount === 0 || isSubmitting}
-          onPress={onConfirm}
-          leading={
-            isSubmitting ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-          }
+          onClick={onConfirm}
+
         >
-          <Text style={styles.confirmPillLabel}>
-            {plural(t('habits.breakdown.createCount', { n: validCount }), validCount)}
-          </Text>
+          {plural(t('habits.breakdown.createCount', { n: validCount }), validCount)}
         </PillButton>
         <PillButton
           variant="ghost"
-          style={styles.cancelPill}
+
           disabled={isSubmitting}
-          onPress={onCancel}
+          onClick={onCancel}
         >
-          <Text style={styles.cancelPillLabel}>{t('common.cancel')}</Text>
+          {t('common.cancel')}
         </PillButton>
       </View>
     </>

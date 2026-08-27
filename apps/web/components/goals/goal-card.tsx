@@ -232,9 +232,9 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
           data-progress-state={progress.state}
         >
           <ProgressBar
-            progress={Math.min(goal.progressPercentage, 100) / 100}
+            value={Math.min(goal.progressPercentage, 100) / 100} max={1}
             label={percentLabel}
-            color={progress.color}
+
           />
         </div>
       </button>

@@ -33,14 +33,14 @@ function RailStatRow({
       >
         <Icon size={18} strokeWidth={1.9} color="var(--primary)" />
       </span>
-      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 5 }}>
+      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span
           className="truncate"
           style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
         >
           {label}
         </span>
-        {meter !== undefined && <ProgressBar progress={meter / 100} label={label} className="h-1!" />}
+        {meter !== undefined && <ProgressBar value={meter / 100} max={1} label={label}  />}
       </div>
       <span className="t-num shrink-0" style={{ fontSize: 15 }}>
         {value}

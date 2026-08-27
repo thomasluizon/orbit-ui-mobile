@@ -75,7 +75,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       }}
     >
       <div style={{ position: 'relative', padding: '20px 22px 22px', background: 'var(--gradient-header)' }}>
-        <div className="flex items-center" style={{ gap: 9 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
           <div
             aria-hidden="true"
             style={{
@@ -105,7 +105,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 18px 18px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {stats.map((stat) => (
-            <StatTile key={stat.labelKey} emoji={stat.emoji} value={stat.value} label={t(stat.labelKey)} />
+            <StatTile key={stat.labelKey}  value={stat.value} label={t(stat.labelKey)} />
           ))}
         </div>
 

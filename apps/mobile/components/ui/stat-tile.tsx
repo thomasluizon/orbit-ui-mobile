@@ -1,57 +1,42 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native'
+import type { StatTileProps } from '@orbit/shared/contracts/display'
+import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface StatTileProps {
-  emoji: string
-  value: string | number
-  label: string
-  /** Render the value as a compact phrase (dates, states) instead of a display numeral. */
-  phraseValue?: boolean
-  style?: StyleProp<ViewStyle>
-}
-
-/** Kit stat tile: emoji over an Inter numeral (or compact Rubik phrase) and a muted Rubik label. */
-export function StatTile({
-  emoji,
-  value,
-  label,
-  phraseValue = false,
-  style,
-}: Readonly<StatTileProps>) {
+/** A fixed-height stat surface whose loading and empty states never reflow the row. */
+export function StatTile(props: Readonly<StatTileProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { label, state = 'default' } = props
 
   return (
     <View
-      style={[
-        styles.tile,
-        { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
-        style,
-      ]}
+      style={[styles.tile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+      testID={`stat-tile-${state}`}
+      accessibilityRole={state === 'loading' ? 'progressbar' : undefined}
+      accessibilityLabel={state === 'loading' ? props.loadingLabel : undefined}
     >
+      {state === 'loading' ? (
+        <>
+          <View style={[styles.valueSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+          <View style={[styles.labelSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+        </>
+      ) : (
+        <Text
+          style={[
+            state === 'empty' ? styles.emptyValue : styles.value,
+            { color: state === 'empty' ? tokens.fg4 : tokens.fg1 },
+          ]}
+        >
+          {state === 'empty' ? props.emptyLabel : props.value}
+        </Text>
+      )}
       <Text
-        style={styles.emoji}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        numberOfLines={2}
+        style={[styles.label, { color: state === 'empty' ? tokens.fg3 : tokens.fg2 }]}
       >
-        {emoji}
+        {label}
       </Text>
-      <Text
-        style={[styles.value, phraseValue && styles.valuePhrase, { color: tokens.fg1 }]}
-        numberOfLines={phraseValue ? 1 : undefined}
-        adjustsFontSizeToFit={phraseValue || undefined}
-        minimumFontScale={phraseValue ? 0.7 : undefined}
-      >
-        {value}
-      </Text>
-      <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
     </View>
   )
 }
@@ -60,34 +45,39 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 18,
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 132,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingTop: 18,
-    paddingHorizontal: 12,
-    paddingBottom: 16,
-  },
-  emoji: {
-    fontSize: 28,
-    lineHeight: 28,
+    padding: 24,
   },
   value: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 24,
-    letterSpacing: -0.24,
+    lineHeight: 24,
     fontVariant: ['tabular-nums'],
   },
-  valuePhrase: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 15,
-    lineHeight: 20,
-    letterSpacing: 0,
-    textAlign: 'center',
-    minHeight: 29,
-    textAlignVertical: 'center',
+  emptyValue: {
+    fontFamily: 'RobotoMono_500Medium',
+    fontSize: 12,
+    lineHeight: 24,
   },
   label: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    minHeight: 40,
+    textAlign: 'center',
+  },
+  valueSkeleton: {
+    width: 64,
+    height: 24,
+    borderRadius: 8,
+  },
+  labelSkeleton: {
+    width: 80,
+    height: 20,
+    borderRadius: 8,
   },
 })

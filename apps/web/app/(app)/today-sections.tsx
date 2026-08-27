@@ -86,7 +86,7 @@ export function TodayHabitsProgressHeader({
       {showDayProgress && (
         <div className="md:hidden" style={{ padding: '0 20px 6px' }}>
           <ProgressBar
-            progress={dayProgress.done / dayProgress.total}
+            value={dayProgress.done / dayProgress.total} max={1}
             label={`${dayProgress.done}/${dayProgress.total} ${t('habits.completed')}`}
           />
         </div>
@@ -142,7 +142,7 @@ export function TodayHabitsStates({
           >
             {t('habits.loadError')}
           </p>
-          <PillButton variant="ghost" className="mt-[22px]" onClick={onRetry}>
+          <PillButton variant="ghost"  onClick={onRetry}>
             {t('common.retry')}
           </PillButton>
         </div>

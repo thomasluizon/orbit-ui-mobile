@@ -4,7 +4,6 @@ import { motion, useReducedMotion } from 'motion/react'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
-import { Spinner } from './login-atoms'
 
 interface CodeStepProps {
   email: string
@@ -85,12 +84,12 @@ export function CodeStep({
         </motion.div>
 
         <PillButton
-          type="submit"
-          fullWidth
+
+
           disabled={isSubmitting || codeDigits.join('').length !== 6}
-          busy={isSubmitting}
-          leading={isSubmitting ? <Spinner /> : undefined}
-          dataTestId="auth-verify-code"
+          loading={isSubmitting}
+
+
         >
           {t('auth.verify')}
         </PillButton>

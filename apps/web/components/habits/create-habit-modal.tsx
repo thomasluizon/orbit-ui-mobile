@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
-import { Check, Loader2 } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -338,18 +337,8 @@ export function CreateHabitModal({
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              type="submit"
-              form={formId}
-              glow={false}
+              formId={formId}
               disabled={isPending || watchedTitle.trim().length === 0}
-              dataTestId="habit-create-submit"
-              leading={
-                isPending ? (
-                  <Loader2 className="size-[18px] animate-spin" />
-                ) : (
-                  <Check size={18} strokeWidth={2.2} aria-hidden="true" />
-                )
-              }
             >
               {t('common.create')}
             </PillButton>

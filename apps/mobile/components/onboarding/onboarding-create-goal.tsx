@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
-  ActivityIndicator,
   // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Pressable,
@@ -252,15 +251,11 @@ export function OnboardingCreateGoal({
 
       <View style={styles.createBtnWrap}>
         <PillButton
-          fullWidth
+
           disabled={!canCreate || isCreating}
-          busy={isCreating}
-          onPress={() => void handleCreate()}
-          leading={
-            isCreating ? (
-              <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-            ) : undefined
-          }
+          loading={isCreating}
+          onClick={() => void handleCreate()}
+
         >
           {isCreating
             ? t('onboarding.flow.createGoal.creating')

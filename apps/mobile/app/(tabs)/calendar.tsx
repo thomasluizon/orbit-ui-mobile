@@ -453,7 +453,7 @@ export default function CalendarScreen() {
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>
               {t("calendar.loadError")}
             </Text>
-            <PillButton variant="ghost" onPress={() => void activeRefresh()}>
+            <PillButton variant="ghost" onClick={() => void activeRefresh()}>
               {t("common.retry")}
             </PillButton>
           </View>

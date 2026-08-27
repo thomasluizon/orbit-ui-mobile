@@ -4,12 +4,12 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import {
   AlertTriangle,
   Lightbulb,
-  Orbit,
   RefreshCw,
   Star,
   TrendingUp,
   type IconProps,
 } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslations } from 'next-intl'
 import type {
   RetrospectiveHabitStat,
@@ -257,7 +257,7 @@ export function RetrospectiveDashboard({
               gap: 6,
             }}
           >
-            <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
+            <AstraGlyph size={11} color="var(--primary)" />
             {t('retrospective.astraEyebrow')}
           </div>
           <div className="flex items-center" style={{ gap: 6 }}>
@@ -281,17 +281,17 @@ export function RetrospectiveDashboard({
       node: (
         <div className="flex" style={{ gap: 10 }}>
           <StatTile
-            emoji="🎯"
+
             value={`${metrics.completionRate}%`}
             label={t('retrospective.metrics.completionRate')}
           />
           <StatTile
-            emoji="✅"
+
             value={metrics.totalCompletions}
             label={t('retrospective.metrics.logs')}
           />
           <StatTile
-            emoji="🔥"
+
             value={metrics.currentStreak}
             label={t('retrospective.metrics.currentStreak')}
           />

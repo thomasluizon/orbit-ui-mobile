@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
 
 const TestRenderer = require('react-test-renderer')
 
-function renderBadge(tone?: BadgeTone) {
+function renderBadge(variant: 'solid' | 'outline' = 'solid') {
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(<Badge tone={tone}>{tone ?? 'premium'}</Badge>)
+    tree = TestRenderer.create(<Badge variant={variant}>premium</Badge>)
   })
   return tree
 }
@@ -19,9 +19,9 @@ describe('Badge (mobile)', () => {
     expect(texts).toContain('premium')
   })
 
-  it.each<BadgeTone>(['violet', 'soft', 'outline', 'amber', 'bad'])('renders the %s tone', (tone) => {
-    const tree = renderBadge(tone)
-    const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
-    expect(texts).toContain(tone)
+  it.each(['solid', 'outline'] as const)('renders the %s variant at chip radius', (variant) => {
+    const tree = renderBadge(variant)
+    const view = tree.root.findByType('View')
+    expect(view.props.style[0].borderRadius).toBe(8)
   })
 })

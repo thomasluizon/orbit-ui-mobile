@@ -6,6 +6,16 @@ import { buildTempGoal } from '@/lib/goal-mutation-helpers'
 
 const TestRenderer = require('react-test-renderer')
 
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
 const colorProxy: Record<string, string> = new Proxy(
   {},
   {
@@ -284,7 +294,7 @@ describe('GoalDetailDrawer', () => {
     const editButton = tree.root
       .findAll(
         (node: any) =>
-          node.props.accessibilityLabel === 'goals.updateProgress' &&
+          flattenText(node.props.children) === 'goals.updateProgress' &&
           typeof node.props.onPress === 'function',
       )
       .at(0)
@@ -413,7 +423,7 @@ describe('GoalDetailDrawer', () => {
     const retryButton = tree.root
       .findAll(
         (node: any) =>
-          node.props.accessibilityLabel === 'common.retry' &&
+          flattenText(node.props.children) === 'common.retry' &&
           typeof node.props.onPress === 'function',
       )
       .at(0)

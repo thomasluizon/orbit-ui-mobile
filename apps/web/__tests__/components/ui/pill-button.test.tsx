@@ -15,6 +15,20 @@ describe('PillButton', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
+  it('submits an associated form outside the button subtree', () => {
+    const onSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => event.preventDefault())
+    render(
+      <>
+        <form id="habit-form" onSubmit={onSubmit} />
+        <PillButton formId="habit-form">Create</PillButton>
+      </>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
   it('does not fire onClick when disabled', () => {
     const onClick = vi.fn()
     render(
@@ -28,19 +42,20 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('renders a leading node', () => {
+  it('requires and exposes the name of an icon-only button', () => {
     render(
-      <PillButton onClick={() => {}} leading={<span data-testid="leading-node" />}>
-        Go
+      <PillButton onClick={() => {}} iconOnly label="Open menu">
+        <span data-testid="leading-node" />
       </PillButton>,
     )
     expect(screen.getByTestId('leading-node')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
   })
 
-  it('no-ops clicks and exposes the busy state while busy', () => {
+  it('no-ops clicks and exposes the loading state', () => {
     const onClick = vi.fn()
     render(
-      <PillButton onClick={onClick} busy>
+      <PillButton onClick={onClick} loading>
         Saving
       </PillButton>,
     )
@@ -50,7 +65,7 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('renders secondary, ghost, and destructive variants', () => {
+  it('renders all five variants', () => {
     render(
       <>
         <PillButton variant="secondary" onClick={() => {}}>
@@ -62,37 +77,27 @@ describe('PillButton', () => {
         <PillButton variant="destructive" onClick={() => {}}>
           Delete
         </PillButton>
+        <PillButton variant="caution" onClick={() => {}}>
+          Caution
+        </PillButton>
       </>,
     )
     expect(screen.getByRole('button', { name: 'Secondary' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ghost' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Caution' })).toBeInTheDocument()
   })
 
-  it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
-    render(
-      <PillButton ariaLabel="Create" leading={<span data-testid="icon-only-leading" />} />,
-    )
-    const button = screen.getByRole('button', { name: 'Create' })
-    expect(button).toHaveStyle({ width: '50px', height: '50px' })
-    expect(button).toHaveTextContent('')
-    expect(screen.getByTestId('icon-only-leading')).toBeInTheDocument()
-  })
-
-  it('drives the pill height from the size scale (sm < md < lg)', () => {
+  it('drives the pill height from the two-size scale', () => {
     render(
       <>
         <PillButton size="sm" onClick={() => {}}>
           Small
         </PillButton>
         <PillButton onClick={() => {}}>Medium</PillButton>
-        <PillButton size="lg" onClick={() => {}}>
-          Large
-        </PillButton>
       </>,
     )
     expect(screen.getByRole('button', { name: 'Small' })).toHaveStyle({ height: '40px' })
     expect(screen.getByRole('button', { name: 'Medium' })).toHaveStyle({ height: '50px' })
-    expect(screen.getByRole('button', { name: 'Large' })).toHaveStyle({ height: '56px' })
   })
 })

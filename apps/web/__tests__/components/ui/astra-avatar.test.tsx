@@ -16,30 +16,25 @@ describe('AstraMark', () => {
     expect(container.querySelector('svg')).toHaveAttribute('width', '40')
   })
 
-  it('draws the ring, trail, satellite and core', () => {
+  it('renders the solid Astra asset instead of the retired orbital draft', () => {
     const { container } = render(<AstraMark />)
-    expect(container.querySelectorAll('circle')).toHaveLength(3)
-    expect(container.querySelector('path')).not.toBeNull()
+    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
+    expect(container.querySelectorAll('path').length).toBeGreaterThan(0)
+    expect(container.querySelector('circle')).toBeNull()
   })
 
-  it('uses the violet/hairline duotone when no color is given', () => {
+  it('inherits currentColor when no color is given', () => {
     const { container } = render(<AstraMark />)
-    const ring = container.querySelector('circle[stroke]')
-    expect(ring).toHaveAttribute('stroke', 'var(--fg-4)')
+    expect(container.querySelector('svg')).toHaveAttribute('color', 'currentColor')
+    expect(container.querySelector('path')).toHaveAttribute('fill', 'currentColor')
   })
 
-  it('renders monochrome when a color is given (icon contexts)', () => {
-    const { container } = render(<AstraMark color="currentColor" />)
-    const ring = container.querySelector('circle[stroke]')
-    expect(ring).toHaveAttribute('stroke', 'currentColor')
+  it('renders monochrome when a color is given', () => {
+    const { container } = render(<AstraMark color="#123456" />)
+    expect(container.querySelector('svg')).toHaveAttribute('color', '#123456')
+    expect(container.querySelector('path')).toHaveAttribute('fill', 'currentColor')
   })
 
-  it('adds the orbit animation class only when animated', () => {
-    const { container, rerender } = render(<AstraMark />)
-    expect(container.querySelector('svg')).not.toHaveClass('astra-orbit')
-    rerender(<AstraMark animate />)
-    expect(container.querySelector('svg')).toHaveClass('astra-orbit')
-  })
 })
 
 describe('AstraAvatar', () => {

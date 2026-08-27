@@ -64,12 +64,12 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
       <View style={styles.body}>
         <View style={styles.statsGrid}>
           <View style={styles.statsRow}>
-            <StatTile emoji={stats[0]!.emoji} value={stats[0]!.value} label={t(stats[0]!.labelKey)} />
-            <StatTile emoji={stats[1]!.emoji} value={stats[1]!.value} label={t(stats[1]!.labelKey)} />
+            <StatTile  value={stats[0]!.value} label={t(stats[0]!.labelKey)} />
+            <StatTile  value={stats[1]!.value} label={t(stats[1]!.labelKey)} />
           </View>
           <View style={styles.statsRow}>
-            <StatTile emoji={stats[2]!.emoji} value={stats[2]!.value} label={t(stats[2]!.labelKey)} />
-            <StatTile emoji={stats[3]!.emoji} value={stats[3]!.value} label={t(stats[3]!.labelKey)} />
+            <StatTile  value={stats[2]!.value} label={t(stats[2]!.labelKey)} />
+            <StatTile  value={stats[3]!.value} label={t(stats[3]!.labelKey)} />
           </View>
         </View>
 

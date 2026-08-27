@@ -1,6 +1,5 @@
 'use client'
 
-import { Play } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { RingMotif } from '@/components/gamification/ring-motif'
@@ -69,7 +68,7 @@ export function WrappedCover({
           <PillButton
             disabled={!canStart}
             onClick={onStart}
-            leading={<Play size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+
           >
             {t('wrapped.start')}
           </PillButton>

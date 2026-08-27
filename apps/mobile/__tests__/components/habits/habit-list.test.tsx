@@ -15,6 +15,16 @@ const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 const TestRenderer = require('react-test-renderer')
 
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
@@ -756,7 +766,9 @@ describe('HabitList', () => {
     expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('boom')
 
     const retryButton = emptyStateTree.root.findAll(
-      (node: any) => node.props?.accessibilityLabel === 'common.retry',
+      (node: any) =>
+        flattenText(node.props?.children) === 'common.retry' &&
+        typeof node.props?.onPress === 'function',
     )[0]
     TestRenderer.act(() => {
       retryButton.props.onPress()

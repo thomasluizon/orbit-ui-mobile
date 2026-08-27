@@ -178,7 +178,6 @@ export default function ProfileScreen() {
         <ProfileIdentity
           isLoading={isLoading}
           showBadge={subscriptionDisplay.showBadge}
-          badgeTone={subscriptionDisplay.badgeTone}
           badgeLabel={subscriptionDisplay.badgeLabel}
           name={profile?.name}
           identityLine={identityLine}

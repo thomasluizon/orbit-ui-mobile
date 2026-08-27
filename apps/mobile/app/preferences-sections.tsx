@@ -1,6 +1,6 @@
 import { View, Text, Pressable, ScrollView } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Calendar, Check, Languages, Moon, Palette } from '@/components/ui/icons'
+import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
@@ -360,10 +360,9 @@ export function PreferencePickerSheet({
             <View style={styles.sheetFooter}>
               <PillButton
                 variant="secondary"
-                // eslint-disable-next-line local/no-fullbleed-button -- picker sheet footer primary action
-                fullWidth
-                onPress={onClose}
-                leading={<Check size={18} color={tokens.bg} strokeWidth={2} />}
+
+                onClick={onClose}
+
               >
                 {t('common.save')}
               </PillButton>

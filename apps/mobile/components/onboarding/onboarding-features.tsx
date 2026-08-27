@@ -1,28 +1,27 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, type ComponentType } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, StyleSheet, Text, View } from 'react-native'
+import { Animated, StyleSheet, Text, View, type ColorValue } from 'react-native'
 import {
   BellRing,
   CalendarDays,
   ListTree,
-  Orbit,
   Trophy,
 } from '@/components/ui/icons'
-import type { Icon } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FeatureItem {
-  Icon: Icon
+  Icon: ComponentType<{ size?: number; color?: ColorValue; strokeWidth?: number }>
   titleKey: string
   descKey: string
 }
 
 const features: FeatureItem[] = [
   {
-    Icon: Orbit,
+    Icon: AstraMark,
     titleKey: 'onboarding.flow.features.chat.title',
     descKey: 'onboarding.flow.features.chat.desc',
   },

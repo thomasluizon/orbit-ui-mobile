@@ -20,7 +20,7 @@ export default function NotFoundScreen() {
         {t('notFoundPage.description')}
       </Text>
       <View style={styles.cta}>
-        <PillButton onPress={() => router.replace('/')}>{t('common.goHome')}</PillButton>
+        <PillButton onClick={() => router.replace('/')}>{t('common.goHome')}</PillButton>
       </View>
     </View>
   )

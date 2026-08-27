@@ -42,18 +42,18 @@ export function RetrospectiveLockedYearly({
       </Text>
       {isTrialActive ? (
         <PillButton
-          onPress={onSubscribe}
-          accessibilityLabel={t('upgrade.subscribe')}
-          style={styles.lockedCta}
+          onClick={onSubscribe}
+
+
         >
           {t('upgrade.subscribe')}
         </PillButton>
       ) : (
         <PillButton
-          onPress={onOpenPortal}
+          onClick={onOpenPortal}
           disabled={!isOnline}
-          accessibilityLabel={t('retrospective.changePlan')}
-          style={styles.lockedCta}
+
+
         >
           {t('retrospective.changePlan')}
         </PillButton>

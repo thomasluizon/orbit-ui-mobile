@@ -137,7 +137,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             Astra
           </span>
           <span title={t('aiDisclosure.isAiTooltip')}>
-            <Badge tone="outline">{t('aiDisclosure.isAiLabel')}</Badge>
+            <Badge variant="outline">{t('aiDisclosure.isAiLabel')}</Badge>
           </span>
           <ArrowUpRight
             size={16}
@@ -172,8 +172,8 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontWeight: 500,
               color: 'var(--primary-soft)',
               minHeight: 44,
-              marginTop: -7,
-              marginBottom: -13,
+              marginTop: -8,
+              marginBottom: -12,
             }}
           >
             {expanded ? t('common.seeLess') : t('common.seeMore')}

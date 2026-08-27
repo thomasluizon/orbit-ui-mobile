@@ -655,7 +655,7 @@ export function TodayHabitsHeader({
       {showDayProgress ? (
         <View style={styles.dayProgressWrap}>
           <ProgressBar
-            progress={dayProgress.done / dayProgress.total}
+            value={dayProgress.done / dayProgress.total} max={1}
             label={`${dayProgress.done}/${dayProgress.total} ${t("habits.completed")}`}
           />
         </View>

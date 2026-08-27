@@ -2,6 +2,8 @@ import React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 
+import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
+
 const clipboard = vi.hoisted(() => ({ setString: vi.fn() }))
 
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
@@ -16,7 +18,7 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
 }))
 
 vi.mock('@/components/ui/chip', () => ({
-  Chip: ({ children, onPress, active }: { children: React.ReactNode; onPress: () => void; active: boolean }) =>
+  Chip: ({ children, onPress, active }: { children: string; onPress: () => void; active: boolean }) =>
     React.createElement(
       'Pressable',
       { accessibilityRole: 'button', accessibilityLabel: `chip:${String(children)}`, accessibilityState: { selected: active }, onPress },
@@ -25,16 +27,18 @@ vi.mock('@/components/ui/chip', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onPress, disabled, accessibilityLabel }: { children: React.ReactNode; onPress: () => void; disabled?: boolean; accessibilityLabel?: string }) =>
-    React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel, disabled, onPress }, children),
+  PillButton: ({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) =>
+    React.createElement(
+      'Pressable',
+      { accessibilityRole: 'button', disabled, onPress: onClick },
+      React.createElement('Text', null, children),
+    ),
 }))
 
 vi.mock('@/components/ui/settings-row', () => ({
   Switch: ({ onToggle, accessibilityLabel }: { onToggle: () => void; accessibilityLabel: string }) =>
     React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel, onPress: onToggle }),
 }))
-
-import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 
 interface TestNode {
   type: unknown
@@ -56,16 +60,30 @@ const scopes = [
   { scope: 'habits:write', label: 'Write', description: 'write' },
 ]
 
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
 function byLabel(tree: TestTree, label: string): TestNode | undefined {
+  const explicitlyLabelled = tree.root.findAll(
+    (node) => typeof node.type === 'string' && node.props.accessibilityLabel === label,
+  )[0]
+  if (explicitlyLabelled) return explicitlyLabelled
   return tree.root.findAll(
-    (node) => typeof node.type === 'string' && node.props?.accessibilityLabel === label,
+    (node) => node.type === 'Pressable' && flattenText(node.props.children) === label,
   )[0]
 }
 
 function press(tree: TestTree, label: string) {
   const node = byLabel(tree, label)
   if (!node) throw new Error(`no button ${label}`)
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     ;(node.props as { onPress: () => void }).onPress()
   })
 }
@@ -73,7 +91,7 @@ function press(tree: TestTree, label: string) {
 function type(tree: TestTree, label: string, value: string) {
   const node = byLabel(tree, label)
   if (!node) throw new Error(`no input ${label}`)
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     ;(node.props as { onChangeText: (value: string) => void }).onChangeText(value)
   })
 }
@@ -84,7 +102,7 @@ function texts(tree: TestTree): unknown[] {
 
 function renderModal(onCreateKey: (request: ApiKeyCreateRequest) => Promise<ApiKeyCreateResponse | null>, onCreated = vi.fn()) {
   let tree!: TestTree
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     tree = TestRenderer.create(
       <CreateApiKeyModal
         open
@@ -142,7 +160,7 @@ describe('CreateApiKeyModal', () => {
     press(tree, 'common.selectAll')
     press(tree, 'orbitMcp.readOnlyKeyLabel')
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       press(tree, 'orbitMcp.createKey')
     })
 
@@ -172,7 +190,7 @@ describe('CreateApiKeyModal', () => {
     const onCreateKey = vi.fn().mockResolvedValue(created)
     const { tree } = renderModal(onCreateKey)
     type(tree, 'orbitMcp.keyName', 'CI key')
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       press(tree, 'orbitMcp.createKey')
     })
     expect(texts(tree)).toContain('orbit_sk_copyme')
@@ -199,7 +217,7 @@ describe('CreateApiKeyModal', () => {
     type(tree, 'orbitMcp.keyName', 'CI key')
     press(tree, 'common.selectAll')
     press(tree, 'common.clear')
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       press(tree, 'orbitMcp.createKey')
     })
     expect(onCreateKey).toHaveBeenCalledWith(

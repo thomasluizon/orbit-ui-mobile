@@ -666,8 +666,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48x28 pill, 22px thumb, on = primary / off = `rgba(fg,0.16)` | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
-| Badge | **radius 8 chip, never a pill**, Geist Mono 10.5/500 +0.06em UPPERCASE, `text-box` trimmed; tones accent / soft / outline / caution | `ui/badge.tsx` | same |
-| PillButton | pill CTA, radius 999, 5 variants x 4 sizes off shared `BUTTON_SIZES`. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
+| Badge | **radius 8 chip, never a pill**, Geist Mono 10.5/500 +0.06em UPPERCASE, `text-box` trimmed; variants solid / outline | `ui/badge.tsx` | same |
+| PillButton | pill CTA, radius 999, 5 variants x 2 sizes off shared `BUTTON_SIZES`. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
 | StatTile | radius 20, `--bg-card` + inset hairline ring, value Space Grotesk 24/600 tabular held to one line, label 14/20 fg-2 clamped to 2 lines in a fixed reservation | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 20, selected = `--primary-dim` tint + inset 1.5px primary ring; price Space Grotesk 22/600 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 20, borderless tonal aside, **one tone**: `--bg-elev` with an fg-3 icon. There is no accent variant, because a static informational card is not one of the four accent roles | `ui/info-card.tsx` | same |
@@ -735,7 +735,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 `PillButton` is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` so the two mirrors cannot drift.
 
 - **Variants:** `primary` (accent fill, `--fg-on-primary` text, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill), `caution` (status-overdue fill). `ConfirmDialog` builds its action row from `PillButton`, never a hand-rolled pill.
-- **Sizes:** `xs` / `sm` / `md` (default) / `lg`. A size is a fixed height plus horizontal padding plus label, icon and gap. Never hand-tune per call.
+- **Sizes:** `sm` / `md` (default). A size is a fixed height plus horizontal padding plus label, icon and gap. Never hand-tune per call.
 - **Width, hug by default.** A lone CTA in a wide container caps at about 360px and never spans a desktop content column. Full-width is sanctioned ONLY in: the single primary action of a mobile overlay, a form submit at or below the mobile breakpoint, and a full-screen empty-state primary CTA.
 - **The one matched-width exception:** `EmptyState.matchActionFooterWidth`, for a primary pill stacked directly over a secondary pill as one visual unit. Two pills of visibly different width read as an unrelated pair, which is itself a slop tell.
 - **Labels are verb-first and 1 to 2 words.** Strip words the surrounding title already carries. A confirmation button repeats the consequence, so the dialog is answerable without reading the body: "Delete habit", never "Yes".

@@ -1,6 +1,7 @@
 'use client'
 
-import { Orbit, ChevronRight } from '@/components/ui/icons'
+import { ChevronRight } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslations } from 'next-intl'
 
 interface HabitAskAstraButtonProps {
@@ -27,7 +28,7 @@ export function HabitAskAstraButton({
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-            <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
+            <AstraGlyph size={12} color="var(--primary)" />
             <span
               style={{
                 fontFamily: 'var(--font-mono)',

@@ -1,6 +1,5 @@
 import { Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
@@ -223,12 +222,12 @@ function WrappedShareSlide({ recap, tokens, displayName }: Readonly<WrappedShare
 
       <Animated.View entering={enter(3)} style={styles.shareCtaWrap}>
         <PillButton
-          fullWidth
-          busy={isSharing}
+
+          loading={isSharing}
           disabled={isSharing}
-          onPress={() => void share(t('shareCard.shareTitle'))}
-          accessibilityLabel={t('shareCard.share')}
-          leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+          onClick={() => void share(t('shareCard.shareTitle'))}
+
+
         >
           {t('shareCard.share')}
         </PillButton>

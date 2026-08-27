@@ -108,9 +108,9 @@ export function TodayScreenBody({
           <Text style={styles.loadErrorText}>{t("habits.loadError")}</Text>
           <PillButton
             variant="ghost"
-            style={styles.loadErrorRetry}
-            accessibilityLabel={t("common.retry")}
-            onPress={onRetry}
+
+
+            onClick={onRetry}
           >
             {t("common.retry")}
           </PillButton>

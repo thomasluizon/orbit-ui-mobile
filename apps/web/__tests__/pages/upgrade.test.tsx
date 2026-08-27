@@ -395,7 +395,7 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getByTestId('paywall-checkout'))
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const call = fetchMock.mock.calls[0]
@@ -404,5 +404,41 @@ describe('UpgradePage', () => {
     expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
     expect(requestInit?.method).toBe('POST')
     expect(JSON.parse(requestInit?.body as string)).toEqual({ interval: 'yearly' })
+  })
+
+  it('prevents a second paid checkout while the first request is pending', async () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    let resolveCheckout: ((response: { ok: boolean; json: () => Promise<{ url?: string }> }) => void) | undefined
+    const fetchMock = vi.fn().mockImplementation(
+      () => new Promise((resolve) => {
+        resolveCheckout = resolve
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('location', { href: '' })
+
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveAttribute(
+        'aria-busy',
+        'true',
+      )
+    })
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ }))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    resolveCheckout?.({ ok: true, json: async () => ({}) })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).not.toBeDisabled()
+    })
   })
 })
