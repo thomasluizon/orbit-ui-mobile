@@ -12,7 +12,7 @@ process.env.EXPO_PUBLIC_CAPTURE_MODE = 'true'
 
 const TestRenderer = require('react-test-renderer')
 
-let searchParameters: Record<string, string> = {}
+let searchParameters: Record<string, string | string[]> = {}
 let pendingLanguageChanges: (() => void)[] = []
 
 const changeLanguage = vi.fn(
@@ -223,5 +223,40 @@ describe('capture readiness gating', () => {
 
     expect(childRendered(tree)).toBe(true)
     expect(changeLanguage).toHaveBeenLastCalledWith('pt-BR')
+  })
+
+  it('does not restart capture boot when router arrays keep their semantic values', async () => {
+    const { Providers } = await import('@/lib/providers')
+
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Providers>
+          <View testID={CHILD} />
+        </Providers>,
+      )
+      await Promise.resolve()
+    })
+
+    applyPendingLanguage()
+    await flush()
+    expect(childRendered(tree)).toBe(true)
+    expect(changeLanguage).toHaveBeenCalledTimes(1)
+
+    for (let render = 0; render < 3; render += 1) {
+      searchParameters = { captureLocale: ['en'], captureTheme: ['dark'] }
+      await TestRenderer.act(async () => {
+        tree.update(
+          <Providers>
+            <View testID={CHILD} />
+          </Providers>,
+        )
+        await Promise.resolve()
+      })
+    }
+
+    expect(childRendered(tree)).toBe(true)
+    expect(changeLanguage).toHaveBeenCalledTimes(1)
+    expect(pendingLanguageChanges).toHaveLength(0)
   })
 })

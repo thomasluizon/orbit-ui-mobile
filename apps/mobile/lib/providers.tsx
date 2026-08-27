@@ -207,8 +207,12 @@ export function Providers({ children }: Readonly<ProvidersProps>) {
     captureLocale?: string | string[]
     captureTheme?: string | string[]
   }>()
-  const captureLocale = parameters.captureLocale
-  const captureTheme = parameters.captureTheme
+  const captureLocale = Array.isArray(parameters.captureLocale)
+    ? parameters.captureLocale[0]
+    : parameters.captureLocale
+  const captureTheme = Array.isArray(parameters.captureTheme)
+    ? parameters.captureTheme[0]
+    : parameters.captureTheme
   const capturePreferences = useMemo(
     () => resolveCapturePreferences(captureBuildEnabled, { captureLocale, captureTheme }),
     [captureLocale, captureTheme],
