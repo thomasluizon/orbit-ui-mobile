@@ -11,7 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildRescheduleUpdateRequest } from '@/lib/habit-request-builders'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -110,6 +110,7 @@ function RescheduleSuggestionCard({
 export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<RescheduleSheetProps>) {
   const t = useTranslations()
   const router = useRouter()
+  const { sheetRef, closeSheet } = useSheetHost()
   const uiLocale = useLocale()
   const { profile } = useProfile()
   const { displayTime } = useTimeFormat()
@@ -131,13 +132,13 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     const request = buildRescheduleUpdateRequest(habit, suggestion)
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      onOpenChange(false)
+      closeSheet(() => onOpenChange(false))
     } catch (mutationError: unknown) {
       showError(
         getFriendlyErrorMessage(mutationError, (key, values) => t(key, values), 'errors.updateHabit', 'habit'),
       )
     }
-  }, [habit, suggestion, updateHabit, onOpenChange, showError, t])
+  }, [closeSheet, habit, suggestion, updateHabit, onOpenChange, showError, t])
 
   const scheduleLabel = suggestion
     ? computeHabitFrequencyLabel(
@@ -164,10 +165,17 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (!hasProAccess) {
       return (
         <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
-          <PillButton  onClick={() => router.push('/upgrade')}>
+          <PillButton
+            onClick={() =>
+              closeSheet(() => {
+                onOpenChange(false)
+                router.push('/upgrade')
+              })
+            }
+          >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </div>
@@ -259,8 +267,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={() => (onOpenChange)(false)}
+      onClose={() => onOpenChange(false)}
       title={t('habits.reschedule.title')}
       actions={renderFooter()}
     >

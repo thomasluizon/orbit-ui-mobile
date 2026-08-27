@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTourStore } from '@/stores/tour-store'
 import { resetTour } from '@/app/actions/profile'
@@ -64,8 +64,10 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
     profile?.hasProAccess ? true : section !== 'goals',
   )
 
+  const { sheetRef, closeSheet } = useSheetHost()
+
   const handleReplayAll = useCallback(async () => {
-    onOpenChange(false)
+    closeSheet(() => onOpenChange(false))
 
     try {
       await resetTour()
@@ -79,11 +81,11 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
 
     router.push('/')
     setTimeout(() => startFullTour(), 300)
-  }, [onOpenChange, queryClient, router, startFullTour])
+  }, [closeSheet, onOpenChange, queryClient, router, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
-      onOpenChange(false)
+      closeSheet(() => onOpenChange(false))
 
       const routeMap: Record<TourSection, string> = {
         habits: '/',
@@ -99,13 +101,14 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
       router.push(routeMap[section])
       setTimeout(() => startSectionReplay(section), 300)
     },
-    [onOpenChange, router, startSectionReplay],
+    [closeSheet, onOpenChange, router, startSectionReplay],
   )
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={() => (onOpenChange)(false)}
+      onClose={() => onOpenChange(false)}
       title={t('tour.replay.modalTitle')}
     >
       <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">

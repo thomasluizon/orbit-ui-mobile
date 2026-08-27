@@ -63,61 +63,8 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    children,
-    title,
-    titleContent,
-    footer,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    title?: string
-    titleContent?: React.ReactNode
-    description?: string
-    footer?: React.ReactNode
-    expandable?: boolean
-    onExpandDescription?: () => void
-  }) =>
-    open ? (
-      <div data-testid="app-overlay">
-        {(titleContent || title) && <h2>{titleContent || title}</h2>}
-        {children}
-        {footer}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: ({
-    open,
-    title,
-    description,
-    onConfirm,
-    onCancel,
-    confirmLabel,
-    cancelLabel,
-  }: {
-    open: boolean
-    title: string
-    description: string
-    onConfirm: () => void
-    onCancel: () => void
-    confirmLabel: string
-    cancelLabel: string
-    onOpenChange: (open: boolean) => void
-    variant?: string
-  }) =>
-    open ? (
-      <div data-testid="confirm-dialog">
-        <p>{title}</p>
-        <p>{description}</p>
-        <button onClick={onConfirm}>{confirmLabel}</button>
-        <button onClick={onCancel}>{cancelLabel}</button>
-      </div>
-    ) : null,
-}))
 
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({
@@ -178,7 +125,7 @@ describe('HabitDetailDrawer', () => {
         habit={defaultHabit}
       />,
     )
-    expect(screen.queryByTestId('app-overlay')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('renders the overlay when open', () => {
@@ -189,7 +136,7 @@ describe('HabitDetailDrawer', () => {
         habit={defaultHabit}
       />,
     )
-    expect(screen.getByTestId('app-overlay')).toBeDefined()
+    expect(screen.getByTestId('sheet')).toBeDefined()
   })
 
   it('displays the habit title', () => {
@@ -341,8 +288,7 @@ describe('HabitDetailDrawer', () => {
       />,
     )
     fireEvent.click(screen.getByText('toggle-0'))
-    expect(screen.getByTestId('confirm-dialog')).toBeDefined()
-    expect(screen.getByText('habits.checklistCompleteTitle')).toBeDefined()
+    expect(screen.getByRole('dialog', { name: 'habits.checklistCompleteTitle' })).toBeDefined()
   })
 
   it('gates checklist clear behind a confirmation and only clears on confirm', () => {
@@ -362,8 +308,7 @@ describe('HabitDetailDrawer', () => {
     )
     fireEvent.click(screen.getByText('clear'))
     expect(mockUpdateChecklistMutate).not.toHaveBeenCalled()
-    expect(screen.getByTestId('confirm-dialog')).toBeDefined()
-    expect(screen.getByText('habits.checklistClearTitle')).toBeDefined()
+    expect(screen.getByRole('dialog', { name: 'habits.checklistClearTitle' })).toBeDefined()
     fireEvent.click(screen.getByText('habits.form.clearChecklist'))
     expect(mockUpdateChecklistMutate).toHaveBeenCalledWith({
       habitId: 'h-1',
@@ -462,6 +407,6 @@ describe('HabitDetailDrawer', () => {
         habit={null}
       />,
     )
-    expect(screen.getByTestId('app-overlay')).toBeDefined()
+    expect(screen.getByTestId('sheet')).toBeDefined()
   })
 })

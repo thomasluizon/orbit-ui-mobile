@@ -33,8 +33,7 @@ import {
   WidgetInfoSheet,
 } from './advanced-sections'
 import { styles, type Tokens } from './advanced-styles'
-import { Sheet } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 function sectionEntrance(index: number) {
   return FadeInDown.duration(280)
@@ -190,22 +189,19 @@ export default function AdvancedScreen() {
         tokens={tokens}
       />
 
-      {revokingKeyId !== null ? <Sheet open title={t('orbitMcp.revoke')} onClose={() => {
-  (open => {
-    if (!open) setRevokingKeyId(null);
-  })(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (open => {
-      if (!open) setRevokingKeyId(null);
-    })(false);
-  }}>{t('orbitMcp.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
-    (() => {
-      if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId);
-    })();
-    (open => {
-      if (!open) setRevokingKeyId(null);
-    })(false);
-  }}>{t('orbitMcp.confirm')}</PillButton></>}><Text>{t('orbitMcp.revokeConfirm')}</Text></Sheet> : null}
+      <ConfirmSheet
+        open={revokingKeyId !== null}
+        title={t('orbitMcp.revoke')}
+        message={t('orbitMcp.revokeConfirm')}
+        cancelLabel={t('orbitMcp.cancel')}
+        confirmLabel={t('orbitMcp.confirm')}
+        destructive
+        onCancel={() => setRevokingKeyId(null)}
+        onConfirm={() => {
+          if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+          setRevokingKeyId(null)
+        }}
+      />
 
       <CreateApiKeyModal
         open={createKeyModalOpen}

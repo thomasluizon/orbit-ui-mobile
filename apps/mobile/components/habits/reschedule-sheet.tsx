@@ -10,11 +10,10 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { SkeletonLine } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -47,7 +46,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const hasProAccess = profile?.hasProAccess ?? false
   const locale = profile?.language ?? i18n.language
   const isOverdue = habit?.isOverdue ?? false
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const { suggestion, isLoading, error, refetch } = useRescheduleSuggestion({
     habitId: habit?.id ?? '',
@@ -138,13 +137,15 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton
 
             onClick={() => {
-              scheduleExitAction(() => router.push('/upgrade'))
-              onOpenChange(false)
+              closeSheet(() => {
+                onOpenChange(false)
+                router.push('/upgrade')
+              })
             }}
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
@@ -156,7 +157,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton  onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
@@ -186,11 +187,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={() => {
-        onOpenChange(false)
-        runExitAction()
-      }}
+      onClose={() => onOpenChange(false)}
       title={t('habits.reschedule.title')}
     >
       <View style={styles.scrollContent}>

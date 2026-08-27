@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { MAX_API_KEY_NAME_LENGTH, parseApiKeyExpiryUtc } from '@orbit/shared/validation'
 import type { AgentScopeOption } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -49,6 +49,7 @@ export function CreateApiKeyModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
   const [copied, setCopied] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const isRevealState = createdKey !== null
   const overlayTitle = isRevealState
@@ -139,11 +140,12 @@ export function CreateApiKeyModal({
   }
 
   function handleDone() {
-    onOpenChange(false)
+    closeSheet(() => onOpenChange(false))
   }
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
       onClose={isRevealState ? undefined : () => onOpenChange(false)}
       title={overlayTitle}

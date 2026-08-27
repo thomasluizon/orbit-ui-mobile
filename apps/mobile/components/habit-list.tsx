@@ -1335,12 +1335,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListConfirmDialogs
           t={t}
           showDeleteConfirm={showDeleteConfirm}
-          onDeleteOpenChange={(open) => {
-            setShowDeleteConfirm(open)
-            if (!open) {
-              setHabitToDelete(null)
-            }
-          }}
           onConfirmDelete={() => void confirmDelete()}
           onCancelDelete={() => {
             setHabitToDelete(null)

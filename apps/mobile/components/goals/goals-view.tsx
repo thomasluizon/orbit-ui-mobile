@@ -15,12 +15,9 @@ import { useTranslation } from "react-i18next";
 import type { Goal, GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
-import {
-  Menu,
-  MenuAnchorHost,
-  useAnchoredMenu,
-} from "@/components/ui/menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RadioRow } from "@/components/ui/select-check";
+import { Sheet, useSheetHost } from "@/components/ui/sheet";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SkeletonLine } from "@/components/ui/skeleton";
 import { createTokensV2 } from "@/lib/theme";
@@ -73,12 +70,8 @@ export function GoalsView({
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null);
 
-  const {
-    anchorRef: filterMenuButtonRef,
-    visible: showFilterMenu,
-    close: closeFilterMenu,
-    toggle: toggleFilterMenu,
-  } = useAnchoredMenu();
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const closeFilterMenu = useCallback(() => setShowFilterMenu(false), []);
 
   const { data, isFetched } = useGoals(activeFilter);
 
@@ -119,26 +112,24 @@ export function GoalsView({
                 {statusFilters.find((filter) => filter.key === activeFilter)?.label}
               </Text>
             ) : null}
-            <MenuAnchorHost anchorRef={filterMenuButtonRef}>
-              <Pressable
-                onPress={toggleFilterMenu}
-                accessibilityRole="button"
-                accessibilityLabel={t("goals.filters.statusFilter")}
-                accessibilityState={{ selected: activeFilter != null }}
-                hitSlop={4}
-                style={({ pressed }) => [
-                  styles.iconBtn,
-                  activeFilter != null && styles.iconBtnActive,
-                  pressed && styles.iconBtnPressed,
-                ]}
-              >
-                <Filter
-                  size={18}
-                  color={activeFilter != null ? tokens.fg1 : tokens.fg3}
-                  strokeWidth={1.8}
-                />
-              </Pressable>
-            </MenuAnchorHost>
+            <Pressable
+              onPress={() => setShowFilterMenu(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t("goals.filters.statusFilter")}
+              accessibilityState={{ selected: activeFilter != null }}
+              hitSlop={4}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                activeFilter != null && styles.iconBtnActive,
+                pressed && styles.iconBtnPressed,
+              ]}
+            >
+              <Filter
+                size={18}
+                color={activeFilter != null ? tokens.fg1 : tokens.fg3}
+                strokeWidth={1.8}
+              />
+            </Pressable>
           </View>
         }
       >
@@ -190,18 +181,15 @@ export function GoalsView({
         onScrollBeginDrag={onScrollBeginDrag}
       />
 
-      <Menu
-        open={showFilterMenu}
-        anchorRef={filterMenuButtonRef}
-        onClose={closeFilterMenu}
-        title={t("goals.filters.statusFilter")}
-        items={statusFilters.map((filter) => ({
-          id: filter.key ?? "all",
-          label: filter.label,
-          badge: activeFilter === filter.key ? t("common.done") : undefined,
-        }))}
-        onSelect={(id) => handleFilterChange(id === "all" ? null : id as GoalStatus)}
-      />
+      {showFilterMenu ? (
+        <StatusFilterSheet
+          title={t("goals.filters.statusFilter")}
+          filters={statusFilters}
+          activeFilter={activeFilter}
+          onClose={closeFilterMenu}
+          onSelect={setActiveFilter}
+        />
+      ) : null}
     </View>
   );
 }
@@ -272,4 +260,44 @@ function createStyles(tokens: AppTokens) {
       gap: 10,
     },
   });
+}
+
+interface StatusFilterSheetProps {
+  title: string;
+  filters: readonly StatusFilter[];
+  activeFilter: GoalStatus | null;
+  onClose: () => void;
+  onSelect: (status: GoalStatus | null) => void;
+}
+
+/** A single-choice picker, so the chosen status reads as a checked radio. */
+function StatusFilterSheet({
+  title,
+  filters,
+  activeFilter,
+  onClose,
+  onSelect,
+}: Readonly<StatusFilterSheetProps>) {
+  const { sheetRef, closeSheet } = useSheetHost();
+
+  return (
+    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+      <View accessibilityRole="radiogroup">
+        {filters.map((filter, index) => (
+          <RadioRow
+            key={filter.key ?? "all"}
+            label={filter.label}
+            selected={activeFilter === filter.key}
+            divider={index < filters.length - 1}
+            onPress={() =>
+              closeSheet(() => {
+                onClose();
+                onSelect(filter.key);
+              })
+            }
+          />
+        ))}
+      </View>
+    </Sheet>
+  );
 }

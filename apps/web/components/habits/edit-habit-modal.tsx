@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
@@ -101,9 +102,10 @@ export function EditHabitModal({
     initialGoalIds,
     initialReminderTimes,
   )
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => onOpenChange(false),
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
   const {
@@ -188,13 +190,13 @@ export function EditHabitModal({
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
         await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
-        onOpenChange(false)
+        closeSheet(() => onOpenChange(false))
         await onSaved?.()
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [assignTags, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
+    [assignTags, closeSheet, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   const handleSuggest = useCallback(async () => {
@@ -233,6 +235,7 @@ export function EditHabitModal({
     if (!open) return null
     return (
       <Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('habits.editHabit')}
@@ -293,21 +296,11 @@ export function EditHabitModal({
   return (
     <>
       {renderEditSheet()}
-      {dismissGuard.showDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
-  (nextOpen => {
-    if (!nextOpen) dismissGuard.cancelDismiss();
-  })(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (dismissGuard.cancelDismiss)();
-    (nextOpen => {
-      if (!nextOpen) dismissGuard.cancelDismiss();
-    })(false);
-  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
-    (dismissGuard.confirmDismiss)();
-    (nextOpen => {
-      if (!nextOpen) dismissGuard.cancelDismiss();
-    })(false);
-  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
+      />
     </>
   )
 }

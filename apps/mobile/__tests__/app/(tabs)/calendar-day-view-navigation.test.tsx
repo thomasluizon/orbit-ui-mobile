@@ -1,16 +1,9 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const mockPush = vi.fn()
-
-interface SheetStubProps {
-  open: true
-  onClose: () => void
-  children?: React.ReactNode
-}
-
-let latestSheetProps: SheetStubProps | null = null
 
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
@@ -44,12 +37,7 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: (props: SheetStubProps) => {
-    latestSheetProps = props
-    return require('react').createElement('Sheet', null, props.children)
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-habits', () => ({
   useCalendarData: () => ({
@@ -122,15 +110,14 @@ function findGridDayCell(root: TestNode, dayNumber: number) {
   return cell
 }
 
-function sheetProps() {
-  if (!latestSheetProps) throw new Error('Sheet never rendered')
-  return latestSheetProps
-}
-
 describe('CalendarScreen day-detail navigation (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    latestSheetProps = null
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
   })
 
   it('navigates to the selected day only after the sheet finishes dismissing natively, and exactly once', () => {
@@ -144,26 +131,28 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(dayCell.props.onPress as () => void)()
     })
 
-    expect(sheetProps().open).toBe(true)
-    const openedSheet = sheetProps()
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
 
     TestRenderer.act(() => {
       pressButton(tree.root, 'calendar.goToDay')
     })
 
+    /** The sheet is still mounted and presented, so nothing may run yet. */
     expect(mockPush).not.toHaveBeenCalled()
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
 
     TestRenderer.act(() => {
-      openedSheet.onClose()
+      sheetTestControls.completeDismissal()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
     const pushedHref = mockPush.mock.calls[0]?.[0] as string
     expect(pushedHref).toMatch(/^\/\?date=\d{4}-\d{2}-15$/)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
 
     TestRenderer.act(() => {
-      openedSheet.onClose()
+      sheetTestControls.completeDismissal()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)

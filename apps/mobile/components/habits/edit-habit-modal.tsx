@@ -4,7 +4,7 @@ import { useWatch } from 'react-hook-form'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { HabitFormFields } from './habit-form-fields'
@@ -108,15 +108,18 @@ export function EditHabitModal({
     initialGoalIds,
     initialReminderTimes,
   })
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: onClose,
+    onDismiss: () => closeSheet(onClose),
   })
   const router = useRouter()
   const navigateToUpgrade = useCallback(() => {
-    onClose()
-    router.push('/upgrade')
-  }, [onClose, router])
+    closeSheet(() => {
+      onClose()
+      router.push('/upgrade')
+    })
+  }, [closeSheet, onClose, router])
 
   const {
     data: habitDetail,
@@ -202,7 +205,7 @@ export function EditHabitModal({
         habitId: habit.id,
         tagIds: tags.selectedTagIds,
       })
-      onClose()
+      closeSheet(onClose)
       await onSaved?.()
     } catch (error: unknown) {
       showError(
@@ -223,6 +226,7 @@ export function EditHabitModal({
     tags,
     updateHabit,
     assignTags,
+    closeSheet,
     onClose,
     onSaved,
     showError,
@@ -277,6 +281,7 @@ export function EditHabitModal({
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={t('habits.editHabit')}

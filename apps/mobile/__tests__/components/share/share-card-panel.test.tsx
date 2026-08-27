@@ -10,16 +10,7 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    onClose?: () => void
-  }) => (open ? React.createElement('BottomSheetOpen', {}, children) : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({

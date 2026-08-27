@@ -137,26 +137,7 @@ vi.mock('@/lib/habit-request-builders', () => ({
   buildSubHabitRequest: vi.fn(() => ({})),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    children,
-    title,
-    actions,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    title?: string
-    actions?: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="app-overlay">
-        {title && <h2>{title}</h2>}
-        {children}
-        {actions && <div data-testid="sheet-actions">{actions}</div>}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
@@ -258,7 +239,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByTestId('app-overlay')).toBeDefined()
+    expect(screen.getByTestId('sheet')).toBeDefined()
   })
 
   it('shows create habit title', () => {
@@ -343,7 +324,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    const form = screen.getByTestId('app-overlay').querySelector('form')
+    const form = screen.getByTestId('sheet').querySelector('form')
     fireEvent.submit(form!)
     expect(mockShowError).toHaveBeenCalledWith('Validation failed!')
     expect(mockCreateMutateAsync).not.toHaveBeenCalled()

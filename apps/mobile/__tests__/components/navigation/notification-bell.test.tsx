@@ -55,16 +55,7 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(127,70,247,0.06)',
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    children,
-    actions,
-  }: {
-    open: true
-    children: React.ReactNode
-    actions?: React.ReactNode
-  }) => React.createElement('Sheet', null, children, actions),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/drawer-content-inset', () => ({
   withDrawerContentInset: (style: unknown) => style,

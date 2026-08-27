@@ -22,8 +22,7 @@ import {
   TodayHabitsListShell,
 } from './today-sections'
 import type { TodayView } from './use-today-page'
-import { Sheet } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const { nav, currentActiveView } = view
@@ -184,17 +183,18 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         ) : null}
       </AnimatePresence>
 
-      {selection.showBulkDeleteConfirm ? <Sheet open title={t('habits.bulkDeleteTitle')} onClose={() => {
-  (selection.setShowBulkDeleteConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (() => selection.setShowBulkDeleteConfirm(false))();
-    (selection.setShowBulkDeleteConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (() => void selection.confirmBulkDelete())();
-    (selection.setShowBulkDeleteConfirm)(false);
-  }}>{t('habits.bulkDeleteConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{plural(t('habits.bulkDeleteMessage', {
-      count
-    }), count)}</p></Sheet> : null}
+      <ConfirmSheet
+        open={selection.showBulkDeleteConfirm}
+        title={t('habits.bulkDeleteTitle')}
+        message={plural(t('habits.bulkDeleteMessage', { count }), count)}
+        confirmLabel={t('habits.bulkDeleteConfirm')}
+        destructive
+        onCancel={() => selection.setShowBulkDeleteConfirm(false)}
+        onConfirm={() => {
+          selection.setShowBulkDeleteConfirm(false)
+          void selection.confirmBulkDelete()
+        }}
+      />
 
       <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />
     </>

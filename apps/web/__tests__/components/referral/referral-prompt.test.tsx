@@ -10,24 +10,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ getQueryData: () => undefined }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    children,
-    title,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    title?: string
-    onOpenChange?: (open: boolean) => void
-  }) =>
-    open ? (
-      <div data-testid="referral-prompt">
-        {title}
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/referral/referral-drawer', () => ({
   ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) =>
@@ -75,17 +58,17 @@ describe('ReferralPrompt', () => {
 
   it('renders nothing when no milestone is armed', () => {
     render(<ReferralPrompt />)
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('shows the prompt after the settle delay and marks it prompted', async () => {
     render(<ReferralPrompt />)
     await arm('streak-7')
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
 
     await settle()
 
-    expect(screen.getByTestId('referral-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       'streak-7',
     )
@@ -100,7 +83,7 @@ describe('ReferralPrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {
@@ -112,7 +95,7 @@ describe('ReferralPrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
     expect(useReferralPromptStore.getState().armedPrompt).toBeNull()
   })
 
@@ -125,7 +108,7 @@ describe('ReferralPrompt', () => {
 
     await settle()
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('opens the drawer from the CTA', async () => {
@@ -135,7 +118,7 @@ describe('ReferralPrompt', () => {
 
     fireEvent.click(screen.getByText('referral.prompt.cta'))
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
     expect(screen.getByTestId('referral-drawer')).toBeInTheDocument()
   })
 
@@ -146,7 +129,7 @@ describe('ReferralPrompt', () => {
 
     fireEvent.click(screen.getByText('referral.prompt.later'))
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
     expect(screen.queryByTestId('referral-drawer')).toBeNull()
   })
 })

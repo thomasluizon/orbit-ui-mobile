@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -19,6 +19,7 @@ const mockHabitsData = {
 }
 const logHabitMutateAsync = vi.fn()
 const skipHabitMutateAsync = vi.fn()
+const deleteHabitMutateAsync = vi.fn()
 const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
@@ -72,7 +73,7 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
   useSkipHabit: () => ({ mutateAsync: skipHabitMutateAsync, isPending: false }),
-  useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReorderHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -149,6 +150,7 @@ vi.mock('@/components/habits/habit-row', () => ({
       onForceLogParent?: () => void
       onLog?: () => void
       onSkip?: () => void
+      onDelete?: () => void
       onEdit?: () => void
       onToggleSelection?: () => void
     }
@@ -169,6 +171,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       </span>
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
+      </button>
+      <button data-testid={`delete-${habit.id}`} onClick={actions?.onDelete}>
+        delete
       </button>
       <button data-testid={`skip-${habit.id}`} onClick={actions?.onSkip}>
         skip
@@ -225,63 +230,8 @@ vi.mock('@/components/habits/log-habit-modal', () => ({
   LogHabitModal: () => null,
 }))
 
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: ({
-    open,
-    title,
-    description,
-    onConfirm,
-    onCancel,
-  }: {
-    open: boolean
-    title: string
-    description: string
-    onConfirm: () => void
-    onCancel: () => void
-  }) =>
-    open ? (
-      <div data-testid={`confirm-dialog-${title}`}>
-        <span>{title}</span>
-        <span>{description}</span>
-        <button data-testid={`confirm-action-${title}`} onClick={onConfirm}>
-          confirm
-        </button>
-        <button data-testid={`cancel-action-${title}`} onClick={onCancel}>
-          cancel
-        </button>
-      </div>
-    ) : null,
-}))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    title,
-    children,
-    actions,
-  }: {
-    open: boolean
-    title?: string
-    children: React.ReactNode
-    actions?: React.ReactNode
-  }) => {
-    if (!open) return null
-    const actionContainer = actions as React.ReactElement<{ children?: React.ReactNode }> | undefined
-    const actionNodes = React.Children.toArray(actionContainer?.props.children ?? actions)
-    const confirmAction = actionNodes.at(-1) as React.ReactElement<{ onClick?: () => void }> | undefined
-    return (
-      <div data-testid={title ? `confirm-dialog-${title}` : 'app-overlay'}>
-        {children}
-        {actions}
-        {title ? (
-          <button data-testid={`confirm-action-${title}`} onClick={confirmAction?.props.onClick}>
-            confirm
-          </button>
-        ) : null}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -362,6 +312,7 @@ describe('HabitList', () => {
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     skipHabitMutateAsync.mockReset()
+    deleteHabitMutateAsync.mockReset()
     toggleSelectionSpy.mockReset()
     logHabitMutateAsync.mockReset()
     logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
@@ -727,7 +678,7 @@ describe('HabitList', () => {
     })
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-    expect(screen.queryByTestId('confirm-dialog-habits.forceLogTitle')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'habits.forceLogTitle' })).toBeNull()
   })
 
   it('settles the next parent after force-logging its final unresolved child', async () => {
@@ -1201,6 +1152,36 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByTestId('log-overdue-1'))
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+  })
+
+  /**
+   * Ticket #42 is the product authority: a confirmation belongs to an
+   * irreversible act only. Skipping is reversible, so it acts on one press;
+   * deleting is not, so it asks first.
+   */
+  it('skips on one press but asks before the irreversible delete', async () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Stretch' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('skip-h-1'))
+    })
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1' })
+    expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('delete-h-1'))
+    })
+    expect(deleteHabitMutateAsync).not.toHaveBeenCalled()
+
+    const confirmation = screen.getByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    await act(async () => {
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'common.delete' }))
+    })
+    expect(deleteHabitMutateAsync).toHaveBeenCalledWith('h-1')
   })
 
   it('skips an overdue habit with no date immediately', async () => {

@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Menu } from '@/components/ui/menu'
+import { RadioRow } from '@/components/ui/select-check'
 import { SectionLabel } from '@/components/ui/section-label'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useGoals } from '@/hooks/use-goals'
 import { useUIStore } from '@/stores/ui-store'
 import type { GoalStatus } from '@orbit/shared/types/goal'
@@ -103,18 +104,15 @@ export function GoalsView() {
           >
             <Filter size={18} strokeWidth={1.8} />
           </button>
-          <Menu
-            open={filterOpen}
-            anchorRef={filterAnchorRef}
-            title={t('goals.filters.statusFilter')}
-            items={statusFilters.map((filter) => ({
-              id: filter.key ?? 'all',
-              label: filter.label,
-              badge: activeFilter === filter.key ? t('common.done') : undefined,
-            }))}
-            onClose={() => setFilterOpen(false)}
-            onSelect={(id) => handleFilterChange(id === 'all' ? null : id as GoalStatus)}
-          />
+          {filterOpen ? (
+            <StatusFilterSheet
+              title={t('goals.filters.statusFilter')}
+              filters={statusFilters}
+              activeFilter={activeFilter}
+              onClose={() => setFilterOpen(false)}
+              onSelect={handleFilterChange}
+            />
+          ) : null}
         </div>
       }
     >
@@ -140,5 +138,45 @@ export function GoalsView() {
         )}
       </div>
     </div>
+  )
+}
+
+interface StatusFilterSheetProps {
+  title: string
+  filters: readonly StatusFilter[]
+  activeFilter: GoalStatus | null
+  onClose: () => void
+  onSelect: (status: GoalStatus | null) => void
+}
+
+/** A single-choice picker, so the chosen status reads as a checked radio. */
+function StatusFilterSheet({
+  title,
+  filters,
+  activeFilter,
+  onClose,
+  onSelect,
+}: Readonly<StatusFilterSheetProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
+
+  return (
+    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+      <div role="radiogroup" aria-label={title}>
+        {filters.map((filter, index) => (
+          <RadioRow
+            key={filter.key ?? 'all'}
+            label={filter.label}
+            selected={activeFilter === filter.key}
+            divider={index < filters.length - 1}
+            onClick={() =>
+              closeSheet(() => {
+                onClose()
+                onSelect(filter.key)
+              })
+            }
+          />
+        ))}
+      </div>
+    </Sheet>
   )
 }

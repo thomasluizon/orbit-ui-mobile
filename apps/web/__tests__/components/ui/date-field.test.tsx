@@ -75,6 +75,21 @@ describe('DateField', () => {
     expect(headers).toHaveLength(7)
   })
 
+  /** Tailwind size-11 is 44px; the visible circle stays size-8, which is 32px. */
+  it('gives every day control a 44 by 44 target around its 32px circle', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+
+    const dayButtons = [...document.querySelectorAll<HTMLButtonElement>('td button')]
+    expect(dayButtons.length).toBeGreaterThan(0)
+
+    for (const button of dayButtons) {
+      expect(button.className).toContain('size-11')
+      expect(button.className).not.toContain('size-8')
+      expect(button.firstElementChild?.className).toContain('size-8')
+    }
+  })
+
   it('marks selected date with aria-pressed', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

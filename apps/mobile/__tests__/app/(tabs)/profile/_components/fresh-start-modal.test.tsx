@@ -57,10 +57,7 @@ vi.mock('@/lib/query-client', () => ({
   clearPersistedQueryCache: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) =>
-    open ? React.createElement('Sheet', { title }, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/app-text-input', () => ({
   AppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),

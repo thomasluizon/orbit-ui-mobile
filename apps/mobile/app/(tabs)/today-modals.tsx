@@ -7,9 +7,7 @@ import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
-import { Sheet } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
-import { Text } from 'react-native'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 interface TodayModalsProps {
   showCreateModal: boolean;
@@ -83,16 +81,18 @@ export function TodayModals({
         parentIsGeneral={editHabitParentIsGeneral}
       />
 
-      {showBulkDeleteConfirm ? <Sheet open title={t("habits.bulkDeleteTitle")} onClose={() => {
-  (onBulkDeleteOpenChange)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (onBulkDeleteOpenChange)(false);
-  }}>{t("common.cancel")}</PillButton><PillButton variant="destructive" onClick={() => {
-    (onConfirmBulkDelete)();
-    (onBulkDeleteOpenChange)(false);
-  }}>{t("habits.bulkDeleteConfirm")}</PillButton></>}><Text>{plural(t("habits.bulkDeleteMessage", {
-      count: selectedCount
-    }), selectedCount)}</Text></Sheet> : null}
+      <ConfirmSheet
+        open={showBulkDeleteConfirm}
+        title={t("habits.bulkDeleteTitle")}
+        message={plural(t("habits.bulkDeleteMessage", { count: selectedCount }), selectedCount)}
+        confirmLabel={t("habits.bulkDeleteConfirm")}
+        destructive
+        onCancel={() => onBulkDeleteOpenChange(false)}
+        onConfirm={() => {
+          onBulkDeleteOpenChange(false)
+          onConfirmBulkDelete()
+        }}
+      />
 
       <CreateGoalModal open={showCreateGoalModal} onClose={onCloseCreateGoal} />
 

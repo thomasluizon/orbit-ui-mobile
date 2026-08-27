@@ -3,7 +3,9 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalAskAstraRow } from './goal-ask-astra-row'
@@ -26,7 +28,6 @@ import {
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
-import { PillButton } from '@/components/ui/pill-button'
 
 export type { GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 
@@ -106,15 +107,19 @@ export function GoalDetailDrawer({
   const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
     useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail })
 
+  const { sheetRef, closeSheet } = useSheetHost()
+
   const confirmDelete = useCallback(async () => {
     try {
       await deleteGoalMut.mutateAsync(goalId)
-      onOpenChange(false)
-      setShowDeleteConfirm(false)
+      closeSheet(() => {
+        onOpenChange(false)
+        setShowDeleteConfirm(false)
+      })
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
     }
-  }, [deleteGoalMut, goalId, onOpenChange, showError, translate])
+  }, [closeSheet, deleteGoalMut, goalId, onOpenChange, showError, translate])
 
   const router = useRouter()
   function handleAskAstra() {
@@ -123,8 +128,10 @@ export function GoalDetailDrawer({
     if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
-    onOpenChange(false)
-    router.push('/chat')
+    closeSheet(() => {
+      onOpenChange(false)
+      router.push('/chat')
+    })
   }
 
   const formatDate = useCallback(
@@ -245,6 +252,7 @@ export function GoalDetailDrawer({
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={isProgressDirty ? undefined : () => onOpenChange(false)}
         title={goal?.title ?? ''}
@@ -268,31 +276,24 @@ export function GoalDetailDrawer({
         />
       )}
 
-      {showProgressDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
-  (nextOpen => {
-    if (!nextOpen) cancelProgressDismiss();
-  })(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (cancelProgressDismiss)();
-    (nextOpen => {
-      if (!nextOpen) cancelProgressDismiss();
-    })(false);
-  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
-    (confirmProgressDismiss)();
-    (nextOpen => {
-      if (!nextOpen) cancelProgressDismiss();
-    })(false);
-  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
+      <DiscardChangesSheet
+        open={showProgressDiscardDialog}
+        onKeepEditing={cancelProgressDismiss}
+        onDiscard={confirmProgressDismiss}
+      />
 
-      {showDeleteConfirm ? <Sheet open title={t('goals.detail.delete')} onClose={() => {
-  (setShowDeleteConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (() => setShowDeleteConfirm(false))();
-    (setShowDeleteConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (() => void confirmDelete())();
-    (setShowDeleteConfirm)(false);
-  }}>{t('common.delete')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('goals.detail.deleteConfirm')}</p></Sheet> : null}
+      <ConfirmSheet
+        open={showDeleteConfirm}
+        title={t('goals.detail.delete')}
+        message={t('goals.detail.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        destructive
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteConfirm(false)
+          void confirmDelete()
+        }}
+      />
     </>
   )
 }

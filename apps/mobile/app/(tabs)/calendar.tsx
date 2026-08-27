@@ -44,14 +44,13 @@ import {
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
-import { useSheetExitAction } from "@/hooks/use-sheet-exit-action";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { buildCalendarMonthModel } from "@/lib/calendar-month-model";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Sheet } from '@/components/ui/sheet';
+import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { PillButton } from "@/components/ui/pill-button";
@@ -343,12 +342,14 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
-  const { scheduleExitAction, runExitAction } = useSheetExitAction();
+  const { sheetRef, closeSheet } = useSheetHost();
 
   const goToSelectedDay = () => {
     if (!selectedDay) return;
-    scheduleExitAction(() => router.push(`/?date=${selectedDay}`));
-    setIsDayDetailOpen(false);
+    closeSheet(() => {
+      setIsDayDetailOpen(false);
+      router.push(`/?date=${selectedDay}`);
+    });
   };
 
   const monthStatTiles = useMemo(
@@ -543,11 +544,9 @@ export default function CalendarScreen() {
       )}
 
       {isDayDetailOpen ? (<Sheet
+        ref={sheetRef}
         open
-        onClose={() => {
-          closeDayDetail()
-          runExitAction()
-        }}
+        onClose={closeDayDetail}
         title={formattedSelectedDate}
         key={selectedDay ?? undefined}
       >

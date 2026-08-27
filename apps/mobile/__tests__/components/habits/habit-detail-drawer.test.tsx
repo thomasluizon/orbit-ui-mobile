@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -246,10 +247,8 @@ describe('HabitDetailDrawer (mobile)', () => {
       checklistItems: [{ text: 'Squats', isChecked: false }],
     })
 
+    sheetTestControls.defer(true)
     const tree = render(<HabitDetailDrawer open onClose={onClose} habit={habit} />)
-    const sheetOnClose = tree.root.findAll((node) => node.type === 'Sheet')[0]?.props.onClose as
-      | (() => void)
-      | undefined
 
     TestRenderer.act(() => {
       pressButton(tree.root, 'ask-astra')
@@ -259,15 +258,18 @@ describe('HabitDetailDrawer (mobile)', () => {
       'orbit-chat-draft',
       'habits.detail.askAstraSeedSubHabits:{"title":"Strength"}',
     )
-    expect(onClose).toHaveBeenCalledTimes(1)
+    /** The drawer is still presented, so neither the close nor the navigation may run yet. */
+    expect(onClose).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      sheetOnClose?.()
+      sheetTestControls.completeDismissal()
     })
 
+    expect(onClose).toHaveBeenCalledTimes(1)
     expect(mocks.push).toHaveBeenCalledWith('/chat')
     expect(mocks.push).toHaveBeenCalledTimes(1)
+    sheetTestControls.defer(false)
   })
 
   it('seeds the default chat draft for a habit with no checklist', () => {

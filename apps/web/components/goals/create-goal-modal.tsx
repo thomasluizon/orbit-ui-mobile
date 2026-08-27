@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -130,12 +131,14 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     setSubmitted(false)
   }, [])
 
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => {
-      resetForm()
-      onOpenChange(false)
-    },
+    onDismiss: () =>
+      closeSheet(() => {
+        resetForm()
+        onOpenChange(false)
+      }),
   })
 
   const fieldErrors = useMemo(
@@ -190,18 +193,21 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         )
 
         await createGoal.mutateAsync(request)
-        onOpenChange(false)
-        resetForm()
+        closeSheet(() => {
+          onOpenChange(false)
+          resetForm()
+        })
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },
-    [createGoal, deadline, description, goalType, onOpenChange, resetForm, showError, targetValue, translate, unit],
+    [closeSheet, createGoal, deadline, description, goalType, onOpenChange, resetForm, showError, targetValue, translate, unit],
   )
 
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('goals.create')}
@@ -265,21 +271,11 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
           </div>
         </form>
       </Sheet>) : null}
-      {dismissGuard.showDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
-  (nextOpen => {
-    if (!nextOpen) dismissGuard.cancelDismiss();
-  })(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (dismissGuard.cancelDismiss)();
-    (nextOpen => {
-      if (!nextOpen) dismissGuard.cancelDismiss();
-    })(false);
-  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
-    (dismissGuard.confirmDismiss)();
-    (nextOpen => {
-      if (!nextOpen) dismissGuard.cancelDismiss();
-    })(false);
-  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
+      />
     </>
   )
 }

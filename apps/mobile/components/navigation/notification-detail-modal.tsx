@@ -8,8 +8,7 @@ import {
   isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { Sheet } from '@/components/ui/sheet'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -37,31 +36,30 @@ export function NotificationDetailModal({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(
     notification,
   )
 
   function handleView() {
     const url = notification.url
-    if (isViewableNotificationUrl(url)) {
-      scheduleExitAction(() => router.push(url))
+    if (!isViewableNotificationUrl(url)) return
+    closeSheet(() => {
       onClose()
-    }
+      router.push(url)
+    })
   }
 
   function handleDelete() {
     onDelete(notification.id)
-    onClose()
+    closeSheet()
   }
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={() => {
-        onClose()
-        runExitAction()
-      }}
+      onClose={onClose}
       title={notification.title}
     >
       <View style={styles.container}>

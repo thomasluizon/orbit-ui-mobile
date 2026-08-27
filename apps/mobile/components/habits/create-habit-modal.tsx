@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
@@ -187,14 +187,17 @@ export function CreateHabitModal({
     initialSubHabits: initialSubHabitsSnapshot,
     initialReminderTimes: initialReminderTimesSnapshot,
   })
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: onClose,
+    onDismiss: () => closeSheet(onClose),
   })
   const navigateToUpgrade = useCallback(() => {
-    onClose()
-    router.push('/upgrade')
-  }, [onClose, router])
+    closeSheet(() => {
+      onClose()
+      router.push('/upgrade')
+    })
+  }, [closeSheet, onClose, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -345,7 +348,7 @@ export function CreateHabitModal({
         )
         await createHabit.mutateAsync(request)
       }
-      onClose()
+      closeSheet(onClose)
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
@@ -367,6 +370,7 @@ export function CreateHabitModal({
     reminderTimes,
     createHabit,
     createSubHabit,
+    closeSheet,
     hasProAccess,
     navigateToUpgrade,
     onClose,
@@ -444,6 +448,7 @@ export function CreateHabitModal({
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={sheetTitle}

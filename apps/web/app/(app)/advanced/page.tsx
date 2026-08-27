@@ -21,8 +21,7 @@ import {
   McpConnectionInstructions,
   WidgetInfoOverlay,
 } from '@/components/advanced/advanced-sections'
-import { Sheet } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 export default function AdvancedPage() {
   const t = useTranslations()
@@ -125,22 +124,19 @@ export default function AdvancedPage() {
           apiError={createKeyError}
         />
 
-        {revokingKeyId !== null ? <Sheet open title={t('orbitMcp.revoke')} onClose={() => {
-  (open => {
-    if (!open) setRevokingKeyId(null);
-  })(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (open => {
-      if (!open) setRevokingKeyId(null);
-    })(false);
-  }}>{t('orbitMcp.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (() => {
-      if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId);
-    })();
-    (open => {
-      if (!open) setRevokingKeyId(null);
-    })(false);
-  }}>{t('orbitMcp.confirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('orbitMcp.revokeConfirm')}</p></Sheet> : null}
+        <ConfirmSheet
+          open={revokingKeyId !== null}
+          title={t('orbitMcp.revoke')}
+          message={t('orbitMcp.revokeConfirm')}
+          cancelLabel={t('orbitMcp.cancel')}
+          confirmLabel={t('orbitMcp.confirm')}
+          destructive
+          onCancel={() => setRevokingKeyId(null)}
+          onConfirm={() => {
+            if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+            setRevokingKeyId(null)
+          }}
+        />
       </div>
     </div>
   )

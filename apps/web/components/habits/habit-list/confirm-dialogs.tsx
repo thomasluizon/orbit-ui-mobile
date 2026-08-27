@@ -1,43 +1,33 @@
 'use client'
 
-import { Sheet } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
   showDeleteConfirm: boolean
-  onDeleteOpenChange: (open: boolean) => void
   onConfirmDelete: () => void
   onCancelDelete: () => void
 }
 
-/** The irreversible habit deletion confirmation owned by HabitList. */
+/**
+ * The habit deletion confirmation owned by HabitList. Deleting is the only
+ * irreversible act in the row, so it is the only one that asks (#42).
+ */
 export function HabitListConfirmDialogs({
   t,
   showDeleteConfirm,
-  onDeleteOpenChange,
   onConfirmDelete,
   onCancelDelete,
 }: Readonly<HabitListConfirmDialogsProps>) {
-  if (!showDeleteConfirm) return null
-
   return (
-    <Sheet
-      open
+    <ConfirmSheet
+      open={showDeleteConfirm}
       title={t('habits.deleteConfirmTitle')}
-      onClose={() => onDeleteOpenChange(false)}
-      actions={(
-        <>
-          <PillButton variant="ghost" onClick={onCancelDelete}>
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton variant="destructive" onClick={onConfirmDelete}>
-            {t('common.delete')}
-          </PillButton>
-        </>
-      )}
-    >
-      <p className="text-sm text-[var(--fg-2)]">{t('habits.deleteConfirmMessage')}</p>
-    </Sheet>
+      message={t('habits.deleteConfirmMessage')}
+      confirmLabel={t('common.delete')}
+      destructive
+      onCancel={onCancelDelete}
+      onConfirm={onConfirmDelete}
+    />
   )
 }

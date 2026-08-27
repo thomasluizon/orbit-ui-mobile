@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { Sheet } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
@@ -131,9 +132,10 @@ export function CreateHabitModal({
     reminderTimes,
     initialSnapshot,
   )
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => onOpenChange(false),
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
   const toggleGoal = useCallback((goalId: string) => {
@@ -144,10 +146,12 @@ export function CreateHabitModal({
     if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
 
     // react-doctor-disable-next-line no-prop-callback-in-effect -- pro-access gate, not a render-sync of local state: closes the modal only when a non-pro user opens sub-habit mode, then redirects to /upgrade https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    onOpenChange(false)
-    // react-doctor-disable-next-line nextjs-no-client-side-redirect -- gate depends on client-fetched profile.hasProAccess (useProfile); there is no server-side signal to redirect on https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    router.push('/upgrade')
-  }, [isSubHabitMode, onOpenChange, open, profile, router])
+    closeSheet(() => {
+      onOpenChange(false)
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- gate depends on client-fetched profile.hasProAccess (useProfile); there is no server-side signal to redirect on https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+      router.push('/upgrade')
+    })
+  }, [closeSheet, isSubHabitMode, onOpenChange, open, profile, router])
 
   const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
@@ -233,8 +237,10 @@ export function CreateHabitModal({
       e.preventDefault()
 
       if (isSubHabitMode && !hasProAccess) {
-        onOpenChange(false)
-        router.push('/upgrade')
+        closeSheet(() => {
+          onOpenChange(false)
+          router.push('/upgrade')
+        })
         return
       }
 
@@ -260,7 +266,7 @@ export function CreateHabitModal({
           const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, permittedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
-        onOpenChange(false)
+        closeSheet(() => onOpenChange(false))
       } catch (error: unknown) {
         showError(
           getFriendlyErrorMessage(
@@ -273,7 +279,7 @@ export function CreateHabitModal({
       }
     },
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
+    [closeSheet, createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
@@ -339,6 +345,7 @@ export function CreateHabitModal({
     if (!open) return null
     return (
       <Sheet
+        ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
@@ -402,21 +409,11 @@ export function CreateHabitModal({
   return (
     <>
       {renderCreateSheet()}
-      {dismissGuard.showDiscardDialog ? <Sheet open title={t('common.discardChangesTitle')} onClose={() => {
-  (nextOpen => {
-    if (!nextOpen) dismissGuard.cancelDismiss();
-  })(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (dismissGuard.cancelDismiss)();
-    (nextOpen => {
-      if (!nextOpen) dismissGuard.cancelDismiss();
-    })(false);
-  }}>{t('common.keepEditing')}</PillButton><PillButton variant="primary" onClick={() => {
-    (dismissGuard.confirmDismiss)();
-    (nextOpen => {
-      if (!nextOpen) dismissGuard.cancelDismiss();
-    })(false);
-  }}>{t('common.discard')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('common.discardChangesDescription')}</p></Sheet> : null}
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
+      />
     </>
   )
 }

@@ -24,7 +24,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { YearPicker } from '@/components/ui/year-picker'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -151,7 +151,7 @@ function DatePickerBody({
     <>
       <View style={styles.weekRow}>
         {weekDays.map((day) => (
-          <View key={day.key} style={styles.dayCell}>
+          <View key={day.key} style={styles.dayTarget}>
             <Text style={styles.weekDayText}>{day.label}</Text>
           </View>
         ))}
@@ -169,9 +169,7 @@ function DatePickerBody({
               <Pressable
                 key={day.toISOString()}
                 style={({ pressed }) => [
-                  styles.dayCell,
-                  isSelected && styles.dayCellSelected,
-                  isToday && !isSelected && styles.dayCellToday,
+                  styles.dayTarget,
                   pressed ? { opacity: 0.7 } : null,
                 ]}
                 onPress={() => onSelectDay(day)}
@@ -183,15 +181,23 @@ function DatePickerBody({
                   year: 'numeric',
                 })}
               >
-                <Text
+                <View
                   style={[
-                    styles.dayText,
-                    !isCurrentMonth && styles.dayTextOutside,
-                    isSelected && styles.dayTextSelected,
+                    styles.dayCell,
+                    isSelected && styles.dayCellSelected,
+                    isToday && !isSelected && styles.dayCellToday,
                   ]}
                 >
-                  {format(day, 'd')}
-                </Text>
+                  <Text
+                    style={[
+                      styles.dayText,
+                      !isCurrentMonth && styles.dayTextOutside,
+                      isSelected && styles.dayTextSelected,
+                    ]}
+                  >
+                    {format(day, 'd')}
+                  </Text>
+                </View>
               </Pressable>
             )
           })}
@@ -278,7 +284,9 @@ export function DateField({
     setPickerMode('days')
   }, [])
 
-  const closePicker = useCallback(() => {
+  const { sheetRef, closeSheet } = useSheetHost()
+
+  const hidePicker = useCallback(() => {
     setIsOpen(false)
   }, [])
 
@@ -288,8 +296,10 @@ export function DateField({
   }, [])
 
   function selectDay(day: Date) {
-    onChange(format(day, 'yyyy-MM-dd'))
-    closePicker()
+    closeSheet(() => {
+      hidePicker()
+      onChange(format(day, 'yyyy-MM-dd'))
+    })
   }
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
@@ -322,7 +332,7 @@ export function DateField({
       </Pressable>
 
       {isOpen ? (
-        <Sheet open title={t('common.selectDate')} onClose={closePicker}>
+        <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker}>
             <DatePickerMonthNav
               pickerMode={pickerMode}
               monthLead={monthLead}
@@ -355,6 +365,7 @@ export function DateField({
 }
 
 const DAY_SIZE = 36
+const DAY_TARGET_SIZE = 44
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
@@ -419,6 +430,13 @@ function createStyles(tokens: AppTokens) {
       textTransform: 'uppercase',
       fontVariant: ['tabular-nums'],
       textAlign: 'center',
+    },
+    dayTarget: {
+      width: DAY_TARGET_SIZE,
+      height: DAY_TARGET_SIZE,
+      borderRadius: radius.full,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     dayCell: {
       width: DAY_SIZE,

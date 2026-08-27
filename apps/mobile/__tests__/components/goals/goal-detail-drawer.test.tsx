@@ -87,19 +87,7 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children, title, onClose, actions }: any) =>
-    React.createElement(
-      'Sheet',
-      { title, open: true },
-      React.createElement('Pressable', {
-        accessibilityLabel: 'attempt-dismiss',
-        onPress: () => onClose?.(),
-      }),
-      children,
-      actions,
-    ),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareBottomSheetScrollView: ({ children }: any) =>

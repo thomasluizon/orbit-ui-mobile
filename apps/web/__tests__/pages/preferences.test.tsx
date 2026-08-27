@@ -58,20 +58,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, title, description, children }: {
-    open: boolean; title?: string; description?: string; children?: React.ReactNode
-  }) => {
-    if (!open) return null
-    return (
-      <div data-testid="picker-sheet">
-        {title && <h2>{title}</h2>}
-        {description && <p>{description}</p>}
-        {children}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-push-notification-preferences', () => ({
   usePushNotificationPreferences: () => mockPushPreferences,
@@ -98,7 +85,12 @@ vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => <span data-testid="pro-badge">PRO</span>,
 }))
 
-vi.mock('@orbit/shared/theme', () => ({
+/**
+ * Only the scheme list is fixed here; everything else stays the real module, so
+ * this mock cannot drift out of step with the shared theme.
+ */
+vi.mock('@orbit/shared/theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/theme')>()),
   colorSchemeOptions: [
     { value: 'purple', color: '#7f46f7' },
     { value: 'blue', color: '#3b82f6' },

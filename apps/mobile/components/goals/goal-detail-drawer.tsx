@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -59,17 +59,21 @@ function DeleteGoalSheet({
   onDelete,
 }: Readonly<{ open: boolean; onClose: () => void; onDelete: () => void }>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   if (!open) return null
 
   return (
     <Sheet
+      ref={sheetRef}
       open
       title={t('goals.detail.delete')}
       onClose={onClose}
       actions={
         <>
-          <PillButton variant="ghost" onClick={onClose}>{t('common.cancel')}</PillButton>
-          <PillButton variant="destructive" onClick={onDelete}>{t('common.delete')}</PillButton>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+          <PillButton variant="destructive" onClick={() => closeSheet(onDelete)}>
+            {t('common.delete')}
+          </PillButton>
         </>
       }
     >
@@ -169,6 +173,8 @@ export function GoalDetailDrawer({
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const closeDrawer = useCallback(() => closeSheet(onClose), [closeSheet, onClose])
 
   const {
     progressValue,
@@ -191,7 +197,7 @@ export function GoalDetailDrawer({
     goalCurrentValue: goal?.currentValue,
     goalTargetValue: goal?.targetValue,
     refetchDetail,
-    onClose,
+    onClose: closeDrawer,
   })
 
   const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
@@ -218,22 +224,24 @@ export function GoalDetailDrawer({
   const handleDeleteConfirm = useCallback(async () => {
     try {
       await deleteGoalMut.mutateAsync(goalId)
-      onClose()
+      closeDrawer()
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'),
       )
     }
-  }, [deleteGoalMut, goalId, onClose, showError, translate])
+  }, [closeDrawer, deleteGoalMut, goalId, showError, translate])
 
   const router = useRouter()
   const handleAskAstra = useCallback(() => {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
-    onClose()
-    router.push('/chat')
-  }, [goal, onClose, router, t])
+    closeSheet(() => {
+      onClose()
+      router.push('/chat')
+    })
+  }, [closeSheet, goal, onClose, router, t])
 
   const isActive = goal?.status === 'Active'
 
@@ -247,6 +255,7 @@ export function GoalDetailDrawer({
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={isProgressDirty ? undefined : onClose}
         title={goal?.title}
@@ -343,8 +352,8 @@ export function GoalDetailDrawer({
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onDelete={() => {
-          void handleDeleteConfirm()
           setShowDeleteConfirm(false)
+          void handleDeleteConfirm()
         }}
       />
     </>

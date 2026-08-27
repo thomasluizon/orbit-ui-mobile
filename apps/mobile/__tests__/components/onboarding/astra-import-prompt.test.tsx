@@ -45,10 +45,7 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement('Sheet', null, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children }: { children: React.ReactNode }) =>

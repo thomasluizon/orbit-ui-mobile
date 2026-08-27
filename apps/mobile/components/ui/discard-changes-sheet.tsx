@@ -1,7 +1,5 @@
-import { Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { PillButton } from '@/components/ui/pill-button'
-import { Sheet } from '@/components/ui/sheet'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 interface DiscardChangesSheetProps {
   open: boolean
@@ -9,6 +7,7 @@ interface DiscardChangesSheetProps {
   onDiscard: () => void
 }
 
+/** Guards an unsaved form: discarding the edit is the irreversible act here. */
 export function DiscardChangesSheet({
   open,
   onKeepEditing,
@@ -16,25 +15,15 @@ export function DiscardChangesSheet({
 }: Readonly<DiscardChangesSheetProps>) {
   const { t } = useTranslation()
 
-  if (!open) return null
-
   return (
-    <Sheet
-      open
+    <ConfirmSheet
+      open={open}
       title={t('common.discardChangesTitle')}
-      onClose={onKeepEditing}
-      actions={
-        <>
-          <PillButton variant="ghost" onClick={onKeepEditing}>
-            {t('common.keepEditing')}
-          </PillButton>
-          <PillButton variant="primary" onClick={onDiscard}>
-            {t('common.discard')}
-          </PillButton>
-        </>
-      }
-    >
-      <Text>{t('common.discardChangesDescription')}</Text>
-    </Sheet>
+      message={t('common.discardChangesDescription')}
+      cancelLabel={t('common.keepEditing')}
+      confirmLabel={t('common.discard')}
+      onCancel={onKeepEditing}
+      onConfirm={onDiscard}
+    />
   )
 }

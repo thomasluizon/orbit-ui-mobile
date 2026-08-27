@@ -73,7 +73,7 @@ describe('GoalsView', () => {
     mockIsFetched = true
     render(<GoalsView />)
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.completed' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.completed' }))
 
     expect(screen.getByText('goals.filters.emptyFiltered')).toBeInTheDocument()
     expect(screen.getByText('goals.filters.emptyFilteredHint')).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('GoalsView', () => {
     render(<GoalsView />)
     expect(screen.queryByText('goals.filters.active')).not.toBeInTheDocument()
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.active' }))
     const labelsOutsideMenu = screen
       .getAllByText('goals.filters.active')
       .filter((element) => !element.closest('[role="dialog"]'))
@@ -119,7 +119,7 @@ describe('GoalsView', () => {
     mockIsFetched = true
     render(<GoalsView />)
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.active' }))
     expect(screen.getByText('Active Goal')).toBeInTheDocument()
     expect(screen.queryByText('Done Goal')).not.toBeInTheDocument()
   })
@@ -134,7 +134,7 @@ describe('GoalsView', () => {
     mockIsFetched = true
     render(<GoalsView />)
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.completed' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.completed' }))
     expect(screen.queryByText('Active Goal')).not.toBeInTheDocument()
     expect(screen.getByText('Done Goal')).toBeInTheDocument()
   })
@@ -149,9 +149,9 @@ describe('GoalsView', () => {
     mockIsFetched = true
     render(<GoalsView />)
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.active' }))
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.all' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.all' }))
     expect(screen.getByText('Active Goal')).toBeInTheDocument()
     expect(screen.getByText('Done Goal')).toBeInTheDocument()
   })
@@ -163,7 +163,7 @@ describe('GoalsView', () => {
     const trigger = screen.getByRole('button', { name: 'goals.filters.statusFilter' })
     expect(trigger).toHaveAttribute('aria-pressed', 'false')
     openFilterMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.filters.active' }))
     expect(trigger).toHaveAttribute('aria-pressed', 'true')
   })
 })

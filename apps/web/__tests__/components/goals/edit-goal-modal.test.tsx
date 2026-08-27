@@ -25,12 +25,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
-    if (!open) return null
-    return <div data-testid="overlay">{title && <h2>{title}</h2>}{children}</div>
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/date-field', () => ({
   DateField: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (

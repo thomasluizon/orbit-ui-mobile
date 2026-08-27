@@ -28,8 +28,8 @@ import {
   queuePendingNotificationDelete,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
-import { Sheet } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 const glyphIconMap = {
   streak: Flame,
@@ -163,6 +163,7 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
   const pendingDeleteIds = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
@@ -196,9 +197,11 @@ export function NotificationBell() {
   }, [cancelPendingDelete, deleteNotification, showQueued, t])
 
   function handleClick(notification: NotificationItem) {
-    setIsOpen(false)
-    setSelectedNotification(notification)
-    setIsModalOpen(true)
+    closeSheet(() => {
+      setIsOpen(false)
+      setSelectedNotification(notification)
+      setIsModalOpen(true)
+    })
     if (!notification.isRead) {
       markAsRead.mutate(notification.id)
     }
@@ -249,6 +252,7 @@ export function NotificationBell() {
       {trigger}
       {isOpen ? (
         <Sheet
+          ref={sheetRef}
           open
           title={t('notifications.title')}
           onClose={() => setIsOpen(false)}
@@ -356,14 +360,18 @@ export function NotificationBell() {
           onDelete={handleModalDelete}
         />
       )}
-      {showDeleteAllConfirm ? <Sheet open title={t('notifications.deleteAllConfirmTitle')} onClose={() => {
-  (setShowDeleteAllConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (setShowDeleteAllConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (() => deleteAll.mutate())();
-    (setShowDeleteAllConfirm)(false);
-  }}>{t('notifications.deleteAll')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('notifications.deleteAllConfirmDescription')}</p></Sheet> : null}
+      <ConfirmSheet
+        open={showDeleteAllConfirm}
+        title={t('notifications.deleteAllConfirmTitle')}
+        message={t('notifications.deleteAllConfirmDescription')}
+        confirmLabel={t('notifications.deleteAll')}
+        destructive
+        onCancel={() => setShowDeleteAllConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteAllConfirm(false)
+          deleteAll.mutate()
+        }}
+      />
     </>
   )
 }

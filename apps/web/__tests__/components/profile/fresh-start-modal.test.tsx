@@ -30,28 +30,7 @@ vi.mock('@/app/actions/profile', () => ({
   resetAccount: (...args: unknown[]) => mockResetAccount(...args),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    onClose,
-    title,
-    children,
-  }: {
-    open: boolean
-    onClose?: () => void
-    title?: string
-    children: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        <button data-testid="overlay-close" onClick={onClose}>
-          Close
-        </button>
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/fresh-start-animation', () => ({
   FreshStartAnimation: ({ onComplete }: { onComplete: () => void }) => (
@@ -82,7 +61,7 @@ describe('FreshStartModal', () => {
 
   it('renders overlay with the reset heading when open', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.heading')).toBeInTheDocument()
   })
 
@@ -260,7 +239,7 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByText('common.continue'))
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('overlay-close'))
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
   })

@@ -8,7 +8,8 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Expand } from '@/components/ui/icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Sheet } from '@/components/ui/sheet'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 
 import { SectionLabel } from '@/components/ui/section-label'
@@ -21,7 +22,6 @@ import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
 import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
 import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { createDrawerStyles } from './habit-detail-drawer/styles'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
@@ -37,7 +37,6 @@ import {
 } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { PillButton } from '@/components/ui/pill-button'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -250,7 +249,7 @@ export function HabitDetailDrawer({
     useState(false)
 
   const router = useRouter()
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const askPrompt = useMemo(() => {
     if (!habit) return ''
     return habit.checklistItems.length > 0
@@ -265,9 +264,11 @@ export function HabitDetailDrawer({
         ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
         : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
-    scheduleExitAction(() => router.push('/chat'))
-    onClose()
-  }, [habit, onClose, router, scheduleExitAction, t])
+    closeSheet(() => {
+      onClose()
+      router.push('/chat')
+    })
+  }, [closeSheet, habit, onClose, router, t])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -304,6 +305,24 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
+  const confirmChecklistLog = useCallback(async () => {
+    if (!habit) return
+    setShowChecklistCompleteConfirm(false)
+    try {
+      await logHabit.mutateAsync({ habitId: habit.id })
+      onLogged?.(habit.id)
+    } catch (error: unknown) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          (key, values) => t(key, values),
+          'errors.logHabit',
+          'habit',
+        ),
+      )
+    }
+  }, [habit, logHabit, onLogged, showError, t])
+
   const summaryStrip = useMemo(() => {
     if (!habit) return ''
     return formatHabitDetailSummary({
@@ -327,47 +346,29 @@ export function HabitDetailDrawer({
         />
       ) : null}
 
-      {showChecklistCompleteConfirm ? <Sheet open title={t('habits.checklistCompleteTitle')} onClose={() => {
-  (setShowChecklistCompleteConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (setShowChecklistCompleteConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
-    (() => {
-      void (async () => {
-        if (!habit) return;
-        try {
-          await logHabit.mutateAsync({
-            habitId: habit.id
-          });
-          onLogged?.(habit.id);
-        } catch (error: unknown) {
-          showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit', 'habit'));
-        } finally {
-          setShowChecklistCompleteConfirm(false);
-        }
-      })();
-    })();
-    (setShowChecklistCompleteConfirm)(false);
-  }}>{t('habits.checklistCompleteConfirm')}</PillButton></>}><Text>{t('habits.checklistCompleteMessage', {
-      name: habit?.title ?? ''
-    })}</Text></Sheet> : null}
+      <ConfirmSheet
+        open={showChecklistCompleteConfirm}
+        title={t('habits.checklistCompleteTitle')}
+        message={t('habits.checklistCompleteMessage', { name: habit?.title ?? '' })}
+        confirmLabel={t('habits.checklistCompleteConfirm')}
+        onCancel={() => setShowChecklistCompleteConfirm(false)}
+        onConfirm={() => void confirmChecklistLog()}
+      />
 
-      {showChecklistClearConfirm ? <Sheet open title={t('habits.checklistClearTitle')} onClose={() => {
-  (setShowChecklistClearConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (() => setShowChecklistClearConfirm(false))();
-    (setShowChecklistClearConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (confirmChecklistClear)();
-    (setShowChecklistClearConfirm)(false);
-  }}>{t('habits.form.clearChecklist')}</PillButton></>}><Text>{t('habits.checklistClearMessage')}</Text></Sheet> : null}
+      <ConfirmSheet
+        open={showChecklistClearConfirm}
+        title={t('habits.checklistClearTitle')}
+        message={t('habits.checklistClearMessage')}
+        confirmLabel={t('habits.form.clearChecklist')}
+        destructive
+        onCancel={() => setShowChecklistClearConfirm(false)}
+        onConfirm={confirmChecklistClear}
+      />
 
       {open ? (<Sheet
+        ref={sheetRef}
         open
-        onClose={() => {
-          onClose()
-          runExitAction()
-        }}
+        onClose={onClose}
         title={habit?.title}
         key={habitId}
       >

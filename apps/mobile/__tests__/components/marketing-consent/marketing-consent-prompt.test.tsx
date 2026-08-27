@@ -50,16 +50,7 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(0,0,0,0.15)',
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    onClose?: () => void
-  }) => (open ? React.createElement('BottomSheetOpen', {}, children) : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
@@ -146,7 +137,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
 
   it('renders nothing when no consent prompt is armed', async () => {
     const tree = await render()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('does not render when a different kind is armed', async () => {
@@ -156,16 +147,16 @@ describe('MarketingConsentPrompt (mobile)', () => {
       await Promise.resolve()
     })
     await settle()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {
     const tree = await renderArmed()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
 
     await settle()
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       MARKETING_CONSENT_MILESTONE_KEY,
     )
@@ -179,7 +170,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('opts in through the offline queue and patches the profile on accept', async () => {
@@ -201,7 +192,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
       }),
     )
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: true })
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('opts out through the offline queue on decline', async () => {

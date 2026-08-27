@@ -26,10 +26,53 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-function radioOption(tree: any, label: string): any {
-  return tree.root.findAllByType(Pressable).find(
-    (node: any) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === label,
-  )
+function column(tree: any, columnLabel: string): any {
+  const found = tree.root.findAll(
+    (node: any) =>
+      node.props?.accessibilityRole === 'radiogroup' &&
+      node.props?.accessibilityLabel === columnLabel,
+  )[0]
+  if (!found) throw new Error(`Column not found: ${columnLabel}`)
+  return found
+}
+
+function radioOption(tree: any, columnLabel: string, label: string): any {
+  return column(tree, columnLabel).findAll(
+    (node: any) =>
+      node.props?.accessibilityRole === 'radio' && node.props?.accessibilityLabel === label,
+  )[0]
+}
+
+async function openPicker(tree: any) {
+  const [textTrigger] = tree.root.findAllByType(Pressable)
+  await TestRenderer.act(async () => {
+    await Promise.resolve()
+    textTrigger.props.onPress()
+  })
+}
+
+async function pressOption(tree: any, columnLabel: string, label: string) {
+  const option = radioOption(tree, columnLabel, label)
+  expect(option).toBeDefined()
+  await TestRenderer.act(async () => {
+    await Promise.resolve()
+    return option.props.onPress()
+  })
+}
+
+async function pressDone(tree: any) {
+  const done = tree.root
+    .findAllByType(Pressable)
+    .find((node: any) =>
+      node.findAll(
+        (child: any) => child.type === 'Text' && child.props.children === 'common.done',
+      ).length > 0,
+    )
+  if (!done) throw new Error('Done action not found')
+  await TestRenderer.act(async () => {
+    await Promise.resolve()
+    return done.props.onPress()
+  })
 }
 
 describe('TimeField', () => {
@@ -58,51 +101,60 @@ await Promise.resolve()
     )
   })
 
-  it('shows half-hour radio rows in 24-hour locale format and applies one choice', async () => {
+  it('offers every minute, so an odd minute like 07:13 is selectable in a 24-hour locale', async () => {
     const onChange = vi.fn()
     let tree: any
 
     await TestRenderer.act(async () => {
-await Promise.resolve()
+      await Promise.resolve()
       tree = TestRenderer.create(
         <TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />,
       )
     })
 
-    const [textTrigger] = tree.root.findAllByType(Pressable)
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      textTrigger.props.onPress()
-    })
+    await openPicker(tree)
+    await pressOption(tree, 'common.hours', '07')
+    await pressOption(tree, 'common.minutes', '13')
+    await pressDone(tree)
 
-    const label = formatLocaleTime('07:30', 'pt-BR', { hour: 'numeric', minute: '2-digit' })
-    expect(radioOption(tree, label)).toBeDefined()
-    await TestRenderer.act(async () => { await Promise.resolve(); return radioOption(tree, label).props.onPress(); })
-    expect(onChange).toHaveBeenCalledWith('07:30')
+    expect(onChange).toHaveBeenCalledWith('07:13')
   })
 
-  it('shows the same choices in 12-hour locale format while preserving the API value', async () => {
+  it('keeps the canonical HH:MM value for an odd minute picked in a 12-hour locale', async () => {
     mockUses24HourClock = false
     const onChange = vi.fn()
     let tree: any
 
     await TestRenderer.act(async () => {
-await Promise.resolve()
+      await Promise.resolve()
       tree = TestRenderer.create(
         <TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />,
       )
     })
 
-    const [textTrigger] = tree.root.findAllByType(Pressable)
+    await openPicker(tree)
+    await pressOption(tree, 'common.hours', '09')
+    await pressOption(tree, 'common.minutes', '45')
+    await pressOption(tree, 'common.amPm', 'PM')
+    await pressDone(tree)
+
+    expect(onChange).toHaveBeenCalledWith('21:45')
+  })
+
+  it('opens on the persisted odd minute rather than snapping it to a half hour', async () => {
+    let tree: any
+
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      textTrigger.props.onPress()
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        <TimeField value="07:15" onChange={vi.fn()} placeholder="HH:MM" />,
+      )
     })
 
-    const label = formatLocaleTime('21:30', 'en-US', { hour: 'numeric', minute: '2-digit' })
-    expect(radioOption(tree, label)).toBeDefined()
-    await TestRenderer.act(async () => { await Promise.resolve(); return radioOption(tree, label).props.onPress(); })
-    expect(onChange).toHaveBeenCalledWith('21:30')
+    await openPicker(tree)
+
+    expect(radioOption(tree, 'common.hours', '07').props.accessibilityState.selected).toBe(true)
+    expect(radioOption(tree, 'common.minutes', '15').props.accessibilityState.selected).toBe(true)
   })
 
   it('renders a clear button when value is set and onClear is provided', async () => {

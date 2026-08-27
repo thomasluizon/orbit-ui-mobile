@@ -7,16 +7,7 @@ import {
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: (props: Record<string, unknown>) =>
-    props.open
-      ? React.createElement(
-          'Sheet',
-          props,
-          props.children as React.ReactNode,
-        )
-      : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({

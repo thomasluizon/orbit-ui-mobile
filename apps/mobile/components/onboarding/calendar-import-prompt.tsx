@@ -4,9 +4,8 @@ import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -28,7 +27,7 @@ export function CalendarImportPrompt() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
   const [sheetMounted, setSheetMounted] = useState(false)
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
@@ -57,9 +56,12 @@ export function CalendarImportPrompt() {
   }, [invalidate])
 
   const handleImport = useCallback(() => {
-    scheduleExitAction(() => router.push('/calendar-sync'))
-    void dismissPrompt()
-  }, [dismissPrompt, router, scheduleExitAction])
+    closeSheet(() => {
+      setSheetMounted(false)
+      void dismissPrompt()
+      router.push('/calendar-sync')
+    })
+  }, [closeSheet, dismissPrompt, router])
 
   if (shouldShow && !sheetMounted) {
     setSheetMounted(true)
@@ -69,11 +71,11 @@ export function CalendarImportPrompt() {
 
   return (
     shouldShow ? (<Sheet
+      ref={sheetRef}
       open
       onClose={() => {
-        void dismissPrompt()
-        runExitAction()
         setSheetMounted(false)
+        void dismissPrompt()
       }}
       title={t('onboarding.wizard.calendarTitle')}
     >

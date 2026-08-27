@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
 import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -113,24 +114,26 @@ describe('RescheduleSheet (mobile)', () => {
     mockProfile = { hasProAccess: false, language: 'en' }
     const onOpenChange = vi.fn()
 
+    sheetTestControls.defer(true)
     const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
-    const sheetOnClose = tree.root.findAll((node) => node.type === 'Sheet')[0]?.props.onClose as
-      | (() => void)
-      | undefined
 
     expect(hasText(tree.root, 'habits.reschedule.freePrompt')).toBe(true)
     TestRenderer.act(() => {
       pressButton(tree.root, 'habits.reschedule.upgrade')
     })
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+
+    /** The sheet is still presented, so neither the close nor the navigation may run yet. */
+    expect(onOpenChange).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      sheetOnClose?.()
+      sheetTestControls.completeDismissal()
     })
 
+    expect(onOpenChange).toHaveBeenCalledWith(false)
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
     expect(mockPush).toHaveBeenCalledTimes(1)
+    sheetTestControls.defer(false)
   })
 
   it('shows an error with a retry that refetches', () => {

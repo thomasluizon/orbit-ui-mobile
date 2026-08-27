@@ -10,16 +10,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ getQueryData: () => undefined }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    onOpenChange?: (open: boolean) => void
-  }) => (open ? <div data-testid="milestone-share-prompt">{children}</div> : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/milestone-share/milestone-share-card', () => ({
   MilestoneShareCard: React.forwardRef<HTMLDivElement>(function MilestoneShareCard(_props, ref) {
@@ -86,7 +77,7 @@ describe('MilestoneSharePrompt', () => {
 
   it('renders nothing when no milestone is armed', () => {
     render(<MilestoneSharePrompt />)
-    expect(screen.queryByTestId('milestone-share-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('renders nothing when a referral prompt is armed (kind isolation)', async () => {
@@ -95,17 +86,17 @@ describe('MilestoneSharePrompt', () => {
 
     await settle()
 
-    expect(screen.queryByTestId('milestone-share-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('shows the card after the settle delay and marks it prompted', async () => {
     render(<MilestoneSharePrompt />)
     await armMilestoneShare('share-streak-7')
-    expect(screen.queryByTestId('milestone-share-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
 
     await settle()
 
-    expect(screen.getByTestId('milestone-share-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByTestId('milestone-share-card')).toBeInTheDocument()
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
@@ -121,7 +112,7 @@ describe('MilestoneSharePrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('milestone-share-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {
@@ -133,7 +124,7 @@ describe('MilestoneSharePrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('milestone-share-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
     expect(useEngagementPromptStore.getState().armedPrompt).toBeNull()
   })
 })

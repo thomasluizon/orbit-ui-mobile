@@ -19,7 +19,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { YearPicker } from '@/components/ui/year-picker'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface DateFieldProps {
   value: string
@@ -99,15 +99,21 @@ export function DateField({
     setPickerMode('days')
   }
 
-  const closePicker = useCallback(() => {
+  const { sheetRef, closeSheet } = useSheetHost()
+
+  const hidePicker = useCallback(() => {
     setIsOpen(false)
     setFocusedDate(null)
     setPickerMode('days')
   }, [])
 
+  const closePicker = useCallback(() => closeSheet(), [closeSheet])
+
   function selectDay(day: Date) {
-    onChange(format(day, 'yyyy-MM-dd'))
-    closePicker()
+    closeSheet(() => {
+      hidePicker()
+      onChange(format(day, 'yyyy-MM-dd'))
+    })
   }
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
@@ -159,7 +165,7 @@ export function DateField({
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-4)]" />
       </button>
 
-      {isOpen ? <Sheet open title={t('common.selectDate')} onClose={closePicker}>
+      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker}>
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
@@ -247,22 +253,26 @@ export function DateField({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className={`mx-auto flex size-8 items-center justify-center rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] ${
-                            isCurrentMonth
-                              ? 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
-                              : 'text-[var(--fg-3)]'
-                          } ${
-                            isSelected
-                              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)]'
-                              : ''
-                          } ${
-                            isToday && !isSelected
-                              ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
-                              : ''
-                          }`}
+                          className="group mx-auto flex size-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
                           onClick={() => selectDay(day)}
                         >
-                          {format(day, 'd')}
+                          <span
+                            className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors ${
+                              isCurrentMonth
+                                ? 'text-[var(--fg-1)] group-hover:bg-[var(--bg-elev)]'
+                                : 'text-[var(--fg-3)]'
+                            } ${
+                              isSelected
+                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-pressed)]'
+                                : ''
+                            } ${
+                              isToday && !isSelected
+                                ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
+                                : ''
+                            }`}
+                          >
+                            {format(day, 'd')}
+                          </span>
                         </button>
                       </td>
                     )

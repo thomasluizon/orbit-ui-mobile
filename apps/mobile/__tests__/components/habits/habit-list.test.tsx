@@ -27,6 +27,7 @@ function flattenText(node: unknown): string {
 
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
+const deleteMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
 const toggleSelectMode = vi.fn()
@@ -97,7 +98,7 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
   useSkipHabit: () => ({ mutateAsync: skipMutateAsync }),
-  useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -170,10 +171,7 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
   RescheduleSheet: () => null,
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title }: any) =>
-    open ? React.createElement('Sheet', { title }, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({
@@ -231,6 +229,23 @@ function seedHabits(habits: NormalizedHabit[]) {
   }
 }
 
+/** The sheet double renders every sheet as a `Sheet` host node carrying its title. */
+function confirmationSheets(tree: any, title: string) {
+  return tree.root.findAll((node: any) => node.type === 'Sheet' && node.props?.title === title)
+}
+
+function pressConfirm(tree: any, label: string) {
+  const button = tree.root.findAll(
+    (node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      node.findAll((child: any) => child.type === 'Text' && child.props.children === label)
+        .length > 0,
+  )
+  const target = button.at(-1)
+  if (!target) throw new Error(`Confirm action not found: ${label}`)
+  target.props.onPress()
+}
+
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -282,7 +297,50 @@ describe('HabitList', () => {
     })
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
-    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
+  })
+
+  /**
+   * Ticket #42 is the product authority: a confirmation belongs to an
+   * irreversible act only. Skipping is reversible, so it acts on one press;
+   * deleting is not, so it asks first.
+   */
+  it('asks before the irreversible delete, unlike the reversible skip', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    await TestRenderer.act(async () => {
+      habitCard?.props.actions.onDelete()
+      await Promise.resolve()
+    })
+
+    expect(deleteMutateAsync).not.toHaveBeenCalled()
+    const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
+    expect(confirmation).toBeDefined()
+
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'common.delete')
+      await Promise.resolve()
+    })
+
+    expect(deleteMutateAsync).toHaveBeenCalledWith('habit-1')
   })
 
   it('renders the habit description preview when present', () => {
@@ -352,8 +410,9 @@ describe('HabitList', () => {
     })
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
-    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
+
 
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })

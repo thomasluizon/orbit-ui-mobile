@@ -6,10 +6,9 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -33,7 +32,7 @@ export function AstraImportPrompt() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
   const [sheetMounted, setSheetMounted] = useState(false)
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
@@ -76,9 +75,12 @@ export function AstraImportPrompt() {
       CHAT_DRAFT_STORAGE_KEY,
       t('onboarding.flow.meetAstra.importPrompt'),
     )
-    scheduleExitAction(() => router.replace('/chat'))
-    await markSeen()
-  }, [markSeen, router, scheduleExitAction, t])
+    closeSheet(() => {
+      setSheetMounted(false)
+      void markSeen()
+      router.replace('/chat')
+    })
+  }, [closeSheet, markSeen, router, t])
 
   if (shouldShow && !sheetMounted) {
     setSheetMounted(true)
@@ -88,11 +90,11 @@ export function AstraImportPrompt() {
 
   return (
     shouldShow ? (<Sheet
+      ref={sheetRef}
       open
       onClose={() => {
-        void markSeen()
-        runExitAction()
         setSheetMounted(false)
+        void markSeen()
       }}
       title={t('onboarding.wizard.importTitle')}
     >

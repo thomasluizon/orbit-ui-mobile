@@ -17,9 +17,8 @@ import { apiClient } from '@/lib/api-client'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -288,7 +287,7 @@ export function DeleteAccountModal({
   const { t } = useTranslation()
   const { isOnline } = useOffline()
   const handleLogout = useLogout()
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
@@ -441,8 +440,10 @@ export function DeleteAccountModal({
       <DeleteDeactivatedStep
         scheduledDeletionDate={scheduledDeletionDate}
         onLogout={() => {
-          scheduleExitAction(() => void handleLogout())
-          onClose()
+          closeSheet(() => {
+            onClose()
+            void handleLogout()
+          })
         }}
       />
     )
@@ -450,11 +451,9 @@ export function DeleteAccountModal({
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
-      onClose={() => {
-        onClose()
-        runExitAction()
-      }}
+      onClose={onClose}
       title={t('profile.deleteAccount.title')}
     >
       {deleteContent}

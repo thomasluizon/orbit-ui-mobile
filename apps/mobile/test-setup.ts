@@ -132,28 +132,7 @@ vi.mock('@/lib/theme-provider', () => ({
   useThemeContext: () => null,
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    children,
-    title,
-    actions,
-    onClose,
-  }: {
-    open: true
-    children?: React.ReactNode
-    title?: string
-    actions?: React.ReactNode
-    onClose?: () => void
-  }) => {
-    return React.createElement(
-      'Sheet',
-      { onClose },
-      title ? React.createElement('Text', null, title) : null,
-      children,
-      actions,
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({

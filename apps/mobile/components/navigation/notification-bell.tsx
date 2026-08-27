@@ -11,6 +11,7 @@ import {
   useDeleteNotification,
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
@@ -33,7 +34,6 @@ import {
   type AppTokens,
   type NotificationBellStyles,
 } from './notification-bell.styles'
-import { PillButton } from '@/components/ui/pill-button'
 
 interface NotificationListActionsProps {
   tokens: AppTokens
@@ -305,14 +305,18 @@ export function NotificationBell() {
           onDelete={handleDetailDelete}
         />
       )}
-      {showDeleteAllConfirm ? <Sheet open title={t('notifications.deleteAllConfirmTitle')} onClose={() => {
-  (setShowDeleteAllConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (setShowDeleteAllConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (() => deleteAll.mutate())();
-    (setShowDeleteAllConfirm)(false);
-  }}>{t('notifications.deleteAll')}</PillButton></>}><Text>{t('notifications.deleteAllConfirmDescription')}</Text></Sheet> : null}
+      <ConfirmSheet
+        open={showDeleteAllConfirm}
+        title={t('notifications.deleteAllConfirmTitle')}
+        message={t('notifications.deleteAllConfirmDescription')}
+        confirmLabel={t('notifications.deleteAll')}
+        destructive
+        onCancel={() => setShowDeleteAllConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteAllConfirm(false)
+          deleteAll.mutate()
+        }}
+      />
     </View>
   )
 }

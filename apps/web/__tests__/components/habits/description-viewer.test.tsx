@@ -8,28 +8,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    title,
-    children,
-    onOpenChange,
-  }: {
-    open: boolean
-    title?: string
-    children?: ReactNode
-    onOpenChange?: (next: boolean) => void
-  }) =>
-    open ? (
-      <div role="dialog" aria-label={title}>
-        <h2>{title}</h2>
-        <button type="button" onClick={() => onOpenChange?.(false)}>
-          close-overlay
-        </button>
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 

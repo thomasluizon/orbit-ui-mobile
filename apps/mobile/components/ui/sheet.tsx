@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -9,8 +9,41 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const MAX_HEIGHT_RATIO = 0.85
 
+export interface SheetHandle {
+  /**
+   * Dismisses the native sheet and runs `exitAction` once the dismissal
+   * completes. Without an `exitAction` the sheet's own `onClose` runs instead.
+   */
+  requestClose: (exitAction?: () => void) => void
+}
+
+/**
+ * The one close path a sheet host may use. Never flip the open state directly:
+ * unmounting a presented TrueSheet wedges every later Android modal until the
+ * process restarts, and it drops the navigation that has to run after the
+ * dismissal (https://sheet.lodev09.com/guides/navigation). Pass `sheetRef` to
+ * the sheet, then call `closeSheet()`, or `closeSheet(action)` when something
+ * has to run after the sheet is gone.
+ */
+export function useSheetHost() {
+  const sheetRef = useRef<SheetHandle>(null)
+
+  const closeSheet = useCallback((exitAction?: () => void) => {
+    const handle = sheetRef.current
+    if (handle) handle.requestClose(exitAction)
+    else exitAction?.()
+  }, [])
+
+  return { sheetRef, closeSheet }
+}
+
+interface MobileSheetProps extends SheetProps {
+  /** The handle `useSheetHost` fills in, so the host can close through the native dismissal. */
+  ref?: Ref<SheetHandle>
+}
+
 /** The native overlay surface. Callers mount it only while it is open. */
-export function Sheet({ title, actions, onClose, children }: Readonly<SheetProps>) {
+export function Sheet({ title, actions, onClose, children, ref }: Readonly<MobileSheetProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -20,14 +53,30 @@ export function Sheet({ title, actions, onClose, children }: Readonly<SheetProps
   const { height } = useWindowDimensions()
   const { t } = useTranslation()
   const sheetRef = useRef<TrueSheet>(null)
+  const exitActionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     void sheetRef.current?.present()
   }, [])
 
-  function dismiss() {
+  const requestClose = useCallback((exitAction?: () => void) => {
+    exitActionRef.current = exitAction ?? null
     void sheetRef.current?.dismiss()
-  }
+  }, [])
+
+  const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
+
+  useImperativeHandle(ref, () => handle, [handle])
+
+  const handleDidDismiss = useCallback(() => {
+    const exitAction = exitActionRef.current
+    exitActionRef.current = null
+    if (exitAction) {
+      exitAction()
+      return
+    }
+    onClose?.()
+  }, [onClose])
 
   const header = title || onClose ? (
     <View style={styles.header}>
@@ -37,7 +86,7 @@ export function Sheet({ title, actions, onClose, children }: Readonly<SheetProps
           accessibilityLabel={t('common.close')}
           accessibilityRole="button"
           hitSlop={8}
-          onPress={dismiss}
+          onPress={() => requestClose()}
           style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
         >
           <X color={tokens.fg2} size={24} strokeWidth={1.8} />
@@ -67,8 +116,8 @@ export function Sheet({ title, actions, onClose, children }: Readonly<SheetProps
       }}
       header={header}
       maxContentHeight={height * MAX_HEIGHT_RATIO}
-      onBackPress={onClose ? dismiss : undefined}
-      onDidDismiss={onClose}
+      onBackPress={onClose ? () => requestClose() : undefined}
+      onDidDismiss={handleDidDismiss}
     >
       <ScrollView
         contentContainerStyle={styles.body}

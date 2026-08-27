@@ -3,7 +3,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -26,7 +27,6 @@ import {
   formatLocaleDate,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
-import { PillButton } from '@/components/ui/pill-button'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -73,6 +73,7 @@ export function HabitDetailDrawer({
   }, [habit, liveChecklist, t])
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showChecklistClearConfirm, setShowChecklistClearConfirm] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
 
@@ -139,8 +140,10 @@ export function HabitDetailDrawer({
     if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
-    onOpenChange(false)
-    router.push('/chat')
+    closeSheet(() => {
+      onOpenChange(false)
+      router.push('/chat')
+    })
   }
 
   return (
@@ -155,6 +158,7 @@ export function HabitDetailDrawer({
       )}
 
       {open ? (<Sheet
+        ref={sheetRef}
         open
         onClose={() => onOpenChange(false)}
         title={habit?.title}
@@ -230,27 +234,24 @@ export function HabitDetailDrawer({
         )}
       </Sheet>) : null}
 
-      {showChecklistLogPrompt ? <Sheet open title={t('habits.checklistCompleteTitle')} onClose={() => {
-  (setShowChecklistLogPrompt)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (() => setShowChecklistLogPrompt(false))();
-    (setShowChecklistLogPrompt)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
-    (() => void confirmChecklistLog())();
-    (setShowChecklistLogPrompt)(false);
-  }}>{t('habits.checklistCompleteConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('habits.checklistCompleteMessage', {
-      name: habit?.title ?? ''
-    })}</p></Sheet> : null}
+      <ConfirmSheet
+        open={showChecklistLogPrompt}
+        title={t('habits.checklistCompleteTitle')}
+        message={t('habits.checklistCompleteMessage', { name: habit?.title ?? '' })}
+        confirmLabel={t('habits.checklistCompleteConfirm')}
+        onCancel={() => setShowChecklistLogPrompt(false)}
+        onConfirm={() => void confirmChecklistLog()}
+      />
 
-      {showChecklistClearConfirm ? <Sheet open title={t('habits.checklistClearTitle')} onClose={() => {
-  (setShowChecklistClearConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (() => setShowChecklistClearConfirm(false))();
-    (setShowChecklistClearConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="destructive" onClick={() => {
-    (confirmChecklistClear)();
-    (setShowChecklistClearConfirm)(false);
-  }}>{t('habits.form.clearChecklist')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{t('habits.checklistClearMessage')}</p></Sheet> : null}
+      <ConfirmSheet
+        open={showChecklistClearConfirm}
+        title={t('habits.checklistClearTitle')}
+        message={t('habits.checklistClearMessage')}
+        confirmLabel={t('habits.form.clearChecklist')}
+        destructive
+        onCancel={() => setShowChecklistClearConfirm(false)}
+        onConfirm={confirmChecklistClear}
+      />
     </>
   )
 }

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -27,5 +27,44 @@ describe('Sheet', () => {
   it('does not expose a dismiss control when no close handler exists', () => {
     render(<Sheet open title="Required action" />)
     expect(screen.queryByRole('button', { name: 'common.close' })).toBeNull()
+  })
+})
+
+/**
+ * The host may never flip its own open state: `onClose` has to arrive from the
+ * finished exit, and a scheduled action has to run after it. Mobile depends on
+ * this to avoid unmounting a presented TrueSheet, and web keeps the same path.
+ */
+describe('Sheet close path', () => {
+  function Host({
+    onClose,
+    exitAction,
+  }: Readonly<{ onClose: () => void; exitAction?: () => void }>) {
+    const { sheetRef, closeSheet } = useSheetHost()
+    return (
+      <Sheet ref={sheetRef} open title="Options" onClose={onClose}>
+        <button type="button" onClick={() => closeSheet(exitAction)}>
+          request-close
+        </button>
+      </Sheet>
+    )
+  }
+
+  it('reports close only once the exit finishes', async () => {
+    const onClose = vi.fn()
+    render(<Host onClose={onClose} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'request-close' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('runs a scheduled exit action in place of onClose', async () => {
+    const onClose = vi.fn()
+    const navigate = vi.fn()
+    render(<Host onClose={onClose} exitAction={navigate} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'request-close' }))
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

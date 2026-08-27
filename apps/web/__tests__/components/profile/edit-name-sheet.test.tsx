@@ -25,23 +25,7 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    title,
-    children,
-  }: {
-    open: boolean
-    title?: string
-    children: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { EditNameSheet } from '@/app/(app)/profile/_components/edit-name-sheet'
 

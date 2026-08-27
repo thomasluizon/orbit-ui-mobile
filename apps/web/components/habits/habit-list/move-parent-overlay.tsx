@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGlyph } from '@/components/ui/select-check'
@@ -190,6 +190,7 @@ export function MoveParentOverlay({
   onSelectOption,
 }: Readonly<MoveParentOverlayProps>) {
   const [searchQuery, setSearchQuery] = useState('')
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const rootOption = useMemo(
     () => options.find((option) => option.id === null) ?? null,
@@ -210,21 +211,16 @@ export function MoveParentOverlay({
 
   return (
     open ? (<Sheet
+      ref={sheetRef}
       open
       onClose={isMoving ? undefined : () => {
-          setSearchQuery('')
-          onClose()
+        setSearchQuery('')
+        onClose()
       }}
       title={t('habits.moveParent.title')}
       actions={
         <div className="flex" style={{ gap: 12 }}>
-          <PillButton
-            variant="ghost"
-
-            disabled={isMoving}
-            onClick={onClose}
-
-          >
+          <PillButton variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
           <PillButton

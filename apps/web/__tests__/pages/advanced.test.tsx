@@ -81,17 +81,7 @@ vi.mock('@orbit/shared/api', () => ({
   },
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title, actions }: { open: boolean; children: React.ReactNode; title: string; actions?: React.ReactNode }) => {
-    if (!open) return null
-    return (
-      <div data-testid="overlay" aria-label={title}>
-        {children}
-        {actions}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/create-api-key-modal', () => ({
   CreateApiKeyModal: ({ open }: { open: boolean }) => {
@@ -144,7 +134,7 @@ describe('AdvancedPage', () => {
     render(<AdvancedPage />)
     const widgetButton = screen.getByText('profile.widgetTitle').closest('button')!
     fireEvent.click(widgetButton)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('profile.widgetHow.title')).toBeInTheDocument()
   })
 

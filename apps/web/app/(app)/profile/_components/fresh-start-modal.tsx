@@ -10,7 +10,7 @@ import {
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -89,6 +89,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   const [showAnimation, setShowAnimation] = useState(false)
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -112,8 +113,10 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
-      handleOpenChange(false)
-      setShowAnimation(true)
+      closeSheet(() => {
+        handleOpenChange(false)
+        setShowAnimation(true)
+      })
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
@@ -134,8 +137,9 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   return (
     <>
       {open ? (<Sheet
+        ref={sheetRef}
         open
-        onClose={() => (handleOpenChange)(false)}
+        onClose={() => handleOpenChange(false)}
         title={
           step === 'info'
             ? t('profile.freshStart.heading')

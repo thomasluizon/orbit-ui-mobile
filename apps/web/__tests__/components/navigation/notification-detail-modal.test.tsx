@@ -17,20 +17,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title, footer }: {
-    open: boolean; children: React.ReactNode; title?: string; footer?: React.ReactNode
-  }) => {
-    if (!open) return null
-    return (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        {children}
-        {footer}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
 import type { NotificationItem } from '@orbit/shared/types/notification'
