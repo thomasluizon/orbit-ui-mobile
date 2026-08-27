@@ -30,6 +30,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
+import {
+  captureBuildEnabled,
+  shouldRetainEmptyAuthCallback,
+} from '@/lib/capture-mode'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -158,7 +162,13 @@ export default function AuthCallbackScreen() {
   }, [callbackUrl, i18n.language, login, resolveCallbackError, router, t])
 
   useEffect(() => {
-    if (processedRef.current || errorState || callbackUrl || isPendingGoogleAuthSession) return
+    if (
+      shouldRetainEmptyAuthCallback(captureBuildEnabled) ||
+      processedRef.current ||
+      errorState ||
+      callbackUrl ||
+      isPendingGoogleAuthSession
+    ) return
 
     const timeout = setTimeout(() => {
       router.replace('/login')

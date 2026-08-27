@@ -88,6 +88,7 @@ function assertProductionAdMobConfig(adMobOptions) {
 
 module.exports = () => {
   const baseConfig = appJson.expo ?? {};
+  const captureMode = readBooleanEnv("EXPO_PUBLIC_CAPTURE_MODE", false);
   const useTestIds = readBooleanEnv(
     "EXPO_PUBLIC_ADMOB_USE_TEST_IDS",
     process.env.EAS_BUILD_PROFILE !== "production"
@@ -107,6 +108,12 @@ module.exports = () => {
 
   return {
     ...baseConfig,
+    android: {
+      ...baseConfig.android,
+      googleServicesFile: captureMode
+        ? undefined
+        : baseConfig.android?.googleServicesFile,
+    },
     plugins: withAndroidReleaseBuildFixesPlugin(
       withAdMobPlugin(baseConfig.plugins, {
         androidAppId: adMobOptions.androidAppId ?? TEST_ANDROID_APP_ID,

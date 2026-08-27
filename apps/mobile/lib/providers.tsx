@@ -1,4 +1,12 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -30,9 +38,19 @@ import { subscribeDroppedMutations, getMutationScope } from '@/lib/offline-mutat
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslation } from 'react-i18next'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
-import './i18n'
+import { useGlobalSearchParams } from 'expo-router'
+import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated'
+import {
+  captureBuildEnabled,
+  captureTupleKey,
+  resolveCapturePreferences,
+  type CapturePreferences,
+} from './capture-mode'
+import { pinCaptureAnimationDurations } from './capture-animation-pin'
+import { i18n } from './i18n'
 
 void SplashScreen.preventAutoHideAsync()
+if (captureBuildEnabled) pinCaptureAnimationDurations()
 
 function syncWidgetDataSafely() {
   void syncWidgetData().catch(() => {})
@@ -40,6 +58,12 @@ function syncWidgetDataSafely() {
 
 interface ProvidersProps {
   children: ReactNode
+}
+
+const CaptureReadinessContext = createContext(true)
+
+export function useCaptureReady() {
+  return useContext(CaptureReadinessContext)
 }
 
 function OfflineManager() {
@@ -90,12 +114,23 @@ function OfflineManager() {
   return null
 }
 
-function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
+function AuthInitializer({
+  capturePreferences,
+  children,
+}: Readonly<{
+  capturePreferences: CapturePreferences | null
+  children: ReactNode
+}>) {
   const initialize = useAuthStore((s) => s.initialize)
-  const [ready, setReady] = useState(false)
+  const captureTuple = captureTupleKey(capturePreferences)
+  const [appliedCaptureTuple, setAppliedCaptureTuple] = useState<string | null>(null)
+  /** Derived during render, never flipped by an effect: see captureTupleKey. */
+  const ready = appliedCaptureTuple === captureTuple
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
+  /** Expo Router's warm-link transition must retain its navigator while the next tuple applies. */
+  const [hasRenderedApp, setHasRenderedApp] = useState(false)
   const [fontsLoaded] = useFonts({
     Rubik_400Regular,
     Rubik_500Medium,
@@ -110,6 +145,11 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   })
 
   useEffect(() => {
+    /**
+     * A tuple that changes mid-boot abandons the boot in flight. Without this, the older boot could
+     * resolve last and publish its own tuple as applied, gating a render that is already correct.
+     */
+    let abandoned = false
     async function boot() {
       let isAuthenticated = false
 
@@ -117,6 +157,10 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         await initialize()
         isAuthenticated = useAuthStore.getState().isAuthenticated
       } catch {}
+
+      if (capturePreferences) {
+        await i18n.changeLanguage(capturePreferences.locale)
+      }
 
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
@@ -126,10 +170,13 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         try { await clearPersistedQueryCache() } catch {}
       }
 
-      setReady(true)
+      if (!abandoned) setAppliedCaptureTuple(captureTuple)
     }
     void boot()
-  }, [initialize])
+    return () => {
+      abandoned = true
+    }
+  }, [captureTuple, capturePreferences, initialize])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
@@ -149,11 +196,15 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
   const appReady = ready && fontsLoaded && onboardingDraftHydrated
 
-  useEffect(() => {
-    if (ready && fontsLoaded && onboardingDraftHydrated) void SplashScreen.hideAsync()
-  }, [ready, fontsLoaded, onboardingDraftHydrated])
+  /** Sticky on the first ready render, independently of asynchronous splash cleanup. */
+  if (appReady && !hasRenderedApp) setHasRenderedApp(true)
 
-  if (!appReady) {
+  useEffect(() => {
+    if (!appReady) return
+    void SplashScreen.hideAsync()
+  }, [appReady])
+
+  if (!appReady && !hasRenderedApp) {
     return (
       <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={runtimeTokens.primary} />
@@ -162,19 +213,55 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   return (
-    <ThemeProvider>
-      <View style={{ flex: 1 }}>
-        <OfflineManager />
-        {children}
-      </View>
-    </ThemeProvider>
+    <CaptureReadinessContext.Provider value={appReady}>
+      <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
+        <View style={{ flex: 1 }}>
+          <OfflineManager />
+          {children}
+          {!appReady ? (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: runtimeTokens.bg,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <ActivityIndicator size="large" color={runtimeTokens.primary} />
+            </View>
+          ) : null}
+        </View>
+      </ThemeProvider>
+    </CaptureReadinessContext.Provider>
   )
 }
 
 export function Providers({ children }: Readonly<ProvidersProps>) {
+  const parameters = useGlobalSearchParams<{
+    captureLocale?: string | string[]
+    captureTheme?: string | string[]
+  }>()
+  const captureLocale = Array.isArray(parameters.captureLocale)
+    ? parameters.captureLocale[0]
+    : parameters.captureLocale
+  const captureTheme = Array.isArray(parameters.captureTheme)
+    ? parameters.captureTheme[0]
+    : parameters.captureTheme
+  const capturePreferences = useMemo(
+    () => resolveCapturePreferences(captureBuildEnabled, { captureLocale, captureTheme }),
+    [captureLocale, captureTheme],
+  )
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthInitializer>{children}</AuthInitializer>
+      <ReducedMotionConfig
+        mode={captureBuildEnabled ? ReduceMotion.Always : ReduceMotion.System}
+      />
+      <AuthInitializer capturePreferences={capturePreferences}>
+        {children}
+      </AuthInitializer>
     </QueryClientProvider>
   )
 }

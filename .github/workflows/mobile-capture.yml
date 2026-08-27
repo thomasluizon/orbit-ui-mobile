@@ -1,0 +1,104 @@
+name: Mobile Surface Capture
+
+on:
+  pull_request:
+    branches: [redesign/main]
+    paths:
+      - ".maestro/**"
+      - ".github/scripts/run-mobile-capture.sh"
+      - ".github/workflows/mobile-capture.yml"
+      - ".claude/manifests/surfaces.json"
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "tools/capture-surfaces-mobile.mjs"
+      - "package-lock.json"
+      - "package.json"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Android emulator capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      EXPO_PUBLIC_CAPTURE_MODE: "true"
+      EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "true"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+      MAESTRO_VERSION: "2.8.0"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle caching
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Install pinned Maestro CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          maestro_root="${RUNNER_TEMP}/maestro-cli"
+          maestro_zip="${RUNNER_TEMP}/maestro.zip"
+          curl --fail --location --output "${maestro_zip}" \
+            "https://github.com/mobile-dev-inc/maestro/releases/download/cli-${MAESTRO_VERSION}/maestro.zip"
+          unzip -q "${maestro_zip}" -d "${maestro_root}"
+          echo "${maestro_root}/maestro/bin" >> "${GITHUB_PATH}"
+
+      - name: Build the animation-pinned emulator APK
+        run: npm run android:apk:emulator -w @orbit/mobile
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture and compare the public route matrix
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          # The action turns this into `avdmanager create avd --device '<profile>'`, so the profile
+          # has to exist in the runner's device catalogue, NOT in a local SDK. ubuntu-latest ships
+          # Android Command Line Tools 12.0, whose newest phone is pixel_7_pro; pixel_9 arrived in a
+          # later release. Naming one this catalogue lacks fails AVD creation with "No device found
+          # matching --device", the emulator never boots, and every later step reads as a capture
+          # bug instead. Raise this only alongside a confirmed runner-image tools bump.
+          profile: pixel_7
+          cores: 4
+          ram-size: 4096M
+          heap-size: 512M
+          disable-animations: true
+          script: bash .github/scripts/run-mobile-capture.sh
+
+      - name: Upload capture evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-surface-capture
+          path: .artifacts/mobile-capture
+          if-no-files-found: error
+          include-hidden-files: true

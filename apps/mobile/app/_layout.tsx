@@ -15,7 +15,8 @@ import {
 } from 'expo-router'
 import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
-import { Providers } from '@/lib/providers'
+import * as Linking from 'expo-linking'
+import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
@@ -59,6 +60,12 @@ import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
+import {
+  captureBuildEnabled,
+  captureRequestProbeIdFromUrl,
+  captureRouteProbeId,
+  shouldExposeOnboardingRoute,
+} from '@/lib/capture-mode'
 
 const SLIDE_FROM_RIGHT_SCREENS = [
   'preferences',
@@ -86,32 +93,50 @@ function RootStackScreens({
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'fade_from_bottom',
-        animationDuration: mobileMotion.presets['route-push'].enterDuration,
+        animation: captureBuildEnabled ? 'none' : 'fade_from_bottom',
+        animationDuration: captureBuildEnabled
+          ? 0
+          : mobileMotion.presets['route-push'].enterDuration,
         animationMatchesGesture: true,
         animationTypeForReplace: 'push',
         contentStyle: { backgroundColor: screenBackgroundColor },
       }}
     >
-      <Stack.Protected guard={!isAuthenticated && !onboardingLocallyDone}>
+      <Stack.Protected
+        guard={shouldExposeOnboardingRoute(
+          captureBuildEnabled,
+          isAuthenticated,
+          onboardingLocallyDone,
+        )}
+      >
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen
           name="login"
-          options={{ animation: 'fade', gestureEnabled: false }}
+          options={{
+            animation: captureBuildEnabled ? 'none' : 'fade',
+            gestureEnabled: false,
+          }}
         />
       </Stack.Protected>
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="chat"
+          options={{
+            animation: captureBuildEnabled ? 'none' : 'slide_from_right',
+          }}
+        />
         {SLIDE_FROM_RIGHT_SCREENS.map((name) => (
           <Stack.Screen
             key={name}
             name={name}
-            options={{ animation: 'slide_from_right' }}
+            options={{
+              animation: captureBuildEnabled ? 'none' : 'slide_from_right',
+            }}
           />
         ))}
       </Stack.Protected>
@@ -120,12 +145,21 @@ function RootStackScreens({
           stack to the first AVAILABLE screen, so after login flips the guards the
           user lands on (tabs), not /privacy. Regression from #400; fix #431.
           https://docs.expo.dev/router/advanced/protected/ */}
-      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
-      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
+      <Stack.Screen
+        name="privacy"
+        options={{ animation: captureBuildEnabled ? 'none' : 'fade' }}
+      />
+      <Stack.Screen
+        name="terms"
+        options={{ animation: captureBuildEnabled ? 'none' : 'fade' }}
+      />
       <Stack.Screen name="r" />
       <Stack.Screen
         name="auth-callback"
-        options={{ animation: 'fade', gestureEnabled: false }}
+        options={{
+          animation: captureBuildEnabled ? 'none' : 'fade',
+          gestureEnabled: false,
+        }}
       />
     </Stack>
   )
@@ -135,8 +169,10 @@ function RootLayoutNav() {
   const router = useRouter()
   const pathname = usePathname()
   const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
+  const linkingUrl = Linking.useLinkingURL()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const captureReady = useCaptureReady()
   const { profile } = useProfile()
   const { initialize: initializeAdMob } = useAdMob()
   useTimezoneAutoSync(profile)
@@ -149,6 +185,11 @@ function RootLayoutNav() {
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
+  const captureProbeId = captureRouteProbeId(pathname, topSegment)
+  const captureRequestId = captureRequestProbeIdFromUrl(
+    captureBuildEnabled,
+    linkingUrl,
+  )
   const hideAppShellChrome =
     topSegment === 'login' ||
     topSegment === 'auth-callback' ||
@@ -228,7 +269,11 @@ function RootLayoutNav() {
 
   return (
     <>
-      <StatusBar animated style={currentTheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar
+        animated={!captureBuildEnabled}
+        hidden={captureBuildEnabled}
+        style={currentTheme === 'dark' ? 'light' : 'dark'}
+      />
 
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
@@ -239,6 +284,30 @@ function RootLayoutNav() {
 
         {showBottomNav ? (
           <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
+        ) : null}
+        {captureBuildEnabled && captureReady ? (
+          <>
+            <View
+              accessibilityLabel={captureProbeId}
+              accessible
+              collapsable={false}
+              importantForAccessibility="yes"
+              pointerEvents="none"
+              style={styles.captureProbe}
+              testID={captureProbeId}
+            />
+            {captureRequestId ? (
+              <View
+                accessibilityLabel={captureRequestId}
+                accessible
+                collapsable={false}
+                importantForAccessibility="yes"
+                pointerEvents="none"
+                style={styles.captureProbe}
+                testID={captureRequestId}
+              />
+            ) : null}
+          </>
         ) : null}
       </View>
 
@@ -452,6 +521,13 @@ const styles = StyleSheet.create({
   shellRoot: {
     flex: 1,
     overflow: 'hidden',
+  },
+  captureProbe: {
+    height: 1,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 1,
   },
 })
 
