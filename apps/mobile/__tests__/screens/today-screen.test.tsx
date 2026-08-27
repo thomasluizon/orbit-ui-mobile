@@ -559,6 +559,7 @@ describe("TodayScreen", () => {
   });
 
   it("dedupes descendant successes before prompting parent logs for bulk actions", async () => {
+    uiState.isSelectMode = true;
     const root = createMockHabit({
       id: "root",
       title: "Root",
@@ -597,20 +598,11 @@ describe("TodayScreen", () => {
 
     const tree = await renderTodayScreen();
 
-    const bulkLogDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkLogTitle",
-      );
-
-    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk log confirm dialog to be rendered");
-    }
-    const onConfirm = bulkLogDialog.props.onConfirm;
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await onConfirm();
+      (bulkBar.props.onLog as () => void)();
+      await Promise.resolve();
     });
 
     expect(markRecentlyCompleted).toHaveBeenCalledWith("parent");
@@ -940,20 +932,11 @@ describe("TodayScreen overdue bulk selection", () => {
 
     const tree = await renderTodayScreen();
 
-    const bulkLogDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkLogTitle",
-      );
-
-    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk log confirm dialog to be rendered");
-    }
-    const onConfirm = bulkLogDialog.props.onConfirm as () => Promise<void>;
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await onConfirm();
+      (bulkBar.props.onLog as () => void)();
+      await Promise.resolve();
     });
 
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
@@ -968,20 +951,11 @@ describe("TodayScreen overdue bulk selection", () => {
 
     const tree = await renderTodayScreen();
 
-    const bulkSkipDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkSkipTitle",
-      );
-
-    if (!bulkSkipDialog || typeof bulkSkipDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk skip confirm dialog to be rendered");
-    }
-    const onConfirm = bulkSkipDialog.props.onConfirm as () => Promise<void>;
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await onConfirm();
+      (bulkBar.props.onSkip as () => void)();
+      await Promise.resolve();
     });
 
     expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);

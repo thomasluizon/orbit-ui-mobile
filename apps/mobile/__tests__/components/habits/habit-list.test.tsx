@@ -255,7 +255,7 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
-  it('shows a skip confirmation before skipping a recurring habit', async () => {
+  it('skips a recurring habit immediately', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
 
@@ -276,24 +276,15 @@ describe('HabitList', () => {
       .findAllByType(HabitRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
-    TestRenderer.act(() => {
-      habitCard?.props.actions.onSkip()
-    })
-
-    const skipDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.skipConfirmTitle')
-
-    expect(skipDialog?.props.description).toBe('habits.skipConfirmMessage')
-
     await TestRenderer.act(async () => {
-      await skipDialog.props.onConfirm()
+      habitCard?.props.actions.onSkip()
+      await Promise.resolve()
     })
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
   })
 
-  it('renders the habit description preview when present', () => {
+  it('omits the habit description from the canonical row', () => {
     seedHabits([
       createMockHabit({ id: 'habit-desc', title: 'Meditate', description: 'Ten minutes of breathing' }),
     ])
@@ -308,7 +299,7 @@ describe('HabitList', () => {
     const descriptionNodes = tree.root.findAll(
       (node: any) => node.props?.children === 'Ten minutes of breathing',
     )
-    expect(descriptionNodes.length).toBeGreaterThan(0)
+    expect(descriptionNodes).toHaveLength(0)
   })
 
   it('omits the description preview when the habit has none', () => {
@@ -329,7 +320,7 @@ describe('HabitList', () => {
     expect(descriptionNodes).toHaveLength(0)
   })
 
-  it('shows a postpone confirmation before postponing a one-time task', () => {
+  it('postpones a one-time task immediately', async () => {
     const oneTimeTask = createMockHabit({
       id: 'habit-1',
       title: 'Pay bill',
@@ -354,16 +345,11 @@ describe('HabitList', () => {
       .findAllByType(HabitRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       habitCard?.props.actions.onSkip()
+      await Promise.resolve()
     })
-
-    const postponeDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.postponeConfirmTitle')
-
-    expect(postponeDialog?.props.description).toBe('habits.postponeConfirmMessage')
-    expect(postponeDialog?.props.confirmLabel).toBe('habits.postponeConfirmButton')
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
   })
 
   it('logs a habit immediately from the card action', async () => {
@@ -1307,14 +1293,9 @@ describe('HabitList', () => {
       const card = tree.root
         .findAllByType(HabitRow)
         .find((node: any) => node.props.habit.id === childId)
-      TestRenderer.act(() => {
-        card?.props.actions.onSkip()
-      })
-      const skipDialog = tree.root
-        .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.skipConfirmTitle')
       await TestRenderer.act(async () => {
-        await skipDialog.props.onConfirm()
+        card?.props.actions.onSkip()
+        await Promise.resolve()
       })
     }
 
@@ -1431,7 +1412,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
   })
 
-  it('skips an overdue habit with no date after confirmation', async () => {
+  it('skips an overdue habit with no date immediately', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -1453,16 +1434,9 @@ describe('HabitList', () => {
       .findAllByType(HabitRow)
       .find((node: any) => node.props.habit.id === 'overdue-1')
 
-    TestRenderer.act(() => {
-      overdueCard?.props.actions.onSkip()
-    })
-
-    const skipDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.postponeConfirmTitle')
-
     await TestRenderer.act(async () => {
-      await skipDialog.props.onConfirm()
+      overdueCard?.props.actions.onSkip()
+      await Promise.resolve()
     })
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })

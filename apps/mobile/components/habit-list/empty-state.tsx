@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 36,
+    paddingHorizontal: 32,
     paddingVertical: 64,
     gap: 16,
   },
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   linkAction: {
-    marginTop: 6,
+    marginTop: 4,
     paddingVertical: 12,
     paddingHorizontal: 8,
   },

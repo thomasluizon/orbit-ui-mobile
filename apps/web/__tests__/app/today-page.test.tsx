@@ -264,7 +264,7 @@ describe('TodayPage bulk parent prompts', () => {
 
     renderPage()
 
-    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.log' }))
 
     await waitFor(() => {
       expect(markRecentlyCompleted).toHaveBeenCalledWith('parent')
@@ -505,7 +505,7 @@ describe('TodayPage overdue bulk selection', () => {
 
     renderPage()
 
-    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.log' }))
 
     await waitFor(() => {
       expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])
@@ -521,7 +521,7 @@ describe('TodayPage overdue bulk selection', () => {
 
     renderPage()
 
-    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkSkipTitle'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.skip' }))
 
     await waitFor(() => {
       expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])

@@ -13,12 +13,6 @@ interface HabitListConfirmDialogsProps {
   duplicateName: string
   onConfirmDuplicate: () => void
   onCancelDuplicate: () => void
-  showSkipConfirm: boolean
-  onSkipOpenChange: (open: boolean) => void
-  isPostponeAction: boolean
-  skipConfirmMessage: string
-  onConfirmSkip: () => void
-  onCancelSkip: () => void
   showForceLogConfirm: boolean
   onForceLogOpenChange: (open: boolean) => void
   onConfirmForceLog: () => void
@@ -46,12 +40,6 @@ export function HabitListConfirmDialogs({
   duplicateName,
   onConfirmDuplicate,
   onCancelDuplicate,
-  showSkipConfirm,
-  onSkipOpenChange,
-  isPostponeAction,
-  skipConfirmMessage,
-  onConfirmSkip,
-  onCancelSkip,
   showForceLogConfirm,
   onForceLogOpenChange,
   onConfirmForceLog,
@@ -90,26 +78,6 @@ export function HabitListConfirmDialogs({
         onConfirm={onConfirmDuplicate}
         onCancel={onCancelDuplicate}
         variant="success"
-      />
-
-      <ConfirmDialog
-        open={showSkipConfirm}
-        onOpenChange={onSkipOpenChange}
-        title={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmTitle'
-            : 'habits.skipConfirmTitle',
-        )}
-        description={skipConfirmMessage}
-        confirmLabel={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmButton'
-            : 'habits.skipConfirmButton',
-        )}
-        cancelLabel={t('common.cancel')}
-        onConfirm={onConfirmSkip}
-        onCancel={onCancelSkip}
-        variant="warning"
       />
 
       <ConfirmDialog

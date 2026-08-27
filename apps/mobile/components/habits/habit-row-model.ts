@@ -1,6 +1,6 @@
 import { computeHabitFutureHint, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { HabitRowMetaPart } from './habit-row-content'
 import type { HabitRowActions } from './habit-row'
 
@@ -9,9 +9,9 @@ export function resolveHabitRowDotState(
   isDoneForRange: boolean,
   isBadHabit: boolean,
   isOverdue: boolean,
-): StatusDotState {
-  if (isDoneForRange) return 'done'
+): HabitStatus {
   if (isBadHabit) return 'bad'
+  if (isDoneForRange) return 'done'
   if (isOverdue) return 'overdue'
   return 'empty'
 }
@@ -50,6 +50,9 @@ export function buildHabitRowMetaParts({
     metaParts.push(`${checked}/${habit.checklistItems.length}`)
   }
   if (isOverdue) metaParts.push({ kind: 'overdue' })
+  if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
+    metaParts.push({ kind: 'bad' })
+  }
   if (!habit.isCompleted && selectedDateStr === todayStr) {
     const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
     if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
@@ -59,7 +62,7 @@ export function buildHabitRowMetaParts({
 
 interface BuildHabitRowAccessibilityLabelParams {
   title: string
-  dotState: StatusDotState
+  dotState: HabitStatus
   linkedGoal: boolean
   showStreak: boolean
   streak: number
