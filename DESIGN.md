@@ -673,7 +673,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | InfoCard | radius 20, borderless tonal aside, **one tone**: `--bg-elev` with an fg-3 icon. There is no accent variant, because a static informational card is not one of the four accent roles | `ui/info-card.tsx` | same |
 | Field | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
 | OTP | 6 boxes, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
-| Overlay | see **Overlay** | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
+| Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | EmptyState mark | 96px, the real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned empty state takes `AstraGlyph` instead, via a prop | `ui/empty-state.tsx` | same |
 | ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
@@ -691,18 +691,18 @@ One primitive covers the drawer, sheet, dialog and modal. It presents as a botto
 | **web** | **`@base-ui/react`**, `Dialog` from the `./dialog` subpath | 1.7.0, MIT, `github.com/mui/base-ui`, peer `react ^19` |
 | **mobile** | **`@lodev09/react-native-true-sheet`** | 3.11.3, already installed |
 
-**Web rationale.** `apps/web` ships no overlay library at all today. `app-overlay.tsx` hand-rolls the backdrop, the focus trap, the body-scroll lock, the overlay stack and the portal in one 375-line component that already carries a `no-giant-component` deferral. The root cause is visible in the markup: it renders `<dialog open>` rather than calling `showModal()`, so it gets none of the platform's free behaviour and has to rebuild the trap, the background inertness and the Escape handling by hand, and then needs `z-[9999]` because it never enters the top layer. Base UI's `Dialog` supplies all of that behind one `modal` prop, which is code standard 11 applied exactly.
+**Web rationale.** The primitive is `ui/sheet.tsx`, built on Base UI's `Dialog`. It replaced `app-overlay.tsx`, which hand-rolled the backdrop, the focus trap, the body-scroll lock, the overlay stack and the portal in one 375-line component carrying a `no-giant-component` deferral. That component rendered `<dialog open>` rather than calling `showModal()`, so it got none of the platform's free behaviour and rebuilt the trap, the background inertness and the Escape handling by hand, then needed `z-[9999]` because it never entered the top layer. Base UI supplies all of that behind one `modal` prop, which is code standard 11 applied exactly.
 
-Adopting it deletes `apps/web/lib/overlay-stack.ts` and two live defects: the `z-[9999]` that violates this document's own arbitrary-z-index ban, and a grabber with no gesture handler, so web drag-to-dismiss is decorative today and nothing is lost by not replacing it. Anatomy to build against: `Dialog.Root` (`open` / `onOpenChange`), `Portal`, `Backdrop`, `Viewport`, `Popup` (`initialFocus` / `finalFocus`), `Title`, `Description`, `Close`. Note the peer dependency `@date-fns/tz ^1.2.0`, which `apps/web` does not yet have; `date-fns ^4.4.0` is already present.
+It also deleted `apps/web/lib/overlay-stack.ts` and two defects with it: the `z-[9999]` that violated this document's own arbitrary-z-index ban, and a grabber with no gesture handler, so web drag-to-dismiss was decorative and nothing was lost by not replacing it. Anatomy: `Dialog.Root` (`open`, `modal`, `disablePointerDismissal`, `onOpenChangeComplete`), `Portal`, `Backdrop`, `Viewport`, `Popup`, `Title`, `Close`. Note the peer dependency `@date-fns/tz ^1.2.0`, which `apps/web` does not yet have; `date-fns ^4.4.0` is already present.
 
 **Mobile rationale.** The library is not the defect, the wrapper is. TrueSheet handles detents, scroll coordination, the dimmed backdrop, the keyboard and the Android back button natively. `@gorhom/bottom-sheet` stays banned by `local/no-gorhom-sheet`, because its `present()` and portal no-op on the New Architecture in release builds. **Never navigate in the same tick as closing a sheet.**
 
-**Migrating the 83 callers is R-ticket work, not this ticket.**
+**The 83 callers were migrated in R1 (`#42`).** Both platforms now expose one close path: take `{ sheetRef, closeSheet }` from `useSheetHost()`, pass `ref={sheetRef}`, and call `closeSheet()` or `closeSheet(action)`. `onClose` fires only from the completed dismissal, so a caller never flips the open state directly.
 
 ### Sizing
 
 - **An overlay is content-height by default.** It grows to its content and stops.
-- **A fixed detent is allowed only where the content is genuinely long, and never as the default.** `bottom-sheet-modal.tsx` currently defaults to `['50%','80%']`, which is the defect: a short sheet opens with a third of the panel empty.
+- **A fixed detent is allowed only where the content is genuinely long, and never as the default.** The mobile primitive opens on the `'auto'` detent so a short sheet takes only the height it needs; the older `['50%','80%']` default opened a short sheet with a third of the panel empty.
 - An overlay never exceeds 85% of the viewport height. Past that it is a screen, not an overlay.
 
 ### Scroll ownership
@@ -1170,7 +1170,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 | No bounce or elastic easing (Motion) | `local/no-overshoot-easing` | keep |
 | No `space-x-*` / `space-y-*` (Spacing) | `local/no-space-x-y` | **wire on mobile** |
 | Off-scale spacing (Spacing) | `local/spacing-scale` | **re-enumerate to the chosen scale**, unblocked |
-| No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex` | keep. `app-overlay.tsx:235` is a live violation the Base UI adoption removes |
+| No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex` | keep. `app-overlay.tsx:235` was the standing violation, removed with that component in R1 |
 | Focus outline never removed bare (A11y) | `local/require-focus-replacement` | **wire on mobile** |
 | Never disable zoom (A11y) | `local/no-user-scalable-no` | keep, web only |
 | `<div onClick>`, positive `tabIndex` (A11y) | `jsx-a11y` rules at `error` | keep |

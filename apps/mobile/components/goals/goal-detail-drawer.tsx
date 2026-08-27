@@ -131,7 +131,7 @@ function GoalEditSheet({
  * at-risk, behind, completed, abandoned, streak, update (active progress
  * form). Preserves: streak vs standard handling, progress mutation,
  * status mutation, delete mutation, edit modal, dismiss guard.
- * The BottomSheetModal renders even when `goal` is null: unmounting a
+ * The Sheet renders even when `goal` is null: unmounting a
  * presented TrueSheet mid-dismissal wedges every subsequent RN Modal and
  * drops the onDidDismiss that runs the scheduled exit action - see
  * https://sheet.lodev09.com/guides/navigation. Hosts must likewise keep
