@@ -18,7 +18,6 @@ interface PlanSelectionProps {
 export function PlanSelection({
   plans,
   discountedAmount,
-  trialActive,
   checkoutLoading,
   onCheckout,
   onStayFree,
@@ -27,7 +26,6 @@ export function PlanSelection({
   const yearlyAmount = discountedAmount(plans.yearly.unitAmount)
   const monthlyAmount = discountedAmount(plans.monthly.unitAmount)
   const checkoutPending = checkoutLoading !== null
-  void trialActive
 
   return (
     <div className="grid grid-cols-1 items-stretch stagger-enter" style={{ gap: 16 }}>

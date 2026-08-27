@@ -1,7 +1,10 @@
-import type { AstraGlyphProps } from '@orbit/shared/contracts/brand'
+import {
+  ASTRA_GLYPH_16_PATHS,
+  ASTRA_GLYPH_PATHS,
+  type AstraGlyphProps,
+} from '@orbit/shared/contracts/brand'
 import { useMemo } from 'react'
 import Svg, { Path } from 'react-native-svg'
-import { ASTRA_GLYPH_16_PATHS, ASTRA_GLYPH_PATHS } from '@/components/ui/brand-paths'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

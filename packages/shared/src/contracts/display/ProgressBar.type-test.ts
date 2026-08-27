@@ -1,12 +1,15 @@
 import type { ProgressBarProps } from './ProgressBar'
 
-const acceptProgressBar = (_props: ProgressBarProps): void => undefined
+type Keys<T> = T extends unknown ? keyof T : never
+type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type Assert<T extends true> = T
 
-acceptProgressBar({ value: 5, max: 10, label: 'Half complete' })
-
-// @ts-expect-error the bar derives its own color
-acceptProgressBar({ color: 'orange' })
-// @ts-expect-error the bar has no tone axis
-acceptProgressBar({ tone: 'positive' })
-// @ts-expect-error the bar has no variant axis
-acceptProgressBar({ variant: 'success' })
+export type ProgressBarTypeContract = [
+  Assert<IsExact<{ value: 5; max: 10; label: 'Half complete' }, ProgressBarProps>>,
+  // @ts-expect-error the bar derives its own color
+  Assert<IsExact<{ color: 'orange' }, ProgressBarProps>>,
+  // @ts-expect-error the bar has no tone axis
+  Assert<IsExact<{ tone: 'positive' }, ProgressBarProps>>,
+  // @ts-expect-error the bar has no variant axis
+  Assert<IsExact<{ variant: 'success' }, ProgressBarProps>>,
+]

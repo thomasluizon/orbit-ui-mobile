@@ -13,7 +13,6 @@ export function PlanSelection({
   plans,
   yearlyOffer,
   monthlyPrice,
-  yearlyPrice,
   selectedInterval,
   onSelectInterval,
   onStayFree,
@@ -33,7 +32,6 @@ export function PlanSelection({
   const monthlyCharge =
     monthlyPrice ??
     formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
-  void yearlyPrice
 
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={t('upgrade.plan')} style={styles.planGroup}>

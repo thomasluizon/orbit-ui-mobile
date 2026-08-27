@@ -1,7 +1,10 @@
-import type { LockupProps } from '@orbit/shared/contracts/brand'
+import {
+  LOCKUP_MARK_PATHS,
+  LOCKUP_WORD_PATH,
+  type LockupProps,
+} from '@orbit/shared/contracts/brand'
 import { useMemo } from 'react'
 import Svg, { G, Path } from 'react-native-svg'
-import { LOCKUP_MARK_PATHS, LOCKUP_WORD_PATH } from '@/components/ui/brand-paths'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

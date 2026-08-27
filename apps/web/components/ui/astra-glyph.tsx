@@ -1,5 +1,8 @@
-import type { AstraGlyphProps } from '@orbit/shared/contracts/brand'
-import { ASTRA_GLYPH_16_PATHS, ASTRA_GLYPH_PATHS } from '@/components/ui/brand-paths'
+import {
+  ASTRA_GLYPH_16_PATHS,
+  ASTRA_GLYPH_PATHS,
+  type AstraGlyphProps,
+} from '@orbit/shared/contracts/brand'
 
 export function AstraGlyph({ size = 24, color }: Readonly<AstraGlyphProps>) {
   const isNativeSize = size < 20

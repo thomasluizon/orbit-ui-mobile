@@ -1,5 +1,8 @@
-import type { OrbitMarkProps } from '@orbit/shared/contracts/brand'
-import { ORBIT_MARK_16_PATHS, ORBIT_MARK_PATHS } from '@/components/ui/brand-paths'
+import {
+  ORBIT_MARK_16_PATHS,
+  ORBIT_MARK_PATHS,
+  type OrbitMarkProps,
+} from '@orbit/shared/contracts/brand'
 
 export function OrbitMark({ size = 24, accent = false }: Readonly<OrbitMarkProps>) {
   const isNativeSize = size < 20

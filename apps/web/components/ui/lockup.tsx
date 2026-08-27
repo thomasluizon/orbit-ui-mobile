@@ -1,5 +1,8 @@
-import type { LockupProps } from '@orbit/shared/contracts/brand'
-import { LOCKUP_MARK_PATHS, LOCKUP_WORD_PATH } from '@/components/ui/brand-paths'
+import {
+  LOCKUP_MARK_PATHS,
+  LOCKUP_WORD_PATH,
+  type LockupProps,
+} from '@orbit/shared/contracts/brand'
 
 export function Lockup(_props: Readonly<LockupProps>) {
   return (

@@ -31,4 +31,13 @@ describe('ProBadge', () => {
     render(<ProBadge />)
     expect(screen.getByText(text)).toBeInTheDocument()
   })
+
+  it('applies custom classes to the outer badge wrapper', () => {
+    mockProfile.isTrialActive = false
+    mockProfile.hasProAccess = true
+
+    render(<ProBadge className="ml-auto" />)
+
+    expect(screen.getByText('common.proBadge').parentElement).toHaveClass('ml-auto')
+  })
 })

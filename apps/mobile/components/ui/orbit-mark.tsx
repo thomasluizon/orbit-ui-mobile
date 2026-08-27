@@ -1,7 +1,10 @@
-import type { OrbitMarkProps } from '@orbit/shared/contracts/brand'
+import {
+  ORBIT_MARK_16_PATHS,
+  ORBIT_MARK_PATHS,
+  type OrbitMarkProps,
+} from '@orbit/shared/contracts/brand'
 import { useMemo } from 'react'
 import Svg, { Path } from 'react-native-svg'
-import { ORBIT_MARK_16_PATHS, ORBIT_MARK_PATHS } from '@/components/ui/brand-paths'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
