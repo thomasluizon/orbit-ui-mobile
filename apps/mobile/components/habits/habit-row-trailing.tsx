@@ -72,6 +72,10 @@ export function HabitRowTrailing({
   onOpenMenu,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
+  const statusLabel = t(`habits.statusDot.${dotState}` as const)
+  const toggleLabel = isDoneForRange
+    ? t('habits.actions.unlog')
+    : t('habits.logHabit')
   return (
     <View style={styles.trailing}>
       {!isSelectMode &&
@@ -84,9 +88,9 @@ export function HabitRowTrailing({
                   : resolveLogAction(childrenDone, childrenTotal, actions)
                 parentAction?.()
               }}
-              hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
               accessibilityRole="button"
-              accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
+              accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
+              style={styles.parentRingButton}
             >
               <ParentRing
                 done={childrenDone}
@@ -102,13 +106,7 @@ export function HabitRowTrailing({
             state={dotState}
             onToggle={onToggleStatus}
             disabled={!canLog && !isDoneForRange}
-            accessibilityLabel={`${t(
-              `habits.statusDot.${dotState}` as const,
-            )}, ${
-              isDoneForRange
-                ? t('habits.actions.unlog')
-                : t('habits.logHabit')
-            }`}
+            accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
             tokens={tokens}
             size={depth === 1 ? 24 : 30}
           />
@@ -117,7 +115,6 @@ export function HabitRowTrailing({
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
             onPress={onOpenMenu}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.more')}
             style={({ pressed }) => [

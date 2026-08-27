@@ -38,11 +38,27 @@ describe('HabitRow canonical content', () => {
 describe('HabitRow check circle accessible name', () => {
   it('announces the state and log action when loggable', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Meditate' })} />)
-    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.empty, habits.logHabit')
+    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.empty, habits.logHabit: Meditate')
+    expect(screen.getByTestId('habit-status-toggle')).not.toHaveAttribute('aria-disabled')
   })
 
   it('announces the unlog action when done', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Meditate' })} state="done" />)
-    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.done, habits.actions.unlog')
+    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.done, habits.actions.unlog: Meditate')
+  })
+
+  it('announces parent progress and the parent action', () => {
+    render(
+      <HabitRow
+        habit={createMockHabit({ title: 'Morning routine' })}
+        hasChildren
+        childProgress={{ done: 1, total: 2 }}
+      />,
+    )
+    expect(
+      screen.getByRole('button', {
+        name: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+      }),
+    ).toBeInTheDocument()
   })
 })

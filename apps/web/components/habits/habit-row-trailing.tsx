@@ -78,6 +78,8 @@ export function HabitRowTrailing({
     onDrillInto,
   } = actions
   const statusDotLabelKey = `habits.statusDot.${state}`
+  const statusLabel = t(statusDotLabelKey)
+  const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 8 }}>
@@ -88,8 +90,8 @@ export function HabitRowTrailing({
               type="button"
               aria-label={
                 childProgress
-                  ? `${habit.title} ${childProgress.done}/${childProgress.total}`
-                  : habit.title
+                  ? `${statusLabel}, ${toggleLabel}: ${habit.title}, ${childProgress.done}/${childProgress.total}`
+                  : `${statusLabel}, ${toggleLabel}: ${habit.title}`
               }
               onClick={(event) => {
                 event.stopPropagation()
@@ -113,9 +115,7 @@ export function HabitRowTrailing({
             onToggle={onToggleStatus}
             disabled={!canLog && !isDone}
             size={depth === 1 ? 24 : 30}
-            ariaLabel={`${t(statusDotLabelKey)}, ${
-              isDone ? t('habits.actions.unlog') : t('habits.logHabit')
-            }`}
+            ariaLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
           />
         ))}
       {!selectMode && hasMenuActions && (

@@ -79,6 +79,44 @@ describe('HabitRow canonical content (mobile)', () => {
   })
 })
 
+describe('HabitRow status control names (mobile)', () => {
+  it('announces the habit name with the state and log action', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Meditate' })} />,
+      )
+    })
+
+    expect(
+      renderer!.root.findByProps({
+        accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Meditate',
+      }),
+    ).toBeDefined()
+  })
+
+  it('announces parent progress and the parent action', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Morning routine' })}
+          hasChildren
+          childrenDone={1}
+          childrenTotal={2}
+        />,
+      )
+    })
+
+    expect(
+      renderer!.root.findByProps({
+        accessibilityLabel:
+          'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+      }),
+    ).toBeDefined()
+  })
+})
+
 function renderRowWithMenu() {
   let renderer: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => {

@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   reason: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8 },
   meta: { fontFamily: 'Roboto_400Regular', fontSize: 12, fontVariant: ['tabular-nums'], flexShrink: 0 },
-  tag: { fontFamily: 'Geist_600SemiBold', fontSize: 11, letterSpacing: 0.88, textTransform: 'uppercase', flexShrink: 0 },
+  tag: { fontFamily: 'Geist_600SemiBold', fontSize: 12, letterSpacing: 0.96, textTransform: 'uppercase', flexShrink: 0 },
   radio: { width: 24, height: 24, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   radioDot: { width: 9, height: 9, borderRadius: 999 },
 })

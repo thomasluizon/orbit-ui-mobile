@@ -47,6 +47,13 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  parentRingButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   menuButton: {
     width: 44,
     height: 44,
@@ -57,6 +64,7 @@ export const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
