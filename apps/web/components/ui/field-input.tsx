@@ -5,6 +5,7 @@ import { useId, type ChangeEvent, type InputHTMLAttributes, type ReactNode } fro
 const INPUT_STYLE_BASE = {
   flex: 1,
   minWidth: 0,
+  width: 0,
   appearance: 'none',
   border: 0,
   background: 'transparent',
@@ -68,7 +69,7 @@ export function FieldInput({
     : 'shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)]'
 
   return (
-    <label className="flex w-full flex-col" style={{ gap: 8 }}>
+    <label className="flex min-w-0 w-full max-w-full flex-col" style={{ gap: 8 }}>
       {label && (
         <span
           style={{
@@ -82,7 +83,7 @@ export function FieldInput({
         </span>
       )}
       <div
-        className={`flex items-center rounded-[14px] bg-[var(--bg-field)] ${wellRingClass} ${disabled ? 'opacity-60' : ''}`}
+        className={`flex min-w-0 w-full max-w-full items-center rounded-[14px] bg-[var(--bg-field)] ${wellRingClass} ${disabled ? 'opacity-60' : ''}`}
         style={{ minHeight: 54, gap: 10, padding: '0 16px' }}
       >
         <input
