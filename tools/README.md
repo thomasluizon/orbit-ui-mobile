@@ -95,12 +95,13 @@ $about = node --input-type=module -e "
   if (!cell) { console.error('m-route-about is not in the manifest'); process.exit(1) }
   console.log(buildCaptureDeepLink(cell, 'dark', 'en'))
 "
+adb shell am force-stop org.useorbit.app
 maestro test -e "CAPTURE_LINK=$about" -e CAPTURE_PATH=protected-route-redirect `
   --debug-output .artifacts/mobile-capture/protected --flatten-debug-output `
   .maestro/protected-route-redirect.yaml
 ```
 
-Install the capture APK on the emulator first, exactly as the capture prerequisites above describe. A cold launch matters: Expo Router's guard rejects a protected warm link by retaining the current public route, so only a cold start positively lands on login.
+Install the capture APK on the emulator first, exactly as the capture prerequisites above describe. The `force-stop` is load-bearing, not tidiness: the flow opens with `openLink`, so a warm app exercises the warm-link path instead. Expo Router's guard rejects a protected warm link by retaining the current public route, which leaves no prior public route to retain only on a cold start, and that is what makes landing on login a positive claim.
 
 ## Brand assets
 
