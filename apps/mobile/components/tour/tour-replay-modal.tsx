@@ -75,14 +75,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
     }
   }, [visible])
 
-  const handleReplayAll = useCallback(async () => {
-    closeSheet(onClose)
-
-    try {
-      await apiClient(API.profile.tour, { method: 'DELETE' })
-    } catch {
-    }
-
+  const resetTourProgress = useCallback(async () => {
     queryClient.setQueryData(
       profileKeys.detail(),
       (old: Profile | undefined) => {
@@ -91,8 +84,19 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
       },
     )
 
-    startFullTour()
-  }, [closeSheet, onClose, queryClient, startFullTour])
+    try {
+      await apiClient(API.profile.tour, { method: 'DELETE' })
+    } catch {
+    }
+  }, [queryClient])
+
+  const handleReplayAll = useCallback(() => {
+    closeSheet(() => {
+      onClose()
+      void resetTourProgress()
+      startFullTour()
+    })
+  }, [closeSheet, onClose, resetTourProgress, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
@@ -112,12 +116,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
       title={t('tour.replay.modalTitle')}
     >
       <View style={styles.body}>
-        <PillButton
-
-          onClick={() => void handleReplayAll()}
-
-
-        >
+        <PillButton onClick={handleReplayAll}>
           {t('tour.replay.replayAll')}
         </PillButton>
 

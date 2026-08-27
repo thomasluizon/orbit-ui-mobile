@@ -149,7 +149,11 @@ export function Menu({
     const top = opensUp
       ? Math.max(margin, anchorRect.top - panelRect.height - margin)
       : anchorRect.bottom + margin
-    setPosition({ left, top, origin: `${align} ${opensUp ? 'bottom' : 'top'}` })
+    setPosition({
+      left,
+      top,
+      origin: `${align === 'start' ? 'left' : 'right'} ${opensUp ? 'bottom' : 'top'}`,
+    })
   }, [align, anchorRef, open, resolvedPresentation])
 
   useEffect(() => {

@@ -293,7 +293,7 @@ export function NotificationBell() {
               isError={isError}
               onRetry={() => void refetch()}
             />
-          ) : visibleNotifications.map(renderNotification)}
+          ) : visibleNotifications.map((item, index) => renderNotification(item, index))}
         </View>
       </Sheet>) : null}
 

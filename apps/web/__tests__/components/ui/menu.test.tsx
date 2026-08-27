@@ -58,6 +58,147 @@ describe('Menu', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('renders nothing when it is closed or has no items', () => {
+    setWide(true)
+    const { rerender } = render(<Menu items={items} />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    rerender(<Menu open items={[]} />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('moves focus with the arrow keys, Home and End, and wraps at both ends', async () => {
+    setWide(true)
+    const anchorRef = createRef<HTMLButtonElement>()
+    render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} />
+      </>,
+    )
+
+    const menu = await screen.findByRole('menu')
+    const edit = screen.getByRole('menuitem', { name: 'Edit' })
+    const remove = screen.getByRole('menuitem', { name: 'Delete' })
+    await waitFor(() => expect(edit).toHaveFocus())
+
+    fireEvent.keyDown(menu, { key: 'ArrowDown' })
+    expect(remove).toHaveFocus()
+
+    fireEvent.keyDown(menu, { key: 'ArrowDown' })
+    expect(edit).toHaveFocus()
+
+    fireEvent.keyDown(menu, { key: 'ArrowUp' })
+    expect(remove).toHaveFocus()
+
+    fireEvent.keyDown(menu, { key: 'Home' })
+    expect(edit).toHaveFocus()
+
+    fireEvent.keyDown(menu, { key: 'End' })
+    expect(remove).toHaveFocus()
+  })
+
+  it('ignores a key it does not own', async () => {
+    setWide(true)
+    const anchorRef = createRef<HTMLButtonElement>()
+    render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} />
+      </>,
+    )
+
+    const menu = await screen.findByRole('menu')
+    const edit = screen.getByRole('menuitem', { name: 'Edit' })
+    await waitFor(() => expect(edit).toHaveFocus())
+
+    fireEvent.keyDown(menu, { key: 'a' })
+    expect(edit).toHaveFocus()
+  })
+
+  it('closes on Escape and on a pointer press outside the panel', async () => {
+    setWide(true)
+    const anchorRef = createRef<HTMLButtonElement>()
+    const onClose = vi.fn()
+    render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} onClose={onClose} />
+      </>,
+    )
+
+    await screen.findByRole('menu')
+
+    fireEvent.pointerDown(screen.getByRole('menuitem', { name: 'Edit' }))
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.pointerDown(document.body)
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(2)
+
+    fireEvent.keyDown(document, { key: 'Enter' })
+    expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it('aligns to the anchor start when asked', async () => {
+    setWide(true)
+    const anchorRef = createRef<HTMLButtonElement>()
+    const { rerender } = render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu items={items} anchorRef={anchorRef} align="start" />
+      </>,
+    )
+    anchorRef.current!.getBoundingClientRect = () =>
+      ({ left: 120, right: 200, top: 40, bottom: 72, width: 80, height: 32 }) as DOMRect
+
+    rerender(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} align="start" />
+      </>,
+    )
+
+    const menu = await screen.findByRole('menu')
+    await waitFor(() => expect(menu).toHaveAttribute('data-positioned'))
+    expect(menu).toHaveStyle({ left: '120px', top: '80px' })
+    expect(menu.style.transformOrigin).toBe('left top')
+  })
+
+  it('opens upward when there is no room below the anchor', async () => {
+    setWide(true)
+    const anchorRef = createRef<HTMLButtonElement>()
+    const { rerender } = render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu items={items} anchorRef={anchorRef} />
+      </>,
+    )
+    anchorRef.current!.getBoundingClientRect = () =>
+      ({ left: 120, right: 200, top: 700, bottom: 900, width: 80, height: 200 }) as DOMRect
+
+    rerender(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} />
+      </>,
+    )
+
+    const menu = await screen.findByRole('menu')
+    await waitFor(() => expect(menu).toHaveAttribute('data-positioned'))
+    expect(menu.style.transformOrigin).toBe('right bottom')
+    expect(menu).toHaveStyle({ top: '692px' })
+  })
+
+  it('honours an explicit sheet presentation at the wide width', async () => {
+    setWide(true)
+    render(<Menu open title="Habit actions" items={items} presentation="sheet" />)
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
   it('keeps a badged disabled route selectable', async () => {
     setWide(false)
     const onSelect = vi.fn()

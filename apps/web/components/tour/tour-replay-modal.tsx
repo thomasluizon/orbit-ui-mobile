@@ -30,6 +30,17 @@ const SECTION_ICON_MAP = {
   'user': User,
 } as const
 
+const SECTION_ROUTE_MAP: Record<TourSection, string> = {
+  habits: '/',
+  goals: '/',
+  chat: '/chat',
+  calendar: '/calendar',
+  profile: '/profile',
+  'coach-today': '/',
+  'coach-astra': '/chat',
+  'coach-calendar': '/calendar',
+}
+
 interface TourReplayModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -66,40 +77,34 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
 
   const { sheetRef, closeSheet } = useSheetHost()
 
-  const handleReplayAll = useCallback(async () => {
-    closeSheet(() => onOpenChange(false))
-
-    try {
-      await resetTour()
-    } catch {
-    }
-
+  const resetTourProgress = useCallback(async () => {
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old
       return { ...old, hasCompletedTour: false }
     })
 
-    router.push('/')
-    setTimeout(() => startFullTour(), 300)
-  }, [closeSheet, onOpenChange, queryClient, router, startFullTour])
+    try {
+      await resetTour()
+    } catch {
+    }
+  }, [queryClient])
+
+  const handleReplayAll = useCallback(() => {
+    closeSheet(() => {
+      onOpenChange(false)
+      void resetTourProgress()
+      router.push('/')
+      startFullTour()
+    })
+  }, [closeSheet, onOpenChange, resetTourProgress, router, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
-      closeSheet(() => onOpenChange(false))
-
-      const routeMap: Record<TourSection, string> = {
-        habits: '/',
-        goals: '/',
-        chat: '/chat',
-        calendar: '/calendar',
-        profile: '/profile',
-        'coach-today': '/',
-        'coach-astra': '/chat',
-        'coach-calendar': '/calendar',
-      }
-
-      router.push(routeMap[section])
-      setTimeout(() => startSectionReplay(section), 300)
+      closeSheet(() => {
+        onOpenChange(false)
+        router.push(SECTION_ROUTE_MAP[section])
+        startSectionReplay(section)
+      })
     },
     [closeSheet, onOpenChange, router, startSectionReplay],
   )
@@ -113,13 +118,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
     >
       <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
         <div>
-          <PillButton
-
-            onClick={() => {
-              void handleReplayAll()
-            }}
-
-          >
+          <PillButton onClick={handleReplayAll}>
             {t('tour.replay.replayAll')}
           </PillButton>
         </div>
