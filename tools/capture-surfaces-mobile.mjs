@@ -316,6 +316,7 @@ function maestroCapture(cell, options, outputBase) {
   const flow = join(FLOW_DIRECTORY, `${cell.surfaceId}.yaml`)
   const captureName = captureFilename(cell)
   const pngBase = join(outputBase, captureName)
+  const pngPath = `${pngBase}.png`
   const debugOutput = join(outputBase, ".maestro", captureName)
   const bundledPng = join(debugOutput, cell.surfaceId, "takeScreenshot", `${captureName}.png`)
   const link = buildCaptureDeepLink(cell, cell.theme, cell.locale)
@@ -323,6 +324,9 @@ function maestroCapture(cell, options, outputBase) {
   // directory would leave the hard-coded bundledPng path pointing at the PREVIOUS run's screenshot.
   // Clearing it first keeps that path correct by construction rather than by naming luck.
   rmSync(debugOutput, { recursive: true, force: true })
+  // A zero-exit Maestro invocation can still produce no screenshot. Remove the top-level
+  // destination too, so a same-second reuse cannot validate bytes left by an earlier invocation.
+  rmSync(pngPath, { force: true })
   const args = [
     "test",
     ...maestroEnvironmentArguments({ CAPTURE_LINK: link, CAPTURE_PATH: captureName }),
@@ -334,9 +338,9 @@ function maestroCapture(cell, options, outputBase) {
   const startedAt = Date.now()
   const result = runProcess(maestro, args)
   if (!result.error && result.status === 0 && existsSync(bundledPng)) {
-    copyFileSync(bundledPng, `${pngBase}.png`)
+    copyFileSync(bundledPng, pngPath)
   }
-  return captureResult(cell, `${pngBase}.png`, startedAt, result, "maestro")
+  return captureResult(cell, pngPath, startedAt, result, "maestro")
 }
 
 export function adbShellQuote(value) {
@@ -362,6 +366,7 @@ async function adbCapture(cell, options, outputBase) {
   }
   await new Promise((resolveWait) => setTimeout(resolveWait, options.settleMs))
   const pngPath = join(outputBase, `${captureFilename(cell)}.png`)
+  rmSync(pngPath, { force: true })
   const startedAt = Date.now()
   const prefix = options.serial ? ["-s", options.serial] : []
   const screenshot = runProcess(adb, [...prefix, "exec-out", "screencap", "-p"], { binary: true })

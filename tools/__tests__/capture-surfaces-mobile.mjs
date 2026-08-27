@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -154,6 +154,35 @@ const captureSurfacesMobileCases = () => {
       summarizedDiagnostic.endsWith("stack tail") &&
       summarizedDiagnostic.includes("characters omitted"),
     summarizedDiagnostic,
+  )
+
+  const staleOutput = join(root, "mobile-capture-stale-destination")
+  mkdirSync(staleOutput, { recursive: true })
+  const staleDestination = join(staleOutput, "m-route-login--default--dark--en.png")
+  writeFileSync(staleDestination, "previous-run-png")
+  const successfulEmptyMaestro = process.platform === "win32"
+    ? join(root, "successful-empty-maestro.cmd")
+    : join(root, "successful-empty-maestro")
+  writeFileSync(
+    successfulEmptyMaestro,
+    process.platform === "win32" ? "@echo off\r\nexit /b 0\r\n" : "#!/bin/sh\nexit 0\n",
+  )
+  if (process.platform !== "win32") chmodSync(successfulEmptyMaestro, 0o755)
+  check(
+    "capture-surfaces-mobile.mjs",
+    "a zero-exit Maestro run cannot reuse a same-second destination PNG",
+    [
+      "--surface", "m-route-login",
+      "--theme", "dark",
+      "--locale", "en",
+      "--output", staleOutput,
+    ],
+    { status: 1, stdout: /captured 0\/1[\s\S]*capture command produced no PNG/ },
+    { env: { MAESTRO_BIN: successfulEmptyMaestro } },
+  )
+  T(
+    "the stale destination was removed before the successful empty invocation",
+    !existsSync(staleDestination),
   )
 
   const overlay = manifest.cells.find((cell) => cell.platform === "mobile" && cell.kind === "overlay")
