@@ -33,20 +33,17 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title, titleContent, footer }: {
-    open: boolean
+  Sheet: ({ children, title, actions }: {
+    open: true
     children: React.ReactNode
     title?: string
-    titleContent?: React.ReactNode
-    footer?: React.ReactNode
+    actions?: React.ReactNode
   }) => {
-    if (!open) return null
     return (
       <div data-testid="overlay">
         {title && <h2>{title}</h2>}
-        {titleContent}
         {children}
-        {footer}
+        {actions}
       </div>
     )
   },
