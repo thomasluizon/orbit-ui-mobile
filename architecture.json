@@ -2890,6 +2890,10 @@
       },
       {
         "from": "apps/web/components",
+        "to": "packages/shared/src/contracts"
+      },
+      {
+        "from": "apps/web/components",
         "to": "packages/shared/src/hooks"
       },
       {
@@ -3172,6 +3176,10 @@
       },
       {
         "from": "apps/mobile/components",
+        "to": "packages/shared/src/contracts"
+      },
+      {
+        "from": "apps/mobile/components",
         "to": "packages/shared/src/hooks"
       },
       {
@@ -3371,6 +3379,10 @@
       {
         "from": "packages/shared/src/__tests__",
         "to": "packages/shared/src/chat"
+      },
+      {
+        "from": "packages/shared/src/__tests__",
+        "to": "packages/shared/src/contracts"
       },
       {
         "from": "packages/shared/src/__tests__",
@@ -11992,12 +12004,9 @@
           "upgrade.billing.usage.aiMessagesOf",
           "upgrade.billing.usage.title",
           "upgrade.convert.cancelAnytime",
-          "upgrade.convert.freeCta",
           "upgrade.convert.freeEyebrow",
           "upgrade.convert.freeHeading",
           "upgrade.convert.promise",
-          "upgrade.convert.stayFree",
-          "upgrade.convert.trialCta",
           "upgrade.convert.trialDaysLeft",
           "upgrade.convert.trialHeading",
           "upgrade.convert.trialLastDay",
@@ -12011,16 +12020,11 @@
           "upgrade.matrix.yearlyTag",
           "upgrade.plans.coupon.appliedNote",
           "upgrade.plans.error",
-          "upgrade.plans.free.note",
-          "upgrade.plans.monthly.cta",
           "upgrade.plans.monthly.name",
-          "upgrade.plans.monthly.note",
           "upgrade.plans.monthly.period",
           "upgrade.plans.renewalNote",
           "upgrade.plans.retry",
           "upgrade.plans.savePercent",
-          "upgrade.plans.yearly.billedSave",
-          "upgrade.plans.yearly.heroLine",
           "upgrade.plans.yearly.name",
           "upgrade.plans.yearly.period",
           "upgrade.subscribe",
@@ -23405,17 +23409,14 @@
           "upgrade.matrix.yearlyTag",
           "upgrade.plan",
           "upgrade.plans.coupon.appliedNote",
-          "upgrade.plans.coupon.discountBadge",
           "upgrade.plans.equivalent",
           "upgrade.plans.error",
           "upgrade.plans.monthly.name",
-          "upgrade.plans.monthly.note",
           "upgrade.plans.monthly.period",
           "upgrade.plans.renewalNote",
           "upgrade.plans.retry",
           "upgrade.plans.savePercent",
           "upgrade.plans.yearly.name",
-          "upgrade.plans.yearly.period",
           "upgrade.restorePurchase",
           "upgrade.title",
           "versionUpdate.description",
@@ -25125,11 +25126,17 @@
       "upgrade.features.summary.pro",
       "upgrade.features.summary.tooltip",
       "upgrade.features.xpLevels.label",
+      "upgrade.plans.coupon.discountBadge",
+      "upgrade.plans.free.note",
+      "upgrade.plans.monthly.cta",
+      "upgrade.plans.monthly.note",
       "upgrade.plans.proFeatures.ai",
       "upgrade.plans.proFeatures.goals",
       "upgrade.plans.proFeatures.retrospective",
       "upgrade.plans.proFeatures.themes",
       "upgrade.plans.proFeatures.unlimited",
+      "upgrade.plans.yearly.billedSave",
+      "upgrade.plans.yearly.heroLine",
       "upgrade.playError.alreadyOwned",
       "upgrade.playError.deviceNotSupported",
       "upgrade.playError.notSignedIn",
@@ -25256,6 +25263,7 @@
         "apps/mobile/__tests__/components/ui/pill-button.test.tsx",
         "apps/mobile/__tests__/components/ui/progress-bar.test.tsx",
         "apps/mobile/__tests__/components/ui/push-prompt.test.tsx",
+        "apps/mobile/__tests__/components/ui/redesign-primitives.test.tsx",
         "apps/mobile/__tests__/components/ui/satellite-glyph.test.tsx",
         "apps/mobile/__tests__/components/ui/settings-row.test.tsx",
         "apps/mobile/__tests__/components/ui/stat-tile.test.tsx",
@@ -25353,6 +25361,7 @@
         "apps/mobile/__tests__/components/onboarding/onboarding-template-packs.test.tsx",
         "apps/mobile/__tests__/components/today/setup-checklist-card.test.tsx",
         "apps/mobile/__tests__/components/trial-banner-colors.test.ts",
+        "apps/mobile/__tests__/components/ui/redesign-primitives.test.tsx",
         "apps/mobile/__tests__/components/upgrade/plan-comparison-cards.test.tsx",
         "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/mobile/__tests__/components/upgrade/pricing-footer.test.tsx",
@@ -25639,6 +25648,7 @@
         "apps/web/__tests__/components/ui/pro-badge.test.tsx",
         "apps/web/__tests__/components/ui/progress-bar.test.tsx",
         "apps/web/__tests__/components/ui/push-prompt.test.tsx",
+        "apps/web/__tests__/components/ui/redesign-primitives.test.tsx",
         "apps/web/__tests__/components/ui/satellite-glyph.test.tsx",
         "apps/web/__tests__/components/ui/skeleton.test.tsx",
         "apps/web/__tests__/components/ui/stat-tile.test.tsx",
@@ -25809,6 +25819,9 @@
         "packages/shared/src/__tests__/habit-list-directive.test.ts",
         "packages/shared/src/__tests__/related-surfaces.test.ts",
         "packages/shared/src/__tests__/sse-stream.test.ts"
+      ],
+      "packages/shared/src/contracts": [
+        "packages/shared/src/__tests__/primitive-contracts.test.ts"
       ],
       "packages/shared/src/hooks": [
         "apps/mobile/__tests__/hooks/use-tag-selection.test.tsx",

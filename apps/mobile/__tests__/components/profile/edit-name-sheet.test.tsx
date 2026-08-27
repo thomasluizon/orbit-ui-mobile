@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
+
 interface TestNode {
   type: unknown
   props: {
@@ -16,6 +18,7 @@ interface TestNode {
 }
 
 interface TestTreeRoot extends TestNode {
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
   findAllByProps(props: Record<string, unknown>): TestNode[]
 }
 
@@ -64,19 +67,29 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
   }) => (open ? <>{children}</> : null),
 }))
 
-import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
-
 function findByTestId(tree: TestInstance, testID: string): TestNode {
   const node = tree.root.findAllByProps({ testID }).at(0)
   if (!node) throw new Error(`No node with testID "${testID}"`)
   return node
 }
 
-function findByLabel(tree: TestInstance, accessibilityLabel: string): TestNode {
-  const node = tree.root
-    .findAllByProps({ accessibilityLabel })
-    .find((candidate) => typeof candidate.props.onPress === 'function')
-  if (!node) throw new Error(`No pressable with label "${accessibilityLabel}"`)
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
+function findButtonByText(tree: TestInstance, text: string): TestNode {
+  const node = tree.root.findAll(
+    (candidate) =>
+      flattenText(candidate.props.children) === text &&
+      typeof candidate.props.onPress === 'function',
+  )[0]
+  if (!node) throw new Error(`No button named "${text}"`)
   return node
 }
 
@@ -85,7 +98,7 @@ async function renderSheet(onClose = vi.fn()) {
     defaultOptions: { mutations: { retry: false } },
   })
   let tree!: TestInstance
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
         <EditNameSheet open onClose={onClose} />
@@ -96,11 +109,11 @@ async function renderSheet(onClose = vi.fn()) {
 }
 
 async function typeAndSave(tree: TestInstance, value: string) {
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     findByTestId(tree, 'edit-name-input').props.onChangeText?.(value)
   })
-  await TestRenderer.act(async () => {
-    findByLabel(tree, 'common.save').props.onPress?.()
+  await TestRenderer.act(() => {
+    findButtonByText(tree, 'common.save').props.onPress?.()
   })
 }
 

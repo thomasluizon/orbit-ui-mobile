@@ -85,12 +85,22 @@ function findTexts(root: any, text: string) {
   })
 }
 
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
 describe('PendingOperationCard (mobile)', () => {
   it('calls confirm handler for fresh confirmations', async () => {
     const onConfirmExecute = vi.fn().mockResolvedValue({ ok: true })
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <PendingOperationCard
           pendingOperation={makePendingOperation()}
@@ -113,7 +123,7 @@ describe('PendingOperationCard (mobile)', () => {
     const onConfirmExecute = vi.fn()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <PendingOperationCard
           pendingOperation={makePendingOperation()}
@@ -126,11 +136,11 @@ describe('PendingOperationCard (mobile)', () => {
 
     const [cancelButton] = tree.root.findAll(
       (node: any) =>
-        node.props?.accessibilityLabel === 'common.cancel' &&
+        flattenText(node.props?.children) === 'common.cancel' &&
         typeof node.props?.onPress === 'function',
     )
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       cancelButton.props.onPress()
     })
 
@@ -146,7 +156,7 @@ describe('PendingOperationCard (mobile)', () => {
     })
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <PendingOperationCard
           pendingOperation={makePendingOperation({ confirmationRequirement: 'StepUp', riskClass: 'High' })}
@@ -184,7 +194,7 @@ describe('PendingOperationCard (mobile)', () => {
     })
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <PendingOperationCard
           pendingOperation={makePendingOperation()}
@@ -223,7 +233,7 @@ describe('PendingOperationCard (mobile)', () => {
     })
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <PendingOperationCard
           pendingOperation={makePendingOperation()}
@@ -248,7 +258,7 @@ describe('PendingOperationCard (mobile)', () => {
   it('localizes the capability title for confirmation-gated capabilities', async () => {
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <PendingOperationCard
           pendingOperation={makePendingOperation({ capabilityId: 'habits.bulk.write' })}

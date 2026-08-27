@@ -395,7 +395,7 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getByTestId('paywall-checkout'))
+    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const call = fetchMock.mock.calls[0]

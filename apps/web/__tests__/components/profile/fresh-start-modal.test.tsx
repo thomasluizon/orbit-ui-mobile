@@ -9,6 +9,15 @@ vi.mock('next-intl', () => ({
   },
 }))
 
+const mockRouterPush = vi.fn()
+const mockRouterRefresh = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockRouterPush,
+    refresh: mockRouterRefresh,
+  }),
+}))
+
 const mockQueryClientClear = vi.fn()
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({

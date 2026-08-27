@@ -249,7 +249,7 @@ describe('AchievementsPage', () => {
     expect(document.body.textContent).toContain('gamification.categories.GettingStarted')
   })
 
-  it('renders XP progress bar with correct width', () => {
+  it('renders XP progress on the normalized shared scale', () => {
     mockXpProgress = 60
     mockGamificationProfile = {
       level: 3,
@@ -263,7 +263,8 @@ describe('AchievementsPage', () => {
     }
     render(<AchievementsPage />)
     const progressBar = screen.getByRole('progressbar')
-    expect(progressBar).toHaveAttribute('aria-valuenow', '60')
+    expect(progressBar).toHaveAttribute('aria-valuenow', '0.6')
+    expect(progressBar).toHaveAttribute('aria-valuemax', '1')
   })
 
   it('does not show locked state while profile is still loading', () => {

@@ -40,6 +40,7 @@ export function PlanSelection({
         name={t('upgrade.plans.yearly.name')}
         badge={<Badge>{t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}</Badge>}
         price={formatPrice(monthlyEquivalent(yearlyAmount), plans.currency)}
+        selected
         onClick={() => onCheckout('yearly')}
       />
       <PlanCard

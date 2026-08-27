@@ -62,7 +62,7 @@ describe('RescheduleSheet', () => {
 
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
 
-    fireEvent.click(screen.getByTestId('reschedule-accept'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.accept' }))
 
     await waitFor(() => expect(h.mutateAsync).toHaveBeenCalledTimes(1))
     expect(h.mutateAsync).toHaveBeenCalledWith({

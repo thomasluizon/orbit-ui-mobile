@@ -1,6 +1,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
+import type { CalendarSyncEvent } from "@orbit/shared/utils";
 
 import CalendarSyncScreen from "@/app/calendar-sync";
 
@@ -19,6 +20,7 @@ const colorProxy: any = new Proxy(
 );
 
 const mocks = vi.hoisted(() => {
+  const events: CalendarSyncEvent[] = [];
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
   };
@@ -27,7 +29,7 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     queryClient,
     eventsQuery: {
-      data: { status: "connected", events: [] },
+      data: { status: "connected", events },
       isLoading: false,
       isError: false,
       error: null as Error | null,

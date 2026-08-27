@@ -2,6 +2,38 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import type { ButtonProps, FabProps } from '../contracts/actions'
+import type {
+  AstraGlyphProps,
+  IconProps,
+  LockupProps,
+  OrbitMarkProps,
+} from '../contracts/brand'
+import type {
+  BadgeProps,
+  ColumnsProps,
+  InfoCardProps,
+  PlanCardProps,
+  ProgressBarProps,
+  ProgressRingProps,
+  StatTileProps,
+} from '../contracts/display'
+
+interface PrimitiveContractMap {
+  StatTileProps: StatTileProps
+  ColumnsProps: ColumnsProps
+  PlanCardProps: PlanCardProps
+  InfoCardProps: InfoCardProps
+  ProgressRingProps: ProgressRingProps
+  ProgressBarProps: ProgressBarProps
+  BadgeProps: BadgeProps
+  ButtonProps: ButtonProps
+  FabProps: FabProps
+  OrbitMarkProps: OrbitMarkProps
+  AstraGlyphProps: AstraGlyphProps
+  IconProps: IconProps
+  LockupProps: LockupProps
+}
 
 const CONTRACT_NAMES = [
   'StatTileProps',
@@ -17,7 +49,10 @@ const CONTRACT_NAMES = [
   'AstraGlyphProps',
   'IconProps',
   'LockupProps',
-] as const
+] as const satisfies readonly (keyof PrimitiveContractMap)[]
+
+type MissingContractName = Exclude<keyof PrimitiveContractMap, (typeof CONTRACT_NAMES)[number]>
+const ALL_CONTRACT_NAMES_ARE_LISTED: MissingContractName extends never ? true : never = true
 
 const repoRoot = fileURLToPath(new URL('../../../..', import.meta.url))
 
@@ -30,6 +65,10 @@ function sourceFiles(root: string): string[] {
 }
 
 describe('primitive contracts', () => {
+  it('exports every primitive prop type from its shared group barrel', () => {
+    expect(ALL_CONTRACT_NAMES_ARE_LISTED).toBe(true)
+  })
+
   it('declares each shared prop type outside both app component trees', () => {
     const appSources = ['apps/web/components', 'apps/mobile/components']
       .flatMap((path) => sourceFiles(join(repoRoot, path)))

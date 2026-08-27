@@ -73,10 +73,20 @@ function findInputByLabel(root: TestNode, label: string) {
   )[0]
 }
 
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
 function findSendButton(root: TestNode) {
   return root.findAll(
     (node) =>
-      node.props.accessibilityLabel === 'profile.support.send' &&
+      flattenText(node.props.children) === 'profile.support.send' &&
       typeof node.props.onPress === 'function',
   )[0]
 }
