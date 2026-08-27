@@ -1,4 +1,4 @@
-import { createRef } from 'react'
+import { createRef, useRef, useState } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
@@ -140,6 +140,46 @@ describe('Menu', () => {
 
     fireEvent.keyDown(document, { key: 'Enter' })
     expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * The trigger toggles on click, which lands after the document pointerdown.
+   * Closing on that pointerdown let the toggle read the closed state and reopen,
+   * so an anchored overflow menu could never be dismissed by its own button.
+   */
+  it('lets its own trigger close it instead of reopening', async () => {
+    setWide(true)
+    function Harness() {
+      const anchorRef = useRef<HTMLButtonElement>(null)
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button
+            ref={anchorRef}
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+          >
+            More
+          </button>
+          <Menu
+            open={open}
+            title="Habit actions"
+            items={items}
+            anchorRef={anchorRef}
+            onClose={() => setOpen(false)}
+          />
+        </>
+      )
+    }
+    render(<Harness />)
+
+    await screen.findByRole('menu')
+
+    const trigger = screen.getByText('More')
+    fireEvent.pointerDown(trigger)
+    fireEvent.click(trigger)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
   it('aligns to the anchor start when asked', async () => {

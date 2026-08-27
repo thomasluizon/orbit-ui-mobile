@@ -163,7 +163,12 @@ export function Menu({
 
     function dismiss(event: Event) {
       const target = event.target
-      if (target instanceof Node && panel?.contains(target)) return
+      if (!(target instanceof Node)) {
+        closeMenu()
+        return
+      }
+      if (panel?.contains(target)) return
+      if (anchorElement(anchorRef)?.contains(target)) return
       closeMenu()
     }
     function onKeyDown(event: globalThis.KeyboardEvent) {
