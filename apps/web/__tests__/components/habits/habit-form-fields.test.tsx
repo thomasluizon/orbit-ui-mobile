@@ -174,11 +174,9 @@ function pad(value: number): string {
 
 function selectTimeInPicker(triggerLabel: string, hour24: number, minute: number) {
   fireEvent.click(screen.getByLabelText(triggerLabel))
-  const hours = screen.getByRole('listbox', { name: 'common.hours' })
-  fireEvent.click(within(hours).getByRole('option', { name: pad(hour24) }))
-  const minutes = screen.getByRole('listbox', { name: 'common.minutes' })
-  fireEvent.click(within(minutes).getByRole('option', { name: pad(minute) }))
-  fireEvent.click(screen.getByText('common.done'))
+  const time = new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+    .format(new Date(`1970-01-01T${pad(hour24)}:${pad(minute)}:00Z`))
+  fireEvent.click(screen.getByRole('radio', { name: time }))
 }
 
 
@@ -230,7 +228,7 @@ describe('HabitFormFields', () => {
     )
 
     fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
-    expect(screen.getByText('habits.form.emojiPickerTitle')).toBeDefined()
+    expect(screen.getAllByText('habits.form.emojiPickerTitle')).toHaveLength(2)
 
     fireEvent.change(screen.getByPlaceholderText('habits.form.emojiSearchPlaceholder'), {
       target: { value: 'run' },
@@ -448,9 +446,9 @@ describe('HabitFormFields', () => {
       />,
     )
 
-    selectTimeInPicker('habits.form.dueTime', 15, 58)
+    selectTimeInPicker('habits.form.dueTime', 15, 30)
 
-    expect(setValue).toHaveBeenCalledWith('dueTime', '15:58', { shouldDirty: true })
+    expect(setValue).toHaveBeenCalledWith('dueTime', '15:30', { shouldDirty: true })
   })
 
   it('writes dueEndTime directly from the time picker on change', () => {
@@ -490,9 +488,9 @@ describe('HabitFormFields', () => {
       />,
     )
 
-    selectTimeInPicker('habits.form.dueEndTime', 22, 15)
+    selectTimeInPicker('habits.form.dueEndTime', 22, 30)
 
-    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:15', { shouldDirty: true })
+    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:30', { shouldDirty: true })
   })
 
   it('shows slip alert toggle for bad habits', () => {

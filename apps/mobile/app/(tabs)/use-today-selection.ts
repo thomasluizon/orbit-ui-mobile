@@ -42,7 +42,7 @@ export function useTodaySelection({
     habitListRef,
     onSuccess: clearSelection,
   });
-  const { setShowBulkDeleteConfirm, setShowBulkLogConfirm, confirmBulkSkip } =
+  const { setShowBulkDeleteConfirm, confirmBulkLog, confirmBulkSkip } =
     bulkActions;
 
   const allLoadedIds =
@@ -105,8 +105,8 @@ export function useTodaySelection({
 
   const handleOpenBulkLog = useCallback(() => {
     if (selectedHabitIds.size === 0) return;
-    setShowBulkLogConfirm(true);
-  }, [selectedHabitIds, setShowBulkLogConfirm]);
+    void confirmBulkLog();
+  }, [confirmBulkLog, selectedHabitIds]);
 
   const handleOpenBulkSkip = useCallback(() => {
     if (selectedHabitIds.size === 0) return;

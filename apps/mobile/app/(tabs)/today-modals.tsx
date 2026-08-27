@@ -25,9 +25,6 @@ interface TodayModalsProps {
   showBulkDeleteConfirm: boolean;
   onBulkDeleteOpenChange: (open: boolean) => void;
   onConfirmBulkDelete: () => void;
-  showBulkLogConfirm: boolean;
-  onBulkLogOpenChange: (open: boolean) => void;
-  onConfirmBulkLog: () => void;
   selectedCount: number;
   showCreateGoalModal: boolean;
   onCloseCreateGoal: () => void;
@@ -55,9 +52,6 @@ export function TodayModals({
   showBulkDeleteConfirm,
   onBulkDeleteOpenChange,
   onConfirmBulkDelete,
-  showBulkLogConfirm,
-  onBulkLogOpenChange,
-  onConfirmBulkLog,
   selectedCount,
   showCreateGoalModal,
   onCloseCreateGoal,
@@ -97,17 +91,6 @@ export function TodayModals({
     (onConfirmBulkDelete)();
     (onBulkDeleteOpenChange)(false);
   }}>{t("habits.bulkDeleteConfirm")}</PillButton></>}><Text>{plural(t("habits.bulkDeleteMessage", {
-      count: selectedCount
-    }), selectedCount)}</Text></Sheet> : null}
-
-      {showBulkLogConfirm ? <Sheet open title={t("habits.bulkLogTitle")} onClose={() => {
-  (onBulkLogOpenChange)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (onBulkLogOpenChange)(false);
-  }}>{t("common.cancel")}</PillButton><PillButton variant="primary" onClick={() => {
-    (onConfirmBulkLog)();
-    (onBulkLogOpenChange)(false);
-  }}>{t("habits.bulkLogConfirm")}</PillButton></>}><Text>{plural(t("habits.bulkLogMessage", {
       count: selectedCount
     }), selectedCount)}</Text></Sheet> : null}
 

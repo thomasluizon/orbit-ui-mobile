@@ -134,33 +134,24 @@ vi.mock('@/lib/theme-provider', () => ({
 
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({
-    open,
     children,
     title,
-    onDidDismiss,
+    actions,
+    onClose,
   }: {
-    open: boolean
+    open: true
     children?: React.ReactNode
     title?: string
-    onDidDismiss?: () => void
+    actions?: React.ReactNode
+    onClose?: () => void
   }) => {
-    const wasOpenRef = React.useRef(false)
-    React.useEffect(() => {
-      if (open) {
-        wasOpenRef.current = true
-      } else if (wasOpenRef.current) {
-        wasOpenRef.current = false
-        onDidDismiss?.()
-      }
-    }, [open, onDidDismiss])
-    return open
-      ? React.createElement(
-          'Sheet',
-          null,
-          title ? React.createElement('Text', null, title) : null,
-          children,
-        )
-      : null
+    return React.createElement(
+      'Sheet',
+      { onClose },
+      title ? React.createElement('Text', null, title) : null,
+      children,
+      actions,
+    )
   },
 }))
 

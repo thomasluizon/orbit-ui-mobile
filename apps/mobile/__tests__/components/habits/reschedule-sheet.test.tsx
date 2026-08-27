@@ -94,6 +94,7 @@ describe('RescheduleSheet (mobile)', () => {
 
     await TestRenderer.act(async () => {
       pressButton(tree.root, 'habits.reschedule.accept')
+      await Promise.resolve()
     })
 
     expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
@@ -113,6 +114,9 @@ describe('RescheduleSheet (mobile)', () => {
     const onOpenChange = vi.fn()
 
     const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    const sheetOnClose = tree.root.findAll((node) => node.type === 'Sheet')[0]?.props.onClose as
+      | (() => void)
+      | undefined
 
     expect(hasText(tree.root, 'habits.reschedule.freePrompt')).toBe(true)
     TestRenderer.act(() => {
@@ -122,9 +126,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(mockPush).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      tree.update(
-        <RescheduleSheet open={false} onOpenChange={onOpenChange} habit={overdueHabit} />,
-      )
+      sheetOnClose?.()
     })
 
     expect(mockPush).toHaveBeenCalledWith('/upgrade')

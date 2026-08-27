@@ -5,9 +5,8 @@ import CalendarScreen from '@/app/(tabs)/calendar'
 const mockPush = vi.fn()
 
 interface SheetStubProps {
-  open: boolean
+  open: true
   onClose: () => void
-  onDidDismiss?: () => void
   children?: React.ReactNode
 }
 
@@ -48,9 +47,7 @@ vi.mock('expo-router', () => ({
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: (props: SheetStubProps) => {
     latestSheetProps = props
-    return props.open
-      ? require('react').createElement('Sheet', null, props.children)
-      : null
+    return require('react').createElement('Sheet', null, props.children)
   },
 }))
 
@@ -148,16 +145,17 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     })
 
     expect(sheetProps().open).toBe(true)
+    const openedSheet = sheetProps()
 
     TestRenderer.act(() => {
       pressButton(tree.root, 'calendar.goToDay')
     })
 
     expect(mockPush).not.toHaveBeenCalled()
-    expect(sheetProps().open).toBe(false)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
 
     TestRenderer.act(() => {
-      sheetProps().onDidDismiss?.()
+      openedSheet.onClose()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
@@ -165,7 +163,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(pushedHref).toMatch(/^\/\?date=\d{4}-\d{2}-15$/)
 
     TestRenderer.act(() => {
-      sheetProps().onDidDismiss?.()
+      openedSheet.onClose()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)

@@ -92,7 +92,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
-      if (value) {
+      if (!value) {
         setStep('info')
         setConfirmText('')
         setError('')
@@ -112,7 +112,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
-      onOpenChange(false)
+      handleOpenChange(false)
       setShowAnimation(true)
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
@@ -146,7 +146,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           <FreshStartInfoStep
             deletedItems={deletedItems}
             preservedItems={preservedItems}
-            onCancel={() => onOpenChange(false)}
+            onCancel={() => handleOpenChange(false)}
             onContinue={() => setStep('confirm')}
           />
         ) : (
@@ -156,7 +156,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
-            onCancel={() => onOpenChange(false)}
+            onCancel={() => handleOpenChange(false)}
             onReset={() => void handleReset()}
           />
         )}

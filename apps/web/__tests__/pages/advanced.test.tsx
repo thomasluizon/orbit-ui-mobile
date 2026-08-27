@@ -82,11 +82,12 @@ vi.mock('@orbit/shared/api', () => ({
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children, title }: { open: boolean; children: React.ReactNode; title: string }) => {
+  Sheet: ({ open, children, title, actions }: { open: boolean; children: React.ReactNode; title: string; actions?: React.ReactNode }) => {
     if (!open) return null
     return (
       <div data-testid="overlay" aria-label={title}>
         {children}
+        {actions}
       </div>
     )
   },

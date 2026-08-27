@@ -226,6 +226,7 @@ export function NotificationBell() {
   function renderNotification(item: NotificationItem, index: number) {
     return (
       <NotificationRow
+        key={item.id}
         item={item}
         index={index}
         tokens={tokens}

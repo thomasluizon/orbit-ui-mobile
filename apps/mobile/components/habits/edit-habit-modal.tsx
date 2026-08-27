@@ -32,7 +32,6 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
-import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 
 interface EditHabitModalProps {
   open: boolean
@@ -66,61 +65,6 @@ function hasEditHabitChanges({
     JSON.stringify(reminderTimes) !== initialReminderTimes
 }
 
-function useEditHabitSession({
-  open,
-  habit,
-  habitDetail,
-  formHelpers,
-  tags,
-  setOriginalEndDate,
-  setReminderTimes,
-  setSelectedGoalIds,
-  setInitialTagIds,
-  setInitialGoalIds,
-  setInitialReminderTimes,
-}: Readonly<{
-  open: boolean
-  habit: NormalizedHabit | null
-  habitDetail: ReturnType<typeof useHabitDetail>['data']
-  formHelpers: HabitFormHelpers
-  tags: ReturnType<typeof useTagSelection>
-  setOriginalEndDate: (value: string) => void
-  setReminderTimes: (value: number[]) => void
-  setSelectedGoalIds: (value: string[]) => void
-  setInitialTagIds: (value: string) => void
-  setInitialGoalIds: (value: string) => void
-  setInitialReminderTimes: (value: string) => void
-}>) {
-  const sessionHabitId = open && habit ? habit.id : null
-  const sessionDetailId = habitDetail?.id ?? null
-  const [previousSession, setPreviousSession] = useState<{
-    habitId: string | null
-    detailId: string | null
-  }>({ habitId: null, detailId: null })
-
-  if (
-    sessionHabitId === previousSession.habitId &&
-    sessionDetailId === previousSession.detailId
-  ) {
-    return
-  }
-
-  const habitChanged = sessionHabitId !== previousSession.habitId
-  setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
-  if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
-
-  const prefill = buildEditHabitFormState(habit, habitDetail)
-  formHelpers.form.reset(prefill.formValues)
-  setOriginalEndDate(prefill.originalEndDate)
-  setReminderTimes(prefill.reminderTimes)
-  tags.resetTags(prefill.selectedTagIds)
-  setSelectedGoalIds(prefill.selectedGoalIds)
-  setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
-  setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
-  setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-  applyHabitFormMode(prefill.mode, formHelpers)
-}
-
 export function EditHabitModal({
   open,
   onClose,
@@ -149,6 +93,10 @@ export function EditHabitModal({
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
+  const previousSessionRef = useRef<{
+    habitId: string | null
+    detailId: string | null
+  }>({ habitId: null, detailId: null })
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty = hasEditHabitChanges({
@@ -200,19 +148,30 @@ export function EditHabitModal({
     }
   }, [detailError, showError, translate])
 
-  useEditHabitSession({
-    open,
-    habit,
-    habitDetail,
-    formHelpers,
-    tags,
-    setOriginalEndDate,
-    setReminderTimes,
-    setSelectedGoalIds,
-    setInitialTagIds,
-    setInitialGoalIds,
-    setInitialReminderTimes,
-  })
+  const sessionHabitId = open && habit ? habit.id : null
+  const sessionDetailId = habitDetail?.id ?? null
+  useEffect(() => {
+    const previousSession = previousSessionRef.current
+    if (
+      sessionHabitId === previousSession.habitId &&
+      sessionDetailId === previousSession.detailId
+    ) return
+
+    const habitChanged = sessionHabitId !== previousSession.habitId
+    previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
+    if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
+
+    const prefill = buildEditHabitFormState(habit, habitDetail)
+    formHelpers.form.reset(prefill.formValues)
+    setOriginalEndDate(prefill.originalEndDate)
+    setReminderTimes(prefill.reminderTimes)
+    tags.resetTags(prefill.selectedTagIds)
+    setSelectedGoalIds(prefill.selectedGoalIds)
+    setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
+    setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
+    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    applyHabitFormMode(prefill.mode, formHelpers)
+  }, [formHelpers, habit, habitDetail, open, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return

@@ -33,23 +33,20 @@ vi.mock('@/app/actions/profile', () => ({
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({
     open,
-    onOpenChange,
+    onClose,
     title,
     children,
   }: {
     open: boolean
-    onOpenChange: (v: boolean) => void
+    onClose?: () => void
     title?: string
     children: React.ReactNode
   }) =>
     open ? (
       <div data-testid="overlay">
         {title && <h2>{title}</h2>}
-        <button data-testid="overlay-close" onClick={() => onOpenChange(false)}>
+        <button data-testid="overlay-close" onClick={onClose}>
           Close
-        </button>
-        <button data-testid="overlay-reopen" onClick={() => onOpenChange(true)}>
-          Reopen
         </button>
         {children}
       </div>
@@ -253,7 +250,7 @@ describe('FreshStartModal', () => {
     expect(mockResetAccount).not.toHaveBeenCalled()
   })
 
-  it('resets state when overlay triggers onOpenChange(true)', () => {
+  it('resets state when the sheet closes', () => {
     const onOpenChange = vi.fn()
 
     render(
@@ -263,7 +260,7 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByText('common.continue'))
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('overlay-reopen'))
+    fireEvent.click(screen.getByTestId('overlay-close'))
 
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
   })

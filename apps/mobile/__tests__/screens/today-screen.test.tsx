@@ -403,6 +403,9 @@ vi.mock("@/components/ui/icons", () => {
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props);
   return {
+    AdjustmentsHorizontal: createIcon("AdjustmentsHorizontal"),
+    AlertTriangle: createIcon("AlertTriangle"),
+    ArrowLeft: createIcon("ArrowLeft"),
     ArrowUp: createIcon("ArrowUp"),
     Check: createIcon("Check"),
     CheckCircle2: createIcon("CheckCircle2"),
@@ -413,12 +416,18 @@ vi.mock("@/components/ui/icons", () => {
     Eye: createIcon("Eye"),
     FastForward: createIcon("FastForward"),
     Filter: createIcon("Filter"),
+    Home: createIcon("Home"),
+    Minus: createIcon("Minus"),
     MinusCircle: createIcon("MinusCircle"),
     MoreVertical: createIcon("MoreVertical"),
     PlusCircle: createIcon("PlusCircle"),
+    Plus: createIcon("Plus"),
     RefreshCw: createIcon("RefreshCw"),
     Search: createIcon("Search"),
+    Snowflake: createIcon("Snowflake"),
+    Target: createIcon("Target"),
     Trash2: createIcon("Trash2"),
+    WifiOff: createIcon("WifiOff"),
     X: createIcon("X"),
   };
 });
@@ -587,6 +596,7 @@ describe("TodayScreen", () => {
     ]);
     mockHabitsData.topLevelHabits = [root];
     uiState.selectedHabitIds = new Set([parent.id, child.id]);
+    uiState.isSelectMode = true;
 
     bulkLogMutateAsync.mockResolvedValue({
       results: [
@@ -597,20 +607,10 @@ describe("TodayScreen", () => {
 
     const tree = await renderTodayScreen();
 
-    const bulkLogDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkLogTitle",
-      );
-
-    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk log confirm dialog to be rendered");
-    }
-    const onConfirm = bulkLogDialog.props.onConfirm;
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await onConfirm();
+      await (bulkBar.props.onLog as () => Promise<void>)();
     });
 
     expect(markRecentlyCompleted).toHaveBeenCalledWith("parent");
@@ -940,20 +940,10 @@ describe("TodayScreen overdue bulk selection", () => {
 
     const tree = await renderTodayScreen();
 
-    const bulkLogDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkLogTitle",
-      );
-
-    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk log confirm dialog to be rendered");
-    }
-    const onConfirm = bulkLogDialog.props.onConfirm as () => Promise<void>;
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await onConfirm();
+      await (bulkBar.props.onLog as () => Promise<void>)();
     });
 
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
@@ -968,20 +958,10 @@ describe("TodayScreen overdue bulk selection", () => {
 
     const tree = await renderTodayScreen();
 
-    const bulkSkipDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkSkipTitle",
-      );
-
-    if (!bulkSkipDialog || typeof bulkSkipDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk skip confirm dialog to be rendered");
-    }
-    const onConfirm = bulkSkipDialog.props.onConfirm as () => Promise<void>;
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
 
     await TestRenderer.act(async () => {
-      await onConfirm();
+      await (bulkBar.props.onSkip as () => Promise<void>)();
     });
 
     expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);

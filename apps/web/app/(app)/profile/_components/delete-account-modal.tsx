@@ -37,7 +37,7 @@ export function DeleteAccountModal({
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
 
   function handleOpenChange(value: boolean) {
-    if (value) {
+    if (!value) {
       setStep('confirm')
       setCode(['', '', '', '', '', ''])
       setError('')
@@ -131,7 +131,7 @@ export function DeleteAccountModal({
           warningMessage={warningMessage}
           error={error}
           loading={loading}
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => handleOpenChange(false)}
           onRequestDeletion={() => void handleRequestDeletion()}
         />
       )

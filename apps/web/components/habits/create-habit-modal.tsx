@@ -52,7 +52,7 @@ interface CreateHabitSnapshot {
 
 function hasCreateHabitChanges(
   formDirty: boolean,
-  selectedTagIds: ReadonlySet<string>,
+  selectedTagIds: readonly string[],
   selectedGoalIds: readonly string[],
   subHabits: readonly SubHabitEntry[],
   reminderTimes: readonly number[],

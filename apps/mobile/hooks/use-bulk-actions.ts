@@ -22,7 +22,6 @@ export function useBulkActions({
   const bulkSkip = useBulkSkipHabits()
 
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-  const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
 
   const promptParentLogsForBulkSuccesses = useCallback((successIds: string[]) => {
     const successIdSet = new Set(successIds)
@@ -71,7 +70,6 @@ export function useBulkActions({
       applyBulkMutationSuccesses(result.results)
     } finally {
       onSuccess()
-      setShowBulkLogConfirm(false)
     }
   }, [bulkLog, applyBulkMutationSuccesses, onSuccess, selectedHabitIds])
 
@@ -88,9 +86,7 @@ export function useBulkActions({
 
   return {
     showBulkDeleteConfirm,
-    showBulkLogConfirm,
     setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
     confirmBulkDelete,
     confirmBulkLog,
     confirmBulkSkip,

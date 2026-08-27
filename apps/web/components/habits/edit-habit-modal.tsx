@@ -46,7 +46,7 @@ interface EditHabitModalProps {
 
 function hasEditHabitChanges(
   formDirty: boolean,
-  selectedTagIds: ReadonlySet<string>,
+  selectedTagIds: readonly string[],
   selectedGoalIds: readonly string[],
   reminderTimes: readonly number[],
   initialTagIds: string,
@@ -129,33 +129,36 @@ export function EditHabitModal({
 
   const sessionHabitId = open && habit ? habit.id : null
   const sessionDetailId = habitDetail?.id ?? null
-  const [previousSession, setPreviousSession] = useState<{
+  const previousSessionRef = useRef<{
     habitId: string | null
     detailId: string | null
   }>({ habitId: null, detailId: null })
-  if (
-    sessionHabitId !== previousSession.habitId ||
-    sessionDetailId !== previousSession.detailId
-  ) {
+  useEffect(() => {
+    const previousSession = previousSessionRef.current
+    if (
+      sessionHabitId === previousSession.habitId &&
+      sessionDetailId === previousSession.detailId
+    ) return
+
     const habitChanged = sessionHabitId !== previousSession.habitId
-    setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
-    if (open && habit && (habitChanged || !formHelpers.form.formState.isDirty)) {
-      const prefill = buildEditHabitFormState(habit, habitDetail)
-      formHelpers.form.reset(prefill.formValues)
-      setOriginalEndDate(prefill.originalEndDate)
-      setReminderTimes(prefill.reminderTimes)
-      tags.resetTags(prefill.selectedTagIds)
-      setSelectedGoalIds(prefill.selectedGoalIds)
-      setInitialTagIds(
-        JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
-      )
-      setInitialGoalIds(
-        JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
-      )
-      setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-      applyHabitFormMode(prefill.mode, formHelpers)
-    }
-  }
+    previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
+    if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
+
+    const prefill = buildEditHabitFormState(habit, habitDetail)
+    formHelpers.form.reset(prefill.formValues)
+    setOriginalEndDate(prefill.originalEndDate)
+    setReminderTimes(prefill.reminderTimes)
+    tags.resetTags(prefill.selectedTagIds)
+    setSelectedGoalIds(prefill.selectedGoalIds)
+    setInitialTagIds(
+      JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
+    )
+    setInitialGoalIds(
+      JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
+    )
+    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    applyHabitFormMode(prefill.mode, formHelpers)
+  }, [formHelpers, habit, habitDetail, open, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {

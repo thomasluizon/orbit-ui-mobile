@@ -2,9 +2,11 @@
 
 import {
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent,
   type RefObject,
 } from 'react'
@@ -13,9 +15,12 @@ import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Sheet } from '@/components/ui/sheet'
-import { useIsClient } from '@/hooks/use-is-client'
 
 const DEFAULT_WIDE_FROM = 900
+const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
+const subscribeToPortalTarget = () => () => {}
+const getPortalTarget = () => document.body
+const getServerPortalTarget = () => null
 
 function orderedItems(items: readonly MenuItem[]): readonly MenuItem[] {
   return [...items.filter((item) => !item.destructive), ...items.filter((item) => item.destructive)]
@@ -82,7 +87,7 @@ function anchorElement(anchorRef: RefObject<unknown> | undefined): HTMLElement |
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
 export function Menu({
   open = false,
-  items = [],
+  items = EMPTY_MENU_ITEMS,
   onSelect,
   onClose,
   title,
@@ -91,11 +96,17 @@ export function Menu({
   align = 'end',
   wideFrom = DEFAULT_WIDE_FROM,
 }: Readonly<MenuProps>) {
-  const mounted = useIsClient()
   const wide = useWidePresentation(wideFrom)
   const panelRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position | null>(null)
+  const portalTarget = useSyncExternalStore(
+    subscribeToPortalTarget,
+    getPortalTarget,
+    getServerPortalTarget,
+  )
   const resolvedPresentation = presentation === 'auto' ? (wide ? 'anchored' : 'sheet') : presentation
+
+  const closeMenu = useEffectEvent(() => onClose?.())
 
   useLayoutEffect(() => {
     if (!open || resolvedPresentation !== 'anchored') return
@@ -122,12 +133,12 @@ export function Menu({
     function dismiss(event: Event) {
       const target = event.target
       if (target instanceof Node && panel?.contains(target)) return
-      onClose?.()
+      closeMenu()
     }
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key !== 'Escape') return
       event.preventDefault()
-      onClose?.()
+      closeMenu()
     }
     document.addEventListener('pointerdown', dismiss)
     document.addEventListener('keydown', onKeyDown)
@@ -136,7 +147,7 @@ export function Menu({
       document.removeEventListener('keydown', onKeyDown)
       anchorElement(anchorRef)?.focus()
     }
-  }, [anchorRef, onClose, open, resolvedPresentation])
+  }, [anchorRef, open, resolvedPresentation])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
@@ -166,7 +177,7 @@ export function Menu({
     )
   }
 
-  if (!mounted) return null
+  if (!portalTarget) return null
 
   return createPortal(
     <div
@@ -180,6 +191,6 @@ export function Menu({
     >
       <MenuItems items={items} onSelect={onSelect} onClose={onClose} />
     </div>,
-    document.body,
+    portalTarget,
   )
 }

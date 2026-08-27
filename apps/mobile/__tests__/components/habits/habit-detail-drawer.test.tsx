@@ -247,6 +247,9 @@ describe('HabitDetailDrawer (mobile)', () => {
     })
 
     const tree = render(<HabitDetailDrawer open onClose={onClose} habit={habit} />)
+    const sheetOnClose = tree.root.findAll((node) => node.type === 'Sheet')[0]?.props.onClose as
+      | (() => void)
+      | undefined
 
     TestRenderer.act(() => {
       pressButton(tree.root, 'ask-astra')
@@ -260,7 +263,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     expect(mocks.push).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      tree.update(<HabitDetailDrawer open={false} onClose={onClose} habit={habit} />)
+      sheetOnClose?.()
     })
 
     expect(mocks.push).toHaveBeenCalledWith('/chat')

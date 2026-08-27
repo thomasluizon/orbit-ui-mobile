@@ -176,7 +176,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
             allSelected={selection.allSelected}
             onSelectAll={selection.selectAll}
             onDeselectAll={selection.deselectAll}
-            onBulkLog={() => selection.setShowBulkLogConfirm(true)}
+            onBulkLog={() => void selection.confirmBulkLog()}
             onBulkSkip={() => void selection.confirmBulkSkip()}
             onBulkDelete={() => selection.setShowBulkDeleteConfirm(true)}
             onCancel={view.toggleSelectMode}
@@ -193,18 +193,6 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
     (() => void selection.confirmBulkDelete())();
     (selection.setShowBulkDeleteConfirm)(false);
   }}>{t('habits.bulkDeleteConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{plural(t('habits.bulkDeleteMessage', {
-      count
-    }), count)}</p></Sheet> : null}
-
-      {selection.showBulkLogConfirm ? <Sheet open title={t('habits.bulkLogTitle')} onClose={() => {
-  (selection.setShowBulkLogConfirm)(false);
-}} actions={<><PillButton variant="ghost" onClick={() => {
-    (() => selection.setShowBulkLogConfirm(false))();
-    (selection.setShowBulkLogConfirm)(false);
-  }}>{t('common.cancel')}</PillButton><PillButton variant="primary" onClick={() => {
-    (() => void selection.confirmBulkLog())();
-    (selection.setShowBulkLogConfirm)(false);
-  }}>{t('habits.bulkLogConfirm')}</PillButton></>}><p className="text-sm text-[var(--fg-2)]">{plural(t('habits.bulkLogMessage', {
       count
     }), count)}</p></Sheet> : null}
 

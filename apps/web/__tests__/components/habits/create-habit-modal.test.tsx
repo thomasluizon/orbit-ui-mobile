@@ -142,21 +142,18 @@ vi.mock('@/components/ui/sheet', () => ({
     open,
     children,
     title,
-    description,
-    footer,
+    actions,
   }: {
     open: boolean
     children: React.ReactNode
     title?: string
-    description?: string
-    footer?: React.ReactNode
+    actions?: React.ReactNode
   }) =>
     open ? (
       <div data-testid="app-overlay">
         {title && <h2>{title}</h2>}
-        {description && <p>{description}</p>}
         {children}
-        {footer && <div data-testid="overlay-footer">{footer}</div>}
+        {actions && <div data-testid="sheet-actions">{actions}</div>}
       </div>
     ) : null,
 }))

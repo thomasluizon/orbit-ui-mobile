@@ -17,6 +17,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const DEFAULT_WIDE_FROM = 900
 const PANEL_WIDTH = 280
+const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
 
 export interface AnchoredMenuController {
   anchorRef: RefObject<NativeView | null>
@@ -51,7 +52,7 @@ type MeasurableAnchor = NativeView & {
 
 export function Menu({
   open = false,
-  items = [],
+  items = EMPTY_MENU_ITEMS,
   onSelect,
   onClose,
   title,

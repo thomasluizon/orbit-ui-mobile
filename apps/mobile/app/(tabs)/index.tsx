@@ -354,11 +354,8 @@ export default function TodayScreen() {
 
   const {
     showBulkDeleteConfirm,
-    showBulkLogConfirm,
     setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
     confirmBulkDelete,
-    confirmBulkLog,
     clearSelection,
     allSelected,
     selectedCount,
@@ -703,9 +700,6 @@ export default function TodayScreen() {
         showBulkDeleteConfirm={showBulkDeleteConfirm}
         onBulkDeleteOpenChange={setShowBulkDeleteConfirm}
         onConfirmBulkDelete={() => void confirmBulkDelete()}
-        showBulkLogConfirm={showBulkLogConfirm}
-        onBulkLogOpenChange={setShowBulkLogConfirm}
-        onConfirmBulkLog={() => void confirmBulkLog()}
         selectedCount={selectedCount}
         showCreateGoalModal={showCreateGoalModal}
         onCloseCreateGoal={() => setShowCreateGoalModal(false)}
