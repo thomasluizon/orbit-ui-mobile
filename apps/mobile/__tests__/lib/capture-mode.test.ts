@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Animated } from 'react-native'
 import {
+  captureRequestProbeId,
   captureRouteProbeId,
   resolveCapturePreferences,
   shouldExposeOnboardingRoute,
@@ -63,6 +64,17 @@ describe('mobile capture mode', () => {
     expect(captureRouteProbeId('/privacy', 'privacy')).toBe(
       'capture-route-privacy',
     )
+  })
+
+  it('exposes the requested capture surface only from a valid capture-build parameter', () => {
+    expect(captureRequestProbeId(true, 'm-route-about')).toBe(
+      'capture-request-m-route-about',
+    )
+    expect(captureRequestProbeId(true, ['m-route-login'])).toBe(
+      'capture-request-m-route-login',
+    )
+    expect(captureRequestProbeId(false, 'm-route-about')).toBeNull()
+    expect(captureRequestProbeId(true, '../about')).toBeNull()
   })
 
   it('pins timing, spring, loop, and stagger motion for capture builds', () => {

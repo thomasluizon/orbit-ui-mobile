@@ -147,7 +147,11 @@ export function mobileUnreachableReason(cell, driver = "maestro", flowDirectory 
 
 export function buildCaptureDeepLink(cell, theme, locale) {
   const path = cell.href === "/" ? "" : cell.href.replace(/^\//, "")
-  const query = new URLSearchParams({ captureTheme: theme, captureLocale: locale })
+  const query = new URLSearchParams({
+    captureTheme: theme,
+    captureLocale: locale,
+    captureSurface: cell.surfaceId,
+  })
   return `orbit://${path}?${query}`
 }
 

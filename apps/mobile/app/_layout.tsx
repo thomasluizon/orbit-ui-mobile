@@ -61,6 +61,7 @@ import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
   captureBuildEnabled,
+  captureRequestProbeId,
   captureRouteProbeId,
   shouldExposeOnboardingRoute,
 } from '@/lib/capture-mode'
@@ -166,7 +167,10 @@ function RootStackScreens({
 function RootLayoutNav() {
   const router = useRouter()
   const pathname = usePathname()
-  const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
+  const { from, captureSurface } = useGlobalSearchParams<{
+    from?: string | string[]
+    captureSurface?: string | string[]
+  }>()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const captureReady = useCaptureReady()
@@ -183,6 +187,10 @@ function RootLayoutNav() {
 
   const topSegment = segments[0] as string | undefined
   const captureProbeId = captureRouteProbeId(pathname, topSegment)
+  const captureRequestId = captureRequestProbeId(
+    captureBuildEnabled,
+    captureSurface,
+  )
   const hideAppShellChrome =
     topSegment === 'login' ||
     topSegment === 'auth-callback' ||
@@ -279,15 +287,28 @@ function RootLayoutNav() {
           <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
         ) : null}
         {captureBuildEnabled && captureReady ? (
-          <View
-            accessibilityLabel={captureProbeId}
-            accessible
-            collapsable={false}
-            importantForAccessibility="yes"
-            pointerEvents="none"
-            style={styles.captureProbe}
-            testID={captureProbeId}
-          />
+          <>
+            <View
+              accessibilityLabel={captureProbeId}
+              accessible
+              collapsable={false}
+              importantForAccessibility="yes"
+              pointerEvents="none"
+              style={styles.captureProbe}
+              testID={captureProbeId}
+            />
+            {captureRequestId ? (
+              <View
+                accessibilityLabel={captureRequestId}
+                accessible
+                collapsable={false}
+                importantForAccessibility="yes"
+                pointerEvents="none"
+                style={styles.captureProbe}
+                testID={captureRequestId}
+              />
+            ) : null}
+          </>
         ) : null}
       </View>
 

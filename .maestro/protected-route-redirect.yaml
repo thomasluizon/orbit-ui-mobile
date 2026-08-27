@@ -11,6 +11,8 @@ appId: org.useorbit.app
     timeout: 10000
 - assertVisible:
     id: "capture-route-login"
+- assertVisible:
+    id: "capture-request-m-route-about"
 - assertNotVisible:
     id: "capture-route-about"
 - takeScreenshot: ${CAPTURE_PATH}

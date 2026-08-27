@@ -29,7 +29,7 @@ const captureSurfacesMobileCases = () => {
   const login = plan.captures.find((cell) => cell.surfaceId === "m-route-login" && cell.theme === "dark" && cell.locale === "pt-BR")
   T(
     "deep links carry explicit app-level theme and locale parameters",
-    buildCaptureDeepLink(login, login.theme, login.locale) === "orbit://login?captureTheme=dark&captureLocale=pt-BR",
+    buildCaptureDeepLink(login, login.theme, login.locale) === "orbit://login?captureTheme=dark&captureLocale=pt-BR&captureSurface=m-route-login",
   )
 
   T(
@@ -199,6 +199,7 @@ const captureSurfacesMobileCases = () => {
   T(
     "the protected-route flow asserts the LOGIN probe, never the protected one",
     protectedFlow.includes('id: "capture-route-login"') &&
+      protectedFlow.includes('id: "capture-request-m-route-about"') &&
       /assertNotVisible:[\s\S]*id: "capture-route-about"/.test(protectedFlow) &&
       !/assertVisible:\s*\n\s*id: "capture-route-about"/.test(protectedFlow),
     protectedFlow,

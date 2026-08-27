@@ -84,7 +84,7 @@ Maestro 2.8.0 is the default driver. On Windows the tool checks `MAESTRO_BIN`, t
 
 Use `--driver adb` when Maestro is unavailable. That fallback opens the same deep link with `am start`, waits a fixed interval, and writes `exec-out screencap` bytes. It cannot assert the route probe, so it is useful for framework-independent diagnosis rather than route evidence. Every run writes `report.json`. Unreachable is a **plan-level** verdict decided before anything runs, covering unsupported stateful cells, blocks, overlays, widgets and dynamic routes, and it exits 3. A Maestro run that starts and then fails, including a failed route assertion, is a **runtime failure** and exits 1: the tool cannot tell a failed assertion from a driver timeout or a crashed app, so it does not pretend to.
 
-A protected route therefore cannot be proven by this tool's exit code. `.maestro/protected-route-redirect.yaml` proves it positively instead: it opens the protected route's deep link and asserts the LOGIN probe is visible and the protected one is not. `mobile-capture.yml` runs it directly, building the deep link from this tool's exported `buildCaptureDeepLink` so the two cannot drift.
+A protected route therefore cannot be proven by this tool's exit code. `.maestro/protected-route-redirect.yaml` proves it positively instead: it opens the protected route's deep link, asserts the LOGIN probe is visible and the protected one is not, and requires the capture-only request probe for the exact protected surface so a dropped link cannot look like a redirect. `mobile-capture.yml` runs it directly, building the deep link from this tool's exported `buildCaptureDeepLink` so the two cannot drift.
 
 ## Brand assets
 

@@ -50,6 +50,17 @@ export function shouldRetainEmptyAuthCallback(captureEnabled: boolean): boolean 
   return captureEnabled
 }
 
+export function captureRequestProbeId(
+  captureEnabled: boolean,
+  value: SearchParameter | undefined,
+): string | null {
+  if (!captureEnabled) return null
+
+  const surfaceId = firstParameter(value)
+  if (!surfaceId || !/^[a-z0-9-]+$/.test(surfaceId)) return null
+  return `capture-request-${surfaceId}`
+}
+
 export function captureRouteProbeId(
   pathname: string,
   topSegment: string | undefined,

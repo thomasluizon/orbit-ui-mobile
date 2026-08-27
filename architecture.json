@@ -25173,6 +25173,7 @@
         "apps/mobile/__tests__/hooks/use-login-flow.test.ts",
         "apps/mobile/__tests__/hooks/use-today-selection.test.tsx",
         "apps/mobile/__tests__/screens/account-deletion.test.tsx",
+        "apps/mobile/__tests__/screens/auth-callback-capture.test.tsx",
         "apps/mobile/__tests__/screens/calendar-sync.test.tsx",
         "apps/mobile/__tests__/screens/calendar-views.test.tsx",
         "apps/mobile/__tests__/screens/intentional-offline-ux.test.tsx",
