@@ -1,78 +1,38 @@
 import type { ReactNode } from 'react'
 import type { ShellWideProps } from './ShellWide'
 
-const node = null as ReactNode
-const items = [{ id: 'today', label: 'Today' }]
+type Assert<T extends true> = T
+type IsAssignable<From, To> = [From] extends [To] ? true : false
 
-const destination: ShellWideProps = {
-  items,
-  activeId: 'today',
-  navLabel: 'Main navigation',
-  composer: node,
+type Destination = {
+  items: Array<{ id: string; label: string }>
+  activeId: string
+  navLabel: string
 }
-const flow: ShellWideProps = { nav: false, action: node }
 
-// @ts-expect-error A destination requires items.
-const destinationWithoutItems: ShellWideProps = { activeId: 'today', navLabel: 'Main navigation' }
-// @ts-expect-error A destination requires an active id.
-const destinationWithoutActiveId: ShellWideProps = { items, navLabel: 'Main navigation' }
-// @ts-expect-error A destination requires a navigation label.
-const destinationWithoutNavLabel: ShellWideProps = { items, activeId: 'today' }
-// @ts-expect-error A destination cannot carry a flow action.
-const destinationWithAction: ShellWideProps = {
-  items,
-  activeId: 'today',
-  navLabel: 'Main navigation',
-  action: node,
-}
-// @ts-expect-error A flow cannot carry sidebar items.
-const flowWithItems: ShellWideProps = { nav: false, items }
-// @ts-expect-error A flow cannot carry the destination composer.
-const flowWithComposer: ShellWideProps = { nav: false, composer: node }
-const itemWithoutId: ShellWideProps = {
+export type ShellWideTypeTests = [
+  Assert<IsAssignable<Destination & { composer: ReactNode }, ShellWideProps>>,
+  Assert<IsAssignable<{ nav: false; action: ReactNode }, ShellWideProps>>,
+  // @ts-expect-error A destination requires items.
+  Assert<IsAssignable<{ activeId: string; navLabel: string }, ShellWideProps>>,
+  // @ts-expect-error A destination requires an active id.
+  Assert<IsAssignable<{ items: Destination['items']; navLabel: string }, ShellWideProps>>,
+  // @ts-expect-error A destination requires a navigation label.
+  Assert<IsAssignable<{ items: Destination['items']; activeId: string }, ShellWideProps>>,
+  // @ts-expect-error A destination cannot carry a flow action.
+  Assert<IsAssignable<Destination & { action: ReactNode }, ShellWideProps>>,
+  // @ts-expect-error A flow cannot carry sidebar items.
+  Assert<IsAssignable<{ nav: false; items: Destination['items'] }, ShellWideProps>>,
+  // @ts-expect-error A flow cannot carry the destination composer.
+  Assert<IsAssignable<{ nav: false; composer: ReactNode }, ShellWideProps>>,
   // @ts-expect-error Every item requires an id.
-  items: [{ label: 'Today' }],
-  activeId: 'today',
-  navLabel: 'Main navigation',
-}
-const itemWithoutLabel: ShellWideProps = {
+  Assert<IsAssignable<Omit<Destination, 'items'> & { items: Array<{ label: string }> }, ShellWideProps>>,
   // @ts-expect-error Every item requires a label.
-  items: [{ id: 'today' }],
-  activeId: 'today',
-  navLabel: 'Main navigation',
-}
-// @ts-expect-error Conversation content requires an accessible label.
-const conversationWithoutLabel: ShellWideProps = {
-  items,
-  activeId: 'today',
-  navLabel: 'Main navigation',
-  conversation: node,
-}
-// @ts-expect-error A create callback requires its word.
-const createWithoutLabel: ShellWideProps = {
-  items,
-  activeId: 'today',
-  navLabel: 'Main navigation',
-  onCreate: () => undefined,
-}
-// @ts-expect-error A palette callback requires its word.
-const paletteWithoutLabel: ShellWideProps = {
-  items,
-  activeId: 'today',
-  navLabel: 'Main navigation',
-  onPalette: () => undefined,
-}
-
-void destination
-void flow
-void destinationWithoutItems
-void destinationWithoutActiveId
-void destinationWithoutNavLabel
-void destinationWithAction
-void flowWithItems
-void flowWithComposer
-void itemWithoutId
-void itemWithoutLabel
-void conversationWithoutLabel
-void createWithoutLabel
-void paletteWithoutLabel
+  Assert<IsAssignable<Omit<Destination, 'items'> & { items: Array<{ id: string }> }, ShellWideProps>>,
+  // @ts-expect-error Conversation content requires an accessible label.
+  Assert<IsAssignable<Destination & { conversation: ReactNode }, ShellWideProps>>,
+  // @ts-expect-error A create callback requires its word.
+  Assert<IsAssignable<Destination & { onCreate: () => void }, ShellWideProps>>,
+  // @ts-expect-error A palette callback requires its word.
+  Assert<IsAssignable<Destination & { onPalette: () => void }, ShellWideProps>>,
+]
