@@ -46,15 +46,26 @@ vi.mock("@/hooks/use-tour-mock-data", () => ({
 vi.mock("@/components/ui/icons", () => {
   const Icon = () => null;
   return {
+    AdjustmentsHorizontal: Icon,
+    AlertTriangle: Icon,
+    ArrowLeft: Icon,
     Check: Icon,
     CheckCircle2: Icon,
+    ChevronLeft: Icon,
+    ChevronRight: Icon,
     ChevronsDownUp: Icon,
     ChevronsUpDown: Icon,
     Eye: Icon,
     Filter: Icon,
+    Home: Icon,
+    Minus: Icon,
     MoreVertical: Icon,
+    Plus: Icon,
     RefreshCw: Icon,
     Search: Icon,
+    Snowflake: Icon,
+    Target: Icon,
+    WifiOff: Icon,
     X: Icon,
   };
 });

@@ -4,6 +4,7 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { NotificationRow } from '@/components/navigation/notification-row'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -50,12 +51,19 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
+  radius: { full: 999 },
   tintFromPrimary: () => 'rgba(127,70,247,0.06)',
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement('Sheet', null, children) : null,
+  Sheet: ({
+    children,
+    actions,
+  }: {
+    open: true
+    children: React.ReactNode
+    actions?: React.ReactNode
+  }) => React.createElement('Sheet', null, children, actions),
 }))
 
 vi.mock('@/components/ui/drawer-content-inset', () => ({
@@ -70,21 +78,14 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
   ConfirmDialog: () => null,
 }))
 
-type FlatListNode = {
-  props: {
-    data: NotificationItem[]
-    keyExtractor: (item: NotificationItem) => string
-    renderItem: (info: { item: NotificationItem; index: number }) => React.ReactElement
-    ListEmptyComponent?: React.ReactNode
-    ListHeaderComponent?: React.ReactNode
-  }
-}
-
 function render() {
   let tree: {
     root: {
       findByType: (type: string) => { props: { onPress?: () => void } }
-      findAllByType: (type: string) => FlatListNode[]
+      findAllByType: (type: unknown) => unknown[]
+      findAll: (
+        predicate: (node: { type: unknown; props: Record<string, unknown> }) => boolean,
+      ) => { type: unknown; props: Record<string, unknown> }[]
     }
   } | null = null
   TestRenderer.act(() => {
@@ -93,16 +94,11 @@ function render() {
   return tree!
 }
 
-function openSheetAndGetList(tree: ReturnType<typeof render>): FlatListNode {
+function openSheet(tree: ReturnType<typeof render>) {
   const bell = tree.root.findByType('Pressable')
   TestRenderer.act(() => {
     bell.props.onPress?.()
   })
-  const lists = tree.root.findAllByType('FlatList')
-  if (lists.length !== 1) {
-    throw new Error(`expected exactly one FlatList, found ${lists.length}`)
-  }
-  return lists[0]!
 }
 
 beforeEach(() => {
@@ -112,65 +108,50 @@ beforeEach(() => {
 })
 
 describe('NotificationBell list rendering', () => {
-  it('renders notifications through a FlatList instead of a ScrollView', () => {
+  it('renders notification rows inside the sheet without a nested scroll container', () => {
     mocks.notifications = [
       createMockNotification({ id: 'n-1', title: 'Streak saved' }),
       createMockNotification({ id: 'n-2', title: 'New achievement' }),
     ]
 
     const tree = render()
-    expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
+    openSheet(tree)
 
-    const list = openSheetAndGetList(tree)
-    expect(list.props.data).toHaveLength(2)
-    expect(list.props.keyExtractor(mocks.notifications[0]!)).toBe('n-1')
+    expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
+    expect(tree.root.findAllByType('FlatList')).toHaveLength(0)
+    expect(tree.root.findAllByType(NotificationRow)).toHaveLength(2)
   })
 
-  it('renders each row via renderItem with the title and body as its label', () => {
+  it('renders each row with the title and body as its label', () => {
     mocks.notifications = [createMockNotification({ id: 'n-1', title: 'Streak saved' })]
 
-    const list = openSheetAndGetList(render())
-    const rowElement = list.props.renderItem({ item: mocks.notifications[0]!, index: 0 })
-    let rowTree: {
-      root: {
-        findAll: (
-          predicate: (node: { props: Record<string, unknown> }) => boolean,
-        ) => unknown[]
-      }
-    } | null = null
-    TestRenderer.act(() => {
-      rowTree = TestRenderer.create(rowElement)
-    })
-    const labeled = rowTree!.root.findAll(
+    const tree = render()
+    openSheet(tree)
+    const labeled = tree.root.findAll(
       (node) =>
         node.props.accessibilityLabel === 'Streak saved. Time to complete your habit!',
     )
     expect(labeled.length).toBeGreaterThan(0)
   })
 
-  it('passes an empty data set and an empty-state component when there are no notifications', () => {
+  it('renders the empty state when there are no notifications', () => {
     mocks.notifications = []
 
-    const list = openSheetAndGetList(render())
-    expect(list.props.data).toHaveLength(0)
-    expect(list.props.ListEmptyComponent).toBeTruthy()
+    const tree = render()
+    openSheet(tree)
+    expect(
+      tree.root.findAll(
+        (node) => node.type === 'Text' && node.props.children === 'notifications.empty',
+      ),
+    ).toHaveLength(1)
   })
 
   it('renders a load-error state with a retry control when the query fails', () => {
     mocks.isError = true
 
-    const list = openSheetAndGetList(render())
-    let emptyTree: {
-      root: {
-        findAll: (
-          predicate: (node: { props: Record<string, unknown> }) => boolean,
-        ) => unknown[]
-      }
-    } | null = null
-    TestRenderer.act(() => {
-      emptyTree = TestRenderer.create(list.props.ListEmptyComponent)
-    })
-    const retryControls = emptyTree!.root.findAll(
+    const tree = render()
+    openSheet(tree)
+    const retryControls = tree.root.findAll(
       (node) => node.props.accessibilityLabel === 'common.retry',
     )
     expect(retryControls.length).toBeGreaterThan(0)
