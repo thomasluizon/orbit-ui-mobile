@@ -25355,6 +25355,7 @@
         "apps/mobile/__tests__/components/onboarding/onboarding-template-packs.test.tsx",
         "apps/mobile/__tests__/components/today/setup-checklist-card.test.tsx",
         "apps/mobile/__tests__/components/trial-banner-colors.test.ts",
+        "apps/mobile/__tests__/components/ui/list-primitives.test.tsx",
         "apps/mobile/__tests__/components/ui/redesign-primitives.test.tsx",
         "apps/mobile/__tests__/components/upgrade/plan-comparison-cards.test.tsx",
         "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
