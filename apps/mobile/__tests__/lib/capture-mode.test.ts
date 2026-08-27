@@ -4,6 +4,7 @@ import {
   captureRouteProbeId,
   resolveCapturePreferences,
   shouldExposeOnboardingRoute,
+  shouldRetainEmptyAuthCallback,
 } from '@/lib/capture-mode'
 import {
   pinCaptureAnimationDurations,
@@ -45,6 +46,11 @@ describe('mobile capture mode', () => {
     expect(shouldExposeOnboardingRoute(false, false, false)).toBe(true)
     expect(shouldExposeOnboardingRoute(false, true, false)).toBe(false)
     expect(shouldExposeOnboardingRoute(false, false, true)).toBe(false)
+  })
+
+  it('retains the payload-free auth callback only for deterministic capture evidence', () => {
+    expect(shouldRetainEmptyAuthCallback(true)).toBe(true)
+    expect(shouldRetainEmptyAuthCallback(false)).toBe(false)
   })
 
   it('identifies colliding root routes by their router group', () => {

@@ -4,6 +4,26 @@ set -euo pipefail
 
 adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
 
+# Prove the protected route on the first, cold app launch. Expo Router's protected-route guard
+# rejects a protected warm link by retaining the current public route; a cold launch has no prior
+# public route and therefore positively lands on login.
+about_link=$(node --input-type=module -e "
+  import { readFileSync } from 'node:fs'
+  import { buildCaptureDeepLink } from './tools/capture-surfaces-mobile.mjs'
+  const manifest = JSON.parse(readFileSync('.claude/manifests/surfaces.json', 'utf8'))
+  const cell = manifest.cells.find((entry) => entry.platform === 'mobile' && entry.surfaceId === 'm-route-about')
+  if (!cell) { console.error('m-route-about is not in the manifest'); process.exit(1) }
+  console.log(buildCaptureDeepLink(cell, 'dark', 'en'))
+")
+echo "Protected route deep link: ${about_link}"
+
+maestro test \
+    -e "CAPTURE_LINK=${about_link}" \
+    -e CAPTURE_PATH=protected-route-redirect \
+    --debug-output .artifacts/mobile-capture/protected \
+    --flatten-debug-output \
+    .maestro/protected-route-redirect.yaml
+
 capture_args=(
   --surface m-route-login
   --surface m-route-privacy
@@ -29,25 +49,3 @@ node tools/capture-surfaces-mobile.mjs \
   --locale en \
   --driver adb \
   --output .artifacts/mobile-capture/adb-fallback
-
-# The protected route is proven by where it LANDS, not by a failure. A Maestro non-zero
-# exit is undifferentiated: a driver timeout, a crashed app and a real redirect all look
-# the same, so the old exit-3 check passed for the wrong reasons. This asserts the login
-# probe instead, which only a real redirect can satisfy. The deep link comes from the
-# tool's own buildCaptureDeepLink so the two never drift apart.
-about_link=$(node --input-type=module -e "
-  import { readFileSync } from 'node:fs'
-  import { buildCaptureDeepLink } from './tools/capture-surfaces-mobile.mjs'
-  const manifest = JSON.parse(readFileSync('.claude/manifests/surfaces.json', 'utf8'))
-  const cell = manifest.cells.find((entry) => entry.platform === 'mobile' && entry.surfaceId === 'm-route-about')
-  if (!cell) { console.error('m-route-about is not in the manifest'); process.exit(1) }
-  console.log(buildCaptureDeepLink(cell, 'dark', 'en'))
-")
-echo "Protected route deep link: ${about_link}"
-
-maestro test \
-    -e "CAPTURE_LINK=${about_link}" \
-    -e CAPTURE_PATH=protected-route-redirect \
-    --debug-output .artifacts/mobile-capture/protected \
-    --flatten-debug-output \
-    .maestro/protected-route-redirect.yaml

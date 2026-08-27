@@ -130,7 +130,7 @@ function AuthInitializer({
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
   /** Expo Router's warm-link transition must retain its navigator while the next tuple applies. */
-  const [hasMountedApp, setHasMountedApp] = useState(false)
+  const [hasRenderedApp, setHasRenderedApp] = useState(false)
   const [fontsLoaded] = useFonts({
     Rubik_400Regular,
     Rubik_500Medium,
@@ -196,12 +196,15 @@ function AuthInitializer({
 
   const appReady = ready && fontsLoaded && onboardingDraftHydrated
 
+  /** Sticky on the first ready render, independently of asynchronous splash cleanup. */
+  if (appReady && !hasRenderedApp) setHasRenderedApp(true)
+
   useEffect(() => {
     if (!appReady) return
-    void SplashScreen.hideAsync().finally(() => setHasMountedApp(true))
+    void SplashScreen.hideAsync()
   }, [appReady])
 
-  if (!appReady && !hasMountedApp) {
+  if (!appReady && !hasRenderedApp) {
     return (
       <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={runtimeTokens.primary} />

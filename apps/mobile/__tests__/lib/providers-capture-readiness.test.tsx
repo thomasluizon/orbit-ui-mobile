@@ -14,6 +14,7 @@ const TestRenderer = require('react-test-renderer')
 
 let searchParameters: Record<string, string | string[]> = {}
 let pendingLanguageChanges: (() => void)[] = []
+let pendingSplashHides: (() => void)[] = []
 
 const changeLanguage = vi.fn(
   (_locale: string) =>
@@ -41,7 +42,12 @@ vi.mock('@/lib/i18n', () => ({
 
 vi.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: vi.fn(() => Promise.resolve()),
-  hideAsync: vi.fn(() => Promise.resolve()),
+  hideAsync: vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        pendingSplashHides.push(resolve)
+      }),
+  ),
 }))
 
 vi.mock('@expo-google-fonts/rubik', () => ({
@@ -144,10 +150,11 @@ describe('capture readiness gating', () => {
   beforeEach(() => {
     searchParameters = { captureLocale: 'en', captureTheme: 'dark' }
     pendingLanguageChanges = []
+    pendingSplashHides = []
     changeLanguage.mockClear()
   })
 
-  it('keeps the warm navigator mounted while the later tuple applies its language', async () => {
+  it('keeps the warm navigator mounted while splash settlement and the later tuple are pending', async () => {
     const { Providers, useCaptureReady } = await import('@/lib/providers')
     const CaptureChild = () => (
       <View testID={CHILD} accessibilityLabel={useCaptureReady() ? 'ready' : 'waiting'} />
@@ -171,6 +178,7 @@ describe('capture readiness gating', () => {
     expect(childRendered(tree)).toBe(true)
     expect(childReadiness(tree)).toBe('ready')
     expect(changeLanguage).toHaveBeenCalledWith('en')
+    expect(pendingSplashHides).toHaveLength(1)
 
     /** A capture re-run swaps the tuple. changeLanguage stays pending, so this render must gate. */
     searchParameters = { captureLocale: 'pt-BR', captureTheme: 'dark' }
@@ -185,6 +193,7 @@ describe('capture readiness gating', () => {
 
     expect(childRendered(tree)).toBe(true)
     expect(childReadiness(tree)).toBe('waiting')
+    expect(pendingSplashHides).toHaveLength(1)
 
     applyPendingLanguage()
     await flush()

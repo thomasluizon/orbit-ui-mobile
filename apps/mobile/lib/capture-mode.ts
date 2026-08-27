@@ -45,6 +45,11 @@ export function shouldExposeOnboardingRoute(
   return !captureEnabled && !isAuthenticated && !onboardingLocallyDone
 }
 
+/** A payload-free auth callback is a stable loading surface only in the tooling-only build. */
+export function shouldRetainEmptyAuthCallback(captureEnabled: boolean): boolean {
+  return captureEnabled
+}
+
 export function captureRouteProbeId(
   pathname: string,
   topSegment: string | undefined,
