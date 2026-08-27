@@ -84,7 +84,23 @@ Maestro 2.8.0 is the default driver. On Windows the tool checks `MAESTRO_BIN`, t
 
 Use `--driver adb` when Maestro is unavailable. That fallback opens the same deep link with `am start`, waits a fixed interval, and writes `exec-out screencap` bytes. It cannot assert the route probe, so it is useful for framework-independent diagnosis rather than route evidence. Every run writes `report.json`. Unreachable is a **plan-level** verdict decided before anything runs, covering unsupported stateful cells, blocks, overlays, widgets and dynamic routes, and it exits 3. A Maestro run that starts and then fails, including a failed route assertion, is a **runtime failure** and exits 1: the tool cannot tell a failed assertion from a driver timeout or a crashed app, so it does not pretend to.
 
-A protected route therefore cannot be proven by this tool's exit code. `.maestro/protected-route-redirect.yaml` proves it positively instead: it opens the protected route's deep link, asserts the LOGIN probe is visible and the protected one is not, and requires the capture-only request probe derived from Expo Linking's raw received URL for the exact protected surface so a dropped link cannot look like a redirect. Run it directly with `maestro test`, building the deep link from this tool's exported `buildCaptureDeepLink` so the two cannot drift.
+A protected route therefore cannot be proven by this tool's exit code. `.maestro/protected-route-redirect.yaml` proves it positively instead: it opens the protected route's deep link, asserts the LOGIN probe is visible and the protected one is not, and requires the capture-only request probe derived from Expo Linking's raw received URL for the exact protected surface so a dropped link cannot look like a redirect. Run it directly, building the deep link from this tool's exported `buildCaptureDeepLink` so the two cannot drift. The flow reads `CAPTURE_LINK` and `CAPTURE_PATH`, so both have to be supplied:
+
+```powershell
+$about = node --input-type=module -e "
+  import { readFileSync } from 'node:fs'
+  import { buildCaptureDeepLink } from './tools/capture-surfaces-mobile.mjs'
+  const manifest = JSON.parse(readFileSync('.claude/manifests/surfaces.json', 'utf8'))
+  const cell = manifest.cells.find((entry) => entry.platform === 'mobile' && entry.surfaceId === 'm-route-about')
+  if (!cell) { console.error('m-route-about is not in the manifest'); process.exit(1) }
+  console.log(buildCaptureDeepLink(cell, 'dark', 'en'))
+"
+maestro test -e "CAPTURE_LINK=$about" -e CAPTURE_PATH=protected-route-redirect `
+  --debug-output .artifacts/mobile-capture/protected --flatten-debug-output `
+  .maestro/protected-route-redirect.yaml
+```
+
+Install the capture APK on the emulator first, exactly as the capture prerequisites above describe. A cold launch matters: Expo Router's guard rejects a protected warm link by retaining the current public route, so only a cold start positively lands on login.
 
 ## Brand assets
 
