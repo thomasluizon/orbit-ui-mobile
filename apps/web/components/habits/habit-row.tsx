@@ -10,6 +10,7 @@ import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { buildHabitRowContextMenuItems } from './habit-row-context-menu-items'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 
 export type { HabitRowMetaToken }
 
@@ -203,6 +204,12 @@ export function HabitRow({
     else onLog?.()
   }
 
+  function handleRowContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target
+    if (!(target instanceof Node) || !event.currentTarget.contains(target)) return
+    onContextMenu(event)
+  }
+
   function getTitleColor(): string {
     if (isDone) return 'var(--fg-3)'
     return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
@@ -215,7 +222,7 @@ export function HabitRow({
       data-habit-title={habit.title}
       data-depth={depth}
       data-status={state}
-      onContextMenuCapture={onContextMenu}
+      onContextMenuCapture={handleRowContextMenu}
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
         minHeight: isChild ? 52 : 68,
