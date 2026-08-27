@@ -31,6 +31,7 @@ export function Columns({
           <View
             key={column.id}
             style={styles.column}
+            accessible
             accessibilityRole="image"
             accessibilityLabel={label ? `${label}. ${accessibleLabel}` : accessibleLabel}
             testID={isCurrent ? 'column-current' : 'column-neutral'}

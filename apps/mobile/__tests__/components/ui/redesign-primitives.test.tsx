@@ -59,6 +59,7 @@ describe('redesign primitives on mobile', () => {
     )
     expect(prop(tree.root.findAllByType('View')[0]!, 'accessible')).toBe(false)
     const zero = tree.root.find((node) => prop(node, 'accessibilityLabel') === 'Results. Zero: 0')
+    expect(prop(zero, 'accessible')).toBe(true)
     expect(prop(zero, 'accessibilityRole')).toBe('image')
     const fill = zero.findAllByType('View').find((node) => {
       const style = prop<StyleArray | undefined>(node, 'style')
