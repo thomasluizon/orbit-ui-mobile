@@ -66,7 +66,7 @@ function renderSelection(options: RenderOptions = {}) {
     return null
   }
 
-  let tree: { update: (node: React.ReactElement) => void; unmount: () => void } | null = null
+  let tree!: { update: (node: React.ReactElement) => void; unmount: () => void }
   TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(Harness))
   })
@@ -77,7 +77,7 @@ function renderSelection(options: RenderOptions = {}) {
     api: ref as { current: SelectionApi },
     rerender: () =>
       TestRenderer.act(() => {
-        tree!.update(React.createElement(Harness))
+        tree.update(React.createElement(Harness))
       }),
   }
 }
