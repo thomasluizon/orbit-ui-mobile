@@ -74,14 +74,26 @@ const SHARED_ALIAS = ["@orbit/shared/", "packages/shared/src/"]
 // reachability makes every page an "overlay" (the app shell reaches a dialog),
 // which is how a first cut of this file produced 15 false overlays and lost all
 // 24 real ones. These module names were read out of the codebase, not guessed.
-const WEB_OVERLAY_BASES = [
-  "components/ui/app-overlay",
-  "components/ui/centered-overlay",
-  "components/ui/confirm-dialog",
-  "components/ui/popover",
-  "components/ui/context-menu",
+// R1 (#42) collapsed the five web bases and the two mobile ones into a single
+// `Sheet` per platform, so both lists are now identical: the same five modules
+// exist under `components/ui/` on web and on mobile. `sheet` is the base; the
+// other four are the wrappers a caller actually imports, and each one presents
+// through `sheet` rather than beside it. A caller that imports `confirm-sheet`
+// never imports `sheet`, and this check is deliberately direct-import only, so
+// omitting a wrapper drops every one of its callers from the inventory.
+//
+// `step-up` is NOT here on purpose: it renders inline content with no sheet, no
+// portal and no modal, and a caller places it INSIDE a `Sheet`. Listing it would
+// count the caller twice and count `step-up` itself as a surface it is not.
+const OVERLAY_BASES = [
+  "components/ui/sheet",
+  "components/ui/menu",
+  "components/ui/confirm-sheet",
+  "components/ui/date-field",
+  "components/ui/time-field",
 ]
-const MOBILE_OVERLAY_BASES = ["components/bottom-sheet-modal", "components/ui/confirm-dialog"]
+const WEB_OVERLAY_BASES = OVERLAY_BASES
+const MOBILE_OVERLAY_BASES = OVERLAY_BASES
 
 // The command palette mounts its own portal and imports no overlay base, so a
 // base-import check alone misses it entirely - that miss is one of the named
