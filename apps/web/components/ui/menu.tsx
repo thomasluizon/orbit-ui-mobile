@@ -167,7 +167,9 @@ export function Menu({
   useEffect(() => {
     if (!open || resolvedPresentation !== 'anchored') return
     const panel = panelRef.current
-    const focusReturnTarget = activeFocusReturnTarget() ?? anchorElement(anchorRef)
+    const anchor = anchorElement(anchorRef)
+    const activeElement = activeFocusReturnTarget()
+    const focusReturnTarget = activeElement && anchor?.contains(activeElement) ? activeElement : anchor
     focusReturnTargetRef.current = focusReturnTarget
     restoreFocusOnCleanupRef.current = true
     panel?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()

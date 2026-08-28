@@ -123,6 +123,7 @@ describe('Menu', () => {
   ])('closes on %s and leaves a context-menu row in the same keypress', async (_label, shiftKey) => {
     setWide(true)
     const user = userEvent.setup()
+    let activeElementAtOpen: Element | null = null
     function Harness() {
       const anchorRef = useRef<HTMLDivElement>(null)
       const [open, setOpen] = useState(false)
@@ -132,17 +133,24 @@ describe('Menu', () => {
         if (!anchor) return
         const openMenu = (event: MouseEvent) => {
           event.preventDefault()
+          activeElementAtOpen = document.activeElement
           setOpen(true)
         }
+        const preservePointerFocus = (event: MouseEvent) => event.preventDefault()
+        anchor.addEventListener('mousedown', preservePointerFocus)
         anchor.addEventListener('contextmenu', openMenu)
-        return () => anchor.removeEventListener('contextmenu', openMenu)
+        return () => {
+          anchor.removeEventListener('mousedown', preservePointerFocus)
+          anchor.removeEventListener('contextmenu', openMenu)
+        }
       }, [])
 
       return (
         <>
+          <button type="button">Unrelated</button>
           <button type="button">Before</button>
           <div ref={anchorRef} tabIndex={-1}>
-            Habit row
+            <span>Habit row</span>
           </div>
           <button type="button">After</button>
           <Menu
@@ -157,7 +165,10 @@ describe('Menu', () => {
     }
     render(<Harness />)
 
+    screen.getByRole('button', { name: 'Unrelated' }).focus()
+    expect(screen.getByRole('button', { name: 'Unrelated' })).toHaveFocus()
     await user.pointer({ target: screen.getByText('Habit row'), keys: '[MouseRight]' })
+    expect(activeElementAtOpen).toBe(screen.getByRole('button', { name: 'Unrelated' }))
     await screen.findByRole('menu')
     const edit = screen.getByRole('menuitem', { name: 'Edit' })
     await waitFor(() => expect(edit).toHaveFocus())
