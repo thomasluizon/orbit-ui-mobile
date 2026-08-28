@@ -25,7 +25,22 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
 
   return (
     <>
-      <TodayDateControl {...view.nav.dateNav} />
+      <TodayDateControl
+        {...view.nav.dateNav}
+        moreLabel={t('habits.actions.more')}
+        selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
+        collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        refreshLabel={t('habits.refresh')}
+        completedLabel={view.showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        isFetching={view.data.isFetching}
+        onToggleSelect={view.toggleSelectMode}
+        onToggleCollapse={() => {
+          if (view.habitListAllCollapsed) view.habitListRef.current?.expandAll()
+          else view.habitListRef.current?.collapseAll()
+        }}
+        onRefresh={() => void view.data.refetch()}
+        onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
+      />
       {key ? (
         <div className="px-4 pb-4">
           <CapacityNotice message={t(key)} />

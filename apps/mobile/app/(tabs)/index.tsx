@@ -46,8 +46,10 @@ export default function TodayScreen() {
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
+  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
   const showCompleted = useUIStore((state) => state.showCompleted)
+  const setShowCompleted = useUIStore((state) => state.setShowCompleted)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
@@ -96,6 +98,19 @@ export default function TodayScreen() {
         previousLabel={t('dates.previousDay')}
         todayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
+        moreLabel={t('habits.actions.more')}
+        selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
+        collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        refreshLabel={t('habits.refresh')}
+        completedLabel={showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        isFetching={habitsQuery.isFetching}
+        onToggleSelect={selection.handleToggleSelectMode}
+        onToggleCollapse={() => {
+          if (habitListAllCollapsed) habitListRef.current?.expandAll()
+          else habitListRef.current?.collapseAll()
+        }}
+        onRefresh={() => void habitsQuery.refetch()}
+        onToggleCompleted={() => setShowCompleted(!showCompleted)}
         onGoToPreviousDay={date.goToPreviousDay}
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
@@ -128,6 +143,7 @@ export default function TodayScreen() {
           setEditHabitOnSaved(() => onSaved ?? null)
         }}
         onAllLoadedIdsChange={setAllLoadedIds}
+        onAllCollapsedChange={setHabitListAllCollapsed}
       />
 
       {isSelectMode ? (
