@@ -2,7 +2,7 @@ import { Text, View } from 'react-native'
 import { Lock } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { tintFromPrimary } from '@/lib/theme'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles, type Tokens } from './retrospective-styles'
 
@@ -59,11 +59,7 @@ export function RetrospectiveLockedYearly({
         </PillButton>
       )}
       {!isOnline ? (
-        <OfflineUnavailableState
-          title={t('offline.title')}
-          description={t('offline.description')}
-          compact
-        />
+        <ErrorState message={t('offline.description')} />
       ) : null}
       {portalError ? (
         <Text style={[styles.statusError, { color: tokens.statusBad }]}>

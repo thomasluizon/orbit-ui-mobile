@@ -12,11 +12,11 @@ import {
 } from '@/components/ui/icons'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { PlanSummaryCard } from './plan-summary-card'
 import { ProActivePanel } from './pro-active-panel'
@@ -131,19 +131,8 @@ export function BillingDashboard({
   if (isBillingLoading) {
     return (
       <>
-        <View style={[styles.card, { borderColor: tokens.hairline, backgroundColor: tokens.bgCard }]}>
-          <SkeletonLine width={80} height={14} />
-          <SkeletonLine width={140} height={18} style={{ marginTop: 10 }} />
-          <SkeletonLine width={180} height={12} style={{ marginTop: 8 }} />
-        </View>
-        <View style={[styles.card, { borderColor: tokens.hairline, backgroundColor: tokens.bgCard }]}>
-          <SkeletonLine width={80} height={14} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-            <SkeletonLine width={100} height={14} />
-            <SkeletonLine width={60} height={14} />
-          </View>
-          <SkeletonLine width="100%" height={8} style={{ marginTop: 12, borderRadius: 999 }} />
-        </View>
+        <Skeleton variant="stat-tile" label={t('common.loading')} />
+        <Skeleton variant="stat-tile" label={t('common.loading')} />
       </>
     )
   }
@@ -151,11 +140,7 @@ export function BillingDashboard({
     if (!isOnline) {
       return (
         <View style={styles.padBlock}>
-          <OfflineUnavailableState
-            title={t('offline.title')}
-            description={t('offline.description')}
-            compact
-          />
+          <ErrorState message={t('offline.description')} />
         </View>
       )
     }

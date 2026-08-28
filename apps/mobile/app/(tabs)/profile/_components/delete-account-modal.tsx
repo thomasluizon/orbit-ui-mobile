@@ -17,8 +17,8 @@ import { apiClient } from '@/lib/api-client'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ErrorState } from '@/components/ui/error-state'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -394,11 +394,7 @@ export function DeleteAccountModal({
   if (!isOnline) {
     deleteContent = (
       <View style={styles.body}>
-        <OfflineUnavailableState
-          title={t('profile.deleteAccount.offlineTitle')}
-          description={t('profile.deleteAccount.offlineDescription')}
-          compact
-        />
+        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
       </View>
     )
   } else if (deleteStep === 'confirm') {

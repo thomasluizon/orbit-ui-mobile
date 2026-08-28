@@ -380,14 +380,14 @@ function CalendarSyncPageContent() {
         <div>
           {events.length === 0 ? (
             <EmptyState
-              description={
+              title={
                 isReviewMode ? t('calendar.autoSync.reviewModeEmpty') : t('calendar.noEvents')
               }
-              action={{
-                label: t('common.goBack'),
-                onClick: () => goBackOrFallback('/profile'),
-                variant: 'secondary',
-              }}
+              action={
+                <PillButton variant="ghost" onClick={() => goBackOrFallback('/profile')}>
+                  {t('common.goBack')}
+                </PillButton>
+              }
             />
           ) : (
             <>

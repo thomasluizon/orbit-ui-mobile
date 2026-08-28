@@ -1130,7 +1130,6 @@
       "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
       "reactivated": "Your account deletion is cancelled.",
       "errorGeneric": "Something went wrong. Please try again.",
-      "offlineTitle": "You're offline",
       "offlineDescription": "Connect to the internet to deactivate your account."
     }
   },
@@ -2069,7 +2068,6 @@
     "completedCelebrationFiled": "Filed.",
     "tab": "Goals",
     "empty": "No goals yet",
-    "emptyHint": "Create your first goal to start tracking progress",
     "create": "New Goal",
     "dragItem": "draggable item",
     "reorderHint": "Hold to reorder",
@@ -2141,8 +2139,7 @@
       "abandoned": "Abandoned",
       "statusFilter": "Filter by status",
       "clearFilter": "Clear filter",
-      "emptyFiltered": "No goals match this filter",
-      "emptyFilteredHint": "Try another status or clear the filter"
+      "emptyFiltered": "No goals match this filter"
     },
     "deadline": {
       "overdue": "Overdue",

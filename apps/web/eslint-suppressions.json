@@ -1370,11 +1370,6 @@
       "count": 7
     }
   },
-  "components/ui/empty-state.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/ui/expiry-warning.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
@@ -1401,14 +1396,6 @@
   "components/ui/highlight-text.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/ui/offline-unavailable-state.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "components/ui/push-prompt.tsx": {
@@ -1459,11 +1446,6 @@
     },
     "local/spacing-scale": {
       "count": 5
-    }
-  },
-  "components/ui/skeleton.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
     }
   },
   "components/ui/trial-banner.tsx": {

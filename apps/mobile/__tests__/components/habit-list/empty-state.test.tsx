@@ -2,7 +2,6 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   HabitListEmptyState,
-  SkeletonCard,
   getEmptyHabitsMessage,
 } from '@/components/habit-list/empty-state'
 
@@ -50,8 +49,8 @@ function textStrings(tree: TestTree): string[] {
 function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined {
   return tree.root.findAll(
     (node) =>
-      node.props?.accessibilityRole === 'button' &&
-      node.props?.accessibilityLabel === label,
+      node.props.accessibilityRole === 'button' &&
+      node.props.accessibilityLabel === label,
   )[0]
 }
 
@@ -124,23 +123,8 @@ describe('HabitListEmptyState', () => {
   it('renders nothing actionable when no labels are provided', () => {
     const tree = render(<HabitListEmptyState title="Empty" description="" />)
     expect(
-      tree.root.findAll((node) => node.props?.accessibilityRole === 'button'),
+      tree.root.findAll((node) => node.props.accessibilityRole === 'button'),
     ).toHaveLength(0)
-  })
-})
-
-describe('SkeletonCard', () => {
-  it('renders its structural skeleton nodes', () => {
-    const styles = {
-      skeletonCard: {},
-      skeletonCircle: {},
-      skeletonContent: {},
-      skeletonTitle: {},
-      skeletonSubtitle: {},
-      skeletonCheck: {},
-    }
-    const tree = render(<SkeletonCard styles={styles} />)
-    expect(tree.toJSON()).not.toBeNull()
   })
 })
 

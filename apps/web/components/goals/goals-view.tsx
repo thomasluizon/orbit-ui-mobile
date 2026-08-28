@@ -4,8 +4,9 @@ import { useState, useCallback, useMemo, useRef } from 'react'
 import { Filter } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
-import { SkeletonCard } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PillButton } from '@/components/ui/pill-button'
 import { RadioRow } from '@/components/ui/select-check'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -56,21 +57,20 @@ export function GoalsView() {
     activeFilter != null ? (
       <EmptyState
         title={t('goals.filters.emptyFiltered')}
-        description={t('goals.filters.emptyFilteredHint')}
-        action={{
-          label: t('goals.filters.clearFilter'),
-          onClick: () => handleFilterChange(null),
-          variant: 'secondary',
-        }}
+        action={
+          <PillButton variant="ghost" onClick={() => handleFilterChange(null)}>
+            {t('goals.filters.clearFilter')}
+          </PillButton>
+        }
       />
     ) : (
       <EmptyState
         title={t('goals.empty')}
-        description={t('goals.emptyHint')}
-        action={{
-          label: t('goals.create'),
-          onClick: () => setShowCreateGoalModal(true),
-        }}
+        action={
+          <PillButton onClick={() => setShowCreateGoalModal(true)}>
+            {t('goals.create')}
+          </PillButton>
+        }
       />
     )
 
@@ -128,7 +128,7 @@ export function GoalsView() {
         {!isFetched && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <SkeletonCard key={`skeleton-${i}`} lines={3} className="rounded-[18px]" />
+              <Skeleton key={`skeleton-${i}`} variant="stat-tile" label={t('common.loading')} />
             ))}
           </div>
         )}

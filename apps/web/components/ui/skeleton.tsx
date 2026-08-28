@@ -1,52 +1,77 @@
-interface SkeletonLineProps {
-  width?: string
-  height?: string
-  className?: string
-}
+import type { SkeletonProps } from '@orbit/shared/contracts/feedback'
 
-interface SkeletonCardProps {
-  lines?: number
-  className?: string
-}
+const blockClass = 'skeleton-pulse rounded-[var(--r-well)] bg-[var(--bg-well)]'
 
-export function SkeletonLine({ width, height, className }: Readonly<SkeletonLineProps>) {
+function HabitRowSkeleton() {
   return (
-    <div
-      className={[
-        'skeleton-pulse bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)] rounded-[var(--radius-md)]',
-        height ?? 'h-3',
-        width ?? 'w-full',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      aria-hidden="true"
-    />
-  )
-}
-
-function lineWidths(index: number, total: number): { width: string; height: string } {
-  if (index === 0) return { width: 'w-1/3', height: 'h-4' }
-  if (index === total - 1) return { width: 'w-2/3', height: 'h-3' }
-  return { width: 'w-full', height: 'h-3' }
-}
-
-export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProps>) {
-  return (
-    <div
-      className={[
-        'bg-[var(--bg-card)] rounded-[16px] shadow-[inset_0_0_0_1px_var(--hairline)] p-5 space-y-3',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      aria-hidden="true"
-    >
-      {Array.from({ length: lines }, (_, i) => {
-        const { width, height } = lineWidths(i, lines)
-        return <SkeletonLine key={i} width={width} height={height} />
-      })}
+    <div className="flex h-[68px] items-center gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] px-4">
+      <span className={`${blockClass} size-[46px] shrink-0`} />
+      <span className="flex flex-1 flex-col gap-2">
+        <span className={`${blockClass} h-4 w-2/3`} />
+        <span className={`${blockClass} h-3 w-1/3`} />
+      </span>
+      <span className={`${blockClass} size-[30px] shrink-0 rounded-full`} />
     </div>
   )
 }
 
+function SettingsSkeleton() {
+  return (
+    <div className="flex h-[52px] items-center gap-3 px-4">
+      <span className={`${blockClass} size-6 shrink-0`} />
+      <span className="flex flex-1 flex-col gap-2">
+        <span className={`${blockClass} h-4 w-1/2`} />
+        <span className={`${blockClass} h-3 w-2/3`} />
+      </span>
+      <span className={`${blockClass} h-4 w-12 shrink-0`} />
+    </div>
+  )
+}
+
+function StatTileSkeleton() {
+  return (
+    <div className="flex min-h-[110px] flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+      <span className={`${blockClass} h-6 w-1/2`} />
+      <span className={`${blockClass} h-4 w-2/3`} />
+    </div>
+  )
+}
+
+function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps, { variant: 'grid' }>>) {
+  return (
+    <div
+      className="grid"
+      style={{
+        gridTemplateColumns: `repeat(${cols}, ${cell}px)`,
+        gridTemplateRows: `repeat(${rows}, ${cell}px)`,
+        gap,
+      }}
+      data-rows={rows}
+      data-cols={cols}
+      data-cell={cell}
+      data-gap={gap}
+    >
+      {Array.from({ length: rows * cols }, (_, index) => (
+        <span key={index} className={blockClass} style={{ width: cell, height: cell }} />
+      ))}
+    </div>
+  )
+}
+
+/** One accessible placeholder unit shaped like the content that replaces it. */
+export function Skeleton(props: Readonly<SkeletonProps>) {
+  return (
+    <div
+      aria-busy="true"
+      aria-label={props.label}
+      role="progressbar"
+      data-variant={props.variant}
+      className="w-full"
+    >
+      {props.variant === 'habit-row' ? <HabitRowSkeleton /> : null}
+      {props.variant === 'settings' ? <SettingsSkeleton /> : null}
+      {props.variant === 'stat-tile' ? <StatTileSkeleton /> : null}
+      {props.variant === 'grid' ? <GridSkeleton {...props} /> : null}
+    </div>
+  )
+}

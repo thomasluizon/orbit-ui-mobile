@@ -7,7 +7,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { sendSupportMessage } from '@/app/actions/support'
 import { AppBar } from '@/components/ui/app-bar'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
@@ -94,11 +94,7 @@ export default function SupportPage() {
         <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '16px 20px' }}>
           {!isOnline && (
             <div className="mb-4">
-              <OfflineUnavailableState
-                title={t('offline.title')}
-                description={t('offline.description')}
-                compact
-              />
+              <ErrorState message={t('offline.description')} />
             </div>
           )}
 

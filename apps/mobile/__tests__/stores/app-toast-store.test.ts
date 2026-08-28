@@ -1,129 +1,89 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 const triggerHaptic = vi.hoisted(() => vi.fn(async () => {}))
 
-vi.mock('@/lib/haptics', () => ({
-  triggerHaptic,
-}))
+vi.mock('@/lib/haptics', () => ({ triggerHaptic }))
 
 describe('app toast store', () => {
   beforeEach(() => {
     triggerHaptic.mockClear()
-    useAppToastStore.setState({
-      currentToast: null,
-      queue: [],
-    })
+    useAppToastStore.setState({ currentToast: null, queue: [] })
   })
 
-  it('ignores empty toast messages after trimming', () => {
-    useAppToastStore.getState().showError('   ')
-
-    expect(useAppToastStore.getState().currentToast).toBeNull()
-    expect(useAppToastStore.getState().queue).toEqual([])
-  })
-
-  it('shows the first error immediately and trims whitespace', () => {
-    useAppToastStore.getState().showError('  Network error  ')
-
-    expect(useAppToastStore.getState().currentToast).toMatchObject({
-      message: 'Network error',
-      variant: 'error',
-    })
-  })
-
-  it('queues later toasts and promotes them when dismissing', () => {
+  it('ignores empty messages and trims accepted feedback', () => {
     const store = useAppToastStore.getState()
+    store.showToast({ kind: 'neutral', message: '   ' })
+    expect(useAppToastStore.getState().currentToast).toBeNull()
 
-    store.showError('First')
+    store.showToast({ kind: 'neutral', message: '  First  ' })
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral',
+      message: 'First',
+    })
+  })
+
+  it('replaces persistent feedback while preserving removable feedback in order', () => {
+    const store = useAppToastStore.getState()
+    store.showSuccess('First')
     store.showError('Second')
-    store.showError('Third')
+    store.showSuccess('Third')
 
-    expect(useAppToastStore.getState().currentToast?.message).toBe('First')
-    expect(useAppToastStore.getState().queue.map((toast) => toast.message)).toEqual([
-      'Second',
-      'Third',
-    ])
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('First')
+    expect(useAppToastStore.getState().queue.map((item) => item.toast.message)).toEqual(['Third'])
 
     useAppToastStore.getState().dismissToast()
-    expect(useAppToastStore.getState().currentToast?.message).toBe('Second')
-
-    useAppToastStore.getState().dismissToast()
-    expect(useAppToastStore.getState().currentToast?.message).toBe('Third')
-
-    useAppToastStore.getState().dismissToast()
-    expect(useAppToastStore.getState().currentToast).toBeNull()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Third')
     expect(useAppToastStore.getState().queue).toEqual([])
   })
 
-  it('stores queued toast actions and triggers selection haptics', () => {
-    const onAction = vi.fn()
-
-    useAppToastStore.getState().showQueued('Queued change', 'Undo', onAction)
-
-    expect(useAppToastStore.getState().currentToast).toMatchObject({
-      message: 'Queued change',
-      variant: 'queued',
-      actionLabel: 'Undo',
-    })
-    expect(triggerHaptic).toHaveBeenCalledWith('selection')
-
-    useAppToastStore.getState().triggerAction()
-
-    expect(onAction).toHaveBeenCalledTimes(1)
-    expect(useAppToastStore.getState().currentToast).toBeNull()
-  })
-
-  it('supports success and info variants without dropping queued items', () => {
+  it('advances queued to syncing to synced without stalling the host', () => {
     const store = useAppToastStore.getState()
 
-    store.showSuccess('Saved')
-    store.showInfo('Syncing')
+    store.showQueued('Queued')
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Queued')
 
-    expect(useAppToastStore.getState().currentToast).toMatchObject({
-      message: 'Saved',
-      variant: 'success',
+    store.showInfo('Syncing')
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Syncing')
+
+    store.showSuccess('Synced')
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'done',
+      message: 'Synced',
     })
-    expect(useAppToastStore.getState().queue).toMatchObject([
-      { message: 'Syncing', variant: 'info' },
-    ])
+    expect(useAppToastStore.getState().queue).toEqual([])
+  })
+
+  it('replaces an actionless error with the next toast', () => {
+    const store = useAppToastStore.getState()
+
+    store.showError('Could not save')
+    store.showInfo('Back online')
+
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Back online')
+    expect(useAppToastStore.getState().queue).toEqual([])
+  })
+
+  it('adapts legacy helpers to the closed kinds', () => {
+    const store = useAppToastStore.getState()
+    store.showSuccess('Saved')
+    store.showInfo('Fact')
+
+    expect(useAppToastStore.getState().currentToast?.toast.kind).toBe('done')
+    expect(useAppToastStore.getState().queue[0]?.toast.kind).toBe('neutral')
     expect(triggerHaptic).toHaveBeenCalledWith('success')
   })
 
-  it('ignores a whitespace-only showToast message', () => {
-    useAppToastStore.getState().showToast({ message: '   ', variant: 'info' })
+  it('stores paired neutral actions and dismisses after the host triggers one', () => {
+    const onAction = vi.fn()
+    useAppToastStore.getState().showQueued('Queued', 'Undo', onAction)
 
-    expect(useAppToastStore.getState().currentToast).toBeNull()
-    expect(useAppToastStore.getState().queue).toEqual([])
-  })
-
-  it('shows the first showToast immediately and queues the next one', () => {
-    const store = useAppToastStore.getState()
-
-    store.showToast({ message: '  First  ', variant: 'info' })
-    store.showToast({ message: 'Second', variant: 'error' })
-
-    expect(useAppToastStore.getState().currentToast).toMatchObject({
-      message: 'First',
-      variant: 'info',
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral',
+      actionLabel: 'Undo',
     })
-    expect(useAppToastStore.getState().queue).toMatchObject([
-      { message: 'Second', variant: 'error' },
-    ])
-  })
-
-  it('queues success and queued toasts behind an active toast', () => {
-    const store = useAppToastStore.getState()
-
-    store.showInfo('Active')
-    store.showSuccess('Saved later')
-    store.showQueued('Queued later', 'Undo', vi.fn())
-
-    expect(useAppToastStore.getState().currentToast?.message).toBe('Active')
-    expect(useAppToastStore.getState().queue.map((toast) => toast.message)).toEqual([
-      'Saved later',
-      'Queued later',
-    ])
+    useAppToastStore.getState().triggerAction()
+    expect(onAction).toHaveBeenCalledTimes(1)
+    expect(useAppToastStore.getState().currentToast).toBeNull()
   })
 })

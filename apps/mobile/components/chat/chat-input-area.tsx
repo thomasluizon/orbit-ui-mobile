@@ -7,7 +7,7 @@ import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { InfoCard } from "@/components/ui/info-card";
 import { PillButton } from "@/components/ui/pill-button";
 import { ChatInputBar } from "@/components/chat/chat-input-bar";
-import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
+import { ErrorState } from "@/components/ui/error-state";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
 
 interface ChatRewardState {
@@ -113,11 +113,7 @@ function ChatInputNotices({
         </Text>
       )}
       {!isOnline && (
-        <OfflineUnavailableState
-          title={offlineTitle}
-          description={offlineDescription}
-          compact
-        />
+        <ErrorState message={offlineDescription} />
       )}
       {speechError && (
         <Text
