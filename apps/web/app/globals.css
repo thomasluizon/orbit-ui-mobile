@@ -234,7 +234,7 @@
   --fg-3: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
   --fg-4: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
 
-  --status-done:    var(--primary);
+  --status-done:    var(--fg-1);
   --status-empty:   rgba(248, 250, 252, 0.22);
   --status-skip:    var(--fg-3);
   --status-overdue: #fe9a00;
@@ -281,7 +281,7 @@
   --fg-3: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
   --fg-4: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
 
-  --status-done:    var(--primary);
+  --status-done:    var(--fg-1);
   --status-empty:   rgba(2, 6, 24, 0.18);
   --status-skip:    var(--fg-3);
   --status-overdue: #e17100;

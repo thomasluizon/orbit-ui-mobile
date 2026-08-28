@@ -1,16 +1,8 @@
-import { useEffect, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
-import Animated, {
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated'
+import { type ReactNode } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -101,42 +93,6 @@ export function HabitListEmptyState({
       ) : null}
       {emptyActions}
     </View>
-  )
-}
-
-interface SkeletonCardStyles {
-  skeletonCard: StyleProp<ViewStyle>
-  skeletonCircle: StyleProp<ViewStyle>
-  skeletonContent: StyleProp<ViewStyle>
-  skeletonTitle: StyleProp<ViewStyle>
-  skeletonSubtitle: StyleProp<ViewStyle>
-  skeletonCheck: StyleProp<ViewStyle>
-}
-
-export function SkeletonCard({ styles: cardStyles }: Readonly<{ styles: SkeletonCardStyles }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const pulse = useSharedValue(1)
-
-  useEffect(() => {
-    if (prefersReducedMotion) return
-    pulse.value = withRepeat(withTiming(0.55, { duration: 550 }), -1, true)
-    return () => {
-      cancelAnimation(pulse)
-      pulse.value = 1
-    }
-  }, [prefersReducedMotion, pulse])
-
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }))
-
-  return (
-    <Animated.View style={[cardStyles.skeletonCard, pulseStyle]}>
-      <View style={cardStyles.skeletonCircle} />
-      <View style={cardStyles.skeletonContent}>
-        <View style={cardStyles.skeletonTitle} />
-        <View style={cardStyles.skeletonSubtitle} />
-      </View>
-      <View style={cardStyles.skeletonCheck} />
-    </Animated.View>
   )
 }
 

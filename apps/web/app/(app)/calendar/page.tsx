@@ -29,7 +29,7 @@ import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
-import { buildCalendarMonthModel } from '@/lib/calendar-month-model'
+import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
@@ -350,13 +350,13 @@ export default function CalendarPage() {
 
                   <CalendarLegend
                     todayLabel={t('calendar.legend.today')}
-                    doneLabel={t('calendar.legend.done')}
-                    partialLabel={t('calendar.legend.partial')}
-                    missedLabel={t('calendar.legend.missed')}
+                    fullLabel={t('calendar.dayCell.full')}
+                    partialLabel={t('calendar.dayCell.partial')}
+                    noneLabel={t('calendar.dayCell.none')}
                   />
 
                   {!isLoading && !monthStats.hasEntries ? (
-                    <EmptyState description={t('calendar.emptyMonth')} />
+                    <EmptyState title={t('calendar.emptyMonth')} />
                   ) : (
                     <>
                       <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>

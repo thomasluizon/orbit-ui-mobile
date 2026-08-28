@@ -14,7 +14,7 @@ import {
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationRow } from './notification-row'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -115,8 +115,8 @@ function NotificationListEmpty({
   if (isLoading) {
     return (
       <View style={styles.loadingState} accessibilityLabel={t('common.loading')}>
-        <SkeletonLine height={48} />
-        <SkeletonLine height={48} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
       </View>
     )
   }

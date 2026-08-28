@@ -182,7 +182,7 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('offline.description')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeDisabled()
   })

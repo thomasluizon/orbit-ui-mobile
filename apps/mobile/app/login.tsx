@@ -4,7 +4,7 @@ import { Animated, View, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { createLoginStyles } from './login-styles'
@@ -101,11 +101,7 @@ export default function LoginScreen() {
           )}
 
           {!isOnline && (
-            <OfflineUnavailableState
-              title={t('offline.title')}
-              description={t('offline.description')}
-              compact
-            />
+            <ErrorState message={t('offline.description')} />
           )}
 
           {step === 'email' ? (
