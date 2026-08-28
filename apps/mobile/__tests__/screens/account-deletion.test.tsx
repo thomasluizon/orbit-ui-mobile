@@ -384,7 +384,7 @@ describe('ProfileScreen account-deletion state machine', () => {
     })
     mocks.useGamificationProfile.mockReturnValue({ profile: null })
     mocks.useHasProAccess.mockReturnValue(false)
-    mocks.apiClient.mockResolvedValue({ scheduledDeletionAt: '2026-07-01T00:00:00Z' })
+    mocks.apiClient.mockResolvedValue({ message: 'Deletion code sent' })
   })
 
   it('opens on the confirm step with the warning copy and no code inputs', async () => {

@@ -129,7 +129,10 @@ describe('web step up screen', () => {
   })
 
   it('blocks editing and exposes the confirm loading state while checking', async () => {
-    let resolveConfirmation: ((value: { scheduledDeletionAt: string }) => void) | undefined
+    let resolveConfirmation: ((value: {
+      message: string
+      scheduledDeletionAt: string
+    }) => void) | undefined
     mocks.confirmDeletion.mockReturnValue(new Promise((resolve) => {
       resolveConfirmation = resolve
     }))
@@ -141,7 +144,10 @@ describe('web step up screen', () => {
     await waitFor(() => expect(input).toBeDisabled())
     expect(screen.getByTestId('shell-action').querySelector('button')).toHaveAttribute('aria-busy', 'true')
 
-    resolveConfirmation?.({ scheduledDeletionAt: '2026-09-04T03:00:00Z' })
+    resolveConfirmation?.({
+      message: 'Account deactivated',
+      scheduledDeletionAt: '2026-09-04T03:00:00Z',
+    })
   })
 
   it('keeps a wrong code editable, rings all cells, and uses the server count', async () => {
