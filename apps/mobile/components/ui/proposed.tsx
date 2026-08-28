@@ -16,7 +16,7 @@ function tintChild(child: ReactNode, color: string): ReactNode {
   }
   if (!isValidElement<ProposedChildProps>(child)) return child
 
-  /** Explicit color wins; unstyled text takes fg3, matching the web inheritance contract. */
+  /** Explicit color wins. Composite components own their colors and fall through unchanged. */
   if (child.type === Text || child.type === TextInput) {
     if (StyleSheet.flatten(child.props.style ?? {}).color != null) return child
     return cloneElement(child, { style: [child.props.style, { color }] })

@@ -6,6 +6,7 @@ import type {
 import {
   findMissingBlockFrameLabels,
   PROPOSED_RADIUS,
+  resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -33,21 +34,6 @@ type FrameRowProps = Readonly<{
 }>
 
 type StatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
-
-function resolveStatus(item: BlockFrameItem, frameState: BlockFrameProps['state']): BlockFrameItemStatus | undefined {
-  return frameState === 'acting' ? 'acting' : item.status
-}
-
-function resolveStatusLabel(
-  item: BlockFrameItem,
-  status: BlockFrameItemStatus | undefined,
-  frameState: BlockFrameProps['state'],
-  labels: StatusLabels,
-): string | undefined {
-  if (status == null) return undefined
-  if (frameState === 'acting') return labels.acting
-  return item.statusLabel ?? labels[status]
-}
 
 function StatusView({ status, label, tokens }: Readonly<{
   status: BlockFrameItemStatus
@@ -163,22 +149,19 @@ function FrameRows({ frameProps, tokens }: Readonly<{
     failed: t('blockFrame.status.failed'),
   }
 
-  return frameProps.items.map((item) => {
-    const status = resolveStatus(item, frameProps.state)
-    return (
-      <FrameRow
-        editLabel={frameProps.editLabel}
-        frameState={frameProps.state}
-        irreversibleLabel={frameProps.irreversibleLabel}
-        item={item}
-        key={item.id}
-        onEditItem={frameProps.onEditItem}
-        proposedLabel={frameProps.proposedLabel}
-        statusLabel={resolveStatusLabel(item, status, frameProps.state, labels)}
-        tokens={tokens}
-      />
-    )
-  })
+  return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
+    <FrameRow
+      editLabel={rowProps.editLabel}
+      frameState={rowProps.frameState}
+      irreversibleLabel={rowProps.irreversibleLabel}
+      item={rowProps.item}
+      key={rowProps.item.id}
+      onEditItem={rowProps.onEditItem}
+      proposedLabel={rowProps.proposedLabel}
+      statusLabel={rowProps.statusLabel}
+      tokens={tokens}
+    />
+  ))
 }
 
 function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens }: Readonly<{

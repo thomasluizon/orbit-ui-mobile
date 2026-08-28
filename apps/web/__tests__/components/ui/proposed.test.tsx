@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { Proposed } from '@/components/ui/proposed'
 
 function CompositeValue() {
-  return <span data-composite-value="">Composite value</span>
+  return (
+    <span data-composite-value="" style={{ color: 'var(--fg-1)' }}>
+      Composite value
+      <span data-composite-meta="" style={{ color: 'var(--fg-3)' }}>Composite meta</span>
+    </span>
+  )
 }
 
 describe('Proposed on web', () => {
@@ -34,7 +39,7 @@ describe('Proposed on web', () => {
     expect(off.container.querySelector('[data-proposed]')).toBeNull()
   })
 
-  it('gives unstyled text fg3 while an explicit child color wins', () => {
+  it('gives nested unstyled text fg3 through CSS inheritance', () => {
     const stylesheet = document.createElement('style')
     stylesheet.textContent = String.raw`
       .text-\[var\(--fg-3\)\] { color: var(--fg-3); }
@@ -44,18 +49,27 @@ describe('Proposed on web', () => {
     try {
       const { container } = render(
         <Proposed proposed scope="row" label="Proposed by Astra">
-          <CompositeValue />
+          <div><span data-nested-value="">Nested value</span></div>
           <span data-explicit-value="" style={{ color: 'rgb(1, 2, 3)' }}>Explicit value</span>
         </Proposed>,
       )
 
-      const compositeValue = container.querySelector('[data-composite-value]')!
-      const explicitValue = container.querySelector('[data-explicit-value]')!
-      expect(getComputedStyle(compositeValue).color).toBe('var(--fg-3)')
-      expect(getComputedStyle(explicitValue).color).toBe('rgb(1, 2, 3)')
+      expect(getComputedStyle(container.querySelector('[data-nested-value]')!).color).toBe('var(--fg-3)')
+      expect(getComputedStyle(container.querySelector('[data-explicit-value]')!).color).toBe('rgb(1, 2, 3)')
     } finally {
       stylesheet.remove()
     }
+  })
+
+  it('leaves the explicit token colors owned by a composite child unaltered', () => {
+    const { container } = render(
+      <Proposed proposed scope="row" label="Proposed by Astra">
+        <CompositeValue />
+      </Proposed>,
+    )
+
+    expect(container.querySelector<HTMLElement>('[data-composite-value]')!.style.color).toBe('var(--fg-1)')
+    expect(container.querySelector<HTMLElement>('[data-composite-meta]')!.style.color).toBe('var(--fg-3)')
   })
 
   it('depends only on caller words, not locale defaults', () => {

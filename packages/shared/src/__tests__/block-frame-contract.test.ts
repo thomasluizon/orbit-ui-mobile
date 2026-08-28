@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   findMissingBlockFrameLabels,
   PROPOSED_RADIUS,
+  resolveBlockFrameRows,
   type BlockFrameProps,
 } from '../contracts/blocks'
 
@@ -51,5 +52,31 @@ describe('block frame contract', () => {
   it('fixes the radius for each proposed scope', () => {
     expect(PROPOSED_RADIUS).toEqual({ field: 12, row: 8, block: 20 })
     expect(Object.keys(PROPOSED_RADIUS)).toHaveLength(3)
+  })
+
+  it('resolves platform-independent row props and status labels once', () => {
+    const onEditItem = () => undefined
+    const resting: BlockFrameProps = {
+      state: 'resting',
+      title: 'Frame',
+      items: [
+        { id: 'saved', label: 'Saved', status: 'done', statusLabel: 'Saved override' },
+        { id: 'failed', label: 'Failed', status: 'failed' },
+      ],
+      onEditItem,
+      editLabel: 'Edit',
+    }
+    const labels = { done: 'Done', acting: 'In progress', failed: 'Failed' }
+
+    const restingRows = resolveBlockFrameRows(resting, labels)
+    const actingRows = resolveBlockFrameRows({ ...resting, state: 'acting' }, labels)
+
+    expect(restingRows.map((row) => row.statusLabel)).toEqual(['Saved override', 'Failed'])
+    expect(actingRows.map((row) => row.statusLabel)).toEqual(['In progress', 'In progress'])
+    expect(restingRows[0]).toMatchObject({
+      frameState: 'resting',
+      editLabel: 'Edit',
+      onEditItem,
+    })
   })
 })

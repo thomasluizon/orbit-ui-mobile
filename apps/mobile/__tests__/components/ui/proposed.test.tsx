@@ -34,6 +34,18 @@ function flattenedStyle(node: TestNode): Readonly<Record<string, unknown>> {
   return StyleSheet.flatten(prop(node, 'style'))
 }
 
+const compositeLabelStyle = { color: createTokensV2('purple', 'dark').fg3, fontSize: 17 }
+const compositeInputStyle = { color: createTokensV2('purple', 'dark').fg1, fontSize: 16 }
+
+function CompositeValue() {
+  return (
+    <View>
+      <Text style={compositeLabelStyle} testID="composite-label">Suggested label</Text>
+      <TextInput style={compositeInputStyle} testID="composite-input" value="Suggested input" />
+    </View>
+  )
+}
+
 describe('Proposed on mobile', () => {
   it('renders the labelled dashed treatment at the scope radius', () => {
     const tree = render(
@@ -62,35 +74,36 @@ describe('Proposed on mobile', () => {
   it('preserves the explicit token colors rendered by a design-system child', () => {
     const tree = render(
       <Proposed proposed scope="row" label="Proposed by Astra">
-        <ListRow description="Supporting words" readOnly title="Design-system value" />
+        <ListRow description="Supporting words" readOnly title="Design-system value" value="Daily" />
       </Proposed>,
     )
     const tokens = createTokensV2('purple', 'dark')
-    const renderedText = tree.root.findAllByType('Text')
-    const title = renderedText.find((node) => prop(node, 'children') === 'Design-system value')!
-    const description = renderedText.find((node) => prop(node, 'children') === 'Supporting words')!
+    const listRowText = tree.root.findAllByType('Text').filter((node) =>
+      ['Design-system value', 'Supporting words', 'Daily'].includes(prop<string>(node, 'children')))
 
-    expect(flattenedStyle(title).color).toBe(tokens.fg1)
-    expect(flattenedStyle(description).color).toBe(tokens.fg3)
+    expect(listRowText.map((node) => prop(node, 'children'))).toEqual([
+      'Design-system value',
+      'Supporting words',
+      'Daily',
+    ])
+    expect(listRowText.map((node) => flattenedStyle(node).color)).toEqual([
+      tokens.fg1,
+      tokens.fg3,
+      tokens.fg3,
+    ])
   })
 
-  it('lets explicit BlockFrame-style colors win without altering their styles', () => {
-    const tokens = createTokensV2('purple', 'dark')
-    const labelStyle = [{ fontSize: 17 }, { color: tokens.fg3 }]
-    const inputStyle = [{ fontSize: 16 }, { color: tokens.fg1 }]
+  it('leaves the explicit token colors owned by a composite child unaltered', () => {
     const tree = render(
       <Proposed proposed scope="row" label="Proposed by Astra">
-        <View>
-          <Text style={labelStyle} testID="explicit-label">Suggested label</Text>
-          <TextInput style={inputStyle} testID="explicit-input" value="Suggested input" />
-        </View>
+        <CompositeValue />
       </Proposed>,
     )
 
-    expect(prop(tree.root.findByProps({ testID: 'explicit-label' }), 'style')).toBe(labelStyle)
-    expect(prop(tree.root.findByProps({ testID: 'explicit-input' }), 'style')).toBe(inputStyle)
-    expect(flattenedStyle(tree.root.findByProps({ testID: 'explicit-label' })).color).toBe(tokens.fg3)
-    expect(flattenedStyle(tree.root.findByProps({ testID: 'explicit-input' })).color).toBe(tokens.fg1)
+    expect(prop(tree.root.findByProps({ testID: 'composite-label' }), 'style')).toBe(compositeLabelStyle)
+    expect(prop(tree.root.findByProps({ testID: 'composite-input' }), 'style')).toBe(compositeInputStyle)
+    expect(flattenedStyle(tree.root.findByProps({ testID: 'composite-label' })).color).toBe(compositeLabelStyle.color)
+    expect(flattenedStyle(tree.root.findByProps({ testID: 'composite-input' })).color).toBe(compositeInputStyle.color)
   })
 
   it('tints unstyled nested text and text input through arrays and fragments', () => {

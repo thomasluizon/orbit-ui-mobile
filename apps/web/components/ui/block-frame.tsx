@@ -1,13 +1,14 @@
 'use client'
 
 import type {
-  BlockFrameItem,
   BlockFrameItemStatus,
   BlockFrameProps,
+  ResolvedBlockFrameRow,
 } from '@orbit/shared/contracts/blocks'
 import {
   findMissingBlockFrameLabels,
   PROPOSED_RADIUS,
+  resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
 import { useTranslations } from 'next-intl'
 import {
@@ -26,21 +27,6 @@ type StatusViewProps = Readonly<{
 
 type StatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
 
-function resolveStatus(item: BlockFrameItem, frameState: BlockFrameProps['state']): BlockFrameItemStatus | undefined {
-  return frameState === 'acting' ? 'acting' : item.status
-}
-
-function resolveStatusLabel(
-  item: BlockFrameItem,
-  status: BlockFrameItemStatus | undefined,
-  frameState: BlockFrameProps['state'],
-  labels: StatusLabels,
-): string | undefined {
-  if (status == null) return undefined
-  if (frameState === 'acting') return labels.acting
-  return item.statusLabel ?? labels[status]
-}
-
 function StatusView({ status, label }: StatusViewProps) {
   const Glyph = status === 'done' ? CheckCircle2 : status === 'failed' ? XCircle : RefreshCw
   const color = status === 'failed' ? 'var(--status-bad)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)'
@@ -53,17 +39,7 @@ function StatusView({ status, label }: StatusViewProps) {
   )
 }
 
-type FrameRowProps = Readonly<{
-  item: BlockFrameItem
-  frameState: BlockFrameProps['state']
-  statusLabel?: string
-  irreversibleLabel?: string
-  proposedLabel?: string
-  editLabel?: string
-  onEditItem?: (itemId: string) => void
-}>
-
-function FrameRow(props: FrameRowProps) {
+function FrameRow(props: ResolvedBlockFrameRow) {
   const { item, frameState, statusLabel, onEditItem } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale'
@@ -131,21 +107,9 @@ function FrameRows({ frameProps }: Readonly<{ frameProps: Readonly<BlockFramePro
     failed: t('status.failed'),
   }
 
-  return frameProps.items.map((item) => {
-    const status = resolveStatus(item, frameProps.state)
-    return (
-      <FrameRow
-        editLabel={frameProps.editLabel}
-        frameState={frameProps.state}
-        irreversibleLabel={frameProps.irreversibleLabel}
-        item={item}
-        key={item.id}
-        onEditItem={frameProps.onEditItem}
-        proposedLabel={frameProps.proposedLabel}
-        statusLabel={resolveStatusLabel(item, status, frameProps.state, labels)}
-      />
-    )
-  })
+  return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
+    <FrameRow {...rowProps} key={rowProps.item.id} />
+  ))
 }
 
 function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Readonly<{

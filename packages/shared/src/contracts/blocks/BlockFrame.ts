@@ -4,6 +4,8 @@ export type BlockFrameState = 'loading' | 'resting' | 'acting' | 'partiallyFaile
 
 export type BlockFrameItemStatus = 'done' | 'acting' | 'failed'
 
+export type BlockFrameStatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
+
 export type BlockFrameItem = {
   readonly id: string
   readonly label: string
@@ -45,6 +47,16 @@ export type BlockFrameProps = BlockFrameCommon &
   (BlockFrameStaleArm | BlockFrameSettledArm) &
   BlockFrameItemEditArm
 
+export type ResolvedBlockFrameRow = Readonly<{
+  item: BlockFrameItem
+  frameState: BlockFrameState
+  statusLabel?: string
+  irreversibleLabel?: string
+  proposedLabel?: string
+  editLabel?: string
+  onEditItem?: (itemId: string) => void
+}>
+
 export type MissingBlockFrameLabel =
   | 'irreversibleLabel'
   | 'confirmNote'
@@ -71,4 +83,30 @@ export function findMissingBlockFrameLabels(
   }
 
   return missingLabels
+}
+
+function resolveStatusLabel(
+  item: BlockFrameItem,
+  frameState: BlockFrameState,
+  labels: BlockFrameStatusLabels,
+): string | undefined {
+  const status = frameState === 'acting' ? 'acting' : item.status
+  if (status == null) return undefined
+  if (frameState === 'acting') return labels.acting
+  return item.statusLabel ?? labels[status]
+}
+
+export function resolveBlockFrameRows(
+  props: BlockFrameProps,
+  labels: BlockFrameStatusLabels,
+): readonly ResolvedBlockFrameRow[] {
+  return props.items.map((item) => ({
+    item,
+    frameState: props.state,
+    statusLabel: resolveStatusLabel(item, props.state, labels),
+    irreversibleLabel: props.irreversibleLabel,
+    proposedLabel: props.proposedLabel,
+    editLabel: props.editLabel,
+    onEditItem: props.onEditItem,
+  }))
 }
