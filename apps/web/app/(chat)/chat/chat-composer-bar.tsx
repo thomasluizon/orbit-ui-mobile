@@ -23,7 +23,7 @@ import {
 } from '@orbit/shared/chat'
 import { InfoCard } from '@/components/ui/info-card'
 import { LocalImage } from '@/components/ui/local-image'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 
 interface ChatComposerBarProps {
@@ -98,11 +98,7 @@ function ChatComposerNotices({
     <>
       {!isOnline && (
         <div style={{ paddingBottom: 8 }}>
-          <OfflineUnavailableState
-            title={t('chat.offline.title')}
-            description={t('chat.offline.description')}
-            compact
-          />
+          <ErrorState message={t('chat.offline.description')} />
         </div>
       )}
       {sendError && (

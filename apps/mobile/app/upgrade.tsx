@@ -25,7 +25,7 @@ import {
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import {
@@ -204,11 +204,7 @@ export default function UpgradeScreen() {
       >
         {!isOnline ? (
           <View style={styles.padBlock}>
-            <OfflineUnavailableState
-              title={t('offline.title')}
-              description={t('offline.description')}
-              compact
-            />
+            <ErrorState message={t('offline.description')} />
           </View>
         ) : null}
 

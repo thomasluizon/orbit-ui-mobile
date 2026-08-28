@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import type { RetrospectivePeriod } from '@/hooks/use-retrospective'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
 import { Chip } from '@/components/ui/chip'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
@@ -40,11 +40,7 @@ export function RetrospectiveView({
     <>
       {!isOnline && (
         <div style={{ padding: '14px 20px 0' }}>
-          <OfflineUnavailableState
-            title={t('offline.title')}
-            description={t('offline.description')}
-            compact
-          />
+          <ErrorState message={t('offline.description')} />
         </div>
       )}
 

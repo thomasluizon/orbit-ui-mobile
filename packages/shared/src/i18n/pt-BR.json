@@ -1118,7 +1118,6 @@
       "deactivated": "Sua conta foi desativada. Ela será apagada de vez em {date}.",
       "reactivated": "A exclusão da sua conta foi cancelada.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
-      "offlineTitle": "Você está sem conexão",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }
   },
@@ -2057,7 +2056,6 @@
     "completedCelebrationFiled": "Arquivada.",
     "tab": "Metas",
     "empty": "Nenhuma meta ainda",
-    "emptyHint": "Crie sua primeira meta para começar a acompanhar o progresso",
     "create": "Nova meta",
     "dragItem": "item arrastável",
     "reorderHint": "Segure para reordenar",
@@ -2129,8 +2127,7 @@
       "abandoned": "Abandonadas",
       "statusFilter": "Filtrar por status",
       "clearFilter": "Limpar filtro",
-      "emptyFiltered": "Nenhuma meta corresponde a este filtro",
-      "emptyFilteredHint": "Tente outro status ou limpe o filtro"
+      "emptyFiltered": "Nenhuma meta corresponde a este filtro"
     },
     "deadline": {
       "overdue": "Atrasada",

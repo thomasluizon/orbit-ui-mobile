@@ -1,263 +1,205 @@
-import { useEffect, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ToastProps } from '@orbit/shared/contracts/feedback'
+import { zLayers } from '@orbit/shared/theme'
 import {
-  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  Animated,
-  Dimensions,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
-import { Bell, Check, Clock, X } from '@/components/ui/icons'
-import type { Icon } from '@/components/ui/icons'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { schemes } from '@orbit/shared/theme'
-import type { ThemeMode } from '@orbit/shared/types/profile'
-import { toAnimatedEasing } from '@/lib/motion'
-import {
-  createTokensV2,
-  easings,
-  lightenHex,
-  shadowsV2,
-  tintFromPrimary,
-  type AppTokensV2,
-} from '@/lib/theme'
+import { Check } from '@/components/ui/icons'
+import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 420)
-const TOAST_DURATION_MS = 4500
-const ACTION_TOAST_DURATION_MS = 6000
+const MINIMUM_DONE_LIFE_MS = 5000
 
-type Variant = 'success' | 'error' | 'info' | 'queued'
+function useDoneTimer(
+  kind: ToastProps['kind'],
+  message: string,
+  doneAfterMs: number | undefined,
+  onDone: (() => void) | undefined,
+  paused: boolean,
+) {
+  const remainingMs = useRef(MINIMUM_DONE_LIFE_MS)
+  const completed = useRef(false)
 
-interface VariantStyle {
-  icon: Icon
-  tint: string
-  discBg: string
+  useEffect(() => {
+    remainingMs.current = Math.max(MINIMUM_DONE_LIFE_MS, doneAfterMs ?? MINIMUM_DONE_LIFE_MS)
+    completed.current = false
+  }, [doneAfterMs, kind, message, onDone])
+
+  useEffect(() => {
+    if (kind !== 'done' || paused || completed.current || !onDone) return
+
+    const startedAt = Date.now()
+    const timer = setTimeout(() => {
+      if (completed.current) return
+      completed.current = true
+      remainingMs.current = 0
+      onDone()
+    }, remainingMs.current)
+
+    return () => {
+      clearTimeout(timer)
+      if (!completed.current) {
+        remainingMs.current = Math.max(0, remainingMs.current - (Date.now() - startedAt))
+      }
+    }
+  }, [kind, onDone, paused])
 }
 
-/**
- * Toast per the toast-success/error/info/queued artboards: solid sheet card,
- * radius 18, leading 32px status icon disc, Rubik 15/500 message, optional
- * accent action. Preserves the existing store contract (queue + variants,
- * including the offline `queued` kind).
- */
-export function AppToast() {
-  const insets = useSafeAreaInsets()
+function WorkingMark({ color }: Readonly<{ color: string }>) {
+  return (
+    <View style={styles.workingMark} testID="toast-working-mark" accessibilityElementsHidden>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <View style={[styles.dot, { backgroundColor: color }]} />
+    </View>
+  )
+}
+
+/** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
+export function Toast(props: Readonly<ToastProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const currentToast = useAppToastStore((state) => state.currentToast)
-  const dismissToast = useAppToastStore((state) => state.dismissToast)
-  const triggerAction = useAppToastStore((state) => state.triggerAction)
-  const translateY = useMemo(() => new Animated.Value(-48), [])
-  const opacity = useMemo(() => new Animated.Value(0), [])
-  const scale = useMemo(() => new Animated.Value(0.96), [])
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [announcedMessage, setAnnouncedMessage] = useState('')
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const onDone = props.kind === 'done' ? props.onDone : undefined
+  const doneAfterMs = props.kind === 'done' ? props.doneAfterMs : undefined
 
-  const clearTimer = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current)
-      dismissTimerRef.current = null
-    }
-  }, [])
+  useDoneTimer(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
 
-  const hideToast = useCallback(() => {
-    clearTimer()
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -48,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 0.96,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      dismissToast()
-    })
-  }, [clearTimer, dismissToast, opacity, scale, translateY])
-
-  // react-doctor-disable-next-line effect-needs-cleanup -- the effect returns clearTimer, which clears the setTimeout stored in dismissTimerRef (indirected so hideToast can also cancel it); the separate unmount effect below is a belt-and-suspenders guard https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
-    if (!currentToast) {
-      clearTimer()
-      translateY.setValue(-48)
-      opacity.setValue(0)
-      scale.setValue(0.96)
-      return
-    }
-
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 400,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 220,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 400,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-    ]).start()
-
-    clearTimer()
-    dismissTimerRef.current = setTimeout(
-      hideToast,
-      currentToast.actionLabel ? ACTION_TOAST_DURATION_MS : TOAST_DURATION_MS,
-    )
-
-    return clearTimer
-  }, [clearTimer, currentToast, hideToast, opacity, scale, translateY])
-
-  useEffect(() => clearTimer, [clearTimer])
-
-  if (!currentToast) return null
-
-  const variantStyle = getVariantStyle(currentToast.variant, tokens, currentTheme)
-  const Icon = variantStyle.icon
+    const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
+    return () => clearTimeout(timer)
+  }, [props.message])
 
   return (
-    <Animated.View
-      pointerEvents="box-none"
+    <Pressable
+      accessible
+      accessibilityLiveRegion={props.kind === 'lost' ? 'assertive' : 'polite'}
+      accessibilityRole={props.kind === 'lost' ? 'alert' : undefined}
+      accessibilityLabel={
+        props.kind === 'lost' && announcedMessage
+          ? `${announcedMessage}. ${props.detail}`
+          : announcedMessage
+      }
+      focusable={false}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={[
-        styles.container,
+        styles.toast,
         {
-          top: insets.top + 12,
-          opacity,
-          transform: [{ translateY }, { scale }],
+          backgroundColor: tokens.bgSheet,
+          borderColor: tokens.hairline,
         },
       ]}
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
+      testID={`toast-${props.kind}`}
     >
-      <Pressable
-        style={[
-          styles.toast,
-          {
-            backgroundColor: tokens.bgSheet,
-            borderColor: tokens.hairline,
-          },
-        ]}
-        onPress={hideToast}
-        accessibilityRole="button"
-      >
-        <View style={[styles.iconDisc, { backgroundColor: variantStyle.discBg }]}>
-          <Icon size={17} color={variantStyle.tint} strokeWidth={2.4} />
+      {props.kind === 'working' ? <WorkingMark color={tokens.fg2} /> : null}
+      {props.kind === 'done' ? (
+        <View
+          style={[styles.doneMark, { backgroundColor: tokens.statusDone }]}
+          testID="toast-done-mark"
+          accessibilityElementsHidden
+        >
+          <Check size={16} strokeWidth={2.4} color={tokens.bg} />
         </View>
-        <Text style={[styles.message, { color: tokens.fg1 }]}>
-          {currentToast.message}
-        </Text>
-        {currentToast.actionLabel ? (
-          <Pressable onPress={triggerAction} hitSlop={8} style={styles.actionButton} accessibilityRole="button">
-            <Text style={[styles.actionText, { color: tokens.primarySoft }]}>
-              {currentToast.actionLabel}
-            </Text>
-          </Pressable>
+      ) : null}
+      {(props.kind === 'neutral' || props.kind === 'lost') && props.icon ? (
+        <View style={styles.icon} accessibilityElementsHidden>
+          {props.icon}
+        </View>
+      ) : null}
+
+      <View style={styles.copy}>
+        <Text style={[styles.message, { color: tokens.fg1 }]}>{announcedMessage}</Text>
+        {props.kind === 'lost' && announcedMessage ? (
+          <Text style={[styles.detail, { color: tokens.fg3 }]}>{props.detail}</Text>
         ) : null}
-      </Pressable>
-    </Animated.View>
+      </View>
+
+      {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
+        <Pressable
+          onPress={props.onAction}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          accessibilityRole="button"
+          accessibilityLabel={props.actionLabel}
+          hitSlop={8}
+          style={({ pressed }) => [styles.action, pressed ? styles.pressed : null]}
+          testID="toast-action"
+        >
+          <Text style={[styles.actionText, { color: tokens.fg1 }]}>{props.actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </Pressable>
   )
 }
 
-function hexWithAlpha(hex: string, alpha: number): string {
-  const alphaByte = Math.round(alpha * 255)
-    .toString(16)
-    .padStart(2, '0')
-  return `${hex}${alphaByte}`
-}
+/** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
+export function AppToast() {
+  const currentToast = useAppToastStore((state) => state.currentToast)
+  const triggerAction = useAppToastStore((state) => state.triggerAction)
 
-function getVariantStyle(
-  variant: Variant,
-  tokens: AppTokensV2,
-  themeMode: ThemeMode,
-): VariantStyle {
-  const isLight = themeMode === 'light'
+  if (!currentToast) return null
 
-  switch (variant) {
-    case 'success': {
-      const successAccent = schemes.green.accent[isLight ? 'light' : 'dark']
-      return {
-        icon: Check,
-        tint: successAccent.primary,
-        discBg: `rgba(${successAccent.primaryRgb}, 0.16)`,
-      }
-    }
-    case 'info':
-      return {
-        icon: Bell,
-        tint: tokens.primarySoft,
-        discBg: tintFromPrimary(tokens, 0.18),
-      }
-    case 'queued':
-      return {
-        icon: Clock,
-        tint: tokens.fg2,
-        discBg: hexWithAlpha(tokens.fg1, 0.1),
-      }
-    default:
-      return {
-        icon: X,
-        tint: isLight ? tokens.statusBad : lightenHex(tokens.statusBad, 0.35),
-        discBg: hexWithAlpha(tokens.statusBad, 0.16),
-      }
-  }
+  const toast = currentToast.toast
+  const hostedToast =
+    (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
+      ? { ...toast, onAction: triggerAction }
+      : toast
+
+  return (
+    <View pointerEvents="box-none" style={styles.host}>
+      <Toast {...hostedToast} />
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  host: {
     position: 'absolute',
-    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-    width: TOAST_WIDTH,
-    zIndex: 10000,
+    top: 64,
+    left: 16,
+    right: 16,
+    zIndex: zLayers.toast,
   },
   toast: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    ...shadowsV2.shadow3,
+    borderRadius: radius.xl,
+    padding: 16,
+    ...shadowsV2.shadow2,
   },
-  iconDisc: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
+  workingMark: { flexDirection: 'row', gap: 4 },
+  dot: { width: 4, height: 4, borderRadius: radius.full },
+  doneMark: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  message: {
-    flex: 1,
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-  },
-  actionButton: {
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-  },
+  icon: { flexShrink: 0 },
+  copy: { flex: 1, gap: 4 },
+  message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  action: { padding: 8 },
   actionText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
+    textDecorationLine: 'underline',
   },
+  pressed: { opacity: 0.7 },
 })

@@ -1,65 +1,34 @@
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
-import React from 'react'
-import { SkeletonLine, SkeletonCard } from '@/components/ui/skeleton'
+import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { Skeleton } from '@/components/ui/skeleton'
 
-describe('SkeletonLine', () => {
-  it('renders with default classes', () => {
-    const { container } = render(<SkeletonLine />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('skeleton-pulse')
-    expect(div).toHaveAttribute('aria-hidden', 'true')
+describe('Skeleton', () => {
+  it('exposes its label, busy state, and final-layout variant', () => {
+    render(<Skeleton variant="habit-row" label="Loading habits" />)
+
+    const unit = screen.getByLabelText('Loading habits')
+    expect(unit).toHaveAttribute('aria-busy', 'true')
+    expect(unit).not.toHaveAttribute('aria-hidden')
+    expect(unit).toHaveAttribute('data-variant', 'habit-row')
   })
 
-  it('applies custom width and height', () => {
-    const { container } = render(<SkeletonLine width="w-1/2" height="h-5" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('w-1/2')
-    expect(div).toHaveClass('h-5')
+  it('renders a seven-column grid on the supplied dimensions', () => {
+    const { container } = render(
+      <div style={{ height: 40 }}>
+        <Skeleton variant="grid" label="Loading calendar" cols={7} cell={40} gap={8} />
+      </div>,
+    )
+
+    const grid = container.querySelector('[data-cols="7"]') as HTMLElement
+    expect(grid).toHaveStyle({ gridTemplateColumns: 'repeat(7, 40px)', gap: '8px' })
+    expect(grid.children).toHaveLength(7)
+    expect(grid.firstElementChild).toHaveStyle({ width: '40px', height: '40px' })
   })
 
-  it('applies custom className', () => {
-    const { container } = render(<SkeletonLine className="mt-4" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('mt-4')
-  })
-})
+  it('uses only an opacity pulse and no sweep or spinner', () => {
+    const { container } = render(<Skeleton variant="settings" label="Loading settings" />)
 
-describe('SkeletonCard', () => {
-  it('renders default 3 lines', () => {
-    const { container } = render(<SkeletonCard />)
-    const card = container.firstChild as HTMLElement
-    expect(card).toHaveAttribute('aria-hidden', 'true')
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines).toHaveLength(3)
-  })
-
-  it('renders custom number of lines', () => {
-    const { container } = render(<SkeletonCard lines={5} />)
-    const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines).toHaveLength(5)
-  })
-
-  it('first line is wider (h-4) than others', () => {
-    const { container } = render(<SkeletonCard lines={3} />)
-    const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines[0]).toHaveClass('h-4')
-    expect(lines[0]).toHaveClass('w-1/3')
-  })
-
-  it('last line has w-2/3', () => {
-    const { container } = render(<SkeletonCard lines={3} />)
-    const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines[2]).toHaveClass('w-2/3')
-  })
-
-  it('applies className', () => {
-    const { container } = render(<SkeletonCard className="my-card" />)
-    const card = container.firstChild as HTMLElement
-    expect(card).toHaveClass('my-card')
+    expect(container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
+    expect(container.innerHTML).not.toMatch(/gradient|shimmer|spinner/i)
   })
 })
-

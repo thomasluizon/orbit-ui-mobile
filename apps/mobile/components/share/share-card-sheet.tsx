@@ -14,7 +14,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShareCard } from './share-card'
@@ -61,8 +61,8 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
 
         {isLoading ? (
           <View style={styles.loadingStack}>
-            <SkeletonLine width={360} height={430} style={styles.cardSkeleton} />
-            <SkeletonLine width={360} height={54} style={styles.pillSkeleton} />
+            <Skeleton variant="grid" cols={1} cell={360} gap={0} label={t('shareCard.loading')} />
+            <Skeleton variant="settings" label={t('shareCard.loading')} />
           </View>
         ) : null}
 
