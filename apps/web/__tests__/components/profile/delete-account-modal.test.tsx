@@ -167,7 +167,7 @@ describe('DeleteAccountModal', () => {
     expect(screen.queryByText('Network error')).not.toBeInTheDocument()
   })
 
-  it('renders 6 code input fields in code step', async () => {
+  it('renders one real code input with six visual cells in code step', async () => {
     render(
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
@@ -178,8 +178,9 @@ describe('DeleteAccountModal', () => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    const inputs = screen.getAllByRole('textbox')
-    expect(inputs).toHaveLength(6)
+    expect(
+      screen.getByRole('textbox', { name: 'profile.deleteAccount.headingConfirmCode' }),
+    ).toBeInTheDocument()
   })
 
   it('confirm button is disabled when code is incomplete', async () => {
@@ -207,10 +208,10 @@ describe('DeleteAccountModal', () => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    const inputs = screen.getAllByRole('textbox')
-    inputs.forEach((input, i) => {
-      fireEvent.change(input, { target: { value: String(i + 1) } })
-    })
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'profile.deleteAccount.headingConfirmCode' }),
+      { target: { value: '123456' } },
+    )
 
     fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
 
@@ -235,10 +236,10 @@ describe('DeleteAccountModal', () => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    const inputs = screen.getAllByRole('textbox')
-    inputs.forEach((input, i) => {
-      fireEvent.change(input, { target: { value: String(i + 1) } })
-    })
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'profile.deleteAccount.headingConfirmCode' }),
+      { target: { value: '123456' } },
+    )
 
     fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
 
@@ -258,10 +259,10 @@ describe('DeleteAccountModal', () => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    const inputs = screen.getAllByRole('textbox')
-    inputs.forEach((input, i) => {
-      fireEvent.change(input, { target: { value: String(i + 1) } })
-    })
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'profile.deleteAccount.headingConfirmCode' }),
+      { target: { value: '123456' } },
+    )
 
     fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
     await waitFor(() => {

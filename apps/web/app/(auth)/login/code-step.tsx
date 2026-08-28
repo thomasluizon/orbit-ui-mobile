@@ -67,7 +67,7 @@ export function CodeStep({
           transition={{ duration: 0.28, ease: 'easeInOut' }}
         >
           <OtpInput
-            label={t('profile.deleteAccount.headingConfirmCode')}
+            label={t('auth.verificationCode')}
             value={codeDigits.join('')}
             onChange={(value) => onCodeInput(0, value)}
             error={errorSignal ?? undefined}

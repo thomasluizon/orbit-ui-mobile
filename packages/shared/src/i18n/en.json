@@ -282,6 +282,7 @@
     "sendCode": "Send code",
     "codeSent": "Verification code sent. Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
+    "verificationCode": "Verification code",
     "verify": "Verify",
     "resendCode": "Resend code",
     "resendIn": "Resend in {seconds}s",
