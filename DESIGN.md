@@ -674,7 +674,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Field | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
 | OTP | 6 boxes, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
 | Overlay | see **Overlay** | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
-| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 12 (active primary-soft / inactive fg-3), 500 weight; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | EmptyState mark | 96px, the real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned empty state takes `AstraGlyph` instead, via a prop | `ui/empty-state.tsx` | same |
 | ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--fg-4` track | right rail / Today | same |

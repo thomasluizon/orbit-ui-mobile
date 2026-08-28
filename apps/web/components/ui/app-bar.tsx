@@ -3,8 +3,6 @@
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, HelpCircle, Share2, X } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
-import { useInAppShell } from '@/components/shell/in-app-shell-context'
 import {
   resolveAppBarRightActionLabel,
   type AppBarRightVariant,
@@ -91,8 +89,6 @@ export function AppBar({
   rightLabel,
 }: Readonly<AppBarProps>) {
   const t = useTranslations('common')
-  const inAppShell = useInAppShell()
-  const isDesktop = useIsDesktop()
   const resolvedBackLabel = backLabel ?? t('back')
   const hasBack = back || !!onBack
 
@@ -108,22 +104,6 @@ export function AppBar({
       onBack={onBack}
     />
   ) : null
-
-  if (inAppShell && isDesktop) {
-    const trailingCluster = trailing ?? rightAction
-    if (!backButton && !trailingCluster) return null
-    return (
-      <div
-        className="flex items-center justify-between shrink-0"
-        style={{ minHeight: 48 }}
-      >
-        <div className="flex items-center justify-start">{backButton}</div>
-        <div className="flex items-center justify-end" style={{ gap: 10 }}>
-          {trailingCluster}
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div

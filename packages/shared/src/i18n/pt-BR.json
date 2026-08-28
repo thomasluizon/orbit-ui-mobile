@@ -101,6 +101,7 @@
     "back": "Voltar",
     "backToProfile": "Voltar ao perfil",
     "backToTop": "Voltar ao topo",
+    "skipToContent": "Pular para o conteúdo principal",
     "goHome": "Ir ao início",
     "cancel": "Cancelar",
     "goBack": "Voltar",
@@ -183,14 +184,10 @@
     "chat": "Chat",
     "createHabit": "Criar hábito",
     "profile": "Perfil",
-    "home": "Início",
     "astra": "Astra",
-    "you": "Você",
     "create": "Criar",
     "today": "Hoje",
-    "goals": "Metas",
-    "insights": "Análises",
-    "explore": "Explorar",
+    "progress": "Progresso",
     "mainNavigation": "Navegação principal"
   },
   "shell": {

@@ -23,7 +23,6 @@ import {
 import { useLogout } from '@/hooks/use-logout'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -148,7 +147,6 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <GradientTop height={300} />
       <AppBar
         LeadingIcon={UserIcon}
         trailing={

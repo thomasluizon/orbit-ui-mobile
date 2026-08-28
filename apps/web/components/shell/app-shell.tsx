@@ -1,281 +1,186 @@
 'use client'
 
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User } from '@/components/ui/icons'
-import { AstraMark } from '@/components/ui/astra-avatar'
-import {
-  AppSidebar,
-  type SidebarNavItem,
-  type SidebarSection,
-} from '@/components/navigation/app-sidebar'
-import { CommandPalette } from '@/components/command/command-palette'
-import { useProfile } from '@/hooks/use-profile'
+import type { ShellWideItem } from '@orbit/shared/contracts/shell'
+import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
+import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
+import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
+import { Fab } from '@/components/ui/fab'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useProfile } from '@/hooks/use-profile'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
-import { AstraCopilotRail } from './astra-copilot-rail'
-import { DesktopTopbar } from './desktop-topbar'
-import { InAppShellProvider } from './in-app-shell-context'
-import { RailDrawer } from './rail-drawer'
-import { RightRail } from './right-rail'
-import { TodayRail } from './today-rail'
-import { TopbarSlotProvider } from './topbar-slot'
-import { resolveTopbarTitleKey } from './topbar-title'
+import { useUIStore } from '@/stores/ui-store'
+import { Shell412 } from './shell-412'
+import { ShellWide } from './shell-wide'
 
 interface AppShellProps {
   children: ReactNode
+  notice?: ReactNode
   onCreate: () => void
 }
 
-type HabitSubView = 'today' | 'all' | 'general'
+const ROUTES: Record<BottomTab, string> = {
+  hoje: '/',
+  calendario: '/calendar',
+  progresso: '/progress',
+  perfil: '/profile',
+}
 
-/**
- * Desktop application shell (≥768px): a full-bleed three-column layout — sidebar
- * (left edge) | main (flex, min-w-0, content centered at `--content-max-w`) | contextual
- * right rail (right edge). Main carries the full-width gradient header and a topbar.
- * Below 768px it collapses to the single content column (sidebar, rail, and topbar hide
- * themselves), leaving the phone layout untouched. Today/Goals are `activeView` switches
- * on `/`, not routes.
- */
-export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
+function resolveDestination(pathname: string): BottomTab {
+  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendario'
+  if (pathname === '/progress' || pathname.startsWith('/progress/')) return 'progresso'
+  if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'perfil'
+  return 'hoje'
+}
+
+function hasPrimaryNavigation(pathname: string): boolean {
+  return pathname !== '/upgrade'
+}
+
+export function AppShell({ children, notice, onCreate }: Readonly<AppShellProps>) {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
+  const wide = useIsWideDesktop()
   const { profile } = useProfile()
-  const hasProAccess = profile?.hasProAccess ?? false
-  const activeView = useUIStore((state) => state.activeView)
-  const setActiveView = useUIStore((state) => state.setActiveView)
-  const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed)
-  const toggleSidebar = useShellStore((state) => state.toggleSidebar)
-  const railOpen = useShellStore((state) => state.railOpen)
-  const setRailOpen = useShellStore((state) => state.setRailOpen)
-  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
-  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
+  const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
+  const destination = resolveDestination(pathname)
+  const navigationEnabled = hasPrimaryNavigation(pathname)
 
   useKeyboardShortcuts()
 
-  useEffect(() => {
-    const query = window.matchMedia('(min-width: 1280px)')
-    if (query.matches) setRailOpen(false)
-    const handleBreakpointChange = (event: MediaQueryListEvent) => {
-      if (event.matches) setRailOpen(false)
-    }
-    query.addEventListener('change', handleBreakpointChange)
-    return () => query.removeEventListener('change', handleBreakpointChange)
-  }, [setRailOpen])
+  const labels = useMemo<Record<BottomTab, string>>(
+    () => ({
+      hoje: t('nav.today'),
+      calendario: t('nav.calendar'),
+      progresso: t('nav.progress'),
+      perfil: t('nav.profile'),
+    }),
+    [t],
+  )
 
-  const onHome = pathname === '/'
-  const goalsActive = onHome && activeView === 'goals'
-  const habitsActive = onHome && activeView !== 'goals'
-  const isWideRoute = pathname.startsWith('/calendar') && !pathname.startsWith('/calendar-sync')
-
-  const navigateTab = useMemo(
-    () => (path: string) => {
-      setAstraMaximized(false)
+  const navigate = useCallback(
+    (id: BottomTab) => {
       setRouteTransitionIntent('tab')
-      router.push(path)
+      router.push(ROUTES[id])
     },
-    [router, setAstraMaximized],
+    [router],
   )
 
-  const selectHabitView = useMemo(
-    () => (view: HabitSubView) => {
-      setActiveView(view)
-      navigateTab('/')
-    },
-    [navigateTab, setActiveView],
-  )
-
-  const openGoals = useMemo(
-    () => () => {
-      if (!hasProAccess) {
-        setRouteTransitionIntent('forward')
-        router.push('/upgrade')
-        return
-      }
-      setActiveView('goals')
-      navigateTab('/')
-    },
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [router, navigateTab, setActiveView, hasProAccess],
-  )
-
-  const sidebarSections = useMemo<SidebarSection[]>(
+  const wideItems = useMemo<ShellWideItem[]>(
     () => [
+      { id: 'hoje', label: labels.hoje, icon: 'home' },
+      { id: 'calendario', label: labels.calendario, icon: 'calendar' },
+      { id: 'progresso', label: labels.progresso, icon: 'chart-line' },
+      { id: 'perfil', label: labels.perfil, icon: 'user' },
+    ],
+    [labels],
+  )
+
+  const commandItems = useMemo<CommandNavigationItem[]>(
+    () => [
+      { id: 'hoje', label: labels.hoje, icon: Home, onSelect: () => navigate('hoje') },
       {
-        id: 'habits',
-        label: t('nav.habits'),
-        icon: Home,
-        active: habitsActive,
-        expanded: habitsActive,
-        onSelect: () => selectHabitView('today'),
-        children: [
-          {
-            id: 'today',
-            label: t('habits.viewToday'),
-            active: onHome && activeView === 'today',
-            onSelect: () => selectHabitView('today'),
-          },
-          {
-            id: 'all',
-            label: t('habits.viewAll'),
-            active: onHome && activeView === 'all',
-            onSelect: () => selectHabitView('all'),
-          },
-          {
-            id: 'general',
-            label: t('habits.viewGeneral'),
-            active: onHome && activeView === 'general',
-            onSelect: () => selectHabitView('general'),
-          },
-        ],
-      },
-      {
-        id: 'calendar',
-        label: t('nav.calendar'),
+        id: 'calendario',
+        label: labels.calendario,
         icon: CalendarDays,
-        active: pathname.startsWith('/calendar'),
-        onSelect: () => navigateTab('/calendar'),
+        onSelect: () => navigate('calendario'),
       },
       {
-        id: 'goals',
-        label: t('nav.goals'),
-        icon: Target,
-        active: goalsActive,
-        onSelect: openGoals,
+        id: 'progresso',
+        label: labels.progresso,
+        icon: ChartLine,
+        onSelect: () => navigate('progresso'),
       },
-      {
-        id: 'insights',
-        label: t('nav.insights'),
-        icon: BarChart3,
-        active: pathname.startsWith('/insights'),
-        onSelect: () => navigateTab('/insights'),
-      },
-      {
-        id: 'astra',
-        label: t('nav.astra'),
-        icon: AstraMark,
-        active: false,
-        onSelect: () => {
-          setAstraOpen(true)
-          setAstraMaximized(true)
-        },
-      },
-      {
-        id: 'explore',
-        label: t('nav.explore'),
-        icon: Compass,
-        active: pathname.startsWith('/explore'),
-        onSelect: () => navigateTab('/explore'),
-      },
-      {
-        id: 'profile',
-        label: t('nav.profile'),
-        icon: User,
-        active: pathname.startsWith('/profile'),
-        onSelect: () => navigateTab('/profile'),
-      },
+      { id: 'perfil', label: labels.perfil, icon: User, onSelect: () => navigate('perfil') },
     ],
-    [
-      t,
-      navigateTab,
-      pathname,
-      onHome,
-      activeView,
-      habitsActive,
-      goalsActive,
-      selectHabitView,
-      openGoals,
-      setAstraOpen,
-      setAstraMaximized,
-    ],
+    [labels, navigate],
   )
 
-  const commandItems = useMemo<SidebarNavItem[]>(
-    () => [
-      { id: 'today', label: t('habits.viewToday'), icon: Home, onSelect: () => selectHabitView('today') },
-      { id: 'all', label: t('habits.viewAll'), icon: ListTodo, onSelect: () => selectHabitView('all') },
-      { id: 'general', label: t('habits.viewGeneral'), icon: InfinityIcon, onSelect: () => selectHabitView('general') },
-      { id: 'calendar', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => navigateTab('/calendar') },
-      { id: 'goals', label: t('nav.goals'), icon: Target, onSelect: openGoals },
-      { id: 'insights', label: t('nav.insights'), icon: BarChart3, onSelect: () => navigateTab('/insights') },
-      {
-        id: 'astra',
-        label: t('nav.astra'),
-        icon: AstraMark,
-        onSelect: () => {
-          setAstraOpen(true)
-          setAstraMaximized(true)
-        },
-      },
-      { id: 'explore', label: t('nav.explore'), icon: Compass, onSelect: () => navigateTab('/explore') },
-      { id: 'profile', label: t('nav.profile'), icon: User, onSelect: () => navigateTab('/profile') },
-    ],
-    [t, navigateTab, selectHabitView, openGoals, setAstraOpen, setAstraMaximized],
+  const palette = (
+    <CommandPalette
+      navItems={commandItems}
+      onCreateHabit={() => setShowCreateModal(true)}
+      onCreateGoal={() => setShowCreateGoalModal(true)}
+    />
   )
 
-  const topbarTitle = useMemo(() => {
-    const titleKey = resolveTopbarTitleKey(pathname, onHome)
-    return titleKey ? t(titleKey) : ''
-  }, [t, pathname, onHome])
+  if (!navigationEnabled) {
+    const flow = wide ? (
+      <ShellWide nav={false} notice={notice}>
+        {children}
+      </ShellWide>
+    ) : (
+      <Shell412 nav={false} notice={notice}>
+        {children}
+      </Shell412>
+    )
+    return (
+      <>
+        {flow}
+        {palette}
+      </>
+    )
+  }
 
-  const railContent = onHome && !goalsActive ? <TodayRail /> : null
+  if (wide) {
+    return (
+      <>
+        <a
+          href="#orbit-main"
+          className="z-tooltip fixed left-4 top-4 -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
+        >
+          {t('common.skipToContent')}
+        </a>
+        <ShellWide
+          items={wideItems}
+          activeId={destination}
+          navLabel={t('nav.mainNavigation')}
+          onSelect={(id) => navigate(id as BottomTab)}
+          onCreate={onCreate}
+          createLabel={t('nav.create')}
+          account={profile?.email}
+          onPalette={() => setPaletteOpen(true)}
+          paletteLabel={t('command.title')}
+          paletteHint="Ctrl K"
+          notice={notice}
+        >
+          <div id="orbit-main">{children}</div>
+        </ShellWide>
+        {palette}
+      </>
+    )
+  }
 
   return (
-    <TopbarSlotProvider>
-      <InAppShellProvider>
-        <div className="md:flex">
-          <AppSidebar
-            sections={sidebarSections}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={toggleSidebar}
-            collapseLabel={t('shell.collapseSidebar')}
-            expandLabel={t('shell.expandSidebar')}
-            onCreate={onCreate}
-            createLabel={t('nav.create')}
-            brandLabel="Orbit"
+    <>
+      <Shell412
+        tabBar={
+          <BottomTabBar
+            active={destination}
+            labels={labels}
             navLabel={t('nav.mainNavigation')}
+            onTab={navigate}
           />
-
-          <main className="relative z-10 min-w-0 flex-1 md:[container-type:inline-size]">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
-              style={{ height: 260, background: 'var(--gradient-header)' }}
-            />
-            <div className={`mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:px-8 xl:px-10 md:pb-16 ${isWideRoute ? 'md:max-w-[var(--content-max-w)]' : ''}`}>
-              <DesktopTopbar title={topbarTitle} showRailToggle={!!railContent} />
-              {children}
-            </div>
-          </main>
-
-          {railContent && <RightRail ariaLabel={t('rail.todayProgress')}>{railContent}</RightRail>}
-
-          <RailDrawer open={railOpen && !!railContent} onClose={() => setRailOpen(false)}>
-            {railContent}
-          </RailDrawer>
-
-          <AstraCopilotRail />
-
-          <CommandPalette
-            navItems={commandItems}
-            onCreateHabit={() => setShowCreateModal(true)}
-            onCreateGoal={() => {
-              if (!hasProAccess) {
-                setRouteTransitionIntent('forward')
-                router.push('/upgrade')
-                return
-              }
-              setShowCreateGoalModal(true)
-            }}
-          />
-        </div>
-      </InAppShellProvider>
-    </TopbarSlotProvider>
+        }
+        fab={
+          pathname === '/' ? (
+            <Fab label={t('nav.create')} onClick={onCreate}>
+              <Plus size={24} strokeWidth={2} aria-hidden="true" />
+            </Fab>
+          ) : undefined
+        }
+        notice={notice}
+      >
+        {children}
+      </Shell412>
+      {palette}
+    </>
   )
 }

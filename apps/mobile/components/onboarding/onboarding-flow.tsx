@@ -28,7 +28,6 @@ import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingTemplatePacks } from './onboarding-template-packs'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -402,7 +401,6 @@ export function OnboardingFlow() {
       onRequestClose={handleRequestClose}
     >
       <View style={styles.container}>
-        <GradientTop height={520} />
         <View
           style={[
             styles.header,

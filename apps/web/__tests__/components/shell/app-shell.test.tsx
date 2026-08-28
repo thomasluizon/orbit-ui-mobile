@@ -1,155 +1,127 @@
-import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-
-const push = vi.fn()
-const setActiveView = vi.fn()
-const setShowCreateModal = vi.fn()
-const setShowCreateGoalModal = vi.fn()
-const setRailOpen = vi.fn()
-const setAstraOpen = vi.fn()
-const setAstraMaximized = vi.fn()
-const setRouteTransitionIntent = vi.fn()
-
-interface SidebarChild { id: string; label: string; onSelect: () => void }
-interface SidebarSection { id: string; label: string; onSelect: () => void; children?: SidebarChild[] }
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
-  profile: { hasProAccess: true } as Record<string, unknown> | undefined,
-  sections: [] as SidebarSection[],
-  createHabit: (() => {}) as () => void,
-  createGoal: (() => {}) as () => void,
+  pathname: '/',
+  wide: false,
+  push: vi.fn(),
+  routeIntent: vi.fn(),
+  setPaletteOpen: vi.fn(),
+  setShowCreateModal: vi.fn(),
+  setShowCreateGoalModal: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }), usePathname: () => '/' }))
-vi.mock('@/components/ui/astra-avatar', () => ({ AstraMark: () => <span /> }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => mocks.pathname,
+  useRouter: () => ({ push: mocks.push }),
+}))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
-vi.mock('@/lib/motion/route-intent', () => ({ setRouteTransitionIntent: (intent: string) => setRouteTransitionIntent(intent) }))
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector({ activeView: 'today', setActiveView, setShowCreateModal, setShowCreateGoalModal }),
-}))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
+vi.mock('@/lib/motion/route-intent', () => ({ setRouteTransitionIntent: mocks.routeIntent }))
 vi.mock('@/stores/shell-store', () => ({
-  useShellStore: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector({ sidebarCollapsed: false, toggleSidebar: vi.fn(), railOpen: false, setRailOpen, setAstraOpen, setAstraMaximized }),
+  useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen }) => unknown) =>
+    selector({ setPaletteOpen: mocks.setPaletteOpen }),
 }))
-vi.mock('@/components/navigation/app-sidebar', () => ({
-  AppSidebar: ({ sections, onCreate }: { sections: SidebarSection[]; onCreate: () => void }) => {
-    mocks.sections = sections
-    return (
-      <div>
-        {sections.map((section) => (
-          <div key={section.id}>
-            <button type="button" aria-label={section.id} onClick={section.onSelect} />
-            {section.children?.map((child) => (
-              <button key={child.id} type="button" aria-label={`child-${child.id}`} onClick={child.onSelect} />
-            ))}
-          </div>
-        ))}
-        <button type="button" aria-label="sidebar-create" onClick={onCreate} />
-      </div>
-    )
-  },
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (
+    selector: (state: {
+      setShowCreateModal: typeof mocks.setShowCreateModal
+      setShowCreateGoalModal: typeof mocks.setShowCreateGoalModal
+    }) => unknown,
+  ) => selector({
+    setShowCreateModal: mocks.setShowCreateModal,
+    setShowCreateGoalModal: mocks.setShowCreateGoalModal,
+  }),
 }))
-vi.mock('@/components/command/command-palette', () => ({
-  CommandPalette: ({ onCreateHabit, onCreateGoal }: { onCreateHabit: () => void; onCreateGoal: () => void }) => {
-    mocks.createHabit = onCreateHabit
-    mocks.createGoal = onCreateGoal
-    return (
-      <div>
-        <button type="button" aria-label="cmd-create-habit" onClick={onCreateHabit} />
-        <button type="button" aria-label="cmd-create-goal" onClick={onCreateGoal} />
-      </div>
-    )
-  },
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/components/ui/fab', () => ({
+  Fab: ({ label, onClick }: { label: string; onClick: () => void }) => (
+    <button type="button" aria-label={label} onClick={onClick} />
+  ),
 }))
-vi.mock('@/components/shell/astra-copilot-rail', () => ({ AstraCopilotRail: () => null }))
-vi.mock('@/components/shell/desktop-topbar', () => ({ DesktopTopbar: () => <div data-testid="topbar" /> }))
-vi.mock('@/components/shell/in-app-shell-context', () => ({ InAppShellProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/components/shell/rail-drawer', () => ({ RailDrawer: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/components/shell/right-rail', () => ({ RightRail: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/components/shell/today-rail', () => ({ TodayRail: () => <div data-testid="today-rail" /> }))
-vi.mock('@/components/shell/topbar-slot', () => ({ TopbarSlotProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/components/shell/topbar-title', () => ({ resolveTopbarTitleKey: () => '' }))
+vi.mock('@/components/shell/shell-412', () => ({
+  Shell412: ({ children, tabBar, fab, notice }: {
+    children: ReactNode
+    tabBar?: ReactNode
+    fab?: ReactNode
+    notice?: ReactNode
+  }) => <div data-testid="compact-shell">{children}{notice}{tabBar}{fab}</div>,
+}))
+vi.mock('@/components/shell/shell-wide', () => ({
+  ShellWide: ({ children, items, onSelect, onCreate, notice }: {
+    children: ReactNode
+    items?: ReadonlyArray<{ id: string; label: string }>
+    onSelect?: (id: string) => void
+    onCreate?: () => void
+    notice?: ReactNode
+  }) => (
+    <div data-testid="wide-shell">
+      {children}{notice}
+      {items?.map((item) => (
+        <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
+      ))}
+      {onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+    </div>
+  ),
+}))
 
 import { AppShell } from '@/components/shell/app-shell'
 
-function renderShell() {
-  const onCreate = vi.fn()
-  render(
-    <AppShell onCreate={onCreate}>
-      <div data-testid="content" />
-    </AppShell>,
-  )
-  return onCreate
-}
-
 describe('AppShell', () => {
   beforeEach(() => {
-    push.mockClear()
-    setActiveView.mockClear()
-    setShowCreateModal.mockClear()
-    setShowCreateGoalModal.mockClear()
-    setAstraMaximized.mockClear()
-    setRouteTransitionIntent.mockClear()
-    mocks.profile = { hasProAccess: true }
+    mocks.pathname = '/'
+    mocks.wide = false
+    vi.clearAllMocks()
   })
 
-  it('renders the shell content and today rail on the home route', () => {
-    renderShell()
-    expect(screen.getByTestId('content')).toBeInTheDocument()
-    expect(screen.getAllByTestId('today-rail').length).toBeGreaterThan(0)
+  it('renders exactly four compact destinations and keeps the FAB on Hoje only', () => {
+    const onCreate = vi.fn()
+    render(<AppShell onCreate={onCreate}><h1>Today</h1></AppShell>)
+
+    expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'nav.today',
+      'nav.calendar',
+      'nav.progress',
+      'nav.profile',
+      'nav.create',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.routeIntent).toHaveBeenCalledWith('tab')
   })
 
-  it('opens Goals for a Pro user by switching view and navigating home', () => {
-    renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'goals' }))
-    expect(setActiveView).toHaveBeenCalledWith('goals')
-    expect(setRouteTransitionIntent).toHaveBeenCalledWith('tab')
-    expect(setAstraMaximized).toHaveBeenCalledWith(false)
-    expect(push).toHaveBeenCalledWith('/')
+  it('removes the compact FAB away from Hoje', () => {
+    mocks.pathname = '/calendar'
+    render(<AppShell onCreate={() => {}}><h1>Calendar</h1></AppShell>)
+
+    expect(screen.queryByRole('button', { name: 'nav.create' })).not.toBeInTheDocument()
   })
 
-  it('gates Goals behind upgrade for a free user', () => {
-    mocks.profile = { hasProAccess: false }
-    renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'goals' }))
-    expect(push).toHaveBeenCalledWith('/upgrade')
-    expect(setActiveView).not.toHaveBeenCalledWith('goals')
-  })
+  it('renders the same four destinations in the wide shell', () => {
+    mocks.wide = true
+    const onCreate = vi.fn()
+    render(<AppShell onCreate={onCreate}><h1>Today</h1></AppShell>)
 
-  it('selects a habit sub-view and returns to home', () => {
-    renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'child-all' }))
-    expect(setActiveView).toHaveBeenCalledWith('all')
-    expect(push).toHaveBeenCalledWith('/')
-  })
-
-  it('opens the create-habit modal from the command palette', () => {
-    renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'cmd-create-habit' }))
-    expect(setShowCreateModal).toHaveBeenCalledWith(true)
-  })
-
-  it('routes command-palette goal creation to upgrade for free users', () => {
-    mocks.profile = { hasProAccess: false }
-    renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'cmd-create-goal' }))
-    expect(push).toHaveBeenCalledWith('/upgrade')
-    expect(setShowCreateGoalModal).not.toHaveBeenCalled()
-  })
-
-  it('opens the create-goal modal from the command palette for Pro users', () => {
-    renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'cmd-create-goal' }))
-    expect(setShowCreateGoalModal).toHaveBeenCalledWith(true)
-  })
-
-  it('forwards the sidebar create action to the shell owner', () => {
-    const onCreate = renderShell()
-    fireEvent.click(screen.getByRole('button', { name: 'sidebar-create' }))
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'nav.today',
+      'nav.calendar',
+      'nav.progress',
+      'nav.profile',
+      '',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'wide-create' }))
     expect(onCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the flow shell without primary navigation on upgrade', () => {
+    mocks.pathname = '/upgrade'
+    render(<AppShell onCreate={() => {}}><h1>Upgrade</h1></AppShell>)
+
+    expect(screen.getByTestId('compact-shell')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 })

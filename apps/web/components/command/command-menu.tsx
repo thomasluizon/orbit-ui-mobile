@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from '@/components/ui/icons'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from 'cmdk'
-import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
 import { useUIStore } from '@/stores/ui-store'
 import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { CommandRow } from './command-row'
 import { CommandHabitItems } from './command-habit-items'
 import { buildCommandHabitList } from './build-command-habit-list'
+import type { CommandNavigationItem } from './command-palette'
 
 type CommandPage = 'log' | 'skip'
 
@@ -55,7 +55,7 @@ function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string[]; lab
 }
 
 interface CommandMenuProps {
-  navItems: readonly SidebarNavItem[]
+  navItems: readonly CommandNavigationItem[]
   onCreateHabit: () => void
   onCreateGoal: () => void
   onClose: () => void

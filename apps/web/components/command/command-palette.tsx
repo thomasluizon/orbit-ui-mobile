@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AnimatePresence,
@@ -11,14 +11,21 @@ import {
 } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
-import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
+import type { IconProps } from '@/components/ui/icons'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
 import { CommandMenu } from './command-menu'
 
+export interface CommandNavigationItem {
+  id: string
+  label: string
+  icon: ComponentType<IconProps>
+  onSelect: () => void
+}
+
 interface CommandPaletteProps {
-  navItems: readonly SidebarNavItem[]
+  navItems: readonly CommandNavigationItem[]
   onCreateHabit: () => void
   onCreateGoal: () => void
 }
@@ -49,7 +56,7 @@ export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readon
     <LazyMotion features={domAnimation}>
       <AnimatePresence>
         {paletteOpen ? (
-          <div className="fixed inset-0 z-[9999] flex items-start justify-center px-4 pt-[12vh]">
+          <div className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-[12vh]">
             <m.button
               type="button"
               aria-label={t('common.close')}

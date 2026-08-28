@@ -6,7 +6,6 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { createLoginStyles } from './login-styles'
 import { useLoginFlow } from './use-login-flow'
 import { LoginHeader, ReferralBanner, LoginSuccessMessage } from './login-sections'
@@ -57,7 +56,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <GradientTop height={320} />
       <KeyboardAwareScrollView
         containerStyle={[
           styles.container,

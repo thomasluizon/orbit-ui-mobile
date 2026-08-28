@@ -7,12 +7,9 @@ import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraMark } from '@/components/ui/astra-avatar'
-import { GradientTop } from '@/components/ui/gradient-top'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useHabitDetail } from '@/hooks/use-habits'
-import { useShellStore } from '@/stores/shell-store'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -42,18 +39,6 @@ export default function ChatPage() {
   } = composer
 
   const limitLocked = !hasProAccess && atMessageLimit
-
-  const isDesktop = useIsDesktop()
-  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
-  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
-
-  useEffect(() => {
-    if (!isDesktop) return
-    // react-doctor-disable-next-line nextjs-no-client-side-redirect -- responsive redirect gated on useIsDesktop (client matchMedia); not resolvable server-side https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    router.replace('/')
-    setAstraOpen(true)
-    setAstraMaximized(true)
-  }, [isDesktop, router, setAstraOpen, setAstraMaximized])
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
 
@@ -114,17 +99,6 @@ export default function ChatPage() {
 
   return (
     <div className="relative flex flex-col h-full">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-0"
-        style={{
-          height: 300,
-          opacity: showSuggestions ? 1 : 0,
-          transition: 'opacity var(--dur-slow) var(--ease-standard)',
-        }}
-      >
-        <GradientTop height={300} />
-      </div>
       <div className="relative z-10 shrink-0">
         <AppBar
           back

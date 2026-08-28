@@ -8,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -29,18 +28,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
 
   return (
     <>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 -z-10 md:hidden"
-        style={{
-          left: 'calc(var(--app-px) * -1)',
-          right: 'calc(var(--app-px) * -1)',
-        }}
-      >
-        <GradientTop height={260} />
-      </div>
-
-      <div className="md:hidden">
+      <div>
         <TodayHeader streak={view.streak} />
 
         <TodayTabs
@@ -63,7 +51,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         />
       </div>
 
-      <div className="md:hidden">
+      <div>
         <TodayDateNavigation visible={currentActiveView === 'today'} {...nav.dateNav} />
       </div>
     </>

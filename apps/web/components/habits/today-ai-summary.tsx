@@ -8,8 +8,6 @@ import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
-import { useShellStore } from '@/stores/shell-store'
 
 interface TodayAISummaryProps {
   date: string
@@ -31,9 +29,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const router = useRouter()
   const uiLocale = useLocale()
   const { profile } = useProfile()
-  const isDesktop = useIsDesktop()
-  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
-  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
@@ -48,11 +43,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   })
 
   function openAstra() {
-    if (isDesktop) {
-      setAstraOpen(true)
-      setAstraMaximized(true)
-      return
-    }
     router.push('/chat')
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useReducedMotion, type Transition } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import type { ActiveView } from '@orbit/shared/stores'
@@ -12,14 +12,12 @@ import { useEngagementSlot } from '@/hooks/use-engagement-slot'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useTags, type Tag } from '@/hooks/use-tags'
 import { useCoachTour } from '@/hooks/use-coach-tour'
-import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import type { HabitListHandle } from '@/components/habits/habit-list'
-import { TodayDateNavigation, type TodayTabItem, type TodayTabView } from './today-shell'
+import type { TodayTabItem, TodayTabView } from './today-shell'
 import { useTodayViewSync } from './use-today-view-sync'
 import {
   useTodayNavigation,
   type TodayNavigation,
-  type TodayDateNavBundle,
 } from './use-today-navigation'
 import { useTodaySearch, type TodaySearch } from './use-today-search'
 import { useTodayViewState } from './use-today-view-state'
@@ -55,17 +53,6 @@ export interface TodayView {
   dismissHomeEntry: () => void
   showReferral: boolean
   setShowReferral: (value: boolean) => void
-}
-
-function useTodayTopbarNav(currentActiveView: ActiveView, dateNav: TodayDateNavBundle) {
-  const desktopDateNav = useMemo(
-    () =>
-      currentActiveView === 'today' ? (
-        <TodayDateNavigation compact visible {...dateNav} />
-      ) : null,
-    [currentActiveView, dateNav],
-  )
-  useTopbarSlot(desktopDateNav)
 }
 
 /**
@@ -140,8 +127,6 @@ export function useTodayPage(): TodayView {
     duration: prefersReducedMotion ? 0 : 0.16,
     ease: [0.2, 0, 0, 1],
   } as const
-
-  useTodayTopbarNav(viewState.currentActiveView, nav.dateNav)
 
   return {
     nav,

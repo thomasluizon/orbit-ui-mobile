@@ -15,7 +15,6 @@ import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
@@ -88,15 +87,6 @@ function CalendarSyncPageContent() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
-
-  const reviewTopbarTitle = useMemo(
-    () =>
-      isReviewMode ? (
-        <h1 className="t-h2 truncate">{t('calendar.autoSync.reviewModeTitle')}</h1>
-      ) : null,
-    [isReviewMode, t],
-  )
-  useTopbarSlot(reviewTopbarTitle)
 
   const eventsQuery = useCalendarEvents({ enabled: isProUser && !isReviewMode })
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })

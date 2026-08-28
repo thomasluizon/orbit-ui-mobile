@@ -6,7 +6,6 @@ vi.mock('next-intl', () => ({
 }))
 
 import { BackToTop } from '@/components/ui/back-to-top'
-import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 
 function setScrollY(value: number) {
@@ -16,7 +15,6 @@ function setScrollY(value: number) {
 describe('BackToTop', () => {
   beforeEach(() => {
     setScrollY(0)
-    useShellStore.setState({ astraOpen: false })
     useUIStore.setState({ isSelectMode: false })
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   })
@@ -52,14 +50,6 @@ describe('BackToTop', () => {
 
   it('stays hidden while multi-select is active even when scrolled', () => {
     useUIStore.setState({ isSelectMode: true })
-    setScrollY(700)
-    render(<BackToTop />)
-
-    expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
-  })
-
-  it('stays hidden while the Astra copilot is expanded', () => {
-    useShellStore.setState({ astraOpen: true })
     setScrollY(700)
     render(<BackToTop />)
 

@@ -18,7 +18,7 @@ const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 350
 
 const DESKTOP_STEP_ROUTE_OVERRIDES: Record<string, string> = {
-  'profile-retrospective': '/explore',
+  'profile-retrospective': '/profile',
 }
 
 /**

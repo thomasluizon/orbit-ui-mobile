@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowUp } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const SHOW_THRESHOLD = 600
@@ -36,7 +35,6 @@ function scrollToTop() {
  */
 export function BackToTop() {
   const t = useTranslations('common')
-  const astraOpen = useShellStore((state) => state.astraOpen)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const [scrolled, setScrolled] = useState(false)
 
@@ -47,7 +45,7 @@ export function BackToTop() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const visible = scrolled && !astraOpen && !isSelectMode
+  const visible = scrolled && !isSelectMode
 
   return (
     <button

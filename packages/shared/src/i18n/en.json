@@ -101,6 +101,7 @@
     "back": "Go back",
     "backToProfile": "Back to profile",
     "backToTop": "Back to top",
+    "skipToContent": "Skip to main content",
     "goHome": "Go home",
     "cancel": "Cancel",
     "goBack": "Go back",
@@ -183,14 +184,10 @@
     "chat": "Chat",
     "createHabit": "Create habit",
     "profile": "Profile",
-    "home": "Home",
     "astra": "Astra",
-    "you": "You",
     "create": "Create",
     "today": "Today",
-    "goals": "Goals",
-    "insights": "Insights",
-    "explore": "Explore",
+    "progress": "Progress",
     "mainNavigation": "Main navigation"
   },
   "shell": {
