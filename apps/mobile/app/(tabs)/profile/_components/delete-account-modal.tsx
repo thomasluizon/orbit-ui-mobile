@@ -9,11 +9,13 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useDateFormat } from '@/hooks/use-date-format'
+import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 interface DeleteAccountModalProps {
   open: boolean
@@ -29,6 +31,7 @@ export function DeleteAccountModal({
   const { t } = useTranslation()
   const router = useRouter()
   const { displayDate } = useDateFormat()
+  const { isOnline } = useOffline()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [loading, setLoading] = useState(false)
@@ -50,6 +53,7 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
+    if (!isOnline) return
     setLoading(true)
     setError('')
     try {
@@ -78,6 +82,12 @@ export function DeleteAccountModal({
       onClose={handleClose}
       title={t('profile.deleteAccount.headingAreYouSure')}
     >
+      {!isOnline ? (
+        <OfflineUnavailableState
+          title={t('offline.title')}
+          description={t('offline.description')}
+        />
+      ) : (
       <View style={styles.body}>
         <View style={styles.hero}>
           <View
@@ -114,6 +124,7 @@ export function DeleteAccountModal({
           </PillButton>
         </View>
       </View>
+      )}
     </Sheet>
   )
 }
