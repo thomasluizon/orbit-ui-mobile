@@ -89,4 +89,68 @@ describe('resolveSubscriptionScreen', () => {
       }),
     ).toMatchObject({ state: 'free', view: 'pitch' })
   })
+
+  it.each(['canceled', 'payment_failed', 'expired'] as const)(
+    'keeps the %s lapse reason in the pitch view',
+    (lapseReason) => {
+      expect(
+        resolve({
+          status: {
+            ...status,
+            plan: 'free',
+            hasProAccess: false,
+            lapseReason,
+          },
+        }),
+      ).toMatchObject({ state: 'lapsed', content: 'pitch', provider: 'stripe' })
+    },
+  )
+
+  it.each([
+    ['stripe', 'stripe'],
+    ['play', 'play'],
+    [null, 'stripe'],
+  ] as const)('selects %s provider content for a paid plan', (source, content) => {
+    expect(resolve({ status: { ...status, source } })).toMatchObject({
+      state: source === 'play' ? 'play' : 'stripe',
+      content,
+      provider: source,
+      view: 'manage',
+    })
+  })
+
+  it.each([
+    ['stripe', 'stripe'],
+    ['play', 'play'],
+    [null, 'stripe'],
+  ] as const)('keeps cached %s paid content offline', (source, content) => {
+    expect(resolve({ status: { ...status, source }, isOnline: false })).toMatchObject({
+      state: 'offline',
+      content,
+      provider: source,
+      view: 'manage',
+    })
+  })
+
+  it('resolves billing loading and failure only for the Stripe management view', () => {
+    expect(resolve({ isBillingLoading: true })).toMatchObject({ state: 'loading' })
+    expect(resolve({ isBillingError: true })).toMatchObject({ state: 'load-failed' })
+    expect(
+      resolve({
+        status: { ...status, source: 'play' },
+        isBillingLoading: true,
+        isBillingError: true,
+      }),
+    ).toMatchObject({ state: 'play' })
+  })
+
+  it('treats an absent status as a load failure when online', () => {
+    expect(resolve({ status: null })).toMatchObject({
+      state: 'load-failed',
+      content: 'pitch',
+      interval: null,
+      provider: null,
+      view: 'pitch',
+    })
+  })
 })

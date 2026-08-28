@@ -11,12 +11,21 @@ import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 
 vi.mock('@/components/upgrade/plan-summary-card', () => ({
-  PlanSummaryCard: (props: Record<string, unknown>) =>
-    React.createElement('PlanSummaryCard', props),
+  PlanSummaryCard: ({ badges, ...props }: Record<string, unknown>) =>
+    React.createElement('PlanSummaryCard', props, badges as React.ReactNode),
 }))
 
 vi.mock('@/components/upgrade/usage-card', () => ({
   UsageCard: (props: Record<string, unknown>) => React.createElement('UsageCard', props),
+}))
+
+vi.mock('@/components/upgrade/plan-selection', () => ({
+  PlanSelection: (props: Record<string, unknown>) => React.createElement('PlanSelection', props),
+}))
+
+vi.mock('@/components/upgrade/plan-comparison-cards', () => ({
+  PlanComparisonCards: (props: Record<string, unknown>) =>
+    React.createElement('PlanComparisonCards', props),
 }))
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
@@ -33,6 +42,8 @@ const TestRenderer = require('react-test-renderer')
 type RenderedTree = {
   root: {
     findByType: (type: string) => { props: Record<string, unknown> }
+    findAll: (predicate: (node: { type: unknown; props: Record<string, unknown> }) => boolean) =>
+      { type: unknown; props: Record<string, unknown> }[]
   }
   toJSON: () => unknown
 }
@@ -73,6 +84,44 @@ function render(element: React.ReactElement) {
   return tree!
 }
 
+function renderedText(tree: RenderedTree) {
+  return JSON.stringify(tree.toJSON())
+}
+
+const plans = {
+  monthly: { unitAmount: 999, currency: 'brl' },
+  yearly: { unitAmount: 9990, currency: 'brl' },
+  savingsPercent: 17,
+  couponPercentOff: null,
+  currency: 'brl',
+}
+
+function renderPricing(
+  overrides: Partial<React.ComponentProps<typeof PricingSection>> = {},
+) {
+  return render(
+    <PricingSection
+      profile={null}
+      plans={null}
+      isLoadingPlans={false}
+      isPlansError={false}
+      isOnline
+      trialDaysLeft={null}
+      selectedInterval="yearly"
+      onSelectInterval={() => {}}
+      onStayFree={() => {}}
+      yearlyOffer={null}
+      isReferralPricing={false}
+      isRestoring={false}
+      onRestore={() => {}}
+      onRetryPlans={() => {}}
+      t={t}
+      tokens={tokens}
+      {...overrides}
+    />,
+  )
+}
+
 describe('subscription dashboards (mobile)', () => {
   it('labels the Stripe amount as the monthly plan price instead of the catalog price', () => {
     const tree = render(
@@ -96,6 +145,180 @@ describe('subscription dashboards (mobile)', () => {
       'upgrade.billing.plan.monthlyPrice:{"price":"usd 7.77"}',
     )
     expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
+  })
+
+  it.each([
+    [
+      'yearly renewal',
+      'stripe',
+      { ...billing, interval: 'yearly' },
+      status,
+      'upgrade.billing.plan.yearly',
+      'upgrade.billing.plan.renewsOn',
+    ],
+    [
+      'cancel at period end',
+      'canceled',
+      { ...billing, cancelAtPeriodEnd: true },
+      status,
+      'upgrade.billing.plan.monthly',
+      'upgrade.billing.plan.canceledHint',
+    ],
+    [
+      'past due',
+      'past-due',
+      { ...billing, status: 'past_due' },
+      status,
+      'upgrade.billing.plan.monthly',
+      'upgrade.billing.plan.renewsOn',
+    ],
+    [
+      'lifetime',
+      'lifetime',
+      null,
+      { ...status, isLifetimePro: true },
+      'upgrade.billing.plan.lifetime',
+      'upgrade.billing.plan.lifetimeHint',
+    ],
+  ] as const)(
+    'renders the %s Stripe dashboard outcome',
+    (_name, state, data, dashboardStatus, expectedLabel, expectedMeta) => {
+      const tree = render(
+        <BillingDashboard
+          state={state}
+          data={data}
+          isOnline
+          locale="en"
+          usagePercent={16}
+          usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
+          status={dashboardStatus}
+          onPortal={() => {}}
+          onRetryPortal={() => {}}
+          t={t}
+          tokens={tokens}
+        />,
+      )
+      const summary = tree.root.findByType('PlanSummaryCard')
+      expect(summary.props.planLabel).toBe(expectedLabel)
+      expect(summary.props.meta).toContain(expectedMeta)
+      if (state === 'canceled') {
+        expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
+      }
+      if (state === 'past-due') {
+        expect(renderedText(tree)).toContain('upgrade.billing.plan.pastDue')
+      }
+    },
+  )
+
+  it('renders payment and invoice controls only for available live handoffs', () => {
+    const onPortal = vi.fn()
+    const data: BillingDetails = {
+      ...billing,
+      paymentMethod: {
+        brand: 'visa',
+        last4: '4242',
+        expMonth: 3,
+        expYear: 2029,
+      },
+      recentInvoices: [
+        {
+          id: 'invoice-paid',
+          date: '2026-08-01T00:00:00Z',
+          amountPaid: 777,
+          currency: 'usd',
+          status: 'paid',
+          hostedInvoiceUrl: null,
+          invoicePdf: 'https://billing.test/invoice.pdf',
+          billingReason: 'subscription_cycle',
+        },
+        {
+          id: 'invoice-open',
+          date: '2026-08-02T00:00:00Z',
+          amountPaid: 777,
+          currency: 'usd',
+          status: 'open',
+          hostedInvoiceUrl: null,
+          invoicePdf: null,
+          billingReason: 'manual',
+        },
+      ],
+    }
+    const online = render(
+      <BillingDashboard
+        state="stripe"
+        data={data}
+        isOnline
+        locale="en"
+        usagePercent={81}
+        usageProfile={{ aiMessagesUsed: 41, aiMessagesLimit: 50 }}
+        status={status}
+        onPortal={onPortal}
+        onRetryPortal={() => {}}
+        t={t}
+        tokens={tokens}
+      />,
+    )
+    expect(renderedText(online)).toContain('upgrade.billing.payment.card')
+    expect(renderedText(online)).toContain('upgrade.billing.invoices.reasonCycle')
+    expect(renderedText(online)).toContain('upgrade.billing.invoices.statusOpen')
+    expect(
+      online.root.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),
+    ).toHaveLength(1)
+    expect(
+      online.root.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityLabel === 'upgrade.billing.invoices.download'),
+    ).toHaveLength(1)
+
+    const offline = render(
+      <BillingDashboard
+        state="offline"
+        data={data}
+        isOnline={false}
+        locale="en"
+        usagePercent={81}
+        usageProfile={{ aiMessagesUsed: 41, aiMessagesLimit: 50 }}
+        status={status}
+        onPortal={onPortal}
+        onRetryPortal={() => {}}
+        t={t}
+        tokens={tokens}
+      />,
+    )
+    expect(renderedText(offline)).toContain('upgrade.billing.payment.card')
+    expect(
+      offline.root.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),
+    ).toHaveLength(0)
+    const manageButton = offline.root.findAll(
+      (node) => Boolean(node.type === 'Pressable'
+        && node.props.accessibilityRole === 'button'
+        && node.props.accessibilityState
+        && (node.props.accessibilityState as { disabled?: boolean }).disabled === true),
+    )
+    expect(manageButton).toHaveLength(1)
+  })
+
+  it.each([
+    ['portal-opening', 'upgrade.billing.actions.opening'],
+    ['portal-failed', 'upgrade.billing.portalFailed'],
+  ] as const)('renders the %s Stripe portal outcome', (state, expectedText) => {
+    const tree = render(
+      <BillingDashboard
+        state={state}
+        data={billing}
+        isOnline
+        locale="en"
+        usagePercent={16}
+        usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
+        status={status}
+        onPortal={() => {}}
+        onRetryPortal={() => {}}
+        t={t}
+        tokens={tokens}
+      />,
+    )
+    expect(renderedText(tree)).toContain(expectedText)
   })
 
   it('shows Play pricing only when a confirmed Play display price is available', () => {
@@ -136,27 +359,66 @@ describe('subscription dashboards (mobile)', () => {
     )
   })
 
-  it('renders the real trial countdown and a neutral null-interval label', () => {
-    const pricing = render(
-      <PricingSection
-        profile={{ isTrialActive: true }}
-        plans={null}
-        isLoadingPlans={false}
-        isPlansError={false}
-        isOnline
-        trialDaysLeft={5}
-        selectedInterval="yearly"
-        onSelectInterval={() => {}}
-        onStayFree={() => {}}
-        yearlyOffer={null}
-        isReferralPricing={false}
-        isRestoring={false}
-        onRestore={() => {}}
-        onRetryPlans={() => {}}
+  it.each([
+    ['monthly', 'R$ 12,90', 'upgrade.billing.plan.monthly', 'upgrade.billing.plan.monthlyPrice'],
+    [null, 'R$ 12,90', 'upgrade.billing.plan.pro', ''],
+  ] as const)(
+    'renders the %s Play plan without substituting an interval',
+    (interval, displayPrice, expectedLabel, expectedPriceKey) => {
+      const tree = render(
+        <PlayBillingDashboard
+          status={{ ...status, source: 'play', subscriptionInterval: interval, planExpiresAt: null }}
+          displayPrice={displayPrice}
+          locale="en"
+          usagePercent={81}
+          usageProfile={{ aiMessagesUsed: 41, aiMessagesLimit: 50 }}
+          portalState="idle"
+          isOnline
+          onManagePlay={() => {}}
+          t={t}
+          tokens={tokens}
+        />,
+      )
+      const summary = tree.root.findByType('PlanSummaryCard')
+      expect(summary.props.planLabel).toBe(expectedLabel)
+      if (expectedPriceKey) expect(summary.props.meta).toContain(expectedPriceKey)
+      else expect(summary.props.meta).toBe('')
+    },
+  )
+
+  it.each([
+    ['opening', true, 'upgrade.billing.actions.opening'],
+    ['failed', true, 'upgrade.billing.portalFailed'],
+    ['idle', false, 'upgrade.billing.actions.managePlay'],
+  ] as const)('renders the %s Play portal outcome online=%s', (portalState, isOnline, expectedText) => {
+    const tree = render(
+      <PlayBillingDashboard
+        status={{ ...status, source: 'play' }}
+        locale="en"
+        usagePercent={16}
+        usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
+        portalState={portalState}
+        isOnline={isOnline}
+        onManagePlay={() => {}}
         t={t}
         tokens={tokens}
       />,
     )
+    expect(renderedText(tree)).toContain(expectedText)
+    if (!isOnline) {
+      expect(
+        tree.root.findAll((node) => Boolean(node.props.accessibilityRole === 'button'
+          && node.type === 'Pressable'
+          && (node.props.accessibilityState as { disabled?: boolean } | undefined)?.disabled)),
+      ).toHaveLength(1)
+    }
+  })
+
+  it('renders the real trial countdown and a neutral null-interval label', () => {
+    const pricing = renderPricing({
+      profile: { isTrialActive: true },
+      trialDaysLeft: 5,
+    })
     expect(JSON.stringify(pricing.toJSON())).toContain(
       'upgrade.convert.trialDaysLeft:{\\"days\\":5}',
     )
@@ -177,5 +439,100 @@ describe('subscription dashboards (mobile)', () => {
     const cardText = JSON.stringify(trialCard.toJSON())
     expect(cardText).toContain('upgrade.billing.plan.pro')
     expect(cardText).not.toContain('upgrade.billing.plan.monthly')
+  })
+
+  it.each([
+    [null, 'upgrade.convert.trialEyebrow'],
+    [0, 'upgrade.convert.trialLastDay'],
+  ] as const)('renders the trial countdown boundary for %s days', (trialDaysLeft, label) => {
+    const tree = renderPricing({ profile: { isTrialActive: true }, trialDaysLeft })
+    expect(renderedText(tree)).toContain(label)
+    expect(renderedText(tree)).not.toContain('upgrade.convert.trustLine')
+  })
+
+  it('renders plan loading, retry, referral, and restore outcomes', () => {
+    const loading = renderPricing({ isLoadingPlans: true })
+    expect(renderedText(loading)).toContain('common.loading')
+
+    const onRetryPlans = vi.fn()
+    const failed = renderPricing({ isPlansError: true, onRetryPlans })
+    expect(renderedText(failed)).toContain('upgrade.plans.error')
+    const retry = failed.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+    )[0]
+    ;(retry?.props.onPress as (() => void) | undefined)?.()
+    expect(onRetryPlans).toHaveBeenCalledTimes(1)
+
+    const online = renderPricing({ plans, isReferralPricing: true })
+    expect(renderedText(online)).toContain('upgrade.plans.coupon.appliedNote')
+    expect(renderedText(online)).toContain('upgrade.matrix.yearlyTag')
+    expect(renderedText(online)).toContain('upgrade.restorePurchase')
+
+    const restoring = renderPricing({ plans, isOnline: false, isRestoring: true })
+    expect(renderedText(restoring)).not.toContain('upgrade.restorePurchase')
+    const restoreButton = restoring.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+    )[0]
+    expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true })
+
+    const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
+    expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
+    const offlineRestore = offlinePlans.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+    )[0]
+    expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
+  })
+
+  it('keeps the live retry action hidden while offline', () => {
+    const tree = renderPricing({ isPlansError: true, isOnline: false })
+    expect(renderedText(tree)).not.toContain('upgrade.plans.error')
+    expect(
+      tree.root.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityRole === 'button'),
+    ).toHaveLength(0)
+  })
+
+  it.each([
+    ['canceled', 'yearly'],
+    ['payment_failed', 'monthly'],
+    ['expired', null],
+  ] as const)('renders the %s lapse outcome for the cached %s plan', (lapseReason, interval) => {
+    const tree = render(
+      <PitchSubscriptionCard
+        status={{
+          ...status,
+          plan: 'free',
+          hasProAccess: false,
+          subscriptionInterval: interval,
+          lapseReason,
+          subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
+        }}
+        locale="en"
+        t={t}
+        tokens={tokens}
+      />,
+    )
+    expect(renderedText(tree)).toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    if (interval === 'yearly') {
+      expect(renderedText(tree)).toContain('upgrade.billing.lapsed.yearlyFeature')
+    }
+  })
+
+  it('uses the lapse fallback when the end date is unavailable', () => {
+    const tree = render(
+      <PitchSubscriptionCard
+        status={{
+          ...status,
+          plan: 'free',
+          hasProAccess: false,
+          lapseReason: 'expired',
+          subscriptionEndedAtUtc: null,
+        }}
+        locale="en"
+        t={t}
+        tokens={tokens}
+      />,
+    )
+    expect(renderedText(tree)).toContain('upgrade.billing.lapsed.fallback')
   })
 })

@@ -22,6 +22,12 @@ const mocks = vi.hoisted(() => ({
   profile: null as ReturnType<typeof createMockProfile> | null,
   plans: { couponPercentOff: 0 },
   billing: undefined as Record<string, unknown> | undefined,
+  statusLoading: false,
+  statusError: false,
+  billingLoading: false,
+  billingError: false,
+  lapseReason: null as 'canceled' | 'payment_failed' | 'expired' | null,
+  subscriptionEndedAtUtc: null as string | null,
   goBack: vi.fn(),
   refetchPlans: vi.fn(() => Promise.resolve()),
   refetchBilling: vi.fn(() => Promise.resolve()),
@@ -70,8 +76,8 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 vi.mock('@/hooks/use-billing', () => ({
   useBilling: () => ({
     billing: mocks.billing,
-    isLoading: false,
-    isError: false,
+    isLoading: mocks.billingLoading,
+    isError: mocks.billingError,
     refetch: mocks.refetchBilling,
   }),
 }))
@@ -100,12 +106,12 @@ vi.mock('@/hooks/use-subscription-status', () => ({
           isLifetimePro: mocks.profile.isLifetimePro,
           subscriptionInterval: mocks.profile.subscriptionInterval ?? null,
           source: mocks.profile.subscriptionSource ?? null,
-          lapseReason: null,
-          subscriptionEndedAtUtc: null,
+          lapseReason: mocks.lapseReason,
+          subscriptionEndedAtUtc: mocks.subscriptionEndedAtUtc,
         }
       : null,
-    isLoading: false,
-    isError: false,
+    isLoading: mocks.statusLoading,
+    isError: mocks.statusError,
     refetch: mocks.refetchStatus,
   }),
 }))
@@ -172,6 +178,12 @@ describe('UpgradeScreen', () => {
     })
     mocks.plans = { couponPercentOff: 0 }
     mocks.billing = { plan: 'yearly' }
+    mocks.statusLoading = false
+    mocks.statusError = false
+    mocks.billingLoading = false
+    mocks.billingError = false
+    mocks.lapseReason = null
+    mocks.subscriptionEndedAtUtc = null
     mocks.playBilling.isProcessing = false
     mocks.playBilling.errorKey = ''
   })
@@ -181,6 +193,73 @@ describe('UpgradeScreen', () => {
     expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
     expect(findByType(tree.root, 'PricingFooter')).toBeTruthy()
   })
+
+  it.each([
+    ['loading', true, false, 'common.loading'],
+    ['load-failed', false, true, 'upgrade.billing.error'],
+  ] as const)('renders the %s status outcome', async (_state, statusLoading, statusError, label) => {
+    mocks.statusLoading = statusLoading
+    mocks.statusError = statusError
+    const tree = await renderScreen()
+    expect(
+      tree.root.findAll((node) => node.props.children === label || node.props.label === label).length,
+    ).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.type === 'PricingFooter')).toHaveLength(0)
+  })
+
+  it.each([
+    ['loading', true, false],
+    ['load-failed', false, true],
+  ] as const)('renders the Stripe billing %s outcome', async (state, billingLoading, billingError) => {
+    mocks.hasProAccess = true
+    mocks.billingLoading = billingLoading
+    mocks.billingError = billingError
+    const tree = await renderScreen()
+    if (state === 'loading') {
+      expect(
+        tree.root.findAll((node) => node.props.children === 'common.loading'
+          || node.props.label === 'common.loading').length,
+      ).toBeGreaterThan(0)
+    } else {
+      expect(tree.root.findAll((node) => node.props.children === 'upgrade.billing.error').length).toBeGreaterThan(0)
+    }
+    expect(tree.root.findAll((node) => node.type === 'BillingDashboard')).toHaveLength(0)
+  })
+
+  it.each([
+    ['canceled', { status: 'active', cancelAtPeriodEnd: true }],
+    ['past-due', { status: 'past_due', cancelAtPeriodEnd: false }],
+  ] as const)('passes the %s outcome to the Stripe dashboard', async (state, billing) => {
+    mocks.hasProAccess = true
+    mocks.billing = billing
+    const tree = await renderScreen()
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe(state)
+  })
+
+  it('passes the lifetime outcome without requesting Stripe billing content', async () => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      isLifetimePro: true,
+      subscriptionSource: null,
+    })
+    mocks.billing = undefined
+    const tree = await renderScreen()
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('lifetime')
+  })
+
+  it.each(['canceled', 'payment_failed', 'expired'] as const)(
+    'renders the %s lapse outcome with cached content',
+    async (lapseReason) => {
+      mocks.lapseReason = lapseReason
+      mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
+      const tree = await renderScreen()
+      expect(
+        tree.root.findAll((node) => node.props.children === `upgrade.billing.lapsed.${lapseReason}`).length,
+      ).toBeGreaterThan(0)
+      expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+    },
+  )
 
   it('starts a purchase through the footer checkout', async () => {
     const tree = await renderScreen()
