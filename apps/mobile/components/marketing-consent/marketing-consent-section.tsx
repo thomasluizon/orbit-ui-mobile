@@ -59,11 +59,16 @@ export function MarketingConsentSection() {
           accessibilityLabel={mutation.isPending ? t('profile.marketingEmails.title') : undefined}
           accessibilityState={mutation.isPending ? { checked: enabled, disabled: true } : undefined}
         >
-          <Switch
-            checked={enabled}
-            onChange={(checked) => mutation.mutate(checked)}
-            label={t('profile.marketingEmails.title')}
-          />
+          <View
+            accessibilityElementsHidden={mutation.isPending}
+            importantForAccessibility={mutation.isPending ? 'no-hide-descendants' : 'auto'}
+          >
+            <Switch
+              checked={enabled}
+              onChange={(checked) => mutation.mutate(checked)}
+              label={t('profile.marketingEmails.title')}
+            />
+          </View>
         </View>
       </SettingsRow>
     </>

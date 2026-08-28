@@ -43,7 +43,12 @@ function PendingSwitchBoundary({
       accessibilityLabel={pending ? label : undefined}
       accessibilityState={pending ? { checked, disabled: true } : undefined}
     >
-      {children}
+      <View
+        accessibilityElementsHidden={pending}
+        importantForAccessibility={pending ? 'no-hide-descendants' : 'auto'}
+      >
+        {children}
+      </View>
     </View>
   )
 }

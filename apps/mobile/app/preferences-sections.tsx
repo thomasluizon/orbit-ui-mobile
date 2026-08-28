@@ -89,11 +89,16 @@ export function PushNotificationSection({
               accessibilityLabel={pushLoading ? t('settings.notifications.title') : undefined}
               accessibilityState={pushLoading ? { checked: pushEnabled, disabled: true } : undefined}
             >
-              <Switch
-                checked={pushEnabled}
-                onChange={onToggle}
-                label={t('settings.notifications.title')}
-              />
+              <View
+                accessibilityElementsHidden={pushLoading}
+                importantForAccessibility={pushLoading ? 'no-hide-descendants' : 'auto'}
+              >
+                <Switch
+                  checked={pushEnabled}
+                  onChange={onToggle}
+                  label={t('settings.notifications.title')}
+                />
+              </View>
             </View>
           </SettingsRow>
           <View style={styles.statusBlock}>
@@ -158,11 +163,16 @@ function PersistentReminderRow({
         accessibilityLabel={isLoading ? t('persistentReminder.label') : undefined}
         accessibilityState={isLoading ? { checked: enabled, disabled: true } : undefined}
       >
-        <Switch
-          checked={enabled}
-          onChange={onToggle}
-          label={t('persistentReminder.label')}
-        />
+        <View
+          accessibilityElementsHidden={isLoading}
+          importantForAccessibility={isLoading ? 'no-hide-descendants' : 'auto'}
+        >
+          <Switch
+            checked={enabled}
+            onChange={onToggle}
+            label={t('persistentReminder.label')}
+          />
+        </View>
       </View>
     </SettingsRow>
   )

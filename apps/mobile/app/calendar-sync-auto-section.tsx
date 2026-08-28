@@ -79,11 +79,16 @@ export function CalendarAutoSyncSection({
             accessibilityLabel={toggleDisabled ? t('calendar.autoSync.title') : undefined}
             accessibilityState={toggleDisabled ? { checked: enabled, disabled: true } : undefined}
           >
-            <Switch
-              checked={enabled}
-              onChange={onToggleAutoSync}
-              label={t('calendar.autoSync.title')}
-            />
+            <View
+              accessibilityElementsHidden={toggleDisabled}
+              importantForAccessibility={toggleDisabled ? 'no-hide-descendants' : 'auto'}
+            >
+              <Switch
+                checked={enabled}
+                onChange={onToggleAutoSync}
+                label={t('calendar.autoSync.title')}
+              />
+            </View>
           </View>
         </View>
       </View>
