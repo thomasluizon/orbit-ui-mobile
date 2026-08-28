@@ -174,7 +174,6 @@ export default function UpgradeScreen() {
   const priceEcho = plans ? `${t(planNameKey)} · ${selectedCharge}${t(planPeriodKey)}` : ''
 
   function handleCheckout(interval: SubscriptionInterval) {
-    if (!isOnline) return
     playBilling.clearError()
     setCheckoutLoading(interval)
     void playBilling.purchase(interval)

@@ -350,6 +350,13 @@ describe('UpgradeScreen', () => {
       expect(section.props.trialDaysLeft).toBeNull()
     }
     expect(tree.root.findAll((node) => node.type === 'PricingFooter')).toHaveLength(0)
+    await TestRenderer.act(async () => {
+      ;(section.props.onRestore as () => void)()
+      ;(section.props.onRetryPlans as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.playBilling.restorePurchases).not.toHaveBeenCalled()
+    expect(mocks.refetchPlans).not.toHaveBeenCalled()
   })
 
   it('keeps the Play dashboard and blocks its handoff while offline', async () => {

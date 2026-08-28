@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
+import { UsageStats } from '@/components/upgrade/usage-stats'
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 
@@ -139,6 +141,11 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 import UpgradePage from '@/app/(app)/upgrade/page'
+
+function UsageStatsWithoutProfile() {
+  const t = useTranslations()
+  return <UsageStats usagePercent={0} usageUrgent={false} profile={null} t={t} />
+}
 
 describe('UpgradePage', () => {
   beforeEach(() => {
@@ -494,6 +501,13 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.billing.usage.title')
     expect(document.body.textContent).toContain('upgrade.billing.usage.aiMessages')
     expect(document.body.textContent).not.toContain('upgrade.billing.usage.nearLimit')
+  })
+
+  it('renders zero cached usage when profile content is unavailable', () => {
+    render(<UsageStatsWithoutProfile />)
+    expect(
+      screen.getByText('upgrade.billing.usage.aiMessagesOf:{"used":0,"limit":0}'),
+    ).toBeInTheDocument()
   })
 
   it('shows the capacity notice when Pro usage reaches the warning threshold', () => {
