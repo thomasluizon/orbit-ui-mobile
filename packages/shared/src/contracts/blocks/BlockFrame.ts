@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type BlockFrameState = 'loading' | 'resting' | 'acting' | 'stale' | 'error'
+export type BlockFrameState = 'loading' | 'resting' | 'acting' | 'partiallyFailed' | 'stale'
 
 export type BlockFrameItemStatus = 'done' | 'acting' | 'failed'
 

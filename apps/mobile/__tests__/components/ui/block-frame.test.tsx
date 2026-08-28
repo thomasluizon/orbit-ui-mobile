@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 import type { BlockFrameItem, BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { act, create } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Text } from 'react-native'
+import { Pressable, Text } from 'react-native'
 import { BlockFrame } from '@/components/ui/block-frame'
 
 vi.mock('react-i18next', () => ({
@@ -135,6 +135,27 @@ describe('BlockFrame on mobile', () => {
     expect(textValues(tree)).not.toContain('Done')
   })
 
+  it('retains per-item outcomes and the retry-failures action when partially failed', () => {
+    const tree = render(
+      <BlockFrame
+        {...frame({
+          state: 'partiallyFailed',
+          items: [
+            { id: 'done', label: 'Saved row', status: 'done' },
+            { id: 'failed', label: 'Failed row', status: 'failed' },
+          ],
+          actions: <Pressable accessibilityLabel="Retry failures"><Text>Retry failures</Text></Pressable>,
+        })}
+      />,
+    )
+
+    expect(prop(tree.root.findByProps({ testID: 'block-frame-partiallyFailed' }), 'accessibilityState')).toEqual({ busy: false })
+    expect(tree.root.findByProps({ testID: 'block-frame-item-done-done' })).toBeDefined()
+    expect(tree.root.findByProps({ testID: 'block-frame-item-failed-failed' })).toBeDefined()
+    expect(tree.root.findAll((node) =>
+      node.type === 'Pressable' && prop(node, 'accessibilityLabel') === 'Retry failures')).toHaveLength(1)
+  })
+
   it('delegates only suggested rows to Proposed', () => {
     const tree = render(
       <BlockFrame
@@ -150,7 +171,41 @@ describe('BlockFrame on mobile', () => {
     const wrappers = tree.root.findAll((node) =>
       node.type === 'View' && prop(node, 'testID') === 'proposed-row')
     expect(wrappers).toHaveLength(1)
-    expect(prop(wrappers[0]!, 'accessibilityLabel')).toBe('Proposed by Astra')
+    expect(prop(wrappers[0]!, 'accessible')).toBe(false)
+    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Astra')
+  })
+
+  it('keeps a proposed row control and edit action independently operable', () => {
+    const onControl = vi.fn()
+    const onEditItem = vi.fn()
+    const tree = render(
+      <BlockFrame
+        {...frame({
+          items: [{
+            id: 'suggested',
+            label: 'Suggested',
+            proposed: true,
+            control: (
+              <Pressable accessibilityLabel="Row control" accessibilityRole="button" onPress={onControl}>
+                <Text>Control</Text>
+              </Pressable>
+            ),
+          }],
+          proposedLabel: 'Proposed by Astra',
+          onEditItem,
+          editLabel: 'Edit item',
+        })}
+      />,
+    )
+
+    const wrapper = tree.root.findByProps({ testID: 'proposed-row' })
+    const control = tree.root.findByProps({ accessibilityLabel: 'Row control' })
+    const edit = tree.root.findByProps({ accessibilityLabel: 'Edit item' })
+    expect(prop(wrapper, 'accessible')).toBe(false)
+    prop<() => void>(control, 'onPress')()
+    prop<() => void>(edit, 'onPress')()
+    expect(onControl).toHaveBeenCalledOnce()
+    expect(onEditItem).toHaveBeenCalledWith('suggested')
   })
 
   it('shows confirmation once based on reversibility, never item count', () => {
@@ -215,5 +270,25 @@ describe('BlockFrame on mobile', () => {
     })
     expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toEqual({ busy: true })
     expect(textValues(tree).filter((value) => value === 'In progress')).toHaveLength(items.length)
+  })
+
+  it('removes acting actions from touch and TalkBack navigation', () => {
+    const tree = render(
+      <BlockFrame
+        {...frame({
+          state: 'acting',
+          actions: (
+            <Pressable accessibilityLabel="Apply changes" accessibilityRole="button" onPress={() => undefined}>
+              <Text>Apply</Text>
+            </Pressable>
+          ),
+        })}
+      />,
+    )
+    expect(tree.root.findByProps({ accessibilityLabel: 'Apply changes' })).toBeDefined()
+    const actionContent = tree.root.find((node) => prop(node, 'pointerEvents') === 'none')
+
+    expect(prop(actionContent, 'accessibilityState')).toEqual({ disabled: true })
+    expect(prop(actionContent, 'importantForAccessibility')).toBe('no-hide-descendants')
   })
 })

@@ -95,6 +95,26 @@ describe('BlockFrame on web', () => {
     expect(screen.queryByText('Done')).not.toBeInTheDocument()
   })
 
+  it('retains per-item outcomes and the retry-failures action when partially failed', () => {
+    const { container } = render(
+      <BlockFrame
+        {...resting({
+          state: 'partiallyFailed',
+          items: [
+            { id: 'done', label: 'Saved row', status: 'done' },
+            { id: 'failed', label: 'Failed row', status: 'failed' },
+          ],
+          actions: <button>Retry failures</button>,
+        })}
+      />,
+    )
+
+    expect(container.querySelector('[data-state="partiallyFailed"]')).not.toHaveAttribute('aria-busy')
+    expect(container.querySelector('[data-status="done"]')).toHaveTextContent('Saved rowDone')
+    expect(container.querySelector('[data-status="failed"]')).toHaveTextContent('Failed rowFailed')
+    expect(screen.getAllByRole('button', { name: 'Retry failures' })).toHaveLength(1)
+  })
+
   it('delegates only suggested rows to Proposed', () => {
     const { container } = render(
       <BlockFrame

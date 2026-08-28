@@ -143,6 +143,7 @@ function ActionRow({ children, disabled }: Readonly<{ children: ReactNode; disab
   return (
     <View
       accessibilityState={{ disabled }}
+      importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}
       pointerEvents={disabled ? 'none' : 'auto'}
       style={styles.actionContent}
     >

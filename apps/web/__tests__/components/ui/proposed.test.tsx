@@ -30,6 +30,19 @@ describe('Proposed on web', () => {
     expect(off.container.querySelector('[data-proposed]')).toBeNull()
   })
 
+  it('applies the proposed foreground to nested text and multiple children', () => {
+    render(
+      <Proposed proposed scope="row" label="Proposed by Astra">
+        <div><span>Nested value</span></div>
+        <span>Second value</span>
+      </Proposed>,
+    )
+
+    const wrapper = screen.getByRole('group', { name: 'Proposed by Astra' })
+    expect(wrapper).toHaveTextContent('Nested valueSecond value')
+    expect(wrapper.className).toContain('text-[var(--fg-3)]')
+  })
+
   it('depends only on caller words, not locale defaults', () => {
     const { container, rerender } = render(
       <Proposed proposed scope="row" label="Suggested">

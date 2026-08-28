@@ -17,6 +17,11 @@ const editableFrame: BlockFrameProps = {
   onEditItem: () => undefined,
   editLabel: 'Edit',
 }
+const partiallyFailedFrame: BlockFrameProps = {
+  state: 'partiallyFailed',
+  title: 'Frame',
+  items: [{ id: 'done', label: 'Done', status: 'done' }, { id: 'failed', label: 'Failed', status: 'failed' }],
+}
 const proposed: ProposedProps = {
   proposed: true,
   scope: 'row',
@@ -27,6 +32,7 @@ const proposed: ProposedProps = {
 void restingFrame
 void staleFrame
 void editableFrame
+void partiallyFailedFrame
 void proposed
 
 // @ts-expect-error stale requires staleMessage
@@ -37,6 +43,8 @@ const staleWithoutMessage: BlockFrameProps = {
 const restingWithStaleMessage: BlockFrameProps = {
   state: 'resting', title: 'Frame', items, staleMessage: 'Moved',
 }
+// @ts-expect-error error is not a BlockFrame state
+const errorFrame: BlockFrameProps = { state: 'error', title: 'Frame', items }
 // @ts-expect-error onEditItem requires editLabel
 const editWithoutLabel: BlockFrameProps = {
   state: 'resting', title: 'Frame', items, onEditItem: () => undefined,
@@ -76,6 +84,7 @@ const proposedVariant: ProposedProps = { proposed: true, scope: 'row', label: 'P
 
 void staleWithoutMessage
 void restingWithStaleMessage
+void errorFrame
 void editWithoutLabel
 void labelWithoutEdit
 void unknownStatus
