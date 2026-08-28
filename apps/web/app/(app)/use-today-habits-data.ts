@@ -1,12 +1,9 @@
 'use client'
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import { isToday } from 'date-fns'
-import { useTranslations } from 'next-intl'
-import { computeDayProgress, parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
-import type { HabitFrequencyFilter } from '@orbit/shared/stores'
+import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
-import { useUIStore } from '@/stores/ui-store'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -29,7 +26,6 @@ function getShowGeneralServerSnapshot() {
 }
 
 interface TodayHabitsDataParams {
-  currentActiveView: string
   dateStr: string
   selectedDate: Date
 }
@@ -44,13 +40,6 @@ export interface TodayHabitsData {
   isRefetching: boolean
   showLoadError: boolean
   refetch: () => void
-  dayProgress: ReturnType<typeof computeDayProgress>
-  showDayProgress: boolean
-  frequencyOptions: Array<{ key: HabitFrequencyFilter; label: string }>
-  selectedFrequency: HabitFrequencyFilter | null
-  setSelectedFrequency: (frequency: HabitFrequencyFilter | null) => void
-  selectedTagIds: string[]
-  toggleTagFilter: (tagId: string) => void
 }
 
 /**
@@ -59,46 +48,27 @@ export interface TodayHabitsData {
  * the load/refetch flags and day-progress summary. Pure extraction of TodayPage.
  */
 export function useTodayHabitsData({
-  currentActiveView,
   dateStr,
   selectedDate,
 }: TodayHabitsDataParams): TodayHabitsData {
-  const t = useTranslations()
-  const searchQueryStore = useUIStore((s) => s.searchQuery)
-  const selectedFrequency = useUIStore((s) => s.selectedFrequency)
-  const setSelectedFrequency = useUIStore((s) => s.setSelectedFrequency)
-  const selectedTagIds = useUIStore((s) => s.selectedTagIds)
-  const setSelectedTagIds = useUIStore((s) => s.setSelectedTagIds)
-
   const showGeneralOnToday = useSyncExternalStore(
     subscribeToShowGeneral,
     getShowGeneralClientSnapshot,
     getShowGeneralServerSnapshot,
   )
 
-  const frequencyOptions = useMemo<Array<{ key: HabitFrequencyFilter; label: string }>>(
-    () => [
-      { key: 'Day', label: t('habits.filter.daily') },
-      { key: 'Week', label: t('habits.filter.weekly') },
-      { key: 'Month', label: t('habits.filter.monthly') },
-      { key: 'Year', label: t('habits.filter.yearly') },
-      { key: 'none', label: t('habits.filter.oneTime') },
-    ],
-    [t],
-  )
-
   const filters = useMemo<HabitsFilter>(
     () =>
       buildTodayFilters({
-        view: currentActiveView,
+        view: 'today',
         dateStr,
         isTodayDate: isToday(selectedDate),
-        searchQuery: searchQueryStore,
-        selectedFrequency,
-        selectedTagIds,
+        searchQuery: '',
+        selectedFrequency: null,
+        selectedTagIds: [],
         showGeneralOnToday,
       }),
-    [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday],
+    [dateStr, selectedDate, showGeneralOnToday],
   )
 
   const habitsQuery = useHabits(filters)
@@ -108,26 +78,6 @@ export function useTodayHabitsData({
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
   const showLoadError = habitsQuery.isError && !hasFetched
-
-  const dayProgress = useMemo(
-    () => computeDayProgress(habitsById, dateStr),
-    // react-doctor-disable-next-line exhaustive-deps -- habitsById is derived from habitsQuery.data every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [habitsById, dateStr],
-  )
-  const showDayProgress = currentActiveView === 'today' && dayProgress.total > 0
-
-  const toggleTagFilter = useCallback(
-    (tagId: string) => {
-      const idx = selectedTagIds.indexOf(tagId)
-      if (idx >= 0) {
-        setSelectedTagIds(selectedTagIds.filter((id) => id !== tagId))
-        return
-      }
-
-      setSelectedTagIds([...selectedTagIds, tagId])
-    },
-    [selectedTagIds, setSelectedTagIds],
-  )
 
   return {
     filters,
@@ -139,12 +89,5 @@ export function useTodayHabitsData({
     isRefetching,
     showLoadError,
     refetch: () => void habitsQuery.refetch(),
-    dayProgress,
-    showDayProgress,
-    frequencyOptions,
-    selectedFrequency,
-    setSelectedFrequency,
-    selectedTagIds,
-    toggleTagFilter,
   }
 }

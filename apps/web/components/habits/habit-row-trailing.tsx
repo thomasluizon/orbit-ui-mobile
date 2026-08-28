@@ -11,15 +11,6 @@ import type { HabitRowActions } from './habit-row'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 
-function resolveLogAction(
-  childProgress: { done: number; total: number } | undefined,
-  actions: HabitRowActions,
-): (() => void) | undefined {
-  const childrenComplete =
-    !!childProgress && childProgress.total > 0 && childProgress.done >= childProgress.total
-  return childrenComplete ? actions.onLog : actions.onForceLogParent
-}
-
 function resolveParentRingColor(isBadHabit: boolean): string | undefined {
   return isBadHabit ? 'var(--status-bad)' : undefined
 }
@@ -122,7 +113,7 @@ export function HabitRowTrailing({
               }
               onClick={(event) => {
                 event.stopPropagation()
-                const parentAction = isDone ? actions.onUnlog : resolveLogAction(childProgress, actions)
+                const parentAction = isDone ? actions.onUnlog : actions.onLog
                 parentAction?.()
               }}
               className="appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center cursor-pointer rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96]"

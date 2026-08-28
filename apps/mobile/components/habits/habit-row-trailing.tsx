@@ -28,14 +28,6 @@ interface HabitRowTrailingProps {
   onOpenMenu: () => void
 }
 
-function resolveLogAction(
-  childrenDone: number,
-  childrenTotal: number,
-  actions: HabitRowActions,
-): (() => void) | undefined {
-  return childrenDone >= childrenTotal ? actions.onLog : actions.onForceLogParent
-}
-
 function resolveParentRingTrackColor(
   habit: NormalizedHabit,
   dotState: HabitStatus,
@@ -85,7 +77,7 @@ export function HabitRowTrailing({
               onPress={() => {
                 const parentAction = isDoneForRange
                   ? actions.onUnlog
-                  : resolveLogAction(childrenDone, childrenTotal, actions)
+                  : actions.onLog
                 parentAction?.()
               }}
               accessibilityRole="button"

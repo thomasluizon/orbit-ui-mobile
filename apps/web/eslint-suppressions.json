@@ -1,9 +1,4 @@
 {
-  "__tests__/app/today-page.test.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "__tests__/components/goals/goal-card-context-menu.test.tsx": {
     "local/react19-api": {
       "count": 1
@@ -286,27 +281,6 @@
   "app/(app)/support/page.tsx": {
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "app/(app)/today-page-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/today-sections.tsx": {
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "app/(app)/today-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 5
-    },
-    "local/require-focus-replacement": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "app/(app)/upgrade/page.tsx": {
@@ -975,14 +949,6 @@
       "count": 8
     }
   },
-  "components/habits/today-ai-summary.tsx": {
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "components/marketing-consent/marketing-consent-prompt.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -1131,14 +1097,6 @@
     },
     "local/spacing-scale": {
       "count": 11
-    }
-  },
-  "components/today/setup-checklist-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/tour/tour-provider.tsx": {

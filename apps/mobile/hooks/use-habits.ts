@@ -103,7 +103,6 @@ export {
   useTotalHabitCount,
 } from './use-habit-queries'
 export { useCalendarData, useCalendarRange } from './use-calendar-data'
-export { useSummary } from './use-summary'
 
 export function useLogHabit() {
   const queryClient = useQueryClient()

@@ -147,7 +147,6 @@ vi.mock('@/components/habits/habit-row', () => ({
     selectMode?: boolean
     selected?: boolean
     actions?: {
-      onForceLogParent?: () => void
       onLog?: () => void
       onSkip?: () => void
       onDelete?: () => void
@@ -177,9 +176,6 @@ vi.mock('@/components/habits/habit-row', () => ({
       </button>
       <button data-testid={`skip-${habit.id}`} onClick={actions?.onSkip}>
         skip
-      </button>
-      <button data-testid={`force-log-${habit.id}`} onClick={actions?.onForceLogParent}>
-        force
       </button>
       <button data-testid={`edit-${habit.id}`} onClick={actions?.onEdit}>
         edit
@@ -332,7 +328,25 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList filters={defaultFilters} />,
     )
-    expect(screen.getByText('habits.noDueToday')).toBeDefined()
+    expect(screen.getByText('habits.emptyState')).toBeDefined()
+    expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
+  })
+
+  it('keeps a completed row in place for 1400 ms', () => {
+    vi.useFakeTimers()
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    const ref = React.createRef<HabitListHandle>()
+    const result = renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => ref.current?.markRecentlyCompleted(habit.id))
+
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+    result.unmount()
+    setTimeoutSpy.mockRestore()
+    vi.useRealTimers()
   })
 
   it('renders habit cards for each top-level habit', () => {
@@ -654,7 +668,7 @@ describe('HabitList', () => {
       await pendingLog
     })
   })
-  it('force-logs an incomplete parent immediately', async () => {
+  it('logs an incomplete parent immediately', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -674,14 +688,13 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('force-log-parent'))
+      fireEvent.click(screen.getByTestId('log-parent'))
     })
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-    expect(screen.queryByRole('dialog', { name: 'habits.forceLogTitle' })).toBeNull()
   })
 
-  it('settles the next parent after force-logging its final unresolved child', async () => {
+  it('settles the next parent after logging its final unresolved child', async () => {
     const grandparent = createMockHabit({ id: 'grandparent', title: 'Grandparent', hasSubHabits: true, scheduledDates: [TODAY], instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'grandparent', hasSubHabits: true, scheduledDates: [TODAY] })
     const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', isCompleted: true, scheduledDates: [TODAY] })
@@ -691,7 +704,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [grandparent]
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => {
-      fireEvent.click(screen.getByTestId('force-log-child'))
+      fireEvent.click(screen.getByTestId('log-child'))
     })
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child' })

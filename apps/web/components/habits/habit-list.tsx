@@ -18,6 +18,7 @@ import {
   computeParentPromptProgress,
   formatAPIDate,
   getHabitEmptyStateKey,
+  getTodayBoundary,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
 } from '@orbit/shared/utils'
@@ -817,6 +818,8 @@ export function HabitList({
     const state = deriveRowState(habit, recentlyCompleted)
     const meta = buildMetaTokens(habit)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
+    const boundary = getTodayBoundary(selectedDateStr, todayStr)
+    const readOnly = boundary === 'read-only' || (boundary === 'future' && !canLog)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
       habit.id === tourCardHabitId ? 'tour-habit-card' : undefined
@@ -829,6 +832,7 @@ export function HabitList({
         state={state}
         meta={meta}
         canLog={canLog}
+        readOnly={readOnly}
         streak={habit.currentStreak}
         child={isChild}
         depth={displayDepth}
@@ -842,7 +846,6 @@ export function HabitList({
         actions={{
           onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
-          onForceLogParent: () => void handleDirectLog(habit.id),
           onSkip: () => void handleSkip(habit.id),
           onDuplicate: () => void duplicateImmediately(habit.id),
           onEdit: () => {
@@ -1004,8 +1007,8 @@ export function HabitList({
     if (habits.length === 0) {
       return (
         <HabitListEmptyState
-          title={t(getHabitEmptyStateKey(view))}
-          description={getEmptyHabitsMessage(view, t)}
+          title={view === 'today' ? t('habits.emptyState') : t(getHabitEmptyStateKey(view))}
+          description={view === 'today' ? t('habits.noHabitsBody') : getEmptyHabitsMessage(view, t)}
           askAstraLabel={t('habits.askAstra')}
           onAskAstra={() => router.push('/chat')}
           actionLabel={t('habits.createManually')}

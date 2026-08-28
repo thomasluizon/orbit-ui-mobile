@@ -6,6 +6,7 @@ import {
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
   formatAPIDate,
+  getTodayBoundary,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
@@ -43,7 +44,6 @@ export interface HabitRowActions {
   onToggleSelection?: () => void
   onAddSubHabit?: () => void
   onToggleExpand?: () => void
-  onForceLogParent?: () => void
   onEnterSelectMode?: () => void
   onLongPressCard?: () => void
 }
@@ -96,6 +96,7 @@ interface HabitRowProps {
   isSelected?: boolean
   hasChildren?: boolean
   isExpanded?: boolean
+  readOnly?: boolean
   childrenDone?: number
   childrenTotal?: number
   actions?: HabitRowActions
@@ -200,6 +201,7 @@ export function HabitRow({
   isSelected = false,
   hasChildren = false,
   isExpanded = false,
+  readOnly: readOnlyOverride,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
@@ -230,6 +232,8 @@ export function HabitRow({
 
   const isOverdue = status === 'overdue'
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
+  const boundary = getTodayBoundary(selectedDateStr, todayStr)
+  const readOnly = readOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
 
   const metaParts = buildHabitRowMetaParts({
     habit,
@@ -302,10 +306,13 @@ export function HabitRow({
     <View>
       <View
         testID="habit-row"
+        accessibilityState={{ disabled: readOnly }}
+        pointerEvents={readOnly ? 'none' : 'auto'}
         style={[
           styles.row,
           rowStyle,
           style,
+          readOnly ? styles.readOnly : null,
         ]}
       >
         <HabitRowStructuralColumn
@@ -323,7 +330,7 @@ export function HabitRow({
         <Pressable
           onPress={handlePress}
           onLongPress={isSelectMode ? undefined : actions.onLongPressCard}
-          delayLongPress={300}
+          delayLongPress={500}
           accessibilityRole="button"
           accessibilityLabel={rowAccessibilityLabel}
           style={({ pressed }) => [

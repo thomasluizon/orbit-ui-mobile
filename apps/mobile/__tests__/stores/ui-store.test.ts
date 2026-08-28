@@ -6,11 +6,9 @@ import {
   getTourSessionUIState,
 } from "@orbit/shared/stores";
 
-import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { useTourStore } from "@/stores/tour-store";
 import { useUIStore } from "@/stores/ui-store";
-import { Animated } from "@/test-mocks/react-native";
 
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedTree = import("react-test-renderer").ReactTestRenderer;
@@ -142,95 +140,6 @@ describe("mobile ui store", () => {
       showCompleted: true,
     });
   });
-
-  it.each([
-    { query: "focus", isSearchOpen: false, selected: true },
-    { query: "   ", isSearchOpen: false, selected: false },
-    { query: "   ", isSearchOpen: true, selected: false },
-  ])(
-    "marks the search control selected only for a trimmed query",
-    ({ query, isSearchOpen, selected }) => {
-      const emptyCallback = vi.fn();
-      let tree: RenderedTree | undefined;
-
-      void TestRenderer.act(() => {
-        tree = TestRenderer.create(
-          React.createElement(TodayHabitsHeader, {
-            header: null,
-            showSummary: false,
-            dateStr: "2026-04-06",
-            currentActiveView: "all",
-            dateLabel: "April 6",
-            selectedDate: new Date("2026-04-06T12:00:00Z"),
-            slideDirection: "left",
-            dateLabelAnim: new Animated.Value(
-              0,
-            ) as unknown as import("react-native").Animated.Value,
-            isSearchFocused: false,
-            showDayProgress: false,
-            dayProgress: { done: 0, total: 0 },
-            isSearchOpen,
-            searchQuery: query,
-            selectedFrequency: null,
-            selectedTagIds: [],
-            tags: [],
-            frequencyOptions: [],
-            isSelectMode: false,
-            showCompleted: false,
-            isFetching: false,
-            allCollapsed: false,
-            showControlsMenu: false,
-            showFreqMenu: false,
-            controlsButtonRef:
-              React.createRef<import("react-native").View | null>(),
-            freqMenuButtonRef:
-              React.createRef<import("react-native").View | null>(),
-            filtersAnimatedStyle: {},
-            onGoToPreviousDay: emptyCallback,
-            onGoToToday: emptyCallback,
-            onGoToNextDay: emptyCallback,
-            onSearchToggle: emptyCallback,
-            onSearchChange: emptyCallback,
-            onSearchFocusChange: emptyCallback,
-            onTagToggle: emptyCallback,
-            onToggleFreqMenu: emptyCallback,
-            onToggleControlsMenu: emptyCallback,
-            onCloseControlsMenu: emptyCallback,
-            onCloseFreqMenu: emptyCallback,
-            onToggleSelect: emptyCallback,
-            onToggleCollapse: emptyCallback,
-            onRefresh: emptyCallback,
-            onToggleCompleted: emptyCallback,
-            onSelectFrequency: emptyCallback,
-          }),
-        );
-      });
-
-      const searchButton = tree?.root.findAll(
-        (node) =>
-          node.props.accessibilityLabel === "habits.searchPlaceholder" &&
-          typeof node.props.onPress === "function",
-      )[0];
-
-      expect(searchButton?.props.accessibilityState).toEqual({ selected });
-
-      const resolveStyle = searchButton?.props.style as (state: {
-        pressed: boolean;
-      }) => unknown[];
-      const restingStyle = resolveStyle({ pressed: false });
-      const pressedStyle = resolveStyle({ pressed: true });
-      const hasActiveIndicator = restingStyle.some(
-        (layer) =>
-          typeof layer === "object" &&
-          layer !== null &&
-          "borderColor" in layer,
-      );
-
-      expect(hasActiveIndicator).toBe(selected);
-      expect(restingStyle.at(-1)).toBeNull();
-      expect(pressedStyle.at(-1)).not.toBeNull();
-    },
-  );
 
   it("toggles selection mode and cascades descendant selection", () => {
     const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState();
