@@ -18,10 +18,9 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 /**
  * Global keyboard shortcuts for the desktop shell. Cmd/Ctrl+K toggles the command
- * palette anywhere; a `g`-prefixed chord (g t/c/i/a/p) jumps between the primary
- * surfaces with the tab-switch transition; `g a` opens the maximized Astra copilot
- * at md+ and routes to /chat below it. Chords are ignored while typing in a field
- * or while an overlay is open.
+ * palette anywhere; a `g`-prefixed chord jumps to Today, Calendar, or Profile with
+ * the tab-switch transition. Chords are ignored while typing in a field or while an
+ * overlay is open. The command palette rebuild owns the final destination shortcut set.
  */
 export function useKeyboardShortcuts(): void {
   const router = useRouter()
