@@ -93,7 +93,10 @@ const OVERLAY_BASES = [
   "components/ui/time-field",
 ]
 const WEB_OVERLAY_BASES = OVERLAY_BASES
-const MOBILE_OVERLAY_BASES = OVERLAY_BASES
+// `selection-field` is a mobile-only wrapper in the same shape: it presents its options through
+// `Sheet`, and its callers import the wrapper rather than `sheet`, so it has to be listed here or
+// every one of them drops out of the inventory. Web has no twin, so the web list stays as it is.
+const MOBILE_OVERLAY_BASES = [...OVERLAY_BASES, "components/ui/selection-field"]
 
 // The command palette mounts its own portal and imports no overlay base, so a
 // base-import check alone misses it entirely - that miss is one of the named

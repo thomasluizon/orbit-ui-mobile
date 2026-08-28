@@ -89,6 +89,7 @@
     "R7-screen-habits-crud": [
       "m-overlay-habit-form-fields-advanced-section",
       "m-overlay-habit-form-fields-due-date-section",
+      "m-overlay-habit-form-fields-frequency-detail-section",
       "m-overlay-habit-form-fields-habit-emoji-selector",
       "m-overlay-habit-form-fields-scheduled-reminder-section",
       "m-overlay-habits-create-habit-modal",

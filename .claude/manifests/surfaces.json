@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "e16ad193796fdbc6edf944aa9329f7c87ea403fe",
+  "generatedFrom": "bf088df1873412ff55edaa0e76d349f4745a14d3",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 208,
-  "cellCount": 904,
+  "surfaceCount": 209,
+  "cellCount": 908,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -12988,6 +12988,66 @@
         "apps/mobile/components/habits/habit-form-fields/due-date-section.tsx"
       ],
       "closureSize": 165,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-frequency-detail-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx"
+      ],
+      "closureSize": 163,
+      "state": "default",
+      "theme": "light",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-frequency-detail-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx"
+      ],
+      "closureSize": 163,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-frequency-detail-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx"
+      ],
+      "closureSize": 163,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en",
+      "pixelEvidence": "none"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-frequency-detail-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/frequency-detail-section.tsx"
+      ],
+      "closureSize": 163,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR",
