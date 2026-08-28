@@ -4,16 +4,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
   detectDefaultTimeFormat,
-  formatLocaleTime,
   formatTimeParts,
+  formatTimeFieldInput,
   from12Hour,
   HOURS_12,
   HOURS_24,
@@ -35,13 +37,7 @@ const COLUMN_HEIGHT = 220
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-interface TimeFieldProps {
-  value: string
-  onChange: (value: string) => void
-  onClear?: () => void
-  placeholder?: string
-  accessibilityLabel?: string
-  disabled?: boolean
+type MobileTimeFieldProps = TimeFieldProps & {
   containerStyle?: StyleProp<ViewStyle>
 }
 
@@ -52,6 +48,25 @@ interface TimeColumnProps {
   label: string
   tokens: Tokens
   onSelect: (value: number | string) => void
+}
+
+const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
+
+function presentTime(value: Time24 | '', hourCycle: 'h23' | 'h12'): string {
+  if (!value || hourCycle === 'h23') return value
+  const [hourText, minute] = value.split(':')
+  const hour = Number(hourText)
+  return `${hour % 12 || 12}:${minute} ${hour < 12 ? 'am' : 'pm'}`
+}
+
+function parseTypedTime(value: string, hourCycle: 'h23' | 'h12'): Time24 | null {
+  if (hourCycle === 'h23') return TIME_24_PATTERN.test(value) ? value as Time24 : null
+  const match = TIME_12_PATTERN.exec(value.trim())
+  if (!match) return null
+  const hour12 = Number(match[1])
+  const hour24 = (hour12 % 12) + (match[3]!.toLowerCase() === 'pm' ? 12 : 0)
+  return `${String(hour24).padStart(2, '0')}:${match[2]}` as Time24
 }
 
 function TimeColumn({
@@ -111,90 +126,189 @@ function TimeColumn({
   )
 }
 
+interface TimeEntryProps {
+  canClear: boolean
+  clearLabel: string
+  disabled: boolean
+  error?: string
+  focused: boolean
+  hint?: string
+  inputValue: string
+  label: string
+  onBlur: () => void
+  onChange: (value: string) => void
+  onClear?: () => void
+  onFocus: () => void
+  onOpenPicker: () => void
+  placeholder?: string
+  selectTimeLabel: string
+  tokens: Tokens
+  usesNumericKeyboard: boolean
+}
+
+function TimeEntry({
+  canClear,
+  clearLabel,
+  disabled,
+  error,
+  focused,
+  hint,
+  inputValue,
+  label,
+  onBlur,
+  onChange,
+  onClear,
+  onFocus,
+  onOpenPicker,
+  placeholder,
+  selectTimeLabel,
+  tokens,
+  usesNumericKeyboard,
+}: Readonly<TimeEntryProps>) {
+  return (
+    <>
+      <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
+      <View
+        style={[
+          styles.inputRow,
+          {
+            backgroundColor: tokens.bgField,
+            borderColor: error ? tokens.statusBad : focused ? tokens.primary : tokens.hairline,
+            borderWidth: error || focused ? 2 : 1,
+          },
+          disabled ? styles.disabled : null,
+        ]}
+      >
+        <TextInput
+          value={inputValue}
+          onChangeText={onChange}
+          editable={!disabled}
+          keyboardType={usesNumericKeyboard ? 'number-pad' : 'default'}
+          placeholder={placeholder}
+          accessibilityLabel={label}
+          accessibilityHint={error ?? hint}
+          accessibilityState={{ disabled }}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          style={[styles.input, { color: tokens.fg1 }]}
+        />
+        <Pressable
+          onPress={onOpenPicker}
+          disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${selectTimeLabel}`}
+          accessibilityState={{ disabled }}
+          style={styles.icon}
+        >
+          <Clock3 size={20} color={tokens.fg4} strokeWidth={1.8} />
+        </Pressable>
+        {canClear ? (
+          <Pressable
+            onPress={onClear}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={clearLabel}
+            style={styles.icon}
+          >
+            <X size={20} color={tokens.fg3} strokeWidth={1.8} />
+          </Pressable>
+        ) : null}
+      </View>
+      {error || hint ? (
+        <Text
+          accessibilityRole={error ? 'alert' : undefined}
+          style={[styles.caption, { color: error ? tokens.statusBadText : tokens.fg3 }]}
+        >
+          {error ?? hint}
+        </Text>
+      ) : null}
+    </>
+  )
+}
+
 export function TimeField({
+  label,
   value,
   onChange,
   onClear,
   placeholder,
   accessibilityLabel,
+  hourCycle,
+  hint,
   disabled = false,
+  error,
   containerStyle,
-}: Readonly<TimeFieldProps>) {
+}: Readonly<MobileTimeFieldProps>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { profile } = useProfile()
-  const is24Hour = profile?.uses24HourClock ?? detectDefaultTimeFormat(i18n.language) === '24h'
+  const uses24HourClock = profile?.uses24HourClock ?? detectDefaultTimeFormat(i18n.language) === '24h'
+  const resolvedHourCycle = hourCycle ?? (uses24HourClock ? 'h23' : 'h12')
+  const resolvedLabel = label ?? accessibilityLabel ?? placeholder ?? t('common.selectTime')
+  const presentedValue = presentTime(value, resolvedHourCycle)
+  const [focused, setFocused] = useState(false)
+  const [inputDraft, setInputDraft] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState({ hour24: 9, minute: 0 })
+  const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
   const { sheetRef, closeSheet } = useSheetHost()
 
-  const displayValue = value
-    ? formatLocaleTime(value, i18n.language, {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: !is24Hour,
-      })
-    : ''
   const canClear = !disabled && value.length > 0 && onClear != null
-  const { hour12, period } = to12Hour(draft.hour24)
+  const { hour12, period } = to12Hour(pickerDraft.hour24)
+
+  function handleChange(displayValue: string) {
+    const nextValue = resolvedHourCycle === 'h23'
+      ? formatTimeFieldInput(displayValue, inputDraft ?? presentedValue)
+      : displayValue
+    setInputDraft(nextValue)
+    if (!nextValue) {
+      onClear?.()
+      return
+    }
+    const parsed = parseTypedTime(nextValue, resolvedHourCycle)
+    if (parsed) onChange(parsed)
+  }
 
   function openPicker() {
     const now = new Date()
-    setDraft(parseTimeParts(value) ?? { hour24: now.getHours(), minute: now.getMinutes() })
+    setPickerDraft(parseTimeParts(value) ?? { hour24: now.getHours(), minute: now.getMinutes() })
     setOpen(true)
   }
 
   function applyDraft() {
     closeSheet(() => {
       setOpen(false)
-      onChange(formatTimeParts(draft))
+      onChange(formatTimeParts(pickerDraft) as Time24)
     })
   }
 
   return (
-    <>
-      <View
-        style={[
-          styles.trigger,
-          { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
-          containerStyle,
-          disabled ? styles.disabled : null,
-        ]}
-      >
-        <Pressable
-          onPress={openPicker}
-          disabled={disabled}
-          accessibilityRole="button"
-          accessibilityLabel={
-            accessibilityLabel ?? (displayValue || placeholder || t('common.selectTime'))
-          }
-          style={styles.triggerMain}
-        >
-          <Text
-            style={{
-              color: displayValue ? tokens.fg1 : tokens.fg3,
-              fontFamily: 'Rubik_400Regular',
-              fontSize: 16,
-            }}
-          >
-            {displayValue || placeholder || t('common.selectTime')}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={canClear ? onClear : openPicker}
-          disabled={disabled}
-          accessibilityRole="button"
-          accessibilityLabel={canClear ? t('common.clear') : t('common.selectTime')}
-          style={styles.icon}
-        >
-          {canClear ? (
-            <X size={20} color={tokens.fg3} strokeWidth={1.8} />
-          ) : (
-            <Clock3 size={20} color={tokens.fg4} strokeWidth={1.8} />
-          )}
-        </Pressable>
-      </View>
+    <View style={[styles.root, containerStyle]} data-error={error ? '' : undefined}>
+      <TimeEntry
+        canClear={canClear}
+        clearLabel={t('common.clear')}
+        disabled={disabled}
+        error={error}
+        focused={focused}
+        hint={hint}
+        inputValue={inputDraft ?? presentedValue}
+        label={resolvedLabel}
+        onBlur={() => {
+          setFocused(false)
+          setInputDraft(null)
+        }}
+        onChange={handleChange}
+        onClear={onClear}
+        onFocus={() => {
+            setFocused(true)
+            setInputDraft(presentedValue)
+        }}
+        onOpenPicker={openPicker}
+        placeholder={placeholder}
+        selectTimeLabel={t('common.selectTime')}
+        tokens={tokens}
+        usesNumericKeyboard={resolvedHourCycle === 'h23'}
+      />
       {open ? (
         <Sheet
           ref={sheetRef}
@@ -205,27 +319,27 @@ export function TimeField({
         >
           <View style={styles.columns}>
             <TimeColumn
-              values={is24Hour ? HOURS_24 : HOURS_12}
-              selected={is24Hour ? draft.hour24 : hour12}
+              values={resolvedHourCycle === 'h23' ? HOURS_24 : HOURS_12}
+              selected={resolvedHourCycle === 'h23' ? pickerDraft.hour24 : hour12}
               formatValue={(option) => padTimePart(Number(option))}
               label={t('common.hours')}
               tokens={tokens}
               onSelect={(option) =>
-                setDraft((current) => ({
+                setPickerDraft((current) => ({
                   ...current,
-                  hour24: is24Hour ? Number(option) : from12Hour(Number(option), period),
+                  hour24: resolvedHourCycle === 'h23' ? Number(option) : from12Hour(Number(option), period),
                 }))
               }
             />
             <TimeColumn
               values={MINUTES}
-              selected={draft.minute}
+              selected={pickerDraft.minute}
               formatValue={(option) => padTimePart(Number(option))}
               label={t('common.minutes')}
               tokens={tokens}
-              onSelect={(option) => setDraft((current) => ({ ...current, minute: Number(option) }))}
+              onSelect={(option) => setPickerDraft((current) => ({ ...current, minute: Number(option) }))}
             />
-            {is24Hour ? null : (
+            {resolvedHourCycle === 'h23' ? null : (
               <TimeColumn
                 values={DAY_PERIODS}
                 selected={period}
@@ -233,7 +347,7 @@ export function TimeField({
                 label={t('common.amPm')}
                 tokens={tokens}
                 onSelect={(option) =>
-                  setDraft((current) => ({
+                  setPickerDraft((current) => ({
                     ...current,
                     hour24: from12Hour(to12Hour(current.hour24).hour12, option as DayPeriod),
                   }))
@@ -243,27 +357,30 @@ export function TimeField({
           </View>
         </Sheet>
       ) : null}
-    </>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  trigger: {
+  root: { width: '100%', gap: 8 },
+  label: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
+  inputRow: {
     alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 12,
     flexDirection: 'row',
     minHeight: 54,
     width: '100%',
   },
-  triggerMain: {
+  input: {
     flex: 1,
-    justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 16,
+    fontVariant: ['tabular-nums'],
   },
   icon: { alignItems: 'center', justifyContent: 'center', minHeight: 52, width: 48 },
+  caption: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
   disabled: { opacity: 0.6 },
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT },
   column: { flex: 1 },

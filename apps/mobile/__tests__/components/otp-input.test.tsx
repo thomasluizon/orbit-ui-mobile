@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { OtpInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 
 const TestRenderer = require('react-test-renderer')
 

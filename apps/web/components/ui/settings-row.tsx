@@ -23,7 +23,6 @@ interface SettingsRowProps {
   ariaLabel?: string
   divider?: boolean
 }
-
 export function SettingsRow({
   label,
   desc,
@@ -76,7 +75,7 @@ export function SettingsRow({
           style={{ width: 8, height: 8, background: leadingDot }}
         />
       )}
-      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 3 }}>
+      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4 }}>
         <span
           className="overflow-hidden line-clamp-2"
           style={{
@@ -131,54 +130,5 @@ export function SettingsRow({
         )}
       </span>
     </RootTag>
-  )
-}
-
-interface SwitchProps {
-  on: boolean
-  onToggle: () => void
-  ariaLabel: string
-  disabled?: boolean
-}
-
-/** Kit Switch: 48×28 pill, 22px thumb; primary track when on, fg-1 alpha track when off. */
-export function Switch({ on, onToggle, ariaLabel, disabled = false }: Readonly<SwitchProps>) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onToggle}
-      className="appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-0 shrink-0 inline-flex items-center justify-center"
-      style={{ minHeight: 44 }}
-    >
-      <span
-        className="inline-flex items-center"
-        style={{
-          width: 48,
-          height: 28,
-          borderRadius: 999,
-          padding: 3,
-          background: on
-            ? 'var(--primary)'
-            : 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
-          transition: 'background-color var(--dur-base) var(--ease-standard)',
-        }}
-      >
-        <span
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 999,
-            background: 'var(--fg-on-primary)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
-            transform: on ? 'translateX(20px)' : 'translateX(0px)',
-            transition: 'transform var(--dur-base) var(--ease-standard)',
-          }}
-        />
-      </span>
-    </button>
   )
 }
