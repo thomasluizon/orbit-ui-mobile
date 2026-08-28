@@ -330,7 +330,7 @@ vi.mock("@/components/ui/anchored-menu", () => ({
   }),
 }));
 
-vi.mock("../../app/(tabs)/today-shell", () => todayShellMock);
+vi.mock("../../components/today/today-shell", () => todayShellMock);
 vi.mock("@/hooks/use-horizontal-swipe", () => ({
   useHorizontalSwipe: () => ({ toGestureArray: () => [] }),
 }));

@@ -18,7 +18,7 @@ import { tintFromPrimary } from '@/lib/theme'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { WrappedEntryButton } from '@/components/wrapped/wrapped-entry-button'
-import { styles, type Tokens } from './retrospective-styles'
+import { styles, type Tokens } from '@/app/retrospective-styles'
 
 const WEEKDAY_KEYS = [
   'monday',

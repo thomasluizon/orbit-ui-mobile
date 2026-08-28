@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { createTokensV2 } from '@/lib/theme'
-import { AiFeatureToggles } from '@/app/ai-settings-sections'
+import { AiFeatureToggles } from '@/components/profile/ai-settings-sections'
 
 vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => null,

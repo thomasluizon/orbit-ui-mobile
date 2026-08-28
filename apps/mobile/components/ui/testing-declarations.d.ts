@@ -1,5 +1,5 @@
 declare module 'react-test-renderer' {
-  import type { ReactElement } from 'react'
+  import type { ElementType, ReactElement } from 'react'
 
   export interface ReactTestRendererJSON {
     type: string
@@ -7,7 +7,14 @@ declare module 'react-test-renderer' {
     children: (ReactTestRendererJSON | string)[] | string | null
   }
 
+  export interface ReactTestInstance {
+    type: ElementType
+    props: Record<string, unknown>
+    findAll(predicate: (node: ReactTestInstance) => boolean): ReactTestInstance[]
+  }
+
   export interface ReactTestRenderer {
+    root: ReactTestInstance
     update: (element: ReactElement) => void
   }
 

@@ -50,14 +50,14 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useEngagementSlot } from "@/hooks/use-engagement-slot";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
-import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
+import { TodayHeader, TodayTabs, type TodayTabItem } from "@/components/today/today-shell";
 import { buildTodayFilters } from "./today-model";
 import { useTodayViewSync } from "./use-today-view-sync";
-import { TodayScreenBody } from "./today-sections";
+import { TodayScreenBody } from "@/components/today/today-sections";
 import { useTodayDate } from "./use-today-date";
 import { useTodayMotion } from "./use-today-motion";
 import { useTodaySelection } from "./use-today-selection";
-import { TodayModals } from "./today-modals";
+import { TodayModals } from "@/components/today/today-modals";
 
 export { resolveBulkActionBarEnterShift } from "./today-model";
 

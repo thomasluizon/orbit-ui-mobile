@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { tintFromPrimary } from '@/lib/theme'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
-import { styles, type Tokens } from './retrospective-styles'
+import { styles, type Tokens } from '@/app/retrospective-styles'
 
 interface RetrospectiveLockedYearlyProps {
   tokens: Tokens

@@ -8,9 +8,9 @@ import { ErrorState } from '@/components/ui/error-state'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createLoginStyles } from './login-styles'
 import { useLoginFlow } from './use-login-flow'
-import { LoginHeader, ReferralBanner, LoginSuccessMessage } from './login-sections'
-import { EmailStep } from './email-step'
-import { CodeStep } from './code-step'
+import { LoginHeader, ReferralBanner, LoginSuccessMessage } from '@/components/auth/login-sections'
+import { EmailStep } from '@/components/auth/email-step'
+import { CodeStep } from '@/components/auth/code-step'
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()

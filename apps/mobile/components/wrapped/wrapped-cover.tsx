@@ -5,7 +5,7 @@ import { RingMotif } from '@/components/gamification/ring-motif'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { styles, type Tokens } from './wrapped-styles'
+import { styles, type Tokens } from '@/app/wrapped-styles'
 
 interface WrappedCoverProps {
   tokens: Tokens

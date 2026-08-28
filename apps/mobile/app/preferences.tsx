@@ -17,7 +17,7 @@ import {
   PreferenceSettingsList,
   PreferencePickerSheet,
   type PreferencePicker,
-} from './preferences-sections'
+} from '@/components/profile/preferences-sections'
 
 export default function PreferencesScreen() {
   const { t } = useTranslation()

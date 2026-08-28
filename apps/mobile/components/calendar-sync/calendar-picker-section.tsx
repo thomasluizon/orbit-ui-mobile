@@ -7,7 +7,7 @@ import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { useAppToast } from '@/hooks/use-app-toast'
-import type { CalendarSyncStyles } from './calendar-sync-styles'
+import type { CalendarSyncStyles } from '@/app/calendar-sync-styles'
 
 interface CalendarPickerSectionProps {
   styles: CalendarSyncStyles

@@ -10,7 +10,7 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks/use-wrapped'
 import { WrappedSlide } from './wrapped-slide'
-import { styles, type Tokens } from './wrapped-styles'
+import { styles, type Tokens } from '@/app/wrapped-styles'
 
 interface WrappedPlayerProps {
   slides: WrappedSlideModel[]

@@ -16,7 +16,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
-import type { PreferencePicker } from './preferences-sections'
+import type { PreferencePicker } from '@/components/profile/preferences-sections'
 
 export function usePreferenceControls() {
   const { i18n } = useTranslation()

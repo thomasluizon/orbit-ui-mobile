@@ -16,7 +16,7 @@ import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
-import { styles, type Tokens } from './preferences-styles'
+import { styles, type Tokens } from '@/app/preferences-styles'
 
 export type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
 

@@ -7,7 +7,7 @@ import {
   LoginHeader,
   ReferralBanner,
   LoginSuccessMessage,
-} from '@/app/login-sections'
+} from '@/components/auth/login-sections'
 
 const TestRenderer = require('react-test-renderer')
 

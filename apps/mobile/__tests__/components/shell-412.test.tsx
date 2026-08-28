@@ -13,14 +13,17 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
+type ReactTestRenderer = import('react-test-renderer').ReactTestRenderer
 
-function findByTestId(tree: ReturnType<typeof TestRenderer.create>, testID: string) {
-  return tree.root.findAll((node) => node.props.testID === testID)
+function findByTestId(tree: ReactTestRenderer, testID: string) {
+  return tree.root.findAll(
+    (node) => typeof node.type === 'string' && node.props.testID === testID,
+  )
 }
 
 describe('Shell412 mobile', () => {
   it('owns the notice, composer, tab bar, FAB, and Android safe-area bottom', async () => {
-    let tree!: ReturnType<typeof TestRenderer.create>
+    let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <Shell412
@@ -44,7 +47,7 @@ describe('Shell412 mobile', () => {
   })
 
   it('uses an action slot without primary navigation in flow mode', async () => {
-    let tree!: ReturnType<typeof TestRenderer.create>
+    let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <Shell412 nav={false} action={React.createElement('Action')}>
@@ -58,7 +61,7 @@ describe('Shell412 mobile', () => {
   })
 
   it('presents conversation modally and hides the screen accessibility tree', async () => {
-    let tree!: ReturnType<typeof TestRenderer.create>
+    let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <Shell412

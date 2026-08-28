@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
-import { styles, type Tokens } from './retrospective-styles'
+import { styles, type Tokens } from '@/app/retrospective-styles'
 
 interface RetrospectiveContentProps {
   tokens: Tokens

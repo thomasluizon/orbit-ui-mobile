@@ -10,7 +10,7 @@ import { plural } from '@/lib/plural'
 import { tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'
-import type { CalendarSyncStyles } from './calendar-sync-styles'
+import type { CalendarSyncStyles } from '@/app/calendar-sync-styles'
 
 function rowEntrance(index: number) {
   return FadeInDown.duration(280)

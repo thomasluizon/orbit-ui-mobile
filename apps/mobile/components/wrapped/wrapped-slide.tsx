@@ -10,7 +10,7 @@ import {
 import { ShareCard } from '@/components/share/share-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
-import { styles, type Tokens } from './wrapped-styles'
+import { styles, type Tokens } from '@/app/wrapped-styles'
 
 const WEEKDAY_KEYS = [
   'monday',

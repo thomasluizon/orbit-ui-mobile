@@ -2,7 +2,7 @@ import { BellRing, Lock, Satellite } from '@/components/ui/icons'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'
-import type { Tokens } from './ai-settings-styles'
+import type { Tokens } from '@/app/ai-settings-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 

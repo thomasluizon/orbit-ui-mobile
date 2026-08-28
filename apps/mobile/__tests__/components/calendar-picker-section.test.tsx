@@ -2,7 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
 
-import { CalendarPickerSection } from '@/app/calendar-picker-section'
+import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 import { createStyles } from '@/app/calendar-sync-styles'
 
 const TestRenderer = require('react-test-renderer')

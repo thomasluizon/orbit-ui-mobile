@@ -14,7 +14,7 @@ import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { GoalsView } from "@/components/goals/goals-view";
 import { PillButton } from "@/components/ui/pill-button";
 import { SatelliteGlyph } from "@/components/ui/satellite-glyph";
-import type { createStyles, TodayView } from "./index";
+import type { createStyles, TodayView } from "@/app/(tabs)";
 
 type TodayScreenStyles = ReturnType<typeof createStyles>;
 type AnimatedViewStyle = Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
@@ -52,7 +52,7 @@ interface TodayScreenBodyProps {
 
 /**
  * Renders the Today screen's main content region: goals view, habits load-error
- * state, or the animated habit list. Presentational — extracted verbatim from
+ * state, or the animated habit list. Presentational, extracted verbatim from
  * TodayScreen so the screen stays under the cognitive-complexity threshold.
  */
 export function TodayScreenBody({

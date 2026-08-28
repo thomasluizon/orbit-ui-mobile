@@ -7,7 +7,7 @@ import type { AppTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { Switch } from '@/components/ui/settings-row'
-import type { CalendarSyncStyles } from './calendar-sync-styles'
+import type { CalendarSyncStyles } from '@/app/calendar-sync-styles'
 
 interface CalendarAutoSyncSectionProps {
   styles: CalendarSyncStyles

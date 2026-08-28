@@ -29,7 +29,7 @@ import {
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { Chip } from '@/components/ui/chip'
 import { tintFromPrimary } from '@/lib/theme'
-import { styles, type Tokens } from './advanced-styles'
+import { styles, type Tokens } from '@/app/advanced-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 

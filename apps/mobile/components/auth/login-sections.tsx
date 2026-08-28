@@ -4,7 +4,7 @@ import { Animated, Text, View } from 'react-native'
 import { AppLogo } from '@/components/ui/app-logo'
 import { easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
-import type { LoginStyles } from './login-styles'
+import type { LoginStyles } from '@/app/login-styles'
 
 type LoginStep = 'email' | 'code'
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string

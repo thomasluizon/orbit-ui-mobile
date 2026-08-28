@@ -5,7 +5,7 @@ import type { TextInput, TextInputKeyPressEvent } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { CodeInput } from '@/components/ui/code-input'
-import type { LoginStyles } from './login-styles'
+import type { LoginStyles } from '@/app/login-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
