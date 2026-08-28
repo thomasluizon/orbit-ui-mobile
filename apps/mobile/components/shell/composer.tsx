@@ -4,8 +4,10 @@ import type {
   ComposerProps,
   ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
+import { useRef } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -115,7 +117,12 @@ function VoiceStatus({
 
 function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
   if (props.state === 'atLimit') {
-    return <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
+    return (
+      <View style={styles.limitStatus}>
+        <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
+        {props.limitRecovery}
+      </View>
+    )
   }
   if (props.state === 'recording' || props.state === 'transcribing') {
     return <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} />
@@ -130,6 +137,8 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
 }
 
 function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+  const voiceRef = useRef<View>(null)
+  useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && props.value.trim().length > 0
   const isAtLimit = props.state === 'atLimit'
@@ -177,6 +186,8 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
 
         {props.onVoice ? (
           <Pressable
+            ref={voiceRef}
+            testID="tour-chat-voice"
             accessibilityRole="button"
             accessibilityLabel={isRecording ? props.voiceWords.stop : props.voiceWords.start}
             accessibilityState={{ disabled: voiceDisabled }}
@@ -334,6 +345,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 20,
+  },
+  limitStatus: {
+    gap: 8,
   },
   inputRow: {
     flexDirection: 'row',

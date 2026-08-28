@@ -1,6 +1,15 @@
+import React from 'react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+
+const { useTourTargetMock } = vi.hoisted(() => ({
+  useTourTargetMock: vi.fn(),
+}))
+
+vi.mock('@/hooks/use-tour-target', () => ({
+  useTourTarget: useTourTargetMock,
+}))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -61,6 +70,10 @@ function textValues(root: ReturnType<typeof TestRenderer.create>['root']) {
 }
 
 describe('Composer (mobile)', () => {
+  beforeEach(() => {
+    useTourTargetMock.mockClear()
+  })
+
   it('renders three suggestions in their named group', async () => {
     const tree = await renderComposer(props())
     const group = byLabel(tree.root, words.suggestionsLabel)[0]
@@ -121,6 +134,17 @@ describe('Composer (mobile)', () => {
     expect(tree.root.findByProps({ testID: 'composer-send-neutral' })).toBeDefined()
   })
 
+  it('renders the optional at-limit recovery action', async () => {
+    const tree = await renderComposer(
+      props({
+        state: 'atLimit',
+        limitReason: 'limit sentinel',
+        limitRecovery: React.createElement('Text', null, 'recovery sentinel'),
+      }),
+    )
+    expect(textValues(tree.root)).toContain('recovery sentinel')
+  })
+
   it('renders and invokes voice only when the capability is present', async () => {
     const onVoice = vi.fn()
     const tree = await renderComposer(props({ onVoice, voiceWords }))
@@ -128,6 +152,12 @@ describe('Composer (mobile)', () => {
     expect(onVoice).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.update(<Composer {...props()} />))
     expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
+  })
+
+  it('registers the rendered voice control as the stable tour target', async () => {
+    const tree = await renderComposer(props({ onVoice: vi.fn(), voiceWords }))
+    expect(tree.root.findByProps({ testID: 'tour-chat-voice' })).toBeDefined()
+    expect(useTourTargetMock).toHaveBeenCalledWith('tour-chat-voice', expect.any(Object))
   })
 
   it('replaces suggestions with recording status and a stop control', async () => {

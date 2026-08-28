@@ -144,6 +144,7 @@ export function useChatComposer() {
     imagePreview,
     openFilePicker,
     handleFileSelect,
+    handlePaste,
     removeImage,
     clearImage,
   } = useChatImageAttachment(setSendError)
@@ -581,6 +582,7 @@ export function useChatComposer() {
       value: input,
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
+      onPaste: handlePaste,
       suggestions: composerSuggestions,
       onAttach: openFilePicker,
       attachWords: {
@@ -618,6 +620,7 @@ export function useChatComposer() {
     canRetryLastSend,
     composerSuggestions,
     input,
+    handlePaste,
     isOnline,
     isRecording,
     isSending,
@@ -631,7 +634,7 @@ export function useChatComposer() {
     speechSupported,
     t,
     toggleRecording,
-  ]) as ComposerProps
+  ]) as ComposerProps & { onPaste: typeof handlePaste }
 
   function handleBreakdownConfirmed() {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

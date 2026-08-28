@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 
@@ -50,6 +50,7 @@ vi.mock('@/app/actions/chat', () => ({
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
+import { Composer } from '@/components/shell/composer'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -343,6 +344,29 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.sendError).toBe('chat.limitReachedError')
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it('attaches a pasted image through the rendered composer textarea', () => {
+    const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:pasted-image'),
+      revokeObjectURL: vi.fn(),
+    })
+
+    function ComposerHarness() {
+      const { composerProps } = useChatComposer()
+      return <Composer {...composerProps} />
+    }
+
+    render(<ComposerHarness />)
+    fireEvent.paste(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+      clipboardData: {
+        items: [{ type: pastedImage.type, getAsFile: () => pastedImage }],
+      },
+    })
+
+    expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
+    expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
   })
 
   it('blocks sending while offline and re-enables once back online', async () => {

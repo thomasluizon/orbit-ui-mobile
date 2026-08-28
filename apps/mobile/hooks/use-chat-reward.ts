@@ -9,6 +9,7 @@ import { apiClient } from "@/lib/api-client";
 
 interface AdRewardResponse {
   bonusMessagesGranted: number;
+  totalBonusMessages: number;
   newLimit: number;
 }
 

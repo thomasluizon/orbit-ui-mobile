@@ -50,18 +50,20 @@ type ComposerBase = {
 }
 
 type ComposerState =
-  | { state: 'idle'; limitReason?: never }
-  | { state: 'sending'; limitReason?: never }
-  | { state: 'atLimit'; limitReason: string }
+  | { state: 'idle'; limitReason?: never; limitRecovery?: never }
+  | { state: 'sending'; limitReason?: never; limitRecovery?: never }
+  | { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
   | {
       state: 'recording'
       limitReason?: never
+      limitRecovery?: never
       onVoice: () => void
       voiceWords: ComposerVoiceWords
     }
   | {
       state: 'transcribing'
       limitReason?: never
+      limitRecovery?: never
       onVoice: () => void
       voiceWords: ComposerVoiceWords
     }

@@ -3,6 +3,8 @@ import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
   Text,
+  Pressable,
+  Linking,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
@@ -18,6 +20,7 @@ import { habitDetailToNormalized } from "@orbit/shared/utils";
 import { useHabitDetail } from "@/hooks/use-habits";
 import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 import { useChatComposer } from "@/hooks/use-chat-composer";
+import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { Composer } from "@/components/shell/composer";
@@ -28,11 +31,54 @@ import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
+import { PillButton } from "@/components/ui/pill-button";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
+
+interface ChatRewardRecoveryProps {
+  canWatchRewardAd: boolean;
+  rewardsClaimedToday: number;
+  dailyRewardCap: number;
+  rewardMessage: string | null;
+  onWatchAd: () => void;
+  textColor: string;
+  mutedTextColor: string;
+}
+
+function ChatRewardRecovery({
+  canWatchRewardAd,
+  rewardsClaimedToday,
+  dailyRewardCap,
+  rewardMessage,
+  onWatchAd,
+  textColor,
+  mutedTextColor,
+}: Readonly<ChatRewardRecoveryProps>) {
+  const { t } = useTranslation();
+  return (
+    <View style={{ gap: 8, alignItems: "flex-start" }}>
+      <PillButton size="sm" disabled={!canWatchRewardAd} onClick={onWatchAd}>
+        {t("ads.watchForMessages")}
+      </PillButton>
+      <Text
+        style={{ color: mutedTextColor, fontFamily: "GeistMono_400Regular", fontSize: 12 }}
+      >
+        {rewardsClaimedToday}/{dailyRewardCap} {t("ads.dailyLimitReached")}
+      </Text>
+      {rewardMessage ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: textColor, fontFamily: "Geist_400Regular", fontSize: 14 }}
+        >
+          {rewardMessage}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -60,6 +106,7 @@ export default function ChatScreen() {
     isTyping,
     streamingMessageId,
     sendError,
+    speechError,
     composerProps,
     hasProAccess,
     showSuggestions,
@@ -70,6 +117,18 @@ export default function ChatScreen() {
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = useChatComposer({ isOnline, offlineTitle });
+
+  const {
+    adsEnabledForUser,
+    canWatchRewardAd,
+    rewardsClaimedToday,
+    dailyRewardCap,
+    rewardMessage,
+    watchAdForMessages,
+  } = useChatReward();
+  const canRecoverWithReward =
+    adsEnabledForUser && rewardsClaimedToday < dailyRewardCap;
+  const microphonePermissionDenied = speechError === t("speech.micDenied");
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -244,7 +303,52 @@ export default function ChatScreen() {
               {sendError}
             </Text>
           ) : null}
-          <Composer {...composerProps} />
+          {microphonePermissionDenied ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("common.openSettings")}
+              onPress={() => {
+                void Linking.openSettings();
+              }}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                alignSelf: "center",
+                justifyContent: "center",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  color: tokens.fg2,
+                  fontFamily: "Geist_500Medium",
+                  fontSize: 14,
+                  textDecorationLine: "underline",
+                }}
+              >
+                {t("common.openSettings")}
+              </Text>
+            </Pressable>
+          ) : null}
+          {composerProps.state === "atLimit" && canRecoverWithReward ? (
+            <Composer
+              {...composerProps}
+              limitRecovery={
+                <ChatRewardRecovery
+                  canWatchRewardAd={canWatchRewardAd}
+                  rewardsClaimedToday={rewardsClaimedToday}
+                  dailyRewardCap={dailyRewardCap}
+                  rewardMessage={rewardMessage}
+                  onWatchAd={() => {
+                    void watchAdForMessages();
+                  }}
+                  textColor={tokens.fg2}
+                  mutedTextColor={tokens.fg3}
+                />
+              }
+            />
+          ) : (
+            <Composer {...composerProps} />
+          )}
         </View>
       </KeyboardAvoidingView>
 

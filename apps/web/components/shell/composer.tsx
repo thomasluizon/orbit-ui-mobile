@@ -1,5 +1,6 @@
 'use client'
 
+import type { ClipboardEventHandler } from 'react'
 import type {
   ComposerAttachWords,
   ComposerAttachment,
@@ -7,6 +8,10 @@ import type {
   ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { ArrowUp, FileText, Image as ImageIcon, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
+
+type WebComposerProps = ComposerProps & {
+  onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
+}
 
 function AttachmentIcon({ kind }: Readonly<Pick<ComposerAttachment, 'kind'>>) {
   return kind === 'image' ? (
@@ -92,9 +97,14 @@ function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElem
   if (canSend) onSend()
 }
 
-function ComposerStatus({ props }: Readonly<{ props: ComposerProps }>) {
+function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
   if (props.state === 'atLimit') {
-    return <p className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
+        {props.limitRecovery}
+      </div>
+    )
   }
   if (props.state === 'recording' || props.state === 'transcribing') {
     return <VoiceStatus state={props.state} words={props.voiceWords} />
@@ -102,7 +112,7 @@ function ComposerStatus({ props }: Readonly<{ props: ComposerProps }>) {
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
-function ComposerInputRow({ props }: Readonly<{ props: ComposerProps }>) {
+function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && props.value.trim().length > 0
   const isAtLimit = props.state === 'atLimit'
@@ -117,12 +127,14 @@ function ComposerInputRow({ props }: Readonly<{ props: ComposerProps }>) {
         <textarea
           rows={1}
           data-composer-input
+          data-tour="tour-chat-input"
           aria-label={props.words.placeholder}
           disabled={inputDisabled}
           placeholder={props.words.placeholder}
           value={props.value}
           onChange={(event) => props.onChangeValue(event.target.value)}
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
+          onPaste={props.onPaste}
           className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-3)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
         />
 
@@ -141,6 +153,7 @@ function ComposerInputRow({ props }: Readonly<{ props: ComposerProps }>) {
         {props.onVoice ? (
           <button
             type="button"
+            data-tour="tour-chat-voice"
             aria-label={isRecording ? props.voiceWords.stop : props.voiceWords.start}
             disabled={voiceDisabled}
             onClick={props.onVoice}
@@ -185,7 +198,7 @@ function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
   )
 }
 
-export function Composer(props: Readonly<ComposerProps>) {
+export function Composer(props: Readonly<WebComposerProps>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined

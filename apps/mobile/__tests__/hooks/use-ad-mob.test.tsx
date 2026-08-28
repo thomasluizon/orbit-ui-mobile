@@ -44,9 +44,9 @@ const mocks = vi.hoisted(() => {
     ),
   }
 
-  const initialize = vi.fn(async () => undefined)
-  const gatherConsent = vi.fn(async () => undefined)
-  const getConsentInfo = vi.fn(async () => ({ canRequestAds: true }))
+  const initialize = vi.fn(() => Promise.resolve())
+  const gatherConsent = vi.fn(() => Promise.resolve())
+  const getConsentInfo = vi.fn(() => Promise.resolve({ canRequestAds: true }))
 
   const createMockAd = (): MockAd => {
     const listeners = new Map<string, Set<(payload?: unknown) => void>>()
@@ -62,7 +62,7 @@ const mocks = vi.hoisted(() => {
         }
       }),
       load: vi.fn(() => undefined),
-      show: vi.fn(async () => undefined),
+      show: vi.fn(() => Promise.resolve()),
       emit: (event: string, payload?: unknown) => {
         listeners.get(event)?.forEach((listener) => listener(payload))
       },
@@ -117,7 +117,8 @@ vi.mock('react-native-google-mobile-ads', () => ({
     CLOSED: 'closed',
   },
   RewardedAdEventType: {
-    EARNED_REWARD: 'rewarded',
+    LOADED: 'rewarded_loaded',
+    EARNED_REWARD: 'rewarded_earned_reward',
   },
   TestIds: {
     INTERSTITIAL: 'test-interstitial',
@@ -252,10 +253,10 @@ describe('mobile useAdMob', () => {
     const rewardedAd = mocks.state.rewardeds[0]
     expect(mocks.createRewarded).toHaveBeenCalledWith('test-rewarded')
     expect(rewardedAd?.load).toHaveBeenCalledTimes(1)
-    rewardedAd?.emit('loaded')
+    rewardedAd?.emit('rewarded_loaded')
     await Promise.resolve()
     expect(rewardedAd?.show).toHaveBeenCalledTimes(1)
-    rewardedAd?.emit('rewarded')
+    rewardedAd?.emit('rewarded_earned_reward')
     rewardedAd?.emit('closed')
 
     await expect(rewardAttempt).resolves.toBe(true)
@@ -286,9 +287,9 @@ describe('mobile useAdMob', () => {
     const rewardedAttempt = result.showRewardedAd()
     await Promise.resolve()
     expect(mocks.createRewarded).toHaveBeenCalledWith('prod-rewarded')
-    mocks.state.rewardeds[0]?.emit('loaded')
+    mocks.state.rewardeds[0]?.emit('rewarded_loaded')
     await Promise.resolve()
-    mocks.state.rewardeds[0]?.emit('rewarded')
+    mocks.state.rewardeds[0]?.emit('rewarded_earned_reward')
     mocks.state.rewardeds[0]?.emit('closed')
     await expect(rewardedAttempt).resolves.toBe(true)
 

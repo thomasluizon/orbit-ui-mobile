@@ -18359,6 +18359,10 @@
         "routePath": "/chat",
         "sourceFile": "apps/mobile/app/chat.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -18419,6 +18423,7 @@
           "common.keepEditing",
           "common.later",
           "common.nextMonth",
+          "common.openSettings",
           "common.previousMonth",
           "common.proBadge",
           "common.queued",
@@ -24255,10 +24260,6 @@
       }
     ],
     "unowned": [
-      "ads.dailyLimitReached",
-      "ads.rewardFailed",
-      "ads.rewardGranted",
-      "ads.watchForMessages",
       "advancedSettings.developersSection",
       "apiKeys.errors.create",
       "auth.errors.codeExpired",
@@ -24360,7 +24361,6 @@
       "chat.transcribing",
       "common.help",
       "common.nextPage",
-      "common.openSettings",
       "common.previousPage",
       "common.required",
       "common.search",
@@ -25138,6 +25138,7 @@
         "apps/mobile/__tests__/screens/auth-callback-capture.test.tsx",
         "apps/mobile/__tests__/screens/calendar-sync.test.tsx",
         "apps/mobile/__tests__/screens/calendar-views.test.tsx",
+        "apps/mobile/__tests__/screens/chat-screen.test.tsx",
         "apps/mobile/__tests__/screens/intentional-offline-ux.test.tsx",
         "apps/mobile/__tests__/screens/privacy-policy-disclosure.test.tsx",
         "apps/mobile/__tests__/screens/profile-screen.test.tsx",
@@ -25621,6 +25622,7 @@
         "apps/web/__tests__/components/upgrade/plan-card.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-comparison-cards.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
+        "apps/web/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/web/__tests__/pages/error.test.tsx"
       ],
       "apps/web/hooks": [
