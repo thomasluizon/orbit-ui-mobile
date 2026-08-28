@@ -65,7 +65,7 @@
       "overlay-app-today-page-view",
       "overlay-app-today-shell",
       "m-route-tabs-index",
-      "m-overlay-tabs-today-modals"
+      "m-overlay-today-today-modals"
     ],
     "R6-screen-goals": [
       "overlay-goals-create-goal-modal",
@@ -146,8 +146,8 @@
       "m-block-chat-message-bubble"
     ],
     "R12-screen-insights": [
-      "route-explore",
-      "route-insights",
+      "route-progress",
+      "m-route-tabs-progress",
       "route-retrospective",
       "route-wrapped",
       "m-route-retrospective",
@@ -194,8 +194,8 @@
       "m-route-preferences",
       "m-overlay-components-delete-account-modal",
       "m-overlay-components-edit-name-sheet",
-      "m-overlay-app-advanced-sections",
-      "m-overlay-app-preferences-sections",
+      "m-overlay-profile-advanced-sections",
+      "m-overlay-profile-preferences-sections",
       "m-overlay-navigation-notification-bell",
       "m-overlay-navigation-notification-detail-modal",
       "m-overlay-ui-create-api-key-modal",
@@ -235,8 +235,6 @@
   },
   "excluded": [],
   "notes": {
-    "route-explore": "Web-only by the live inventory; no mobile counterpart exists.",
-    "route-insights": "Web-only by the live inventory; retrospective and wrapped provide the related mobile screen coverage.",
     "overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
     "m-overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
     "m-widget-orbit-widget": "D66 adds the Android widget to the manifest and assigns it to #76 (R21)."

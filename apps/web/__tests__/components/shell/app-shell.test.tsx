@@ -6,10 +6,8 @@ const mocks = vi.hoisted(() => ({
   pathname: '/',
   wide: false,
   push: vi.fn(),
-  routeIntent: vi.fn(),
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
-  setShowCreateGoalModal: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -20,7 +18,6 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
-vi.mock('@/lib/motion/route-intent', () => ({ setRouteTransitionIntent: mocks.routeIntent }))
 vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen }) => unknown) =>
     selector({ setPaletteOpen: mocks.setPaletteOpen }),
@@ -29,11 +26,9 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: (
     selector: (state: {
       setShowCreateModal: typeof mocks.setShowCreateModal
-      setShowCreateGoalModal: typeof mocks.setShowCreateGoalModal
     }) => unknown,
   ) => selector({
     setShowCreateModal: mocks.setShowCreateModal,
-    setShowCreateGoalModal: mocks.setShowCreateGoalModal,
   }),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
@@ -90,7 +85,6 @@ describe('AppShell', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
-    expect(mocks.routeIntent).toHaveBeenCalledWith('tab')
   })
 
   it('removes the compact FAB away from Hoje', () => {
@@ -122,6 +116,32 @@ describe('AppShell', () => {
 
     expect(screen.getByTestId('compact-shell')).toBeInTheDocument()
     expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it.each([
+    '/',
+    '/about',
+    '/achievements',
+    '/advanced',
+    '/ai-settings',
+    '/calendar-sync',
+    '/calendar',
+    '/chat',
+    '/onboarding',
+    '/preferences',
+    '/profile',
+    '/progress',
+    '/retrospective',
+    '/streak',
+    '/support',
+    '/upgrade',
+    '/wrapped',
+  ])('never adds a second page heading at %s', (pathname) => {
+    mocks.pathname = pathname
+
+    render(<AppShell onCreate={() => {}}><h1>Page title</h1></AppShell>)
+
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 })

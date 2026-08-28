@@ -3,7 +3,7 @@
 import { useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from '@/components/ui/icons'
+import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward } from '@/components/ui/icons'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from 'cmdk'
 import { useUIStore } from '@/stores/ui-store'
 import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
@@ -57,7 +57,6 @@ function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string[]; lab
 interface CommandMenuProps {
   navItems: readonly CommandNavigationItem[]
   onCreateHabit: () => void
-  onCreateGoal: () => void
   onClose: () => void
   inputRef: RefObject<HTMLInputElement | null>
 }
@@ -68,7 +67,7 @@ interface CommandMenuProps {
  * habit-picker sub-pages with a breadcrumb back strip, and a key-hint footer.
  * Only mounted while the palette is open; the palette owns focus via `inputRef`.
  */
-export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, inputRef }: Readonly<CommandMenuProps>) {
+export function CommandMenu({ navItems, onCreateHabit, onClose, inputRef }: Readonly<CommandMenuProps>) {
   const t = useTranslations()
   const router = useRouter()
   const setActiveView = useUIStore((state) => state.setActiveView)
@@ -197,12 +196,6 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
                 label={t('command.createHabit')}
                 value={t('command.createHabit')}
                 onSelect={() => run(onCreateHabit)}
-              />
-              <CommandRow
-                leading={<Target className={ICON_CLASS} strokeWidth={1.8} aria-hidden />}
-                label={t('command.createGoal')}
-                value={t('command.createGoal')}
-                onSelect={() => run(onCreateGoal)}
               />
             </CommandGroup>
 

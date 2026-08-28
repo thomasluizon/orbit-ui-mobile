@@ -1015,14 +1015,11 @@
     }
   },
   "components/milestone-share/milestone-share-card.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/react19-api": {
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 11
+      "count": 10
     }
   },
   "components/milestone-share/milestone-share-prompt.tsx": {
@@ -1161,9 +1158,6 @@
   },
   "components/share/share-card.tsx": {
     "local/no-pill-radius-on-static": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
       "count": 1
     },
     "local/react19-api": {
@@ -1316,11 +1310,6 @@
   },
   "components/ui/fresh-start-animation.tsx": {
     "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/ui/gradient-top.tsx": {
-    "local/no-raw-gradient": {
       "count": 1
     }
   },

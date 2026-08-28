@@ -204,7 +204,6 @@
     "logHabit": "Log a habit",
     "skipHabit": "Skip a habit",
     "createHabit": "Create habit",
-    "createGoal": "Create goal",
     "groups": {
       "create": "Create",
       "actions": "Actions",

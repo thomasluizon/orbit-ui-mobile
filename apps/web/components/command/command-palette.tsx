@@ -27,7 +27,6 @@ export interface CommandNavigationItem {
 interface CommandPaletteProps {
   navItems: readonly CommandNavigationItem[]
   onCreateHabit: () => void
-  onCreateGoal: () => void
 }
 
 /**
@@ -36,7 +35,7 @@ interface CommandPaletteProps {
  * Tab inside the panel and restores focus on close. Mounted app-wide, but the
  * menu (and its habit query) only mount while `shell-store.paletteOpen`.
  */
-export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readonly<CommandPaletteProps>) {
+export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPaletteProps>) {
   const t = useTranslations()
   const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
@@ -96,7 +95,6 @@ export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readon
               <CommandMenu
                 navItems={navItems}
                 onCreateHabit={onCreateHabit}
-                onCreateGoal={onCreateGoal}
                 onClose={close}
                 inputRef={inputRef}
               />

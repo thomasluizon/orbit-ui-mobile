@@ -51,17 +51,19 @@ export function Shell412(props: Readonly<Shell412Props>) {
           {props.notice !== undefined ? (
             <View testID="shell-notice">{props.notice}</View>
           ) : null}
-          {pinnedSlot !== undefined ? (
-            <View testID="shell-pinned-slot">{pinnedSlot}</View>
-          ) : null}
-          {navigationEnabled ? (
-            <View testID="shell-tab-bar">{props.tabBar}</View>
-          ) : null}
-          {props.fab !== undefined ? (
-            <View testID="shell-fab" style={styles.fab}>
-              {props.fab}
-            </View>
-          ) : null}
+          <View style={styles.destinationBottom}>
+            {pinnedSlot !== undefined ? (
+              <View testID="shell-pinned-slot">{pinnedSlot}</View>
+            ) : null}
+            {navigationEnabled ? (
+              <View testID="shell-tab-bar">{props.tabBar}</View>
+            ) : null}
+            {props.fab !== undefined ? (
+              <View testID="shell-fab" style={styles.fab}>
+                {props.fab}
+              </View>
+            ) : null}
+          </View>
         </View>
       ) : null}
 
@@ -87,6 +89,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     position: 'relative',
     zIndex: zLayers.sticky,
+  },
+  destinationBottom: {
+    position: 'relative',
   },
   fab: {
     bottom: '100%',

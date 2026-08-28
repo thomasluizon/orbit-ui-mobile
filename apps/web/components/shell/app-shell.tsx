@@ -11,7 +11,6 @@ import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
-import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import { Shell412 } from './shell-412'
@@ -49,7 +48,6 @@ export function AppShell({ children, notice, onCreate }: Readonly<AppShellProps>
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
-  const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
   const destination = resolveDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
 
@@ -67,7 +65,6 @@ export function AppShell({ children, notice, onCreate }: Readonly<AppShellProps>
 
   const navigate = useCallback(
     (id: BottomTab) => {
-      setRouteTransitionIntent('tab')
       router.push(ROUTES[id])
     },
     [router],
@@ -107,7 +104,6 @@ export function AppShell({ children, notice, onCreate }: Readonly<AppShellProps>
     <CommandPalette
       navItems={commandItems}
       onCreateHabit={() => setShowCreateModal(true)}
-      onCreateGoal={() => setShowCreateGoalModal(true)}
     />
   )
 

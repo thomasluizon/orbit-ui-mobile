@@ -43,21 +43,21 @@ export function Shell412(props: Readonly<Shell412Props>) {
           className="z-sticky relative shrink-0 bg-[var(--bg)] shadow-[inset_0_1px_0_var(--hairline)]"
         >
           {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
-          {pinnedSlot !== undefined ? (
-            <div data-shell-pinned-slot="" className="relative">
-              {pinnedSlot}
-            </div>
-          ) : null}
-          {navigationEnabled ? <div data-shell-tab-bar="">{props.tabBar}</div> : null}
-          {props.fab !== undefined ? (
-            <div
-              data-shell-fab=""
-              className="absolute right-4"
-              style={{ bottom: 'calc(100% + 16px)' }}
-            >
-              {props.fab}
-            </div>
-          ) : null}
+          <div className="relative">
+            {pinnedSlot !== undefined ? (
+              <div data-shell-pinned-slot="">{pinnedSlot}</div>
+            ) : null}
+            {navigationEnabled ? <div data-shell-tab-bar="">{props.tabBar}</div> : null}
+            {props.fab !== undefined ? (
+              <div
+                data-shell-fab=""
+                className="absolute right-4"
+                style={{ bottom: 'calc(100% + 16px)' }}
+              >
+                {props.fab}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

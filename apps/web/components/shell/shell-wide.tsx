@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore, type ComponentType } from 'react'
+import { useEffect, useRef, useSyncExternalStore, type ComponentType } from 'react'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import {
   CalendarDays,
@@ -87,7 +87,6 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
   return (
     <aside
       data-shell-sidebar=""
-      aria-label="Orbit"
       className="z-sticky flex h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)]"
     >
       <div className="flex flex-col gap-6">
@@ -147,6 +146,15 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
     getServerSnapshot,
   )
   const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const conversationRef = useRef<HTMLDivElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!conversationOpen || sidePanel) return
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    conversationRef.current?.focus()
+    return () => returnFocusRef.current?.focus()
+  }, [conversationOpen, sidePanel])
 
   return (
     <div
@@ -186,11 +194,13 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
 
       {conversationOpen && !sidePanel ? (
         <div
+          ref={conversationRef}
           role="dialog"
           aria-modal="true"
           aria-label={props.conversationLabel}
+          tabIndex={-1}
           data-shell-conversation="overlay"
-          className="z-modal fixed inset-0 overflow-y-auto bg-[var(--bg)]"
+          className="z-modal fixed inset-0 overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         >
           {props.conversation}
         </div>

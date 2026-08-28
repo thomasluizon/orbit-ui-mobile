@@ -69,14 +69,14 @@ describe('TourProvider step routing', () => {
     mockProfile = createMockProfile({ hasProAccess: true })
   })
 
-  it('routes the profile-retrospective step to /explore at the desktop breakpoint', () => {
+  it('routes the profile-retrospective step to /profile at the desktop breakpoint', () => {
     stubMatchMedia(true)
     render(<TourProvider />)
 
     advanceToRetrospectiveStep()
 
     expect(mockRouterPush).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledWith('/explore')
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile')
   })
 
   it('keeps the profile-retrospective step on /profile at phone widths', () => {

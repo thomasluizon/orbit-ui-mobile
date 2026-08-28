@@ -12,14 +12,9 @@ import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
 import { useProfile } from '@/hooks/use-profile'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
 
 const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 350
-
-const DESKTOP_STEP_ROUTE_OVERRIDES: Record<string, string> = {
-  'profile-retrospective': '/profile',
-}
 
 /**
  * Tour orchestrator: handles navigation, element detection, mock data,
@@ -31,7 +26,6 @@ export function TourProvider() {
   const { inject, restore } = useTourMockData()
   const { profile } = useProfile()
   const hasProAccess = profile?.hasProAccess ?? false
-  const isDesktop = useIsDesktop()
 
   const store = useTourStore()
   const {
@@ -43,11 +37,7 @@ export function TourProvider() {
     setHiddenSections,
   } = store
 
-  const resolveStepRoute = useCallback(
-    (step: TourStep) =>
-      (isDesktop ? DESKTOP_STEP_ROUTE_OVERRIDES[step.id] : undefined) ?? step.route,
-    [isDesktop],
-  )
+  const resolveStepRoute = useCallback((step: TourStep) => step.route, [])
 
   const prevStepIdRef = useRef<string | null>(null)
   const uiSnapshotRef = useRef<TourUIState | null>(null)
