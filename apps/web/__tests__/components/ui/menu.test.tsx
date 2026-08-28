@@ -1,5 +1,6 @@
-import { createRef, useRef, useState } from 'react'
+import { createRef, useEffect, useRef, useState } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
 
@@ -119,15 +120,30 @@ describe('Menu', () => {
   it.each([
     ['Tab', false],
     ['Shift+Tab', true],
-  ])('closes on %s without trapping focus on a menu item', async (_label, shiftKey) => {
+  ])('closes on %s and resumes from a context-menu row', async (_label, shiftKey) => {
     setWide(true)
+    const user = userEvent.setup()
     function Harness() {
-      const anchorRef = useRef<HTMLButtonElement>(null)
-      const [open, setOpen] = useState(true)
+      const anchorRef = useRef<HTMLDivElement>(null)
+      const [open, setOpen] = useState(false)
+
+      useEffect(() => {
+        const anchor = anchorRef.current
+        if (!anchor) return
+        const openMenu = (event: MouseEvent) => {
+          event.preventDefault()
+          setOpen(true)
+        }
+        anchor.addEventListener('contextmenu', openMenu)
+        return () => anchor.removeEventListener('contextmenu', openMenu)
+      }, [])
+
       return (
         <>
           <button type="button">Before</button>
-          <button ref={anchorRef} type="button">More</button>
+          <div ref={anchorRef} tabIndex={-1}>
+            Habit row
+          </div>
           <button type="button">After</button>
           <Menu
             open={open}
@@ -141,14 +157,19 @@ describe('Menu', () => {
     }
     render(<Harness />)
 
-    const menu = await screen.findByRole('menu')
+    await user.pointer({ target: screen.getByText('Habit row'), keys: '[MouseRight]' })
+    await screen.findByRole('menu')
     const edit = screen.getByRole('menuitem', { name: 'Edit' })
     await waitFor(() => expect(edit).toHaveFocus())
 
-    expect(fireEvent.keyDown(menu, { key: 'Tab', shiftKey })).toBe(true)
+    await user.tab({ shift: shiftKey })
 
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'More' })).toHaveFocus()
+    expect(screen.getByText('Habit row')).toHaveFocus()
+
+    await user.tab({ shift: shiftKey })
+
+    expect(screen.getByRole('button', { name: shiftKey ? 'Before' : 'After' })).toHaveFocus()
     expect(document.activeElement?.getAttribute('role')).not.toBe('menuitem')
   })
 

@@ -78,7 +78,7 @@ describe('Sheet (mobile)', () => {
       .find((node: { props: { nestedScrollEnabled?: boolean } }) => node.props.nestedScrollEnabled)
     expect(bodyScroller).toBeDefined()
     const nativeSheet = tree.root.findByType(TrueSheet)
-    expect(nativeSheet.props.scrollable).toBeUndefined()
+    expect(nativeSheet.props.scrollable).toBe(true)
   })
 
   it('reveals a focused lower input through the sheet body scroller', async () => {

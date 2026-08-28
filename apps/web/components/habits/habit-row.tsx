@@ -227,6 +227,7 @@ export function HabitRow({
       data-habit-title={habit.title}
       data-depth={depth}
       data-status={state}
+      tabIndex={-1}
       onContextMenuCapture={handleRowContextMenu}
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{

@@ -111,6 +111,12 @@ function anchorElement(anchorRef: RefObject<unknown> | undefined): HTMLElement |
   return anchorRef?.current instanceof HTMLElement ? anchorRef.current : null
 }
 
+function activeFocusReturnTarget(): HTMLElement | null {
+  const activeElement = document.activeElement
+  if (!(activeElement instanceof HTMLElement) || activeElement === document.body) return null
+  return activeElement
+}
+
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
 export function Menu({
   open = false,
@@ -159,6 +165,7 @@ export function Menu({
   useEffect(() => {
     if (!open || resolvedPresentation !== 'anchored') return
     const panel = panelRef.current
+    const focusReturnTarget = activeFocusReturnTarget() ?? anchorElement(anchorRef)
     panel?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
 
     function dismiss(event: Event) {
@@ -181,12 +188,13 @@ export function Menu({
     return () => {
       document.removeEventListener('pointerdown', dismiss)
       document.removeEventListener('keydown', onKeyDown)
-      anchorElement(anchorRef)?.focus()
+      focusReturnTarget?.focus()
     }
   }, [anchorRef, open, resolvedPresentation])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
+      event.preventDefault()
       onClose?.()
       return
     }

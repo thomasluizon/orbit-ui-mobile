@@ -144,6 +144,7 @@ export function Sheet({
       maxContentHeight={height * MAX_HEIGHT_RATIO}
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
+      scrollable
     >
       <KeyboardAwareSheetScrollView
         testID="sheet-body-scroll"
