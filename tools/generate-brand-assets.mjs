@@ -103,7 +103,7 @@ const generatedAssets = [
   // Browser tabs render against uncontrolled light and dark chrome. The canvas disc keeps the
   // hairline mark visible in both, while the native 16 redraw avoids downscaling the 1024 geometry.
   { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, nativeMark: true, disc: true },
-  { path: "apps/web/public/favicon-32.png", width: 32, height: 32, ink: FOREGROUND, scale: 0.68, disc: true },
+  { path: "apps/web/public/favicon-32.png", width: 32, height: 32, ink: FOREGROUND, scale: 0.68, accent: true, disc: true },
   { path: "apps/web/app/apple-icon.png", width: 180, height: 180, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, accent: true },
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
@@ -255,7 +255,7 @@ async function renderAsset(sources, asset) {
 const faviconLayerAssets = [
   generatedAssets.find(({ path }) => path === "apps/web/public/favicon-16.png"),
   generatedAssets.find(({ path }) => path === "apps/web/public/favicon-32.png"),
-  { width: 48, height: 48, ink: FOREGROUND, scale: 0.68, disc: true },
+  { width: 48, height: 48, ink: FOREGROUND, scale: 0.68, accent: true, disc: true },
 ]
 
 if (faviconLayerAssets.some((asset) => !asset)) {

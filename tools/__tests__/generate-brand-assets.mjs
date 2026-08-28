@@ -48,6 +48,9 @@ const pixelAt = async (path, x, y) => {
   return [...data.subarray(offset, offset + 4)]
 }
 
+const isAccentPixel = (red, green, blue, alpha) =>
+  alpha >= 128 && red > green * 2 && green > blue * 2
+
 export const cases = async () => {
   const outputRoot = fixtureRoot("complete")
   check(
@@ -77,6 +80,43 @@ export const cases = async () => {
     "generate-brand-assets.mjs: favicon.ico carries native 16 plus canonical 32 and 48 layers",
     JSON.stringify(layerSizes) === JSON.stringify([[16, 16], [32, 32], [48, 48]]),
     `ICO layers ${JSON.stringify(layerSizes)}`,
+  )
+
+  const faviconLayerAccentPixelCount = (size) => {
+    const layerIndex = layerSizes.findIndex(([width, height]) => width === size && height === size)
+    if (layerIndex === -1) return -1
+
+    const directoryOffset = 6 + layerIndex * 16
+    const bitmapOffset = faviconIco.readUInt32LE(directoryOffset + 12)
+    const bitmapHeaderSize = faviconIco.readUInt32LE(bitmapOffset)
+    const pixelStart = bitmapOffset + bitmapHeaderSize
+    const pixelEnd = pixelStart + size * size * 4
+    let accent = 0
+    for (let index = pixelStart; index < pixelEnd; index += 4) {
+      if (
+        isAccentPixel(
+          faviconIco[index + 2],
+          faviconIco[index + 1],
+          faviconIco[index],
+          faviconIco[index + 3],
+        )
+      ) {
+        accent += 1
+      }
+    }
+    return accent
+  }
+  for (const size of [32, 48]) {
+    T(
+      `generate-brand-assets.mjs: favicon.ico ${size}px layer keeps the accent moon`,
+      faviconLayerAccentPixelCount(size) > 0,
+      `favicon.ico ${size}px layer carries no #C4530F pixel`,
+    )
+  }
+  T(
+    "generate-brand-assets.mjs: favicon.ico native 16px layer carries no accent",
+    faviconLayerAccentPixelCount(16) === 0,
+    "favicon.ico 16px layer unexpectedly carries an accent pixel",
   )
 
   const favicon16 = join(outputRoot, "apps", "web", "public", "favicon-16.png")
@@ -171,8 +211,7 @@ export const cases = async () => {
       .toBuffer({ resolveWithObject: true })
     let accent = 0
     for (let index = 0; index < data.length; index += info.channels) {
-      if (data[index + 3] < 128) continue
-      if (data[index] === 0xc4 && data[index + 1] === 0x53 && data[index + 2] === 0x0f) accent += 1
+      if (isAccentPixel(data[index], data[index + 1], data[index + 2], data[index + 3])) accent += 1
     }
     return accent
   }
@@ -215,6 +254,7 @@ export const cases = async () => {
     "design/brand/png/orbit-mark-accent-512.png",
     "design/brand/png/orbit-platform-icon-512.png",
     "apps/mobile/assets/icon.png",
+    "apps/web/public/favicon-32.png",
     "apps/web/public/pwa-512x512.png",
   ]) {
     T(
