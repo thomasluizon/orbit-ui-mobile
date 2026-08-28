@@ -1,20 +1,18 @@
 import { create } from 'zustand'
+import type { Toast } from '@/components/ui/app-toast'
 import { triggerHaptic } from '@/lib/haptics'
 
-type AppToastVariant = 'error' | 'success' | 'info' | 'queued'
+export type StoredToast = Parameters<typeof Toast>[0]
 
 interface AppToastItem {
   id: number
-  message: string
-  variant: AppToastVariant
-  actionLabel?: string
-  onAction?: () => void
+  toast: StoredToast
 }
 
 interface AppToastStore {
   currentToast: AppToastItem | null
   queue: AppToastItem[]
-  showToast: (toast: Omit<AppToastItem, 'id'>) => void
+  showToast: (toast: StoredToast) => void
   showError: (message: string) => void
   showSuccess: (message: string) => void
   showInfo: (message: string) => void
@@ -23,107 +21,88 @@ interface AppToastStore {
   dismissToast: () => void
 }
 
+type SetAppToastState = (
+  updater: (state: AppToastStore) => Partial<AppToastStore>,
+) => void
+
 let toastCounter = 0
 
-function createToast(
-  message: string,
-  variant: AppToastVariant,
-  actionLabel?: string,
-  onAction?: () => void,
-): AppToastItem {
+function createToast(toast: StoredToast): AppToastItem {
   toastCounter += 1
+  return { id: toastCounter, toast }
+}
 
-  return {
-    id: toastCounter,
-    message,
-    variant,
-    actionLabel,
-    onAction,
-  }
+function hasRemovalPath(toast: StoredToast): boolean {
+  return toast.kind === 'done'
+    || toast.kind === 'lost'
+    || (toast.kind === 'neutral' && Boolean(toast.actionLabel))
+}
+
+function enqueueToast(
+  set: SetAppToastState,
+  toast: StoredToast,
+) {
+  const trimmedMessage = toast.message.trim()
+  if (!trimmedMessage) return
+
+  const nextToast = createToast({ ...toast, message: trimmedMessage })
+  set((state) => {
+    if (!state.currentToast) return { currentToast: nextToast }
+
+    if (!hasRemovalPath(state.currentToast.toast)) {
+      return { currentToast: nextToast }
+    }
+
+    const queuedBlockerIndex = state.queue.findIndex(
+      (item) => !hasRemovalPath(item.toast),
+    )
+    if (queuedBlockerIndex >= 0) {
+      return {
+        queue: [...state.queue.slice(0, queuedBlockerIndex), nextToast],
+      }
+    }
+
+    return { queue: [...state.queue, nextToast] }
+  })
 }
 
 export const useAppToastStore = create<AppToastStore>((set) => ({
   currentToast: null,
   queue: [],
-  showToast: (toast) => {
-    const trimmedMessage = toast.message.trim()
-    if (!trimmedMessage) return
-
-    const nextToast = createToast(
-      trimmedMessage,
-      toast.variant,
-      toast.actionLabel,
-      toast.onAction,
-    )
-
-    set((state) => {
-      if (!state.currentToast) {
-        return { currentToast: nextToast }
-      }
-
-      return {
-        queue: [...state.queue, nextToast],
-      }
+  showToast: (toast) => enqueueToast(set, toast),
+  showError: (message) => {
+    void triggerHaptic('warning')
+    enqueueToast(set, { kind: 'neutral', message })
+  },
+  showSuccess: (message) => {
+    void triggerHaptic('success')
+    enqueueToast(set, {
+      kind: 'done',
+      message,
+      onDone: () => useAppToastStore.getState().dismissToast(),
     })
   },
-  showError: (message) =>
-    set((state) => {
-      const trimmedMessage = message.trim()
-      if (!trimmedMessage) return state
-
-      void triggerHaptic('warning')
-      const nextToast = createToast(trimmedMessage, 'error')
-      if (!state.currentToast) return { ...state, currentToast: nextToast }
-      return { ...state, queue: [...state.queue, nextToast] }
-    }),
-  showSuccess: (message) =>
-    set((state) => {
-      const trimmedMessage = message.trim()
-      if (!trimmedMessage) return state
-
-      void triggerHaptic('success')
-      const nextToast = createToast(trimmedMessage, 'success')
-      if (!state.currentToast) return { ...state, currentToast: nextToast }
-      return { ...state, queue: [...state.queue, nextToast] }
-    }),
-  showInfo: (message) =>
-    set((state) => {
-      const trimmedMessage = message.trim()
-      if (!trimmedMessage) return state
-
-      const nextToast = createToast(trimmedMessage, 'info')
-      if (!state.currentToast) return { ...state, currentToast: nextToast }
-      return { ...state, queue: [...state.queue, nextToast] }
-    }),
-  showQueued: (message, actionLabel, onAction) =>
-    set((state) => {
-      const trimmedMessage = message.trim()
-      if (!trimmedMessage) return state
-
-      void triggerHaptic('selection')
-      const nextToast = createToast(trimmedMessage, 'queued', actionLabel, onAction)
-      if (!state.currentToast) return { ...state, currentToast: nextToast }
-      return { ...state, queue: [...state.queue, nextToast] }
-    }),
+  showInfo: (message) => enqueueToast(set, { kind: 'neutral', message }),
+  showQueued: (message, actionLabel, onAction) => {
+    void triggerHaptic('selection')
+    enqueueToast(
+      set,
+      actionLabel && onAction
+        ? { kind: 'neutral', message, actionLabel, onAction }
+        : { kind: 'neutral', message },
+    )
+  },
   triggerAction: () => {
-    const action = useAppToastStore.getState().currentToast?.onAction
-    action?.()
+    const toast = useAppToastStore.getState().currentToast?.toast
+    if (toast && (toast.kind === 'neutral' || toast.kind === 'lost')) toast.onAction?.()
     useAppToastStore.getState().dismissToast()
   },
   dismissToast: () => {
     set((state) => {
-      if (state.queue.length === 0) {
-        return {
-          currentToast: null,
-        }
-      }
+      if (state.queue.length === 0) return { currentToast: null }
 
-      const [nextToast, ...remainingQueue] = state.queue
-
-      return {
-        currentToast: nextToast,
-        queue: remainingQueue,
-      }
+      const [currentToast, ...queue] = state.queue
+      return { currentToast, queue }
     })
   },
 }))

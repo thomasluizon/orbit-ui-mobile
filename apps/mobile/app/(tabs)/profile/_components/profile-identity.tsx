@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Pencil } from '@/components/ui/icons'
 import type { createTokensV2 } from '@/lib/theme'
 import { Badge } from '@/components/ui/badge'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { sectionEntrance } from './profile-section-entrance'
 import type { ProfileStyles } from './profile-styles'
 
@@ -35,11 +35,7 @@ export function ProfileIdentity({
   return (
     <Animated.View entering={sectionEntrance(0)} style={styles.identityBlock}>
       {isLoading ? (
-        <>
-          <SkeletonLine width={76} height={22} style={styles.skeletonBadge} />
-          <SkeletonLine width={160} height={30} style={styles.skeletonName} />
-          <SkeletonLine width={120} height={14} />
-        </>
+        <Skeleton variant="settings" label={t('common.loading')} />
       ) : (
         <>
           {showBadge ? (

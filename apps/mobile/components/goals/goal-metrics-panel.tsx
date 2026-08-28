@@ -9,7 +9,7 @@ import {
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -62,7 +62,7 @@ export function GoalMetricsPanel({
         </SectionLabel>
         {[1, 2, 3].map((i) => (
           <View key={i} style={styles.skeletonRow}>
-            <SkeletonLine width={120} height={14} />
+            <Skeleton variant="settings" label={t('common.loading')} />
           </View>
         ))}
       </View>
