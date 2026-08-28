@@ -3478,6 +3478,10 @@
       },
       {
         "from": "packages/shared/src/utils",
+        "to": "packages/shared/src/contracts"
+      },
+      {
+        "from": "packages/shared/src/utils",
         "to": "packages/shared/src/query"
       },
       {
@@ -6369,9 +6373,6 @@
           "calendar.goToCurrentMonth",
           "calendar.goToCurrentWeek",
           "calendar.goToDay",
-          "calendar.legend.done",
-          "calendar.legend.missed",
-          "calendar.legend.partial",
           "calendar.legend.today",
           "calendar.loadError",
           "calendar.missedCount",
@@ -13448,9 +13449,6 @@
           "calendar.goToCurrentMonth",
           "calendar.goToCurrentWeek",
           "calendar.goToDay",
-          "calendar.legend.done",
-          "calendar.legend.missed",
-          "calendar.legend.partial",
           "calendar.legend.today",
           "calendar.loadError",
           "calendar.missedCount",
@@ -24527,6 +24525,9 @@
       "calendar.calendars.saveFailed",
       "calendar.fetchError",
       "calendar.importError",
+      "calendar.legend.done",
+      "calendar.legend.missed",
+      "calendar.legend.partial",
       "calendar.profileButton",
       "calendar.profileHint",
       "calendar.recurrenceDaily",
