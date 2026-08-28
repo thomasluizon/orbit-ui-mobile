@@ -332,6 +332,23 @@ describe('HabitList', () => {
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
   })
 
+  it('keeps a completed row in place for 1400 ms', () => {
+    vi.useFakeTimers()
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    const ref = React.createRef<HabitListHandle>()
+    const result = renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => ref.current?.markRecentlyCompleted(habit.id))
+
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+    result.unmount()
+    setTimeoutSpy.mockRestore()
+    vi.useRealTimers()
+  })
+
   it('renders habit cards for each top-level habit', () => {
     const habit1 = createMockHabit({ id: 'h-1', title: 'Exercise' })
     const habit2 = createMockHabit({ id: 'h-2', title: 'Read' })

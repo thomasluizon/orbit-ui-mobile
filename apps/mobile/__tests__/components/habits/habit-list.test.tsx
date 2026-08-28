@@ -1386,6 +1386,29 @@ describe('HabitList', () => {
     }
   })
 
+  it('keeps a completed row in place for 1400 ms', () => {
+    vi.useFakeTimers()
+    try {
+      const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+      seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise' })])
+      const ref = React.createRef<HabitListHandle>()
+      let tree: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <HabitList ref={ref} view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />,
+        )
+      })
+
+      TestRenderer.act(() => ref.current?.markRecentlyCompleted('habit-1'))
+
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+      TestRenderer.act(() => tree!.unmount())
+      setTimeoutSpy.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('logs an overdue habit directly with no date', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
