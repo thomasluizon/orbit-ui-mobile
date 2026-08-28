@@ -2890,6 +2890,10 @@
       },
       {
         "from": "apps/web/components",
+        "to": "packages/shared/src/contracts"
+      },
+      {
+        "from": "apps/web/components",
         "to": "packages/shared/src/hooks"
       },
       {
@@ -3169,6 +3173,10 @@
       {
         "from": "apps/mobile/components",
         "to": "packages/shared/src/chat"
+      },
+      {
+        "from": "apps/mobile/components",
+        "to": "packages/shared/src/contracts"
       },
       {
         "from": "apps/mobile/components",
@@ -25490,6 +25498,7 @@
         "apps/web/__tests__/hooks/use-login-flow.test.ts",
         "apps/web/__tests__/hooks/use-notifications.test.ts",
         "apps/web/__tests__/hooks/use-tags.test.ts",
+        "apps/web/__tests__/manifest.test.ts",
         "apps/web/__tests__/pages/achievements.test.tsx",
         "apps/web/__tests__/pages/advanced.test.tsx",
         "apps/web/__tests__/pages/ai-settings-page.test.tsx",
@@ -25805,6 +25814,7 @@
         "packages/shared/src/__tests__/related-surfaces.test.ts",
         "packages/shared/src/__tests__/sse-stream.test.ts"
       ],
+      "packages/shared/src/contracts": [],
       "packages/shared/src/hooks": [
         "apps/mobile/__tests__/hooks/use-tag-selection.test.tsx",
         "apps/web/__tests__/app/chat-page-desktop-handoff.test.tsx",
@@ -26204,7 +26214,8 @@
       "apps/mobile/(root)",
       "apps/mobile/modules",
       "apps/mobile/plugins",
-      "packages/shared/(root)"
+      "packages/shared/(root)",
+      "packages/shared/src/contracts"
     ]
   }
 }
