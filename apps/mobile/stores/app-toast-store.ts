@@ -40,11 +40,19 @@ function enqueueToast(
   if (!trimmedMessage) return
 
   const nextToast = createToast({ ...toast, message: trimmedMessage })
-  set((state) =>
-    state.currentToast
+  set((state) => {
+    if (!state.currentToast) return { currentToast: nextToast }
+
+    const current = state.currentToast.toast
+    const currentHasRemovalPath =
+      current.kind === 'done'
+      || current.kind === 'lost'
+      || (current.kind === 'neutral' && Boolean(current.actionLabel))
+
+    return currentHasRemovalPath
       ? { queue: [...state.queue, nextToast] }
-      : { currentToast: nextToast },
-  )
+      : { currentToast: nextToast }
+  })
 }
 
 export const useAppToastStore = create<AppToastStore>((set) => ({

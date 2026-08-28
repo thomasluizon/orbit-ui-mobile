@@ -4,6 +4,7 @@ export type SkeletonProps =
   | {
       variant: 'habit-row' | 'settings' | 'stat-tile'
       label: string
+      rows?: never
       cols?: never
       cell?: never
       gap?: never
@@ -11,6 +12,7 @@ export type SkeletonProps =
   | {
       variant: 'grid'
       label: string
+      rows: number
       cols: number
       cell: number
       gap: SkeletonGap

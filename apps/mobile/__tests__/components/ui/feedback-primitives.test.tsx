@@ -34,19 +34,22 @@ describe('mobile feedback primitives', () => {
     const unit = tree.root.findByProps({ testID: 'skeleton-unit-habit-row' })
 
     expect(unit.props.accessibilityLabel).toBe('Loading habits')
+    expect(unit.props.accessibilityRole).toBe('progressbar')
     expect(unit.props.accessibilityState).toEqual({ busy: true })
     expect(unit.props.accessibilityElementsHidden).toBeUndefined()
   })
 
-  it('renders a seven-column grid at the requested dimensions', () => {
+  it('renders every cell in a multirow grid at the requested dimensions', () => {
     const tree = render(
-      <Skeleton variant="grid" label="Loading calendar" cols={7} cell={40} gap={8} />,
+      <Skeleton variant="grid" label="Loading calendar" rows={3} cols={7} cell={40} gap={8} />,
     )
     const grid = tree.root.findByProps({ testID: 'skeleton-grid-shape' })
     const blocks = grid.findAllByType('AnimatedView')
 
-    expect(blocks).toHaveLength(7)
+    expect(blocks).toHaveLength(21)
     expect(JSON.stringify(grid.props.style)).toContain('"gap":8')
+    expect(JSON.stringify(grid.props.style)).toContain('"width":328')
+    expect(JSON.stringify(grid.props.style)).toContain('"height":136')
     expect(JSON.stringify(blocks[0].props.style)).toContain('"width":40')
     expect(JSON.stringify(blocks[0].props.style)).toContain('"height":40')
   })
@@ -94,6 +97,10 @@ describe('mobile feedback primitives', () => {
     )
 
     expect(textValues(tree)).toContain('Check the connection and try again.')
+    const error = tree.root.findByProps({ testID: 'error-state' })
+    expect(error.props.accessibilityRole).toBe('alert')
+    expect(error.props.accessibilityLiveRegion).toBe('polite')
+    expect(error.props.accessibilityLabel).toBe('Check the connection and try again.')
     expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(1)
   })
 

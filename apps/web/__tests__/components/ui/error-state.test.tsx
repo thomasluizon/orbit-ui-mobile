@@ -7,6 +7,8 @@ describe('ErrorState', () => {
     const { container } = render(<ErrorState message="Check the connection and try again." />)
 
     expect(screen.getByText('Check the connection and try again.')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByRole('alert')).toHaveAttribute('aria-atomic', 'true')
     expect(container.querySelector('[data-error-state-action]')).toBeNull()
   })
 

@@ -37,16 +37,21 @@ function StatTileSkeleton() {
   )
 }
 
-function GridSkeleton({ cols, cell, gap }: Readonly<Extract<SkeletonProps, { variant: 'grid' }>>) {
+function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps, { variant: 'grid' }>>) {
   return (
     <div
-      className="grid h-full"
-      style={{ gridTemplateColumns: `repeat(${cols}, ${cell}px)`, gap }}
+      className="grid"
+      style={{
+        gridTemplateColumns: `repeat(${cols}, ${cell}px)`,
+        gridTemplateRows: `repeat(${rows}, ${cell}px)`,
+        gap,
+      }}
+      data-rows={rows}
       data-cols={cols}
       data-cell={cell}
       data-gap={gap}
     >
-      {Array.from({ length: cols }, (_, index) => (
+      {Array.from({ length: rows * cols }, (_, index) => (
         <span key={index} className={blockClass} style={{ width: cell, height: cell }} />
       ))}
     </div>
@@ -59,6 +64,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
     <div
       aria-busy="true"
       aria-label={props.label}
+      role="progressbar"
       data-variant={props.variant}
       className="w-full"
     >

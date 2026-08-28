@@ -61,7 +61,7 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
 
         {isLoading ? (
           <View style={styles.loadingStack}>
-            <Skeleton variant="grid" cols={1} cell={360} gap={0} label={t('shareCard.loading')} />
+            <Skeleton variant="grid" rows={1} cols={1} cell={360} gap={0} label={t('shareCard.loading')} />
             <Skeleton variant="settings" label={t('shareCard.loading')} />
           </View>
         ) : null}

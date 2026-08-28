@@ -23,9 +23,9 @@ describe('app toast store', () => {
     })
   })
 
-  it('queues later feedback and promotes it in order', () => {
+  it('replaces persistent feedback while preserving removable feedback in order', () => {
     const store = useAppToastStore.getState()
-    store.showInfo('First')
+    store.showSuccess('First')
     store.showError('Second')
     store.showSuccess('Third')
 
@@ -37,6 +37,33 @@ describe('app toast store', () => {
 
     useAppToastStore.getState().dismissToast()
     expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Second')
+  })
+
+  it('advances queued to syncing to synced without stalling the host', () => {
+    const store = useAppToastStore.getState()
+
+    store.showQueued('Queued')
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Queued')
+
+    store.showInfo('Syncing')
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Syncing')
+
+    store.showSuccess('Synced')
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'done',
+      message: 'Synced',
+    })
+    expect(useAppToastStore.getState().queue).toEqual([])
+  })
+
+  it('replaces an actionless error with the next toast', () => {
+    const store = useAppToastStore.getState()
+
+    store.showError('Could not save')
+    store.showInfo('Back online')
+
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Back online')
+    expect(useAppToastStore.getState().queue).toEqual([])
   })
 
   it('adapts legacy helpers to the closed kinds', () => {

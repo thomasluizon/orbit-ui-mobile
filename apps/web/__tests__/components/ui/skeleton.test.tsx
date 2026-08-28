@@ -6,22 +6,27 @@ describe('Skeleton', () => {
   it('exposes its label, busy state, and final-layout variant', () => {
     render(<Skeleton variant="habit-row" label="Loading habits" />)
 
-    const unit = screen.getByLabelText('Loading habits')
+    const unit = screen.getByRole('progressbar', { name: 'Loading habits' })
     expect(unit).toHaveAttribute('aria-busy', 'true')
     expect(unit).not.toHaveAttribute('aria-hidden')
     expect(unit).toHaveAttribute('data-variant', 'habit-row')
   })
 
-  it('renders a seven-column grid on the supplied dimensions', () => {
+  it('renders every cell in a multirow grid on the supplied dimensions', () => {
     const { container } = render(
       <div style={{ height: 40 }}>
-        <Skeleton variant="grid" label="Loading calendar" cols={7} cell={40} gap={8} />
+        <Skeleton variant="grid" label="Loading calendar" rows={3} cols={7} cell={40} gap={8} />
       </div>,
     )
 
     const grid = container.querySelector('[data-cols="7"]') as HTMLElement
-    expect(grid).toHaveStyle({ gridTemplateColumns: 'repeat(7, 40px)', gap: '8px' })
-    expect(grid.children).toHaveLength(7)
+    expect(grid).toHaveAttribute('data-rows', '3')
+    expect(grid).toHaveStyle({
+      gridTemplateColumns: 'repeat(7, 40px)',
+      gridTemplateRows: 'repeat(3, 40px)',
+      gap: '8px',
+    })
+    expect(grid.children).toHaveLength(21)
     expect(grid.firstElementChild).toHaveStyle({ width: '40px', height: '40px' })
   })
 

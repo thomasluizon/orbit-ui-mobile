@@ -9,7 +9,14 @@ export function ErrorState({ message, action }: Readonly<ErrorStateProps>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <View style={styles.container} testID="error-state">
+    <View
+      accessible
+      accessibilityLabel={message}
+      accessibilityLiveRegion="polite"
+      accessibilityRole="alert"
+      style={styles.container}
+      testID="error-state"
+    >
       <Text style={[styles.message, { color: tokens.fg1 }]}>{message}</Text>
       {action ? <View testID="error-state-action">{action}</View> : null}
     </View>

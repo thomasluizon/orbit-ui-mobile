@@ -79,10 +79,17 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
 }>) {
   return (
     <View
-      style={[styles.grid, { gap: props.gap }]}
+      style={[
+        styles.grid,
+        {
+          gap: props.gap,
+          width: props.cols * props.cell + (props.cols - 1) * props.gap,
+          height: props.rows * props.cell + (props.rows - 1) * props.gap,
+        },
+      ]}
       testID="skeleton-grid-shape"
     >
-      {Array.from({ length: props.cols }, (_, index) => (
+      {Array.from({ length: props.rows * props.cols }, (_, index) => (
         <Block
           key={index}
           style={{ width: props.cell, height: props.cell }}
@@ -107,6 +114,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
     <View
       accessible
       accessibilityLabel={props.label}
+      accessibilityRole="progressbar"
       accessibilityState={{ busy: true }}
       style={styles.unit}
       testID={`skeleton-unit-${props.variant}`}
@@ -155,5 +163,5 @@ const styles = StyleSheet.create({
   },
   statValue: { width: '50%', height: 24 },
   statLabel: { width: '66%', height: 16 },
-  grid: { flexDirection: 'row', height: '100%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
 })
