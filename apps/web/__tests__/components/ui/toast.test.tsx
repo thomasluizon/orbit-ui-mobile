@@ -10,7 +10,7 @@ function revealMessage() {
 describe('Toast', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => {
-    vi.runOnlyPendingTimers()
+    void act(() => vi.runOnlyPendingTimers())
     vi.useRealTimers()
   })
 

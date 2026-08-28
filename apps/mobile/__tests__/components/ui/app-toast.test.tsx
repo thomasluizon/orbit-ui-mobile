@@ -21,7 +21,7 @@ function advance(milliseconds: number) {
 describe('mobile Toast', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => {
-    vi.runOnlyPendingTimers()
+    TestRenderer.act(() => vi.runOnlyPendingTimers())
     vi.useRealTimers()
   })
 
