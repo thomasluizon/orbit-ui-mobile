@@ -46,6 +46,10 @@ function CompositeValue() {
   )
 }
 
+function UnstyledCompositeValue() {
+  return <Text style={{ fontSize: 17 }} testID="unstyled-composite">Unstyled composite</Text>
+}
+
 describe('Proposed on mobile', () => {
   it('renders the labelled dashed treatment at the scope radius', () => {
     const tree = render(
@@ -106,6 +110,19 @@ describe('Proposed on mobile', () => {
     expect(flattenedStyle(tree.root.findByProps({ testID: 'composite-input' })).color).toBe(compositeInputStyle.color)
   })
 
+  it('leaves unstyled composite output at the ambient fg1 color', () => {
+    const tree = render(
+      <Proposed proposed scope="row" label="Proposed by Astra">
+        <UnstyledCompositeValue />
+      </Proposed>,
+    )
+    const compositeStyle = flattenedStyle(tree.root.findByProps({ testID: 'unstyled-composite' }))
+
+    expect(compositeStyle).toMatchObject({ fontSize: 17 })
+    expect(compositeStyle.color).toBeUndefined()
+    expect(compositeStyle.color).not.toBe(createTokensV2('purple', 'dark').fg3)
+  })
+
   it('tints unstyled nested text and text input through arrays and fragments', () => {
     const tree = render(
       <Proposed proposed scope="row" label="Proposed by Astra">
@@ -115,6 +132,9 @@ describe('Proposed on mobile', () => {
               <Text style={{ fontSize: 17 }} testID="nested-text">Nested value</Text>
             </View>,
             <TextInput key="input" style={{ fontSize: 16 }} testID="nested-input" value="Nested input" />,
+            <Pressable key="pressable">
+              <Text testID="pressable-text">Pressable value</Text>
+            </Pressable>,
           ]}
         </>
       </Proposed>,
@@ -123,6 +143,21 @@ describe('Proposed on mobile', () => {
 
     expect(flattenedStyle(tree.root.findByProps({ testID: 'nested-text' }))).toMatchObject({ color: proposedColor, fontSize: 17 })
     expect(flattenedStyle(tree.root.findByProps({ testID: 'nested-input' }))).toMatchObject({ color: proposedColor, fontSize: 16 })
+    expect(flattenedStyle(tree.root.findByProps({ testID: 'pressable-text' }))).toMatchObject({ color: proposedColor })
+  })
+
+  it('keeps an explicit native text color and stops the walk there', () => {
+    const explicitForeground = createTokensV2('purple', 'dark').fg1
+    const tree = render(
+      <Proposed proposed scope="row" label="Proposed by Astra">
+        <Text style={{ color: explicitForeground }} testID="explicit-text">
+          <Text testID="explicit-text-child">Explicit value</Text>
+        </Text>
+      </Proposed>,
+    )
+
+    expect(flattenedStyle(tree.root.findByProps({ testID: 'explicit-text' })).color).toBe(explicitForeground)
+    expect(prop(tree.root.findByProps({ testID: 'explicit-text-child' }), 'style')).toBeUndefined()
   })
 
   it('wraps bare string and number children in fg3 native Text', () => {

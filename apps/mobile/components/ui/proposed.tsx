@@ -1,32 +1,35 @@
-import type { ProposedProps } from '@orbit/shared/contracts/blocks'
-import { PROPOSED_RADIUS } from '@orbit/shared/contracts/blocks'
-import { Children, cloneElement, Fragment, isValidElement, type ReactNode } from 'react'
+import {
+  PROPOSED_RADIUS,
+  type ProposedProps,
+} from '@orbit/shared/contracts/blocks'
+import { tintProposedChildren, type ProposedTintAdapter } from '@orbit/shared/utils'
+import { cloneElement, Fragment } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, type StyleProp, type TextStyle, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type ProposedChildProps = Readonly<{
-  children?: ReactNode
-  style?: StyleProp<TextStyle>
-}>
-
-function tintChild(child: ReactNode, color: string): ReactNode {
-  if (typeof child === 'string' || typeof child === 'number') {
-    return <Text style={{ color }}>{child}</Text>
+function createTintAdapter(color: string): ProposedTintAdapter {
+  return {
+    wrapText(child) {
+      return <Text style={{ color }}>{child}</Text>
+    },
+    visitElement(child) {
+      if (child.type === Fragment) return { kind: 'recurse' }
+      if (child.type !== Text && child.type !== TextInput && child.type !== View && child.type !== Pressable) {
+        return { kind: 'keep' }
+      }
+      const style = child.props.style as StyleProp<TextStyle>
+      const flattenedStyle = StyleSheet.flatten(style) as TextStyle | undefined
+      if (flattenedStyle?.color != null) return { kind: 'keep' }
+      if (child.type === Text || child.type === TextInput) {
+        return {
+          kind: 'replace',
+          child: cloneElement(child, { style: [style, { color }] }),
+        }
+      }
+      return { kind: 'recurse' }
+    },
   }
-  if (!isValidElement<ProposedChildProps>(child)) return child
-
-  /** Explicit color wins. Composite components own their colors and fall through unchanged. */
-  if (child.type === Text || child.type === TextInput) {
-    if (StyleSheet.flatten(child.props.style ?? {}).color != null) return child
-    return cloneElement(child, { style: [child.props.style, { color }] })
-  }
-
-  if (child.type === Fragment || child.type === View || child.type === Pressable) {
-    const children = Children.map(child.props.children, (nestedChild) => tintChild(nestedChild, color))
-    return cloneElement(child, { children })
-  }
-  return child
 }
 
 export function Proposed({ proposed, scope, label, children }: Readonly<ProposedProps>) {
@@ -54,7 +57,7 @@ export function Proposed({ proposed, scope, label, children }: Readonly<Proposed
       >
         {label}
       </Text>
-      {Children.map(children, (child) => tintChild(child, tokens.fg3))}
+      {tintProposedChildren(children, createTintAdapter(tokens.fg3))}
     </View>
   )
 }

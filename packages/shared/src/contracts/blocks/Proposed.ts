@@ -13,12 +13,14 @@ export type ProposedProps = {
   readonly scope: ProposedScope
   readonly label: string
   /**
-   * The proposed value subtree. On native, uncolored Text and TextInput descendants take fg3 when
-   * they are direct children or are nested through fragments, arrays, View, or Pressable. A
-   * composite child owns the colors it sets. Every design-system component sets explicit token
-   * colors, so it renders inside Proposed exactly as it renders outside. On web, CSS inheritance
-   * gives uncolored descendants --fg-3 and produces the same visible result for the same children.
-   * An explicit color always wins on both platforms.
+   * The proposed value subtree follows four tint rules on both platforms.
+   *
+   * 1. A raw string or number is wrapped in a text element carrying fg3.
+   * 2. An uncolored native or intrinsic text element takes fg3. Container elements recurse through
+   *    fragments, arrays, and their children without taking an inheritable color themselves.
+   * 3. An explicit element color wins and stops the walk at that element.
+   * 4. A composite element is returned unchanged. Its uncolored output uses the host's ambient fg1,
+   *    while any color owned by the composite remains intact.
    */
   readonly children: ReactNode
 }
