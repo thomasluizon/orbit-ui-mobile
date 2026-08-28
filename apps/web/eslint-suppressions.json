@@ -66,9 +66,6 @@
   "app/(app)/advanced/page.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "app/(app)/ai-settings/_components/ai-feature-toggles.tsx": {
@@ -146,9 +143,6 @@
   "app/(app)/profile/_components/delete-account-modal.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "app/(app)/profile/_components/fresh-start-modal.tsx": {
@@ -1197,11 +1191,6 @@
   },
   "components/ui/back-to-top.tsx": {
     "local/no-scroll-listener-motion": {
-      "count": 1
-    }
-  },
-  "components/ui/code-input.tsx": {
-    "local/spacing-scale": {
       "count": 1
     }
   },
