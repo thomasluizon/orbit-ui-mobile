@@ -107,7 +107,7 @@ Install the capture APK on the emulator first, exactly as the capture prerequisi
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `generate-brand-assets.mjs` | Regenerates the canonical 16, 48, 128 and 512 brand PNGs, the native 16 plus canonical 32 and 48 favicon layers, the Apple icon, platform icon, launcher layers, splash, notification silhouette, web icons, OG composite and Play feature graphic from the three canonical Orbit mark sources, `orbit-mark.svg` for the 1024 geometry, `orbit-mark-accent.svg` for every coloured raster and `orbit-mark-16.svg` for the native redraw below roughly 20px. Each one is validated before any render, so a missing or structurally invalid source fails rather than producing a silently wrong set. Outputs use the platform canvas and ink tokens with no baked mask radius. | `node tools/generate-brand-assets.mjs --write` |
+| `generate-brand-assets.mjs` | Regenerates the canonical 16, 48, 128 and 512 brand PNGs, the native 16 plus canonical 32 and 48 favicon layers, the Apple icon, console upload exports, platform icon, launcher layers, splash, notification silhouette, web icons, OG composite and Play feature graphic from the three canonical Orbit mark sources, `orbit-mark.svg` for the 1024 geometry, `orbit-mark-accent.svg` for every coloured raster and `orbit-mark-16.svg` for the native redraw below roughly 20px. Each one is validated before any render, so a missing or structurally invalid source fails rather than producing a silently wrong set. Outputs use the platform canvas and ink tokens with no baked mask radius. | `node tools/generate-brand-assets.mjs --write` |
 
 ## Harness self-test
 
