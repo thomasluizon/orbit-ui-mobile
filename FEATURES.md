@@ -119,7 +119,7 @@ Orbit's MCP server lets external assistants (Claude, ChatGPT, any MCP client) dr
 | Feature tools | 1 tool — feature discovery/description | Pro | Both | — |
 | Support tools | 1 tool — submit support requests | Pro | Both | — |
 | Auth: OAuth 2.0 | Dynamic client registration (`OAuthController.cs`) | Pro | Both | — |
-| Auth: API keys | Scoped, BCrypt-hashed keys (`ApiKeyAuthenticationHandler.cs`); read-only or full, per-scope, revocable | Pro | Both (managed in AI Settings) | — |
+| Auth: API keys | Scoped, BCrypt-hashed, read-only or full, per-scope, revocable keys (`ApiKeyAuthenticationHandler.cs`). Creating a key from AI Settings sends a 6-digit code to the account email and opens `/step-up`; resend unlocks after 60 seconds, the code expires after 10 minutes, and exhausted attempts lock verification for 15 minutes. Success returns to AI Settings and opens key creation. | Pro | Both | - |
 
 ---
 
@@ -264,7 +264,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Timezone | Auto-detected; drives due dates and "today" | Free | Both | — |
 | Week start day | Monday or Sunday across all calendars | Free | Both | — |
 | Support | Contact form from Profile | Free | Both | — |
-| Delete account | In-app account deletion | Free | Both (in-app modal); web also has a public `/delete-account` compliance page | — |
+| Delete account | The in-app deletion modal sends a 6-digit code to the account email and opens `/step-up`; resend unlocks after 60 seconds, the code expires after 10 minutes, and exhausted attempts lock verification for 15 minutes. Success schedules deletion and remains on `/step-up` with the deletion date and sign-out action. | Free | Both; web also has a public `/delete-account` compliance page | - |
 | Explore | Discovery surface | Free | Web-only route; mobile folds it into Profile | — |
 
 ---

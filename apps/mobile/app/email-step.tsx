@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import type { LoginStyles } from './login-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -42,20 +42,15 @@ export function EmailStep({
 }: Readonly<EmailStepProps>) {
   return (
     <>
-      <FieldInput
+      <Input
         label={t('auth.email')}
         value={email}
-        onChangeText={onEmailChange}
+        onChange={onEmailChange}
         placeholder={t('auth.emailPlaceholder')}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
+        kind="email"
         autoComplete="email"
-        textContentType="emailAddress"
-        editable={!isSubmitting}
-        onSubmitEditing={onSendCode}
-        returnKeyType="send"
-        accessibilityLabel={t('auth.email')}
+        disabled={isSubmitting}
+        onSubmit={onSendCode}
       />
 
       <PillButton

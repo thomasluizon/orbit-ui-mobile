@@ -110,11 +110,11 @@ export function useLoginFlow() {
   const {
     codeDigits,
     setCodeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
     startResendCountdown,
     resetCodeDigits,
+    onCodeChange,
     onCodeInput,
     onCodeKeyPress,
   } = useLoginCodeEntry(() => {
@@ -264,7 +264,6 @@ export function useLoginFlow() {
     } catch (err: unknown) {
       reportError(resolveLoginErrorState(err).message)
       resetCodeDigits()
-      codeInputRefs.current[0]?.focus()
     } finally {
       setIsSubmitting(false)
     }
@@ -356,9 +355,9 @@ export function useLoginFlow() {
     stepEntrance,
     shakeOffset,
     codeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
+    onCodeChange,
     onCodeInput,
     onCodeKeyPress,
     canSubmitEmail,

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback, useId } from 'react'
-import { GripHorizontal, X, Copy, Check, Plus, RotateCcw } from '@/components/ui/icons'
+import { useState, useCallback, useId } from 'react'
+import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   DndContext,
@@ -23,6 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { CheckRow } from '@/components/ui/check-row'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -48,8 +49,6 @@ export function HabitChecklist({
   const t = useTranslations()
   const newItemInputId = useId()
   const [newItemText, setNewItemText] = useState('')
-  const [justCheckedIndex, setJustCheckedIndex] = useState(-1)
-  const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const checkedCount = items.filter((i) => i.isChecked).length
 
@@ -115,14 +114,9 @@ export function HabitChecklist({
 
   const handleToggle = useCallback(
     (index: number) => {
-      if (!items[index]?.isChecked) {
-        if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
-        setJustCheckedIndex(index)
-        checkPopTimer.current = setTimeout(() => setJustCheckedIndex(-1), 250)
-      }
       onToggle?.(index)
     },
-    [items, onToggle],
+    [onToggle],
   )
 
   return (
@@ -210,7 +204,6 @@ export function HabitChecklist({
                 index={index}
                 itemsLength={items.length}
                 interactive={interactive}
-                justCheckedIndex={justCheckedIndex}
                 onToggle={handleToggle}
               />
             ))}
@@ -345,20 +338,16 @@ function InteractiveChecklistItem({
   index,
   itemsLength,
   interactive,
-  justCheckedIndex,
   onToggle,
 }: Readonly<{
   item: ChecklistItem
   index: number
   itemsLength: number
   interactive: boolean
-  justCheckedIndex: number
   onToggle: (index: number) => void
 }>) {
   const rowStyle: React.CSSProperties = {
-    padding: '15px 18px',
-    borderBottom:
-      index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
+    borderBottom: index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
   }
 
   const itemText = (
@@ -383,38 +372,13 @@ function InteractiveChecklistItem({
   }
 
   return (
-    <label
-      className="flex items-center gap-[14px] cursor-pointer transition-colors duration-[var(--dur-fast)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
-      style={rowStyle}
-    >
-      <input
+    <div style={rowStyle}>
+      <CheckRow
+        label={item.text}
         checked={item.isChecked}
-        type="checkbox"
-        aria-label={item.text}
-        className="peer sr-only"
         onChange={() => onToggle(index)}
       />
-      <span
-        aria-hidden="true"
-        className={`flex shrink-0 items-center justify-center transition-[background-color,box-shadow] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)] ${
-          justCheckedIndex === index ? 'animate-check-pop' : ''
-        }`}
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: 8,
-          background: item.isChecked ? 'var(--primary)' : 'transparent',
-          boxShadow: item.isChecked
-            ? 'none'
-            : 'inset 0 0 0 2px var(--fg-3)',
-        }}
-      >
-        {item.isChecked && (
-          <Check size={15} strokeWidth={3} color="var(--fg-on-primary)" />
-        )}
-      </span>
-      {itemText}
-    </label>
+    </div>
   )
 }
 

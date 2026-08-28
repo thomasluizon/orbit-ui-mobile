@@ -10,7 +10,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { useOffline } from '@/hooks/use-offline'
 import {
   useCalendarAutoSyncState,
@@ -130,7 +130,7 @@ export function AutoSyncSettingsCard() {
               className="flex items-center"
               style={{
                 gap: 6,
-                marginTop: 3,
+                marginTop: 4,
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 lineHeight: 1.4,
@@ -141,12 +141,13 @@ export function AutoSyncSettingsCard() {
               <span>{statusMeta}</span>
             </div>
           </div>
-          <Switch
-            on={enabled}
-            onToggle={() => void handleToggle()}
-            ariaLabel={t('calendar.autoSync.toggleLabel')}
-            disabled={toggleDisabled}
-          />
+          <fieldset disabled={toggleDisabled} className="m-0 border-0 p-0">
+            <Switch
+              checked={enabled}
+              onChange={() => void handleToggle()}
+              label={t('calendar.autoSync.toggleLabel')}
+            />
+          </fieldset>
         </div>
       </div>
       <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>

@@ -6,7 +6,7 @@ import type { CalendarAutoSyncState } from '@orbit/shared/types'
 import type { AppTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import type { CalendarSyncStyles } from './calendar-sync-styles'
 
 interface CalendarAutoSyncSectionProps {
@@ -46,6 +46,7 @@ export function CalendarAutoSyncSection({
   onReconnect,
 }: Readonly<CalendarAutoSyncSectionProps>) {
   const enabled = autoSyncState?.enabled ?? false
+  const toggleDisabled = isStateLoading || !hasConnection || !isOnline || isTogglePending
 
   return (
     <>
@@ -71,14 +72,24 @@ export function CalendarAutoSyncSection({
               {connectionMeta}
             </Text>
           </View>
-          <Switch
-            on={enabled}
-            onToggle={() => onToggleAutoSync(!enabled)}
-            disabled={
-              !hasConnection || isTogglePending || isStateLoading || !isOnline
-            }
-            accessibilityLabel={t('calendar.autoSync.title')}
-          />
+          <View
+            pointerEvents={toggleDisabled ? 'none' : 'auto'}
+            accessible={toggleDisabled}
+            accessibilityRole={toggleDisabled ? 'switch' : undefined}
+            accessibilityLabel={toggleDisabled ? t('calendar.autoSync.title') : undefined}
+            accessibilityState={toggleDisabled ? { checked: enabled, disabled: true } : undefined}
+          >
+            <View
+              accessibilityElementsHidden={toggleDisabled}
+              importantForAccessibility={toggleDisabled ? 'no-hide-descendants' : 'auto'}
+            >
+              <Switch
+                checked={enabled}
+                onChange={onToggleAutoSync}
+                label={t('calendar.autoSync.title')}
+              />
+            </View>
+          </View>
         </View>
       </View>
       <SettingsDescription>
