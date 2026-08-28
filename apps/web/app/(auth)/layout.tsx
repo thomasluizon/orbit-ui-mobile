@@ -1,6 +1,7 @@
 'use client'
 
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { FlowShell } from '@/components/shell/flow-shell'
 
 /** Auth layout: centered v8 shell for login and auth-callback pages. */
 export default function AuthLayout({
@@ -9,18 +10,15 @@ export default function AuthLayout({
   children: React.ReactNode
 }>) {
   return (
-    <div
-      className="relative flex flex-col items-center overflow-x-hidden overflow-y-auto"
-      style={{
-        minHeight: '100dvh',
-        background: 'var(--bg)',
-        padding: '24px 16px',
-        paddingTop: 'calc(24px + var(--safe-top))',
-      }}
-    >
-      <RouteTransitionShell className="relative z-[1] my-auto w-full flex justify-center">
-        {children}
-      </RouteTransitionShell>
-    </div>
+    <FlowShell>
+      <div
+        className="relative flex min-h-full flex-col items-center overflow-x-hidden px-4 py-6"
+        style={{ paddingTop: 'calc(24px + var(--safe-top))' }}
+      >
+        <RouteTransitionShell className="relative z-[1] my-auto flex w-full justify-center">
+          {children}
+        </RouteTransitionShell>
+      </div>
+    </FlowShell>
   )
 }
