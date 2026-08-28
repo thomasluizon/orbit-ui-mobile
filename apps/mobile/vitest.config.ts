@@ -87,7 +87,6 @@ export default defineConfig({
         'components/goals/edit-goal-modal/edit-goal-target-fields.tsx',
         'components/goals/goal-metrics-panel.tsx',
         'components/goals/goals-view.tsx',
-        'components/habit-list/drill-panel.tsx',
         'components/habits/checklist-templates.tsx',
         'components/habits/description-viewer.tsx',
         'components/habits/goal-linking-field.tsx',

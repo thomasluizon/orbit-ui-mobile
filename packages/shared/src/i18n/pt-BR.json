@@ -408,6 +408,7 @@
     },
     "backToHabits": "Voltar para todos os hábitos",
     "completed": "concluídos",
+    "drillProgress": "{done} de {total} feitos",
     "skipConfirmTitle": "Pular hábito",
     "skipConfirmMessage": "Isso adianta a data para a próxima vez, sem registrar como concluído.",
     "skipConfirmMessageFlexible": "Isso reduz em 1 as conclusões necessárias neste período.",

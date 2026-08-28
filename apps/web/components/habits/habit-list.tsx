@@ -1,10 +1,6 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useImperativeHandle, type Ref } from 'react'
-import {
-  ArrowLeft,
-  Home,
-} from '@/components/ui/icons'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import {
@@ -38,7 +34,7 @@ import {
 } from './habit-list/date-group-section'
 import { formatDateGroupLabel } from './habit-list/date-group-label'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import { HabitListDrillContent } from './habit-list/drill-content'
+import { HabitDrill } from './habit-list/habit-drill'
 import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-parent-overlay'
 import {
   buildDragItemsFlat,
@@ -943,83 +939,13 @@ export function HabitList({
   function renderMainContent(): React.ReactNode {
     if (drill.currentParent) {
       return (
-        <>
-          <div className="flex items-center" style={{ padding: '4px 16px 8px', gap: 12 }}>
-            <button
-              type="button"
-              aria-label={t('common.goBack')}
-              className="touch-target shrink-0 appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-              }}
-              onClick={drill.drillBack}
-            >
-              <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <h3
-                className="truncate"
-                style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 16,
-                  fontWeight: 500,
-                  color: 'var(--fg-1)',
-                }}
-              >
-                {drill.currentParent.title}
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  letterSpacing: '0.02em',
-                  color: 'var(--fg-3)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {drill.drillChildren.filter((c) => c.isCompleted).length}/
-                {drill.drillChildren.length} {t('habits.completed')}
-              </p>
-            </div>
-          </div>
-
-          {drill.drillStack.length > 1 && (
-            <button
-              type="button"
-              className="flex items-center appearance-none border-0 bg-transparent cursor-pointer text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
-              style={{
-                gap: 4,
-                padding: '8px 16px',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-              onClick={drill.drillReset}
-            >
-              <Home size={16} strokeWidth={1.8} aria-hidden="true" />
-              {t('habits.backToHabits')}
-            </button>
-          )}
-
-          <HabitListDrillContent
-            t={t}
-            drillLoading={drill.drillLoading}
-            drillError={drill.drillError}
-            drillChildren={drill.drillChildren}
-            currentParentId={drill.currentParentId}
-            getDrillChildren={drill.getDrillChildren}
-            renderHabitCard={renderHabitCard}
-            onAddSubHabit={startAddSubHabit}
-            onRetry={() => {
-              void drill.refreshCurrent()
-            }}
-          />
-        </>
+        <HabitDrill
+          t={t}
+          drill={drill}
+          hasProAccess={profile?.hasProAccess !== false}
+          renderHabitCard={renderHabitCard}
+          onAddSubHabit={startAddSubHabit}
+        />
       )
     }
 

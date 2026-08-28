@@ -73,8 +73,7 @@ import {
   HabitListDateGroupSection,
   type HabitListDateGroup,
 } from './habit-list/date-group-section'
-import { DrillFooter, DrillHabitItem } from './habit-list/drill-panel'
-import { HabitListDrillView } from './habit-list/drill-view'
+import { HabitDrill } from './habit-list/habit-drill'
 import {
   MoveParentDialog,
   type MoveParentOption,
@@ -161,7 +160,7 @@ function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 
   return habit?.isFlexible ? 'flexible' : 'recurring'
 }
 
-// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, drill-view, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, habit-drill, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
     {
@@ -1273,35 +1272,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    const renderDrillItem = useCallback<ListRenderItem<NormalizedHabit>>(
-      ({ item: child }) => (
-        <DrillHabitItem
-          child={child}
-          styles={styles}
-          getDrillChildren={drill.getDrillChildren}
-          renderHabitCard={renderHabitCard}
-        />
-      ),
-      [drill.getDrillChildren, renderHabitCard, styles],
-    )
-
-    const drillFooter = useMemo(
-      () => (
-        <DrillFooter
-          styles={styles}
-          label={t('habits.form.addSubHabit')}
-          onAddSubHabit={() => {
-            const parent = drill.currentParentId
-              ? (habitsById.get(drill.currentParentId) ?? null)
-              : null
-            setSubHabitParent(parent)
-            setShowSubHabitModal(true)
-          }}
-        />
-      ),
-      [drill.currentParentId, habitsById, styles, t],
-    )
-
     const commonOverlays = (
       <>
         <CreateHabitModal
@@ -1366,17 +1336,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (drill.currentParentId) {
       return (
         <>
-          <HabitListDrillView
+          <HabitDrill
             drill={drill}
             styles={styles}
+            t={t}
+            hasProAccess={profile?.hasProAccess !== false}
             listHeaderComponent={listHeaderComponent}
             drillListRef={drillListRef}
-            renderDrillItem={renderDrillItem}
-            drillFooter={drillFooter}
             refreshControl={refreshControl}
             onListScroll={handleListScroll}
             onScrollBeginDrag={onScrollBeginDrag}
             bulkBarStyle={bulkBarStyle}
+            renderHabitCard={renderHabitCard}
+            onAddSubHabit={startAddSubHabit}
           />
           {commonOverlays}
         </>

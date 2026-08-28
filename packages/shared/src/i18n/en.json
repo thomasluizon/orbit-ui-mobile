@@ -408,6 +408,7 @@
     },
     "backToHabits": "Back to all habits",
     "completed": "completed",
+    "drillProgress": "{done} of {total} done",
     "skipConfirmTitle": "Skip Habit",
     "skipConfirmMessage": "This will advance the due date to the next scheduled occurrence without logging it as completed.",
     "skipConfirmMessageFlexible": "This will reduce the required completions for this period by 1.",
