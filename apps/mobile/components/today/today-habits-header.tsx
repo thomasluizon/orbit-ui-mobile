@@ -9,7 +9,6 @@ import {
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
-  Easing,
   View,
   Text,
   Pressable,
@@ -23,12 +22,6 @@ import {
   Search,
   X,
   MoreVertical,
-  CheckCircle2,
-  RefreshCw,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Check,
-  Eye,
   Filter,
 } from "@/components/ui/icons";
 import { isToday } from "date-fns";
@@ -38,13 +31,11 @@ import { AppTextInput } from "@/components/ui/app-text-input";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { TagChip } from "@/components/ui/tag-chip";
 import { SectionLabel } from "@/components/ui/section-label";
-import { AnchoredMenu, MenuAnchorHost } from "@/components/ui/anchored-menu";
+import { Menu, MenuAnchorHost } from "@/components/ui/menu";
 import { TodayAISummary } from "@/components/habits/today-ai-summary";
 import { TodayDateNavigation } from "@/app/(tabs)/today-shell";
-import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import {
   createAnimatedTimingConfig,
-  usePrefersReducedMotion,
   useResolvedMotionPreset,
 } from "@/lib/motion";
 import { createTokensV2, tintFromPrimary } from "@/lib/theme";
@@ -165,234 +156,88 @@ const TodaySearchBar = memo(function TodaySearchBar({
 
 interface TodayControlsMenuProps {
   visible: boolean;
-  anchorRect: MenuAnchorRect | null;
+  anchorRef: React.RefObject<View | null>;
   onClose: () => void;
   isSelectMode: boolean;
   allCollapsed: boolean;
   isFetching: boolean;
   showCompleted: boolean;
-  prefersReducedMotion: boolean;
-  refreshSpinStyle: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
   onToggleSelect: () => void;
   onToggleCollapse: () => void;
   onRefresh: () => void;
   onToggleCompleted: () => void;
-  tokens: ReturnType<typeof createTokensV2>;
-  styles: ReturnType<typeof createStyles>;
 }
 
-// react-doctor-disable-next-line prefer-explicit-variants -- The two booleans (isSelectMode, allCollapsed) are orthogonal, independent menu-item states that each toggle one icon/label; they are not mutually-exclusive variants of a single dimension, so an explicit `variant` enum cannot model two independent binary toggles and would obscure intent. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function TodayControlsMenu({
   visible,
-  anchorRect,
+  anchorRef,
   onClose,
   isSelectMode,
   allCollapsed,
   isFetching,
   showCompleted,
-  prefersReducedMotion,
-  refreshSpinStyle,
   onToggleSelect,
   onToggleCollapse,
   onRefresh,
   onToggleCompleted,
-  tokens,
-  styles,
 }: Readonly<TodayControlsMenuProps>) {
   const { t } = useTranslation();
-
   return (
-    <AnchoredMenu
-      visible={visible}
-      anchorRect={anchorRect}
+    <Menu
+      open={visible}
+      anchorRef={anchorRef}
       onClose={onClose}
-      width={220}
-      estimatedHeight={220}
-    >
-      <Pressable
-        style={({ pressed }) => [
-          styles.controlsMenuItem,
-          {
-            backgroundColor: pressed ? tokens.bgSunk : "transparent",
-          },
-        ]}
-        onPress={onToggleSelect}
-        accessibilityRole="button"
-      >
-        {isSelectMode ? (
-          <X size={16} color={tokens.fg2} strokeWidth={1.8} />
-        ) : (
-          <CheckCircle2 size={16} color={tokens.fg2} strokeWidth={1.8} />
-        )}
-        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-          {isSelectMode ? t("common.cancel") : t("common.select")}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.controlsMenuItem,
-          {
-            backgroundColor: pressed ? tokens.bgSunk : "transparent",
-          },
-        ]}
-        onPress={onToggleCollapse}
-        accessibilityRole="button"
-      >
-        {allCollapsed ? (
-          <ChevronsUpDown size={16} color={tokens.fg2} strokeWidth={1.8} />
-        ) : (
-          <ChevronsDownUp size={16} color={tokens.fg2} strokeWidth={1.8} />
-        )}
-        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-          {allCollapsed ? t("habits.expandAll") : t("habits.collapseAll")}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.controlsMenuItem,
-          isFetching ? styles.controlsMenuItemDisabled : null,
-          {
-            backgroundColor: pressed ? tokens.bgSunk : "transparent",
-          },
-        ]}
-        onPress={onRefresh}
-        disabled={isFetching}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isFetching }}
-      >
-        <Animated.View
-          style={isFetching && !prefersReducedMotion ? refreshSpinStyle : null}
-        >
-          <RefreshCw size={16} color={tokens.fg2} strokeWidth={1.8} />
-        </Animated.View>
-        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-          {t("habits.refresh")}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.controlsMenuItem,
-          {
-            backgroundColor: pressed ? tokens.bgSunk : "transparent",
-          },
-        ]}
-        onPress={onToggleCompleted}
-        accessibilityRole="button"
-      >
-        {showCompleted ? (
-          <Check size={16} color={tokens.fg2} strokeWidth={1.8} />
-        ) : (
-          <Eye size={16} color={tokens.fg2} strokeWidth={1.8} />
-        )}
-        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-          {t("habits.showCompleted")}
-        </Text>
-      </Pressable>
-    </AnchoredMenu>
+      title={t("habits.actions.more")}
+      items={[
+        { id: "select", label: isSelectMode ? t("common.cancel") : t("common.select") },
+        { id: "collapse", label: allCollapsed ? t("habits.expandAll") : t("habits.collapseAll") },
+        { id: "refresh", label: t("habits.refresh"), disabled: isFetching },
+        { id: "completed", label: t("habits.showCompleted"), badge: showCompleted ? t("common.done") : undefined },
+      ]}
+      onSelect={(id) => {
+        if (id === "select") onToggleSelect();
+        else if (id === "collapse") onToggleCollapse();
+        else if (id === "refresh") onRefresh();
+        else if (id === "completed") onToggleCompleted();
+      }}
+    />
   );
 }
 
 interface TodayFrequencyMenuProps {
   visible: boolean;
-  anchorRect: MenuAnchorRect | null;
+  anchorRef: React.RefObject<View | null>;
   onClose: () => void;
   selectedFrequency: FreqKey | null;
   frequencyOptions: { key: FreqKey; label: string }[];
   onSelectFrequency: (key: FreqKey | null) => void;
-  tokens: ReturnType<typeof createTokensV2>;
-  styles: ReturnType<typeof createStyles>;
 }
 
 function TodayFrequencyMenu({
   visible,
-  anchorRect,
+  anchorRef,
   onClose,
   selectedFrequency,
   frequencyOptions,
   onSelectFrequency,
-  tokens,
-  styles,
 }: Readonly<TodayFrequencyMenuProps>) {
   const { t } = useTranslation();
-
   return (
-    <AnchoredMenu
-      visible={visible}
-      anchorRect={anchorRect}
+    <Menu
+      open={visible}
+      anchorRef={anchorRef}
       onClose={onClose}
-      width={200}
-      estimatedHeight={260}
-    >
-      <Pressable
-        style={({ pressed }) => [
-          styles.controlsMenuItem,
-          {
-            backgroundColor: pressed ? tokens.bgSunk : "transparent",
-          },
-        ]}
-        onPress={() => onSelectFrequency(null)}
-        accessibilityRole="menuitem"
-        accessibilityState={{ selected: !selectedFrequency }}
-      >
-        <View style={styles.freqMenuCheck}>
-          {!selectedFrequency ? (
-            <Check size={16} color={tokens.primary} strokeWidth={2} />
-          ) : null}
-        </View>
-        <Text
-          style={[
-            styles.controlsMenuLabel,
-            {
-              color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
-              fontFamily: !selectedFrequency
-                ? "Rubik_600SemiBold"
-                : "Rubik_500Medium",
-            },
-          ]}
-        >
-          {t("common.all")}
-        </Text>
-      </Pressable>
-      {frequencyOptions.map((opt) => {
-        const active = selectedFrequency === opt.key;
-        return (
-          <Pressable
-            key={opt.key}
-            style={({ pressed }) => [
-              styles.controlsMenuItem,
-              {
-                backgroundColor: pressed ? tokens.bgSunk : "transparent",
-              },
-            ]}
-            onPress={() => onSelectFrequency(active ? null : opt.key)}
-            accessibilityRole="menuitem"
-            accessibilityState={{ selected: active }}
-          >
-            <View style={styles.freqMenuCheck}>
-              {active ? (
-                <Check size={16} color={tokens.primary} strokeWidth={2} />
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.controlsMenuLabel,
-                {
-                  color: active ? tokens.fg1 : tokens.fg2,
-                  fontFamily: active
-                    ? "Rubik_600SemiBold"
-                    : "Rubik_500Medium",
-                },
-              ]}
-            >
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </AnchoredMenu>
+      title={t("habits.frequencyFilter")}
+      items={[
+        { id: "all", label: t("common.all"), badge: selectedFrequency == null ? "✓" : undefined },
+        ...frequencyOptions.map((option) => ({
+          id: option.key,
+          label: option.label,
+          badge: selectedFrequency === option.key ? "✓" : undefined,
+        })),
+      ]}
+      onSelect={(id) => onSelectFrequency(id === "all" ? null : selectedFrequency === id ? null : id as FreqKey)}
+    />
   );
 }
 
@@ -420,9 +265,7 @@ interface TodayHabitsHeaderProps {
   isFetching: boolean;
   allCollapsed: boolean;
   showControlsMenu: boolean;
-  controlsMenuAnchorRect: MenuAnchorRect | null;
   showFreqMenu: boolean;
-  freqMenuAnchorRect: MenuAnchorRect | null;
   controlsButtonRef: React.RefObject<View | null>;
   freqMenuButtonRef: React.RefObject<View | null>;
   filtersAnimatedStyle: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
@@ -471,9 +314,7 @@ export function TodayHabitsHeader({
   isFetching,
   allCollapsed,
   showControlsMenu,
-  controlsMenuAnchorRect,
   showFreqMenu,
-  freqMenuAnchorRect,
   controlsButtonRef,
   freqMenuButtonRef,
   filtersAnimatedStyle,
@@ -501,43 +342,8 @@ export function TodayHabitsHeader({
     [theme.currentScheme, theme.currentTheme],
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const refreshSpinAnim = useMemo(() => new Animated.Value(0), []);
   const selectedTagIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds]);
   const searchActive = searchQuery.trim().length > 0;
-
-  useEffect(() => {
-    if (!isFetching || prefersReducedMotion) {
-      refreshSpinAnim.stopAnimation();
-      refreshSpinAnim.setValue(0);
-      return;
-    }
-
-    const spinLoop = Animated.loop(
-      Animated.timing(refreshSpinAnim, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-    spinLoop.start();
-    return () => spinLoop.stop();
-  }, [isFetching, prefersReducedMotion, refreshSpinAnim]);
-
-  const refreshSpinStyle = useMemo(
-    () => ({
-      transform: [
-        {
-          rotate: refreshSpinAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: ["0deg", "360deg"],
-          }),
-        },
-      ],
-    }),
-    [refreshSpinAnim],
-  );
 
   return (
     <>
@@ -698,31 +504,25 @@ export function TodayHabitsHeader({
 
         <TodayControlsMenu
           visible={showControlsMenu}
-          anchorRect={controlsMenuAnchorRect}
+          anchorRef={controlsButtonRef}
           onClose={onCloseControlsMenu}
           isSelectMode={isSelectMode}
           allCollapsed={allCollapsed}
           isFetching={isFetching}
           showCompleted={showCompleted}
-          prefersReducedMotion={prefersReducedMotion}
-          refreshSpinStyle={refreshSpinStyle}
           onToggleSelect={onToggleSelect}
           onToggleCollapse={onToggleCollapse}
           onRefresh={onRefresh}
           onToggleCompleted={onToggleCompleted}
-          tokens={tokens}
-          styles={styles}
         />
 
         <TodayFrequencyMenu
           visible={showFreqMenu}
-          anchorRect={freqMenuAnchorRect}
+          anchorRef={freqMenuButtonRef}
           onClose={onCloseFreqMenu}
           selectedFrequency={selectedFrequency}
           frequencyOptions={frequencyOptions}
           onSelectFrequency={onSelectFrequency}
-          tokens={tokens}
-          styles={styles}
         />
       </Animated.View>
     </>

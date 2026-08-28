@@ -7,16 +7,7 @@ import {
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: (props: Record<string, unknown>) =>
-    props.open
-      ? React.createElement(
-          'BottomSheetModal',
-          props,
-          props.children as React.ReactNode,
-        )
-      : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
@@ -42,7 +33,7 @@ function flattenRenderedText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(flattenRenderedText).join('')
   if (typeof node === 'object' && 'children' in node) {
-    return flattenRenderedText((node as { children: unknown }).children)
+    return flattenRenderedText((node).children)
   }
   return ''
 }
@@ -109,7 +100,7 @@ function renderDialog(
     ...overrides,
   }
   let tree: RenderedTree | undefined
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     tree = TestRenderer.create(
       <MoveParentDialog {...props} />,
     ) as unknown as RenderedTree
@@ -139,7 +130,7 @@ describe('MoveParentDialog', () => {
     const { tree } = renderDialog()
 
     const sheets = tree.root.findAll(
-      (node) => node.type === 'BottomSheetModal',
+      (node) => node.type === 'Sheet',
     )
     expect(sheets.length).toBeGreaterThan(0)
     expect(sheets[0]!.props.title).toBe('habits.moveParent.title')
@@ -151,7 +142,7 @@ describe('MoveParentDialog', () => {
     const rows = findOptionRows(tree)
     expect(rows.length).toBeGreaterThan(0)
 
-    TestRenderer.act(() => {
+    void TestRenderer.act(() => {
       ;(rows[0]!.props.onPress as () => void)()
     })
     expect(props.onSelectOption).toHaveBeenCalledWith(null)
@@ -185,7 +176,7 @@ describe('MoveParentDialog', () => {
     )
     if (!confirmPill) throw new Error('Expected the confirm pill')
 
-    TestRenderer.act(() => {
+    void TestRenderer.act(() => {
       ;(confirmPill.props.onPress as () => void)()
     })
     expect(props.onConfirm).toHaveBeenCalled()
@@ -202,7 +193,7 @@ describe('MoveParentDialog', () => {
       'habits.moveParent.destinations',
     )
 
-    TestRenderer.act(() => {
+    void TestRenderer.act(() => {
       ;(rows[0]!.props.onPress as () => void)()
     })
     expect(props.onSelectOption).toHaveBeenCalledWith(null)
@@ -247,7 +238,7 @@ describe('MoveParentDialog', () => {
     const searchInput = findSearchInputs(tree)[0]
     if (!searchInput) throw new Error('Expected the search field')
 
-    TestRenderer.act(() => {
+    void TestRenderer.act(() => {
       ;(searchInput.props.onChangeText as (value: string) => void)('bravo')
     })
 
@@ -261,9 +252,9 @@ describe('MoveParentDialog', () => {
     const { tree } = renderDialog({ isPending: true })
 
     const sheets = tree.root.findAll(
-      (node) => node.type === 'BottomSheetModal',
+      (node) => node.type === 'Sheet',
     )
-    expect(sheets[0]!.props.canDismiss).toBe(false)
+    expect(sheets[0]!.props.onClose).toBeUndefined()
 
     expect(flattenRenderedText(tree.toJSON())).toContain(
       'habits.moveParent.moving',

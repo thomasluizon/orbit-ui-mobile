@@ -27,24 +27,24 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { removeItem: vi.fn(async () => undefined) },
+  default: { removeItem: vi.fn(async () => { await Promise.resolve(); return undefined; }) },
 }))
 
 vi.mock('@/lib/api-client', () => ({
-  apiClient: vi.fn(async () => ({})),
+  apiClient: vi.fn(async () => { await Promise.resolve(); return ({}); }),
 }))
 
 vi.mock('@/lib/checklist-template-storage', () => ({
-  clearChecklistTemplates: vi.fn(async () => undefined),
+  clearChecklistTemplates: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({
   buildQueuedMutation: vi.fn((mutation: Record<string, unknown>) => ({ id: 'reset-1', ...mutation })),
   createQueuedAck: vi.fn((id: string) => ({ queued: true, queuedMutationId: id })),
-  isQueuedResult: vi.fn((result: { queued?: boolean }) => result?.queued === true),
+  isQueuedResult: vi.fn((result: { queued?: boolean }) => result.queued === true),
   queueOrExecute: vi.fn(
     async ({ execute, mutation }: { execute: (mutation: unknown) => Promise<unknown>; mutation: unknown }) =>
-      execute(mutation),
+      { await Promise.resolve(); return execute(mutation); },
   ),
 }))
 
@@ -54,13 +54,10 @@ vi.mock('@/lib/offline-queue', () => ({
 }))
 
 vi.mock('@/lib/query-client', () => ({
-  clearPersistedQueryCache: vi.fn(async () => undefined),
+  clearPersistedQueryCache: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) =>
-    open ? React.createElement('BottomSheetModal', { title }, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/app-text-input', () => ({
   AppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
@@ -87,6 +84,7 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 async function render(element: React.ReactNode): Promise<TestTree> {
   let tree!: TestTree
   await TestRenderer.act(async () => {
+await Promise.resolve()
     tree = TestRenderer.create(element)
   })
   return tree
@@ -94,7 +92,7 @@ async function render(element: React.ReactNode): Promise<TestTree> {
 
 function buttonWithLabel(tree: TestTree, label: string): TestNode | undefined {
   return tree.root.findAll(
-    (node) => node.props?.accessibilityRole === 'button' && node.props?.accessibilityLabel === label,
+    (node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label,
   )[0]
 }
 
@@ -112,6 +110,7 @@ async function press(node: TestNode) {
 async function confirmReset(tree: TestTree) {
   await press(buttonWithLabel(tree, 'common.continue')!)
   await TestRenderer.act(async () => {
+await Promise.resolve()
     ;(input(tree).props as { onChangeText: (value: string) => void }).onChangeText('orbit')
   })
   await press(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!)
@@ -128,14 +127,14 @@ describe('FreshStartModal', () => {
 
   it('renders the info step heading when opened', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
-    const modal = tree.root.findAll((node) => node.type === 'BottomSheetModal')[0]!
+    const modal = tree.root.findAll((node) => node.type === 'Sheet')[0]!
     expect(modal.props.title).toBe('profile.freshStart.heading')
   })
 
   it('advances from info to the confirm step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await press(buttonWithLabel(tree, 'common.continue')!)
-    const modal = tree.root.findAll((node) => node.type === 'BottomSheetModal')[0]!
+    const modal = tree.root.findAll((node) => node.type === 'Sheet')[0]!
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
   })
 
@@ -144,6 +143,7 @@ describe('FreshStartModal', () => {
     await press(buttonWithLabel(tree, 'common.continue')!)
     expect(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!.props.disabled).toBe(true)
     await TestRenderer.act(async () => {
+await Promise.resolve()
       ;(input(tree).props as { onChangeText: (value: string) => void }).onChangeText('orbit')
     })
     expect(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!.props.disabled).toBe(false)
@@ -165,6 +165,7 @@ describe('FreshStartModal', () => {
     const animation = tree.root.findAll((node) => node.type === 'FreshStartAnimation')[0]!
     expect(animation).toBeTruthy()
     await TestRenderer.act(async () => {
+await Promise.resolve()
       ;(animation.props as { onComplete: () => void }).onComplete()
     })
     expect(replace).toHaveBeenCalledWith('/')

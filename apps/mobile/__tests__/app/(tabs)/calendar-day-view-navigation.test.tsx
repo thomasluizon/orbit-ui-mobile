@@ -1,19 +1,11 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const mockPush = vi.fn()
 
-interface SheetStubProps {
-  open: boolean
-  onClose: () => void
-  onDidDismiss?: () => void
-  children?: React.ReactNode
-}
-
-let latestSheetProps: SheetStubProps | null = null
 let calendarIsLoading = false
-
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -46,14 +38,7 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: (props: SheetStubProps) => {
-    latestSheetProps = props
-    return props.open
-      ? require('react').createElement('BottomSheetModal', null, props.children)
-      : null
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-habits', () => ({
   useCalendarData: () => ({
@@ -122,21 +107,17 @@ function findGridDayCell(root: TestNode, dateStr: string) {
   return cell
 }
 
-function sheetProps() {
-  if (!latestSheetProps) throw new Error('BottomSheetModal never rendered')
-  return latestSheetProps
-}
-
 describe('CalendarScreen day-detail navigation (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
-    latestSheetProps = null
     calendarIsLoading = false
+    sheetTestControls.defer(true)
   })
 
   afterEach(() => {
+    sheetTestControls.defer(false)
     vi.useRealTimers()
   })
 
@@ -151,25 +132,28 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(dayCell.props.onPress as () => void)()
     })
 
-    expect(sheetProps().open).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
 
     TestRenderer.act(() => {
       pressButton(tree.root, 'calendar.goToDay')
     })
 
+    /** The sheet is still mounted and presented, so nothing may run yet. */
     expect(mockPush).not.toHaveBeenCalled()
-    expect(sheetProps().open).toBe(false)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
 
     TestRenderer.act(() => {
-      sheetProps().onDidDismiss?.()
+      sheetTestControls.completeDismissal()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
     const pushedHref = mockPush.mock.calls[0]?.[0] as string
     expect(pushedHref).toMatch(/^\/\?date=\d{4}-\d{2}-15$/)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
 
     TestRenderer.act(() => {
-      sheetProps().onDidDismiss?.()
+      sheetTestControls.completeDismissal()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
@@ -184,7 +168,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     TestRenderer.act(() => {
       ;(findGridDayCell(tree.root, '2026-08-01').props.onPress as () => void)()
     })
-    expect(sheetProps().open).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
   })
 
   it('allows a future day to become a range endpoint', () => {

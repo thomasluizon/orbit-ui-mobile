@@ -2,7 +2,7 @@
 
 import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import { isGoalDeadlinePast } from '@orbit/shared/utils/goal-form'
 import { GoalGroupLabel } from '../create-goal-modal/goal-group-label'
@@ -29,7 +29,7 @@ export function EditGoalDeadlineField({
         <div className="flex flex-col" style={{ gap: 8 }}>
           <div className="flex items-center" style={{ gap: 8 }}>
             <div className="flex-1">
-              <AppDatePicker value={deadline} onChange={onChangeDeadline} />
+              <DateField value={deadline} onChange={onChangeDeadline} />
             </div>
             <button
               type="button"

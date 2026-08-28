@@ -8,7 +8,7 @@ import {
   isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface NotificationDetailModalProps {
   open: boolean
@@ -29,26 +29,29 @@ export function NotificationDetailModal({
   const t = useTranslations()
   const router = useRouter()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
+  const { sheetRef, closeSheet } = useSheetHost()
 
   function handleView() {
     const url = notification.url
-    if (url && isViewableNotificationUrl(url)) {
+    if (!url || !isViewableNotificationUrl(url)) return
+    closeSheet(() => {
       onOpenChange(false)
       router.push(url)
-    }
+    })
   }
 
   function handleDelete() {
     onDelete(notification.id)
-    onOpenChange(false)
+    closeSheet()
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => onOpenChange(false)}
       title={notification.title}
-      footer={
+      actions={
         <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
           {canView && (
             <QuietLink primary onClick={handleView}>
@@ -96,7 +99,7 @@ export function NotificationDetailModal({
           </p>
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }
 

@@ -6,8 +6,8 @@ import {
   __setHostRefsNull,
 } from '../../../test-mocks/react-native'
 import {
-  KeyboardAwareBottomSheetScrollView,
   KeyboardAwareFlatList,
+  KeyboardAwareSheetScrollView,
   KeyboardAwareScrollView,
   KeyboardAwareView,
   useKeyboardAwareInputReveal,
@@ -199,7 +199,7 @@ describe('KeyboardAwareScrollView (mobile)', () => {
   })
 })
 
-describe('KeyboardAwareBottomSheetScrollView (mobile)', () => {
+describe('KeyboardAwareSheetScrollView (mobile)', () => {
   beforeEach(() => {
     __resetTestHostConfig()
   })
@@ -212,15 +212,16 @@ describe('KeyboardAwareBottomSheetScrollView (mobile)', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <KeyboardAwareBottomSheetScrollView onScroll={onScroll} contentContainerStyle={{ padding: 4 }}>
+        <KeyboardAwareSheetScrollView onScroll={onScroll} contentContainerStyle={{ padding: 4 }}>
           <ContextProbe />
-        </KeyboardAwareBottomSheetScrollView>,
+        </KeyboardAwareSheetScrollView>,
       )
     })
     const event = { nativeEvent: { contentOffset: { y: 12 } } }
     TestRenderer.act(() => {
       tree!.root.findByType('ScrollView').props.onScroll(event)
     })
+    expect(tree!.root.findByType('ScrollView').props.nestedScrollEnabled).toBe(true)
     expect(onScroll).toHaveBeenCalledWith(event)
   })
 })

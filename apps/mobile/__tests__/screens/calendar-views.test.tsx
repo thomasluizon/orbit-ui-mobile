@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
+import CalendarScreen from "@/app/(tabs)/calendar";
+
 const TestRenderer = require("react-test-renderer");
 
 const state = vi.hoisted(() => ({
@@ -74,7 +76,7 @@ vi.mock("@/lib/theme", () => ({
   },
 }));
 
-vi.mock("@/components/bottom-sheet-modal", () => ({ BottomSheetModal: () => null }));
+vi.mock("@/components/ui/sheet", async () => await import("@/__tests__/support/sheet-double"));
 vi.mock("@/components/ui/gradient-top", () => ({ GradientTop: () => null }));
 vi.mock("@/components/ui/section-label", () => ({ SectionLabel: () => null }));
 
@@ -95,8 +97,6 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
   CalendarDayDetail: () => null,
 }));
-
-import CalendarScreen from "@/app/(tabs)/calendar";
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
@@ -165,7 +165,7 @@ describe("CalendarScreen views (mobile)", () => {
   it("switches to the week time-grid when the week tab is selected", () => {
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
     expect(
@@ -192,7 +192,7 @@ describe("CalendarScreen views (mobile)", () => {
   it("hides recurring habits from the week grid when show-recurring is turned off", () => {
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
     pressTab(tree!, "calendar.view.week");
@@ -215,7 +215,7 @@ describe("CalendarScreen views (mobile)", () => {
   it("renders the interval clamp notice when a range is clamped", () => {
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
     pressTab(tree!, "calendar.view.range");
@@ -226,7 +226,7 @@ describe("CalendarScreen views (mobile)", () => {
   it("asks for the end day after the first interval pick", () => {
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
     pressTab(tree!, "calendar.view.range");
@@ -244,7 +244,7 @@ describe("CalendarScreen views (mobile)", () => {
   it("shows the empty-month state in place of the stat tiles when nothing is logged", () => {
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
     const flatLists = tree!.root.findAll(
@@ -256,7 +256,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => {
       footerTree = TestRenderer.create(
         flatLists[0]!.props.ListFooterComponent,
-      ) as unknown as Tree;
+      );
     });
 
     expect(hostTexts(footerTree!)).toContain("calendar.emptyMonth");
@@ -271,7 +271,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
     expect(hostTexts(tree!)).toContain("calendar.loadError");

@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 import { Plus, X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import { isGoalDeadlinePast } from '@orbit/shared/utils/goal-form'
 import type { EditGoalStyles, EditGoalTokens } from './styles'
@@ -32,7 +32,7 @@ export function EditGoalDeadlineField({
         <View>
           <View style={styles.deadlineRow}>
             <View style={styles.deadlinePicker}>
-              <AppDatePicker value={deadline} onChange={onChangeDeadline} />
+              <DateField value={deadline} onChange={onChangeDeadline} />
             </View>
             <Pressable
               style={({ pressed }) => [

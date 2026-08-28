@@ -53,8 +53,8 @@ vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: () => <div data-testid="goal-linking-field" />,
 }))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: () => <div data-testid="app-date-picker" />,
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: () => <div data-testid="app-date-picker" />,
 }))
 
 vi.mock('@/components/ui/app-select', () => ({
@@ -172,13 +172,16 @@ function pad(value: number): string {
   return String(value).padStart(2, '0')
 }
 
+function pickColumnOption(columnLabel: string, label: string) {
+  const column = screen.getByRole('listbox', { name: columnLabel })
+  fireEvent.click(within(column).getByRole('option', { name: label }))
+}
+
 function selectTimeInPicker(triggerLabel: string, hour24: number, minute: number) {
   fireEvent.click(screen.getByLabelText(triggerLabel))
-  const hours = screen.getByRole('listbox', { name: 'common.hours' })
-  fireEvent.click(within(hours).getByRole('option', { name: pad(hour24) }))
-  const minutes = screen.getByRole('listbox', { name: 'common.minutes' })
-  fireEvent.click(within(minutes).getByRole('option', { name: pad(minute) }))
-  fireEvent.click(screen.getByText('common.done'))
+  pickColumnOption('common.hours', pad(hour24))
+  pickColumnOption('common.minutes', pad(minute))
+  fireEvent.click(screen.getByRole('button', { name: 'common.done' }))
 }
 
 
@@ -230,7 +233,7 @@ describe('HabitFormFields', () => {
     )
 
     fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
-    expect(screen.getByText('habits.form.emojiPickerTitle')).toBeDefined()
+    expect(screen.getAllByText('habits.form.emojiPickerTitle')).toHaveLength(2)
 
     fireEvent.change(screen.getByPlaceholderText('habits.form.emojiSearchPlaceholder'), {
       target: { value: 'run' },
@@ -448,9 +451,9 @@ describe('HabitFormFields', () => {
       />,
     )
 
-    selectTimeInPicker('habits.form.dueTime', 15, 58)
+    selectTimeInPicker('habits.form.dueTime', 15, 30)
 
-    expect(setValue).toHaveBeenCalledWith('dueTime', '15:58', { shouldDirty: true })
+    expect(setValue).toHaveBeenCalledWith('dueTime', '15:30', { shouldDirty: true })
   })
 
   it('writes dueEndTime directly from the time picker on change', () => {
@@ -490,9 +493,9 @@ describe('HabitFormFields', () => {
       />,
     )
 
-    selectTimeInPicker('habits.form.dueEndTime', 22, 15)
+    selectTimeInPicker('habits.form.dueEndTime', 22, 30)
 
-    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:15', { shouldDirty: true })
+    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:30', { shouldDirty: true })
   })
 
   it('shows slip alert toggle for bad habits', () => {

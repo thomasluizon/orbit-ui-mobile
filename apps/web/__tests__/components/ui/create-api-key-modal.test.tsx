@@ -9,17 +9,7 @@ vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
-    if (!open) return null
-    return (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        {children}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 

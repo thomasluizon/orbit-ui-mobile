@@ -3,8 +3,9 @@
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -41,6 +42,28 @@ import {
 
 function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: crypto.randomUUID(), value }
+}
+
+interface CreateHabitSnapshot {
+  tagIds: string
+  goalIds: string
+  subHabits: string
+  reminderTimes: string
+}
+
+function hasCreateHabitChanges(
+  formDirty: boolean,
+  selectedTagIds: readonly string[],
+  selectedGoalIds: readonly string[],
+  subHabits: readonly SubHabitEntry[],
+  reminderTimes: readonly number[],
+  snapshot: CreateHabitSnapshot,
+): boolean {
+  const tagIds = JSON.stringify([...selectedTagIds].sort((left, right) => left.localeCompare(right)))
+  const goalIds = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right)))
+  const subHabitValues = JSON.stringify(subHabits.map((entry) => entry.value))
+  return formDirty || tagIds !== snapshot.tagIds || goalIds !== snapshot.goalIds ||
+    subHabitValues !== snapshot.subHabits || JSON.stringify(reminderTimes) !== snapshot.reminderTimes
 }
 
 interface CreateHabitModalProps {
@@ -101,15 +124,18 @@ export function CreateHabitModal({
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty =
-    formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.tagIds ||
-    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.goalIds ||
-    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSnapshot.subHabits ||
-    JSON.stringify(reminderTimes) !== initialSnapshot.reminderTimes
+  const isDirty = hasCreateHabitChanges(
+    formHelpers.form.formState.isDirty,
+    tags.selectedTagIds,
+    selectedGoalIds,
+    subHabits,
+    reminderTimes,
+    initialSnapshot,
+  )
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => onOpenChange(false),
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
   const toggleGoal = useCallback((goalId: string) => {
@@ -120,10 +146,12 @@ export function CreateHabitModal({
     if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
 
     // react-doctor-disable-next-line no-prop-callback-in-effect -- pro-access gate, not a render-sync of local state: closes the modal only when a non-pro user opens sub-habit mode, then redirects to /upgrade https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    onOpenChange(false)
-    // react-doctor-disable-next-line nextjs-no-client-side-redirect -- gate depends on client-fetched profile.hasProAccess (useProfile); there is no server-side signal to redirect on https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    router.push('/upgrade')
-  }, [isSubHabitMode, onOpenChange, open, profile, router])
+    closeSheet(() => {
+      onOpenChange(false)
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- gate depends on client-fetched profile.hasProAccess (useProfile); there is no server-side signal to redirect on https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+      router.push('/upgrade')
+    })
+  }, [closeSheet, isSubHabitMode, onOpenChange, open, profile, router])
 
   const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
@@ -209,8 +237,10 @@ export function CreateHabitModal({
       e.preventDefault()
 
       if (isSubHabitMode && !hasProAccess) {
-        onOpenChange(false)
-        router.push('/upgrade')
+        closeSheet(() => {
+          onOpenChange(false)
+          router.push('/upgrade')
+        })
         return
       }
 
@@ -236,7 +266,7 @@ export function CreateHabitModal({
           const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, permittedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
-        onOpenChange(false)
+        closeSheet(() => onOpenChange(false))
       } catch (error: unknown) {
         showError(
           getFriendlyErrorMessage(
@@ -249,7 +279,7 @@ export function CreateHabitModal({
       }
     },
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
+    [closeSheet, createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
@@ -311,23 +341,15 @@ export function CreateHabitModal({
     setSubHabits((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
-  return (
-    <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+  function renderCreateSheet() {
+    if (!open) return null
+    return (
+      <Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
-        description={
-          isSubHabitMode
-            ? t('habits.form.createSubHabitDescription')
-            : t('habits.form.createDescription')
-        }
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        initialFocusRef={titleInputRef}
-        panelWidth="wide"
-        footer={
+        actions={(
           <div className="flex items-center justify-end" style={{ gap: 12 }}>
             <PillButton
               variant="ghost"
@@ -343,51 +365,54 @@ export function CreateHabitModal({
               {t('common.create')}
             </PillButton>
           </div>
-        }
+        )}
       >
-        <form id={formId} onSubmit={(e) => void handleSubmit(e)}>
-        <HabitFormFields
-          formHelpers={formHelpers}
-          titleInputRef={titleInputRef}
-          tags={tags}
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={toggleGoal}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={setReminderTimes}
-          onReminderEnabledChange={handleReminderEnabledChange}
-          expandAdvancedSignal={expandAdvancedSignal}
-          onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
-          isSuggesting={suggestion.isPending}
-          lockedGeneral={parentHabit?.isGeneral ?? null}
-        >
-          {!isSubHabitMode && (
-            <SubHabitEditor
-              subHabits={subHabits}
-              hasProAccess={hasProAccess}
-              onUpdateSubHabit={updateSubHabitValue}
-              onRemoveSubHabit={removeSubHabit}
-              onAddSubHabit={() =>
-                setSubHabits((prev) => [...prev, createSubHabitEntry()])
-              }
-              onUpgrade={() => router.push('/upgrade')}
-            />
-          )}
-        </HabitFormFields>
+        <p className="mb-4 text-sm text-[var(--fg-3)]">
+          {isSubHabitMode
+            ? t('habits.form.createSubHabitDescription')
+            : t('habits.form.createDescription')}
+        </p>
+        <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+          <HabitFormFields
+            formHelpers={formHelpers}
+            titleInputRef={titleInputRef}
+            tags={tags}
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={toggleGoal}
+            reminderTimes={reminderTimes}
+            onReminderTimesChange={setReminderTimes}
+            onReminderEnabledChange={handleReminderEnabledChange}
+            expandAdvancedSignal={expandAdvancedSignal}
+            onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+            isSuggesting={suggestion.isPending}
+            lockedGeneral={parentHabit?.isGeneral ?? null}
+          >
+            {!isSubHabitMode ? (
+              <SubHabitEditor
+                subHabits={subHabits}
+                hasProAccess={hasProAccess}
+                onUpdateSubHabit={updateSubHabitValue}
+                onRemoveSubHabit={removeSubHabit}
+                onAddSubHabit={() =>
+                  setSubHabits((prev) => [...prev, createSubHabitEntry()])
+                }
+                onUpgrade={() => router.push('/upgrade')}
+              />
+            ) : null}
+          </HabitFormFields>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
+      </Sheet>
+    )
+  }
+
+  return (
+    <>
+      {renderCreateSheet()}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

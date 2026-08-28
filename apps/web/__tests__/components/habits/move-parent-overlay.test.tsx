@@ -2,23 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    footer,
-  }: {
-    open: boolean
-    children?: ReactNode
-    footer?: ReactNode
-  }) =>
-    open ? (
-      <div>
-        {children}
-        {footer}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import {
   MoveParentOverlay,

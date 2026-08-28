@@ -8,8 +8,7 @@ import {
   isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -37,31 +36,31 @@ export function NotificationDetailModal({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(
     notification,
   )
 
   function handleView() {
     const url = notification.url
-    if (isViewableNotificationUrl(url)) {
-      scheduleExitAction(() => router.push(url))
+    if (!isViewableNotificationUrl(url)) return
+    closeSheet(() => {
       onClose()
-    }
+      router.push(url)
+    })
   }
 
   function handleDelete() {
     onDelete(notification.id)
-    onClose()
+    closeSheet()
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
-      onDidDismiss={runExitAction}
       title={notification.title}
-      snapPoints={['50%', '92%']}
     >
       <View style={styles.container}>
         <Text style={styles.timestamp}>
@@ -95,7 +94,7 @@ export function NotificationDetailModal({
           />
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
@@ -139,7 +138,7 @@ const quietActionStyles = StyleSheet.create({
   chip: {
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',

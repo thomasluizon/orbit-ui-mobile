@@ -7,8 +7,8 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('@/components/ui/app-time-picker', () => ({
-  AppTimePicker: ({
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: ({
     value,
     ariaLabel,
     onChange,

@@ -12,17 +12,7 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-    onClose,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    onClose?: () => void
-  }) => (open ? React.createElement('BottomSheetOpen', { onClose }, children) : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
@@ -126,7 +116,7 @@ describe('ReviewMomentSheet (mobile)', () => {
 
   it('renders nothing when no review moment is armed', async () => {
     const tree = await render()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('renders nothing when a milestone-share prompt is armed (kind isolation)', async () => {
@@ -137,17 +127,17 @@ describe('ReviewMomentSheet (mobile)', () => {
     })
     await settle(1000)
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('shows the streak variant after the settle delay and burns the shared cooldown', async () => {
     const tree = await render()
     await armReview('review-streak-7')
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
 
     await settle()
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
     expect(findByType(tree, 'AstraAvatarStub')).toHaveLength(1)
     expect(JSON.stringify(tree.toJSON())).toContain('reviewMoment.streakTitle')
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
@@ -161,7 +151,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-level-5')
     await settle()
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
     expect(JSON.stringify(tree.toJSON())).toContain('reviewMoment.levelTitle')
   })
 
@@ -171,7 +161,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-level-5')
     await settle(1000)
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('stays hidden and clears the arm when the key was already prompted', async () => {
@@ -180,7 +170,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-streak-7')
     await settle(1000)
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(useEngagementPromptStore.getState().armedPrompt).toBeNull()
   })
 
@@ -190,7 +180,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-streak-7')
     await settle(1000)
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(useEngagementPromptStore.getState().armedPrompt).toBeNull()
   })
 
@@ -212,7 +202,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     })
 
     expect(reviewReminder.dismiss).toHaveBeenCalledTimes(1)
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('snoozes when the sheet is dismissed natively (swipe/back)', async () => {
@@ -220,14 +210,16 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-streak-7')
     await settle()
 
-    const sheet = findByType(tree, 'BottomSheetOpen')[0]!
+    const dismiss = tree.root.findAll(
+      (node) => node.props.accessibilityLabel === 'attempt-dismiss',
+    )[0]!
     await TestRenderer.act(async () => {
-      ;(sheet.props.onClose as () => void)()
+      ;(dismiss.props.onPress as () => void)()
       await Promise.resolve()
     })
 
     expect(reviewReminder.dismiss).toHaveBeenCalledTimes(1)
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('requests the native review on the CTA without snoozing', async () => {
@@ -245,6 +237,6 @@ describe('ReviewMomentSheet (mobile)', () => {
 
     expect(reviewReminder.requestReview).toHaveBeenCalledTimes(1)
     expect(reviewReminder.dismiss).not.toHaveBeenCalled()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 })

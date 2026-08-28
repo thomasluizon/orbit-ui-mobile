@@ -281,16 +281,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       habitsById: Map<string, NormalizedHabit>
       selectedDateStr: string
     } | null>(null)
-    const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
-    const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
-    const [showAutoLogParent, setShowAutoLogParent] = useState(false)
-    const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
-    const [autoLogParentMode, setAutoLogParentMode] = useState<'log' | 'skip'>('log')
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
-    const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
-    const [habitToDuplicate, setHabitToDuplicate] =
-      useState<NormalizedHabit | null>(null)
     const [showSubHabitModal, setShowSubHabitModal] = useState(false)
     const [subHabitParent, setSubHabitParent] =
       useState<NormalizedHabit | null>(null)
@@ -320,9 +312,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       promptedParentIdsRef.current.clear()
       skippedChildIdsRef.current.clear()
     }, [promptedParentIdsRef, selectedDateStr, skippedChildIdsRef])
-    const autoLogParentHabit = autoLogParentId
-      ? (habitsById.get(autoLogParentId) ?? null)
-      : null
     const movingHabit = movingHabitId
       ? (habitsById.get(movingHabitId) ?? null)
       : null
@@ -665,7 +654,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt])
 
     const checkAndPromptParentLog = useCallback(
-      (childHabitId: string) => {
+      function checkAndSettleParent(childHabitId: string) {
         const data = promptDataRef.current
         if (!data) return
 
@@ -685,15 +674,37 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         if (progress.total > 0 && progress.done >= progress.total) {
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
-            setAutoLogParentId(parentHabit.id)
-            setAutoLogParentMode(progress.loggedDone > 0 ? 'log' : 'skip')
-            setShowAutoLogParent(true)
+            const mode = progress.loggedDone > 0 ? 'log' : 'skip'
+            markRecentlyCompleted(parentHabit.id)
+            void (async () => {
+              try {
+                if (mode === 'skip') {
+                  skippedChildIdsRef.current.add(parentHabit.id)
+                  await skipMutation.mutateAsync({ habitId: parentHabit.id })
+                } else {
+                  skippedChildIdsRef.current.delete(parentHabit.id)
+                  await logMutation.mutateAsync({ habitId: parentHabit.id })
+                  void showInterstitialIfDue()
+                }
+                checkAndSettleParent(parentHabit.id)
+              } catch {
+                promptedParentIdsRef.current.delete(parentHabit.id)
+                clearRecentlyCompleted(parentHabit.id)
+              }
+            })()
           }
         } else {
           promptedParentIdsRef.current.delete(parentHabit.id)
         }
       },
-      [getChildrenProgressForPrompt],
+      [
+        clearRecentlyCompleted,
+        getChildrenProgressForPrompt,
+        logMutation,
+        markRecentlyCompleted,
+        showInterstitialIfDue,
+        skipMutation,
+      ],
     )
 
     const handleLogged = useCallback(
@@ -727,64 +738,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted,
       ],
     )
-
-    const confirmAutoLogParent = useCallback(async () => {
-      const parentId = autoLogParentId
-      if (!parentId) return
-
-      const mode = autoLogParentMode
-      setAutoLogParentId(null)
-      markRecentlyCompleted(parentId)
-
-      try {
-        if (mode === 'skip') {
-          skippedChildIdsRef.current.add(parentId)
-          await skipMutation.mutateAsync({ habitId: parentId })
-          checkAndPromptParentLog(parentId)
-        } else {
-          await logMutation.mutateAsync({ habitId: parentId })
-          handleLogged(parentId, false)
-        }
-      } catch {
-        clearRecentlyCompleted(parentId)
-      }
-    }, [
-      autoLogParentId,
-      autoLogParentMode,
-      checkAndPromptParentLog,
-      clearRecentlyCompleted,
-      handleLogged,
-      logMutation,
-      markRecentlyCompleted,
-      skipMutation,
-    ])
-
-    const promptForceLogParent = useCallback((habitId: string) => {
-      setForceLogHabitId(habitId)
-      setShowForceLogConfirm(true)
-    }, [])
-
-    const confirmForceLog = useCallback(async () => {
-      if (!forceLogHabitId) return
-
-      markRecentlyCompleted(forceLogHabitId)
-
-      try {
-        await logMutation.mutateAsync({ habitId: forceLogHabitId })
-        handleLogged(forceLogHabitId, false)
-      } catch {
-        clearRecentlyCompleted(forceLogHabitId)
-      } finally {
-        setForceLogHabitId(null)
-        setShowForceLogConfirm(false)
-      }
-    }, [
-      forceLogHabitId,
-      clearRecentlyCompleted,
-      handleLogged,
-      logMutation,
-      markRecentlyCompleted,
-    ])
 
     const skipHabit = useCallback(async (habitId: string) => {
       try {
@@ -848,27 +801,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       setShowDeleteConfirm(true)
     }, [])
 
-    const promptDuplicate = useCallback(
-      (habitId: string) => {
-        const habit = habitsById.get(habitId)
-        if (!habit) return
-        setHabitToDuplicate(habit)
-        setShowDuplicateConfirm(true)
-      },
-      [habitsById],
-    )
-
-    const confirmDuplicate = useCallback(async () => {
-      if (!habitToDuplicate) return
-      const id = habitToDuplicate.id
+    const duplicateImmediately = useCallback(async (id: string) => {
       try {
         await duplicateMutation.mutateAsync(id)
       } catch {
-      } finally {
-        setHabitToDuplicate(null)
-        setShowDuplicateConfirm(false)
       }
-    }, [duplicateMutation, habitToDuplicate])
+    }, [duplicateMutation])
 
     const closeMoveParentDialog = useCallback(() => {
       if (moveParentMutation.isPending) return
@@ -1110,7 +1048,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               onDelete: () => {
                 promptDelete(habit.id)
               },
-              onDuplicate: () => promptDuplicate(habit.id),
+              onDuplicate: () => void duplicateImmediately(habit.id),
               onEdit: () =>
                 onEditHabit?.(
                   habit,
@@ -1129,9 +1067,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                     void drill.drillInto(habit.id)
                   }
                 : undefined,
-              onForceLogParent: () => {
-                promptForceLogParent(habit.id)
-              },
+              onForceLogParent: () => void handleDirectLog(habit.id),
               onEnterSelectMode: () => {
                 if (!isSelectMode) toggleSelectMode()
                 toggleSelectionCascade(
@@ -1176,12 +1112,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         skipHabit,
         toggleExpand,
         promptDelete,
-        promptDuplicate,
+        duplicateImmediately,
         openMoveParentDialog,
         startAddSubHabit,
         drill,
         handleDirectLog,
-        promptForceLogParent,
         toggleSelectMode,
         toggleSelectionCascade,
         getDescendantIds,
@@ -1364,45 +1299,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListConfirmDialogs
           t={t}
           showDeleteConfirm={showDeleteConfirm}
-          onDeleteOpenChange={(open) => {
-            setShowDeleteConfirm(open)
-            if (!open) {
-              setHabitToDelete(null)
-            }
-          }}
           onConfirmDelete={() => void confirmDelete()}
           onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)
-          }}
-          showDuplicateConfirm={showDuplicateConfirm}
-          onDuplicateOpenChange={(open) => {
-            setShowDuplicateConfirm(open)
-            if (!open) {
-              setHabitToDuplicate(null)
-            }
-          }}
-          duplicateName={habitToDuplicate?.title ?? ''}
-          onConfirmDuplicate={() => void confirmDuplicate()}
-          onCancelDuplicate={() => {
-            setHabitToDuplicate(null)
-            setShowDuplicateConfirm(false)
-          }}
-          showForceLogConfirm={showForceLogConfirm}
-          onForceLogOpenChange={setShowForceLogConfirm}
-          onConfirmForceLog={() => void confirmForceLog()}
-          onCancelForceLog={() => {
-            setForceLogHabitId(null)
-            setShowForceLogConfirm(false)
-          }}
-          showAutoLogParent={showAutoLogParent}
-          autoLogParentMode={autoLogParentMode}
-          onAutoLogParentOpenChange={setShowAutoLogParent}
-          autoLogParentName={autoLogParentHabit?.title ?? ''}
-          onConfirmAutoLogParent={() => void confirmAutoLogParent()}
-          onCancelAutoLogParent={() => {
-            setAutoLogParentId(null)
-            setShowAutoLogParent(false)
           }}
         />
 

@@ -3,11 +3,13 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 interface HabitDetailHeaderProps {
   habit: NormalizedHabit
   summaryStrip: string
+  showTitle?: boolean
 }
 
 export function HabitDetailHeader({
   habit,
   summaryStrip,
+  showTitle = true,
 }: Readonly<HabitDetailHeaderProps>) {
   return (
     <span
@@ -31,17 +33,19 @@ export function HabitDetailHeader({
           {habit.emoji}
         </span>
       ) : null}
-      <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {habit.title}
-      </span>
+      {showTitle ? (
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 24,
+            fontWeight: 500,
+            lineHeight: 1.3,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {habit.title}
+        </span>
+      ) : null}
       {summaryStrip ? (
         <span
           style={{
@@ -57,7 +61,7 @@ export function HabitDetailHeader({
       {habit.tags.length > 0 ? (
         <span className="flex flex-wrap items-center justify-center" style={{ gap: 8 }}>
           {habit.tags.map((tag) => (
-            <span key={tag.id} className="inline-flex items-center" style={{ gap: 5 }}>
+            <span key={tag.id} className="inline-flex items-center" style={{ gap: 4 }}>
               <span
                 aria-hidden="true"
                 className="rounded-full shrink-0"

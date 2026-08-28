@@ -36,7 +36,7 @@ describe('buildHabitRowContextMenuItems', () => {
       onDelete: noop,
       t,
     })
-    expect(items.map((item) => item.key)).toEqual([
+    expect(items.map((item) => item.id)).toEqual([
       'log',
       'skip',
       'viewDetails',
@@ -45,7 +45,7 @@ describe('buildHabitRowContextMenuItems', () => {
       'addSubHabit',
       'delete',
     ])
-    expect(items.find((item) => item.key === 'delete')?.danger).toBe(true)
+    expect(items.find((item) => item.id === 'delete')?.destructive).toBe(true)
   })
 
   it('omits log when the habit is already done', () => {
@@ -57,7 +57,7 @@ describe('buildHabitRowContextMenuItems', () => {
       onSkip: noop,
       t,
     })
-    expect(items.map((item) => item.key)).toEqual(['skip'])
+    expect(items.map((item) => item.id)).toEqual(['skip'])
   })
 
   it('omits log when logging is disabled for the date', () => {
@@ -80,6 +80,6 @@ describe('buildHabitRowContextMenuItems', () => {
       onDelete: noop,
       t,
     })
-    expect(items.map((item) => item.key)).toEqual(['viewDetails', 'delete'])
+    expect(items.map((item) => item.id)).toEqual(['viewDetails', 'delete'])
   })
 })

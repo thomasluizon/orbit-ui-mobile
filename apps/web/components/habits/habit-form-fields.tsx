@@ -27,8 +27,8 @@ import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
-import { AppTimePicker } from '@/components/ui/app-time-picker'
+import { DateField } from '@/components/ui/date-field'
+import { TimeField } from '@/components/ui/time-field'
 import { AppSelect } from '@/components/ui/app-select'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -374,7 +374,7 @@ export function HabitFormFields({
             <span id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
             </span>
-            <AppDatePicker
+            <DateField
               value={watchedDueDate}
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
@@ -383,7 +383,7 @@ export function HabitFormFields({
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}
             </label>
-            <AppTimePicker
+            <TimeField
               id="habit-form-due-time"
               placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
               value={watchedDueTime}
@@ -611,7 +611,7 @@ export function HabitFormFields({
               <label htmlFor="habit-form-due-end-time" className="form-label">
                 {t('habits.form.dueEndTime')}
               </label>
-              <AppTimePicker
+              <TimeField
                 id="habit-form-due-end-time"
                 placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
                 value={watchedDueEndTime}
@@ -630,7 +630,7 @@ export function HabitFormFields({
                     {t('habits.form.endDate')}
                   </span>
                   <div className="flex items-center gap-2">
-                    <AppDatePicker
+                    <DateField
                       value={watchedEndDate}
                       onChange={(val) =>
                         setValue('endDate', val, { shouldDirty: true })
