@@ -5,7 +5,6 @@ import type {
   BillingDetails,
   BillingInvoice,
   BillingPaymentMethod,
-  SubscriptionPlans,
 } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
@@ -16,23 +15,24 @@ import { cardLabelStyle, cardSurface, formatBillingDate } from './styles'
 
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 
-function planPrice(
-  status: SubscriptionStatus,
-  plans: SubscriptionPlans | null | undefined,
-  t: UpgradeTranslations,
-) {
-  const interval = status.subscriptionInterval
-  const price = interval && plans ? plans[interval] : null
-  const amount = price?.unitAmount
-  const currency = price?.currency
-  if (amount == null || !currency) return null
+function billedPrice(billing: BillingDetails, t: UpgradeTranslations) {
+  if (!billing.currency) return null
+  const price = formatPrice(billing.amountPerPeriod, billing.currency)
+  if (billing.interval === 'yearly') {
+    return t('upgrade.billing.plan.yearlyPrice', { price })
+  }
+  if (billing.interval === 'monthly') {
+    return t('upgrade.billing.plan.monthlyPrice', { price })
+  }
+  return null
+}
+
+function planLabel(interval: string | null | undefined, t: UpgradeTranslations) {
   return interval === 'yearly'
-    ? t('upgrade.billing.plan.yearlyPrice', {
-        price: formatPrice(amount, currency),
-      })
-    : t('upgrade.billing.plan.monthlyPrice', {
-        price: formatPrice(amount, currency),
-      })
+    ? t('upgrade.billing.plan.yearly')
+    : interval === 'monthly'
+      ? t('upgrade.billing.plan.monthly')
+      : t('upgrade.billing.plan.pro')
 }
 
 function invoiceReason(reason: string, t: UpgradeTranslations): string {
@@ -54,21 +54,19 @@ function invoiceStatus(status: string, t: UpgradeTranslations): string {
   return labels[status] ?? status
 }
 
-function PlanSummary({ state, status, billing, plans, locale, t }: Readonly<{
+function PlanSummary({ state, status, billing, locale, t }: Readonly<{
   state: SubscriptionScreenState
   status: SubscriptionStatus
   billing: BillingDetails | null
-  plans: SubscriptionPlans | null | undefined
   locale: string
   t: UpgradeTranslations
 }>) {
-  const lifetime = state === 'lifetime'
-  const intervalLabel = status.subscriptionInterval === 'yearly'
-    ? t('upgrade.billing.plan.yearly')
-    : t('upgrade.billing.plan.monthly')
+  const lifetime = status.isLifetimePro
+  const canceled = state === 'canceled' || Boolean(billing?.cancelAtPeriodEnd)
+  const pastDue = state === 'past-due' || billing?.status === 'past_due'
   const renewalDate = billing?.currentPeriodEnd ?? status.planExpiresAt
-  const price = planPrice(status, plans, t)
-  const renewalKey = state === 'canceled'
+  const price = billing ? billedPrice(billing, t) : null
+  const renewalKey = canceled
     ? 'upgrade.billing.plan.canceledHint'
     : 'upgrade.billing.plan.renewsOn'
 
@@ -77,10 +75,10 @@ function PlanSummary({ state, status, billing, plans, locale, t }: Readonly<{
       <p style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <h2 className="m-0 text-xl font-medium text-[var(--fg-1)]">
-          {lifetime ? t('upgrade.billing.plan.lifetime') : intervalLabel}
+          {lifetime ? t('upgrade.billing.plan.lifetime') : planLabel(billing?.interval, t)}
         </h2>
-        {state === 'canceled' ? <Badge>{t('upgrade.billing.plan.canceledBadge')}</Badge> : null}
-        {state === 'past-due' ? <Badge>{t('upgrade.billing.plan.pastDue')}</Badge> : null}
+        {canceled ? <Badge>{t('upgrade.billing.plan.canceledBadge')}</Badge> : null}
+        {pastDue ? <Badge>{t('upgrade.billing.plan.pastDue')}</Badge> : null}
       </div>
       <div className="mt-3 flex flex-col gap-1 text-sm text-[var(--fg-3)]">
         {lifetime ? <p>{t('upgrade.billing.plan.lifetimeHint')}</p> : null}
@@ -159,13 +157,14 @@ function InvoiceHistory({ invoices, locale, t }: Readonly<{
   )
 }
 
-function PortalActions({ state, onOpenPortal, onRetryPortal, t }: Readonly<{
+function PortalActions({ state, isLifetime, onOpenPortal, onRetryPortal, t }: Readonly<{
   state: SubscriptionScreenState
+  isLifetime: boolean
   onOpenPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTranslations
 }>) {
-  if (state === 'lifetime') return null
+  if (isLifetime) return null
   const failed = state === 'portal-failed'
   return (
     <div className="flex flex-col items-center gap-3">
@@ -189,7 +188,6 @@ export function BillingDashboard({
   state,
   billing,
   status,
-  plans,
   locale,
   usagePercent,
   usageUrgent,
@@ -200,7 +198,6 @@ export function BillingDashboard({
   state: SubscriptionScreenState
   billing: BillingDetails | null
   status: SubscriptionStatus | null
-  plans: SubscriptionPlans | null | undefined
   locale: string
   usagePercent: number
   usageUrgent: boolean
@@ -211,11 +208,17 @@ export function BillingDashboard({
   if (!status) return null
   return (
     <div className="flex flex-col gap-6">
-      <PlanSummary state={state} status={status} billing={billing} plans={plans} locale={locale} t={t} />
+      <PlanSummary state={state} status={status} billing={billing} locale={locale} t={t} />
       <PaymentMethodSection method={billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
       <InvoiceHistory invoices={billing?.recentInvoices} locale={locale} t={t} />
-      <PortalActions state={state} onOpenPortal={onOpenPortal} onRetryPortal={onRetryPortal} t={t} />
+      <PortalActions
+        state={state}
+        isLifetime={status.isLifetimePro}
+        onOpenPortal={onOpenPortal}
+        onRetryPortal={onRetryPortal}
+        t={t}
+      />
     </div>
   )
 }

@@ -9,7 +9,11 @@ import {
   playManageSubscriptionUrl,
   resolveSubscriptionScreen,
 } from '@orbit/shared/utils'
-import type { SubscriptionPortalState, SubscriptionScreenState } from '@orbit/shared/utils'
+import type {
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenState,
+} from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
 import { usePlayBilling } from '@/hooks/use-play-billing'
@@ -33,22 +37,16 @@ import { PricingFooter } from '@/components/upgrade/pricing-footer'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
 
-function selectBillingDashboard(isPlaySource: boolean, play: ReactNode, stripe: ReactNode) {
-  return isPlaySource ? play : stripe
-}
-
 function UpgradeContent({
-  isOnline,
   state,
-  showBilling,
+  content,
   billingContent,
   pitchContent,
   onRetry,
   t,
 }: Readonly<{
-  isOnline: boolean
   state: SubscriptionScreenState
-  showBilling: boolean
+  content: SubscriptionScreenContent
   billingContent: ReactNode
   pitchContent: ReactNode
   onRetry: () => void
@@ -67,13 +65,13 @@ function UpgradeContent({
     body = <ErrorState message={t('upgrade.billing.error')} action={
       <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.billing.retry')}</PillButton>
     } />
-  } else if (showBilling) {
-    body = billingContent
+  } else {
+    body = content === 'pitch' ? pitchContent : billingContent
   }
 
   return (
     <>
-      {!isOnline ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
+      {state === 'offline' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
       {body}
     </>
   )
@@ -183,6 +181,7 @@ export default function UpgradeScreen() {
   }
 
   function handleManagePlay() {
+    if (!isOnline) return
     setPortalState('opening')
     Linking.openURL(playManageSubscriptionUrl())
       .then(() => {
@@ -208,10 +207,9 @@ export default function UpgradeScreen() {
     }
   }
 
-  const billingDashboard = selectBillingDashboard(isPlaySource, (
+  const billingDashboard = model.content === 'play' ? (
     <PlayBillingDashboard
       status={status}
-      plans={plans}
       displayPrice={
         status?.subscriptionInterval === 'yearly'
           ? playBilling.yearlyOffer?.displayPrice
@@ -226,7 +224,7 @@ export default function UpgradeScreen() {
       t={t}
       tokens={tokens}
     />
-  ), (
+  ) : (
     <BillingDashboard
       state={model.state}
       data={billing}
@@ -235,13 +233,12 @@ export default function UpgradeScreen() {
       usagePercent={usagePercent}
       usageProfile={usageProfile}
       status={status}
-      plans={plans}
       onPortal={() => void handlePortal()}
       onRetryPortal={() => void handlePortal()}
       t={t}
       tokens={tokens}
     />
-  ))
+  )
 
   const pitchContent = (
     <>
@@ -261,15 +258,16 @@ export default function UpgradeScreen() {
         yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
         isReferralPricing={playBilling.isReferralPricing}
         isRestoring={playBilling.isRestoring}
-        onRestore={() => { void playBilling.restorePurchases() }}
-        onRetryPlans={() => { refetchPlans().catch(() => {}) }}
+        onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}
+        onRetryPlans={() => { if (isOnline) refetchPlans().catch(() => {}) }}
         t={t}
         tokens={tokens}
       />
     </>
   )
 
-  const showPricingFooter = !showBilling && Boolean(plans) && isOnline && model.state !== 'loading' && model.state !== 'load-failed'
+  const showPricingFooter = model.content === 'pitch' && Boolean(plans) && isOnline
+    && model.state !== 'loading' && model.state !== 'load-failed'
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
@@ -286,9 +284,8 @@ export default function UpgradeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <UpgradeContent
-          isOnline={isOnline}
           state={model.state}
-          showBilling={showBilling}
+          content={model.content}
           billingContent={billingDashboard}
           pitchContent={pitchContent}
           onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}

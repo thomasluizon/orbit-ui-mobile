@@ -1,9 +1,7 @@
 import { Text, View } from 'react-native'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
-import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PillButton } from '@/components/ui/pill-button'
-import { formatPrice } from '@/hooks/use-subscription-plans'
 import { PlanSummaryCard } from './plan-summary-card'
 import { UsageCard } from './usage-card'
 import { formatBillingDate } from './types'
@@ -12,7 +10,6 @@ import type { Tokens, UpgradeTextFn } from './types'
 
 export function PlayBillingDashboard({
   status,
-  plans,
   displayPrice,
   locale,
   usagePercent,
@@ -24,7 +21,6 @@ export function PlayBillingDashboard({
   tokens,
 }: Readonly<{
   status: SubscriptionStatus | null
-  plans: SubscriptionPlans | null | undefined
   displayPrice?: string
   locale: string
   usagePercent: number
@@ -36,13 +32,13 @@ export function PlayBillingDashboard({
   tokens: Tokens
 }>) {
   if (!status) return null
-  const interval = status.subscriptionInterval ?? 'monthly'
-  const plan = plans?.[interval]
-  const price = displayPrice ?? (plan ? formatPrice(plan.unitAmount, plan.currency) : null)
-  const priceLine = price
+  const interval = status.subscriptionInterval
+  const priceLine = displayPrice
     ? interval === 'yearly'
-      ? t('upgrade.billing.plan.yearlyPrice', { price })
-      : t('upgrade.billing.plan.monthlyPrice', { price })
+      ? t('upgrade.billing.plan.yearlyPrice', { price: displayPrice })
+      : interval === 'monthly'
+        ? t('upgrade.billing.plan.monthlyPrice', { price: displayPrice })
+        : null
     : null
 
   return (
@@ -51,7 +47,9 @@ export function PlayBillingDashboard({
         planLabel={
           interval === 'yearly'
             ? t('upgrade.billing.plan.yearly')
-            : t('upgrade.billing.plan.monthly')
+            : interval === 'monthly'
+              ? t('upgrade.billing.plan.monthly')
+              : t('upgrade.billing.plan.pro')
         }
         meta={[
           priceLine,

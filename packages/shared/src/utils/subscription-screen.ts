@@ -2,6 +2,8 @@ import type { SubscriptionStatus } from '../types/profile'
 
 export type SubscriptionPortalState = 'idle' | 'opening' | 'failed'
 
+export type SubscriptionScreenContent = 'pitch' | 'stripe' | 'play'
+
 export type SubscriptionScreenState =
   | 'loading'
   | 'load-failed'
@@ -31,6 +33,7 @@ export interface ResolveSubscriptionScreenInput {
 
 export interface SubscriptionScreenModel {
   state: SubscriptionScreenState
+  content: SubscriptionScreenContent
   view: 'pitch' | 'manage'
   interval: 'monthly' | 'yearly' | null
   provider: 'stripe' | 'play' | null
@@ -63,7 +66,13 @@ export function resolveSubscriptionScreen(
 ): SubscriptionScreenModel {
   const status = input.status
   const isManageView = Boolean(status?.hasProAccess && !status.isTrialActive)
+  const content: SubscriptionScreenContent = isManageView
+    ? status?.source === 'play'
+      ? 'play'
+      : 'stripe'
+    : 'pitch'
   const base = {
+    content,
     interval: status?.subscriptionInterval ?? null,
     provider: status?.source ?? null,
     isManageView,

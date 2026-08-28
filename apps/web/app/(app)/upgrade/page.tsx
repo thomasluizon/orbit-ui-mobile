@@ -7,6 +7,7 @@ import {
   createApiClientError,
   getClientTimeZone,
   getFriendlyErrorMessage,
+  getTrialDaysLeft,
   resolveSubscriptionScreen,
 } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
@@ -41,6 +42,7 @@ export default function UpgradePage() {
     isError: isStatusError,
     refetch: refetchStatus,
   } = useSubscriptionStatus()
+  const trialDaysLeft = getTrialDaysLeft(status)
   const {
     plans,
     isLoading: isLoadingPlans,
@@ -160,7 +162,7 @@ export default function UpgradePage() {
         }
       />
     )
-  } else if (!model.isManageView) {
+  } else if (model.content === 'pitch') {
     content = (
       <>
         {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} /> : null}
@@ -169,7 +171,8 @@ export default function UpgradePage() {
           plans={plans}
           isLoadingPlans={isLoadingPlans}
           isPlansError={isPlansError}
-          trialDaysLeft={null}
+          isOnline={isOnline}
+          trialDaysLeft={trialDaysLeft}
           checkoutLoading={checkoutLoading}
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
@@ -180,11 +183,11 @@ export default function UpgradePage() {
         />
       </>
     )
-  } else if (model.state === 'play') {
+  } else if (model.content === 'play') {
     content = (
       <PlayBillingDashboard
+        state={model.state}
         status={status}
-        plans={plans}
         locale={locale}
         usagePercent={usagePercent}
         usageUrgent={usagePercent >= 80}
@@ -197,7 +200,6 @@ export default function UpgradePage() {
         state={model.state}
         billing={billing}
         status={status}
-        plans={plans}
         locale={locale}
         usagePercent={usagePercent}
         usageUrgent={usagePercent >= 80}
@@ -218,7 +220,7 @@ export default function UpgradePage() {
       />
       <main className="mx-auto w-full max-w-[760px] flex-1 px-5 py-6">
         {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
-        {model.state !== 'offline' || model.isManageView ? content : null}
+        {content}
       </main>
     </div>
   )

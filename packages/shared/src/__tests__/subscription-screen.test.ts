@@ -64,7 +64,21 @@ describe('resolveSubscriptionScreen', () => {
   it('keeps the offline notice authoritative when live status is unavailable', () => {
     expect(resolve({ status: null, isStatusError: true, isOnline: false })).toMatchObject({
       state: 'offline',
+      content: 'pitch',
       view: 'pitch',
+    })
+  })
+
+  it('keeps cached pitch content and the confirmed provider while offline', () => {
+    expect(resolve({ status: { ...status, isTrialActive: true }, isOnline: false })).toMatchObject({
+      state: 'offline',
+      content: 'pitch',
+      provider: 'stripe',
+    })
+    expect(resolve({ status: { ...status, source: 'play' }, isOnline: false })).toMatchObject({
+      state: 'offline',
+      content: 'play',
+      provider: 'play',
     })
   })
 

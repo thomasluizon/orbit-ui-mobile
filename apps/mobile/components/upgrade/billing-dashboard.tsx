@@ -5,7 +5,6 @@ import type {
   BillingDetails,
   BillingInvoice,
   BillingPaymentMethod,
-  SubscriptionPlans,
 } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
@@ -37,38 +36,54 @@ function invoiceReason(reason: string, t: UpgradeTextFn) {
   return labels[reason] ?? reason
 }
 
-function PlanDetails({ state, status, data, plans, locale, t, tokens }: Readonly<{
+function billedPrice(data: BillingDetails | null, t: UpgradeTextFn) {
+  if (!data?.currency) return null
+  const price = formatPrice(data.amountPerPeriod, data.currency)
+  if (data.interval === 'yearly') {
+    return t('upgrade.billing.plan.yearlyPrice', { price })
+  }
+  if (data.interval === 'monthly') {
+    return t('upgrade.billing.plan.monthlyPrice', { price })
+  }
+  return null
+}
+
+function planLabel(
+  interval: string | null | undefined,
+  lifetime: boolean,
+  t: UpgradeTextFn,
+) {
+  if (lifetime) return t('upgrade.billing.plan.lifetime')
+  if (interval === 'yearly') return t('upgrade.billing.plan.yearly')
+  if (interval === 'monthly') return t('upgrade.billing.plan.monthly')
+  return t('upgrade.billing.plan.pro')
+}
+
+function PlanDetails({ state, status, data, locale, t, tokens }: Readonly<{
   state: SubscriptionScreenState
   status: SubscriptionStatus
   data: BillingDetails | null
-  plans: SubscriptionPlans | null | undefined
   locale: string
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const lifetime = state === 'lifetime'
-  const interval = status.subscriptionInterval ?? 'monthly'
-  const plan = plans?.[interval]
-  const amount = plan?.unitAmount
-  const currency = plan?.currency
-  const amountLabel = amount != null && currency ? formatPrice(amount, currency) : null
-  const price = amountLabel
-    ? t(interval === 'yearly' ? 'upgrade.billing.plan.yearlyPrice' : 'upgrade.billing.plan.monthlyPrice', { price: amountLabel })
-    : null
+  const lifetime = status.isLifetimePro
+  const canceled = state === 'canceled' || Boolean(data?.cancelAtPeriodEnd)
+  const pastDue = state === 'past-due' || data?.status === 'past_due'
+  const interval = data?.interval
+  const price = billedPrice(data, t)
   const renewalDate = data?.currentPeriodEnd ?? status.planExpiresAt
-  const renewalKey = state === 'canceled' ? 'upgrade.billing.plan.canceledHint' : 'upgrade.billing.plan.renewsOn'
+  const renewalKey = canceled ? 'upgrade.billing.plan.canceledHint' : 'upgrade.billing.plan.renewsOn'
   const renewal = renewalDate ? t(renewalKey, { date: formatBillingDate(renewalDate, locale) }) : null
-  const planLabel = lifetime
-    ? t('upgrade.billing.plan.lifetime')
-    : t(interval === 'yearly' ? 'upgrade.billing.plan.yearly' : 'upgrade.billing.plan.monthly')
+  const label = planLabel(interval, lifetime, t)
 
   return (
     <PlanSummaryCard
-      planLabel={planLabel}
+      planLabel={label}
       meta={lifetime ? t('upgrade.billing.plan.lifetimeHint') : [price, renewal].filter(Boolean).join(' · ')}
       badges={<>
-        {state === 'canceled' ? <Badge>{t('upgrade.billing.plan.canceledBadge')}</Badge> : null}
-        {state === 'past-due' ? <Badge>{t('upgrade.billing.plan.pastDue')}</Badge> : null}
+        {canceled ? <Badge>{t('upgrade.billing.plan.canceledBadge')}</Badge> : null}
+        {pastDue ? <Badge>{t('upgrade.billing.plan.pastDue')}</Badge> : null}
       </>}
       t={t}
       tokens={tokens}
@@ -151,15 +166,16 @@ function InvoiceHistory({ invoices, locale, t, tokens }: Readonly<{
   )
 }
 
-function PortalActions({ state, isOnline, onPortal, onRetryPortal, t, tokens }: Readonly<{
+function PortalActions({ state, isLifetime, isOnline, onPortal, onRetryPortal, t, tokens }: Readonly<{
   state: SubscriptionScreenState
+  isLifetime: boolean
   isOnline: boolean
   onPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  if (state === 'lifetime') return null
+  if (isLifetime) return null
   const failed = state === 'portal-failed'
   return (
     <View style={styles.actionPad}>
@@ -187,7 +203,6 @@ export function BillingDashboard({
   usagePercent,
   usageProfile,
   status,
-  plans,
   onPortal,
   onRetryPortal,
   t,
@@ -200,7 +215,6 @@ export function BillingDashboard({
   usagePercent: number
   usageProfile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
   status: SubscriptionStatus | null
-  plans: SubscriptionPlans | null | undefined
   onPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTextFn
@@ -209,7 +223,7 @@ export function BillingDashboard({
   if (!status) return null
   return (
     <>
-      <PlanDetails state={state} status={status} data={data} plans={plans} locale={locale} t={t} tokens={tokens} />
+      <PlanDetails state={state} status={status} data={data} locale={locale} t={t} tokens={tokens} />
       <PaymentMethodSection method={data?.paymentMethod} state={state} onPortal={onPortal} t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
@@ -219,7 +233,15 @@ export function BillingDashboard({
         tokens={tokens}
       />
       <InvoiceHistory invoices={data?.recentInvoices} locale={locale} t={t} tokens={tokens} />
-      <PortalActions state={state} isOnline={isOnline} onPortal={onPortal} onRetryPortal={onRetryPortal} t={t} tokens={tokens} />
+      <PortalActions
+        state={state}
+        isLifetime={status.isLifetimePro}
+        isOnline={isOnline}
+        onPortal={onPortal}
+        onRetryPortal={onRetryPortal}
+        t={t}
+        tokens={tokens}
+      />
     </>
   )
 }

@@ -40,7 +40,9 @@ export function PitchSubscriptionCard({
         <Text style={[styles.cardValue, { color: tokens.fg1 }]}>
           {status.subscriptionInterval === 'yearly'
             ? t('upgrade.billing.plan.yearly')
-            : t('upgrade.billing.plan.monthly')}
+            : status.subscriptionInterval === 'monthly'
+              ? t('upgrade.billing.plan.monthly')
+              : t('upgrade.billing.plan.pro')}
         </Text>
         {isTrial ? <Badge>{t('upgrade.billing.plan.trialBadge')}</Badge> : null}
       </View>

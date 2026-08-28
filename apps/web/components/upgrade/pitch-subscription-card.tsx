@@ -20,7 +20,9 @@ export function PitchSubscriptionCard({
   const intervalLabel =
     status.subscriptionInterval === 'yearly'
       ? t('upgrade.billing.plan.yearly')
-      : t('upgrade.billing.plan.monthly')
+      : status.subscriptionInterval === 'monthly'
+        ? t('upgrade.billing.plan.monthly')
+        : t('upgrade.billing.plan.pro')
   const endedAt = status.subscriptionEndedAtUtc
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale)
     : null

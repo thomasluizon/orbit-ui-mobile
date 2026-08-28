@@ -98,8 +98,8 @@ vi.mock('@/hooks/use-subscription-status', () => ({
           aiMessagesUsed: mocks.profile.aiMessagesUsed,
           aiMessagesLimit: mocks.profile.aiMessagesLimit,
           isLifetimePro: mocks.profile.isLifetimePro,
-          subscriptionInterval: mocks.profile.subscriptionInterval ?? 'yearly',
-          source: mocks.profile.subscriptionSource ?? 'stripe',
+          subscriptionInterval: mocks.profile.subscriptionInterval ?? null,
+          source: mocks.profile.subscriptionSource ?? null,
           lapseReason: null,
           subscriptionEndedAtUtc: null,
         }
@@ -249,6 +249,47 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('offline')
+  })
+
+  it.each([false, true])('keeps cached pitch content offline, trial=%s', async (trialActive) => {
+    mocks.isOnline = false
+    mocks.hasProAccess = trialActive
+    mocks.profile = createMockProfile({
+      isTrialActive: trialActive,
+      trialEndsAt: trialActive
+        ? new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+      subscriptionInterval: null,
+      subscriptionSource: null,
+    })
+    const tree = await renderScreen()
+    const section = findByType(tree.root, 'PricingSection')
+    expect(section).toBeTruthy()
+    if (trialActive) {
+      expect(section.props.trialDaysLeft).toBeGreaterThan(0)
+    } else {
+      expect(section.props.trialDaysLeft).toBeNull()
+    }
+    expect(tree.root.findAll((node) => node.type === 'PricingFooter')).toHaveLength(0)
+  })
+
+  it('keeps the Play dashboard and blocks its handoff while offline', async () => {
+    mocks.isOnline = false
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      subscriptionSource: 'play',
+      subscriptionInterval: 'yearly',
+    })
+    const tree = await renderScreen()
+    const dashboard = findByType(tree.root, 'PlayBillingDashboard')
+    expect(dashboard.props.isOnline).toBe(false)
+    expect(tree.root.findAll((node) => node.type === 'BillingDashboard')).toHaveLength(0)
+    await TestRenderer.act(async () => {
+      ;(dashboard.props.onManagePlay as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.openURL).not.toHaveBeenCalled()
   })
 
   it('opens the Play management URL for a play-sourced subscriber', async () => {

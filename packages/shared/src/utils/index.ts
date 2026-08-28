@@ -176,6 +176,7 @@ export { resolveSubscriptionScreen } from './subscription-screen'
 export type {
   ResolveSubscriptionScreenInput,
   SubscriptionPortalState,
+  SubscriptionScreenContent,
   SubscriptionScreenModel,
   SubscriptionScreenState,
 } from './subscription-screen'

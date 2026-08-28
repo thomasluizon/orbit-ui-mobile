@@ -1895,6 +1895,7 @@
     },
     "convert": {
       "promise": "Tudo o que o Orbit faz, em um plano só.",
+      "trialEyebrow": "Teste Pro",
       "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
       "trialLastDay": "Teste Pro · último dia",
       "trialHeading": "Mantenha seus recursos Pro",
@@ -1948,6 +1949,7 @@
     "billing": {
       "plan": {
         "title": "Plano atual",
+        "pro": "Orbit Pro",
         "monthly": "Pro Mensal",
         "yearly": "Pro Anual",
         "lifetime": "Pro Vitalício",
