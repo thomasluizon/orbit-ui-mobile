@@ -16897,7 +16897,7 @@
         "apps/web/__tests__/components/referral/referral-prompt.test.tsx",
         "apps/web/__tests__/components/share/share-card-panel.test.tsx",
         "apps/web/__tests__/components/share/share-card.test.tsx",
-        "apps/web/__tests__/components/shell/app-shell.test.tsx",
+        "apps/web/__tests__/components/shell/destination-shell.test.tsx",
         "apps/web/__tests__/components/shell/shell-412.test.tsx",
         "apps/web/__tests__/components/shell/shell-wide.test.tsx",
         "apps/web/__tests__/components/status-dot-fill.test.ts",

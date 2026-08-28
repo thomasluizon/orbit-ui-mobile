@@ -101,7 +101,7 @@
       "count": 2
     }
   },
-  "app/(tabs)/profile/_components/profile-sections.tsx": {
+  "components/profile/profile-sections.tsx": {
     "local/icon-size-grid": {
       "count": 1
     }
@@ -198,7 +198,7 @@
       "count": 26
     }
   },
-  "app/streak-sections-styles.ts": {
+  "components/gamification/streak-sections-styles.ts": {
     "local/spacing-scale": {
       "count": 17
     }

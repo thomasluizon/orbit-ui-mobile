@@ -13,7 +13,7 @@ import {
   useTokens,
   type Tokens,
   type TranslationFn,
-} from '@/app/streak-sections-styles'
+} from '@/components/gamification/streak-sections-styles'
 
 interface FreezeProgressCardProps {
   t: TranslationFn

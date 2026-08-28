@@ -63,9 +63,9 @@ vi.mock('@/components/shell/shell-wide', () => ({
   ),
 }))
 
-import { AppShell } from '@/components/shell/app-shell'
+import { DestinationShell } from '@/components/shell/destination-shell'
 
-describe('AppShell', () => {
+describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
@@ -74,7 +74,7 @@ describe('AppShell', () => {
 
   it('renders exactly four compact destinations and keeps the FAB on Hoje only', () => {
     const onCreate = vi.fn()
-    render(<AppShell onCreate={onCreate}><h1>Today</h1></AppShell>)
+    render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
       'nav.today',
@@ -89,7 +89,7 @@ describe('AppShell', () => {
 
   it('removes the compact FAB away from Hoje', () => {
     mocks.pathname = '/calendar'
-    render(<AppShell onCreate={() => {}}><h1>Calendar</h1></AppShell>)
+    render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
 
     expect(screen.queryByRole('button', { name: 'nav.create' })).not.toBeInTheDocument()
   })
@@ -97,7 +97,7 @@ describe('AppShell', () => {
   it('renders the same four destinations in the wide shell', () => {
     mocks.wide = true
     const onCreate = vi.fn()
-    render(<AppShell onCreate={onCreate}><h1>Today</h1></AppShell>)
+    render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
       'nav.today',
@@ -112,7 +112,7 @@ describe('AppShell', () => {
 
   it('uses the flow shell without primary navigation on upgrade', () => {
     mocks.pathname = '/upgrade'
-    render(<AppShell onCreate={() => {}}><h1>Upgrade</h1></AppShell>)
+    render(<DestinationShell onCreate={() => {}}><h1>Upgrade</h1></DestinationShell>)
 
     expect(screen.getByTestId('compact-shell')).toBeInTheDocument()
     expect(screen.queryAllByRole('button')).toHaveLength(0)
@@ -140,7 +140,7 @@ describe('AppShell', () => {
   ])('never adds a second page heading at %s', (pathname) => {
     mocks.pathname = pathname
 
-    render(<AppShell onCreate={() => {}}><h1>Page title</h1></AppShell>)
+    render(<DestinationShell onCreate={() => {}}><h1>Page title</h1></DestinationShell>)
 
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })

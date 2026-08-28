@@ -27,7 +27,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { StreakStatsRow, StreakTimelineCard, FreezeProgressCard } from '@/components/gamification/streak-sections'
-import { rgbaFromHex } from './streak-sections-styles'
+import { rgbaFromHex } from '@/components/gamification/streak-sections-styles'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 function sectionEntrance(index: number) {

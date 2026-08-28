@@ -21,7 +21,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
-import { rgbaFromHex } from '@/app/streak-sections-styles'
+import { rgbaFromHex } from '@/components/gamification/streak-sections-styles'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 

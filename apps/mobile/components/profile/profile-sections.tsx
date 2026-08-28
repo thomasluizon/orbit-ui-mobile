@@ -14,8 +14,8 @@ import type { createTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { sectionEntrance } from './profile-section-entrance'
-import type { ProfileStyles } from './profile-styles'
+import { sectionEntrance } from '@/components/profile/profile-section-entrance'
+import type { ProfileStyles } from '@/app/(tabs)/profile/_components/profile-styles'
 
 type Tokens = ReturnType<typeof createTokensV2>
 

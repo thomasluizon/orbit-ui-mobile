@@ -10,10 +10,10 @@ import {
   type StreakDayView,
   type Tokens,
   type TranslationFn,
-} from '@/app/streak-sections-styles'
+} from '@/components/gamification/streak-sections-styles'
 
 export { FreezeProgressCard } from './streak-sections-freeze'
-export type { StreakDayView } from '@/app/streak-sections-styles'
+export type { StreakDayView } from '@/components/gamification/streak-sections-styles'
 
 interface StreakStatsRowProps {
   t: TranslationFn

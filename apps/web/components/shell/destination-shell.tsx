@@ -16,7 +16,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { Shell412 } from './shell-412'
 import { ShellWide } from './shell-wide'
 
-interface AppShellProps {
+interface DestinationShellProps {
   children: ReactNode
   notice?: ReactNode
   onCreate: () => void
@@ -40,7 +40,11 @@ function hasPrimaryNavigation(pathname: string): boolean {
   return pathname !== '/upgrade'
 }
 
-export function AppShell({ children, notice, onCreate }: Readonly<AppShellProps>) {
+export function DestinationShell({
+  children,
+  notice,
+  onCreate,
+}: Readonly<DestinationShellProps>) {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()

@@ -40,11 +40,11 @@ import { DeleteAccountModal } from './profile/_components/delete-account-modal'
 import { useDataExport } from './profile/_components/use-data-export'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 import { createProfileStyles } from './profile/_components/profile-styles'
-import { sectionEntrance } from './profile/_components/profile-section-entrance'
+import { sectionEntrance } from '@/components/profile/profile-section-entrance'
 import { resolveProfileSubscriptionDisplay } from './profile/_components/profile-subscription-display'
 import { ProfileIdentity } from './profile/_components/profile-identity'
 import { ProfileStatRow } from './profile/_components/profile-stat-row'
-import { ProfileSections } from './profile/_components/profile-sections'
+import { ProfileSections } from '@/components/profile/profile-sections'
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
