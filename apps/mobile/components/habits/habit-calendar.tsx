@@ -9,12 +9,15 @@ import {
   buildHabitLogDateSet,
 } from "@orbit/shared/utils"
 import type { HabitLog } from "@orbit/shared/types/calendar"
+import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme"
 import { useProfile } from "@/hooks/use-profile"
 import { useHabitLogs } from "@/hooks/use-habits"
 import { useDateFormat } from "@/hooks/use-date-format"
 import { useTimeFormat } from "@/hooks/use-time-format"
+import { DayCell } from '@/components/dates/day-cell'
+import { MonthGrid } from '@/components/dates/month-grid'
 
 interface HabitCalendarProps {
   habitId: string
@@ -108,6 +111,18 @@ export function HabitCalendar({
     return displayTime(`${hh}:${mm}`)
   }
 
+  const dayCellWords: DayCellWords = {
+    none: t('calendar.dayCell.none'),
+    partial: t('calendar.dayCell.partial'),
+    full: t('calendar.dayCell.full'),
+    notScheduled: t('calendar.dayCell.notScheduled'),
+    future: t('calendar.dayCell.future'),
+    of: t('calendar.dayCell.of'),
+    today: t('calendar.dayCell.today'),
+    selected: t('calendar.dayCell.selected'),
+    readOnly: t('calendar.dayCell.readOnly'),
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -154,53 +169,33 @@ export function HabitCalendar({
         </Pressable>
       </View>
 
-      <View style={styles.weekdayRow}>
-        {weekdays.map((day) => (
-          <View key={day.key} style={styles.weekdayCell}>
-            <Text style={styles.weekdayText}>{day.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.grid}>
+      <MonthGrid weekdayLabels={weekdays.map((day) => day.label)} label={monthLabel} gap={4}>
         {calendarDays.map((day) => (
-          <View key={day.dateStr} style={styles.dayCell}>
+          <View key={day.dateStr}>
             {day.isCurrentMonth && day.isCompleted ? (
-              <Pressable
-                testID={`habit-calendar-day-${day.dateStr}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: selectedDate === day.dateStr }}
-                style={({ pressed }) => [
-                  styles.completedDay,
-                  selectedDate === day.dateStr && styles.completedDaySelected,
-                  pressed ? { opacity: 0.8 } : null,
-                ]}
-                hitSlop={5}
+              <DayCell
+                day={day.dayNum}
+                outcome="full"
+                loggable
+                selected={selectedDate === day.dateStr}
+                today={day.isToday}
+                label={displayDate(day.date)}
+                words={dayCellWords}
                 onPress={() => toggleDay(day.dateStr)}
-              >
-                <Text style={styles.completedDayText}>{day.dayNum}</Text>
-              </Pressable>
+              />
             ) : (
-              <View
-                style={[
-                  styles.dayPlaceholder,
-                  day.isCurrentMonth ? styles.dayVisible : styles.dayHidden,
-                  day.isCurrentMonth && day.isToday && styles.todayPlaceholder,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dayPlaceholderText,
-                    day.isCurrentMonth && day.isToday && styles.todayPlaceholderText,
-                  ]}
-                >
-                  {day.dayNum}
-                </Text>
-              </View>
+              <DayCell
+                day={day.dayNum}
+                outcome={day.isCurrentMonth && !day.isPast && !day.isToday ? 'future' : 'none'}
+                outsideMonth={!day.isCurrentMonth}
+                today={day.isToday}
+                label={displayDate(day.date)}
+                words={dayCellWords}
+              />
             )}
           </View>
         ))}
-      </View>
+      </MonthGrid>
 
       {selectedDate && selectedDayLogs.length > 0 && (
         <View style={styles.selectedLogs}>
@@ -283,77 +278,6 @@ function createStyles(tokens: AppTokens) {
       fontSize: 16,
       color: tokens.fg1,
       textTransform: "capitalize",
-    },
-    weekdayRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-    },
-    weekdayCell: {
-      width: "14.2857%",
-      alignItems: "center",
-      paddingBottom: 4,
-    },
-    weekdayText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      textTransform: "uppercase",
-      letterSpacing: 0.44,
-      color: tokens.fg3,
-    },
-    grid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-    },
-    dayCell: {
-      width: "14.2857%",
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 4,
-    },
-    completedDay: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: tokens.statusDone,
-    },
-    completedDaySelected: {
-      borderWidth: 2,
-      borderColor: tokens.primary,
-      transform: [{ scale: 1.04 }],
-    },
-    completedDayText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 13,
-      fontVariant: ["tabular-nums"],
-      color: tokens.fgOnPrimary,
-    },
-    dayPlaceholder: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    dayVisible: {
-      opacity: 1,
-    },
-    dayHidden: {
-      opacity: 0,
-    },
-    todayPlaceholder: {
-      borderWidth: 1.5,
-      borderColor: tokens.primary,
-    },
-    dayPlaceholderText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 13,
-      fontVariant: ["tabular-nums"],
-      color: tokens.fg3,
-    },
-    todayPlaceholderText: {
-      color: tokens.fg1,
     },
     selectedLogs: {
       backgroundColor: tokens.bgField,

@@ -1,6 +1,17 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
 export { parseAPIDate, formatAPIDate } from './dates'
+export { buildCalendarMonthModel } from './calendar-month'
+export {
+  buildDayCellAccessibleName,
+  getDayStripStateWord,
+  resolveDayCellOutcome,
+} from './date-surfaces'
+export type {
+  CalendarMonthDay,
+  CalendarMonthModel,
+  CalendarMonthStats,
+} from './calendar-month'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
 export { isRecord } from './is-record'

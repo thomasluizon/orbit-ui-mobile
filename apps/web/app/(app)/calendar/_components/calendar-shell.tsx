@@ -177,18 +177,18 @@ export function CalendarWeekNav({
 
 interface CalendarLegendProps {
   todayLabel: string
-  doneLabel: string
+  fullLabel: string
   partialLabel: string
-  missedLabel: string
+  noneLabel: string
 }
 
 /** v8 calendar legend — inline row of colored dots + labels, no section header.
  *  Items mirror the grid's day-dot vocabulary exactly. */
 export function CalendarLegend({
   todayLabel,
-  doneLabel,
+  fullLabel,
   partialLabel,
-  missedLabel,
+  noneLabel,
 }: Readonly<CalendarLegendProps>) {
   return (
     <div
@@ -196,32 +196,39 @@ export function CalendarLegend({
       className="flex flex-wrap items-center justify-center"
       style={{ padding: '14px 20px', gap: 16 }}
     >
-      <LegendItem dotColor="var(--primary)" hollow label={todayLabel} />
-      <LegendItem dotColor="var(--primary)" label={doneLabel} />
-      <LegendItem dotColor="var(--fg-4)" hollow label={partialLabel} />
-      <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
+      <LegendItem outcome="today" label={todayLabel} />
+      <LegendItem outcome="full" label={fullLabel} />
+      <LegendItem outcome="partial" label={partialLabel} />
+      <LegendItem outcome="none" label={noneLabel} />
     </div>
   )
 }
 
 interface LegendItemProps {
-  dotColor: string
+  outcome: 'today' | 'full' | 'partial' | 'none'
   label: string
-  hollow?: boolean
 }
 
-function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProps>) {
+function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
+  if (outcome === 'partial') {
+    return (
+      <svg aria-hidden="true" data-legend-outcome="partial" width="12" height="12" className="shrink-0 -rotate-90">
+        <circle cx="6" cy="6" r="5" fill="none" stroke="var(--fg-4)" strokeWidth="2" />
+        <circle cx="6" cy="6" r="5" fill="none" pathLength="100" stroke="var(--primary)" strokeDasharray="50 100" strokeLinecap="round" strokeWidth="2" />
+      </svg>
+    )
+  }
+
+  const style = outcome === 'full'
+    ? { background: 'var(--fg-1)' }
+    : { boxShadow: `inset 0 0 0 2px ${outcome === 'today' ? 'var(--primary)' : 'var(--fg-4)'}` }
+  return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 12, height: 12, ...style }} />
+}
+
+function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
   return (
     <span className="inline-flex items-center" style={{ gap: 6 }}>
-      <span
-        aria-hidden="true"
-        className="rounded-full shrink-0"
-        style={
-          hollow
-            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1.5px ${dotColor}`, opacity: 0.6 }
-            : { width: 6, height: 6, background: dotColor, opacity: 0.6 }
-        }
-      />
+      <LegendSwatch outcome={outcome} />
       <span
         style={{
           fontFamily: 'var(--font-sans)',
