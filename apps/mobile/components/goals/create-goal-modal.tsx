@@ -184,6 +184,7 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.create')}
       >
         <View style={styles.form}>

@@ -71,6 +71,7 @@ function TimeColumn({
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
       contentContainerStyle={styles.columnContent}
+      nestedScrollEnabled
       onLayout={() => {
         if (selectedIndex < 0) return
         listRef.current?.scrollTo({

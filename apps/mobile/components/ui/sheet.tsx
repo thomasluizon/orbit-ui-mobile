@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { X } from '@/components/ui/icons'
+import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -40,10 +41,19 @@ export function useSheetHost() {
 interface MobileSheetProps extends SheetProps {
   /** The handle `useSheetHost` fills in, so the host can close through the native dismissal. */
   ref?: Ref<SheetHandle>
+  /** Handles a blocked native dismissal attempt without letting navigation receive Android Back. */
+  onAttemptDismiss?: () => void
 }
 
 /** The native overlay surface. Callers mount it only while it is open. */
-export function Sheet({ title, actions, onClose, children, ref }: Readonly<MobileSheetProps>) {
+export function Sheet({
+  title,
+  actions,
+  onClose,
+  onAttemptDismiss,
+  children,
+  ref,
+}: Readonly<MobileSheetProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -54,19 +64,11 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Mobil
   const { t } = useTranslation()
   const sheetRef = useRef<TrueSheet>(null)
   const exitActionRef = useRef<(() => void) | null>(null)
+  const onCloseRef = useRef(onClose)
 
   useEffect(() => {
-    void sheetRef.current?.present()
-  }, [])
-
-  const requestClose = useCallback((exitAction?: () => void) => {
-    exitActionRef.current = exitAction ?? null
-    void sheetRef.current?.dismiss()
-  }, [])
-
-  const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
-
-  useImperativeHandle(ref, () => handle, [handle])
+    onCloseRef.current = onClose
+  }, [onClose])
 
   const handleDidDismiss = useCallback(() => {
     const exitAction = exitActionRef.current
@@ -75,8 +77,32 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Mobil
       exitAction()
       return
     }
-    onClose?.()
-  }, [onClose])
+    onCloseRef.current?.()
+  }, [])
+
+  useEffect(() => {
+    void sheetRef.current?.present().catch(() => {
+      // WHY: A rejected presentation leaves no native sheet to keep mounted. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L374-L394
+      handleDidDismiss()
+    })
+  }, [handleDidDismiss])
+
+  const requestClose = useCallback((exitAction?: () => void) => {
+    exitActionRef.current = exitAction ?? null
+    void sheetRef.current?.dismiss().catch(() => {
+      // WHY: A rejected dismissal leaves the native sheet visible. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L404-L410
+      exitActionRef.current = null
+    })
+  }, [])
+
+  const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
+
+  useImperativeHandle(ref, () => handle, [handle])
+
+  const handleBlockedBackPress = useCallback(() => {
+    onAttemptDismiss?.()
+    return true
+  }, [onAttemptDismiss])
 
   const header = title || onClose ? (
     <View style={styles.header}>
@@ -116,16 +142,17 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Mobil
       }}
       header={header}
       maxContentHeight={height * MAX_HEIGHT_RATIO}
-      onBackPress={onClose ? () => requestClose() : undefined}
+      onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
     >
-      <ScrollView
+      <KeyboardAwareSheetScrollView
+        testID="sheet-body-scroll"
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {children}
-      </ScrollView>
+      </KeyboardAwareSheetScrollView>
     </TrueSheet>
   )
 }

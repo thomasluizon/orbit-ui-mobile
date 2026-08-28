@@ -186,6 +186,10 @@ export function Menu({
   }, [anchorRef, open, resolvedPresentation])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Tab') {
+      onClose?.()
+      return
+    }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
     const buttons = Array.from(
       panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [],

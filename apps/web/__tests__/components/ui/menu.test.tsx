@@ -116,6 +116,42 @@ describe('Menu', () => {
     expect(edit).toHaveFocus()
   })
 
+  it.each([
+    ['Tab', false],
+    ['Shift+Tab', true],
+  ])('closes on %s without trapping focus on a menu item', async (_label, shiftKey) => {
+    setWide(true)
+    function Harness() {
+      const anchorRef = useRef<HTMLButtonElement>(null)
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button type="button">Before</button>
+          <button ref={anchorRef} type="button">More</button>
+          <button type="button">After</button>
+          <Menu
+            open={open}
+            title="Habit actions"
+            items={items}
+            anchorRef={anchorRef}
+            onClose={() => setOpen(false)}
+          />
+        </>
+      )
+    }
+    render(<Harness />)
+
+    const menu = await screen.findByRole('menu')
+    const edit = screen.getByRole('menuitem', { name: 'Edit' })
+    await waitFor(() => expect(edit).toHaveFocus())
+
+    expect(fireEvent.keyDown(menu, { key: 'Tab', shiftKey })).toBe(true)
+
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'More' })).toHaveFocus()
+    expect(document.activeElement?.getAttribute('role')).not.toBe('menuitem')
+  })
+
   it('closes on Escape and on a pointer press outside the panel', async () => {
     setWide(true)
     const anchorRef = createRef<HTMLButtonElement>()

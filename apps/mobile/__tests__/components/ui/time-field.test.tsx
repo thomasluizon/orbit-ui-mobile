@@ -2,6 +2,10 @@ import React from 'react'
 import { Pressable } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
+import {
+  __resetTestHostConfig,
+  __setScrollToImpl,
+} from '../../../test-mocks/react-native'
 
 import { TimeField } from '@/components/ui/time-field'
 
@@ -78,6 +82,7 @@ async function pressDone(tree: any) {
 describe('TimeField', () => {
   beforeEach(() => {
     mockUses24HourClock = true
+    __resetTestHostConfig()
   })
 
   it('renders the display value in the locale 24-hour format when uses24HourClock is true', async () => {
@@ -155,6 +160,33 @@ await Promise.resolve()
 
     expect(radioOption(tree, 'common.hours', '07').props.accessibilityState.selected).toBe(true)
     expect(radioOption(tree, 'common.minutes', '15').props.accessibilityState.selected).toBe(true)
+  })
+
+  it('coordinates nested picker scrolling and reaches a late selected hour', async () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree: ReturnType<typeof TestRenderer.create>
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+      )
+    })
+
+    await openPicker(tree)
+    const hours = column(tree, 'common.hours')
+    const minutes = column(tree, 'common.minutes')
+    expect(hours.props.nestedScrollEnabled).toBe(true)
+    expect(minutes.props.nestedScrollEnabled).toBe(true)
+
+    TestRenderer.act(() => {
+      hours.props.onLayout()
+      minutes.props.onLayout()
+    })
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 924, animated: false })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 2508, animated: false })
   })
 
   it('renders a clear button when value is set and onClear is provided', async () => {

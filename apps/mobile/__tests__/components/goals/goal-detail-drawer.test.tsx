@@ -89,11 +89,6 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: any) =>
-    React.createElement('KeyboardAwareBottomSheetScrollView', null, children),
-}))
-
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: any) =>
     React.createElement('BottomSheetAppTextInput', props),

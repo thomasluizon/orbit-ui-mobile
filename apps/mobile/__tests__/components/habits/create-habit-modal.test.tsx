@@ -149,11 +149,6 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
     React.createElement('TextInput', props),
 }))
 
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('ScrollView', null, children),
-}))
-
 function renderModal(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },

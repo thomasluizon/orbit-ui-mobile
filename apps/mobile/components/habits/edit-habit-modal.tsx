@@ -284,6 +284,7 @@ export function EditHabitModal({
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('habits.editHabit')}
       >
         <View style={styles.scrollContent}>

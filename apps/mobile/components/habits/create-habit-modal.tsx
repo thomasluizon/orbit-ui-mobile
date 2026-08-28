@@ -451,6 +451,7 @@ export function CreateHabitModal({
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
       >
         <View style={styles.scrollContent}>

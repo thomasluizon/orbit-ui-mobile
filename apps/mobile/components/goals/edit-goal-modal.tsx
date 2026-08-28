@@ -80,7 +80,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     deadline !== (goal.deadline ?? '')
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: onClose,
+    onDismiss: () => closeSheet(onClose),
   })
 
   const fieldErrors = useMemo(() => {
@@ -177,6 +177,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.detail.edit')}
       >
         <View style={styles.form}>
