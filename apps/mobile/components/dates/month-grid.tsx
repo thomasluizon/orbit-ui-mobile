@@ -28,18 +28,20 @@ export function MonthGrid({ weekdayLabels = [], children, gap = 8, label }: Read
         </View>
       ) : null}
       <View testID="month-grid-days" style={{ rowGap: numericGap }}>
-        {rows.map((row, rowIndex) => (
-          <View key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>
-            {row.map((child, columnIndex) => (
-              <View key={columnIndex} style={styles.cellSlot}>
-                {child}
+        {columns > 0
+          ? rows.map((row, rowIndex) => (
+              <View key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>
+                {row.map((child, columnIndex) => (
+                  <View key={columnIndex} style={styles.cellSlot}>
+                    {child}
+                  </View>
+                ))}
+                {Array.from({ length: columns - row.length }, (_, emptyIndex) => (
+                  <View key={`empty-${emptyIndex}`} style={styles.cellSlot} />
+                ))}
               </View>
-            ))}
-            {Array.from({ length: columns - row.length }, (_, emptyIndex) => (
-              <View key={`empty-${emptyIndex}`} style={styles.cellSlot} />
-            ))}
-          </View>
-        ))}
+            ))
+          : dayChildren}
       </View>
     </View>
   )

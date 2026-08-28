@@ -148,6 +148,7 @@ describe('MonthGrid', () => {
     const tree = render(<MonthGrid weekdayLabels={[]}><Text>day</Text></MonthGrid>)
     expect(tree.root.findAllByProps({ testID: 'month-grid-header' })).toHaveLength(0)
     expect(tree.root.findByProps({ testID: 'month-grid-days' }).children).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'day')).toHaveLength(1)
   })
 
   it('uses the same gap on both axes and keeps seven slots in one row', () => {
