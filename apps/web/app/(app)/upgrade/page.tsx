@@ -1,108 +1,175 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
-import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
-import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
-import { PricingSection } from '@/components/upgrade/pricing-section'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
+import { API } from '@orbit/shared/api'
 import {
   createApiClientError,
   getClientTimeZone,
   getFriendlyErrorMessage,
+  resolveSubscriptionScreen,
 } from '@orbit/shared/utils'
-import { API } from '@orbit/shared/api'
-import { useProfile, useHasProAccess, useTrialDaysLeft } from '@/hooks/use-profile'
-import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
-import { useBilling } from '@/hooks/use-billing'
+import type { SubscriptionPortalState } from '@orbit/shared/utils'
+import { AppBar } from '@/components/ui/app-bar'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
+import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
+import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
+import { PricingSection } from '@/components/upgrade/pricing-section'
 import { openCustomerPortal } from '@/app/actions/subscription'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useBilling } from '@/hooks/use-billing'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useOffline } from '@/hooks/use-offline'
+import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
+import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
+const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 
 export default function UpgradePage() {
   const t = useTranslations()
-  const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
+  const goBackOrFallback = useGoBackOrFallback()
+  const { showSuccess } = useAppToast()
+  const { isOnline } = useOffline()
+  const {
+    status,
+    isLoading: isStatusLoading,
+    isError: isStatusError,
+    refetch: refetchStatus,
+  } = useSubscriptionStatus()
+  const {
+    plans,
+    isLoading: isLoadingPlans,
+    isError: isPlansError,
+    refetch: refetchPlans,
+    discountedAmount,
+  } = useSubscriptionPlans()
 
-  const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
-  const trialDaysLeft = useTrialDaysLeft()
-  const { plans, isLoading: isLoadingPlans, isError: isPlansError, refetch: refetchPlans, discountedAmount } = useSubscriptionPlans()
-
-  const isPlaySource = profile?.subscriptionSource === 'play'
-  const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource && !profile?.isLifetimePro
-  const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
+  const isManageView = Boolean(status?.hasProAccess && !status.isTrialActive)
+  const isStripeBilling = isManageView && status?.source !== 'play' && !status?.isLifetimePro
+  const {
+    billing,
+    isLoading: isBillingLoading,
+    isError: isBillingError,
+    refetch: refetchBilling,
+  } = useBilling(isStripeBilling)
 
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
   const checkoutPendingRef = useRef(false)
   const [checkoutError, setCheckoutError] = useState('')
-  const [portalError, setPortalError] = useState('')
+  const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
+
+  const model = resolveSubscriptionScreen({
+    status,
+    isStatusLoading,
+    isStatusError,
+    isBillingLoading,
+    isBillingError,
+    billingStatus: billing?.status,
+    cancelAtPeriodEnd: billing?.cancelAtPeriodEnd,
+    isOnline,
+    portalState,
+  })
 
   const usagePercent = useMemo(() => {
-    if (!profile || profile.aiMessagesLimit === 0) return 0
-    return Math.min(100, Math.round((profile.aiMessagesUsed / profile.aiMessagesLimit) * 100))
-  }, [profile])
-  const usageUrgent = usagePercent > 80
+    if (!status || status.aiMessagesLimit === 0) return 0
+    return Math.min(100, Math.round((status.aiMessagesUsed / status.aiMessagesLimit) * 100))
+  }, [status])
 
-  const isManageView = hasProAccess && !profile?.isTrialActive
-  const showsProPanel = isManageView && !isPlaySource && !billing && !isBillingLoading && !isBillingError
-  const showGradient = !isManageView || showsProPanel
+  useEffect(() => {
+    if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
+    globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
+    void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
+      showSuccess(t('upgrade.billing.portalReturned'))
+    })
+  }, [refetchBilling, refetchStatus, showSuccess, t])
 
-  const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
-    if (checkoutPendingRef.current) return
-
-    checkoutPendingRef.current = true
-    setCheckoutLoading(interval)
-    setCheckoutError('')
-    try {
-      const timeZone = getClientTimeZone()
-      const checkoutUrl = timeZone
-        ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
-        : API.subscription.checkout
-      const response = await fetch(checkoutUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interval }),
-      })
-      if (!response.ok) {
-        const errorBody: unknown = await response.json().catch(() => null)
-        throw createApiClientError(response.status, errorBody, `Failed with status ${response.status}`)
+  const handleCheckout = useCallback(
+    async (interval: SubscriptionInterval) => {
+      if (checkoutPendingRef.current || !isOnline) return
+      checkoutPendingRef.current = true
+      setCheckoutLoading(interval)
+      setCheckoutError('')
+      try {
+        const timeZone = getClientTimeZone()
+        const checkoutUrl = timeZone
+          ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
+          : API.subscription.checkout
+        const response = await fetch(checkoutUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interval }),
+        })
+        if (!response.ok) {
+          const errorBody: unknown = await response.json().catch(() => null)
+          throw createApiClientError(
+            response.status,
+            errorBody,
+            `Failed with status ${response.status}`,
+          )
+        }
+        const data = (await response.json()) as { url?: string }
+        if (data.url) globalThis.location.href = data.url
+      } catch (error: unknown) {
+        setCheckoutError(getFriendlyErrorMessage(error, t, 'auth.genericError', 'generic'))
+      } finally {
+        checkoutPendingRef.current = false
+        setCheckoutLoading(null)
       }
-      const data = (await response.json()) as { url?: string }
-      if (data.url) {
-        globalThis.location.href = data.url
-      }
-    } catch (err: unknown) {
-      setCheckoutError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
-    } finally {
-      checkoutPendingRef.current = false
-      setCheckoutLoading(null)
-    }
-  }, [t])
+    },
+    [isOnline, t],
+  )
 
   const handleOpenPortal = useCallback(async () => {
-    setPortalError('')
+    if (!isOnline) return
+    setPortalState('opening')
     try {
       const data = await openCustomerPortal()
-      if (data.url) {
-        globalThis.location.href = data.url
-      }
-    } catch (err: unknown) {
-      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
+      globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
+      globalThis.location.href = data.url
+    } catch {
+      setPortalState('failed')
     }
-  }, [t])
+  }, [isOnline])
 
-  const renderBillingView = () => {
-    if (!isManageView) {
-      return (
+  const retryLoad = () => {
+    void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
+  }
+
+  let content
+  if (model.state === 'loading') {
+    content = (
+      <div className="flex flex-col gap-3">
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+      </div>
+    )
+  } else if (model.state === 'load-failed') {
+    content = (
+      <ErrorState
+        message={t('upgrade.billing.error')}
+        action={
+          <PillButton variant="ghost" onClick={retryLoad}>
+            {t('upgrade.billing.retry')}
+          </PillButton>
+        }
+      />
+    )
+  } else if (!model.isManageView) {
+    content = (
+      <>
+        {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} /> : null}
         <PricingSection
-          profile={profile ?? null}
+          profile={status}
           plans={plans}
           isLoadingPlans={isLoadingPlans}
           isPlansError={isPlansError}
-          trialDaysLeft={trialDaysLeft}
+          trialDaysLeft={null}
           checkoutLoading={checkoutLoading}
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
@@ -111,55 +178,48 @@ export default function UpgradePage() {
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
-      )
-    }
-    if (isPlaySource) {
-      return (
-        <PlayBillingDashboard
-          profile={profile}
-          locale={locale}
-          usagePercent={usagePercent}
-          usageUrgent={usageUrgent}
-          t={t}
-        />
-      )
-    }
-    return (
-      <BillingDashboard
-        billing={billing}
-        isBillingLoading={isBillingLoading}
-        isBillingError={isBillingError}
-        profile={profile ?? null}
+      </>
+    )
+  } else if (model.state === 'play') {
+    content = (
+      <PlayBillingDashboard
+        status={status}
+        plans={plans}
         locale={locale}
         usagePercent={usagePercent}
-        usageUrgent={usageUrgent}
-        portalError={portalError}
+        usageUrgent={usagePercent >= 80}
+        t={t}
+      />
+    )
+  } else {
+    content = (
+      <BillingDashboard
+        state={model.state}
+        billing={billing}
+        status={status}
+        plans={plans}
+        locale={locale}
+        usagePercent={usagePercent}
+        usageUrgent={usagePercent >= 80}
         onOpenPortal={() => void handleOpenPortal()}
-        onRetryBilling={() => void refetchBilling()}
+        onRetryPortal={() => void handleOpenPortal()}
         t={t}
       />
     )
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col">
-      {showGradient && (
-        <div className="md:hidden">
-          <GradientTop height={260} />
-        </div>
-      )}
-      <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
-        <AppBar
-          back
-          backLabel={t('common.backToProfile')}
-          onBack={() => goBackOrFallback('/profile')}
-          title={t('upgrade.title')}
-        />
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-
-        {renderBillingView()}
-        </div>
-      </div>
+    <div className="flex min-h-[100dvh] flex-col">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('upgrade.title')}
+      />
+      <main className="mx-auto w-full max-w-[760px] flex-1 px-5 py-6">
+        {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
+        {model.state !== 'offline' || model.isManageView ? content : null}
+      </main>
     </div>
   )
 }

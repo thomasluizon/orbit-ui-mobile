@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`
@@ -11,8 +10,18 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [k: string]: unknown }) => (
-    <a href={href} {...props}>{children}</a>
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode
+    href: string
+    [k: string]: unknown
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }))
 
@@ -38,6 +47,37 @@ vi.mock('@/hooks/use-profile', () => ({
   useTrialExpired: () => mockTrialExpired,
   useTrialDaysLeft: () => mockTrialDaysLeft,
   useTrialUrgent: () => mockTrialUrgent,
+}))
+
+vi.mock('@/hooks/use-subscription-status', () => ({
+  useSubscriptionStatus: () => ({
+    status: mockProfile
+      ? {
+          plan: mockHasProAccess ? 'pro' : 'free',
+          hasProAccess: mockHasProAccess,
+          isTrialActive: Boolean(mockProfile.isTrialActive),
+          trialEndsAt: mockProfile.trialEndsAt ?? null,
+          planExpiresAt: mockProfile.planExpiresAt ?? null,
+          aiMessagesUsed: mockProfile.aiMessagesUsed ?? 0,
+          aiMessagesLimit: mockProfile.aiMessagesLimit ?? 0,
+          isLifetimePro: Boolean(mockProfile.isLifetimePro),
+          subscriptionInterval: mockProfile.subscriptionInterval ?? 'yearly',
+          source: mockProfile.subscriptionSource ?? 'stripe',
+          lapseReason: mockProfile.lapseReason ?? null,
+          subscriptionEndedAtUtc: mockProfile.subscriptionEndedAt ?? null,
+        }
+      : null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: true }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showSuccess: vi.fn() }),
 }))
 
 let mockPlans: Record<string, unknown> | null = null
@@ -73,7 +113,11 @@ vi.mock('@/hooks/use-billing', () => ({
 
 vi.mock('@orbit/shared/api', () => ({
   API: {
-    subscription: { checkout: '/api/subscriptions/checkout', portal: '/api/subscriptions/portal', plans: '/api/subscriptions/plans' },
+    subscription: {
+      checkout: '/api/subscriptions/checkout',
+      portal: '/api/subscriptions/portal',
+      plans: '/api/subscriptions/plans',
+    },
   },
 }))
 
@@ -86,9 +130,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-
 import UpgradePage from '@/app/(app)/upgrade/page'
-
 
 describe('UpgradePage', () => {
   beforeEach(() => {
@@ -151,7 +193,6 @@ describe('UpgradePage', () => {
     })
   })
 
-
   it('shows plan loading skeletons when plans are loading', () => {
     mockIsLoadingPlans = true
     const { container } = render(<UpgradePage />)
@@ -181,7 +222,6 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.convert.trialHeading')
   })
 
-
   it('shows billing loading state for Pro users', () => {
     mockHasProAccess = true
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
@@ -207,6 +247,7 @@ describe('UpgradePage', () => {
       ...mockProfile,
       hasProAccess: true,
       isTrialActive: false,
+      subscriptionInterval: 'monthly',
       aiMessagesUsed: 10,
       aiMessagesLimit: 500,
     }
@@ -310,7 +351,7 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.billing.usage.aiMessages')
   })
 
-  it('shows change payment button', () => {
+  it('keeps payment details read only and uses one provider handoff action', () => {
     mockHasProAccess = true
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
     mockBilling = {
@@ -329,7 +370,8 @@ describe('UpgradePage', () => {
       recentInvoices: [],
     }
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.payment.change')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.payment.change')).not.toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.actions.manage')).toBeInTheDocument()
   })
 
   it('shows past_due badge when billing status is past_due', () => {
@@ -403,7 +445,9 @@ describe('UpgradePage', () => {
     const requestInit = call?.[1] as RequestInit | undefined
     expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
     expect(requestInit?.method).toBe('POST')
-    expect(JSON.parse(requestInit?.body as string)).toEqual({ interval: 'yearly' })
+    expect(JSON.parse(requestInit?.body as string)).toEqual({
+      interval: 'yearly',
+    })
   })
 
   it('prevents a second paid checkout while the first request is pending', async () => {
@@ -414,11 +458,13 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    let resolveCheckout: ((response: { ok: boolean; json: () => Promise<{ url?: string }> }) => void) | undefined
+    let resolveCheckout:
+      ((response: { ok: boolean; json: () => Promise<{ url?: string }> }) => void) | undefined
     const fetchMock = vi.fn().mockImplementation(
-      () => new Promise((resolve) => {
-        resolveCheckout = resolve
-      }),
+      () =>
+        new Promise((resolve) => {
+          resolveCheckout = resolve
+        }),
     )
     vi.stubGlobal('fetch', fetchMock)
     vi.stubGlobal('location', { href: '' })
@@ -438,7 +484,9 @@ describe('UpgradePage', () => {
 
     resolveCheckout?.({ ok: true, json: async () => ({}) })
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).not.toBeDisabled()
+      expect(
+        screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }),
+      ).not.toBeDisabled()
     })
   })
 })

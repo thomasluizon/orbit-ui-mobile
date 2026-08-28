@@ -86,10 +86,11 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 **The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
 notifications, metrics and feature explanation. **Billing, API-key management and account deletion
-are not reachable from the chat surface.** They are the only step-up operations in the product, they
-are settings a person taps once, and an assistant that can sell a subscription contradicts the voice
-pillar "describe, never sell". They stay available on the MCP surface, where an external client asks
-for them deliberately.
+are not reachable from the chat surface.** API-key management and account deletion are the only
+step-up operations in the product. Billing is a provider handoff from the Subscription flow under
+Profile. An assistant that can sell a subscription contradicts the voice pillar "describe, never
+sell". API-key management and account deletion stay available on the MCP surface, where an external
+client asks for them deliberately.
 
 ### The shell
 
@@ -137,6 +138,7 @@ for, and building that instead is the defect.
 | **The conversation** | say what you did or what you want, and have it happen | not a transcript, not a help desk |
 | **Onboarding** | produce one real habit the person typed | not a tour, not a quiz, not a preference survey |
 | **Upgrade** | Astra without the daily ceiling | not a feature matrix |
+| **Subscription** | understand the current plan and hand billing changes to its provider | not a shell destination or a billing back office |
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
 
@@ -1202,4 +1204,3 @@ Everything else, and specifically: the 65ch measure, the 2x gap rhythm, concentr
 ### Not enforceable here
 
 `prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, the 320px reflow, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate, keyed on the matrix above.
-

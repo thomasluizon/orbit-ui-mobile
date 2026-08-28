@@ -89,7 +89,7 @@ function AppBarLeading({
   if (!back && !LeadingIcon) return null
 
   let leadingIcon: ReactNode = null
-  if (back) leadingIcon = <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
+  if (back) leadingIcon = <ChevronLeft size={24} color={tokens.fg1} strokeWidth={2} />
   else if (LeadingIcon)
     leadingIcon = <LeadingIcon size={22} color={tokens.fg1} strokeWidth={1.8} />
 

@@ -1,63 +1,74 @@
-import { Settings } from '@/components/ui/icons'
-import { useTranslations } from 'next-intl'
+import type { useTranslations } from 'next-intl'
+import type { SubscriptionStatus } from '@orbit/shared/types/profile'
+import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { playManageSubscriptionUrl } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
+import { formatPrice } from '@/hooks/use-subscription-plans'
 import { UsageStats } from './usage-stats'
-import {
-  cardLabelStyle,
-  cardSurface,
-  formatBillingDate,
-  metaTextStyle,
-  whitePillLinkClassName,
-} from './styles'
+import { cardLabelStyle, cardSurface, formatBillingDate } from './styles'
 
-interface PlayBillingDashboardProps {
-  profile: {
-    subscriptionInterval?: string | null
-    planExpiresAt?: string | null
-    aiMessagesUsed: number
-    aiMessagesLimit: number
-  } | null
+type UpgradeTranslations = ReturnType<typeof useTranslations>
+
+export function PlayBillingDashboard({
+  status,
+  plans,
+  locale,
+  usagePercent,
+  usageUrgent,
+  t,
+}: Readonly<{
+  status: SubscriptionStatus | null
+  plans: SubscriptionPlans | null | undefined
   locale: string
   usagePercent: number
   usageUrgent: boolean
-  t: ReturnType<typeof useTranslations>
-}
+  t: UpgradeTranslations
+}>) {
+  if (!status) return null
+  const interval = status.subscriptionInterval ?? 'monthly'
+  const price = plans?.[interval]
 
-export function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
-    <div className="space-y-3 stagger-enter">
-      <div className="grid gap-3">
-      <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
-        <div style={{ padding: '16px 18px' }}>
-          <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
-          <div style={{ marginTop: 3, fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
-            {profile?.subscriptionInterval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
-          </div>
-          {profile?.planExpiresAt && (
-            <div style={{ marginTop: 6 }}>
-              <span style={metaTextStyle}>
-                {t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(profile.planExpiresAt, locale) })}
-              </span>
-            </div>
-          )}
+    <div className="flex flex-col gap-6">
+      <section className="rounded-[var(--r-card)] p-6" style={cardSurface}>
+        <p style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</p>
+        <h2 className="mt-2 text-xl font-medium text-[var(--fg-1)]">
+          {interval === 'yearly'
+            ? t('upgrade.billing.plan.yearly')
+            : t('upgrade.billing.plan.monthly')}
+        </h2>
+        <div className="mt-3 flex flex-col gap-1 text-sm text-[var(--fg-3)]">
+          {price ? (
+            <p>
+              {interval === 'yearly'
+                ? t('upgrade.billing.plan.yearlyPrice', {
+                    price: formatPrice(price.unitAmount, price.currency),
+                  })
+                : t('upgrade.billing.plan.monthlyPrice', {
+                    price: formatPrice(price.unitAmount, price.currency),
+                  })}
+            </p>
+          ) : null}
+          {status.planExpiresAt ? (
+            <p>
+              {t('upgrade.billing.plan.renewsOn', {
+                date: formatBillingDate(status.planExpiresAt, locale),
+              })}
+            </p>
+          ) : null}
         </div>
-      </div>
-
-      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
-      </div>
-
-      <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
-        <a
-          href={playManageSubscriptionUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${whitePillLinkClassName} md:max-w-[360px] md:mx-auto`}
-          style={{ fontFamily: 'var(--font-sans)' }}
+      </section>
+      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
+      <div className="flex flex-col items-center gap-3">
+        <PillButton
+          variant="primary"
+          onClick={() =>
+            globalThis.open(playManageSubscriptionUrl(), '_blank', 'noopener,noreferrer')
+          }
         >
-          <Settings size={18} strokeWidth={1.8} aria-hidden="true" />
           {t('upgrade.billing.actions.managePlay')}
-        </a>
-        <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}>
+        </PillButton>
+        <p className="max-w-[48ch] text-center text-xs text-[var(--fg-3)]">
           {t('upgrade.billing.actions.managePlayHint')}
         </p>
       </div>

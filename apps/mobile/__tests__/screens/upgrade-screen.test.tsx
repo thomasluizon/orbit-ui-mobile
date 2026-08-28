@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   goBack: vi.fn(),
   refetchPlans: vi.fn(() => Promise.resolve()),
   refetchBilling: vi.fn(() => Promise.resolve()),
+  refetchStatus: vi.fn(() => Promise.resolve()),
   playBilling: {
     isProcessing: false,
     errorKey: '',
@@ -45,16 +46,27 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('expo-router', () => ({ useLocalSearchParams: () => ({ from: mocks.from }) }))
+vi.mock('expo-router', () => ({
+  useLocalSearchParams: () => ({ from: mocks.from }),
+}))
 
 vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
-  return { ...actual, Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) } }
+  return {
+    ...actual,
+    Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) },
+  }
 })
 
-vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.apiClient(...args) }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
+vi.mock('@/lib/api-client', () => ({
+  apiClient: (...args: unknown[]) => mocks.apiClient(...args),
+}))
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: mocks.isOnline }),
+}))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => mocks.goBack,
+}))
 vi.mock('@/hooks/use-billing', () => ({
   useBilling: () => ({
     billing: mocks.billing,
@@ -63,7 +75,9 @@ vi.mock('@/hooks/use-billing', () => ({
     refetch: mocks.refetchBilling,
   }),
 }))
-vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: () => mocks.playBilling }))
+vi.mock('@/hooks/use-play-billing', () => ({
+  usePlayBilling: () => mocks.playBilling,
+}))
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({
     plans: mocks.plans,
@@ -72,10 +86,36 @@ vi.mock('@/hooks/use-subscription-plans', () => ({
     refetch: mocks.refetchPlans,
   }),
 }))
+vi.mock('@/hooks/use-subscription-status', () => ({
+  useSubscriptionStatus: () => ({
+    status: mocks.profile
+      ? {
+          plan: mocks.hasProAccess ? 'pro' : 'free',
+          hasProAccess: mocks.hasProAccess,
+          isTrialActive: mocks.profile.isTrialActive,
+          trialEndsAt: mocks.profile.trialEndsAt,
+          planExpiresAt: mocks.profile.planExpiresAt,
+          aiMessagesUsed: mocks.profile.aiMessagesUsed,
+          aiMessagesLimit: mocks.profile.aiMessagesLimit,
+          isLifetimePro: mocks.profile.isLifetimePro,
+          subscriptionInterval: mocks.profile.subscriptionInterval ?? 'yearly',
+          source: mocks.profile.subscriptionSource ?? 'stripe',
+          lapseReason: null,
+          subscriptionEndedAtUtc: null,
+        }
+      : null,
+    isLoading: false,
+    isError: false,
+    refetch: mocks.refetchStatus,
+  }),
+}))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile }),
   useHasProAccess: () => mocks.hasProAccess,
   useTrialDaysLeft: () => mocks.trialDaysLeft,
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showSuccess: vi.fn() }),
 }))
 
 const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
@@ -88,12 +128,12 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 })
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
 }))
 vi.mock('@/components/upgrade/billing-dashboard', () => ({
-  BillingDashboard: (props: Record<string, unknown>) => React.createElement('BillingDashboard', props),
+  BillingDashboard: (props: Record<string, unknown>) =>
+    React.createElement('BillingDashboard', props),
 }))
 vi.mock('@/components/upgrade/play-billing-dashboard', () => ({
   PlayBillingDashboard: (props: Record<string, unknown>) =>
@@ -126,7 +166,10 @@ describe('UpgradeScreen', () => {
     mocks.from = undefined
     mocks.hasProAccess = false
     mocks.trialDaysLeft = 5
-    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: 'stripe' })
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      subscriptionSource: 'stripe',
+    })
     mocks.plans = { couponPercentOff: 0 }
     mocks.billing = { plan: 'yearly' }
     mocks.playBilling.isProcessing = false
@@ -181,7 +224,7 @@ describe('UpgradeScreen', () => {
     expect(mocks.refetchPlans).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the Stripe portal and retries billing for a paying stripe user', async () => {
+  it('opens the Stripe portal for a paying stripe user', async () => {
     mocks.hasProAccess = true
     mocks.apiClient.mockResolvedValue({ url: 'https://portal.stripe.test' })
     const tree = await renderScreen()
@@ -193,11 +236,6 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.openURL).toHaveBeenCalledWith('https://portal.stripe.test')
-    await TestRenderer.act(async () => {
-      ;(dashboard.props.onRetryBilling as () => void)()
-      await Promise.resolve()
-    })
-    expect(mocks.refetchBilling).toHaveBeenCalledTimes(1)
   })
 
   it('reports the offline message when opening the portal while disconnected', async () => {
@@ -210,12 +248,15 @@ describe('UpgradeScreen', () => {
       await Promise.resolve()
     })
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    expect(findByType(tree.root, 'BillingDashboard').props.portalError).toBe('offline.title')
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('offline')
   })
 
   it('opens the Play management URL for a play-sourced subscriber', async () => {
     mocks.hasProAccess = true
-    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: 'play' })
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      subscriptionSource: 'play',
+    })
     mocks.openURL.mockResolvedValue(undefined)
     const tree = await renderScreen()
     const dashboard = findByType(tree.root, 'PlayBillingDashboard')

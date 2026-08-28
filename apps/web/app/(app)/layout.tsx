@@ -214,36 +214,48 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     [showImportPrompt, handleDismissImportPrompt],
   )
 
+  const isSubscriptionRoute = pathname.startsWith('/upgrade')
+
   return (
-    <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] md:pb-0">
-      <AppShell onCreate={handleCreate}>
-        <TrialBanner />
-        <UpdateAvailableBanner />
+    <div
+      className={`relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)] pt-[var(--safe-top)] ${isSubscriptionRoute ? '' : 'pb-28 md:pb-0'}`}
+    >
+      {isSubscriptionRoute ? (
         <RouteTransitionShell>
           <div>{children}</div>
         </RouteTransitionShell>
-      </AppShell>
+      ) : (
+        <AppShell onCreate={handleCreate}>
+          <TrialBanner />
+          <UpdateAvailableBanner />
+          <RouteTransitionShell>
+            <div>{children}</div>
+          </RouteTransitionShell>
+        </AppShell>
+      )}
 
-      <div
-        data-bottom-nav=""
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden"
-        style={{
-          paddingBottom: 'var(--safe-bottom)',
-          background: 'var(--bg)',
-          borderTop: '1px solid var(--hairline)',
-        }}
-      >
-        <div className="max-w-[var(--app-max-w)] mx-auto">
-          <WebNav
-            active={pathnameToTab(pathname)}
-            onTab={(id) => {
-              if (id === 'today') router.push('/')
-              else router.push(`/${id}`)
-            }}
-            onFab={handleCreate}
-          />
+      {!isSubscriptionRoute ? (
+        <div
+          data-bottom-nav=""
+          className="fixed bottom-0 left-0 right-0 z-40 md:hidden"
+          style={{
+            paddingBottom: 'var(--safe-bottom)',
+            background: 'var(--bg)',
+            borderTop: '1px solid var(--hairline)',
+          }}
+        >
+          <div className="max-w-[var(--app-max-w)] mx-auto">
+            <WebNav
+              active={pathnameToTab(pathname)}
+              onTab={(id) => {
+                if (id === 'today') router.push('/')
+                else router.push(`/${id}`)
+              }}
+              onFab={handleCreate}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <BackToTop />
 

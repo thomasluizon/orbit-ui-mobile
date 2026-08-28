@@ -353,14 +353,8 @@
     }
   },
   "app/(app)/upgrade/page.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "app/(app)/wrapped/_components/wrapped-cover.tsx": {
@@ -1374,7 +1368,7 @@
   },
   "components/ui/app-bar.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 2
     },
     "local/spacing-scale": {
       "count": 4
@@ -1580,34 +1574,12 @@
       "count": 2
     }
   },
-  "components/upgrade/billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 26
-    }
-  },
   "components/upgrade/plan-comparison-cards.tsx": {
     "local/icon-size-grid": {
       "count": 3
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/upgrade/play-billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/upgrade/pricing-section.tsx": {
