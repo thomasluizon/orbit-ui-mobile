@@ -115,7 +115,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const canSend = props.state === 'idle' && hasComposerContent(props.value)
   const isAtLimit = props.state === 'atLimit'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'

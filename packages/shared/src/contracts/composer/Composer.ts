@@ -26,11 +26,9 @@ export type ComposerAttachment = {
   name: string
 }
 
-export function hasComposerContent(
-  value: string,
-  attachments: readonly ComposerAttachment[] = [],
-): boolean {
-  return value.trim().length > 0 || attachments.length > 0
+export function hasComposerContent(value: string): boolean {
+  // WHY: ChatController.cs:180 rejects blank messages, including images; https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Api/Controllers/ChatController.cs#L180
+  return value.trim().length > 0
 }
 
 export type ComposerSuggestion = {

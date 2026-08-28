@@ -16,7 +16,11 @@ import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
+import {
+  hasComposerContent,
+  type ComposerProps,
+  type ComposerSuggestions,
+} from '@orbit/shared/contracts/composer'
 import {
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
@@ -169,11 +173,7 @@ export function useChatComposer() {
   const accountTimeZone = profile?.timeZone ?? null
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
-  const canSend =
-    (input.trim().length > 0 || selectedImage !== null) &&
-    !isSending &&
-    !atMessageLimit &&
-    isOnline
+  const canSend = hasComposerContent(input) && !isSending && !atMessageLimit && isOnline
   const showSuggestions = messages.length === 0 && !isTyping
 
   const starterChips = useMemo(
@@ -510,10 +510,10 @@ export function useChatComposer() {
 
   const sendMessage = useCallback(
     async (content?: string) => {
-      const typedContent = content || input.trim()
+      const typedContent = content?.trim() ?? input.trim()
       const sendState = useChatStore.getState()
       if (
-        (!typedContent && !selectedImage) ||
+        !hasComposerContent(typedContent) ||
         sendState.isTyping ||
         sendState.streamingMessageId !== null
       ) return

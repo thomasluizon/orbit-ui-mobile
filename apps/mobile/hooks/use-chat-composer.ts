@@ -13,7 +13,11 @@ import {
   getChatImageValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
-import type { ComposerProps, ComposerSuggestions } from "@orbit/shared/contracts/composer";
+import {
+  hasComposerContent,
+  type ComposerProps,
+  type ComposerSuggestions,
+} from "@orbit/shared/contracts/composer";
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
@@ -599,7 +603,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const typedContent = content?.trim() ?? input.trim();
       const sendState = useChatStore.getState();
       if (
-        (!typedContent && !selectedImage) ||
+        !hasComposerContent(typedContent) ||
         sendState.isTyping ||
         sendState.streamingMessageId !== null
       ) return;

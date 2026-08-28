@@ -353,12 +353,13 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
-  it('attaches a pasted image through the rendered composer textarea', () => {
+  it('submits a pasted image with nonblank text through the rendered composer', async () => {
     const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
     vi.stubGlobal('URL', {
       createObjectURL: vi.fn(() => 'blob:pasted-image'),
       revokeObjectURL: vi.fn(),
     })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
 
     function ComposerHarness() {
       const { composerProps } = useChatComposer()
@@ -374,6 +375,18 @@ describe('web useChatComposer streaming send', () => {
 
     expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
     expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+      target: { value: 'log my walk' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    expect(requestBody).toBeInstanceOf(FormData)
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe('log my walk')
+    expect(requestBody.get('image')).toBe(pastedImage)
   })
 
   it('blocks sending while offline and re-enables once back online', async () => {

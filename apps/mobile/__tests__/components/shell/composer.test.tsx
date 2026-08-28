@@ -119,19 +119,27 @@ describe('Composer (mobile)', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('sends an attached image when the text is blank', async () => {
+  it('requires nonblank text when an image is attached', async () => {
     const onSend = vi.fn()
-    const tree = await renderComposer(props({
-      value: '   ',
+    const attachedImage = {
       onSend,
       onAttach: vi.fn(),
       attachWords,
-      attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
+      attachments: [{ id: 'image-id', kind: 'image' as const, name: 'walk.png' }],
       onAttachRemove: vi.fn(),
+    }
+    const tree = await renderComposer(props({
+      value: '   ',
+      ...attachedImage,
     }))
     const send = byLabel(tree.root, words.send)[0]
-    expect(send.props.disabled).toBe(false)
+    expect(send.props.disabled).toBe(true)
     TestRenderer.act(() => send.props.onPress())
+    expect(onSend).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => tree.update(<Composer {...props({ value: 'log my walk', ...attachedImage })} />))
+    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(false)
+    TestRenderer.act(() => byLabel(tree.root, words.send)[0].props.onPress())
     expect(onSend).toHaveBeenCalledOnce()
   })
 

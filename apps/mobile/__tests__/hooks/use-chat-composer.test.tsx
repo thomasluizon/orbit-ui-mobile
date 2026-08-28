@@ -491,6 +491,32 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.imagePreview).toBeNull()
   })
 
+  it('submits a selected image with nonblank text', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 },
+      ],
+    })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+    TestRenderer.act(() => composer.current.setInput('log my walk'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'log my walk')
+    expect(appendFormPart).toHaveBeenCalledWith('image', expect.any(Blob), 'pic.jpg')
+    appendFormPart.mockRestore()
+  })
+
   it('blocks image selection when the media-library permission is denied', async () => {
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false })
     const composer = await renderComposer()

@@ -83,9 +83,9 @@ describe('Composer', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('sends an attached image when the text is blank', () => {
+  it('requires nonblank text when an image is attached', () => {
     const onSend = vi.fn()
-    render(
+    const { rerender } = render(
       <Composer
         {...props({
           value: '   ',
@@ -98,6 +98,22 @@ describe('Composer', () => {
       />,
     )
     const send = screen.getByRole('button', { name: words.send })
+    expect(send).toBeDisabled()
+    fireEvent.click(send)
+    expect(onSend).not.toHaveBeenCalled()
+
+    rerender(
+      <Composer
+        {...props({
+          value: 'log my walk',
+          onSend,
+          onAttach: vi.fn(),
+          attachWords,
+          attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
+          onAttachRemove: vi.fn(),
+        })}
+      />,
+    )
     expect(send).toBeEnabled()
     fireEvent.click(send)
     expect(onSend).toHaveBeenCalledOnce()
