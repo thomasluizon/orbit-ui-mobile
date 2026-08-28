@@ -117,6 +117,19 @@ mask.
 | `orbit-mark-accent-512.png` | 512px granted mark, accent moon, transparent |
 | `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B` |
 
+## Manual upload exports, in `exports/`
+
+These files use the same platform icon composition and are regenerated with the rest of the set.
+They are committed so the console updates do not depend on a local render at upload time.
+
+| file | target surface |
+|---|---|
+| `oauth-consent-logo-512.png` | Google Auth Platform Branding page app logo |
+| `play-icon-512.png` | Google Play Console store listing app icon |
+
+The Play feature graphic remains at `apps/mobile/store/feature-graphic.png` because it is a mobile
+store asset rather than a reusable brand export.
+
 ## Type, in `fonts/`
 
 | file | family | version | axis |
