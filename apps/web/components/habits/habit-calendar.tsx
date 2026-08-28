@@ -14,6 +14,9 @@ import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import type { HabitLog } from '@orbit/shared/types/calendar'
+import type { DayCellWords } from '@orbit/shared/contracts/dates'
+import { DayCell } from '@/components/dates/day-cell'
+import { MonthGrid } from '@/components/dates/month-grid'
 
 interface HabitCalendarProps {
   habitId: string
@@ -94,6 +97,18 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
     return displayTime(`${hh}:${mm}`)
   }
 
+  const dayCellWords: DayCellWords = {
+    none: t('calendar.dayCell.none'),
+    partial: t('calendar.dayCell.partial'),
+    full: t('calendar.dayCell.full'),
+    notScheduled: t('calendar.dayCell.notScheduled'),
+    future: t('calendar.dayCell.future'),
+    of: t('calendar.dayCell.of'),
+    today: t('calendar.dayCell.today'),
+    selected: t('calendar.dayCell.selected'),
+    readOnly: t('calendar.dayCell.readOnly'),
+  }
+
   return (
     <div
       style={{
@@ -131,79 +146,33 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         </button>
       </div>
 
-      <div className="grid grid-cols-7 mb-1">
-        {weekdays.map((day) => (
-          <div
-            key={day.key}
-            className="text-center uppercase py-1"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              // react-doctor-disable-next-line no-tiny-text -- intentional single-letter weekday header caption (mono meta scale per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: '0.04em',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {day.label}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7">
+      <MonthGrid weekdayLabels={weekdays.map((day) => day.label)} label={monthLabel} gap={4}>
         {calendarDays.map((day) => (
-          <div
-            key={day.dateStr}
-            className="aspect-square flex items-center justify-center relative"
-          >
+          <span key={day.dateStr} className="flex items-center justify-center">
             {day.isCurrentMonth && day.isCompleted ? (
-              <button
-                type="button"
-                className="group flex size-full appearance-none border-0 bg-transparent p-0 cursor-pointer items-center justify-center"
-                onClick={() => toggleDay(day.dateStr)}
-              >
-                <span
-                  className={`flex size-9 items-center justify-center rounded-full bg-[var(--status-done)] text-[var(--fg-on-primary)] transition-[transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] group-hover:scale-105 group-active:scale-[0.96] ${
-                    selectedDate === day.dateStr
-                      ? 'ring-2 ring-[var(--primary)]/50 ring-offset-2 ring-offset-[var(--bg)]'
-                      : ''
-                  }`}
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {day.dayNum}
-                </span>
-              </button>
+              <DayCell
+                day={day.dayNum}
+                outcome="full"
+                loggable
+                selected={selectedDate === day.dateStr}
+                today={day.isToday}
+                label={displayDate(day.date)}
+                words={dayCellWords}
+                onPress={() => toggleDay(day.dateStr)}
+              />
             ) : (
-              <div
-                className={`flex size-9 items-center justify-center rounded-full ${
-                  day.isCurrentMonth ? '' : 'opacity-0'
-                }`}
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  fontVariantNumeric: 'tabular-nums',
-                  color:
-                    day.isCurrentMonth && day.isToday
-                      ? 'var(--fg-1)'
-                      : 'var(--fg-3)',
-                  boxShadow:
-                    day.isCurrentMonth && day.isToday
-                      ? 'inset 0 0 0 1.5px var(--primary)'
-                      : 'none',
-                }}
-              >
-                {day.dayNum}
-              </div>
+              <DayCell
+                day={day.dayNum}
+                outcome={day.isCurrentMonth && !day.isPast && !day.isToday ? 'future' : 'none'}
+                outsideMonth={!day.isCurrentMonth}
+                today={day.isToday}
+                label={displayDate(day.date)}
+                words={dayCellWords}
+              />
             )}
-          </div>
+          </span>
         ))}
-      </div>
+      </MonthGrid>
 
       {selectedDate && selectedDayLogs.length > 0 && (
         <div
