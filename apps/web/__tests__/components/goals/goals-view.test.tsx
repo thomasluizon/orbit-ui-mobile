@@ -55,7 +55,6 @@ describe('GoalsView', () => {
     mockIsFetched = true
     render(<GoalsView />)
     expect(screen.getByText('goals.empty')).toBeInTheDocument()
-    expect(screen.getByText('goals.emptyHint')).toBeInTheDocument()
   })
 
   it('offers a create action on the unfiltered empty state', () => {
@@ -76,7 +75,6 @@ describe('GoalsView', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.completed' }))
 
     expect(screen.getByText('goals.filters.emptyFiltered')).toBeInTheDocument()
-    expect(screen.getByText('goals.filters.emptyFilteredHint')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.filters.clearFilter' }))
     expect(screen.getByText('Active Goal')).toBeInTheDocument()

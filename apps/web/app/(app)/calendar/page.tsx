@@ -352,7 +352,7 @@ export default function CalendarPage() {
                   />
 
                   {!isLoading && !monthStats.hasEntries ? (
-                    <EmptyState description={t('calendar.emptyMonth')} />
+                    <EmptyState title={t('calendar.emptyMonth')} />
                   ) : (
                     <>
                       <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>

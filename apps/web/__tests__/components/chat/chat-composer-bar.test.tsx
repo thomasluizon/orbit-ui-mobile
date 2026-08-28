@@ -192,9 +192,7 @@ describe('ChatComposerBar', () => {
 
   it('shows the offline notice and disables the composer while offline', () => {
     render(<ChatComposerBar {...{ ...baseProps(), isOnline: false }} />)
-    expect(
-      screen.getByRole('alert', { name: 'chat.offline.title. chat.offline.description' }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('chat.offline.description')).toBeInTheDocument()
     expect(screen.getByLabelText('chat.placeholder')).toBeDisabled()
     expect(screen.getByLabelText('chat.attachFile')).toBeDisabled()
     expect(screen.getByLabelText('chat.attachImage')).toBeDisabled()
@@ -203,7 +201,7 @@ describe('ChatComposerBar', () => {
 
   it('hides the offline notice when online', () => {
     render(<ChatComposerBar {...baseProps()} />)
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('chat.offline.description')).not.toBeInTheDocument()
     expect(screen.getByLabelText('chat.attachFile')).toBeEnabled()
   })
 })

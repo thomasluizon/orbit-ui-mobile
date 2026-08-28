@@ -516,16 +516,16 @@ export default function CalendarSyncScreen() {
           <>
             {events.length === 0 ? (
               <EmptyState
-                description={
+                title={
                   isReviewMode
                     ? t('calendar.autoSync.reviewModeEmpty')
                     : t('calendar.noEvents')
                 }
-                action={{
-                  label: t('common.goBack'),
-                  onPress: handleBack,
-                  variant: 'secondary',
-                }}
+                action={
+                  <PillButton variant="ghost" onClick={handleBack}>
+                    {t('common.goBack')}
+                  </PillButton>
+                }
               />
             ) : (
               <>

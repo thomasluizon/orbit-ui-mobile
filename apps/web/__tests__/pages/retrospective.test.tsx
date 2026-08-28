@@ -69,10 +69,6 @@ vi.mock('@orbit/shared/utils', () => ({
   getFriendlyErrorMessage: () => 'retrospective.portalError',
 }))
 
-vi.mock('@/components/ui/offline-unavailable-state', () => ({
-  OfflineUnavailableState: ({ title }: { title: string }) => <div role="alert">{title}</div>,
-}))
-
 import RetrospectivePage from '@/app/(app)/retrospective/page'
 
 describe('RetrospectivePage', () => {
@@ -100,7 +96,7 @@ describe('RetrospectivePage', () => {
     mockIsOnline = false
     render(<RetrospectivePage />)
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('offline.description')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'retrospective.generate' })).toBeDisabled()
   })
 

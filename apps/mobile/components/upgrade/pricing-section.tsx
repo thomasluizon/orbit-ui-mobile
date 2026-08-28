@@ -18,7 +18,7 @@ import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PlanComparisonCards } from './plan-comparison-cards'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
@@ -102,14 +102,7 @@ export function PricingSection({
       {isLoadingPlans ? (
         <View style={{ marginTop: 18 }}>
           {[0, 1].map((index) => (
-            <View
-              key={index}
-              style={[styles.card, { borderColor: tokens.hairline, backgroundColor: tokens.bgCard }]}
-            >
-              <SkeletonLine width={80} height={16} />
-              <SkeletonLine width={120} height={26} style={{ marginTop: 12 }} />
-              <SkeletonLine width="100%" height={40} style={{ marginTop: 18, borderRadius: 999 }} />
-            </View>
+            <Skeleton key={index} variant="stat-tile" label={t('common.loading')} />
           ))}
         </View>
       ) : null}
