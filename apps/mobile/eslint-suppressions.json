@@ -581,7 +581,7 @@
   },
   "components/habits/habit-checklist.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 4
@@ -941,11 +941,6 @@
       "count": 4
     }
   },
-  "components/ui/field-input.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/ui/fresh-start-animation.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -1008,7 +1003,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/ui/trial-banner.tsx": {

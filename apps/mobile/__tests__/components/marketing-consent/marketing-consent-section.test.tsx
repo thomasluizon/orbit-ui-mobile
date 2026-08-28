@@ -1,5 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -43,17 +44,18 @@ vi.mock('@/components/ui/section-label', () => ({
 vi.mock('@/components/ui/settings-row', () => ({
   SettingsRow: ({ children }: { children: React.ReactNode }) =>
     React.createElement('SettingsRowStub', {}, children),
-  Switch: ({ on, onToggle }: { on: boolean; onToggle: () => void }) =>
-    React.createElement('SwitchStub', { on, onToggle }),
 }))
 
-import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) =>
+    React.createElement('SwitchStub', { checked, onChange }),
+}))
 
 const TestRenderer = require('react-test-renderer')
 
 type RenderedNode = {
   type: unknown
-  props: { on?: boolean; onToggle?: () => void } & Record<string, unknown>
+  props: { checked?: boolean; onChange?: (checked: boolean) => void } & Record<string, unknown>
 }
 type RenderedTree = {
   root: { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
@@ -94,13 +96,13 @@ describe('MarketingConsentSection (mobile)', () => {
   it('reflects consent off when the profile has not opted in', async () => {
     profileValue = { marketingEmailConsent: null }
     const tree = await render()
-    expect(getSwitch(tree).props.on).toBe(false)
+    expect(getSwitch(tree).props.checked).toBe(false)
   })
 
   it('reflects consent on when the profile opted in', async () => {
     profileValue = { marketingEmailConsent: true }
     const tree = await render()
-    expect(getSwitch(tree).props.on).toBe(true)
+    expect(getSwitch(tree).props.checked).toBe(true)
   })
 
   it('opts in through the offline queue and patches optimistically', async () => {
@@ -108,7 +110,7 @@ describe('MarketingConsentSection (mobile)', () => {
     const tree = await render()
 
     await TestRenderer.act(async () => {
-      getSwitch(tree).props.onToggle?.()
+      getSwitch(tree).props.onChange?.(true)
       await Promise.resolve()
     })
 
@@ -129,7 +131,7 @@ describe('MarketingConsentSection (mobile)', () => {
     const tree = await render()
 
     await TestRenderer.act(async () => {
-      getSwitch(tree).props.onToggle?.()
+      getSwitch(tree).props.onChange?.(false)
       await Promise.resolve()
       await Promise.resolve()
     })

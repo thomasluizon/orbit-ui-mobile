@@ -5,7 +5,7 @@ import { Check, Settings2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import {
@@ -188,14 +188,14 @@ export function OnboardingCreateHabit({
         {t('onboarding.flow.createHabit.subtitle')}
       </Text>
 
-      <FieldInput
+      <Input
+        label={t('onboarding.flow.createHabit.label')}
         value={title}
-        onChangeText={setTitle}
+        onChange={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}
         maxLength={MAX_HABIT_TITLE_LENGTH}
-        editable={!isCreating}
-        returnKeyType="done"
-        onSubmitEditing={() => void handleCreate()}
+        disabled={isCreating}
+        onSubmit={() => void handleCreate()}
       />
 
       <View style={styles.toggleRow}>

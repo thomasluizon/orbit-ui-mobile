@@ -3,7 +3,8 @@
 import { BellRing, Lock, Satellite } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 interface AiFeatureTogglesProps {
@@ -42,12 +43,13 @@ export function AiFeatureToggles({
           accessory="none"
           divider={false}
         >
-          <Switch
-            on={aiSummaryEnabled}
-            onToggle={onToggleSummary}
-            ariaLabel={t('profile.aiSummary.title')}
-            disabled={summaryPending}
-          />
+          <fieldset disabled={summaryPending} className="m-0 border-0 p-0">
+            <Switch
+              checked={aiSummaryEnabled}
+              onChange={onToggleSummary}
+              label={t('profile.aiSummary.title')}
+            />
+          </fieldset>
         </SettingsRow>
       ) : (
         <SettingsRow
@@ -69,12 +71,13 @@ export function AiFeatureToggles({
           accessory="none"
           divider={false}
         >
-          <Switch
-            on={proactiveAstraEnabled}
-            onToggle={onToggleProactive}
-            ariaLabel={t('profile.proactiveAstra.title')}
-            disabled={proactivePending}
-          />
+          <fieldset disabled={proactivePending} className="m-0 border-0 p-0">
+            <Switch
+              checked={proactiveAstraEnabled}
+              onChange={onToggleProactive}
+              label={t('profile.proactiveAstra.title')}
+            />
+          </fieldset>
         </SettingsRow>
       ) : (
         <SettingsRow

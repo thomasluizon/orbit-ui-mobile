@@ -15,6 +15,7 @@ interface UseLoginCodeEntryResult {
   resendCountdown: number
   startResendCountdown: () => void
   resetCodeDigits: () => void
+  onCodeChange: (value: string) => void
   onCodeInput: (index: number, value: string) => void
   onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -67,6 +68,17 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
 
   const resetCodeDigits = useCallback(() => {
     setCodeDigits(createVerificationCodeDigits())
+  }, [])
+
+  const onCodeChange = useCallback((value: string) => {
+    const cleanValue = normalizeVerificationCodeInput(value)
+      .slice(0, VERIFICATION_CODE_LENGTH)
+    const { digits } = fillVerificationCodeDigits(
+      0,
+      cleanValue,
+      createVerificationCodeDigits(),
+    )
+    setCodeDigits(digits)
   }, [])
 
   const onCodeInput = useCallback(
@@ -131,6 +143,7 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
     resendCountdown,
     startResendCountdown,
     resetCodeDigits,
+    onCodeChange,
     onCodeInput,
     onCodePaste,
     onCodeKeydown,
