@@ -24,8 +24,10 @@
       "not-found-root",
       "overlay-app-layout",
       "overlay-command-command-palette",
+      "route-step-up",
       "m-not-found-root",
-      "m-error-root"
+      "m-error-root",
+      "m-route-step-up"
     ],
     "R3-primitive-row": [
       "m-overlay-habit-list-confirm-dialogs",
