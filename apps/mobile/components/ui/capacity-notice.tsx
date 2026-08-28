@@ -1,32 +1,35 @@
+import type { CapacityNoticeProps } from '@orbit/shared/contracts/feedback'
 import { StyleSheet, Text, View } from 'react-native'
-import { Shield } from '@/components/ui/icons'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function CapacityNotice({ message }: Readonly<{ message: string }>) {
+/** A neutral boundary and the one action that changes it. */
+export function CapacityNotice({ message, body, action }: Readonly<CapacityNoticeProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bgWell }]}>
-      <Shield size={20} strokeWidth={1.5} color={tokens.fg2} />
-      <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text>
+    <View style={[styles.container, { backgroundColor: tokens.bgWell }]} testID="capacity-notice">
+      <Text style={[styles.message, { color: tokens.fg1 }]}>{message}</Text>
+      {body ? <Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text> : null}
+      {action ? <View testID="capacity-notice-action">{action}</View> : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
-    alignItems: 'flex-start',
-    borderRadius: 16,
-    flexDirection: 'row',
+  container: {
+    borderRadius: radius.md,
     gap: 12,
     padding: 16,
   },
   message: {
-    flex: 1,
+    fontFamily: 'Geist_500Medium',
+    fontSize: 16,
+  },
+  body: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
-    lineHeight: 22,
+    lineHeight: 20,
   },
 })

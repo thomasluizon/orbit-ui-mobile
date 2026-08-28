@@ -16,10 +16,11 @@ import type { Goal, GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PillButton } from "@/components/ui/pill-button";
 import { RadioRow } from "@/components/ui/select-check";
 import { Sheet, useSheetHost } from "@/components/ui/sheet";
 import { SectionLabel } from "@/components/ui/section-label";
-import { SkeletonLine } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
@@ -37,20 +38,6 @@ interface GoalsViewProps {
   contentContainerStyle?: StyleProp<ViewStyle>;
   onScroll?: (offsetY: number) => void;
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-}
-
-function SkeletonCard({
-  styles,
-}: Readonly<{
-  styles: Record<string, object>;
-}>) {
-  return (
-    <View style={styles.skeletonCard}>
-      <SkeletonLine width="66%" height={20} />
-      <SkeletonLine width="100%" height={12} />
-      <SkeletonLine width="100%" height={8} />
-    </View>
-  );
 }
 
 export function GoalsView({
@@ -141,29 +128,28 @@ export function GoalsView({
   const filteredEmptyElement = activeFilter != null ? (
     <EmptyState
       title={t("goals.filters.emptyFiltered")}
-      description={t("goals.filters.emptyFilteredHint")}
-      action={{
-        label: t("goals.filters.clearFilter"),
-        onPress: () => handleFilterChange(null),
-        variant: "secondary",
-      }}
+      action={
+        <PillButton variant="ghost" onClick={() => handleFilterChange(null)}>
+          {t("goals.filters.clearFilter")}
+        </PillButton>
+      }
     />
   ) : (
     <EmptyState
       title={t("goals.empty")}
-      description={t("goals.emptyHint")}
-      action={{
-        label: t("goals.create"),
-        onPress: () => setShowCreateGoalModal(true),
-      }}
+      action={
+        <PillButton onClick={() => setShowCreateGoalModal(true)}>
+          {t("goals.create")}
+        </PillButton>
+      }
     />
   );
 
   const listEmptyElement = !isFetched ? (
     <View style={styles.skeletonContainer}>
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
+      {[1, 2, 3].map((unit) => (
+        <Skeleton key={unit} variant="stat-tile" label={t("common.loading")} />
+      ))}
     </View>
   ) : (
     filteredEmptyElement

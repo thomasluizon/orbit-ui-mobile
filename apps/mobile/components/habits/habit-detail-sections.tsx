@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import type { createTokensV2 } from '@/lib/theme'
 
@@ -57,17 +57,7 @@ export function HabitDetailStatsRow({
     return (
       <View style={rowStyles.tilesRow}>
         {[1, 2, 3].map((i) => (
-          <SkeletonLine
-            key={i}
-            height={110}
-            style={[
-              rowStyles.skeletonTile,
-              {
-                backgroundColor: tokens.bgField,
-                borderColor: tokens.hairline,
-              },
-            ]}
-          />
+          <Skeleton key={i} variant="stat-tile" label={t('common.loading')} />
         ))}
       </View>
     )

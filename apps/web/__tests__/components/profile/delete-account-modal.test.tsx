@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const mocks = vi.hoisted(() => ({
   beginChallenge: vi.fn(),
@@ -26,25 +27,8 @@ vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    onClose,
-    title,
-    children,
-  }: Readonly<{
-    open: boolean
-    onClose?: () => void
-    title?: string
-    children: React.ReactNode
-  }>) => open ? (
-    <div data-testid="overlay">
-      <h2>{title}</h2>
-      <button type="button" onClick={onClose}>Close</button>
-      {children}
-    </div>
-  ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'))
 
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
 
@@ -87,6 +71,7 @@ const profile = {
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sheetTestControls.defer(false)
     mocks.requestDeletion.mockResolvedValue(undefined)
   })
 
@@ -124,6 +109,23 @@ describe('DeleteAccountModal', () => {
 
     await waitFor(() => expect(mocks.requestDeletion).toHaveBeenCalledOnce())
     expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+  })
+
+  it('waits for sheet dismissal before closing and navigating', async () => {
+    sheetTestControls.defer(true)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+
+    await waitFor(() => expect(sheetTestControls.isDismissPending).toBe(true))
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.onOpenChange).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    act(() => sheetTestControls.completeDismissal())
+
     expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
   })

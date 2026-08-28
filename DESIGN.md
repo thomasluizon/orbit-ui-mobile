@@ -675,10 +675,18 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Field | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
 | OTP | 6 boxes, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
+| Toast | neutral / working / done / lost; stable live region; only done self-dismisses, at 5000ms minimum; working draws three dots; done uses `--status-done`; text action only | `ui/toast.tsx` | `ui/app-toast.tsx` |
+| Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
 | TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
-| EmptyState mark | 96px, the real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned empty state takes `AstraGlyph` instead, via a prop | `ui/empty-state.tsx` | same |
+| EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
+| ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
+| CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
 | ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--fg-4` track | right rail / Today | same |
+| DayStrip | compact horizontal history, habit and account scopes, caller-owned labels and words; done and active are neutral, frozen uses a neutral snowflake, missed is outlined, not scheduled is a well, and only today uses primary | `dates/day-strip.tsx` | `dates/day-strip.tsx` |
+| DayCell | 44px default target, tabular day number, read-only by default; `scheduled={0}` derives not scheduled, counts derive none, partial, or full, partial uses the exact fraction, full is neutral, and only today or selected uses primary position treatment | `dates/day-cell.tsx` | `dates/day-cell.tsx` |
+| MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
+| EventRow | read-only timed or all-day event row with required title and optional source; time and all-day label are mutually exclusive | `dates/event-row.tsx` | `dates/event-row.tsx` |
 | HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 
 ## Overlay

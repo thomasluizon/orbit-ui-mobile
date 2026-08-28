@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Lock } from '@/components/ui/icons'
 import type { ProfileNavItem } from '@orbit/shared/utils/profile-navigation'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { sectionEntrance } from './profile-section-entrance'
 import type { ProfileStyles } from './profile-styles'
@@ -49,10 +49,10 @@ export function ProfileStatRow({
       {statsLoading ? (
         <>
           <View style={styles.statTileWrap}>
-            <SkeletonLine height={110} style={styles.statSkeleton} />
+            <Skeleton variant="stat-tile" label={t('common.loading')} />
           </View>
           <View style={styles.statTileWrap}>
-            <SkeletonLine height={110} style={styles.statSkeleton} />
+            <Skeleton variant="stat-tile" label={t('common.loading')} />
           </View>
         </>
       ) : (

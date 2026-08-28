@@ -16,7 +16,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 
 interface DeleteAccountModalProps {
   open: boolean
@@ -92,47 +92,44 @@ export function DeleteAccountModal({
       title={t('profile.deleteAccount.headingAreYouSure')}
     >
       {!isOnline ? (
-        <OfflineUnavailableState
-          title={t('offline.title')}
-          description={t('offline.description')}
-        />
+        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
       ) : (
-      <View style={styles.body}>
-        <View style={styles.hero}>
-          <View
-            style={[
-              styles.heroCircle,
-              { backgroundColor: `${tokens.statusBad}24` },
-            ]}
-          >
-            <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+        <View style={styles.body}>
+          <View style={styles.hero}>
+            <View
+              style={[
+                styles.heroCircle,
+                { backgroundColor: `${tokens.statusBad}24` },
+              ]}
+            >
+              <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+            </View>
+            <View style={styles.copy}>
+              <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
+              <Text style={[styles.description, { color: tokens.fg2 }]}>
+                {t('profile.deleteAccount.warningDetail')}
+              </Text>
+            </View>
           </View>
-          <View style={styles.copy}>
-            <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
-            <Text style={[styles.description, { color: tokens.fg2 }]}>
-              {t('profile.deleteAccount.warningDetail')}
+          {error ? (
+            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
+              {error}
             </Text>
+          ) : null}
+          <View style={styles.actions}>
+            <PillButton
+              variant="destructive"
+              onClick={() => void handleRequestDeletion()}
+              disabled={loading}
+              loading={loading}
+            >
+              {t('profile.deleteAccount.sendCode')}
+            </PillButton>
+            <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
+              {t('common.cancel')}
+            </PillButton>
           </View>
         </View>
-        {error ? (
-          <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
-            {error}
-          </Text>
-        ) : null}
-        <View style={styles.actions}>
-          <PillButton
-            variant="destructive"
-            onClick={() => void handleRequestDeletion()}
-            disabled={loading}
-            loading={loading}
-          >
-            {t('profile.deleteAccount.sendCode')}
-          </PillButton>
-          <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
-        </View>
-      </View>
       )}
     </Sheet>
   )

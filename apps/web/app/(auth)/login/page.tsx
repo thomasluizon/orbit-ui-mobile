@@ -1,6 +1,6 @@
 'use client'
 
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { useLoginFlow } from './use-login-flow'
@@ -55,11 +55,7 @@ export default function LoginPage() {
         <LoginSuccessMessage message={successMessage} motionPreset={feedbackMotion} />
 
         {!isOnline && (
-          <OfflineUnavailableState
-            title={t('offline.title')}
-            description={t('offline.description')}
-            compact
-          />
+          <ErrorState message={t('offline.description')} />
         )}
 
         <LoginStepStage

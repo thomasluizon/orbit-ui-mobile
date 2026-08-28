@@ -1,19 +1,21 @@
-import { Shield } from '@/components/ui/icons'
+import type { CapacityNoticeProps } from '@orbit/shared/contracts/feedback'
 
-export function CapacityNotice({ message }: Readonly<{ message: string }>) {
+/** A neutral boundary and the one action that changes it. */
+export function CapacityNotice({ message, body, action }: Readonly<CapacityNoticeProps>) {
   return (
-    <aside
-      className="flex items-start"
-      style={{
-        gap: 12,
-        padding: 16,
-        borderRadius: 16,
-        background: 'var(--bg-well)',
-        color: 'var(--fg-2)',
-      }}
+    <div
+      className="flex flex-col gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4 text-[var(--fg-1)]"
+      data-capacity-notice
     >
-      <Shield size={20} strokeWidth={1.5} aria-hidden="true" />
-      <p style={{ fontSize: 14, lineHeight: 1.55 }}>{message}</p>
-    </aside>
+      <p className="text-base font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
+        {message}
+      </p>
+      {body ? (
+        <p className="text-sm leading-5 text-[var(--fg-3)]" style={{ fontFamily: 'var(--font-sans)' }}>
+          {body}
+        </p>
+      ) : null}
+      {action ? <div data-capacity-notice-action>{action}</div> : null}
+    </div>
   )
 }

@@ -4,18 +4,8 @@ import { CalendarDays, Snowflake } from '@/components/ui/icons'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { DayStrip } from '@/components/dates/day-strip'
 import { getStreakTierLabelKey } from '@orbit/shared/utils'
-
-const frozenBadgeStyle = {
-  top: 1,
-  zIndex: 2,
-  width: 17,
-  height: 17,
-  borderRadius: '50% 50% 50% 0',
-  transform: 'rotate(45deg)',
-  background: 'var(--status-frozen)',
-  boxShadow: 'var(--shadow-1)',
-}
 
 type StreakDayView = {
   dateStr: string
@@ -66,10 +56,6 @@ export function StreakStatsRow({
   )
 }
 
-function isInRun(status: StreakDayView['status']): boolean {
-  return status === 'active' || status === 'frozen'
-}
-
 interface StreakTimelineCardProps {
   t: TranslationFn
   weekDays: StreakDayView[]
@@ -90,38 +76,19 @@ export function StreakTimelineCard({
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
           }}
         >
-          <div
-            className="grid"
-            style={{ gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8 }}
-          >
-            {weekDays.map((day) => (
-              <span
-                key={day.dateStr}
-                className="text-center uppercase"
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  // react-doctor-disable-next-line no-tiny-text -- intentional uppercase mono weekday-header eyebrow (DESIGN.md meta/eyebrow scale), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-                  fontSize: 11,
-                  fontWeight: 500,
-                  letterSpacing: '0.04em',
-                  color: 'var(--fg-3)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {day.dayLabel}
-              </span>
-            ))}
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
-            {weekDays.map((day, index) => (
-              <StreakDayCell
-                key={day.dateStr}
-                day={day}
-                runStart={isInRun(day.status) && (index === 0 || !isInRun(weekDays[index - 1]!.status))}
-                runEnd={isInRun(day.status) && (index === weekDays.length - 1 || !isInRun(weekDays[index + 1]!.status))}
-              />
-            ))}
-          </div>
+          <DayStrip
+            scope="account"
+            days={weekDays.map((day) => day.status)}
+            labels={weekDays.map((day) => `${day.dayLabel} ${day.dayNum}`)}
+            words={{
+              active: t('streakDisplay.detail.dayActive'),
+              frozen: t('streakDisplay.detail.dayFrozen'),
+              missed: t('streakDisplay.detail.dayMissed'),
+              today: t('calendar.legend.today'),
+            }}
+            label={t('streakDisplay.detail.thisWeek')}
+            size={24}
+          />
           <div
             className="flex flex-wrap items-center justify-center"
             style={{ gap: 16, paddingTop: 12 }}
@@ -138,75 +105,6 @@ export function StreakTimelineCard({
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function StreakDayCell({
-  day,
-  runStart,
-  runEnd,
-}: Readonly<{ day: StreakDayView; runStart: boolean; runEnd: boolean }>) {
-  const inRun = isInRun(day.status)
-
-  let numeralColor = 'var(--fg-3)'
-  if (day.status === 'active' || day.status === 'frozen' || day.status === 'today') {
-    numeralColor = 'var(--fg-1)'
-  }
-
-  return (
-    <div
-      className="relative flex items-center justify-center"
-      style={{ height: 42 }}
-    >
-      {inRun && (
-        <span
-          aria-hidden="true"
-          className="absolute"
-          style={{
-            top: 8,
-            bottom: 8,
-            left: runStart ? 5 : 0,
-            right: runEnd ? 5 : 0,
-            background: 'color-mix(in srgb, var(--status-overdue) 16%, transparent)',
-            borderTopLeftRadius: runStart ? 999 : 0,
-            borderBottomLeftRadius: runStart ? 999 : 0,
-            borderTopRightRadius: runEnd ? 999 : 0,
-            borderBottomRightRadius: runEnd ? 999 : 0,
-          }}
-        />
-      )}
-      <span
-        className="relative inline-flex items-center justify-center rounded-full"
-        style={{
-          zIndex: 1,
-          width: 28,
-          height: 28,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 14,
-          fontWeight: day.status === 'today' ? 700 : 500,
-          fontVariantNumeric: 'tabular-nums',
-          color: numeralColor,
-          boxShadow:
-            day.status === 'today' ? 'inset 0 0 0 1.5px var(--primary)' : 'none',
-        }}
-      >
-        {day.dayNum}
-      </span>
-      {day.status === 'frozen' && (
-        <span
-          aria-hidden="true"
-          className="absolute inline-flex items-center justify-center"
-          style={frozenBadgeStyle}
-        >
-          <Snowflake
-            size={10}
-            strokeWidth={2.2}
-            color="var(--bg)"
-            style={{ transform: 'rotate(-45deg)' }}
-          />
-        </span>
-      )}
     </div>
   )
 }

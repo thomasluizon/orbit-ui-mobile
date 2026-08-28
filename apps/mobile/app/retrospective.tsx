@@ -28,7 +28,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { RetrospectiveLockedYearly } from './retrospective-locked-states'
 import { RetrospectiveContent } from './retrospective-view'
 import { styles } from './retrospective-styles'
@@ -178,11 +178,7 @@ export default function RetrospectiveScreen() {
         <>
           {!isOnline ? (
             <View style={styles.offlinePad}>
-              <OfflineUnavailableState
-                title={t('offline.title')}
-                description={t('offline.description')}
-                compact
-              />
+              <ErrorState message={t('offline.description')} />
             </View>
           ) : null}
           <View

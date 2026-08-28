@@ -11,7 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -103,7 +103,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <View style={styles.suggestionBlock}>
           <Text style={styles.bodyText}>{t('habits.reschedule.loading')}</Text>
-          <SkeletonLine height={76} style={styles.loadingCard} />
+          <Skeleton variant="settings" label={t('habits.reschedule.loading')} />
         </View>
       )
     }

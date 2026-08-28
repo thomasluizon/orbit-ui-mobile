@@ -9,7 +9,7 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/app/actions/auth'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
 
@@ -27,6 +27,7 @@ export function DeleteAccountModal({
   const t = useTranslations()
   const router = useRouter()
   const { displayDate } = useDateFormat()
+  const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -53,8 +54,10 @@ export function DeleteAccountModal({
     try {
       await requestDeletion()
       beginStepUpChallenge('delete')
-      handleOpenChange(false)
-      router.push('/step-up?operation=delete')
+      closeSheet(() => {
+        handleOpenChange(false)
+        router.push('/step-up?operation=delete')
+      })
     } catch (caught: unknown) {
       setError(
         getFriendlyErrorMessage(
@@ -72,6 +75,7 @@ export function DeleteAccountModal({
 
   return (
     <Sheet
+      ref={sheetRef}
       open
       onClose={() => handleOpenChange(false)}
       title={t('profile.deleteAccount.headingAreYouSure')}
@@ -112,7 +116,7 @@ export function DeleteAccountModal({
           >
             {t('profile.deleteAccount.sendCode')}
           </PillButton>
-          <PillButton variant="ghost" disabled={loading} onClick={() => handleOpenChange(false)}>
+          <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
         </div>
