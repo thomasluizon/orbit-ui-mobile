@@ -32,18 +32,9 @@ describe('auth server actions', () => {
     })
   }
 
-  function mock204() {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 204,
-      json: () => Promise.reject(new Error('No body')),
-    })
-  }
-
-
   describe('requestDeletion', () => {
     it('sends POST to /api/auth/request-deletion', async () => {
-      mock204()
+      mockApiResponse({ message: 'Deletion code sent' })
 
       await requestDeletion()
 
@@ -53,7 +44,7 @@ describe('auth server actions', () => {
     })
 
     it('includes auth headers', async () => {
-      mock204()
+      mockApiResponse({ message: 'Deletion code sent' })
 
       await requestDeletion()
 
@@ -77,7 +68,10 @@ describe('auth server actions', () => {
 
   describe('confirmDeletion', () => {
     it('sends POST to /api/auth/confirm-deletion with code', async () => {
-      mockApiResponse({ scheduledDeletionAt: '2025-02-15T00:00:00Z' })
+      mockApiResponse({
+        message: 'Account deactivated',
+        scheduledDeletionAt: '2025-02-15T00:00:00Z',
+      })
 
       const result = await confirmDeletion('123456')
 
@@ -89,7 +83,10 @@ describe('auth server actions', () => {
     })
 
     it('includes auth headers', async () => {
-      mockApiResponse({ scheduledDeletionAt: '2025-02-15T00:00:00Z' })
+      mockApiResponse({
+        message: 'Account deactivated',
+        scheduledDeletionAt: '2025-02-15T00:00:00Z',
+      })
 
       await confirmDeletion('123456')
 
@@ -97,12 +94,18 @@ describe('auth server actions', () => {
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
     })
 
-    it('returns empty object when response is 204', async () => {
-      mock204()
+    it('rejects a bodyless success response', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 204,
+        json: () => Promise.reject(new Error('No body')),
+      })
 
-      const result = await confirmDeletion('123456')
-
-      expect(result).toEqual({})
+      await expect(confirmDeletion('123456')).rejects.toMatchObject({
+        name: 'ApiClientError',
+        status: 502,
+        code: 'INVALID_RESPONSE_SCHEMA',
+      })
     })
 
     it('throws on invalid code', async () => {
