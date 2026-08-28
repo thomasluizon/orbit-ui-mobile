@@ -3,12 +3,13 @@ import { render } from '@testing-library/react'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
 describe('SatelliteGlyph', () => {
-  it('renders a 96px svg by default', () => {
+  it('renders the Orbit mark adapter at 96px by default', () => {
     const { container } = render(<SatelliteGlyph />)
     const svg = container.querySelector('svg')
     expect(svg).not.toBeNull()
     expect(svg).toHaveAttribute('width', '96')
     expect(svg).toHaveAttribute('height', '96')
+    expect(svg).toHaveAttribute('data-asset', 'orbit-mark')
   })
 
   it('respects the size prop', () => {

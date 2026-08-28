@@ -5,7 +5,7 @@ import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 const TestRenderer = require('react-test-renderer')
 
 describe('SatelliteGlyph (mobile)', () => {
-  it('renders the satellite svg with default size 96', () => {
+  it('renders the Orbit mark adapter with default size 96', () => {
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(<SatelliteGlyph />)
@@ -13,7 +13,7 @@ describe('SatelliteGlyph (mobile)', () => {
     const svg = tree.root.findByType('Svg')
     expect(svg.props.width).toBe(96)
     expect(svg.props.height).toBe(96)
-    expect(tree.root.findAllByType('Circle')).toHaveLength(4)
+    expect(svg.props.testID).toBe('orbit-mark')
   })
 
   it('respects the size prop', () => {

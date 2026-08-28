@@ -67,6 +67,12 @@ These back required CI checks. They fail a merge.
 | `orca-web-port.mjs` | Assigns a deterministic web port in the 3100-4099 window per Orca worktree and records it in the ignored `.orca/web-port`. Root stays on 3000; the database and API stay shared on 5432 and 5000. | `node tools/orca-web-port.mjs` (`--setup`) |
 | `android-emulator.mjs` | Brings the Orbit Android emulator to a ready state. Creates `Orbit_Pixel_9_API_35` when absent, using only hardware values measured to boot. Every serial is resolved to its own AVD before it counts as ready, so an unrelated emulator is never reported or installed to, and a serial it cannot identify is never used. A running AVD is reused only while it still resolves `--verify-host`; otherwise it is restarted with `--dns`, because an emulator someone else started inherits the host resolver that failed to resolve `api.useorbit.org`. Readiness comes from `sys.boot_completed`, never from the launch succeeding. | `node tools/android-emulator.mjs` (`--status`, `--avd`, `--dns`, `--verify-host`, `--timeout`, `--json`) |
 
+## Brand assets
+
+| Tool | What it does | Usage |
+|---|---|---|
+| `generate-brand-assets.mjs` | Regenerates the canonical brand PNGs and platform assets from `orbit-mark.svg`, `orbit-mark-accent.svg`, and the native `orbit-mark-16.svg` redraw. It validates every source before rendering. | `node tools/generate-brand-assets.mjs --write` |
+
 ## Harness self-test
 
 | Tool | What it does | Usage |
