@@ -2,7 +2,7 @@ import { View, Text } from "react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { FrequencyUnit } from "@orbit/shared/types/habit";
-import { AppSelect } from "@/components/ui/app-select";
+import { SelectionField } from "@/components/ui/selection-field";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import type { HabitFormControl, HabitFormStyles } from "./types";
 
@@ -71,7 +71,7 @@ export function FrequencyDetailSection({
           </View>
           <View style={styles.frequencyField}>
             <Text style={styles.label}>{t("habits.form.unit")}</Text>
-            <AppSelect
+            <SelectionField
               value={watchedFrequencyUnit ?? null}
               options={frequencyUnits.map((unit) => ({
                 value: unit.value,

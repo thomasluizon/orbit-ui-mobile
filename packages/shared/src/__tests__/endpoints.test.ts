@@ -179,6 +179,8 @@ describe('API endpoints', () => {
     it('has correct static paths', () => {
       expect(API.apiKeys.list).toBe('/api/api-keys')
       expect(API.apiKeys.create).toBe('/api/api-keys')
+      expect(API.apiKeys.requestCreationChallenge).toBe('/api/api-keys/creation-challenge')
+      expect(API.apiKeys.confirmCreationChallenge).toBe('/api/api-keys/creation-challenge/confirm')
     })
 
     it('has correct parameterized paths', () => {

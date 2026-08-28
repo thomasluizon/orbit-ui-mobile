@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 
 interface ShowRecurringToggleProps {
   checked: boolean
@@ -19,9 +19,9 @@ export function ShowRecurringToggle({
   return (
     <span className="flex shrink-0 items-center gap-2" style={{ minHeight: 44 }}>
       <Switch
-        on={checked}
-        onToggle={() => onChange(!checked)}
-        ariaLabel={t('calendar.showRecurring')}
+        checked={checked}
+        onChange={onChange}
+        label={t('calendar.showRecurring')}
       />
       <button
         type="button"

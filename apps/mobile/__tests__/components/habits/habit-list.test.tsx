@@ -27,6 +27,7 @@ function flattenText(node: unknown): string {
 
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
+const deleteMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
 const toggleSelectMode = vi.fn()
@@ -97,7 +98,7 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
   useSkipHabit: () => ({ mutateAsync: skipMutateAsync }),
-  useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -170,10 +171,7 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
   RescheduleSheet: () => null,
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title }: any) =>
-    open ? React.createElement('BottomSheetModal', { title }, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({
@@ -231,6 +229,23 @@ function seedHabits(habits: NormalizedHabit[]) {
   }
 }
 
+/** The sheet double renders every sheet as a `Sheet` host node carrying its title. */
+function confirmationSheets(tree: any, title: string) {
+  return tree.root.findAll((node: any) => node.type === 'Sheet' && node.props?.title === title)
+}
+
+function pressConfirm(tree: any, label: string) {
+  const button = tree.root.findAll(
+    (node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      node.findAll((child: any) => child.type === 'Text' && child.props.children === label)
+        .length > 0,
+  )
+  const target = button.at(-1)
+  if (!target) throw new Error(`Confirm action not found: ${label}`)
+  target.props.onPress()
+}
+
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -255,7 +270,7 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
-  it('skips a recurring habit immediately', async () => {
+  it('skips a recurring habit immediately without confirmation', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
 
@@ -282,6 +297,50 @@ describe('HabitList', () => {
     })
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
+  })
+
+  /**
+   * Ticket #42 is the product authority: a confirmation belongs to an
+   * irreversible act only. Skipping is reversible, so it acts on one press;
+   * deleting is not, so it asks first.
+   */
+  it('asks before the irreversible delete, unlike the reversible skip', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    await TestRenderer.act(async () => {
+      habitCard?.props.actions.onDelete()
+      await Promise.resolve()
+    })
+
+    expect(deleteMutateAsync).not.toHaveBeenCalled()
+    const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
+    expect(confirmation).toBeDefined()
+
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'common.delete')
+      await Promise.resolve()
+    })
+
+    expect(deleteMutateAsync).toHaveBeenCalledWith('habit-1')
   })
 
   it('omits the habit description from the canonical row', () => {
@@ -320,7 +379,7 @@ describe('HabitList', () => {
     expect(descriptionNodes).toHaveLength(0)
   })
 
-  it('postpones a one-time task immediately', async () => {
+  it('skips a one-time task immediately without confirmation', async () => {
     const oneTimeTask = createMockHabit({
       id: 'habit-1',
       title: 'Pay bill',
@@ -349,8 +408,11 @@ describe('HabitList', () => {
       habitCard?.props.actions.onSkip()
       await Promise.resolve()
     })
+
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
+
 
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
@@ -983,7 +1045,7 @@ describe('HabitList', () => {
     expect(exerciseCard).toBeTruthy()
   })
 
-  it('shows a force-log confirmation before logging an incomplete parent', async () => {
+  it('logs an incomplete parent immediately without confirmation', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1013,24 +1075,16 @@ describe('HabitList', () => {
       .findAllByType(HabitRow)
       .find((node: any) => node.props.habit.id === 'parent')
 
-    TestRenderer.act(() => {
-      parentCard?.props.actions.onForceLogParent()
-    })
-
-    const forceLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.forceLogTitle')
-
-    expect(forceLogDialog).toBeTruthy()
-
     await TestRenderer.act(async () => {
-      await forceLogDialog.props.onConfirm()
+      parentCard?.props.actions.onForceLogParent()
+      await Promise.resolve()
     })
 
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
-  it('prompts the parent immediately when the last child is marked completed', () => {
+  it('settles the parent immediately when the last child is marked completed', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1060,19 +1114,17 @@ describe('HabitList', () => {
       )
     })
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
     })
 
-    const autoLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(autoLogDialog?.props.description).toContain('"Parent"')
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
-  it('prompts the parent when the final child is logged before the snapshot reflects its completion', () => {
+  it('settles the parent when the final child is logged before the snapshot reflects completion', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1108,19 +1160,17 @@ describe('HabitList', () => {
       )
     })
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child-b')
       ref.current?.checkAndPromptParentLog('child-b')
+      await Promise.resolve()
     })
 
-    const autoLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(autoLogDialog?.props.description).toContain('"Parent"')
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
-  it('prompts an overdue parent when the last child is marked completed', () => {
+  it('settles an overdue parent when the last child is marked completed', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1152,16 +1202,14 @@ describe('HabitList', () => {
       )
     })
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
     })
 
-    const autoLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(autoLogDialog?.props.description).toContain('"Parent"')
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
   it('does not prompt a parent that is only due in the future', () => {
@@ -1200,14 +1248,10 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    const autoLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(autoLogDialog).toBeUndefined()
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
-  it('re-prompts the next ancestor after confirming an auto-log parent action', async () => {
+  it('settles the next ancestor after automatically logging its completed child parent', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',
       title: 'Grandparent',
@@ -1244,32 +1288,18 @@ describe('HabitList', () => {
       )
     })
 
-    TestRenderer.act(() => {
-      ref.current?.checkAndPromptParentLog('child')
-    })
-
-    let autoLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(autoLogDialog?.props.description).toContain('"Parent"')
-
     await TestRenderer.act(async () => {
-      await autoLogDialog.props.onConfirm()
+      ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
       await Promise.resolve()
     })
 
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-
-    autoLogDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(autoLogDialog).toBeTruthy()
-    expect(autoLogDialog?.props.description).toContain('"Grandparent"')
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
-  it('prompts to skip the parent once every sub-habit is skipped', async () => {
+  it('skips the parent once every sub-habit is skipped', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1301,41 +1331,14 @@ describe('HabitList', () => {
 
     await skipChild('child-a')
 
-    expect(
-      tree.root
-        .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
-    ).toBeUndefined()
+    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
 
     await skipChild('child-b')
 
-    const skipParentDialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoSkipParentTitle')
-
-    expect(skipParentDialog?.props.description).toContain('"Parent"')
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
-
-    TestRenderer.act(() => skipParentDialog?.props.onCancel())
-    TestRenderer.act(() => {
-      tree.update(
-        <HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
-          showCompleted onCreatePress={vi.fn()} />,
-      )
-    })
-    await skipChild('child-b')
-    expect(
-      tree.root
-        .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
-    ).toBeUndefined()
-    await skipChild('child-a')
-    expect(
-      tree.root
-        .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
-    ).toBeTruthy()
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
   it('clears the recently-completed timer on unmount so it never fires after teardown', () => {
@@ -1584,7 +1587,7 @@ describe('HabitList', () => {
     expect(onLog).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the parent prompt exactly once when several siblings complete in one burst', () => {
+  it('settles the parent exactly once when several siblings complete in one burst', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1611,37 +1614,25 @@ describe('HabitList', () => {
       )
     })
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog('child-a')
       ref.current?.checkAndPromptParentLog('child-b')
       ref.current?.checkAndPromptParentLog('child-c')
+      await Promise.resolve()
     })
 
-    const openDialogs = tree.root
-      .findAllByType('ConfirmDialog')
-      .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
 
-    expect(openDialogs).toHaveLength(1)
-
-    TestRenderer.act(() => {
-      const dialog = tree.root
-        .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-      dialog?.props.onCancel()
-    })
-
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog('child-a')
+      await Promise.resolve()
     })
 
-    const reopenedDialogs = tree.root
-      .findAllByType('ConfirmDialog')
-      .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
-
-    expect(reopenedDialogs).toHaveLength(0)
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
   })
 
-  it('preserves dismissed prompts through refetches until progress becomes incomplete', () => {
+  it('allows parent settlement again after progress becomes incomplete', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
     seedHabits([parent, child])
@@ -1654,17 +1645,24 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
-    const findDialog = () => tree.root.findAllByType('ConfirmDialog').find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
-    TestRenderer.act(() => findDialog()?.props.onCancel())
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
+    })
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch()
-    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
-    expect(findDialog()).toBeUndefined()
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
+    })
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch(false)
     refetch()
-    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
-    expect(findDialog()).toBeTruthy()
-
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
+    })
+    expect(logMutateAsync).toHaveBeenCalledTimes(2)
   })
 
   describe('today view scroll offset wiring', () => {

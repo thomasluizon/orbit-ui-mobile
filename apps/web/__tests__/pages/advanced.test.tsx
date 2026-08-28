@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
+const navigationMocks = vi.hoisted(() => ({
+  router: { push: vi.fn() },
+  searchParams: new URLSearchParams(),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => navigationMocks.router,
+  useSearchParams: () => navigationMocks.searchParams,
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -81,16 +90,7 @@ vi.mock('@orbit/shared/api', () => ({
   },
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, title }: { open: boolean; children: React.ReactNode; title: string }) => {
-    if (!open) return null
-    return (
-      <div data-testid="overlay" aria-label={title}>
-        {children}
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/create-api-key-modal', () => ({
   CreateApiKeyModal: ({ open }: { open: boolean }) => {
@@ -108,6 +108,7 @@ import AdvancedPage from '@/app/(app)/advanced/page'
 
 describe('AdvancedPage', () => {
   beforeEach(() => {
+    navigationMocks.router.push.mockClear()
     mockProfile = {
       id: 'u1',
       timeZone: 'America/New_York',
@@ -143,7 +144,7 @@ describe('AdvancedPage', () => {
     render(<AdvancedPage />)
     const widgetButton = screen.getByText('profile.widgetTitle').closest('button')!
     fireEvent.click(widgetButton)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('profile.widgetHow.title')).toBeInTheDocument()
   })
 

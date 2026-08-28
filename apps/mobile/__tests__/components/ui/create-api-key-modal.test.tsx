@@ -8,11 +8,6 @@ const clipboard = vi.hoisted(() => ({ setString: vi.fn() }))
 
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
 
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('View', null, children),
-}))
-
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
 }))
@@ -35,9 +30,9 @@ vi.mock('@/components/ui/pill-button', () => ({
     ),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
-  Switch: ({ onToggle, accessibilityLabel }: { onToggle: () => void; accessibilityLabel: string }) =>
-    React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel, onPress: onToggle }),
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ onChange, checked, label }: { onChange: (checked: boolean) => void; checked: boolean; label: string }) =>
+    React.createElement('Pressable', { accessibilityRole: 'switch', accessibilityLabel: label, onPress: () => onChange(!checked) }),
 }))
 
 interface TestNode {

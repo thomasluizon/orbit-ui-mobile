@@ -1,8 +1,9 @@
 import { View, Text } from "react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { AppDatePicker } from "@/components/ui/app-date-picker";
-import { AppTimePicker } from "@/components/ui/app-time-picker";
+import { DateField } from "@/components/ui/date-field";
+import { TimeField } from "@/components/ui/time-field";
+import type { Time24 } from "@orbit/shared/contracts/forms";
 import type { HabitFormControl, HabitFormStyles } from "./types";
 
 interface DueDateSectionProps {
@@ -28,18 +29,16 @@ export function DueDateSection({
     <View style={styles.dueDateRow}>
       <View style={[styles.fieldGroup, { flex: 1 }]}>
         <Text style={styles.label}>{t("habits.form.dueDate")}</Text>
-        <AppDatePicker
+        <DateField
           value={watchedDueDate}
           placeholder={t("common.selectDate")}
           onChange={onDueDateChange}
         />
       </View>
       <View style={[styles.fieldGroup, { flex: 1 }]}>
-        <Text style={styles.label}>{t("habits.form.dueTime")}</Text>
-        <AppTimePicker
-          value={watchedDueTime}
-          placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
-          accessibilityLabel={t("habits.form.dueTime")}
+        <TimeField
+          label={t("habits.form.dueTime")}
+          value={watchedDueTime as Time24 | ''}
           onChange={onDueTimeChange}
           onClear={onClearDueTime}
         />

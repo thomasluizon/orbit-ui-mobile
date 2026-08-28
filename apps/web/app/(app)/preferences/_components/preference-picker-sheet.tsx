@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { LANGUAGE_OPTIONS } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -50,28 +50,32 @@ export function PreferencePickerSheet({
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const selectAndClose = (apply: () => void) =>
+    closeSheet(() => {
+      onClose()
+      apply()
+    })
+
+  if (activePicker === null) return null
 
   return (
-    <AppOverlay
-      open={activePicker !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
-      title={activePicker ? pickerTitles[activePicker] : undefined}
-      description={activePicker ? pickerDescriptions[activePicker] : undefined}
-      footer={
+    <Sheet
+      ref={sheetRef}
+      open
+      onClose={onClose}
+      title={pickerTitles[activePicker]}
+      actions={
         activePicker === 'scheme' ? (
-          <PillButton
-            variant="secondary"
-
-            onClick={onClose}
-
-          >
+          <PillButton variant="secondary" onClick={() => closeSheet()}>
             {t('common.done')}
           </PillButton>
         ) : undefined
       }
     >
+      <p className="mb-3 text-sm text-[var(--fg-3)]">
+        {pickerDescriptions[activePicker]}
+      </p>
       {activePicker === 'language' &&
         LANGUAGE_OPTIONS.map((lang, index) => (
           <RadioRow
@@ -79,10 +83,7 @@ export function PreferencePickerSheet({
             label={lang.label}
             selected={mounted && selectedLanguage === lang.value}
             divider={index < LANGUAGE_OPTIONS.length - 1}
-            onClick={() => {
-              onClose()
-              onLanguageChange(lang.value)
-            }}
+            onClick={() => selectAndClose(() => onLanguageChange(lang.value))}
           />
         ))}
       {activePicker === 'theme' &&
@@ -92,10 +93,7 @@ export function PreferencePickerSheet({
             label={mode.label}
             selected={mounted && currentTheme === mode.value}
             divider={index < themeModeOptions.length - 1}
-            onClick={() => {
-              onClose()
-              onThemeModeChange(mode.value)
-            }}
+            onClick={() => selectAndClose(() => onThemeModeChange(mode.value))}
           />
         ))}
       {activePicker === 'scheme' &&
@@ -120,12 +118,9 @@ export function PreferencePickerSheet({
             label={option.label}
             selected={mounted && weekStartDay === option.value}
             divider={index < weekStartOptions.length - 1}
-            onClick={() => {
-              onClose()
-              onWeekStartChange(option.value)
-            }}
+            onClick={() => selectAndClose(() => onWeekStartChange(option.value))}
           />
         ))}
-    </AppOverlay>
+    </Sheet>
   )
 }

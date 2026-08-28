@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Check, Copy, Gift, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -57,7 +57,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
   }
 
   return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={t('referral.drawer.title')}>
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('referral.drawer.title')}>
       <div className="overlay-bleed">
         {isLoading && (
           <output
@@ -224,6 +224,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           </>
         )}
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

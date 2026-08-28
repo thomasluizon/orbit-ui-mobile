@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Lock, Smartphone } from '@/components/ui/icons'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -12,7 +13,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
@@ -21,9 +22,15 @@ import {
   McpConnectionInstructions,
   WidgetInfoOverlay,
 } from '@/components/advanced/advanced-sections'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { StepUp } from '@/components/ui/step-up'
+import { requestApiKeyCreationChallenge } from '@/app/actions/api-keys'
+import { beginStepUpChallenge } from '@/lib/step-up-storage'
 
 export default function AdvancedPage() {
   const t = useTranslations()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -31,6 +38,9 @@ export default function AdvancedPage() {
   const queryClient = useQueryClient()
 
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
+  const [showApiKeyStepUp, setShowApiKeyStepUp] = useState(false)
+  const [apiKeyStepUpBusy, setApiKeyStepUpBusy] = useState(false)
+  const [apiKeyStepUpError, setApiKeyStepUpError] = useState(false)
 
   const {
     apiKeysQuery,
@@ -51,6 +61,25 @@ export default function AdvancedPage() {
     queryClient,
     t,
   })
+
+  useEffect(() => {
+    if (searchParams.get('create-key') === '1') {
+      setCreateKeyModalOpen(true)
+    }
+  }, [searchParams, setCreateKeyModalOpen])
+
+  async function startApiKeyStepUp() {
+    setApiKeyStepUpBusy(true)
+    setApiKeyStepUpError(false)
+    try {
+      await requestApiKeyCreationChallenge()
+      beginStepUpChallenge('keys')
+      router.push('/step-up?operation=keys')
+    } catch {
+      setApiKeyStepUpError(true)
+      setApiKeyStepUpBusy(false)
+    }
+  }
 
   function formatKeyDate(dateStr: string): string {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
@@ -79,7 +108,7 @@ export default function AdvancedPage() {
               />
 
               <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
-              <div style={{ padding: '0 20px 14px' }}>
+              <div style={{ padding: '0 16px 12px' }}>
                 {!profile?.hasProAccess && (
                   <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>
                     <Link href="/upgrade" className="chip min-h-[44px]">
@@ -94,17 +123,34 @@ export default function AdvancedPage() {
                 </p>
               </div>
               {profile?.hasProAccess && (
-                <ApiKeysSection
-                  apiKeysQuery={apiKeysQuery}
-                  capabilitiesQuery={capabilitiesQuery}
-                  apiKeys={apiKeys}
-                  canCreateKey={canCreateKey}
-                  canCreateScopedKey={canCreateScopedKey}
-                  onCreateKey={() => setCreateKeyModalOpen(true)}
-                  onRevoke={setRevokingKeyId}
-                  formatKeyDate={formatKeyDate}
-                  t={t}
-                />
+                <>
+                  <ApiKeysSection
+                    apiKeysQuery={apiKeysQuery}
+                    capabilitiesQuery={capabilitiesQuery}
+                    apiKeys={apiKeys}
+                    canCreateKey={canCreateKey}
+                    canCreateScopedKey={canCreateScopedKey}
+                    onCreateKey={() => setShowApiKeyStepUp(true)}
+                    onRevoke={setRevokingKeyId}
+                    formatKeyDate={formatKeyDate}
+                    t={t}
+                  />
+                  {showApiKeyStepUp ? (
+                    <div className="px-4 pb-4">
+                      <StepUp
+                        message={t('stepUp.apiKeyHandoff')}
+                        actionLabel={t('stepUp.apiKeyHandoffAction')}
+                        onAction={() => void startApiKeyStepUp()}
+                        busy={apiKeyStepUpBusy}
+                      />
+                      {apiKeyStepUpError ? (
+                        <p role="alert" className="pt-2 text-sm text-[var(--status-bad-text)]">
+                          {t('stepUp.requestError')}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
               )}
             </div>
 
@@ -123,18 +169,17 @@ export default function AdvancedPage() {
           apiError={createKeyError}
         />
 
-        <ConfirmDialog
+        <ConfirmSheet
           open={revokingKeyId !== null}
-          onOpenChange={(open) => {
-            if (!open) setRevokingKeyId(null)
-          }}
           title={t('orbitMcp.revoke')}
-          description={t('orbitMcp.revokeConfirm')}
+          message={t('orbitMcp.revokeConfirm')}
           cancelLabel={t('orbitMcp.cancel')}
           confirmLabel={t('orbitMcp.confirm')}
-          variant="danger"
+          destructive
+          onCancel={() => setRevokingKeyId(null)}
           onConfirm={() => {
             if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+            setRevokingKeyId(null)
           }}
         />
       </div>

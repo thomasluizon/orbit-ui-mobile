@@ -4,7 +4,7 @@ import { X, Plus, Bell } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
-import { Switch } from "@/components/ui/settings-row";
+import { Switch } from "@/components/ui/switch";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
@@ -72,9 +72,9 @@ export function ReminderSection({
           </Text>
         </View>
         <Switch
-          on={reminderEnabled}
-          onToggle={onToggleReminder}
-          accessibilityLabel={t("habits.form.reminder")}
+          checked={reminderEnabled}
+          onChange={onToggleReminder}
+          label={t("habits.form.reminder")}
         />
       </View>
       {reminderEnabled && (

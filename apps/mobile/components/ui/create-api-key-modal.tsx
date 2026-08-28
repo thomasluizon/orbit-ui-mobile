@@ -11,12 +11,11 @@ import {
   MAX_API_KEY_NAME_LENGTH,
   parseApiKeyExpiryUtc,
 } from '@orbit/shared/validation'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import {
@@ -207,9 +206,9 @@ function ApiKeyCreateForm({
           {t('orbitMcp.readOnlyKeyLabel')}
         </Text>
         <Switch
-          on={isReadOnly}
-          onToggle={onToggleReadOnly}
-          accessibilityLabel={t('orbitMcp.readOnlyKeyLabel')}
+          checked={isReadOnly}
+          onChange={onToggleReadOnly}
+          label={t('orbitMcp.readOnlyKeyLabel')}
         />
       </View>
 
@@ -381,23 +380,15 @@ export function CreateApiKeyModal({
   }
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={() => onOpenChange(false)}
+    open ? (<Sheet
+      open
+      onClose={isRevealState ? undefined : () => onOpenChange(false)}
       title={
         isRevealState ? t('orbitMcp.revealHeading') : t('orbitMcp.createHeading')
       }
-      contentKey={isRevealState ? 'reveal' : 'create'}
-      snapPoints={['80%', '95%']}
-      canDismiss={!isRevealState}
-      contentManagesScroll
+        key={isRevealState ? 'reveal' : 'create'}
     >
-      <KeyboardAwareBottomSheetScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="always"
-      >
+      <View style={styles.content}>
         {isRevealState ? (
           <ApiKeyRevealPanel
             tokens={tokens}
@@ -435,7 +426,7 @@ export function CreateApiKeyModal({
             }}
           />
         )}
-      </KeyboardAwareBottomSheetScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }

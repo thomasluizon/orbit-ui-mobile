@@ -12,11 +12,11 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/app-time-picker', () => ({
-  AppTimePicker: (props: Record<string, unknown>) => React.createElement('AppTimePicker', props),
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: (props: Record<string, unknown>) => React.createElement('TimeField', props),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
+vi.mock('@/components/ui/switch', () => ({
   Switch: (props: Record<string, unknown>) => React.createElement('Switch', props),
 }))
 
@@ -71,7 +71,7 @@ function press(node: TestNode) {
 }
 
 function buttons(tree: TestTree): TestNode[] {
-  return tree.root.findAll((node) => node.props?.accessibilityRole === 'button')
+  return tree.root.findAll((node) => node.props.accessibilityRole === 'button')
 }
 
 function buttonWithLabel(tree: TestTree, label: string): TestNode | undefined {
@@ -127,7 +127,7 @@ describe('ScheduledReminderSection', () => {
   it('adds a valid same-day reminder and resets the form', () => {
     const { tree, onSetScheduledReminders } = render({ scheduledReminders: [] })
     press(buttons(tree).find((node) => !node.props.accessibilityLabel)!)
-    const picker = tree.root.findAll((node) => node.type === 'AppTimePicker')[0]!
+    const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
     TestRenderer.act(() => {
       ;(picker.props as { onChange: (value: string) => void }).onChange('09:00')
     })

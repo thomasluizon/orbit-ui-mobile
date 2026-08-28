@@ -12,8 +12,6 @@ interface ClarificationCardProps {
   entityName?: string | null
 }
 
-type IntlKey = Parameters<ReturnType<typeof useTranslations>>[0]
-
 export function ClarificationCard({
   clarificationRequest,
   entityName,

@@ -36,15 +36,7 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement(React.Fragment, null, children) : null,
-}))
-
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: { children: React.ReactNode }) =>
-    React.createElement(React.Fragment, null, children),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: Record<string, unknown>) =>
@@ -65,7 +57,7 @@ vi.mock('@/components/ui/pill-button', () => ({
     ),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
+vi.mock('@/components/ui/switch', () => ({
   Switch: () => null,
 }))
 

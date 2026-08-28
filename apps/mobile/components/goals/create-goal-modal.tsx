@@ -2,10 +2,10 @@ import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
@@ -44,6 +44,7 @@ interface CreateGoalRequest {
 
 export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -85,10 +86,11 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
 
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => {
-      resetForm()
-      onClose()
-    },
+    onDismiss: () =>
+      closeSheet(() => {
+        resetForm()
+        onClose()
+      }),
   })
 
   const fieldErrors = useMemo(() => {
@@ -153,14 +155,17 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
       if (deadline) request.deadline = deadline
 
       await createGoal.mutateAsync(request)
-      onClose()
-      resetForm()
+      closeSheet(() => {
+        onClose()
+        resetForm()
+      })
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'),
       )
     }
   }, [
+    closeSheet,
     createGoal,
     deadline,
     description,
@@ -175,22 +180,14 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
-        onClose={onClose}
-        title={t('goals.create')}
-        snapPoints={['80%', '95%']}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
-        contentManagesScroll
+        title={t('goals.create')}
       >
-        <KeyboardAwareBottomSheetScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.form}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
-        >
+        <View style={styles.form}>
           <View>
             <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>
             <BottomSheetAppTextInput
@@ -258,20 +255,12 @@ export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps
               {t('goals.create')}
             </PillButton>
           </View>
-        </KeyboardAwareBottomSheetScrollView>
-      </BottomSheetModal>
-      <ConfirmDialog
+        </View>
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

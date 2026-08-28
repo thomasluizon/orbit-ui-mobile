@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -25,7 +25,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { useApiKeyManagement } from './advanced-api-keys'
 import {
   ApiKeysSection,
@@ -33,6 +33,12 @@ import {
   WidgetInfoSheet,
 } from './advanced-sections'
 import { styles, type Tokens } from './advanced-styles'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { StepUp } from '@/components/ui/step-up'
+import { API } from '@orbit/shared/api'
+import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
+import { apiClient } from '@/lib/api-client'
+import { beginStepUpChallenge } from '@/lib/step-up-storage'
 
 function sectionEntrance(index: number) {
   return FadeInDown.duration(280)
@@ -73,6 +79,7 @@ function McpUpgradeChip({
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
+  const params = useLocalSearchParams<{ 'create-key'?: string | string[] }>()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const queryClient = useQueryClient()
@@ -85,6 +92,12 @@ export default function AdvancedScreen() {
   const { isOnline } = useOffline()
 
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
+  const [showApiKeyStepUp, setShowApiKeyStepUp] = useState(false)
+  const [apiKeyStepUpBusy, setApiKeyStepUpBusy] = useState(false)
+  const [apiKeyStepUpError, setApiKeyStepUpError] = useState(false)
+  const createKeyParam = Array.isArray(params['create-key'])
+    ? params['create-key'][0]
+    : params['create-key']
 
   const {
     apiKeysQuery,
@@ -102,10 +115,28 @@ export default function AdvancedScreen() {
     handleCreateKey,
   } = useApiKeyManagement({
     hasProAccess: profile?.hasProAccess ?? false,
+    initialCreateKeyModalOpen: createKeyParam === '1',
     isOnline,
     queryClient,
     t,
   })
+
+  async function startApiKeyStepUp() {
+    setApiKeyStepUpBusy(true)
+    setApiKeyStepUpError(false)
+    try {
+      await apiClient(
+        API.apiKeys.requestCreationChallenge,
+        { method: 'POST' },
+        stepUpMessageResponseSchema,
+      )
+      await beginStepUpChallenge('keys')
+      router.push('/step-up?operation=keys')
+    } catch {
+      setApiKeyStepUpError(true)
+      setApiKeyStepUpBusy(false)
+    }
+  }
 
   function formatKeyDate(dateStr: string): string {
     return formatDistanceToNow(parseISO(dateStr), {
@@ -166,12 +197,31 @@ export default function AdvancedScreen() {
                 apiKeys={apiKeys}
                 canCreateKey={canCreateKey}
                 canCreateScopedKey={canCreateScopedKey}
-                onCreateKey={() => setCreateKeyModalOpen(true)}
+                onCreateKey={() => setShowApiKeyStepUp(true)}
                 onRevoke={setRevokingKeyId}
                 formatKeyDate={formatKeyDate}
                 t={t}
                 tokens={tokens}
               />
+
+              {showApiKeyStepUp ? (
+                <View style={localStyles.stepUpWrap}>
+                  <StepUp
+                    message={t('stepUp.apiKeyHandoff')}
+                    actionLabel={t('stepUp.apiKeyHandoffAction')}
+                    onAction={() => void startApiKeyStepUp()}
+                    busy={apiKeyStepUpBusy}
+                  />
+                  {apiKeyStepUpError ? (
+                    <Text
+                      accessibilityRole="alert"
+                      style={[localStyles.stepUpError, { color: tokens.statusBadText }]}
+                    >
+                      {t('stepUp.requestError')}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               <McpConnectionInstructions t={t} tokens={tokens} />
             </>
@@ -188,17 +238,17 @@ export default function AdvancedScreen() {
         tokens={tokens}
       />
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={revokingKeyId !== null}
-        onOpenChange={(open) => {
-          if (!open) setRevokingKeyId(null)
-        }}
         title={t('orbitMcp.revoke')}
-        description={t('orbitMcp.revokeConfirm')}
+        message={t('orbitMcp.revokeConfirm')}
         cancelLabel={t('orbitMcp.cancel')}
         confirmLabel={t('orbitMcp.confirm')}
+        destructive
+        onCancel={() => setRevokingKeyId(null)}
         onConfirm={() => {
           if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+          setRevokingKeyId(null)
         }}
       />
 
@@ -215,8 +265,8 @@ export default function AdvancedScreen() {
 
 const localStyles = StyleSheet.create({
   mcpIntro: {
-    paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   upgradeRow: {
     flexDirection: 'row',
@@ -227,5 +277,15 @@ const localStyles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 21,
+  },
+  stepUpWrap: {
+    gap: 8,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  stepUpError: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
   },
 })

@@ -4,7 +4,8 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { CalendarSyncStyles } from './calendar-sync-styles'
@@ -107,9 +108,9 @@ export function CalendarPickerSection({
               divider={index < calendars.length - 1}
             >
               <Switch
-                on={calendar.isSynced}
-                onToggle={() => handleToggle(calendar.id, !calendar.isSynced)}
-                accessibilityLabel={t('calendar.calendars.toggleLabel', {
+                checked={calendar.isSynced}
+                onChange={(checked) => handleToggle(calendar.id, checked)}
+                label={t('calendar.calendars.toggleLabel', {
                   name: calendar.name,
                 })}
               />

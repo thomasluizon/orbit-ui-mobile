@@ -11,7 +11,7 @@ import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -204,32 +204,35 @@ export function OnboardingCreateGoal({
         {t('onboarding.flow.createGoal.subtitle')}
       </Text>
 
-      <FieldInput
+      <Input
+        label={t('onboarding.flow.createGoal.descriptionLabel')}
         value={description}
-        onChangeText={setDescription}
+        onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
         maxLength={MAX_GOAL_TITLE_LENGTH}
-        editable={!isCreating}
+        disabled={isCreating}
       />
 
       <View style={styles.formRow}>
         <View style={styles.formCol}>
-          <FieldInput
+          <Input
+            label={t('onboarding.flow.createGoal.targetLabel')}
             mono
             value={targetValue}
-            onChangeText={setTargetValue}
+            onChange={setTargetValue}
             placeholder={t('onboarding.flow.createGoal.targetPlaceholder')}
-            keyboardType="numeric"
-            editable={!isCreating}
+            kind="number"
+            disabled={isCreating}
           />
         </View>
         <View style={styles.formCol}>
-          <FieldInput
+          <Input
+            label={t('onboarding.flow.createGoal.unitLabel')}
             value={unit}
-            onChangeText={setUnit}
+            onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
             maxLength={MAX_GOAL_UNIT_LENGTH}
-            editable={!isCreating}
+            disabled={isCreating}
           />
         </View>
       </View>

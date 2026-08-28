@@ -18,10 +18,9 @@ import {
   useDeleteNotification,
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
-import { Popover } from '@/components/ui/popover'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { NotificationDetailModal } from './notification-detail-modal'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { useAppToast } from '@/hooks/use-app-toast'
 import {
   cancelPendingNotificationDelete,
@@ -29,6 +28,8 @@ import {
   queuePendingNotificationDelete,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 const glyphIconMap = {
   streak: Flame,
@@ -162,6 +163,7 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
   const pendingDeleteIds = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
@@ -195,9 +197,11 @@ export function NotificationBell() {
   }, [cancelPendingDelete, deleteNotification, showQueued, t])
 
   function handleClick(notification: NotificationItem) {
-    setIsOpen(false)
-    setSelectedNotification(notification)
-    setIsModalOpen(true)
+    closeSheet(() => {
+      setIsOpen(false)
+      setSelectedNotification(notification)
+      setIsModalOpen(true)
+    })
     if (!notification.isRead) {
       markAsRead.mutate(notification.id)
     }
@@ -245,33 +249,14 @@ export function NotificationBell() {
 
   return (
     <>
-      <Popover
-        trigger={trigger}
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        placement="bottom-end"
-        className="w-80 md:w-[380px] max-h-96 md:max-h-[min(60dvh,520px)] flex flex-col overflow-hidden"
-      >
-        <div
-          className="flex items-center justify-between"
-          style={{
-            padding: '12px 16px',
-            gap: 12,
-            borderBottom: '1px solid var(--hairline)',
-          }}
-        >
-          <h3
-            className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              fontWeight: 500,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {t('notifications.title')}
-          </h3>
-          <div className="flex shrink-0 items-center gap-2">
+      {trigger}
+      {isOpen ? (
+        <Sheet
+          ref={sheetRef}
+          open
+          title={t('notifications.title')}
+          onClose={() => setIsOpen(false)}
+          actions={<div className="flex shrink-0 items-center gap-2">
             {visibleUnreadCount > 0 && (
               <button
                 type="button"
@@ -296,12 +281,11 @@ export function NotificationBell() {
                 <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
-          </div>
-        </div>
-
+          </div>}
+        >
         <ul
           id="notification-dropdown"
-          className="stagger-enter flex-1 overflow-y-auto list-none m-0 p-0"
+          className="stagger-enter list-none m-0 p-0"
           aria-label={t('notifications.title')}
         >
           {isLoading && visibleNotifications.length === 0 && (
@@ -361,7 +345,8 @@ export function NotificationBell() {
             </LazyMotion>
           )}
         </ul>
-      </Popover>
+        </Sheet>
+      ) : null}
 
       {selectedNotification && (
         <NotificationDetailModal
@@ -375,15 +360,17 @@ export function NotificationBell() {
           onDelete={handleModalDelete}
         />
       )}
-      <ConfirmDialog
+      <ConfirmSheet
         open={showDeleteAllConfirm}
-        onOpenChange={setShowDeleteAllConfirm}
         title={t('notifications.deleteAllConfirmTitle')}
-        description={t('notifications.deleteAllConfirmDescription')}
+        message={t('notifications.deleteAllConfirmDescription')}
         confirmLabel={t('notifications.deleteAll')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={() => deleteAll.mutate()}
-        variant="danger"
+        destructive
+        onCancel={() => setShowDeleteAllConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteAllConfirm(false)
+          deleteAll.mutate()
+        }}
       />
     </>
   )

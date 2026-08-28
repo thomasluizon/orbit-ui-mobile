@@ -1,7 +1,8 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -20,7 +21,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { setItem: vi.fn(async () => undefined), getItem: vi.fn(async () => null) },
+  default: { setItem: vi.fn(async () => { await Promise.resolve(); return undefined; }), getItem: vi.fn(async () => { await Promise.resolve(); return null; }) },
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -34,7 +35,7 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -45,10 +46,7 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement('Sheet', null, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children }: { children: React.ReactNode }) =>
@@ -56,11 +54,27 @@ vi.mock('@/components/ui/pill-button', () => ({
 }))
 
 function renderPrompt() {
-  let tree: { root: { findAllByType: (type: string) => unknown[] } } | null = null
+  let tree: any = null
   TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(AstraImportPrompt))
   })
   return tree!
+}
+
+function pressQuietAction(tree: any) {
+  const rows = tree.root.findAll(
+    (node: any) =>
+      node.type === 'Pressable' &&
+      node.findAll(
+        (child: any) =>
+          child.type === 'Text' && child.props.children === 'onboarding.wizard.importNotNow',
+      ).length > 0,
+  )
+  const target = rows.at(-1)
+  if (!target) throw new Error('Not now action not found')
+  TestRenderer.act(() => {
+    target.props.onPress()
+  })
 }
 
 function sheetCount(tree: { root: { findAllByType: (type: string) => unknown[] } }): number {
@@ -107,5 +121,36 @@ describe('AstraImportPrompt gating', () => {
     mocks.profile = baseProfile()
     mocks.pathname = '/chat'
     expect(sheetCount(renderPrompt())).toBe(0)
+  })
+})
+
+/**
+ * Not now used to call `markSeen()` straight through, which flipped the gating
+ * state and unmounted a presented TrueSheet. It has to wait for the dismissal.
+ */
+describe('AstraImportPrompt quiet dismissal', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('keeps the sheet mounted until the dismissal completes, then marks it seen', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    pressQuietAction(tree)
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
   })
 })

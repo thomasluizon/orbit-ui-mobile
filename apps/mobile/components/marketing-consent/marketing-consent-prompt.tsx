@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -47,6 +47,7 @@ export function MarketingConsentPrompt() {
 
   const isArmed = armedPrompt?.kind === 'consent'
   const [visible, setVisible] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const mutation = useMutation({
@@ -93,23 +94,20 @@ export function MarketingConsentPrompt() {
   }, [isArmed, celebrationInFlight, visible, markEngagementPrompted])
 
   function answer(enabled: boolean) {
-    setVisible(false)
-    mutation.mutate(enabled)
+    closeSheet(() => {
+      setVisible(false)
+      mutation.mutate(enabled)
+    })
   }
 
   return (
-    <BottomSheetModal
-      open={visible}
+    visible ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
-      snapPoints={['55%']}
-      contentManagesScroll
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         <Animated.Text entering={enterAnimation(70)} style={styles.eyebrow}>
           {t('marketingConsent.prompt.eyebrow')}
         </Animated.Text>
@@ -137,8 +135,8 @@ export function MarketingConsentPrompt() {
             </Text>
           </Pressable>
         </Animated.View>
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 

@@ -27,9 +27,11 @@ import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
-import { AppTimePicker } from '@/components/ui/app-time-picker'
+import { DateField } from '@/components/ui/date-field'
+import { TimeField } from '@/components/ui/time-field'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import { AppSelect } from '@/components/ui/app-select'
+import { Input } from '@/components/ui/input'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -374,20 +376,15 @@ export function HabitFormFields({
             <span id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
             </span>
-            <AppDatePicker
+            <DateField
               value={watchedDueDate}
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="habit-form-due-time" className="form-label">
-              {t('habits.form.dueTime')}
-            </label>
-            <AppTimePicker
-              id="habit-form-due-time"
-              placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-              value={watchedDueTime}
-              ariaLabel={t('habits.form.dueTime')}
+            <TimeField
+              label={t('habits.form.dueTime')}
+              value={watchedDueTime as Time24 | ''}
               onChange={(nextValue) => setValue('dueTime', nextValue, { shouldDirty: true })}
               onClear={() => {
                 setValue('dueTime', '', { shouldDirty: true })
@@ -575,19 +572,15 @@ export function HabitFormFields({
 
       <div className={`collapsible ${showAdvanced ? 'is-open' : ''}`}>
         <div className="flex flex-col" style={{ gap: 24, paddingTop: 8 }}>
-          <div className="space-y-2">
-            <label htmlFor="habit-form-description" className="form-label">
-              {t('habits.form.description')}
-            </label>
-            <textarea
-              id="habit-form-description"
-              placeholder={t('habits.form.descriptionPlaceholder')}
-              rows={2}
-              maxLength={MAX_HABIT_DESCRIPTION_LENGTH}
-              className="form-input resize-none"
-              {...register('description')}
-            />
-          </div>
+          <Input
+            label={t('habits.form.description')}
+            value={watchedDescription}
+            onChange={(value) => setValue('description', value, { shouldDirty: true })}
+            placeholder={t('habits.form.descriptionPlaceholder')}
+            multiline
+            rows={2}
+            maxLength={MAX_HABIT_DESCRIPTION_LENGTH}
+          />
 
           <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-checklist-label">
             <span id="habit-form-checklist-label" className="form-label">
@@ -608,14 +601,9 @@ export function HabitFormFields({
 
           {!!watchedDueTime && !isGeneral && (
             <div className="space-y-2">
-              <label htmlFor="habit-form-due-end-time" className="form-label">
-                {t('habits.form.dueEndTime')}
-              </label>
-              <AppTimePicker
-                id="habit-form-due-end-time"
-                placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                value={watchedDueEndTime}
-                ariaLabel={t('habits.form.dueEndTime')}
+              <TimeField
+                label={t('habits.form.dueEndTime')}
+                value={watchedDueEndTime as Time24 | ''}
                 onChange={(nextValue) => setValue('dueEndTime', nextValue, { shouldDirty: true })}
                 onClear={() => setValue('dueEndTime', '', { shouldDirty: true })}
               />
@@ -630,7 +618,7 @@ export function HabitFormFields({
                     {t('habits.form.endDate')}
                   </span>
                   <div className="flex items-center gap-2">
-                    <AppDatePicker
+                    <DateField
                       value={watchedEndDate}
                       onChange={(val) =>
                         setValue('endDate', val, { shouldDirty: true })

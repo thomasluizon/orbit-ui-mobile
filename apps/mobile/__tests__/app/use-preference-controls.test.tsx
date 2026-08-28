@@ -16,9 +16,9 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   applyScheme: vi.fn(),
   applyTheme: vi.fn(),
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   invalidateQueries: vi.fn(async () => {}),
-  getItem: vi.fn(async (_key: string): Promise<string | null> => null),
+  getItem: vi.fn((_key: string): Promise<string | null> => Promise.resolve(null)),
   setItem: vi.fn(async (_key: string, _value: string) => {}),
   removeItem: vi.fn(async (_key: string) => {}),
 }))
@@ -71,10 +71,27 @@ interface RenderedControls {
   rerender: () => Promise<void>
 }
 
-async function renderControls(): Promise<RenderedControls> {
+/** Stands in for the sheet: it holds the exit action until the test dismisses. */
+function createPickerSheetStub() {
+  let pendingExitAction: (() => void) | null = null
+  return {
+    closePicker(exitAction?: () => void) {
+      pendingExitAction = exitAction ?? null
+    },
+    dismiss() {
+      const exitAction = pendingExitAction
+      pendingExitAction = null
+      exitAction?.()
+    },
+  }
+}
+
+async function renderControls(
+  sheet = createPickerSheetStub(),
+): Promise<RenderedControls> {
   const ref: { current: PreferenceControls | null } = { current: null }
   function Harness() {
-    ref.current = usePreferenceControls()
+    ref.current = usePreferenceControls((exitAction) => sheet.closePicker(exitAction))
     return null
   }
   let root: { update: (element: React.ReactElement) => void }
@@ -104,7 +121,7 @@ function makeProfile(overrides: Partial<Profile>): Profile {
 
 interface CapturedMutation {
   mutationFn: (variables: unknown) => Promise<unknown>
-  onMutate?: (variables: unknown) => Promise<unknown> | unknown
+  onMutate?: (variables: unknown) => unknown
   onError?: (error: unknown, variables: unknown, context: unknown) => void
   onSettled?: (
     data: unknown,
@@ -230,7 +247,8 @@ describe('usePreferenceControls', () => {
 
   it('routes a free user to upgrade only after the picker sheet dismisses', async () => {
     mocks.profile = makeProfile({ hasProAccess: false })
-    const hook = await renderControls()
+    const sheet = createPickerSheetStub()
+    const hook = await renderControls(sheet)
 
     TestRenderer.act(() => {
       hook.current.handleSchemeChange('blue')
@@ -240,7 +258,7 @@ describe('usePreferenceControls', () => {
     expect(mocks.applyScheme).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      hook.current.runPickerExitAction()
+      sheet.dismiss()
     })
 
     expect(mocks.routerPush).toHaveBeenCalledTimes(1)

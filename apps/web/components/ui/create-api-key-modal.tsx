@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { MAX_API_KEY_NAME_LENGTH, parseApiKeyExpiryUtc } from '@orbit/shared/validation'
 import type { AgentScopeOption } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 
 const CREATED_KEY_STYLE = {
   padding: '14px 16px',
@@ -49,6 +49,7 @@ export function CreateApiKeyModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
   const [copied, setCopied] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const isRevealState = createdKey !== null
   const overlayTitle = isRevealState
@@ -139,15 +140,15 @@ export function CreateApiKeyModal({
   }
 
   function handleDone() {
-    onOpenChange(false)
+    closeSheet(() => onOpenChange(false))
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={isRevealState ? undefined : () => onOpenChange(false)}
       title={overlayTitle}
-      dismissible={!isRevealState}
     >
       {isRevealState ? (
         <RevealStep
@@ -178,7 +179,7 @@ export function CreateApiKeyModal({
           onCancel={() => onOpenChange(false)}
         />
       )}
-    </AppOverlay>
+    </Sheet>) : null
   )
 }
 
@@ -225,8 +226,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
 
   return (
     <form className="flex flex-col" style={{ gap: 18, paddingBottom: 8 }} onSubmit={onSubmit}>
-      <FieldInput
-        id="api-key-name"
+      <Input
         label={t('orbitMcp.keyName')}
         value={keyName}
         onChange={onKeyNameChange}
@@ -318,9 +318,9 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           {t('orbitMcp.readOnlyKeyLabel')}
         </span>
         <Switch
-          on={isReadOnly}
-          onToggle={() => onIsReadOnlyChange(!isReadOnly)}
-          ariaLabel={t('orbitMcp.readOnlyKeyLabel')}
+          checked={isReadOnly}
+          onChange={onIsReadOnlyChange}
+          label={t('orbitMcp.readOnlyKeyLabel')}
         />
       </div>
 
