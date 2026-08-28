@@ -1,12 +1,10 @@
 import { type ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { Snowflake } from '@/components/ui/icons'
 import { getStreakTierLabelKey } from '@orbit/shared/utils'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'
+import { DayStrip } from '@/components/dates/day-strip'
 import {
-  isInRun,
-  rgbaFromHex,
   styles,
   useTokens,
   type StreakDayView,
@@ -77,27 +75,19 @@ export function StreakTimelineCard({
             { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
           ]}
         >
-          <View style={styles.weekHeaderRow}>
-            {weekDays.map((day) => (
-              <Text
-                key={day.dateStr}
-                style={[styles.weekHeaderLabel, { color: tokens.fg3 }]}
-              >
-                {day.dayLabel.toUpperCase()}
-              </Text>
-            ))}
-          </View>
-          <View style={styles.weekCellsRow}>
-            {weekDays.map((day, index) => (
-              <StreakDayCell
-                key={day.dateStr}
-                day={day}
-                tokens={tokens}
-                runStart={isInRun(day.status) && (index === 0 || !isInRun(weekDays[index - 1]!.status))}
-                runEnd={isInRun(day.status) && (index === weekDays.length - 1 || !isInRun(weekDays[index + 1]!.status))}
-              />
-            ))}
-          </View>
+          <DayStrip
+            scope="account"
+            days={weekDays.map((day) => day.status)}
+            labels={weekDays.map((day) => `${day.dayLabel} ${day.dayNum}`)}
+            words={{
+              active: t('streakDisplay.detail.dayActive'),
+              frozen: t('streakDisplay.detail.dayFrozen'),
+              missed: t('streakDisplay.detail.dayMissed'),
+              today: t('calendar.legend.today'),
+            }}
+            label={t('streakDisplay.detail.thisWeek')}
+            size={24}
+          />
           <View style={styles.legendRow}>
             <LegendItem
               tokens={tokens}
@@ -129,76 +119,6 @@ export function StreakTimelineCard({
           </View>
         </View>
       </View>
-    </View>
-  )
-}
-
-interface StreakDayCellProps {
-  day: StreakDayView
-  tokens: Tokens
-  runStart: boolean
-  runEnd: boolean
-}
-
-function resolveNumeralColor(status: StreakDayView['status'], tokens: Tokens) {
-  if (status === 'active' || status === 'frozen' || status === 'today') {
-    return tokens.fg1
-  }
-  return tokens.fg3
-}
-
-function buildRunBandStyle(tokens: Tokens, runStart: boolean, runEnd: boolean) {
-  return {
-    backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.16),
-    left: runStart ? 5 : 0,
-    right: runEnd ? 5 : 0,
-    borderTopLeftRadius: runStart ? 999 : 0,
-    borderBottomLeftRadius: runStart ? 999 : 0,
-    borderTopRightRadius: runEnd ? 999 : 0,
-    borderBottomRightRadius: runEnd ? 999 : 0,
-  }
-}
-
-function StreakDayCell({
-  day,
-  tokens,
-  runStart,
-  runEnd,
-}: Readonly<StreakDayCellProps>) {
-  const inRun = isInRun(day.status)
-  const numeralColor = resolveNumeralColor(day.status, tokens)
-
-  return (
-    <View style={styles.dayCell}>
-      {inRun ? (
-        <View style={[styles.runBand, buildRunBandStyle(tokens, runStart, runEnd)]} />
-      ) : null}
-      <View
-        style={[
-          styles.dayDisc,
-          day.status === 'today'
-            ? { borderWidth: 1.5, borderColor: tokens.primary }
-            : null,
-        ]}
-      >
-        <Text
-          style={[
-            day.status === 'today' ? styles.dayNumeralToday : styles.dayNumeral,
-            { color: numeralColor },
-          ]}
-        >
-          {day.dayNum}
-        </Text>
-      </View>
-      {day.status === 'frozen' ? (
-        <View
-          style={[styles.freezeDrop, { backgroundColor: tokens.statusFrozen }]}
-        >
-          <View style={styles.freezeDropIcon}>
-            <Snowflake size={10} strokeWidth={2.2} color={tokens.bg} />
-          </View>
-        </View>
-      ) : null}
     </View>
   )
 }
