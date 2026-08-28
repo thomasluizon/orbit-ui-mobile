@@ -161,6 +161,8 @@ export const API = {
   apiKeys: {
     list: '/api/api-keys',
     create: '/api/api-keys',
+    requestCreationChallenge: '/api/api-keys/creation-challenge',
+    confirmCreationChallenge: '/api/api-keys/creation-challenge/confirm',
     delete: (id: string) => `/api/api-keys/${id}` as const,
   },
 

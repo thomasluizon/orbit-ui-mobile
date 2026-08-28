@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
+const navigationMocks = vi.hoisted(() => ({
+  router: { push: vi.fn() },
+  searchParams: new URLSearchParams(),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => navigationMocks.router,
+  useSearchParams: () => navigationMocks.searchParams,
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -99,6 +108,7 @@ import AdvancedPage from '@/app/(app)/advanced/page'
 
 describe('AdvancedPage', () => {
   beforeEach(() => {
+    navigationMocks.router.push.mockClear()
     mockProfile = {
       id: 'u1',
       timeZone: 'America/New_York',

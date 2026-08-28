@@ -28,12 +28,9 @@ export default function LoginPage() {
     authStepMotion,
     feedbackMotion,
     codeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
-    onCodeInput,
-    onCodeKeydown,
-    onCodePaste,
+    onCodeChange,
     sendCode,
     verifyCode,
     resendCode,
@@ -86,13 +83,10 @@ export default function LoginPage() {
               isSubmitting={isSubmitting}
               canResend={canResend}
               resendCountdown={resendCountdown}
-              codeInputRefs={codeInputRefs}
               errorSignal={errorMessage}
               isOnline={isOnline}
               onVerifyCode={() => void verifyCode()}
-              onCodeInput={onCodeInput}
-              onCodeKeydown={onCodeKeydown}
-              onCodePaste={onCodePaste}
+              onCodeChange={onCodeChange}
               onBackToEmail={backToEmail}
               onResendCode={() => void resendCode()}
               t={t}

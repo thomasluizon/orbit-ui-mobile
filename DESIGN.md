@@ -85,11 +85,12 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
    in settings. See **The proactive line** below.
 
 **The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
-notifications, metrics and feature explanation. **Billing, API-key management and account deletion
-are not reachable from the chat surface.** They are the only step-up operations in the product, they
-are settings a person taps once, and an assistant that can sell a subscription contradicts the voice
-pillar "describe, never sell". They stay available on the MCP surface, where an external client asks
-for them deliberately.
+notifications, metrics and feature explanation. **API-key management and account deletion are not
+reachable from the chat surface.** They are the only two step-up operations in the product and are
+settings a person taps once. Billing is not a step-up operation because the Stripe customer portal
+authenticates the person itself. An assistant that can sell a subscription contradicts the voice
+pillar "describe, never sell". These settings stay available on the MCP surface, where an external
+client asks for them deliberately.
 
 ### The shell
 

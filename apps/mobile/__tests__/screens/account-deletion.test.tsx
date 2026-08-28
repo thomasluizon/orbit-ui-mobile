@@ -2,8 +2,12 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 import ProfileScreen from '@/app/(tabs)/profile'
+
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: () => null,
@@ -74,15 +78,17 @@ const mocks = vi.hoisted(() => {
       currentScheme: 'purple',
       currentTheme: 'dark',
     })),
-    asyncStorageGetItem: vi.fn(async (key: string) => storage.get(key) ?? null),
-    asyncStorageSetItem: vi.fn(async (key: string, value: string) => {
+    asyncStorageGetItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+    asyncStorageSetItem: vi.fn((key: string, value: string) => {
       storage.set(key, value)
+      return Promise.resolve()
     }),
-    asyncStorageRemoveItem: vi.fn(async (key: string) => {
+    asyncStorageRemoveItem: vi.fn((key: string) => {
       storage.delete(key)
+      return Promise.resolve()
     }),
-    clearChecklistTemplates: vi.fn(async () => {}),
-    clearPersistedQueryCache: vi.fn(async () => {}),
+    clearChecklistTemplates: vi.fn(() => Promise.resolve()),
+    clearPersistedQueryCache: vi.fn(() => Promise.resolve()),
     plural: vi.fn((value: string) => value),
   }
 })
@@ -156,7 +162,7 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({
   AppBar: ({ trailing }: { trailing?: React.ReactNode }) =>
-    React.createElement(React.Fragment, null, trailing as React.ReactNode),
+    React.createElement(React.Fragment, null, trailing),
 }))
 
 vi.mock('@/components/ui/section-label', () => ({
@@ -238,7 +244,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   buildQueuedMutation: vi.fn((mutation: Record<string, unknown>) => mutation),
   createQueuedAck: vi.fn((queuedMutationId: string) => ({ queued: true, queuedMutationId })),
   isQueuedResult: vi.fn(() => false),
-  queueOrExecute: vi.fn(async () => ({ queued: false, queuedMutationId: 'mutation-1' })),
+  queueOrExecute: vi.fn(() => Promise.resolve({ queued: false, queuedMutationId: 'mutation-1' })),
 }))
 
 vi.mock('@/lib/offline-queue', () => ({
@@ -382,7 +388,16 @@ describe('ProfileScreen account-deletion state machine', () => {
     })
     mocks.useGamificationProfile.mockReturnValue({ profile: null })
     mocks.useHasProAccess.mockReturnValue(false)
-    mocks.apiClient.mockResolvedValue({ scheduledDeletionAt: '2026-07-01T00:00:00Z' })
+    sheetTestControls.defer(false)
+    mocks.apiClient.mockImplementation((
+      _endpoint: string,
+      _options: RequestInit,
+      schema?: { parse: (value: unknown) => unknown },
+    ) => Promise.resolve(
+      schema
+        ? schema.parse({ message: 'Deletion code sent' })
+        : { message: 'Deletion code sent' },
+    ))
   })
 
   it('opens on the confirm step with the warning copy and no code inputs', async () => {
@@ -397,7 +412,7 @@ describe('ProfileScreen account-deletion state machine', () => {
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
-  it('requests deletion and advances to the code step with six inputs', async () => {
+  it('requests deletion, persists the send event, and routes to step up', async () => {
     const tree = await renderScreen(<ProfileScreen />)
 
     await TestRenderer.act(async () => {
@@ -414,13 +429,81 @@ describe('ProfileScreen account-deletion state machine', () => {
     await TestRenderer.act(async () => {
       sendButton.props.onPress()
       await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
     })
 
     expect(mocks.apiClient).toHaveBeenCalledWith(API.auth.requestDeletion, {
       method: 'POST',
+    }, expect.anything())
+    expect(mocks.router.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(JSON.parse(mocks.storage.get('orbit.step-up.delete') ?? '{}')).toMatchObject({
+      operation: 'delete',
+      sentAt: expect.any(Number),
     })
-    expect(screenTexts(tree)).toContain('profile.deleteAccount.codeInstructions')
-    expect(tree.root.findAllByType('TextInput')).toHaveLength(6)
+    expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
+  })
+
+  it('waits for native sheet dismissal before closing and navigating', async () => {
+    sheetTestControls.defer(true)
+    const tree = await renderScreen(<ProfileScreen />)
+
+    await TestRenderer.act(async () => {
+      openDeleteModal(tree).props.onPress()
+      await Promise.resolve()
+    })
+    const sendButton = tree.root.findAll(
+      (node: any) =>
+        typeof node.props?.onPress === 'function' &&
+        flattenText(node.props?.children).includes('profile.deleteAccount.sendCode'),
+    )[0]
+
+    await TestRenderer.act(async () => {
+      sendButton.props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(screenTexts(tree)).toContain('profile.deleteAccount.warningFree')
+
+    await TestRenderer.act(async () => {
+      sheetTestControls.completeDismissal()
+      await Promise.resolve()
+    })
+
+    expect(mocks.router.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(screenTexts(tree)).not.toContain('profile.deleteAccount.warningFree')
+  })
+
+  it('rejects a malformed deletion challenge response before step up', async () => {
+    mocks.apiClient.mockImplementation((
+      _endpoint: string,
+      _options: RequestInit,
+      schema?: { parse: (value: unknown) => unknown },
+    ) => Promise.resolve(schema ? schema.parse({}) : {}))
+    const tree = await renderScreen(<ProfileScreen />)
+
+    await TestRenderer.act(async () => {
+      openDeleteModal(tree).props.onPress()
+      await Promise.resolve()
+    })
+    const sendButton = tree.root.findAll(
+      (node: any) =>
+        typeof node.props?.onPress === 'function' &&
+        flattenText(node.props?.children).includes('profile.deleteAccount.sendCode'),
+    )[0]
+    await TestRenderer.act(async () => {
+      sendButton.props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screenTexts(tree)).toContain('profile.deleteAccount.errorGeneric')
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(mocks.storage.has('orbit.step-up.delete')).toBe(false)
   })
 
   it('surfaces an error when requesting deletion fails and stays on confirm', async () => {
@@ -446,91 +529,25 @@ describe('ProfileScreen account-deletion state machine', () => {
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
-  it('confirms with a six-digit code and advances to the deactivated step', async () => {
+  it('renders the Pro warning in the first gate', async () => {
+    mocks.useProfile.mockReturnValue({
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        planExpiresAt: '2026-09-30T00:00:00Z',
+      }),
+      isLoading: false,
+      error: null,
+    })
     const tree = await renderScreen(<ProfileScreen />)
 
     await TestRenderer.act(async () => {
       openDeleteModal(tree).props.onPress()
       await Promise.resolve()
     })
-    const sendButton = tree.root.findAll(
-      (node: any) =>
-        typeof node.props?.onPress === 'function' &&
-        flattenText(node.props?.children).includes('profile.deleteAccount.sendCode'),
-    )[0]
-    await TestRenderer.act(async () => {
-      sendButton.props.onPress()
-      await Promise.resolve()
-    })
 
-    const inputs = tree.root.findAllByType('TextInput')
-    await TestRenderer.act(async () => {
-      inputs.forEach((input: any, index: number) => {
-        input.props.onChangeText(String(index + 1))
-      })
-      await Promise.resolve()
-    })
-
-    const confirmButton = tree.root.findAll(
-      (node: any) =>
-        typeof node.props?.onPress === 'function' &&
-        flattenText(node.props?.children).includes('profile.deleteAccount.confirmDelete'),
-    )[0]
-    await TestRenderer.act(async () => {
-      confirmButton.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(mocks.apiClient).toHaveBeenCalledWith(API.auth.confirmDeletion, {
-      method: 'POST',
-      body: JSON.stringify({ code: '123456' }),
-    })
-    expect(screenTexts(tree)).toContain('profile.logout')
-  })
-
-  it('logs out from the deactivated step', async () => {
-    const tree = await renderScreen(<ProfileScreen />)
-
-    await TestRenderer.act(async () => {
-      openDeleteModal(tree).props.onPress()
-      await Promise.resolve()
-    })
-    const sendButton = tree.root.findAll(
-      (node: any) =>
-        typeof node.props?.onPress === 'function' &&
-        flattenText(node.props?.children).includes('profile.deleteAccount.sendCode'),
-    )[0]
-    await TestRenderer.act(async () => {
-      sendButton.props.onPress()
-      await Promise.resolve()
-    })
-    const inputs = tree.root.findAllByType('TextInput')
-    await TestRenderer.act(async () => {
-      inputs.forEach((input: any, index: number) => {
-        input.props.onChangeText(String(index + 1))
-      })
-      await Promise.resolve()
-    })
-    const confirmButton = tree.root.findAll(
-      (node: any) =>
-        typeof node.props?.onPress === 'function' &&
-        flattenText(node.props?.children).includes('profile.deleteAccount.confirmDelete'),
-    )[0]
-    await TestRenderer.act(async () => {
-      confirmButton.props.onPress()
-      await Promise.resolve()
-    })
-
-    const logoutButton = tree.root.findAll(
-      (node: any) =>
-        typeof node.props?.onPress === 'function' &&
-        flattenText(node.props?.children).includes('profile.logout'),
-    )[0]
-    await TestRenderer.act(async () => {
-      logoutButton.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(mocks.logout).toHaveBeenCalledTimes(1)
+    expect(screenTexts(tree).some((text: string) =>
+      text.includes('profile.deleteAccount.warningPro'),
+    )).toBe(true)
   })
 })

@@ -1,58 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+const mocks = vi.hoisted(() => ({
+  beginChallenge: vi.fn(),
+  onOpenChange: vi.fn(),
+  push: vi.fn(),
+  requestDeletion: vi.fn(),
+}))
 
-const mockLogout = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.push }),
+}))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
   useLocale: () => 'en',
 }))
 
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout: mockLogout }),
-}))
-
-const mockRequestDeletion = vi.fn()
-const mockConfirmDeletion = vi.fn()
-
 vi.mock('@/app/actions/auth', () => ({
-  requestDeletion: (...args: unknown[]) => mockRequestDeletion(...args),
-  confirmDeletion: (...args: unknown[]) => mockConfirmDeletion(...args),
+  requestDeletion: () => mocks.requestDeletion(),
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({
-    open,
-    onClose,
-    title,
-    children,
-  }: {
-    open: boolean
-    onClose?: () => void
-    title?: string
-    children: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        <button data-testid="overlay-close" onClick={onClose}>
-          Close
-        </button>
-        {children}
-      </div>
-    ) : null,
+vi.mock('@/lib/step-up-storage', () => ({
+  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
 }))
 
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'))
 
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
 
-
-const defaultProfile = {
+const profile = {
   name: 'Thomas',
   email: 'thomas@example.com',
   timeZone: 'America/Sao_Paulo',
@@ -66,7 +46,7 @@ const defaultProfile = {
   trialEndsAt: null,
   planExpiresAt: null,
   aiMessagesUsed: 0,
-      aiMessagesLimit: 20,
+  aiMessagesLimit: 20,
   hasImportedCalendar: false,
   hasSeenImportPrompt: false,
   hasGoogleConnection: false,
@@ -88,202 +68,83 @@ const defaultProfile = {
   googleCalendarLastSyncedAt: null,
 }
 
-
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockRequestDeletion.mockResolvedValue(undefined)
-    mockConfirmDeletion.mockResolvedValue({ scheduledDeletionAt: '2025-02-01T00:00:00Z' })
+    sheetTestControls.defer(false)
+    mocks.requestDeletion.mockResolvedValue(undefined)
   })
 
-  it('renders nothing when closed', () => {
-    const { container } = render(
-      <DeleteAccountModal open={false} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
-    expect(container.innerHTML).toBe('')
-  })
+  it('keeps the confirmation and warning as the first gate', () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
-  it('renders overlay with the confirmation heading when open', () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
-  })
-
-  it('shows confirm step by default with warning and continue button', () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
     expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.warningDetail')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('shows pro warning when user has pro access', () => {
-    const proProfile = {
-      ...defaultProfile,
-      plan: 'pro' as const,
-      hasProAccess: true,
-      planExpiresAt: '2025-12-31T00:00:00Z',
-    }
+  it('shows the Pro warning with the formatted plan date', () => {
     render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={proProfile} />,
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: '2026-09-30T00:00:00Z',
+        }}
+      />,
     )
+
     expect(document.body.textContent).toContain('profile.deleteAccount.warningPro')
   })
 
-  it('transitions to code step after requesting deletion', async () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
+  it('persists the send time and routes to the deletion step up screen', async () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
-    await waitFor(() => {
-      expect(mockRequestDeletion).toHaveBeenCalledTimes(1)
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
-    })
+    await waitFor(() => expect(mocks.requestDeletion).toHaveBeenCalledOnce())
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
   })
 
-  it('shows error when requestDeletion fails', async () => {
-    mockRequestDeletion.mockRejectedValueOnce(new Error('Network error'))
-
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
+  it('waits for sheet dismissal before closing and navigating', async () => {
+    sheetTestControls.defer(true)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.errorGeneric')).toBeInTheDocument()
-    })
-    expect(screen.queryByText('Network error')).not.toBeInTheDocument()
+    await waitFor(() => expect(sheetTestControls.isDismissPending).toBe(true))
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.onOpenChange).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    act(() => sheetTestControls.completeDismissal())
+
+    expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
   })
 
-  it('renders 6 code input fields in code step', async () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
+  it('keeps the first gate open and reports a safe error when sending fails', async () => {
+    mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
-    })
-
-    const inputs = screen.getAllByRole('textbox')
-    expect(inputs).toHaveLength(6)
+    expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
-  it('confirm button is disabled when code is incomplete', async () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
+  it('renders nothing while closed', () => {
+    const { container } = render(
+      <DeleteAccountModal open={false} onOpenChange={mocks.onOpenChange} profile={profile} />,
     )
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
-
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.confirmDelete')).toBeInTheDocument()
-    })
-
-    const confirmBtn = screen.getByText('profile.deleteAccount.confirmDelete')
-    expect(confirmBtn).toBeDisabled()
-  })
-
-  it('transitions to deactivated step after confirming deletion', async () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
-    })
-
-    const inputs = screen.getAllByRole('textbox')
-    inputs.forEach((input, i) => {
-      fireEvent.change(input, { target: { value: String(i + 1) } })
-    })
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
-
-    await waitFor(() => {
-      expect(mockConfirmDeletion).toHaveBeenCalledWith('123456')
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('profile.logout')).toBeInTheDocument()
-    })
-  })
-
-  it('shows error when confirmDeletion fails', async () => {
-    mockConfirmDeletion.mockRejectedValueOnce(new Error('Invalid code'))
-
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
-    })
-
-    const inputs = screen.getAllByRole('textbox')
-    inputs.forEach((input, i) => {
-      fireEvent.change(input, { target: { value: String(i + 1) } })
-    })
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
-
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.errorGeneric')).toBeInTheDocument()
-    })
-    expect(screen.queryByText('Invalid code')).not.toBeInTheDocument()
-  })
-
-  it('calls logout in deactivated step', async () => {
-    render(
-      <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
-    )
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
-    })
-
-    const inputs = screen.getAllByRole('textbox')
-    inputs.forEach((input, i) => {
-      fireEvent.change(input, { target: { value: String(i + 1) } })
-    })
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
-    await waitFor(() => {
-      expect(screen.getByText('profile.logout')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByText('profile.logout'))
-    expect(mockLogout).toHaveBeenCalledTimes(1)
-  })
-
-  it('resets state when the sheet closes', async () => {
-    const onOpenChange = vi.fn()
-
-    render(
-      <DeleteAccountModal open={true} onOpenChange={onOpenChange} profile={defaultProfile} />,
-    )
-
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
-    await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByTestId('overlay-close'))
-
-    expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 })
