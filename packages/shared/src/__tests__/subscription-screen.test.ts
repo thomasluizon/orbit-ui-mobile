@@ -67,4 +67,12 @@ describe('resolveSubscriptionScreen', () => {
       view: 'pitch',
     })
   })
+
+  it('requires both the Pro plan and the trial flag for the trial state', () => {
+    expect(
+      resolve({
+        status: { ...status, plan: 'free', hasProAccess: false, isTrialActive: true },
+      }),
+    ).toMatchObject({ state: 'free', view: 'pitch' })
+  })
 })

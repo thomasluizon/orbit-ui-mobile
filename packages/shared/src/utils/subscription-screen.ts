@@ -38,7 +38,7 @@ export interface SubscriptionScreenModel {
 }
 
 function resolvePitchState(status: SubscriptionStatus): SubscriptionScreenState {
-  if (status.isTrialActive) return 'trial'
+  if (status.plan === 'pro' && status.isTrialActive) return 'trial'
   if (status.lapseReason) return 'lapsed'
   return 'free'
 }

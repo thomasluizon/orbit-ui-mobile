@@ -14,7 +14,8 @@ export function PitchSubscriptionCard({
   locale: string
   t: UpgradeTranslations
 }>) {
-  if (!status.isTrialActive && !status.lapseReason) return null
+  const isTrial = status.plan === 'pro' && status.isTrialActive
+  if (!isTrial && !status.lapseReason) return null
 
   const intervalLabel =
     status.subscriptionInterval === 'yearly'
@@ -29,9 +30,9 @@ export function PitchSubscriptionCard({
       <p className="t-eyebrow m-0 text-[var(--fg-3)]">{t('upgrade.billing.plan.title')}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <h2 className="m-0 text-xl font-medium text-[var(--fg-1)]">{intervalLabel}</h2>
-        {status.isTrialActive ? <Badge>{t('upgrade.billing.plan.trialBadge')}</Badge> : null}
+        {isTrial ? <Badge>{t('upgrade.billing.plan.trialBadge')}</Badge> : null}
       </div>
-      {status.isTrialActive && status.trialEndsAt ? (
+      {isTrial && status.trialEndsAt ? (
         <p className="mt-3 text-sm text-[var(--fg-3)]">
           {t('upgrade.billing.plan.trialHint', {
             date: formatBillingDate(status.trialEndsAt, locale),

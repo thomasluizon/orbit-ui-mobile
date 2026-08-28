@@ -16,7 +16,8 @@ export function PitchSubscriptionCard({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  if (!status.isTrialActive && !status.lapseReason) return null
+  const isTrial = status.plan === 'pro' && status.isTrialActive
+  if (!isTrial && !status.lapseReason) return null
   const endedAt = status.subscriptionEndedAtUtc
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale)
     : null
@@ -41,9 +42,9 @@ export function PitchSubscriptionCard({
             ? t('upgrade.billing.plan.yearly')
             : t('upgrade.billing.plan.monthly')}
         </Text>
-        {status.isTrialActive ? <Badge>{t('upgrade.billing.plan.trialBadge')}</Badge> : null}
+        {isTrial ? <Badge>{t('upgrade.billing.plan.trialBadge')}</Badge> : null}
       </View>
-      {status.isTrialActive && status.trialEndsAt ? (
+      {isTrial && status.trialEndsAt ? (
         <Text style={[styles.cardMeta, { color: tokens.fg3 }]}>
           {t('upgrade.billing.plan.trialHint', {
             date: formatBillingDate(status.trialEndsAt, locale),
