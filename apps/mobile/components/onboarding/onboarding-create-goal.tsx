@@ -205,7 +205,7 @@ export function OnboardingCreateGoal({
       </Text>
 
       <Input
-        label={t('onboarding.flow.createGoal.descriptionPlaceholder')}
+        label={t('onboarding.flow.createGoal.descriptionLabel')}
         value={description}
         onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
@@ -216,7 +216,7 @@ export function OnboardingCreateGoal({
       <View style={styles.formRow}>
         <View style={styles.formCol}>
           <Input
-            label={t('onboarding.flow.createGoal.targetPlaceholder')}
+            label={t('onboarding.flow.createGoal.targetLabel')}
             mono
             value={targetValue}
             onChange={setTargetValue}
@@ -227,7 +227,7 @@ export function OnboardingCreateGoal({
         </View>
         <View style={styles.formCol}>
           <Input
-            label={t('onboarding.flow.createGoal.unitPlaceholder')}
+            label={t('onboarding.flow.createGoal.unitLabel')}
             value={unit}
             onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}

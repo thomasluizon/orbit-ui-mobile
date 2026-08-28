@@ -308,7 +308,7 @@ function FreshStartConfirmStep({
         {t('profile.freshStart.confirmInstruction')}
       </p>
       <Input
-        label={t('profile.freshStart.confirmInstruction')}
+        label={t('profile.freshStart.confirmLabel')}
         mono
         value={confirmText}
         onChange={onConfirmTextChange}

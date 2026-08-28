@@ -110,13 +110,16 @@ describe('form primitives on web', () => {
       <TimeField label="Exact time" value="19:30" onChange={onChange} hourCycle="h12" />,
     )
     const input = screen.getByLabelText('Exact time')
-    expect(input).toHaveAttribute('type', 'time')
-    expect(input).toHaveAttribute('lang', 'en-US')
-    fireEvent.change(input, { target: { value: '07:45' } })
+    expect(input).toHaveAttribute('type', 'text')
+    expect(input).toHaveAttribute('data-hour-cycle', 'h12')
+    expect(input).toHaveValue('7:30 pm')
+    fireEvent.change(input, { target: { value: '7:45 am' } })
     expect(onChange).toHaveBeenCalledWith('07:45')
 
+    fireEvent.blur(input)
     rerender(<TimeField label="Exact time" value="19:30" onChange={onChange} />)
-    expect(screen.getByLabelText('Exact time')).toHaveAttribute('lang', 'en-GB')
+    expect(screen.getByLabelText('Exact time')).toHaveAttribute('data-hour-cycle', 'h23')
+    expect(screen.getByLabelText('Exact time')).toHaveValue('19:30')
   })
 
   it('renders DateRow only as formatted text with its fixed-date note', () => {

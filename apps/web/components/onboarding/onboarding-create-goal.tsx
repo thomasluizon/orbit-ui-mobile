@@ -208,7 +208,7 @@ export function OnboardingCreateGoal({
       </div>
 
       <Input
-        label={t('onboarding.flow.createGoal.descriptionPlaceholder')}
+        label={t('onboarding.flow.createGoal.descriptionLabel')}
         value={description}
         onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
@@ -219,7 +219,7 @@ export function OnboardingCreateGoal({
       <div className="flex" style={{ gap: 12 }}>
         <div style={{ flex: 1 }}>
           <Input
-            label={t('onboarding.flow.createGoal.targetPlaceholder')}
+            label={t('onboarding.flow.createGoal.targetLabel')}
             mono
             kind="number"
             inputMode="numeric"
@@ -231,7 +231,7 @@ export function OnboardingCreateGoal({
         </div>
         <div style={{ flex: 1 }}>
           <Input
-            label={t('onboarding.flow.createGoal.unitPlaceholder')}
+            label={t('onboarding.flow.createGoal.unitLabel')}
             value={unit}
             onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
