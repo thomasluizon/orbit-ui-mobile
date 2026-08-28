@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
+  Text,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
@@ -17,16 +18,16 @@ import { habitDetailToNormalized } from "@orbit/shared/utils";
 import { useHabitDetail } from "@/hooks/use-habits";
 import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 import { useChatComposer } from "@/hooks/use-chat-composer";
-import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
-import { ChatInputArea } from "@/components/chat/chat-input-area";
+import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { GradientTop } from "@/components/ui/gradient-top";
+import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
@@ -47,10 +48,8 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
-  const chatVoiceRef = useRef<View>(null);
   useTourTarget("tour-chat-area", chatAreaRef);
   useTourTarget("tour-chat-input", chatInputRef);
-  useTourTarget("tour-chat-voice", chatVoiceRef);
 
   const offlineTitle = t("chat.offline.title");
   const offlineDescription = t("chat.offline.description");
@@ -59,32 +58,11 @@ export default function ChatScreen() {
     flatListRef,
     messages,
     isTyping,
-    isSending,
     streamingMessageId,
     sendError,
-    retryLastSend,
-    canRetryLastSend,
-    selectedImage,
-    imagePreview,
-    composerResetSignal,
-    isRecording,
-    isTranscribing,
-    speechSupported,
-    transcript,
-    speechError,
-    toggleRecording,
-    recordingTime,
-    starterChips,
+    composerProps,
     hasProAccess,
-    aiMessagesUsed,
-    aiMessagesLimit,
-    atMessageLimit,
     showSuggestions,
-    openFilePicker,
-    removeImage,
-    selectedTextFile,
-    openTextFilePicker,
-    removeTextFile,
     sendMessage,
     scrollToBottom,
     handleBreakdownConfirmed,
@@ -98,16 +76,6 @@ export default function ChatScreen() {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
-
-  const {
-    adsEnabledForUser,
-    canWatchRewardAd,
-    isLoadingReward,
-    rewardsClaimedToday,
-    dailyRewardCap,
-    rewardMessage,
-    watchAdForMessages,
-  } = useChatReward();
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -241,71 +209,43 @@ export default function ChatScreen() {
           </View>
         )}
 
-        <ChatInputArea
+        <View
           ref={chatInputRef}
-          voiceRef={chatVoiceRef}
-          tokens={tokens}
-          styles={styles}
-          paddingBottom={Math.max(16, insets.bottom + 12)}
-          marginBottom={
-            Platform.OS === "android" && keyboardInset > 0
-              ? keyboardInset + 10
-              : 0
-          }
-          hasMessages={messages.length > 0}
-          isOnline={isOnline}
-          offlineTitle={offlineTitle}
-          offlineDescription={offlineDescription}
-          sendError={sendError}
-          canRetry={canRetryLastSend}
-          speechError={speechError}
-          imagePreview={imagePreview}
-          starterChips={starterChips}
-          hasProAccess={hasProAccess}
-          aiMessagesUsed={aiMessagesUsed}
-          aiMessagesLimit={aiMessagesLimit}
-          atMessageLimit={atMessageLimit}
-          isRecording={isRecording}
-          isTranscribing={isTranscribing}
-          isTyping={isSending}
-          selectedImagePresent={selectedImage !== null}
-          selectedTextFileName={selectedTextFile?.name ?? null}
-          selectedTextFilePresent={selectedTextFile !== null}
-          transcript={transcript}
-          composerResetSignal={composerResetSignal}
-          recordingTime={recordingTime}
-          speechSupported={speechSupported}
-          reward={{
-            adsEnabledForUser,
-            canWatchRewardAd,
-            isLoadingReward,
-            rewardsClaimedToday,
-            dailyRewardCap,
-            rewardMessage,
-            onWatchAd: () => {
-              void watchAdForMessages();
-            },
+          style={{
+            marginBottom:
+              Platform.OS === "android" && keyboardInset > 0
+                ? keyboardInset + 10
+                : 0,
+            paddingBottom: insets.bottom,
           }}
-          onRemoveImage={removeImage}
-          onRemoveTextFile={removeTextFile}
-          onRetry={() => {
-            void retryLastSend();
-          }}
-          onSendChip={(chip) => {
-            void sendMessage(chip);
-          }}
-          onSend={(message) => {
-            void sendMessage(message);
-          }}
-          onToggleRecording={toggleRecording}
-          onOpenFilePicker={() => {
-            void openFilePicker();
-          }}
-          onOpenTextFilePicker={() => {
-            void openTextFilePicker();
-          }}
-          onUpgrade={() => router.push("/upgrade")}
-        />
+        >
+          {!isOnline ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+              <OfflineUnavailableState
+                title={offlineTitle}
+                description={offlineDescription}
+                compact
+              />
+            </View>
+          ) : null}
+          {sendError ? (
+            <Text
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 12,
+                textAlign: "center",
+                color: tokens.statusBad,
+                fontFamily: "Geist_400Regular",
+                fontSize: 14,
+              }}
+            >
+              {sendError}
+            </Text>
+          ) : null}
+          <Composer {...composerProps} />
+        </View>
       </KeyboardAvoidingView>
 
       <HabitDetailDrawer

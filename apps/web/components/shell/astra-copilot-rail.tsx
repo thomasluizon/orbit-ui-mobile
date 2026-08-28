@@ -12,7 +12,8 @@ import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
-import { ChatComposerBar } from '@/app/(chat)/chat/chat-composer-bar'
+import { Composer as ComposerBar } from '@/components/shell/composer'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
@@ -205,48 +206,39 @@ function AstraRailMessages({ composer, onActionChipClick, onUpgradeClick }: Read
   )
 }
 
-function AstraRailComposer({ composer, onUpgrade }: Readonly<{ composer: Composer; onUpgrade: () => void }>) {
-  const limitLocked = !composer.hasProAccess && composer.atMessageLimit
-
+function AstraRailComposer({
+  isOnline,
+  sendError,
+  fileInputRef,
+  handleFileSelect,
+  composerProps,
+}: Readonly<Pick<Composer, 'isOnline' | 'sendError' | 'fileInputRef' | 'handleFileSelect' | 'composerProps'>>) {
+  const t = useTranslations()
   return (
-    <ChatComposerBar
-      singleLine
-      textareaRef={composer.textareaRef}
-      fileInputRef={composer.fileInputRef}
-      input={composer.input}
-      setInput={composer.setInput}
-      sendError={composer.sendError}
-      imagePreview={composer.imagePreview}
-      isOnline={composer.isOnline}
-      isRecording={composer.isRecording}
-      isTranscribing={composer.isTranscribing}
-      speechSupported={composer.speechSupported}
-      toggleRecording={composer.toggleRecording}
-      recordingTime={composer.recordingTime}
-      starterChips={composer.starterChips}
-      isTyping={composer.isSending}
-      hasProAccess={composer.hasProAccess}
-      aiMessagesUsed={composer.aiMessagesUsed}
-      aiMessagesLimit={composer.aiMessagesLimit}
-      atMessageLimit={composer.atMessageLimit}
-      canSend={composer.canSend}
-      hasMessages={composer.messages.length > 0}
-      limitLocked={limitLocked}
-      openFilePicker={composer.openFilePicker}
-      handleFileSelect={composer.handleFileSelect}
-      handlePaste={composer.handlePaste}
-      handleKeyDown={composer.handleKeyDown}
-      removeImage={composer.removeImage}
-      textFileInputRef={composer.textFileInputRef}
-      selectedTextFileName={composer.selectedTextFileName}
-      openTextFilePicker={composer.openTextFilePicker}
-      handleTextFileSelect={(event) => void composer.handleTextFileSelect(event)}
-      removeTextFile={composer.removeTextFile}
-      sendMessage={() => void composer.sendMessage()}
-      retryLastSend={() => void composer.retryLastSend()}
-      canRetryLastSend={composer.canRetryLastSend}
-      onUpgrade={onUpgrade}
-    />
+    <div className="shrink-0">
+      {!isOnline ? (
+        <div className="px-4 pt-3">
+          <OfflineUnavailableState
+            title={t('chat.offline.title')}
+            description={t('chat.offline.description')}
+            compact
+          />
+        </div>
+      ) : null}
+      {sendError ? (
+        <p role="alert" aria-live="assertive" className="m-0 px-4 pt-3 text-center text-sm text-[var(--status-bad)]">
+          {sendError}
+        </p>
+      ) : null}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+      <ComposerBar {...composerProps} />
+    </div>
   )
 }
 
@@ -254,11 +246,19 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const composer = useChatComposer()
+  const {
+    isOnline,
+    sendError,
+    fileInputRef,
+    handleFileSelect,
+    composerProps,
+  } = composer
   const [entered, setEntered] = useState(false)
   const [closing, setClosing] = useState(false)
   const maximized = useShellStore((state) => state.astraMaximized)
   const toggleMaximized = useShellStore((state) => state.toggleAstraMaximized)
   const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const requestClose = useCallback(() => setClosing(true), [])
 
@@ -272,13 +272,11 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
 
   useOverlayEscape({ open: true, onDismiss: requestClose, restoreFocus: true })
 
-  const focusComposer = composer.textareaRef
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true))
-    focusComposer.current?.focus()
+    panelRef.current?.querySelector<HTMLTextAreaElement>('[data-composer-input]')?.focus()
     return () => cancelAnimationFrame(id)
-    // react-doctor-disable-next-line exhaustive-deps -- focusComposer aliases the stable composer.textareaRef ref (in deps); the effect intentionally runs once on mount; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [focusComposer])
+  }, [])
 
   const handleActionChipClick = useCallback(
     (entityId: string, actionType: string) => {
@@ -333,6 +331,7 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
   return (
     // react-doctor-disable-next-line prefer-html-dialog -- this is a non-modal (aria-modal="false"), desktop-only (hidden md:flex) persistent copilot rail, not a modal; native <dialog>'s modal semantics and backdrop do not fit; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="false"
       aria-label={t('astraRail.title')}
@@ -358,7 +357,13 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
         }
       >
         <AstraRailMessages composer={composer} onActionChipClick={handleActionChipClick} onUpgradeClick={goToUpgrade} />
-        <AstraRailComposer composer={composer} onUpgrade={goToUpgrade} />
+        <AstraRailComposer
+          isOnline={isOnline}
+          sendError={sendError}
+          fileInputRef={fileInputRef}
+          handleFileSelect={handleFileSelect}
+          composerProps={composerProps}
+        />
       </div>
 
       <HabitDetailDrawer open={!!selectedHabitId} onOpenChange={handleHabitDrawerOpenChange} habit={selectedHabit} />

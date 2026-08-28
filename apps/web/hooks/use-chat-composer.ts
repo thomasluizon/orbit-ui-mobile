@@ -7,7 +7,6 @@ import {
   useEffect,
   useMemo,
   useSyncExternalStore,
-  type KeyboardEvent,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
@@ -17,8 +16,8 @@ import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import {
-  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
@@ -42,7 +41,6 @@ import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
-import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 
 interface AttemptedSend {
@@ -129,7 +127,6 @@ export function useChatComposer() {
   } = useSpeechToText()
 
   const chatContainerRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const pendingVoiceCommit = useRef(false)
 
   const [input, setInput] = useState<string>(() => {
@@ -147,18 +144,9 @@ export function useChatComposer() {
     imagePreview,
     openFilePicker,
     handleFileSelect,
-    handlePaste,
     removeImage,
     clearImage,
   } = useChatImageAttachment(setSendError)
-
-  const {
-    textFileInputRef,
-    selectedTextFile,
-    openTextFilePicker,
-    handleTextFileSelect,
-    removeTextFile,
-  } = useChatTextFileAttachment(setSendError)
 
   if (speechError !== previousSpeechError) {
     setPreviousSpeechError(speechError)
@@ -179,7 +167,7 @@ export function useChatComposer() {
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
   const canSend =
-    (input.trim().length > 0 || selectedImage !== null || selectedTextFile !== null) &&
+    (input.trim().length > 0 || selectedImage !== null) &&
     !isSending &&
     !atMessageLimit &&
     isOnline
@@ -345,26 +333,6 @@ export function useChatComposer() {
     }
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, setStreamingMessageId, shouldRouteToUpgrade, updateMessage])
-
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    const fit = () => {
-      textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
-    }
-    fit()
-    let lastWidth = textarea.clientWidth
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width ?? lastWidth
-      if (Math.abs(width - lastWidth) < 0.5) return
-      lastWidth = width
-      fit()
-    })
-    observer.observe(textarea)
-    return () => observer.disconnect()
-  }, [input])
-
 
   useEffect(() => {
     const trimmedDraft = input.trim()
@@ -542,28 +510,19 @@ export function useChatComposer() {
       const typedContent = content || input.trim()
       const sendState = useChatStore.getState()
       if (
-        (!typedContent && !selectedImage && !selectedTextFile) ||
+        (!typedContent && !selectedImage) ||
         sendState.isTyping ||
         sendState.streamingMessageId !== null
       ) return
 
-      const messageContent = selectedTextFile
-        ? buildChatMessageWithFileContent({
-            message: typedContent,
-            fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
-            fileContent: selectedTextFile.content,
-          })
-        : typedContent
-
       const attempted: AttemptedSend = {
-        content: messageContent,
+        content: typedContent,
         image: selectedImage,
         preview: imagePreview,
       }
 
       setInput('')
       clearImage()
-      removeTextFile()
 
       await performSend(attempted, false)
     },
@@ -572,10 +531,7 @@ export function useChatComposer() {
       imagePreview,
       input,
       performSend,
-      removeTextFile,
       selectedImage,
-      selectedTextFile,
-      t,
     ],
   )
 
@@ -587,12 +543,95 @@ export function useChatComposer() {
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
 
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      void sendMessage()
+  const composerSuggestions = useMemo<ComposerSuggestions>(() => {
+    const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
+      const label = t(key)
+      return { id: key, label, onSelect: () => void sendMessage(label) }
     }
-  }
+    return [
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[0]),
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[1]),
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
+    ]
+  }, [sendMessage, t])
+
+  const composerProps = useMemo(() => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(0, 0, 0, 0)
+    const resetsAt = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(tomorrow)
+    const words = {
+      placeholder: t('shell.composer.placeholder'),
+      send: t('shell.composer.send'),
+      suggestionsLabel: t('shell.composer.suggestionsLabel'),
+      retry: t('shell.composer.retry'),
+    }
+    const voiceWords = {
+      start: t('shell.composer.voice.start'),
+      stop: t('shell.composer.voice.stop'),
+      recording: t('shell.composer.voice.recording'),
+      transcribing: t('shell.composer.voice.transcribing'),
+    }
+    const common = {
+      words,
+      value: input,
+      onChangeValue: setInput,
+      onSend: () => void sendMessage(),
+      suggestions: composerSuggestions,
+      onAttach: openFilePicker,
+      attachWords: {
+        add: t('shell.composer.attach.add'),
+        trayLabel: t('shell.composer.attach.trayLabel'),
+        remove: (name: string) => t('shell.composer.attach.remove', { name }),
+      },
+      attachments: selectedImage
+        ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
+        : [],
+      onAttachRemove: removeImage,
+      ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
+    }
+
+    if (isRecording) return { ...common, state: 'recording', onVoice: toggleRecording, voiceWords }
+    if (isTranscribing) return { ...common, state: 'transcribing', onVoice: toggleRecording, voiceWords }
+
+    if (atMessageLimit) {
+      const limitReason = t('shell.composer.limit.reason', {
+        allowance: aiMessagesLimit,
+        resetsAt,
+      })
+      return speechSupported
+        ? { ...common, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: 'atLimit', limitReason }
+    }
+
+    const state: 'idle' | 'sending' = isSending || !isOnline ? 'sending' : 'idle'
+    return speechSupported
+      ? { ...common, state, onVoice: toggleRecording, voiceWords }
+      : { ...common, state }
+  }, [
+    aiMessagesLimit,
+    atMessageLimit,
+    canRetryLastSend,
+    composerSuggestions,
+    input,
+    isOnline,
+    isRecording,
+    isSending,
+    isTranscribing,
+    locale,
+    openFilePicker,
+    removeImage,
+    retryLastSend,
+    selectedImage,
+    sendMessage,
+    speechSupported,
+    t,
+    toggleRecording,
+  ]) as ComposerProps
 
   function handleBreakdownConfirmed() {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -600,7 +639,6 @@ export function useChatComposer() {
 
   return {
     chatContainerRef,
-    textareaRef,
     fileInputRef,
     input,
     setInput,
@@ -628,17 +666,11 @@ export function useChatComposer() {
     showSuggestions,
     openFilePicker,
     handleFileSelect,
-    handlePaste,
     removeImage,
-    textFileInputRef,
-    selectedTextFileName: selectedTextFile?.name ?? null,
-    openTextFilePicker,
-    handleTextFileSelect,
-    removeTextFile,
+    composerProps,
     sendMessage,
     retryLastSend,
     canRetryLastSend,
-    handleKeyDown,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,

@@ -672,6 +672,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | PlanCard | radius 20, selected = `--primary-dim` tint + inset 1.5px primary ring; price Space Grotesk 22/600 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 20, borderless tonal aside, **one tone**: `--bg-elev` with an fg-3 icon. There is no accent variant, because a static informational card is not one of the four accent roles | `ui/info-card.tsx` | same |
 | Field | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
+| Composer | one input, 3 to 6 neutral suggestion chips, one filled send action, paired voice, image attachment and retry capabilities, state exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | OTP | 6 boxes, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
 | Overlay | see **Overlay** | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
 | TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |

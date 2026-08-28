@@ -198,7 +198,27 @@
     "expandSidebar": "Expand sidebar",
     "openRail": "Open panel",
     "closeRail": "Close panel",
-    "openPalette": "Open command palette"
+    "openPalette": "Open command palette",
+    "composer": {
+      "placeholder": "Ask Astra",
+      "send": "Send",
+      "suggestionsLabel": "Suggestions",
+      "retry": "Try again",
+      "voice": {
+        "start": "Speak",
+        "stop": "Stop",
+        "recording": "Listening",
+        "transcribing": "Writing what you said"
+      },
+      "attach": {
+        "add": "Add an image",
+        "trayLabel": "Attached files",
+        "remove": "Remove {name}"
+      },
+      "limit": {
+        "reason": "Today's allowance of {allowance} messages is used. Astra comes back at {resetsAt}."
+      }
+    }
   },
   "command": {
     "title": "Commands",

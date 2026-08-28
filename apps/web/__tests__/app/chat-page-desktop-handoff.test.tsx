@@ -12,9 +12,7 @@ const mocks = vi.hoisted(() => ({
   onActionChipClick: null as ActionChipHandler | null,
   composer: {
     chatContainerRef: { current: null },
-    textareaRef: { current: null },
     fileInputRef: { current: null },
-    textFileInputRef: { current: null },
     messages: [] as { id: string }[],
     isTyping: false,
     hasProAccess: false,
@@ -36,13 +34,8 @@ const mocks = vi.hoisted(() => ({
     canSend: false,
     openFilePicker: vi.fn(),
     handleFileSelect: vi.fn(),
-    handlePaste: vi.fn(),
-    handleKeyDown: vi.fn(),
     removeImage: vi.fn(),
-    selectedTextFileName: null,
-    openTextFilePicker: vi.fn(),
-    handleTextFileSelect: vi.fn(),
-    removeTextFile: vi.fn(),
+    composerProps: {},
     sendMessage: vi.fn(),
     retryLastSend: vi.fn(),
     canRetryLastSend: false,
@@ -75,7 +68,7 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({
 vi.mock('@/components/habits/habit-detail-drawer', () => ({
   HabitDetailDrawer: ({ open }: { open: boolean }) => (open ? <div data-testid="habit-drawer" /> : null),
 }))
-vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
 import ChatPage from '@/app/(chat)/chat/page'
