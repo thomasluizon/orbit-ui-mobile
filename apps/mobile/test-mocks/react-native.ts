@@ -12,11 +12,17 @@ type MeasureInWindowCallback = (
   height: number,
 ) => void
 type MeasureInWindowImpl = (callback: MeasureInWindowCallback) => void
+type ScrollToImpl = (options: {
+  x?: number
+  y?: number
+  animated?: boolean
+}) => void
 
 const DEFAULT_MEASURE_IN_WINDOW: MeasureInWindowImpl = (callback) =>
   callback(0, 0, 32, 32)
 
 let measureInWindowImpl: MeasureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
+let scrollToImpl: ScrollToImpl = () => {}
 let hostRefsNull = false
 
 export function __setMeasureInWindowImpl(impl: MeasureInWindowImpl) {
@@ -27,10 +33,15 @@ export function __setHostRefsNull(value: boolean) {
   hostRefsNull = value
 }
 
+export function __setScrollToImpl(impl: ScrollToImpl) {
+  scrollToImpl = impl
+}
+
 const keyboardListeners = new Map<string, Set<(payload: unknown) => void>>()
 
 export function __resetTestHostConfig() {
   measureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
+  scrollToImpl = () => {}
   hostRefsNull = false
   keyboardListeners.clear()
 }
@@ -48,7 +59,7 @@ function createHostComponent(name: string) {
       setNativeProps: () => {},
       focus: () => {},
       blur: () => {},
-      scrollTo: () => {},
+      scrollTo: scrollToImpl,
       scrollToEnd: () => {},
     }
 

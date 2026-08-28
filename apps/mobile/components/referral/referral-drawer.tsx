@@ -3,7 +3,6 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -14,7 +13,7 @@ import { Check, Copy, Gift } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
@@ -79,6 +78,75 @@ function ReferralStatsSection({
   )
 }
 
+interface ReferralLoadedContentProps {
+  stats: ReferralStats | null
+  referralUrl: string
+  copied: boolean
+  discountPercent: number
+  tokens: ReturnType<typeof createTokensV2>
+  styles: ReturnType<typeof createStyles>
+  onCopy: () => void
+  onShare: () => void
+}
+
+function ReferralLoadedContent({
+  stats,
+  referralUrl,
+  copied,
+  discountPercent,
+  tokens,
+  styles,
+  onCopy,
+  onShare,
+}: Readonly<ReferralLoadedContentProps>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <View style={styles.heroRow}>
+        <View style={[styles.heroDisc, { backgroundColor: tintFromPrimary(tokens, 0.15) }]}>
+          <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
+        </View>
+      </View>
+      <View>
+        <SectionLabel top={0} bottom={8}>{t('referral.drawer.yourLink')}</SectionLabel>
+        <View style={styles.linkWell}>
+          <Text style={styles.linkText} numberOfLines={1}>{referralUrl}</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.copyButton,
+              pressed ? [styles.copyButtonPressed, { backgroundColor: tokens.bgElev }] : null,
+            ]}
+            onPress={onCopy}
+            accessibilityRole="button"
+            accessibilityLabel={t('referral.drawer.copyLink')}
+          >
+            {copied ? (
+              <Check size={20} color={tokens.statusDone} strokeWidth={1.8} />
+            ) : (
+              <Copy size={20} color={tokens.fg2} strokeWidth={1.8} />
+            )}
+          </Pressable>
+        </View>
+      </View>
+      <View style={styles.gutter}>
+        <PillButton onClick={onShare}>{t('referral.drawer.share')}</PillButton>
+      </View>
+      {stats ? <ReferralStatsSection stats={stats} tokens={tokens} styles={styles} /> : null}
+      <View style={styles.gutter}>
+        <InfoCard>
+          <Text style={{ color: tokens.fg1 }}>{t('referral.drawer.howItWorks')}</Text>
+          <Text style={{ color: tokens.fg2 }}>
+            {t('referral.drawer.explanation', { discount: discountPercent })}
+          </Text>
+        </InfoCard>
+      </View>
+      <Text style={styles.disclaimer}>
+        {t('referral.drawer.disclaimer', { discount: discountPercent })}
+      </Text>
+    </>
+  )
+}
+
 /** Referral sheet: hero icon disc, mono link well with copy, primary share pill,
  *  progress rows, and a kit InfoCard explainer. */
 export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
@@ -117,18 +185,12 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
   }, [referralUrl, t])
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      open
       onClose={onClose}
       title={t('referral.drawer.title')}
-      snapPoints={['65%', '85%']}
-      contentManagesScroll
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={withDrawerContentInset(styles.content)}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={withDrawerContentInset(styles.content)}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={tokens.primary} />
@@ -148,80 +210,19 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
         ) : null}
 
         {!isLoading && !isError ? (
-          <>
-            <View style={styles.heroRow}>
-              <View
-                style={[
-                  styles.heroDisc,
-                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
-                ]}
-              >
-                <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
-              </View>
-            </View>
-
-            <View>
-              <SectionLabel top={0} bottom={8}>
-                {t('referral.drawer.yourLink')}
-              </SectionLabel>
-              <View style={styles.linkWell}>
-                <Text style={styles.linkText} numberOfLines={1}>
-                  {referralUrl}
-                </Text>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.copyButton,
-                    pressed
-                      ? [styles.copyButtonPressed, { backgroundColor: tokens.bgElev }]
-                      : null,
-                  ]}
-                  onPress={copyLink}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('referral.drawer.copyLink')}
-                >
-                  {copied ? (
-                    <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
-                  ) : (
-                    <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
-                  )}
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.gutter}>
-              <PillButton
-
-                onClick={() => void doShare()}
-
-              >
-                {t('referral.drawer.share')}
-              </PillButton>
-            </View>
-
-            {stats ? (
-              <ReferralStatsSection
-                stats={stats}
-                tokens={tokens}
-                styles={styles}
-              />
-            ) : null}
-
-            <View style={styles.gutter}>
-              <InfoCard>
-                <Text style={{ color: tokens.fg1 }}>{t('referral.drawer.howItWorks')}</Text>
-                <Text style={{ color: tokens.fg2 }}>
-                  {t('referral.drawer.explanation', { discount: discountPercent })}
-                </Text>
-              </InfoCard>
-            </View>
-
-            <Text style={styles.disclaimer}>
-              {t('referral.drawer.disclaimer', { discount: discountPercent })}
-            </Text>
-          </>
+          <ReferralLoadedContent
+            stats={stats}
+            referralUrl={referralUrl}
+            copied={copied}
+            discountPercent={discountPercent}
+            tokens={tokens}
+            styles={styles}
+            onCopy={copyLink}
+            onShare={() => void doShare()}
+          />
         ) : null}
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 
@@ -276,7 +277,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.bgField,
       paddingLeft: 16,
       paddingRight: 6,
-      paddingVertical: 5,
+      paddingVertical: 4,
     },
     linkText: {
       flex: 1,

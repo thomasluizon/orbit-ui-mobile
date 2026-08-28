@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { Plus, X } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
   filterHabitEmojiCategories,
 } from "@orbit/shared/utils";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { type AppTokens, createStyles } from "./styles";
 
@@ -25,6 +25,7 @@ export function HabitEmojiSelector({
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { sheetRef, closeSheet } = useSheetHost();
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const searchedCategories = useMemo(() => filterHabitEmojiCategories(query), [query]);
@@ -35,15 +36,17 @@ export function HabitEmojiSelector({
     [searchedCategories, selectedCategoryId],
   );
 
-  const closePicker = useCallback(() => {
+  const hidePicker = useCallback(() => {
     setPickerOpen(false);
     setQuery("");
     setSelectedCategoryId(null);
   }, []);
 
   function handleSelectEmoji(emoji: string) {
-    onSelect(emoji);
-    closePicker();
+    closeSheet(() => {
+      hidePicker();
+      onSelect(emoji);
+    });
   }
 
   function handleSelectCategory(categoryId: string) {
@@ -73,15 +76,13 @@ export function HabitEmojiSelector({
         )}
       </Pressable>
 
-      <BottomSheetModal
-        open={pickerOpen}
-        onClose={closePicker}
+      {pickerOpen ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={hidePicker}
         title={t("habits.form.emojiPickerTitle")}
-        snapPoints={["82%"]}
-        contentManagesScroll
       >
-        {pickerOpen ? (
-          <View style={styles.emojiSheetContent}>
+        <View style={styles.emojiSheetContent}>
             <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
             <BottomSheetAppTextInput
               value={query}
@@ -108,13 +109,10 @@ export function HabitEmojiSelector({
               </Pressable>
             ) : null}
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.emojiCategoryTabs}
+            <View
+              style={styles.emojiCategoryTabs}
               accessibilityLabel={t("habits.form.emojiCategories")}
             >
-              {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- fixed horizontal category-tab strip over a static category list; ScrollView is the right primitive for a short horizontal tab row https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (
@@ -137,9 +135,9 @@ export function HabitEmojiSelector({
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
 
-            <ScrollView style={styles.emojiModalList} showsVerticalScrollIndicator>
+            <View style={styles.emojiModalList}>
               {filteredCategories.length === 0 ? (
                 <Text style={styles.emojiEmptyText}>{t("habits.form.emojiPickerEmpty")}</Text>
               ) : filteredCategories.map((category) => (
@@ -168,10 +166,9 @@ export function HabitEmojiSelector({
                   </View>
                 </View>
               ))}
-            </ScrollView>
-          </View>
-        ) : null}
-      </BottomSheetModal>
+            </View>
+        </View>
+      </Sheet>) : null}
     </>
   );
 }

@@ -3,8 +3,9 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -72,6 +73,7 @@ export function HabitDetailDrawer({
   }, [habit, liveChecklist, t])
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showChecklistClearConfirm, setShowChecklistClearConfirm] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
 
@@ -138,8 +140,10 @@ export function HabitDetailDrawer({
     if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
-    onOpenChange(false)
-    router.push('/chat')
+    closeSheet(() => {
+      onOpenChange(false)
+      router.push('/chat')
+    })
   }
 
   return (
@@ -153,21 +157,24 @@ export function HabitDetailDrawer({
         />
       )}
 
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={() => onOpenChange(false)}
         title={habit?.title}
-        titleContent={
-          habit ? (
-            <HabitDetailHeader habit={habit} summaryStrip={summaryStrip} />
-          ) : undefined
-        }
-        description={habit?.description ?? undefined}
-        expandable
-        onExpandDescription={() => setDescriptionViewerOpen(true)}
       >
         {habit && (
           <div className="overlay-bleed">
+            <HabitDetailHeader habit={habit} summaryStrip={summaryStrip} showTitle={false} />
+            {habit.description ? (
+              <button
+                type="button"
+                className="mx-6 mb-3 block rounded-[12px] bg-[var(--bg-well)] p-3 text-start text-sm text-[var(--fg-2)]"
+                onClick={() => setDescriptionViewerOpen(true)}
+              >
+                {habit.description}
+              </button>
+            ) : null}
             {liveChecklist.length > 0 && (
               <>
                 <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
@@ -225,32 +232,25 @@ export function HabitDetailDrawer({
             <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
           </div>
         )}
-      </AppOverlay>
+      </Sheet>) : null}
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={showChecklistLogPrompt}
-        onOpenChange={setShowChecklistLogPrompt}
         title={t('habits.checklistCompleteTitle')}
-        description={t('habits.checklistCompleteMessage', {
-          name: habit?.title ?? '',
-        })}
+        message={t('habits.checklistCompleteMessage', { name: habit?.title ?? '' })}
         confirmLabel={t('habits.checklistCompleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={() => void confirmChecklistLog()}
         onCancel={() => setShowChecklistLogPrompt(false)}
-        variant="success"
+        onConfirm={() => void confirmChecklistLog()}
       />
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={showChecklistClearConfirm}
-        onOpenChange={setShowChecklistClearConfirm}
         title={t('habits.checklistClearTitle')}
-        description={t('habits.checklistClearMessage')}
+        message={t('habits.checklistClearMessage')}
         confirmLabel={t('habits.form.clearChecklist')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmChecklistClear}
+        destructive
         onCancel={() => setShowChecklistClearConfirm(false)}
-        variant="danger"
+        onConfirm={confirmChecklistClear}
       />
     </>
   )

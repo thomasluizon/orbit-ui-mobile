@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 import { ProgressBar } from '@/components/ui/progress-bar'
-import { useContextMenu, type ContextMenuItem } from '@/components/ui/context-menu'
+import { Menu } from '@/components/ui/menu'
 import type { GoalDrawerInitialAction } from './goal-detail-drawer'
 import { GoalStatusBadge } from './goal-status-badge'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
@@ -100,33 +100,34 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
     pct: Math.min(100, Math.round(goal.progressPercentage)),
   })
 
-  const contextMenuItems: ContextMenuItem[] = [
+  const contextActions = [
         {
-          key: 'viewDetails',
+          id: 'viewDetails',
           label: t('contextMenu.viewDetails'),
-          onSelect: () => onOpenDetail(goal.id, null),
+          onRun: () => onOpenDetail(goal.id, null),
         },
         {
-          key: 'edit',
+          id: 'edit',
           label: t('contextMenu.edit'),
-          onSelect: () => onOpenDetail(goal.id, 'edit'),
+          onRun: () => onOpenDetail(goal.id, 'edit'),
         },
         goal.status === 'Active'
           ? {
-              key: 'complete',
+              id: 'complete',
               label: t('contextMenu.complete'),
-              onSelect: () => onOpenDetail(goal.id, 'complete'),
+              onRun: () => onOpenDetail(goal.id, 'complete'),
             }
           : null,
         {
-          key: 'delete',
+          id: 'delete',
           label: t('contextMenu.delete'),
-          onSelect: () => onOpenDetail(goal.id, 'delete'),
-          danger: true,
+          onRun: () => onOpenDetail(goal.id, 'delete'),
+          destructive: true,
         },
-  ].filter((item): item is ContextMenuItem => item !== null)
+  ].filter((item): item is Exclude<typeof item, null> => item !== null)
 
-  const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
+  const [contextOpen, setContextOpen] = useState(false)
+  const cardRef = useRef<HTMLButtonElement>(null)
 
   const renderStatusIndicator = () => {
     if (statusBadge) {
@@ -141,9 +142,13 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
   return (
     <>
       <button
+        ref={cardRef}
         type="button"
         data-tour="tour-goal-card"
-        onContextMenu={onContextMenu}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setContextOpen(true)
+        }}
         className="card-int group relative w-full appearance-none overflow-hidden border-0 text-left"
         style={{ padding: '16px 18px' }}
         onClick={() => onOpenDetail(goal.id, null)}
@@ -239,7 +244,15 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
         </div>
       </button>
 
-      {contextMenu}
+      <Menu
+        open={contextOpen}
+        presentation="anchored"
+        anchorRef={cardRef}
+        title={t('habits.actions.more')}
+        items={contextActions.map(({ onRun: _onRun, ...item }) => item)}
+        onClose={() => setContextOpen(false)}
+        onSelect={(id) => contextActions.find((item) => item.id === id)?.onRun()}
+      />
     </>
   )
 }

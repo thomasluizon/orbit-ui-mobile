@@ -1,9 +1,10 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { useContextMenu } from '@/components/ui/context-menu'
+import { Menu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { SelectCheck } from '@/components/ui/select-check'
 import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
@@ -191,7 +192,8 @@ export function HabitRow({
     t,
   })
 
-  const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
+  const [contextOpen, setContextOpen] = useState(false)
+  const rowRef = useRef<HTMLDivElement>(null)
 
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
@@ -207,7 +209,9 @@ export function HabitRow({
   function handleRowContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
     const target = event.target
     if (!(target instanceof Node) || !event.currentTarget.contains(target)) return
-    onContextMenu(event)
+    if (contextMenuItems.length === 0) return
+    event.preventDefault()
+    setContextOpen(true)
   }
 
   function getTitleColor(): string {
@@ -217,11 +221,13 @@ export function HabitRow({
 
   const row = (
     <div
+      ref={rowRef}
       data-tour={tourTargetId}
       data-testid="habit-row"
       data-habit-title={habit.title}
       data-depth={depth}
       data-status={state}
+      tabIndex={-1}
       onContextMenuCapture={handleRowContextMenu}
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
@@ -285,7 +291,15 @@ export function HabitRow({
   return (
     <>
       {row}
-      {contextMenu}
+      <Menu
+        open={contextOpen}
+        presentation="anchored"
+        anchorRef={rowRef}
+        title={t('habits.actions.more')}
+        items={contextMenuItems.map(({ onRun: _onRun, ...item }) => item)}
+        onClose={() => setContextOpen(false)}
+        onSelect={(id) => contextMenuItems.find((item) => item.id === id)?.onRun()}
+      />
     </>
   )
 }

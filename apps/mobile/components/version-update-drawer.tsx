@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   startAndroidUpdate,
@@ -14,6 +14,53 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const SNOOZE_STORAGE_KEY = 'orbit:version-update-snoozed-until'
 const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24
+
+interface VersionUpdateSheetProps {
+  open: boolean
+  title: string
+  description: string
+  actionLabel: string
+  latestVersion: string | null
+  currentVersion: string | null
+  styles: ReturnType<typeof createStyles>
+  onAction: () => void
+  onLater: () => void
+}
+
+function VersionUpdateSheet({
+  open,
+  title,
+  description,
+  actionLabel,
+  latestVersion,
+  currentVersion,
+  styles,
+  onAction,
+  onLater,
+}: Readonly<VersionUpdateSheetProps>) {
+  const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
+  if (!open) return null
+
+  return (
+    <Sheet ref={sheetRef} open onClose={onLater} title={title}>
+      <View style={styles.container}>
+        <Text style={styles.title}>{latestVersion ? `Orbit ${latestVersion}` : title}</Text>
+        {currentVersion && latestVersion ? (
+          <Text style={styles.delta}>{currentVersion} → {latestVersion}</Text>
+        ) : null}
+        <Text style={styles.description}>{description}</Text>
+        <View style={styles.spacer} />
+        <View style={styles.buttons}>
+          <PillButton onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
+            {t('versionUpdate.laterCta')}
+          </PillButton>
+        </View>
+      </View>
+    </Sheet>
+  )
+}
 
 /**
  * Version-update sheet (iOS path) per the m-version artboard: sheet title,
@@ -121,91 +168,43 @@ export function VersionUpdateDrawer() {
 
   if (Platform.OS === 'android') {
     return (
-      <BottomSheetModal
+      <VersionUpdateSheet
         open={androidUpdateReady && !androidRestartDismissed}
-        onClose={handleAndroidLater}
         title={t('versionUpdate.readyTitle')}
-        snapPoints={['50%']}
-      >
-        <View style={styles.container}>
-          <Text style={styles.title}>
-            {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.readyTitle')}
-          </Text>
-          {currentVersion && latestVersion ? (
-            <Text style={styles.delta}>
-              {currentVersion} → {latestVersion}
-            </Text>
-          ) : null}
-          <Text style={styles.description}>
-            {t('versionUpdate.readyDescription')}
-          </Text>
-
-          <View style={styles.spacer} />
-
-          <View style={styles.buttons}>
-            <PillButton
-
-              onClick={installAndroidUpdate}
-
-            >
-              {t('versionUpdate.restartCta')}
-            </PillButton>
-            <PillButton variant="ghost"  onClick={handleAndroidLater}>
-              {t('versionUpdate.laterCta')}
-            </PillButton>
-          </View>
-        </View>
-      </BottomSheetModal>
+        description={t('versionUpdate.readyDescription')}
+        actionLabel={t('versionUpdate.restartCta')}
+        latestVersion={latestVersion}
+        currentVersion={currentVersion}
+        styles={styles}
+        onAction={installAndroidUpdate}
+        onLater={handleAndroidLater}
+      />
     )
   }
 
   if (Platform.OS !== 'ios') return null
 
   return (
-    <BottomSheetModal
+    <VersionUpdateSheet
       open={shouldShowIosSheet}
-      onClose={handleIosLater}
       title={t('versionUpdate.title')}
-      snapPoints={['55%']}
-    >
-      <View style={styles.container}>
-        <Text style={styles.title}>
-          {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.title')}
-        </Text>
-        {currentVersion && latestVersion ? (
-          <Text style={styles.delta}>
-            {currentVersion} → {latestVersion}
-          </Text>
-        ) : null}
-        <Text style={styles.description}>
-          {t('versionUpdate.description')}
-        </Text>
-
-        <View style={styles.spacer} />
-
-        <View style={styles.buttons}>
-          <PillButton
-
-            onClick={handleIosUpdate}
-
-          >
-            {t('versionUpdate.updateCta')}
-          </PillButton>
-          <PillButton variant="ghost"  onClick={handleIosLater}>
-            {t('versionUpdate.laterCta')}
-          </PillButton>
-        </View>
-      </View>
-    </BottomSheetModal>
+      description={t('versionUpdate.description')}
+      actionLabel={t('versionUpdate.updateCta')}
+      latestVersion={latestVersion}
+      currentVersion={currentVersion}
+      styles={styles}
+      onAction={handleIosUpdate}
+      onLater={handleIosLater}
+    />
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     container: {
-      paddingHorizontal: 22,
-      paddingTop: 10,
-      paddingBottom: 22,
+      paddingHorizontal: 24,
+      paddingTop: 8,
+      paddingBottom: 24,
       gap: 12,
     },
     title: {
@@ -221,7 +220,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     description: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
+      fontSize: 16,
       lineHeight: 22,
       color: tokens.fg2,
       marginTop: 4,
@@ -232,8 +231,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     buttons: {
       flexDirection: 'column',
-      gap: 10,
-      paddingTop: 10,
+      gap: 8,
+      paddingTop: 8,
     },
   })
 }

@@ -27,24 +27,7 @@ vi.mock('motion/react', () => {
   }
 })
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    title,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    title?: string
-    onOpenChange?: (open: boolean) => void
-  }) =>
-    open ? (
-      <div data-testid="consent-prompt">
-        {title}
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 const patchProfile = vi.fn()
 const invalidate = vi.fn()
@@ -119,7 +102,7 @@ describe('MarketingConsentPrompt', () => {
 
   it('renders nothing when no consent prompt is armed', () => {
     renderPrompt()
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('does not render when a different kind is armed', async () => {
@@ -129,17 +112,17 @@ describe('MarketingConsentPrompt', () => {
       await Promise.resolve()
     })
     await settle()
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {
     renderPrompt()
     await armConsent()
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
 
     await settle()
 
-    expect(screen.getByTestId('consent-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       MARKETING_CONSENT_MILESTONE_KEY,
     )
@@ -154,7 +137,7 @@ describe('MarketingConsentPrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('opts in and optimistically patches the profile on accept', async () => {
@@ -169,7 +152,7 @@ describe('MarketingConsentPrompt', () => {
 
     expect(updateMarketingConsent).toHaveBeenCalledWith({ enabled: true })
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: true })
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('opts out and optimistically patches the profile on decline', async () => {
@@ -184,6 +167,6 @@ describe('MarketingConsentPrompt', () => {
 
     expect(updateMarketingConsent).toHaveBeenCalledWith({ enabled: false })
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: false })
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })

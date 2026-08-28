@@ -403,6 +403,9 @@ vi.mock("@/components/ui/icons", () => {
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props);
   return {
+    AdjustmentsHorizontal: createIcon("AdjustmentsHorizontal"),
+    AlertTriangle: createIcon("AlertTriangle"),
+    ArrowLeft: createIcon("ArrowLeft"),
     ArrowUp: createIcon("ArrowUp"),
     Check: createIcon("Check"),
     CheckCircle2: createIcon("CheckCircle2"),
@@ -413,12 +416,18 @@ vi.mock("@/components/ui/icons", () => {
     Eye: createIcon("Eye"),
     FastForward: createIcon("FastForward"),
     Filter: createIcon("Filter"),
+    Home: createIcon("Home"),
+    Minus: createIcon("Minus"),
     MinusCircle: createIcon("MinusCircle"),
     MoreVertical: createIcon("MoreVertical"),
     PlusCircle: createIcon("PlusCircle"),
+    Plus: createIcon("Plus"),
     RefreshCw: createIcon("RefreshCw"),
     Search: createIcon("Search"),
+    Snowflake: createIcon("Snowflake"),
+    Target: createIcon("Target"),
     Trash2: createIcon("Trash2"),
+    WifiOff: createIcon("WifiOff"),
     X: createIcon("X"),
   };
 });
@@ -588,6 +597,7 @@ describe("TodayScreen", () => {
     ]);
     mockHabitsData.topLevelHabits = [root];
     uiState.selectedHabitIds = new Set([parent.id, child.id]);
+    uiState.isSelectMode = true;
 
     bulkLogMutateAsync.mockResolvedValue({
       results: [

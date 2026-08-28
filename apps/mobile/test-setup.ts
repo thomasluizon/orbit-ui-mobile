@@ -132,37 +132,7 @@ vi.mock('@/lib/theme-provider', () => ({
   useThemeContext: () => null,
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-    title,
-    onDidDismiss,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    title?: string
-    onDidDismiss?: () => void
-  }) => {
-    const wasOpenRef = React.useRef(false)
-    React.useEffect(() => {
-      if (open) {
-        wasOpenRef.current = true
-      } else if (wasOpenRef.current) {
-        wasOpenRef.current = false
-        onDidDismiss?.()
-      }
-    }, [open, onDidDismiss])
-    return open
-      ? React.createElement(
-          'BottomSheetModal',
-          null,
-          title ? React.createElement('Text', null, title) : null,
-          children,
-        )
-      : null
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({
@@ -171,15 +141,17 @@ vi.mock('@/hooks/use-ad-mob', () => ({
     rewardsClaimedToday: 0,
     dailyRewardCap: 3,
     shouldShowAds: () => true,
-    initialize: async () => {},
-    showInterstitialIfDue: async () => {},
-    showRewardedAd: async () => false,
+    initialize: async () => {
+await Promise.resolve()},
+    showInterstitialIfDue: async () => {
+await Promise.resolve()},
+    showRewardedAd: async () => { await Promise.resolve(); return false; },
     markRewardClaimed: () => {},
   }),
 }))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
     React.createElement('TextInput', {
       testID: 'date-picker',
       value,

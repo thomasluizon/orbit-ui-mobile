@@ -18,11 +18,7 @@ const mocks = vi.hoisted(() => ({
   },
   bulkActions: {
     showBulkDeleteConfirm: false,
-    showBulkLogConfirm: false,
-    showBulkSkipConfirm: false,
     setShowBulkDeleteConfirm: vi.fn(),
-    setShowBulkLogConfirm: vi.fn(),
-    setShowBulkSkipConfirm: vi.fn(),
     confirmBulkDelete: vi.fn(),
     confirmBulkLog: vi.fn(),
     confirmBulkSkip: vi.fn(),
@@ -149,7 +145,7 @@ describe('mobile useTodaySelection', () => {
     expect(closeControlsMenu).toHaveBeenCalled()
   })
 
-  it('runs log and skip directly but confirms delete when habits are selected', () => {
+  it('confirms deletion but runs reversible bulk actions directly when habits are selected', () => {
     const empty = renderSelection()
     empty.api.current.handleOpenBulkDelete()
     empty.api.current.handleOpenBulkLog()

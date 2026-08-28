@@ -362,6 +362,7 @@
     "searchPlaceholder": "Buscar hábitos...",
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
+    "hideCompleted": "Ocultar concluídos",
     "collapseAll": "Recolher todos",
     "expandAll": "Expandir todos",
     "refresh": "Atualizar",

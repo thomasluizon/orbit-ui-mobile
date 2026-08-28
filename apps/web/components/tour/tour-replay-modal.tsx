@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTourStore } from '@/stores/tour-store'
 import { resetTour } from '@/app/actions/profile'
@@ -29,6 +29,17 @@ const SECTION_ICON_MAP = {
   'calendar-days': CalendarDays,
   'user': User,
 } as const
+
+const SECTION_ROUTE_MAP: Record<TourSection, string> = {
+  habits: '/',
+  goals: '/',
+  chat: '/chat',
+  calendar: '/calendar',
+  profile: '/profile',
+  'coach-today': '/',
+  'coach-astra': '/chat',
+  'coach-calendar': '/calendar',
+}
 
 interface TourReplayModalProps {
   open: boolean
@@ -64,59 +75,50 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
     profile?.hasProAccess ? true : section !== 'goals',
   )
 
-  const handleReplayAll = useCallback(async () => {
-    onOpenChange(false)
+  const { sheetRef, closeSheet } = useSheetHost()
 
-    try {
-      await resetTour()
-    } catch {
-    }
-
+  const resetTourProgress = useCallback(async () => {
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old
       return { ...old, hasCompletedTour: false }
     })
 
-    router.push('/')
-    setTimeout(() => startFullTour(), 300)
-  }, [onOpenChange, queryClient, router, startFullTour])
+    try {
+      await resetTour()
+    } catch {
+    }
+  }, [queryClient])
+
+  const handleReplayAll = useCallback(() => {
+    closeSheet(() => {
+      onOpenChange(false)
+      void resetTourProgress()
+      router.push('/')
+      startFullTour()
+    })
+  }, [closeSheet, onOpenChange, resetTourProgress, router, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
-      onOpenChange(false)
-
-      const routeMap: Record<TourSection, string> = {
-        habits: '/',
-        goals: '/',
-        chat: '/chat',
-        calendar: '/calendar',
-        profile: '/profile',
-        'coach-today': '/',
-        'coach-astra': '/chat',
-        'coach-calendar': '/calendar',
-      }
-
-      router.push(routeMap[section])
-      setTimeout(() => startSectionReplay(section), 300)
+      closeSheet(() => {
+        onOpenChange(false)
+        router.push(SECTION_ROUTE_MAP[section])
+        startSectionReplay(section)
+      })
     },
-    [onOpenChange, router, startSectionReplay],
+    [closeSheet, onOpenChange, router, startSectionReplay],
   )
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => onOpenChange(false)}
       title={t('tour.replay.modalTitle')}
     >
       <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
         <div>
-          <PillButton
-
-            onClick={() => {
-              void handleReplayAll()
-            }}
-
-          >
+          <PillButton onClick={handleReplayAll}>
             {t('tour.replay.replayAll')}
           </PillButton>
         </div>
@@ -196,6 +198,6 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
           })}
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

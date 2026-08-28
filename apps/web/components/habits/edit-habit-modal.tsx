@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -44,6 +45,21 @@ interface EditHabitModalProps {
   lockedGeneral?: boolean | null
 }
 
+function hasEditHabitChanges(
+  formDirty: boolean,
+  selectedTagIds: readonly string[],
+  selectedGoalIds: readonly string[],
+  reminderTimes: readonly number[],
+  initialTagIds: string,
+  initialGoalIds: string,
+  initialReminderTimes: string,
+): boolean {
+  const tagIds = JSON.stringify([...selectedTagIds].sort((left, right) => left.localeCompare(right)))
+  const goalIds = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right)))
+  return formDirty || tagIds !== initialTagIds || goalIds !== initialGoalIds ||
+    JSON.stringify(reminderTimes) !== initialReminderTimes
+}
+
 export function EditHabitModal({
   open,
   onOpenChange,
@@ -77,14 +93,19 @@ export function EditHabitModal({
   const watchedTitle = coalesceFormText(formHelpers.form.watch('title'))
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty =
-    formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds ||
-    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds ||
-    JSON.stringify(reminderTimes) !== initialReminderTimes
+  const isDirty = hasEditHabitChanges(
+    formHelpers.form.formState.isDirty,
+    tags.selectedTagIds,
+    selectedGoalIds,
+    reminderTimes,
+    initialTagIds,
+    initialGoalIds,
+    initialReminderTimes,
+  )
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => onOpenChange(false),
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
   const {
@@ -110,33 +131,36 @@ export function EditHabitModal({
 
   const sessionHabitId = open && habit ? habit.id : null
   const sessionDetailId = habitDetail?.id ?? null
-  const [previousSession, setPreviousSession] = useState<{
+  const previousSessionRef = useRef<{
     habitId: string | null
     detailId: string | null
   }>({ habitId: null, detailId: null })
-  if (
-    sessionHabitId !== previousSession.habitId ||
-    sessionDetailId !== previousSession.detailId
-  ) {
+  useEffect(() => {
+    const previousSession = previousSessionRef.current
+    if (
+      sessionHabitId === previousSession.habitId &&
+      sessionDetailId === previousSession.detailId
+    ) return
+
     const habitChanged = sessionHabitId !== previousSession.habitId
-    setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
-    if (open && habit && (habitChanged || !formHelpers.form.formState.isDirty)) {
-      const prefill = buildEditHabitFormState(habit, habitDetail)
-      formHelpers.form.reset(prefill.formValues)
-      setOriginalEndDate(prefill.originalEndDate)
-      setReminderTimes(prefill.reminderTimes)
-      tags.resetTags(prefill.selectedTagIds)
-      setSelectedGoalIds(prefill.selectedGoalIds)
-      setInitialTagIds(
-        JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
-      )
-      setInitialGoalIds(
-        JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
-      )
-      setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-      applyHabitFormMode(prefill.mode, formHelpers)
-    }
-  }
+    previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
+    if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
+
+    const prefill = buildEditHabitFormState(habit, habitDetail)
+    formHelpers.form.reset(prefill.formValues)
+    setOriginalEndDate(prefill.originalEndDate)
+    setReminderTimes(prefill.reminderTimes)
+    tags.resetTags(prefill.selectedTagIds)
+    setSelectedGoalIds(prefill.selectedGoalIds)
+    setInitialTagIds(
+      JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
+    )
+    setInitialGoalIds(
+      JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
+    )
+    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    applyHabitFormMode(prefill.mode, formHelpers)
+  }, [formHelpers, habit, habitDetail, open, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
@@ -166,13 +190,13 @@ export function EditHabitModal({
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
         await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
-        onOpenChange(false)
+        closeSheet(() => onOpenChange(false))
         await onSaved?.()
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [assignTags, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
+    [assignTags, closeSheet, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   const handleSuggest = useCallback(async () => {
@@ -207,19 +231,15 @@ export function EditHabitModal({
     }
   }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
 
-  return (
-    <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+  function renderEditSheet() {
+    if (!open) return null
+    return (
+      <Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('habits.editHabit')}
-        description={t('habits.form.editDescription')}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        initialFocusRef={titleInputRef}
-        panelWidth="wide"
-        footer={
+        actions={(
           <div className="flex items-center justify-end" style={{ gap: 12 }}>
             <PillButton
               variant="ghost"
@@ -239,46 +259,47 @@ export function EditHabitModal({
               {t('common.save')}
             </PillButton>
           </div>
-        }
+        )}
       >
-        <form id={formId} onSubmit={(e) => void handleSubmit(e)}>
-        <fieldset
-          disabled={detailFieldsPending}
-          aria-busy={detailFieldsPending || undefined}
-          className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
-            detailFieldsPending ? 'pointer-events-none opacity-60' : ''
-          }`}
-        >
-        <HabitFormFields
-          formHelpers={formHelpers}
-          titleInputRef={titleInputRef}
-          tags={tags}
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={toggleGoal}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={setReminderTimes}
-          hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
-          onSuggestSetup={() => void handleSuggest()}
-          isSuggesting={suggestion.isPending}
-          lockedGeneral={resolvedLockedGeneral}
-          defaultExpanded
-        />
-        </fieldset>
+        <p className="mb-4 text-sm text-[var(--fg-3)]">
+          {t('habits.form.editDescription')}
+        </p>
+        <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+          <fieldset
+            disabled={detailFieldsPending}
+            aria-busy={detailFieldsPending || undefined}
+            className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
+              detailFieldsPending ? 'pointer-events-none opacity-60' : ''
+            }`}
+          >
+            <HabitFormFields
+              formHelpers={formHelpers}
+              titleInputRef={titleInputRef}
+              tags={tags}
+              selectedGoalIds={selectedGoalIds}
+              atGoalLimit={atGoalLimit}
+              onToggleGoal={toggleGoal}
+              reminderTimes={reminderTimes}
+              onReminderTimesChange={setReminderTimes}
+              hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
+              onSuggestSetup={() => void handleSuggest()}
+              isSuggesting={suggestion.isPending}
+              lockedGeneral={resolvedLockedGeneral}
+              defaultExpanded
+            />
+          </fieldset>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
+      </Sheet>
+    )
+  }
+
+  return (
+    <>
+      {renderEditSheet()}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

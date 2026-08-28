@@ -32,4 +32,13 @@ describe('FieldInput (mobile)', () => {
     const tree = renderField(<FieldInput label="Name" />)
     expect(textContents(tree)).toContain('Name')
   })
+
+  it('constrains the root and native input to their parent width', () => {
+    const tree = renderField(<FieldInput />)
+    const root = tree.root.findByType('View')
+    const input = tree.root.findByType('TextInput')
+
+    expect(root.props.style).toMatchObject({ maxWidth: '100%', minWidth: 0, width: '100%' })
+    expect(input.props.style[0]).toMatchObject({ maxWidth: '100%', minWidth: 0, width: '100%' })
+  })
 })
