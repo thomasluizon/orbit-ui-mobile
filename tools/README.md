@@ -71,7 +71,7 @@ These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `generate-brand-assets.mjs` | Regenerates the canonical brand PNGs and platform assets from `orbit-mark.svg`, `orbit-mark-accent.svg`, and the native `orbit-mark-16.svg` redraw. It validates every source before rendering. | `node tools/generate-brand-assets.mjs --write` |
+| `generate-brand-assets.mjs` | Regenerates the canonical brand PNGs, the native 16 plus canonical 32 and 48 favicon layers, the Apple icon, and platform assets from `orbit-mark.svg`, `orbit-mark-accent.svg`, and the native `orbit-mark-16.svg` redraw. It validates every source before rendering. | `node tools/generate-brand-assets.mjs --write` |
 
 ## Harness self-test
 
