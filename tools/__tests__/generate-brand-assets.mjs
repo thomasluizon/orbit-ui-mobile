@@ -11,6 +11,8 @@ const expectedAssets = [
   ["design/brand/png/orbit-mark-accent-128.png", 128, 128],
   ["design/brand/png/orbit-mark-accent-512.png", 512, 512],
   ["design/brand/png/orbit-platform-icon-512.png", 512, 512],
+  ["design/brand/exports/oauth-consent-logo-512.png", 512, 512],
+  ["design/brand/exports/play-icon-512.png", 512, 512],
   ["apps/mobile/assets/adaptive-icon-background.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-foreground.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-monochrome.png", 1024, 1024],
@@ -52,7 +54,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 22 brand assets/ },
+    { status: 0, stdout: /generated 24 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -92,6 +94,23 @@ export const cases = async () => {
     "generate-brand-assets.mjs: Play feature graphic is a 24-bit RGB PNG with no alpha channel",
     featureGraphicMetadata.channels === 3 && featureGraphicMetadata.hasAlpha === false,
     JSON.stringify(featureGraphicMetadata),
+  )
+
+  const oauthLogo = join(outputRoot, "design", "brand", "exports", "oauth-consent-logo-512.png")
+  const oauthLogoMetadata = await sharp(oauthLogo).metadata()
+  T(
+    "generate-brand-assets.mjs: OAuth consent logo is opaque and under one megabyte",
+    oauthLogoMetadata.channels === 3 && oauthLogoMetadata.hasAlpha === false && readFileSync(oauthLogo).byteLength < 1_000_000,
+    JSON.stringify(oauthLogoMetadata),
+  )
+
+  const playIcon = join(outputRoot, "design", "brand", "exports", "play-icon-512.png")
+  const playIconMetadata = await sharp(playIcon).metadata()
+  const playIconCorner = await pixelAt(playIcon, 0, 0)
+  T(
+    "generate-brand-assets.mjs: Play icon is a 32-bit PNG with no transparent pixels and is under one megabyte",
+    playIconMetadata.channels === 4 && playIconMetadata.hasAlpha === true && playIconCorner.join(",") === "9,9,11,255" && readFileSync(playIcon).byteLength < 1_000_000,
+    `${JSON.stringify(playIconMetadata)}; corner ${playIconCorner.join(",")}`,
   )
 
   const foreground = join(outputRoot, "apps", "mobile", "assets", "adaptive-icon-foreground.png")

@@ -80,6 +80,10 @@ const generatedAssets = [
   { path: "design/brand/png/orbit-mark-accent-128.png", width: 128, height: 128, ink: FOREGROUND, accent: true, sourceCanvas: true },
   { path: "design/brand/png/orbit-mark-accent-512.png", width: 512, height: 512, ink: FOREGROUND, accent: true, sourceCanvas: true },
   { path: "design/brand/png/orbit-platform-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  // Console upload exports keep the same platform icon composition. OAuth gets a 24-bit opaque
+  // PNG; Play requires a 32-bit PNG, so its alpha channel stays present with every pixel opaque.
+  { path: "design/brand/exports/oauth-consent-logo-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true, opaque: true },
+  { path: "design/brand/exports/play-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
   { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: 0.6 },
