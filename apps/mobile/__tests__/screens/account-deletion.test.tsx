@@ -74,12 +74,14 @@ const mocks = vi.hoisted(() => {
       currentScheme: 'purple',
       currentTheme: 'dark',
     })),
-    asyncStorageGetItem: vi.fn(async (key: string) => storage.get(key) ?? null),
-    asyncStorageSetItem: vi.fn(async (key: string, value: string) => {
+    asyncStorageGetItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+    asyncStorageSetItem: vi.fn((key: string, value: string) => {
       storage.set(key, value)
+      return Promise.resolve()
     }),
-    asyncStorageRemoveItem: vi.fn(async (key: string) => {
+    asyncStorageRemoveItem: vi.fn((key: string) => {
       storage.delete(key)
+      return Promise.resolve()
     }),
     clearChecklistTemplates: vi.fn(async () => {}),
     clearPersistedQueryCache: vi.fn(async () => {}),
@@ -156,7 +158,7 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({
   AppBar: ({ trailing }: { trailing?: React.ReactNode }) =>
-    React.createElement(React.Fragment, null, trailing as React.ReactNode),
+    React.createElement(React.Fragment, null, trailing),
 }))
 
 vi.mock('@/components/ui/section-label', () => ({
@@ -238,7 +240,9 @@ vi.mock('@/lib/offline-mutations', () => ({
   buildQueuedMutation: vi.fn((mutation: Record<string, unknown>) => mutation),
   createQueuedAck: vi.fn((queuedMutationId: string) => ({ queued: true, queuedMutationId })),
   isQueuedResult: vi.fn(() => false),
-  queueOrExecute: vi.fn(async () => ({ queued: false, queuedMutationId: 'mutation-1' })),
+  queueOrExecute: vi.fn(() =>
+    Promise.resolve({ queued: false, queuedMutationId: 'mutation-1' }),
+  ),
 }))
 
 vi.mock('@/lib/offline-queue', () => ({
@@ -397,7 +401,7 @@ describe('ProfileScreen account-deletion state machine', () => {
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
-  it('requests deletion and advances to the code step with six inputs', async () => {
+  it('requests deletion and advances to the code step with one input', async () => {
     const tree = await renderScreen(<ProfileScreen />)
 
     await TestRenderer.act(async () => {
@@ -420,7 +424,7 @@ describe('ProfileScreen account-deletion state machine', () => {
       method: 'POST',
     })
     expect(screenTexts(tree)).toContain('profile.deleteAccount.codeInstructions')
-    expect(tree.root.findAllByType('TextInput')).toHaveLength(6)
+    expect(tree.root.findAllByType('TextInput')).toHaveLength(1)
   })
 
   it('surfaces an error when requesting deletion fails and stays on confirm', async () => {
@@ -463,11 +467,9 @@ describe('ProfileScreen account-deletion state machine', () => {
       await Promise.resolve()
     })
 
-    const inputs = tree.root.findAllByType('TextInput')
+    const input = tree.root.findAllByType('TextInput')[0]!
     await TestRenderer.act(async () => {
-      inputs.forEach((input: any, index: number) => {
-        input.props.onChangeText(String(index + 1))
-      })
+      input.props.onChangeText('123456')
       await Promise.resolve()
     })
 
@@ -504,11 +506,9 @@ describe('ProfileScreen account-deletion state machine', () => {
       sendButton.props.onPress()
       await Promise.resolve()
     })
-    const inputs = tree.root.findAllByType('TextInput')
+    const input = tree.root.findAllByType('TextInput')[0]!
     await TestRenderer.act(async () => {
-      inputs.forEach((input: any, index: number) => {
-        input.props.onChangeText(String(index + 1))
-      })
+      input.props.onChangeText('123456')
       await Promise.resolve()
     })
     const confirmButton = tree.root.findAll(
