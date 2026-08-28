@@ -80,6 +80,8 @@ export const FieldInput = forwardRef<TextInput, FieldInputProps>(
 const styles = StyleSheet.create({
   root: {
     gap: 8,
+    maxWidth: '100%',
+    minWidth: 0,
     width: '100%',
   },
   label: {
@@ -87,6 +89,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   input: {
+    maxWidth: '100%',
+    minWidth: 0,
     width: '100%',
     minHeight: 54,
     borderRadius: 14,

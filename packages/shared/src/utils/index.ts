@@ -152,6 +152,18 @@ export {
   resolveSystemLocale,
   splitMonthYear,
 } from './locale-format'
+export {
+  DAY_PERIODS,
+  formatTimeParts,
+  from12Hour,
+  HOURS_12,
+  HOURS_24,
+  MINUTES,
+  padTimePart,
+  parseTimeParts,
+  to12Hour,
+} from './time-parts'
+export type { DayPeriod, TimeParts } from './time-parts'
 export { buildYearRange } from './year-range'
 export { filterRecurringEntries } from './calendar-entries'
 export {

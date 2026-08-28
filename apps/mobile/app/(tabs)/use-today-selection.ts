@@ -42,11 +42,8 @@ export function useTodaySelection({
     habitListRef,
     onSuccess: clearSelection,
   });
-  const {
-    setShowBulkDeleteConfirm,
-    confirmBulkLog,
-    confirmBulkSkip,
-  } = bulkActions;
+  const { setShowBulkDeleteConfirm, confirmBulkLog, confirmBulkSkip } =
+    bulkActions;
 
   const allLoadedIds =
     habitListAllLoadedIds.size > 0 ? habitListAllLoadedIds : visibleHabitIds;

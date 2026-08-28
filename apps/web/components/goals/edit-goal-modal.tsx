@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
@@ -71,9 +72,10 @@ export function EditGoalModal({
     targetValue !== String(goal.targetValue) ||
     unit !== goal.unit ||
     deadline !== (goal.deadline ?? '')
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => onOpenChange(false),
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
   const fieldErrors = useMemo(() => {
@@ -135,25 +137,23 @@ export function EditGoalModal({
         }
 
         await updateGoal.mutateAsync({ goalId: goal.id, data: request })
-        onOpenChange(false)
+        closeSheet(() => onOpenChange(false))
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
-    [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
+    [closeSheet, deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
   const unitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
 
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('goals.detail.edit')}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
-        onAttemptDismiss={dismissGuard.requestDismiss}
       >
         <form onSubmit={(e) => void onSubmit(e)} noValidate>
           <div className="t-eyebrow" style={{ padding: '10px 0' }}>
@@ -210,19 +210,11 @@ export function EditGoalModal({
             </PillButton>
           </div>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

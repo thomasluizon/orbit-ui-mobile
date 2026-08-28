@@ -57,15 +57,7 @@ vi.mock('@/lib/queued-api-mutation', () => ({
     mockPerformQueuedApiMutation(...args),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-  }) => (open ? <>{children}</> : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 function findByTestId(tree: TestInstance, testID: string): TestNode {
   const node = tree.root.findAllByProps({ testID }).at(0)

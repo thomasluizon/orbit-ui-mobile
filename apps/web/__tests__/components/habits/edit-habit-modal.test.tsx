@@ -128,29 +128,7 @@ vi.mock('@/lib/habit-request-builders', () => ({
   buildUpdateHabitRequest: vi.fn(() => ({})),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    title,
-    description,
-    footer,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    title?: string
-    description?: string
-    footer?: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="app-overlay">
-        {title && <h2>{title}</h2>}
-        {description && <p>{description}</p>}
-        {children}
-        {footer && <div data-testid="overlay-footer">{footer}</div>}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
@@ -231,7 +209,7 @@ describe('EditHabitModal', () => {
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
-    expect(screen.getByTestId('app-overlay')).toBeDefined()
+    expect(screen.getByTestId('sheet')).toBeDefined()
   })
 
   it('shows edit habit title', () => {
@@ -327,7 +305,7 @@ describe('EditHabitModal', () => {
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
-    const form = screen.getByTestId('app-overlay').querySelector('form')
+    const form = screen.getByTestId('sheet').querySelector('form')
     fireEvent.submit(form!)
     expect(mockShowError).toHaveBeenCalledWith('End date must be after start date')
     expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
@@ -345,7 +323,7 @@ describe('EditHabitModal', () => {
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={null} />,
     )
-    expect(screen.getByTestId('app-overlay')).toBeDefined()
+    expect(screen.getByTestId('sheet')).toBeDefined()
   })
 
   it('disables the fields and the save button while the habit detail is loading', () => {
@@ -381,7 +359,7 @@ describe('EditHabitModal', () => {
       />,
     )
 
-    const form = screen.getByTestId('app-overlay').querySelector('form')
+    const form = screen.getByTestId('sheet').querySelector('form')
     fireEvent.submit(form!)
 
     await waitFor(() => {

@@ -19,7 +19,7 @@ import {
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '@orbit/shared/utils/advanced-settings'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 
@@ -183,7 +183,7 @@ export function ApiKeyCard({
           </p>
           <p
             style={{
-              marginTop: 3,
+              marginTop: 4,
               fontFamily: 'var(--font-mono)',
               fontSize: 13,
               color: 'var(--fg-2)',
@@ -501,7 +501,7 @@ export function WidgetInfoOverlay({
   t,
 }: Readonly<{ open: boolean; onOpenChange: (open: boolean) => void; t: TranslationFn }>) {
   return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={t('profile.widgetTitle')}>
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('profile.widgetTitle')}>
       <div className="space-y-5" style={{ paddingBottom: 8 }}>
         <div>
           <h3
@@ -565,6 +565,6 @@ export function WidgetInfoOverlay({
           </ul>
         </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

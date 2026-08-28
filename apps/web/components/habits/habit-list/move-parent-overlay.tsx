@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGlyph } from '@/components/ui/select-check'
@@ -190,6 +190,7 @@ export function MoveParentOverlay({
   onSelectOption,
 }: Readonly<MoveParentOverlayProps>) {
   const [searchQuery, setSearchQuery] = useState('')
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const rootOption = useMemo(
     () => options.find((option) => option.id === null) ?? null,
@@ -209,26 +210,17 @@ export function MoveParentOverlay({
   const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          setSearchQuery('')
-          onClose()
-        }
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={isMoving ? undefined : () => {
+        setSearchQuery('')
+        onClose()
       }}
-      dismissible={!isMoving}
       title={t('habits.moveParent.title')}
-      description={movingHabitTitle ? t('habits.moveParent.description', { name: movingHabitTitle }) : undefined}
-      footer={
+      actions={
         <div className="flex" style={{ gap: 12 }}>
-          <PillButton
-            variant="ghost"
-
-            disabled={isMoving}
-            onClick={onClose}
-
-          >
+          <PillButton variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
           <PillButton
@@ -244,6 +236,11 @@ export function MoveParentOverlay({
       }
     >
       <div className="flex flex-col" style={{ gap: 10 }}>
+        {movingHabitTitle ? (
+          <p className="text-sm text-[var(--fg-3)]">
+            {t('habits.moveParent.description', { name: movingHabitTitle })}
+          </p>
+        ) : null}
         {showSearch && (
           <FieldInput
             value={searchQuery}
@@ -296,6 +293,6 @@ export function MoveParentOverlay({
           </p>
         )}
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

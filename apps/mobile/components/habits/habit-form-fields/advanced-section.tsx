@@ -8,8 +8,8 @@ import { MAX_HABIT_DESCRIPTION_LENGTH } from "@orbit/shared/validation";
 import { HabitChecklist } from "../habit-checklist";
 import { ChecklistTemplates } from "../checklist-templates";
 import { GoalLinkingField } from "../goal-linking-field";
-import { AppDatePicker } from "@/components/ui/app-date-picker";
-import { AppTimePicker } from "@/components/ui/app-time-picker";
+import { DateField } from "@/components/ui/date-field";
+import { TimeField } from "@/components/ui/time-field";
 import { type AppTokens, createSectionStyles } from "./styles";
 import { BufferedSheetInput } from "./buffered-sheet-input";
 import { ReminderSection } from "./reminder-section";
@@ -131,11 +131,11 @@ export function AdvancedSection({
       {!!dueTime && !isGeneral && (
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
-          <AppTimePicker
+          <TimeField
             value={dueEndTime}
             placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
             accessibilityLabel={t("habits.form.dueEndTime")}
-            onChange={(nextValue) =>
+            onChange={(nextValue: string) =>
               setValue("dueEndTime", nextValue, { shouldDirty: true })
             }
             onClear={() => setValue("dueEndTime", "", { shouldDirty: true })}
@@ -150,10 +150,10 @@ export function AdvancedSection({
               <Text style={styles.label}>{t("habits.form.endDate")}</Text>
               <View style={styles.endDateRow}>
                 <View style={styles.endDatePicker}>
-                  <AppDatePicker
+                  <DateField
                     value={endDate}
                     placeholder={t("common.selectDate")}
-                    onChange={(value) =>
+                    onChange={(value: string) =>
                       setValue("endDate", value, { shouldDirty: true })
                     }
                   />

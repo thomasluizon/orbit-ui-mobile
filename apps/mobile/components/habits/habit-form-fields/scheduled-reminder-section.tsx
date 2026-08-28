@@ -8,7 +8,7 @@ import {
   MAX_SCHEDULED_REMINDERS,
   validateScheduledReminders,
 } from "@orbit/shared/validation";
-import { AppTimePicker } from "@/components/ui/app-time-picker";
+import { TimeField } from "@/components/ui/time-field";
 import { Switch } from "@/components/ui/settings-row";
 import { type AppTokens, createSectionStyles } from "./styles";
 
@@ -198,7 +198,7 @@ export function ScheduledReminderSection({
               </View>
 
               <View style={sectionStyles.timeRow}>
-                <AppTimePicker
+                <TimeField
                   value={time}
                   containerStyle={{ flex: 1 }}
                   accessibilityLabel={t(

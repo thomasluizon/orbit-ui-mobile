@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProfileActionButton } from '@/app/(tabs)/profile/_components/profile-action-button'
-import { ShareCardSheet } from './share-card-sheet'
+import { ShareCardPanel } from './share-card-panel'
 
 interface ShareCardEntryButtonProps {
   variant?: 'row' | 'chip'
@@ -44,7 +44,7 @@ export function ShareCardEntryButton({
           <Share2 size={16} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       )}
-      <ShareCardSheet open={open} onClose={() => setOpen(false)} displayName={displayName} />
+      <ShareCardPanel open={open} onClose={() => setOpen(false)} displayName={displayName} />
     </>
   )
 }
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: radius.full,
     borderWidth: 1,
   },

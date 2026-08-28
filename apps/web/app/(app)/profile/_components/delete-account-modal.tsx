@@ -6,7 +6,7 @@ import { parseISO } from 'date-fns'
 import { TriangleAlert } from '@/components/ui/icons'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAuthStore } from '@/stores/auth-store'
@@ -37,7 +37,7 @@ export function DeleteAccountModal({
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
 
   function handleOpenChange(value: boolean) {
-    if (value) {
+    if (!value) {
       setStep('confirm')
       setCode(['', '', '', '', '', ''])
       setError('')
@@ -131,7 +131,7 @@ export function DeleteAccountModal({
           warningMessage={warningMessage}
           error={error}
           loading={loading}
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => handleOpenChange(false)}
           onRequestDeletion={() => void handleRequestDeletion()}
         />
       )
@@ -172,9 +172,9 @@ export function DeleteAccountModal({
   })()
 
   return (
-    <AppOverlay open={open} onOpenChange={handleOpenChange} title={heading}>
+    open ? (<Sheet open onClose={() => (handleOpenChange)(false)} title={heading}>
       {renderStep()}
-    </AppOverlay>
+    </Sheet>) : null
   )
 }
 

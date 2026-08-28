@@ -8,16 +8,16 @@ import {
   formatAPIDate,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { AnchoredMenu, useAnchoredMenu } from '@/components/ui/anchored-menu'
+import { Menu, useAnchoredMenu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { SelectCheck } from '@/components/ui/select-check'
 import { HabitRowContent } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
-import { HabitRowMenuBody } from './habit-row-menu'
 import {
   buildHabitRowAccessibilityLabel,
   buildHabitRowMetaParts,
@@ -49,6 +49,43 @@ export interface HabitRowActions {
 }
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
+
+function buildMenuItems(
+  actions: HabitRowActions,
+  isSelectMode: boolean,
+  t: (key: string) => string,
+): MenuItem[] {
+  const items: MenuItem[] = []
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit') })
+  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
+  if (actions.onSkip) items.push({ id: 'skip', label: t('habits.actions.skip') })
+  if (actions.onReschedule) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
+  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit') })
+  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate') })
+  if (actions.onEnterSelectMode && !isSelectMode) {
+    items.push({ id: 'select', label: t('common.select') })
+  }
+  if (actions.onDrillInto) items.push({ id: 'drill', label: t('habits.actions.openSubHabits') })
+  if (actions.onDelete) {
+    items.push({ id: 'delete', label: t('habits.deleteHabit'), destructive: true })
+  }
+  return items
+}
+
+function runMenuAction(actions: HabitRowActions, id: string): void {
+  const handlers: Record<string, (() => void) | undefined> = {
+    add: actions.onAddSubHabit,
+    move: actions.onMoveParent,
+    skip: actions.onSkip,
+    reschedule: actions.onReschedule,
+    edit: actions.onEdit,
+    duplicate: actions.onDuplicate,
+    select: actions.onEnterSelectMode,
+    drill: actions.onDrillInto,
+    delete: actions.onDelete,
+  }
+  handlers[id]?.()
+}
 
 interface HabitRowProps {
   habit: NormalizedHabit
@@ -212,11 +249,14 @@ export function HabitRow({
   const {
     anchorRef: menuButtonRef,
     visible: menuVisible,
-    anchorRect: menuAnchorRect,
     open: openAnchoredMenu,
     close: closeAnchoredMenu,
   } = useAnchoredMenu()
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
+  const menuItems = useMemo(
+    () => buildMenuItems(actions, isSelectMode, t),
+    [actions, isSelectMode, t],
+  )
 
   const openMenu = useCallback(() => {
     openAnchoredMenu()
@@ -331,21 +371,14 @@ export function HabitRow({
       </View>
 
       {hasMenuActions ? (
-        <AnchoredMenu
-          visible={menuVisible}
-          anchorRect={menuAnchorRect}
+        <Menu
+          open={menuVisible}
+          anchorRef={menuButtonRef}
           onClose={closeMenu}
-          width={208}
-          estimatedHeight={actions.onDrillInto ? 340 : 296}
-        >
-          <HabitRowMenuBody
-            actions={actions}
-            isSelectMode={isSelectMode}
-            close={closeMenu}
-            t={t}
-            tokens={tokens}
-          />
-        </AnchoredMenu>
+          title={t('habits.actions.more')}
+          items={menuItems}
+          onSelect={(id) => runMenuAction(actions, id)}
+        />
       ) : null}
     </View>
   )

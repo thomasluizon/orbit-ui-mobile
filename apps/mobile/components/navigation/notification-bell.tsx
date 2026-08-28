@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
-import { View, Text, Pressable, type ListRenderItemInfo } from 'react-native'
-import Animated, { LinearTransition, ReduceMotion, ZoomIn } from 'react-native-reanimated'
+import { View, Text, Pressable } from 'react-native'
+import Animated, { ReduceMotion, ZoomIn } from 'react-native-reanimated'
 import { Bell, CheckCheck, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -11,13 +11,14 @@ import {
   useDeleteNotification,
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationRow } from './notification-row'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { useAppToast } from '@/hooks/use-app-toast'
 import { plural } from '@/lib/plural'
 import { createTokensV2 } from '@/lib/theme'
@@ -148,6 +149,7 @@ function NotificationListEmpty({
 }
 
 export function NotificationBell() {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -203,12 +205,14 @@ export function NotificationBell() {
   }, [cancelPendingDelete, deleteNotification, showQueued, t])
 
   function handlePress(notification: NotificationItem) {
-    setSelectedNotification(notification)
-    setIsDetailOpen(true)
-    setIsOpen(false)
-    if (!notification.isRead) {
-      markAsRead.mutate(notification.id)
-    }
+    closeSheet(() => {
+      setIsOpen(false)
+      setSelectedNotification(notification)
+      setIsDetailOpen(true)
+      if (!notification.isRead) {
+        markAsRead.mutate(notification.id)
+      }
+    })
   }
 
   function handleDetailMarkAsRead(id: string) {
@@ -222,9 +226,10 @@ export function NotificationBell() {
     }
   }
 
-  function renderNotification({ item, index }: ListRenderItemInfo<NotificationItem>) {
+  function renderNotification(item: NotificationItem, index: number) {
     return (
       <NotificationRow
+        key={item.id}
         item={item}
         index={index}
         tokens={tokens}
@@ -263,12 +268,11 @@ export function NotificationBell() {
         )}
       </Pressable>
 
-      <BottomSheetModal
-        open={isOpen}
+      {isOpen ? (<Sheet
+        ref={sheetRef}
+        open
         onClose={() => setIsOpen(false)}
         title={t('notifications.title')}
-        snapPoints={['88%', '96%']}
-        contentManagesScroll
       >
         <NotificationListActions
           tokens={tokens}
@@ -278,27 +282,20 @@ export function NotificationBell() {
           onMarkAllRead={() => markAllAsRead.mutate()}
           onDeleteAll={() => setShowDeleteAllConfirm(true)}
         />
-        <Animated.FlatList
-          style={styles.listScroll}
-          data={visibleNotifications}
-          keyExtractor={(item) => item.id}
-          renderItem={renderNotification}
-          showsVerticalScrollIndicator={false}
-          itemLayoutAnimation={LinearTransition}
-          ListEmptyComponent={
+        <View style={[
+          withDrawerContentInset(styles.listContent),
+          visibleNotifications.length === 0 && styles.emptyListContainer,
+        ]}>
+          {visibleNotifications.length === 0 ? (
             <NotificationListEmpty
               styles={styles}
               isLoading={isLoading}
               isError={isError}
               onRetry={() => void refetch()}
             />
-          }
-          contentContainerStyle={[
-            withDrawerContentInset(styles.listContent),
-            visibleNotifications.length === 0 && styles.emptyListContainer,
-          ]}
-        />
-      </BottomSheetModal>
+          ) : visibleNotifications.map((item, index) => renderNotification(item, index))}
+        </View>
+      </Sheet>) : null}
 
       {selectedNotification && (
         <NotificationDetailModal
@@ -312,15 +309,17 @@ export function NotificationBell() {
           onDelete={handleDetailDelete}
         />
       )}
-      <ConfirmDialog
+      <ConfirmSheet
         open={showDeleteAllConfirm}
-        onOpenChange={setShowDeleteAllConfirm}
         title={t('notifications.deleteAllConfirmTitle')}
-        description={t('notifications.deleteAllConfirmDescription')}
+        message={t('notifications.deleteAllConfirmDescription')}
         confirmLabel={t('notifications.deleteAll')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={() => deleteAll.mutate()}
-        variant="danger"
+        destructive
+        onCancel={() => setShowDeleteAllConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteAllConfirm(false)
+          deleteAll.mutate()
+        }}
       />
     </View>
   )

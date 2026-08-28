@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { Sheet } from '@/components/ui/sheet';
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from "@/lib/theme";
@@ -41,18 +41,12 @@ export function DescriptionViewer({
   }, [description]);
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      open
       onClose={handleClose}
       title={title}
-      snapPoints={["70%", "90%"]}
-      contentManagesScroll
     >
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={withDrawerContentInset(styles.scrollContent)}>
         <View style={styles.copyRow}>
           <Pressable
             onPress={copyDescription}
@@ -83,8 +77,8 @@ export function DescriptionViewer({
         >
           <Markdown>{description}</Markdown>
         </View>
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   );
 }
 
