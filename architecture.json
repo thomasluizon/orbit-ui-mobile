@@ -26096,6 +26096,7 @@
         "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/mobile/__tests__/components/upgrade/pricing-footer.test.tsx",
         "apps/mobile/__tests__/components/upgrade/subscription-dashboard.test.tsx",
+        "apps/mobile/__tests__/components/upgrade/usage-card.test.tsx",
         "apps/mobile/__tests__/components/version-update-drawer.test.tsx",
         "apps/mobile/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/mobile/__tests__/hooks/use-today-selection.test.tsx",
@@ -26193,6 +26194,7 @@
         "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/mobile/__tests__/components/upgrade/pricing-footer.test.tsx",
         "apps/mobile/__tests__/components/upgrade/subscription-dashboard.test.tsx",
+        "apps/mobile/__tests__/components/upgrade/usage-card.test.tsx",
         "apps/mobile/__tests__/hooks/use-goals.test.ts",
         "apps/mobile/__tests__/hooks/use-habits.test.ts",
         "apps/mobile/__tests__/hooks/use-overlay-back.test.tsx",
@@ -26498,7 +26500,8 @@
         "apps/web/__tests__/components/upgrade/plan-comparison-cards.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/web/__tests__/hooks/use-bulk-actions.test.ts",
-        "apps/web/__tests__/pages/error.test.tsx"
+        "apps/web/__tests__/pages/error.test.tsx",
+        "apps/web/__tests__/pages/upgrade.test.tsx"
       ],
       "apps/web/hooks": [
         "apps/web/__tests__/components/habits/habit-form-fields.test.tsx",
