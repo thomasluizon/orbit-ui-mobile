@@ -108,7 +108,7 @@ function FrameRows({ frameProps }: Readonly<{ frameProps: Readonly<BlockFramePro
   }
 
   return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
-    <FrameRow {...rowProps} key={rowProps.item.id} />
+    <FrameRow key={rowProps.item.id} {...rowProps} />
   ))
 }
 
