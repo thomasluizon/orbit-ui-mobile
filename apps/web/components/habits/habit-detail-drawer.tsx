@@ -7,6 +7,7 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { DateRow } from '@/components/ui/date-row'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
@@ -207,6 +208,16 @@ export function HabitDetailDrawer({
                 divider={false}
               />
             )}
+
+            <DateRow
+              label={t('habits.detail.startedOn')}
+              value={formatLocaleDate(habit.createdAtUtc, locale, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+              note={t('habits.detail.startDateNote')}
+            />
 
             {habit.linkedGoals && habit.linkedGoals.length > 0 && (
               <>

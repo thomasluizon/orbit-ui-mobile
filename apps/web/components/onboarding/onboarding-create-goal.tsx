@@ -16,7 +16,7 @@ import { MAX_GOAL_TITLE_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/valid
 import { Badge } from '@/components/ui/badge'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 
@@ -207,7 +207,8 @@ export function OnboardingCreateGoal({
         {t('onboarding.flow.createGoal.subtitle')}
       </div>
 
-      <FieldInput
+      <Input
+        label={t('onboarding.flow.createGoal.descriptionPlaceholder')}
         value={description}
         onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
@@ -217,9 +218,10 @@ export function OnboardingCreateGoal({
 
       <div className="flex" style={{ gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <FieldInput
+          <Input
+            label={t('onboarding.flow.createGoal.targetPlaceholder')}
             mono
-            type="number"
+            kind="number"
             inputMode="numeric"
             value={targetValue}
             onChange={setTargetValue}
@@ -228,7 +230,8 @@ export function OnboardingCreateGoal({
           />
         </div>
         <div style={{ flex: 1 }}>
-          <FieldInput
+          <Input
+            label={t('onboarding.flow.createGoal.unitPlaceholder')}
             value={unit}
             onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}

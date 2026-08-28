@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { updateName } from '@/app/actions/profile'
@@ -77,16 +77,14 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       title={t('profile.editName.title')}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>
-        <FieldInput
+        <Input
           label={t('profile.editName.label')}
           value={name}
           onChange={handleNameChange}
           placeholder={t('profile.editName.placeholder')}
           autoComplete="name"
           autoFocus
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') handleSave()
-          }}
+          onSubmit={handleSave}
         />
         {error && (
           <p

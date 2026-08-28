@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGlyph } from '@/components/ui/select-check'
 
@@ -245,11 +245,11 @@ export function MoveParentOverlay({
     >
       <div className="flex flex-col" style={{ gap: 10 }}>
         {showSearch && (
-          <FieldInput
+          <Input
+            label={t('habits.moveParent.searchPlaceholder')}
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={t('habits.moveParent.searchPlaceholder')}
-            ariaLabel={t('habits.moveParent.searchPlaceholder')}
             trailing={<Search size={18} strokeWidth={1.8} color="var(--fg-3)" />}
           />
         )}

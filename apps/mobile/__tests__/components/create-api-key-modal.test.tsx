@@ -65,7 +65,7 @@ vi.mock('@/components/ui/pill-button', () => ({
     ),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
+vi.mock('@/components/ui/switch', () => ({
   Switch: () => null,
 }))
 

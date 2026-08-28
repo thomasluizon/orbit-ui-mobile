@@ -1,6 +1,8 @@
+import { View } from 'react-native'
 import { BellRing, Lock, Satellite } from '@/components/ui/icons'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import type { Tokens } from './ai-settings-styles'
 
@@ -44,12 +46,16 @@ export function AiFeatureToggles({
           accessory="none"
           divider={false}
         >
-          <Switch
-            on={aiSummaryEnabled}
-            onToggle={onToggleSummary}
-            disabled={summaryPending}
-            accessibilityLabel={t('profile.aiSummary.title')}
-          />
+          <View
+            pointerEvents={summaryPending ? 'none' : 'auto'}
+            accessibilityState={{ disabled: summaryPending }}
+          >
+            <Switch
+              checked={aiSummaryEnabled}
+              onChange={onToggleSummary}
+              label={t('profile.aiSummary.title')}
+            />
+          </View>
         </SettingsRow>
       ) : (
         <SettingsRow
@@ -71,12 +77,16 @@ export function AiFeatureToggles({
           accessory="none"
           divider={false}
         >
-          <Switch
-            on={proactiveAstraEnabled}
-            onToggle={onToggleProactive}
-            disabled={proactivePending}
-            accessibilityLabel={t('profile.proactiveAstra.title')}
-          />
+          <View
+            pointerEvents={proactivePending ? 'none' : 'auto'}
+            accessibilityState={{ disabled: proactivePending }}
+          >
+            <Switch
+              checked={proactiveAstraEnabled}
+              onChange={onToggleProactive}
+              label={t('profile.proactiveAstra.title')}
+            />
+          </View>
         </SettingsRow>
       ) : (
         <SettingsRow

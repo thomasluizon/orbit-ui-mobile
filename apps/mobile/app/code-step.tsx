@@ -1,10 +1,9 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
-import type { TextInput, TextInputKeyPressEvent } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
-import { CodeInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import type { LoginStyles } from './login-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -12,9 +11,7 @@ type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 interface CodeStepProps {
   email: string
   codeDigits: string[]
-  codeInputRefs: RefObject<(TextInput | null)[]>
   onCodeInput: (index: number, value: string) => void
-  onCodeKeyPress: (index: number, event: TextInputKeyPressEvent) => void
   isSubmitting: boolean
   canSubmitCode: boolean
   canResend: boolean
@@ -33,9 +30,7 @@ interface CodeStepProps {
 export function CodeStep({
   email,
   codeDigits,
-  codeInputRefs,
   onCodeInput,
-  onCodeKeyPress,
   isSubmitting,
   canSubmitCode,
   canResend,
@@ -67,14 +62,10 @@ export function CodeStep({
       </Text>
 
       <Animated.View style={{ transform: [{ translateX: shakeOffset }] }}>
-        <CodeInput
-          digits={codeDigits}
-          inputRefs={codeInputRefs}
-          onChange={onCodeInput}
-          onKeyPress={onCodeKeyPress}
-          ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-          disabled={isSubmitting}
-          autoFocusFirst
+        <OtpInput
+          label={t('profile.deleteAccount.headingConfirmCode')}
+          value={codeDigits.join('')}
+          onChange={(value) => onCodeInput(0, value)}
         />
       </Animated.View>
 

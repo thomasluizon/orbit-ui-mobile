@@ -1,11 +1,9 @@
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
-  type TextInput,
-  type TextInputKeyPressEvent,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
@@ -20,7 +18,7 @@ import { useLogout } from '@/hooks/use-logout'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { CodeInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -154,23 +152,19 @@ function DeleteConfirmStep({
 }
 
 interface DeleteCodeStepProps {
-  deleteCodeDigits: string[]
-  deleteCodeRefs: RefObject<(TextInput | null)[]>
+  deleteCode: string
   deleteError: string
   deleteLoading: boolean
-  onChangeDigit: (index: number, value: string) => void
-  onKeyPressDigit: (index: number, event: TextInputKeyPressEvent) => void
+  onCodeChange: (value: string) => void
   onConfirm: () => void
   onBack: () => void
 }
 
 function DeleteCodeStep({
-  deleteCodeDigits,
-  deleteCodeRefs,
+  deleteCode,
   deleteError,
   deleteLoading,
-  onChangeDigit,
-  onKeyPressDigit,
+  onCodeChange,
   onConfirm,
   onBack,
 }: Readonly<DeleteCodeStepProps>) {
@@ -188,18 +182,12 @@ function DeleteCodeStep({
       >
         {t('profile.deleteAccount.codeInstructions')}
       </Text>
-      <CodeInput
-        digits={deleteCodeDigits}
-        inputRefs={deleteCodeRefs}
-        onChange={onChangeDigit}
-        onKeyPress={onKeyPressDigit}
-        ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+      <OtpInput
+        label={t('profile.deleteAccount.headingConfirmCode')}
+        value={deleteCode}
+        onChange={onCodeChange}
+        error={deleteError || undefined}
       />
-      {deleteError ? (
-        <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-          {deleteError}
-        </Text>
-      ) : null}
       <View style={styles.modalActions}>
         <DangerPillButton
           label={
@@ -207,7 +195,7 @@ function DeleteCodeStep({
               ? t('profile.deleteAccount.deleting')
               : t('profile.deleteAccount.confirmDelete')
           }
-          disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
+          disabled={deleteLoading || deleteCode.length !== 6}
           onPress={onConfirm}
         />
         <PillButton
@@ -291,18 +279,17 @@ export function DeleteAccountModal({
   const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
-  const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
+  const [deleteCode, setDeleteCode] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
-  const deleteCodeRefs = useRef<(TextInput | null)[]>([])
   const [prevOpen, setPrevOpen] = useState(open)
 
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
       setDeleteStep('confirm')
-      setDeleteCodeDigits(['', '', '', '', '', ''])
+      setDeleteCode('')
       setDeleteError('')
       setDeleteLoading(false)
       setScheduledDeletionDate(null)
@@ -311,7 +298,7 @@ export function DeleteAccountModal({
 
   function backToDeleteConfirmStep() {
     setDeleteStep('confirm')
-    setDeleteCodeDigits(['', '', '', '', '', ''])
+    setDeleteCode('')
     setDeleteError('')
   }
 
@@ -334,8 +321,7 @@ export function DeleteAccountModal({
   }
 
   async function handleConfirmDeletion() {
-    const code = deleteCodeDigits.join('')
-    if (code.length !== 6) return
+    if (deleteCode.length !== 6) return
     if (!isOnline) {
       setDeleteError(t('errors.offline'))
       return
@@ -347,7 +333,7 @@ export function DeleteAccountModal({
         API.auth.confirmDeletion,
         {
           method: 'POST',
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code: deleteCode }),
         },
       )
       setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
@@ -357,42 +343,6 @@ export function DeleteAccountModal({
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
-    }
-  }
-
-  function focusDeleteCode(index: number) {
-    deleteCodeRefs.current[index]?.focus()
-  }
-
-  function setDeleteCodeValue(index: number, value: string) {
-    const digits = value.replace(/\D/g, '')
-
-    if (digits.length > 1) {
-      const next = ['0', '1', '2', '3', '4', '5'].map((_, i) => digits[i] ?? '')
-      setDeleteCodeDigits(next)
-      const nextIndex = next.indexOf('')
-      if (nextIndex >= 0) {
-        focusDeleteCode(nextIndex)
-      } else {
-        deleteCodeRefs.current[5]?.blur()
-      }
-      return
-    }
-
-    setDeleteCodeDigits((prev) => {
-      const next = [...prev]
-      next[index] = digits.slice(-1)
-      return next
-    })
-
-    if (digits && index < 5) {
-      focusDeleteCode(index + 1)
-    }
-  }
-
-  function handleDeleteCodeKeyPress(index: number, key: string) {
-    if (key === 'Backspace' && !deleteCodeDigits[index] && index > 0) {
-      focusDeleteCode(index - 1)
     }
   }
 
@@ -422,14 +372,10 @@ export function DeleteAccountModal({
   } else if (deleteStep === 'code') {
     deleteContent = (
       <DeleteCodeStep
-        deleteCodeDigits={deleteCodeDigits}
-        deleteCodeRefs={deleteCodeRefs}
+        deleteCode={deleteCode}
         deleteError={deleteError}
         deleteLoading={deleteLoading}
-        onChangeDigit={setDeleteCodeValue}
-        onKeyPressDigit={(index, event) =>
-          handleDeleteCodeKeyPress(index, event.nativeEvent.key)
-        }
+        onCodeChange={setDeleteCode}
         onConfirm={() => {
           void handleConfirmDeletion()
         }}

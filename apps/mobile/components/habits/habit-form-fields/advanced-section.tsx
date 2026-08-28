@@ -9,9 +9,10 @@ import { HabitChecklist } from "../habit-checklist";
 import { ChecklistTemplates } from "../checklist-templates";
 import { GoalLinkingField } from "../goal-linking-field";
 import { AppDatePicker } from "@/components/ui/app-date-picker";
-import { AppTimePicker } from "@/components/ui/app-time-picker";
+import { TimeField } from "@/components/ui/time-field";
+import type { Time24 } from "@orbit/shared/contracts/forms";
 import { type AppTokens, createSectionStyles } from "./styles";
-import { BufferedSheetInput } from "./buffered-sheet-input";
+import { Input } from "@/components/ui/input";
 import { ReminderSection } from "./reminder-section";
 import { ScheduledReminderSection } from "./scheduled-reminder-section";
 import { SlipAlertSection } from "./slip-alert-section";
@@ -34,7 +35,6 @@ interface AdvancedSectionProps {
   selectedGoalIds: string[];
   atGoalLimit: boolean;
   onToggleGoal: (goalId: string) => void;
-  registerFlush: (flush: () => void) => () => void;
   setValue: HabitFormSetValue;
   styles: HabitFormStyles;
   sectionStyles: ReturnType<typeof createSectionStyles>;
@@ -57,7 +57,6 @@ export function AdvancedSection({
   selectedGoalIds,
   atGoalLimit,
   onToggleGoal,
-  registerFlush,
   setValue,
   styles,
   sectionStyles,
@@ -95,17 +94,14 @@ export function AdvancedSection({
   return (
     <View style={styles.advancedSection}>
       <View style={styles.fieldGroup}>
-        <Text style={styles.label}>{t("habits.form.description")}</Text>
-        <BufferedSheetInput
+        <Input
+          label={t("habits.form.description")}
           value={description}
-          registerFlush={registerFlush}
           placeholder={t("habits.form.descriptionPlaceholder")}
           maxLength={MAX_HABIT_DESCRIPTION_LENGTH}
           multiline
-          numberOfLines={2}
-          style={styles.textarea}
-          textAlignVertical="top"
-          onCommit={(val) => setValue("description", val, { shouldDirty: true })}
+          rows={2}
+          onChange={(value) => setValue("description", value, { shouldDirty: true })}
         />
       </View>
 
@@ -130,11 +126,9 @@ export function AdvancedSection({
 
       {!!dueTime && !isGeneral && (
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
-          <AppTimePicker
-            value={dueEndTime}
-            placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
-            accessibilityLabel={t("habits.form.dueEndTime")}
+          <TimeField
+            label={t("habits.form.dueEndTime")}
+            value={dueEndTime as Time24 | ''}
             onChange={(nextValue) =>
               setValue("dueEndTime", nextValue, { shouldDirty: true })
             }

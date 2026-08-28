@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { parseISO } from 'date-fns'
 import { TriangleAlert } from '@/components/ui/icons'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
-import { CodeInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useDateFormat } from '@/hooks/use-date-format'
@@ -30,8 +30,7 @@ export function DeleteAccountModal({
   const logout = useAuthStore((s) => s.logout)
 
   const [step, setStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
-  const [code, setCode] = useState<string[]>(['', '', '', '', '', ''])
-  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
@@ -39,7 +38,7 @@ export function DeleteAccountModal({
   function handleOpenChange(value: boolean) {
     if (value) {
       setStep('confirm')
-      setCode(['', '', '', '', '', ''])
+      setCode('')
       setError('')
       setLoading(false)
       setScheduledDeletionDate(null)
@@ -61,49 +60,17 @@ export function DeleteAccountModal({
   }
 
   async function handleConfirmDeletion() {
-    const joined = code.join('')
-    if (joined.length !== 6) return
+    if (code.length !== 6) return
     setLoading(true)
     setError('')
     try {
-      const response = await confirmDeletion(joined)
+      const response = await confirmDeletion(code)
       setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setStep('deactivated')
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic'))
     } finally {
       setLoading(false)
-    }
-  }
-
-  function handleCodeInput(index: number, value: string) {
-    const sanitized = value.replaceAll(/\D/g, '')
-    const next = [...code]
-    next[index] = sanitized.slice(-1)
-    setCode(next)
-    if (sanitized && index < 5) {
-      codeInputRefs.current[index + 1]?.focus()
-    }
-  }
-
-  function handleCodeKeydown(
-    index: number,
-    event: React.KeyboardEvent<HTMLInputElement>,
-  ) {
-    if (event.key === 'Backspace' && !code[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus()
-    }
-  }
-
-  function handleCodePaste(event: React.ClipboardEvent<HTMLInputElement>) {
-    const paste = event.clipboardData.getData('text').replaceAll(/\D/g, '').slice(0, 6)
-    if (paste) {
-      const next = [...code]
-      for (let i = 0; i < 6; i++) {
-        next[i] = paste[i] || ''
-      }
-      setCode(next)
-      event.preventDefault()
     }
   }
 
@@ -141,15 +108,12 @@ export function DeleteAccountModal({
       return (
         <DeleteCodeStep
           code={code}
-          inputRefs={codeInputRefs}
           error={error}
           loading={loading}
-          onCodeInput={handleCodeInput}
-          onCodeKeydown={handleCodeKeydown}
-          onCodePaste={handleCodePaste}
+          onCodeChange={setCode}
           onBack={() => {
             setStep('confirm')
-            setCode(['', '', '', '', '', ''])
+            setCode('')
             setError('')
           }}
           onConfirmDeletion={() => void handleConfirmDeletion()}
@@ -301,22 +265,16 @@ function DeleteConfirmStep({
 
 function DeleteCodeStep({
   code,
-  inputRefs,
   error,
   loading,
-  onCodeInput,
-  onCodeKeydown,
-  onCodePaste,
+  onCodeChange,
   onBack,
   onConfirmDeletion,
 }: Readonly<{
-  code: string[]
-  inputRefs: React.RefObject<(HTMLInputElement | null)[]>
+  code: string
   error: string
   loading: boolean
-  onCodeInput: (index: number, value: string) => void
-  onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
-  onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCodeChange: (value: string) => void
   onBack: () => void
   onConfirmDeletion: () => void
 }>) {
@@ -334,32 +292,18 @@ function DeleteCodeStep({
       >
         {t('profile.deleteAccount.codeInstructions')}
       </p>
-      <CodeInput
-        digits={code}
-        inputRefs={inputRefs}
-        onChange={onCodeInput}
-        onKeyDown={onCodeKeydown}
-        onPaste={onCodePaste}
-        ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+      <OtpInput
+        label={t('profile.deleteAccount.headingConfirmCode')}
+        value={code}
+        onChange={onCodeChange}
+        error={error || undefined}
       />
-      {error && (
-        <p
-          role="alert"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--status-bad-text)',
-          }}
-        >
-          {error}
-        </p>
-      )}
       <div
         className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
         style={{ gap: 12, paddingTop: 8 }}
       >
         <DangerPillButton
-          disabled={loading || code.join('').length !== 6}
+          disabled={loading || code.length !== 6}
           onClick={onConfirmDeletion}
         >
           {loading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}

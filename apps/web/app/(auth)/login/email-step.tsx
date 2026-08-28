@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { useTranslations } from 'next-intl'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 
 interface EmailStepProps {
@@ -40,13 +40,11 @@ export function EmailStep({
           onSendCode()
         }}
       >
-        <FieldInput
-          id="login-email"
-          name="email"
+        <Input
           label={t('auth.email')}
           value={email}
           onChange={onEmailChange}
-          type="email"
+          kind="email"
           autoComplete="email"
           placeholder={t('auth.emailPlaceholder')}
         />

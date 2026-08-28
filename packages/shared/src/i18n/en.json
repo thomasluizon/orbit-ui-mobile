@@ -626,6 +626,8 @@
       "day": "day",
       "days": "days",
       "endsOn": "Ends on",
+      "startedOn": "Start date",
+      "startDateNote": "The start date is the day the habit was created and does not change.",
       "viewDescription": "View full description",
       "currentStreak": "Current",
       "longestStreak": "Longest",
@@ -1525,6 +1527,7 @@
       "createHabit": {
         "title": "Create your first habit",
         "subtitle": "Habits are the building blocks. What do you want to track?",
+        "label": "Habit name",
         "placeholder": "e.g., Drink water, Read, Exercise",
         "create": "Create habit",
         "creating": "Creating...",

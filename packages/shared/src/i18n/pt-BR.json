@@ -626,6 +626,8 @@
       "day": "dia",
       "days": "dias",
       "endsOn": "Termina em",
+      "startedOn": "Data de início",
+      "startDateNote": "A data de início é o dia em que o hábito foi criado e não muda.",
       "viewDescription": "Ver descrição completa",
       "currentStreak": "Atual",
       "longestStreak": "Maior",
@@ -1525,6 +1527,7 @@
       "createHabit": {
         "title": "Crie seu primeiro hábito",
         "subtitle": "Os hábitos são a base de tudo. O que você quer acompanhar?",
+        "label": "Nome do hábito",
         "placeholder": "ex: Beber água, Ler, Treinar",
         "create": "Criar hábito",
         "creating": "Criando...",
