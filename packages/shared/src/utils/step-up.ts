@@ -14,6 +14,7 @@ export function getStepUpStorageKey(operation: StepUpOperation): string {
 export interface StepUpTimingRecord {
   operation: StepUpOperation
   sentAt: number
+  failedAttempts?: number
   exhaustedAt?: number
 }
 
@@ -46,6 +47,14 @@ export function parseStepUpTimingRecord(value: string | null): StepUpTimingRecor
       return null
     }
     if (
+      parsed.failedAttempts !== undefined &&
+      (typeof parsed.failedAttempts !== 'number' ||
+        !Number.isInteger(parsed.failedAttempts) ||
+        parsed.failedAttempts < 0)
+    ) {
+      return null
+    }
+    if (
       parsed.exhaustedAt !== undefined &&
       (typeof parsed.exhaustedAt !== 'number' || !Number.isFinite(parsed.exhaustedAt))
     ) {
@@ -55,6 +64,9 @@ export function parseStepUpTimingRecord(value: string | null): StepUpTimingRecor
     return {
       operation,
       sentAt: parsed.sentAt,
+      ...(typeof parsed.failedAttempts === 'number'
+        ? { failedAttempts: parsed.failedAttempts }
+        : {}),
       ...(typeof parsed.exhaustedAt === 'number'
         ? { exhaustedAt: parsed.exhaustedAt }
         : {}),

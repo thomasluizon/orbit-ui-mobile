@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { STEP_UP_ATTEMPT_WINDOW_MS } from '@orbit/shared/utils'
 import {
   beginStepUpChallenge,
+  markStepUpAttemptFailed,
   markStepUpExhausted,
   readStepUpTiming,
 } from '@/lib/step-up-storage'
@@ -16,5 +17,17 @@ describe('web step up timing storage', () => {
 
     expect(resent.exhaustedAt).toBe(2_000)
     expect(readStepUpTiming('delete')).toEqual(resent)
+  })
+
+  it('persists failed deletion attempts and resets them for a new challenge', () => {
+    const first = beginStepUpChallenge('delete', 1_000)
+    const failed = markStepUpAttemptFailed(markStepUpAttemptFailed(first))
+
+    expect(readStepUpTiming('delete')).toEqual({ ...first, failedAttempts: 2 })
+    expect(beginStepUpChallenge('delete', 2_000)).toEqual({
+      operation: 'delete',
+      sentAt: 2_000,
+    })
+    expect(failed.failedAttempts).toBe(2)
   })
 })

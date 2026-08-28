@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
 import type { Profile } from '@orbit/shared/types/profile'
+import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { API } from '@orbit/shared/api'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
@@ -12,7 +13,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -34,6 +35,7 @@ export function DeleteAccountModal({
   const { isOnline } = useOffline()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -57,10 +59,16 @@ export function DeleteAccountModal({
     setLoading(true)
     setError('')
     try {
-      await apiClient(API.auth.requestDeletion, { method: 'POST' })
+      await apiClient(
+        API.auth.requestDeletion,
+        { method: 'POST' },
+        stepUpMessageResponseSchema,
+      )
       await beginStepUpChallenge('delete')
-      onClose()
-      router.push('/step-up?operation=delete')
+      closeSheet(() => {
+        handleClose()
+        router.push('/step-up?operation=delete')
+      })
     } catch (caught: unknown) {
       setError(
         getFriendlyErrorMessage(
@@ -78,6 +86,7 @@ export function DeleteAccountModal({
 
   return (
     <Sheet
+      ref={sheetRef}
       open
       onClose={handleClose}
       title={t('profile.deleteAccount.headingAreYouSure')}
@@ -119,7 +128,7 @@ export function DeleteAccountModal({
           >
             {t('profile.deleteAccount.sendCode')}
           </PillButton>
-          <PillButton variant="ghost" disabled={loading} onClick={handleClose}>
+          <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
         </View>

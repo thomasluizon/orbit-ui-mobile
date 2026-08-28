@@ -26,6 +26,7 @@ import { apiClient } from '@/lib/api-client'
 import {
   beginStepUpChallenge,
   clearStepUpTiming,
+  markStepUpAttemptFailed,
   markStepUpExhausted,
   readStepUpTiming,
 } from '@/lib/step-up-storage'
@@ -175,30 +176,45 @@ export default function StepUpScreen() {
       setScheduledDeletionAt(response.scheduledDeletionAt)
       setPhase('deactivated')
     } catch (caught: unknown) {
-      const errorCode = extractBackendErrorCode(caught)
-      const backendMessage = extractBackendError(caught)
-      const remaining = extractStepUpAttemptsRemaining(backendMessage)
+      await handleConfirmationFailure(caught)
+    }
+  }
 
-      if (errorCode === 'TOO_MANY_ATTEMPTS' || remaining === 0) {
-        const next = await markStepUpExhausted(record)
-        setRecord(next)
-        setPhase('exhausted')
-        setNow(Date.now())
-        return
-      }
-      if (errorCode === 'CODE_EXPIRED') {
-        setPhase('expired')
-        return
-      }
-      if (errorCode === 'INVALID_VERIFICATION_CODE') {
-        setAttemptsRemaining(remaining)
-        setFieldError(t('stepUp.wrong'))
-        setPhase('wrong')
-        return
-      }
+  async function handleConfirmationFailure(caught: unknown) {
+    if (!operation || !record) return
+    const errorCode = extractBackendErrorCode(caught)
+    const remaining = extractStepUpAttemptsRemaining(extractBackendError(caught))
+    if (errorCode === 'TOO_MANY_ATTEMPTS') {
+      await setExhausted(record)
+      return
+    }
+    if (errorCode === 'CODE_EXPIRED') {
+      setPhase('expired')
+      return
+    }
+    if (errorCode !== 'INVALID_VERIFICATION_CODE') {
       setFieldError(t('stepUp.genericError'))
       setPhase('challenge')
+      return
     }
+    const next = operation === 'delete' && remaining === null
+      ? await markStepUpAttemptFailed(record)
+      : record
+    if (remaining === 0 || (operation === 'delete' && (next.failedAttempts ?? 0) >= 3)) {
+      await setExhausted(next)
+      return
+    }
+    setRecord(next)
+    setAttemptsRemaining(remaining)
+    setFieldError(t('stepUp.wrong'))
+    setPhase('wrong')
+  }
+
+  async function setExhausted(currentRecord: StepUpTimingRecord) {
+    const next = await markStepUpExhausted(currentRecord)
+    setRecord(next)
+    setPhase('exhausted')
+    setNow(Date.now())
   }
 
   function handleCodeChange(value: string) {
@@ -218,9 +234,7 @@ export default function StepUpScreen() {
         {...sharedView}
         deletionDate={formattedDeletionDate}
         onSignOut={() => void logout()}
-        planEndDate={profile?.hasProAccess && profile.planExpiresAt
-          ? displayDate(profile.planExpiresAt)
-          : null}
+        showProNotice={Boolean(profile?.hasProAccess)}
       />
     )
   }
@@ -293,13 +307,13 @@ function MobileStepUpSuccess({
   deletionDate,
   onSignOut,
   operationLabel,
-  planEndDate,
+  showProNotice,
   t,
   tokens,
 }: Readonly<SharedMobileStepUpProps & {
   deletionDate: string
   onSignOut: () => void
-  planEndDate: string | null
+  showProNotice: boolean
 }>) {
   return (
     <FlowShell nav={false} action={<PillButton onClick={onSignOut}>{t('stepUp.signOut')}</PillButton>}>
@@ -307,7 +321,7 @@ function MobileStepUpSuccess({
         <MobileStepUpHeader operationLabel={operationLabel} t={t} title={t('stepUp.successTitle', { date: deletionDate })} tokens={tokens} />
         <View style={styles.success}>
           <Text accessibilityRole="summary" style={[styles.body, { color: tokens.fg2 }]}>{t('stepUp.successBody')}</Text>
-          {planEndDate ? <Text style={[styles.secondary, { color: tokens.fg3 }]}>{t('stepUp.successPro', { date: planEndDate })}</Text> : null}
+          {showProNotice ? <Text style={[styles.secondary, { color: tokens.fg3 }]}>{t('stepUp.successPro', { date: deletionDate })}</Text> : null}
         </View>
       </View>
     </FlowShell>

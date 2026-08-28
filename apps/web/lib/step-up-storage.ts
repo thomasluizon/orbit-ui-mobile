@@ -37,6 +37,12 @@ export function markStepUpExhausted(
   return next
 }
 
+export function markStepUpAttemptFailed(record: StepUpTimingRecord): StepUpTimingRecord {
+  const next = { ...record, failedAttempts: (record.failedAttempts ?? 0) + 1 }
+  globalThis.localStorage.setItem(getStepUpStorageKey(record.operation), JSON.stringify(next))
+  return next
+}
+
 export function clearStepUpTiming(operation: StepUpOperation): void {
   if ('localStorage' in globalThis) {
     globalThis.localStorage.removeItem(getStepUpStorageKey(operation))

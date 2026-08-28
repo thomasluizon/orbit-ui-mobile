@@ -2,8 +2,12 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 import ProfileScreen from '@/app/(tabs)/profile'
+
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: () => null,
@@ -384,7 +388,16 @@ describe('ProfileScreen account-deletion state machine', () => {
     })
     mocks.useGamificationProfile.mockReturnValue({ profile: null })
     mocks.useHasProAccess.mockReturnValue(false)
-    mocks.apiClient.mockResolvedValue({ message: 'Deletion code sent' })
+    sheetTestControls.defer(false)
+    mocks.apiClient.mockImplementation((
+      _endpoint: string,
+      _options: RequestInit,
+      schema?: { parse: (value: unknown) => unknown },
+    ) => Promise.resolve(
+      schema
+        ? schema.parse({ message: 'Deletion code sent' })
+        : { message: 'Deletion code sent' },
+    ))
   })
 
   it('opens on the confirm step with the warning copy and no code inputs', async () => {
@@ -422,13 +435,75 @@ describe('ProfileScreen account-deletion state machine', () => {
 
     expect(mocks.apiClient).toHaveBeenCalledWith(API.auth.requestDeletion, {
       method: 'POST',
-    })
+    }, expect.anything())
     expect(mocks.router.push).toHaveBeenCalledWith('/step-up?operation=delete')
     expect(JSON.parse(mocks.storage.get('orbit.step-up.delete') ?? '{}')).toMatchObject({
       operation: 'delete',
       sentAt: expect.any(Number),
     })
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
+  })
+
+  it('waits for native sheet dismissal before closing and navigating', async () => {
+    sheetTestControls.defer(true)
+    const tree = await renderScreen(<ProfileScreen />)
+
+    await TestRenderer.act(async () => {
+      openDeleteModal(tree).props.onPress()
+      await Promise.resolve()
+    })
+    const sendButton = tree.root.findAll(
+      (node: any) =>
+        typeof node.props?.onPress === 'function' &&
+        flattenText(node.props?.children).includes('profile.deleteAccount.sendCode'),
+    )[0]
+
+    await TestRenderer.act(async () => {
+      sendButton.props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(screenTexts(tree)).toContain('profile.deleteAccount.warningFree')
+
+    await TestRenderer.act(async () => {
+      sheetTestControls.completeDismissal()
+      await Promise.resolve()
+    })
+
+    expect(mocks.router.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(screenTexts(tree)).not.toContain('profile.deleteAccount.warningFree')
+  })
+
+  it('rejects a malformed deletion challenge response before step up', async () => {
+    mocks.apiClient.mockImplementation((
+      _endpoint: string,
+      _options: RequestInit,
+      schema?: { parse: (value: unknown) => unknown },
+    ) => Promise.resolve(schema ? schema.parse({}) : {}))
+    const tree = await renderScreen(<ProfileScreen />)
+
+    await TestRenderer.act(async () => {
+      openDeleteModal(tree).props.onPress()
+      await Promise.resolve()
+    })
+    const sendButton = tree.root.findAll(
+      (node: any) =>
+        typeof node.props?.onPress === 'function' &&
+        flattenText(node.props?.children).includes('profile.deleteAccount.sendCode'),
+    )[0]
+    await TestRenderer.act(async () => {
+      sendButton.props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screenTexts(tree)).toContain('profile.deleteAccount.errorGeneric')
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(mocks.storage.has('orbit.step-up.delete')).toBe(false)
   })
 
   it('surfaces an error when requesting deletion fails and stays on confirm', async () => {

@@ -2464,7 +2464,7 @@
     "backToProfile": "Back to Profile",
     "successTitle": "The account closes on {date}",
     "successBody": "Until then, signing in again cancels the closure and the account comes back whole.",
-    "successPro": "The Pro plan runs until {date}. The account closes 7 days after it.",
+    "successPro": "Deletion of this Pro account is scheduled for {date}.",
     "signOut": "Sign out",
     "neverShare": "Orbit never asks for this code in a conversation, by email or by message. It is only ever asked for here.",
     "cancel": "Cancel this action",

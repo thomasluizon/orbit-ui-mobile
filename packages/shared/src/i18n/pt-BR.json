@@ -2464,7 +2464,7 @@
     "backToProfile": "Voltar para o Perfil",
     "successTitle": "A conta encerra em {date}",
     "successBody": "Até lá, entrar de novo cancela o encerramento e a conta volta inteira.",
-    "successPro": "O plano Pro vale até {date}. A conta encerra 7 dias depois dele.",
+    "successPro": "A exclusão desta conta Pro está agendada para {date}.",
     "signOut": "Sair da conta",
     "neverShare": "O Orbit nunca pede este código em uma conversa, nem por email ou mensagem. Ele só é pedido aqui.",
     "cancel": "Cancelar esta ação",

@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   beginChallenge: vi.fn(),
   clearTiming: vi.fn(),
   logout: vi.fn(),
+  markAttemptFailed: vi.fn(),
   markExhausted: vi.fn(),
   operation: 'delete',
   profile: {
@@ -61,6 +62,7 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
   clearStepUpTiming: (operation: string) => mocks.clearTiming(operation),
+  markStepUpAttemptFailed: (record: unknown) => mocks.markAttemptFailed(record),
   markStepUpExhausted: (record: unknown) => mocks.markExhausted(record),
   readStepUpTiming: (operation: string) => mocks.readTiming(operation),
 }))
@@ -171,6 +173,10 @@ describe('mobile step up screen', () => {
     mocks.markExhausted.mockImplementation((
       record: { operation: 'delete'; sentAt: number },
     ) => Promise.resolve({ ...record, exhaustedAt: Date.now() }))
+    mocks.markAttemptFailed.mockImplementation((record: StepUpTimingRecord) => Promise.resolve({
+      ...record,
+      failedAttempts: (record.failedAttempts ?? 0) + 1,
+    }))
   })
 
   afterEach(async () => {
@@ -233,11 +239,16 @@ describe('mobile step up screen', () => {
   })
 
   it('moves the third wrong code to exhausted and removes forward controls', async () => {
-    mocks.apiClient.mockRejectedValueOnce(
-      backendError('INVALID_VERIFICATION_CODE', 'Invalid code. Remaining attempts: 0'),
+    mocks.apiClient.mockRejectedValue(
+      backendError('INVALID_VERIFICATION_CODE', 'Invalid code'),
     )
     const tree = await renderScreen()
     await enterCode(tree)
+
+    await confirm(tree)
+    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(1)
+    await confirm(tree)
+    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(2)
     await confirm(tree)
 
     expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
@@ -305,13 +316,13 @@ describe('mobile step up screen', () => {
     expect(mocks.logout).toHaveBeenCalledOnce()
   })
 
-  it('renders the Pro plan end date as a second success line', async () => {
+  it('renders the API scheduled deletion date in the Pro success line', async () => {
     mocks.profile.hasProAccess = true
     mocks.profile.planExpiresAt = '2026-08-30T03:00:00Z'
     const tree = await renderScreen()
     await enterCode(tree)
     await confirm(tree)
-    expect(findText(tree.root, 'local:2026-08-30T03:00:00Z').length).toBeGreaterThan(0)
+    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z').length).toBeGreaterThan(0)
   })
 
   it('routes cancel to Profile', async () => {

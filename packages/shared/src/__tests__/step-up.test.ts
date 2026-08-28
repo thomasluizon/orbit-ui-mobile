@@ -37,8 +37,14 @@ describe('step-up core', () => {
       operation: 'keys',
       sentAt: 100,
     })
+    expect(
+      parseStepUpTimingRecord('{"operation":"delete","sentAt":100,"failedAttempts":2}'),
+    ).toEqual({ operation: 'delete', sentAt: 100, failedAttempts: 2 })
     expect(parseStepUpTimingRecord('{"operation":"billing","sentAt":100}')).toBeNull()
     expect(parseStepUpTimingRecord('{"operation":"keys","sentAt":"100"}')).toBeNull()
+    expect(
+      parseStepUpTimingRecord('{"operation":"delete","sentAt":100,"failedAttempts":-1}'),
+    ).toBeNull()
     expect(parseStepUpTimingRecord('not json')).toBeNull()
   })
 

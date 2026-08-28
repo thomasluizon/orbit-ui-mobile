@@ -44,6 +44,14 @@ export async function markStepUpExhausted(
   return next
 }
 
+export async function markStepUpAttemptFailed(
+  record: StepUpTimingRecord,
+): Promise<StepUpTimingRecord> {
+  const next = { ...record, failedAttempts: (record.failedAttempts ?? 0) + 1 }
+  await AsyncStorage.setItem(getStepUpStorageKey(record.operation), JSON.stringify(next))
+  return next
+}
+
 export async function clearStepUpTiming(operation: StepUpOperation): Promise<void> {
   await AsyncStorage.removeItem(getStepUpStorageKey(operation))
 }
