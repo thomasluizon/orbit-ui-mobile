@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
@@ -38,9 +38,9 @@ export function RetrospectiveContent({
           <Text style={[styles.skeletonLabel, { color: tokens.fg3 }]}>
             {t('retrospective.generating')}
           </Text>
-          <SkeletonLine width="60%" height={7} />
-          <SkeletonLine width="80%" height={7} />
-          <SkeletonLine width="40%" height={7} />
+          {[1, 2, 3].map((unit) => (
+            <Skeleton key={unit} variant="stat-tile" label={t('retrospective.generating')} />
+          ))}
         </View>
       ) : null}
 

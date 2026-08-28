@@ -19,7 +19,7 @@ import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-v
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 
@@ -117,11 +117,7 @@ function SupportForm({
       entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
     >
       {!isOnline ? (
-        <OfflineUnavailableState
-          title={t('offline.title')}
-          description={t('offline.description')}
-          compact
-        />
+        <ErrorState message={t('offline.description')} />
       ) : null}
       <Text style={[styles.formDescription, { color: tokens.fg3 }]}>
         {t('profile.support.description')}

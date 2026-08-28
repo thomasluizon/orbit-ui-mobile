@@ -1,35 +1,35 @@
 'use client'
 
 import { useMemo } from 'react'
-import {
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameMonth,
-  isToday,
-  getDate,
-} from 'date-fns'
 import { useTranslations } from 'next-intl'
-import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  buildCalendarMonthModel,
+  buildDayCellAccessibleName,
+  formatAPIDate,
+  resolveDayCellOutcome,
+} from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { DayCellWords, DayOutcome, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
 import { useProfile } from '@/hooks/use-profile'
-import { CalendarDayCell, type GridDay } from './calendar-day-cell'
+import { useDateFormat } from '@/hooks/use-date-format'
+import { DayCell } from '@/components/dates/day-cell'
+import { MonthGrid } from '@/components/dates/month-grid'
 
 interface CalendarGridProps {
   currentMonth: Date
   dayMap: Map<string, CalendarDayEntry[]>
   onSelectDay: (dateStr: string) => void
-  /** Date string of the day whose detail panel is open (primary-filled pill). */
   selectedDateStr?: string | null
-  /** Inclusive range endpoints (yyyy-MM-dd) for range-pick mode. When set, the
-   *  grid renders an in-range band with highlighted endpoints. */
   rangeStart?: string | null
   rangeEnd?: string | null
-  /** When true, suppresses status dots so the grid structure still renders
-   *  while the month's data is loading. */
   isLoading?: boolean
+}
+
+function isInRange(dateStr: string, rangeStart: string | null, rangeEnd: string | null): boolean {
+  if (!rangeStart || !rangeEnd) return false
+  const start = rangeStart < rangeEnd ? rangeStart : rangeEnd
+  const end = rangeStart < rangeEnd ? rangeEnd : rangeStart
+  return dateStr >= start && dateStr <= end
 }
 
 export function CalendarGrid({
@@ -42,10 +42,12 @@ export function CalendarGrid({
   isLoading = false,
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
+  const { displayWeekdayDate, displayMonthYear } = useDateFormat()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
+  const todayKey = formatAPIDate(new Date())
 
-  const weekdayHeaders = useMemo(() => {
+  const weekdayLabels = useMemo(() => {
     const mondayFirst = [
       t('dates.daysShort.monday'),
       t('dates.daysShort.tuesday'),
@@ -55,98 +57,86 @@ export function CalendarGrid({
       t('dates.daysShort.saturday'),
       t('dates.daysShort.sunday'),
     ]
-    if (weekStartsOn === 0) {
-      return [
-        t('dates.daysShort.sunday'),
-        ...mondayFirst.slice(0, 6),
-      ]
-    }
-    return mondayFirst
-    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn aliases profile.weekStartDay and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [weekStartsOn, t])
+    return weekStartsOn === 0 ? [mondayFirst[6]!, ...mondayFirst.slice(0, 6)] : mondayFirst
+  }, [t, weekStartsOn])
 
-  const gridDays = useMemo<GridDay[]>(() => {
-    const monthStart = startOfMonth(currentMonth)
-    const monthEnd = endOfMonth(currentMonth)
-    const gridStart = startOfWeek(monthStart, { weekStartsOn })
-    const gridEnd = endOfWeek(monthEnd, { weekStartsOn })
+  const { gridDays } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
+    [currentMonth, dayMap, weekStartsOn],
+  )
 
-    return eachDayOfInterval({ start: gridStart, end: gridEnd }).map((date) => {
-      const dateStr = formatAPIDate(date)
-      const entries = dayMap.get(dateStr) ?? []
-      const completedCount = entries.filter((e) => e.status === 'completed').length
-      const totalCount = entries.length
-
-      return {
-        date,
-        dateStr,
-        day: getDate(date),
-        isCurrentMonth: isSameMonth(date, currentMonth),
-        isToday: isToday(date),
-        entries,
-        completedCount,
-        totalCount,
-        completionRatio: totalCount > 0 ? completedCount / totalCount : 0,
-      }
-    })
-    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn aliases profile.weekStartDay and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [currentMonth, dayMap, weekStartsOn])
+  const words: DayCellWords = {
+    none: t('calendar.dayCell.none'),
+    partial: t('calendar.dayCell.partial'),
+    full: t('calendar.dayCell.full'),
+    notScheduled: t('calendar.dayCell.notScheduled'),
+    future: t('calendar.dayCell.future'),
+    of: t('calendar.dayCell.of'),
+    today: t('calendar.dayCell.today'),
+    selected: t('calendar.dayCell.selected'),
+    readOnly: t('calendar.dayCell.readOnly'),
+  }
 
   return (
-    <div
-      data-tour="tour-calendar-grid"
-      style={{ padding: '20px 20px 10px' }}
-    >
-      <div
-        style={{
-          borderRadius: 18,
-          padding: '18px 14px',
-          background: 'var(--bg-card)',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        }}
-      >
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            marginBottom: 12,
-          }}
-        >
-          {weekdayHeaders.map((day, i) => (
-            <div
-              key={`${day}-${i}`}
-              className="text-center uppercase"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--fg-3)',
-                letterSpacing: '0.04em',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 8 }}
-        >
-          {gridDays.map((cell, index) => (
-            <CalendarDayCell
-              key={cell.dateStr}
-              cell={cell}
-              index={index}
-              selectedDateStr={selectedDateStr}
-              rangeStart={rangeStart}
-              rangeEnd={rangeEnd}
-              isLoading={isLoading}
-              onSelectDay={onSelectDay}
-            />
-          ))}
-        </div>
+    <div data-testid="calendar-grid" data-tour="tour-calendar-grid" style={{ padding: '16px 4px 8px' }}>
+      <div data-testid="calendar-grid-card" style={{ borderRadius: 20, padding: 0, background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
+        <MonthGrid weekdayLabels={weekdayLabels} gap={0} label={displayMonthYear(currentMonth)}>
+          {gridDays.map((cell, index) => {
+            const future = cell.dateStr > todayKey
+            const outcome: DayOutcome | undefined = future ? 'future' : undefined
+            const selected = cell.isCurrentMonth && (
+              cell.dateStr === selectedDateStr ||
+              cell.dateStr === rangeStart ||
+              cell.dateStr === rangeEnd
+            )
+            const inRange = cell.isCurrentMonth && isInRange(cell.dateStr, rangeStart, rangeEnd)
+            const dayCell: ReadOnlyDayCellProps = {
+              day: cell.day,
+              done: cell.completedCount,
+              scheduled: cell.totalCount,
+              today: cell.isToday,
+              selected,
+              outsideMonth: !cell.isCurrentMonth,
+              outcome,
+              label: displayWeekdayDate(cell.date, true),
+              words,
+            }
+            const resolvedOutcome = resolveDayCellOutcome(dayCell)
+            return (
+              <span
+                key={cell.dateStr}
+                data-in-range={inRange ? 'true' : undefined}
+                data-tour={index === 0 ? 'tour-calendar-day' : undefined}
+                style={{ position: 'relative', width: 44, height: 44, borderRadius: 999, background: inRange ? 'var(--selection-bg)' : 'transparent' }}
+              >
+                {isLoading ? (
+                  <span
+                    aria-hidden="true"
+                    data-testid="calendar-day-skeleton"
+                    style={{ display: 'block', width: 44, height: 44, borderRadius: 999, background: 'var(--bg-well)', opacity: cell.isCurrentMonth ? 1 : 0 }}
+                  />
+                ) : (
+                  <>
+                    <span aria-hidden="true">
+                      <DayCell {...dayCell} />
+                    </span>
+                    {cell.isCurrentMonth ? (
+                      <button
+                        type="button"
+                        aria-current={cell.isToday ? 'date' : undefined}
+                        aria-label={buildDayCellAccessibleName(dayCell, resolvedOutcome, false)}
+                        aria-pressed={selected}
+                        data-calendar-date={cell.dateStr}
+                        onClick={() => onSelectDay(cell.dateStr)}
+                        className="absolute inset-0 rounded-full border-0 bg-transparent p-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+                      />
+                    ) : null}
+                  </>
+                )}
+              </span>
+            )
+          })}
+        </MonthGrid>
       </div>
     </div>
   )

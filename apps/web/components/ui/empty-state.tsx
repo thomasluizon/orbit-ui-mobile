@@ -1,91 +1,27 @@
 'use client'
 
-import { PillButton } from '@/components/ui/pill-button'
+import type { EmptyStateProps } from '@orbit/shared/contracts/feedback'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 
-interface EmptyStateAction {
-  label: string
-  onClick: () => void
-  variant?: 'primary' | 'secondary'
-}
-
-interface EmptyStateProps {
-  title?: string
-  description: string
-  action?: EmptyStateAction
-  mark?: 'orbit' | 'astra'
-  className?: string
-}
-
-/** Kit empty state: satellite glyph, optional title, body copy, and optional pill CTA. */
+/** A single-action invitation for an empty region. */
 export function EmptyState({
   title,
-  description,
-  action,
   mark = 'orbit',
-  className,
+  action,
 }: Readonly<EmptyStateProps>) {
-  const renderAction = () => {
-    if (!action) return null
-    if (action.variant === 'secondary') {
-      return (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="mt-2 inline-flex cursor-pointer items-center border-0 bg-transparent px-4 py-[14px] text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)] active:opacity-70"
-          style={{ fontFamily: 'var(--font-sans)' }}
-        >
-          {action.label}
-        </button>
-      )
-    }
-    return (
-      <PillButton onClick={action.onClick} >
-        {action.label}
-      </PillButton>
-    )
-  }
-
   return (
-    <div
-      className={[
-        'flex flex-col items-center py-12 px-6 text-center animate-scale-in',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
-
-      {title ? (
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 20,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-            marginTop: 18,
-          }}
-        >
-          {title}
-        </p>
-      ) : null}
-
+    <div className="flex flex-col items-center gap-6 px-6 py-12 text-center" data-mark={mark}>
+      <span className="text-[var(--fg-1)]" data-empty-state-mark>
+        {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
+      </span>
       <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          color: 'var(--fg-3)',
-          lineHeight: 1.5,
-          maxWidth: 280,
-          marginTop: title ? 6 : 14,
-        }}
+        className="text-xl font-medium text-[var(--fg-1)]"
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
-        {description}
+        {title}
       </p>
-
-      {renderAction()}
+      {action ? <div data-empty-state-action>{action}</div> : null}
     </div>
   )
 }

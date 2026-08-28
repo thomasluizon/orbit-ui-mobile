@@ -18,7 +18,7 @@ import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { createStyles } from './styles'
-import { SkeletonCard } from './empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 
 interface HabitListDrillViewProps {
@@ -135,9 +135,9 @@ export function HabitListDrillView({
 
   const drillEmptyState = drill.drillLoading ? (
     <View style={styles.drillSkeletons}>
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
+      {[1, 2, 3].map((unit) => (
+        <Skeleton key={unit} variant="habit-row" label={t('common.loading')} />
+      ))}
     </View>
   ) : (
     drillErrorState
