@@ -109,7 +109,7 @@ async function advanceToCodeStep(result: { current: ReturnType<typeof useLoginFl
 
 function typeCode(result: { current: ReturnType<typeof useLoginFlow> }, code: string) {
   act(() => {
-    code.split('').forEach((digit, index) => result.current.onCodeInput(index, digit))
+    result.current.onCodeChange(code)
   })
 }
 

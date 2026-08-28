@@ -505,6 +505,7 @@ export type {
   ProfileNavTranslationAdapter,
   ProfileNavVariant,
 } from './profile-navigation'
+export * from './step-up'
 export {
   getNativePushStatusMessageKey,
   getNativePushStatusPresentation,

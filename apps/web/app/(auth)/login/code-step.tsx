@@ -1,7 +1,7 @@
 import type { useTranslations } from 'next-intl'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
-import { CodeInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 
@@ -11,13 +11,10 @@ interface CodeStepProps {
   isSubmitting: boolean
   canResend: boolean
   resendCountdown: number
-  codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
   errorSignal?: string | null
   isOnline: boolean
   onVerifyCode: () => void
-  onCodeInput: (index: number, value: string) => void
-  onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
-  onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCodeChange: (value: string) => void
   onBackToEmail: () => void
   onResendCode: () => void
   t: ReturnType<typeof useTranslations>
@@ -29,13 +26,10 @@ export function CodeStep({
   isSubmitting,
   canResend,
   resendCountdown,
-  codeInputRefs,
   errorSignal = null,
   isOnline,
   onVerifyCode,
-  onCodeInput,
-  onCodeKeydown,
-  onCodePaste,
+  onCodeChange,
   onBackToEmail,
   onResendCode,
   t,
@@ -72,14 +66,12 @@ export function CodeStep({
           animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
           transition={{ duration: 0.28, ease: 'easeInOut' }}
         >
-          <CodeInput
-            digits={codeDigits}
-            inputRefs={codeInputRefs}
-            onChange={onCodeInput}
-            onKeyDown={onCodeKeydown}
-            onPaste={onCodePaste}
-            ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-            ariaLabelledBy="code-sent-to"
+          <OtpInput
+            value={codeDigits.join('')}
+            onChange={onCodeChange}
+            label={t('stepUp.codeLabel')}
+            disabled={isSubmitting}
+            autoFocus
           />
         </motion.div>
 

@@ -1,6 +1,8 @@
 'use server'
 
 import { API } from '@orbit/shared/api'
+import { accountDeactivationResponseSchema } from '@orbit/shared/types/step-up'
+import type { AccountDeactivationResponse } from '@orbit/shared/types/step-up'
 import { serverAuthFetch } from '@/lib/server-fetch'
 
 /**
@@ -16,10 +18,9 @@ export async function requestDeletion(): Promise<void> {
  * Confirm account deletion with the code received via email.
  * Returns the scheduled deletion date from the backend response.
  */
-export async function confirmDeletion(code: string): Promise<{ scheduledDeletionAt?: string }> {
-  const response = await serverAuthFetch(API.auth.confirmDeletion, {
+export async function confirmDeletion(code: string): Promise<AccountDeactivationResponse> {
+  return serverAuthFetch(API.auth.confirmDeletion, {
     method: 'POST',
     body: JSON.stringify({ code }),
-  })
-  return response ?? {}
+  }, accountDeactivationResponseSchema)
 }

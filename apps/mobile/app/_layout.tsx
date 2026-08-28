@@ -79,6 +79,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'retrospective',
   'wrapped',
   'calendar-sync',
+  'step-up',
 ] as const
 
 function RootStackScreens({
@@ -194,6 +195,7 @@ function RootLayoutNav() {
     topSegment === 'login' ||
     topSegment === 'auth-callback' ||
     topSegment === 'chat' ||
+    topSegment === 'step-up' ||
     topSegment === 'upgrade' ||
     topSegment === 'privacy' ||
     topSegment === 'terms' ||
