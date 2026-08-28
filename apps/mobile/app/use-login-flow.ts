@@ -115,6 +115,7 @@ export function useLoginFlow() {
     resendCountdown,
     startResendCountdown,
     resetCodeDigits,
+    onCodeChange,
     onCodeInput,
     onCodeKeyPress,
   } = useLoginCodeEntry(() => {
@@ -359,6 +360,7 @@ export function useLoginFlow() {
     codeInputRefs,
     canResend,
     resendCountdown,
+    onCodeChange,
     onCodeInput,
     onCodeKeyPress,
     canSubmitEmail,

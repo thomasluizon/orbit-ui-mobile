@@ -1,12 +1,13 @@
 'use client'
 
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
-import { useId, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, type ChangeEvent } from 'react'
 
 const CELL_COUNT = 6
 
 export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputProps>) {
   const errorId = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
   const digits = value.slice(0, CELL_COUNT).split('')
   const activeIndex = Math.min(value.length, CELL_COUNT - 1)
 
@@ -14,10 +15,15 @@ export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputPro
     onChange(event.target.value.replace(/\D/g, '').slice(0, CELL_COUNT))
   }
 
+  useEffect(() => {
+    if (error) inputRef.current?.focus()
+  }, [error])
+
   return (
     <div className="flex flex-col gap-2" data-error={error ? '' : undefined}>
       <div className="relative flex items-center justify-center gap-2">
         <input
+          ref={inputRef}
           value={value}
           onChange={handleChange}
           aria-label={label}
@@ -26,8 +32,8 @@ export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputPro
           type="text"
           inputMode="numeric"
           autoComplete="one-time-code"
+          autoFocus
           spellCheck={false}
-          maxLength={CELL_COUNT}
           className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0"
         />
         {Array.from({ length: CELL_COUNT }, (_, index) => (

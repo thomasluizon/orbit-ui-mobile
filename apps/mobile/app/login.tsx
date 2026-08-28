@@ -41,7 +41,7 @@ export default function LoginScreen() {
     codeDigits,
     canResend,
     resendCountdown,
-    onCodeInput,
+    onCodeChange,
     canSubmitEmail,
     canSubmitCode,
     sendCode,
@@ -133,7 +133,7 @@ export default function LoginScreen() {
             <CodeStep
               email={email}
               codeDigits={codeDigits}
-              onCodeInput={onCodeInput}
+              onCodeChange={onCodeChange}
               isSubmitting={isSubmitting}
               canSubmitCode={canSubmitCode}
               canResend={canResend}

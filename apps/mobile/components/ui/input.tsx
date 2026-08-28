@@ -9,7 +9,8 @@ type InputMode = InputProps['inputMode']
 
 function getKeyboardType(kind: InputKind, inputMode: InputMode) {
   if (kind === 'email' || inputMode === 'email') return 'email-address'
-  if (kind === 'number' || inputMode === 'numeric' || inputMode === 'decimal') {
+  if (inputMode === 'decimal') return 'decimal-pad'
+  if (kind === 'number' || inputMode === 'numeric') {
     return 'number-pad'
   }
   return 'default'

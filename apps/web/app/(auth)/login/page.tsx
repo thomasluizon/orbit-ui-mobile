@@ -30,7 +30,7 @@ export default function LoginPage() {
     codeDigits,
     canResend,
     resendCountdown,
-    onCodeInput,
+    onCodeChange,
     sendCode,
     verifyCode,
     resendCode,
@@ -90,7 +90,7 @@ export default function LoginPage() {
               errorSignal={errorMessage}
               isOnline={isOnline}
               onVerifyCode={() => void verifyCode()}
-              onCodeInput={onCodeInput}
+              onCodeChange={onCodeChange}
               onBackToEmail={backToEmail}
               onResendCode={() => void resendCode()}
               t={t}

@@ -11,7 +11,7 @@ type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 interface CodeStepProps {
   email: string
   codeDigits: string[]
-  onCodeInput: (index: number, value: string) => void
+  onCodeChange: (value: string) => void
   isSubmitting: boolean
   canSubmitCode: boolean
   canResend: boolean
@@ -30,7 +30,7 @@ interface CodeStepProps {
 export function CodeStep({
   email,
   codeDigits,
-  onCodeInput,
+  onCodeChange,
   isSubmitting,
   canSubmitCode,
   canResend,
@@ -63,9 +63,11 @@ export function CodeStep({
 
       <Animated.View style={{ transform: [{ translateX: shakeOffset }] }}>
         <OtpInput
-          label={t('profile.deleteAccount.headingConfirmCode')}
+          label={t('auth.verificationCode')}
           value={codeDigits.join('')}
-          onChange={(value) => onCodeInput(0, value)}
+          onChange={(value) => {
+            if (!isSubmitting) onCodeChange(value)
+          }}
         />
       </Animated.View>
 

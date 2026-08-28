@@ -74,7 +74,10 @@ export function CalendarAutoSyncSection({
           </View>
           <View
             pointerEvents={toggleDisabled ? 'none' : 'auto'}
-            accessibilityState={{ disabled: toggleDisabled }}
+            accessible={toggleDisabled}
+            accessibilityRole={toggleDisabled ? 'switch' : undefined}
+            accessibilityLabel={toggleDisabled ? t('calendar.autoSync.title') : undefined}
+            accessibilityState={toggleDisabled ? { checked: enabled, disabled: true } : undefined}
           >
             <Switch
               checked={enabled}

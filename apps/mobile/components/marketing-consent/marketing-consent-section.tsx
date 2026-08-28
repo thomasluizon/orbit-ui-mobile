@@ -54,7 +54,10 @@ export function MarketingConsentSection() {
       >
         <View
           pointerEvents={mutation.isPending ? 'none' : 'auto'}
-          accessibilityState={{ disabled: mutation.isPending }}
+          accessible={mutation.isPending}
+          accessibilityRole={mutation.isPending ? 'switch' : undefined}
+          accessibilityLabel={mutation.isPending ? t('profile.marketingEmails.title') : undefined}
+          accessibilityState={mutation.isPending ? { checked: enabled, disabled: true } : undefined}
         >
           <Switch
             checked={enabled}

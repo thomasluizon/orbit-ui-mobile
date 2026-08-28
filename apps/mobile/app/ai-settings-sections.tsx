@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { View } from 'react-native'
 import { BellRing, Lock, Satellite } from '@/components/ui/icons'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -19,6 +20,32 @@ interface AiFeatureTogglesProps {
   onToggleSummary: () => void
   onToggleProactive: () => void
   onUpgrade: () => void
+}
+
+interface PendingSwitchBoundaryProps {
+  pending: boolean
+  checked: boolean
+  label: string
+  children: ReactNode
+}
+
+function PendingSwitchBoundary({
+  pending,
+  checked,
+  label,
+  children,
+}: Readonly<PendingSwitchBoundaryProps>) {
+  return (
+    <View
+      pointerEvents={pending ? 'none' : 'auto'}
+      accessible={pending}
+      accessibilityRole={pending ? 'switch' : undefined}
+      accessibilityLabel={pending ? label : undefined}
+      accessibilityState={pending ? { checked, disabled: true } : undefined}
+    >
+      {children}
+    </View>
+  )
 }
 
 export function AiFeatureToggles({
@@ -46,16 +73,17 @@ export function AiFeatureToggles({
           accessory="none"
           divider={false}
         >
-          <View
-            pointerEvents={summaryPending ? 'none' : 'auto'}
-            accessibilityState={{ disabled: summaryPending }}
+          <PendingSwitchBoundary
+            pending={summaryPending}
+            checked={aiSummaryEnabled}
+            label={t('profile.aiSummary.title')}
           >
             <Switch
               checked={aiSummaryEnabled}
               onChange={onToggleSummary}
               label={t('profile.aiSummary.title')}
             />
-          </View>
+          </PendingSwitchBoundary>
         </SettingsRow>
       ) : (
         <SettingsRow
@@ -77,16 +105,17 @@ export function AiFeatureToggles({
           accessory="none"
           divider={false}
         >
-          <View
-            pointerEvents={proactivePending ? 'none' : 'auto'}
-            accessibilityState={{ disabled: proactivePending }}
+          <PendingSwitchBoundary
+            pending={proactivePending}
+            checked={proactiveAstraEnabled}
+            label={t('profile.proactiveAstra.title')}
           >
             <Switch
               checked={proactiveAstraEnabled}
               onChange={onToggleProactive}
               label={t('profile.proactiveAstra.title')}
             />
-          </View>
+          </PendingSwitchBoundary>
         </SettingsRow>
       ) : (
         <SettingsRow

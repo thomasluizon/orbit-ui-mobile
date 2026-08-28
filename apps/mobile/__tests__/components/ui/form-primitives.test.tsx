@@ -9,6 +9,10 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { uses24HourClock: true } }),
+}))
+
 interface TestNode {
   readonly type: unknown
   readonly props: Readonly<Record<string, unknown>>
@@ -71,6 +75,18 @@ describe('form primitives on mobile', () => {
     expect(prop(textarea, 'multiline')).toBe(true)
     expect(prop(textarea, 'numberOfLines')).toBe(4)
     expect(prop(textarea, 'maxLength')).toBe(120)
+
+    void act(() => {
+      tree.update(
+        <Input
+          label="Amount"
+          value="1.5"
+          onChange={onChange}
+          inputMode="decimal"
+        />,
+      )
+    })
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'keyboardType')).toBe('decimal-pad')
   })
 
   it('uses one real OTP input with platform autofill and six painted cells', () => {
@@ -140,6 +156,12 @@ describe('form primitives on mobile', () => {
     expect(prop(input, 'value')).toBe('7:30 pm')
     prop<(value: string) => void>(input, 'onChangeText')('9:15 am')
     expect(onChange).toHaveBeenCalledWith('09:15')
+
+    void act(() => prop<() => void>(input, 'onFocus')())
+    void act(() => prop<(value: string) => void>(input, 'onChangeText')('10:'))
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'value')).toBe('10:')
+    void act(() => prop<() => void>(tree.root.findAllByType('TextInput')[0]!, 'onBlur')())
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'value')).toBe('7:30 pm')
   })
 
   it('renders DateRow only as formatted text with its fixed-date note', () => {

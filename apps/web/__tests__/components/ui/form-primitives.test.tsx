@@ -8,6 +8,14 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { uses24HourClock: true } }),
+}))
+
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en-US',
+}))
+
 describe('form primitives on web', () => {
   it('renders labelled single and multiline inputs with their shared limits', () => {
     const onChange = vi.fn()
@@ -44,6 +52,7 @@ describe('form primitives on web', () => {
     expect(container.querySelectorAll('input')).toHaveLength(1)
     expect(input).toHaveAttribute('inputmode', 'numeric')
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(input).not.toHaveAttribute('maxlength')
     expect(container.querySelectorAll('span[aria-hidden="true"]')).toHaveLength(6)
     expect(screen.getAllByText('Wrong code')).toHaveLength(1)
 

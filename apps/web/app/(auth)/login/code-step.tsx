@@ -14,7 +14,7 @@ interface CodeStepProps {
   errorSignal?: string | null
   isOnline: boolean
   onVerifyCode: () => void
-  onCodeInput: (index: number, value: string) => void
+  onCodeChange: (value: string) => void
   onBackToEmail: () => void
   onResendCode: () => void
   t: ReturnType<typeof useTranslations>
@@ -29,7 +29,7 @@ export function CodeStep({
   errorSignal = null,
   isOnline,
   onVerifyCode,
-  onCodeInput,
+  onCodeChange,
   onBackToEmail,
   onResendCode,
   t,
@@ -69,7 +69,9 @@ export function CodeStep({
           <OtpInput
             label={t('auth.verificationCode')}
             value={codeDigits.join('')}
-            onChange={(value) => onCodeInput(0, value)}
+            onChange={(value) => {
+              if (!isSubmitting) onCodeChange(value)
+            }}
             error={errorSignal ?? undefined}
           />
         </motion.div>

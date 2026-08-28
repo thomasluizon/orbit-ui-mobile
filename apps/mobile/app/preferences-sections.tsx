@@ -84,7 +84,10 @@ export function PushNotificationSection({
           >
             <View
               pointerEvents={pushLoading ? 'none' : 'auto'}
-              accessibilityState={{ disabled: pushLoading }}
+              accessible={pushLoading}
+              accessibilityRole={pushLoading ? 'switch' : undefined}
+              accessibilityLabel={pushLoading ? t('settings.notifications.title') : undefined}
+              accessibilityState={pushLoading ? { checked: pushEnabled, disabled: true } : undefined}
             >
               <Switch
                 checked={pushEnabled}
@@ -150,7 +153,10 @@ function PersistentReminderRow({
     >
       <View
         pointerEvents={isLoading ? 'none' : 'auto'}
-        accessibilityState={{ disabled: isLoading }}
+        accessible={isLoading}
+        accessibilityRole={isLoading ? 'switch' : undefined}
+        accessibilityLabel={isLoading ? t('persistentReminder.label') : undefined}
+        accessibilityState={isLoading ? { checked: enabled, disabled: true } : undefined}
       >
         <Switch
           checked={enabled}

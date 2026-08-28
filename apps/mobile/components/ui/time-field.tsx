@@ -1,8 +1,11 @@
 import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { detectDefaultTimeFormat } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useProfile } from '@/hooks/use-profile'
 
 const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
@@ -29,24 +32,32 @@ export function TimeField({
   value,
   onChange,
   onClear,
-  hourCycle = 'h23',
+  hourCycle,
   hint,
   disabled = false,
   error,
 }: Readonly<TimeFieldProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
+  const { i18n } = useTranslation()
+  const { profile } = useProfile()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
+  const uses24HourClock = profile?.uses24HourClock
+    ?? detectDefaultTimeFormat(i18n.language) === '24h'
+  const resolvedHourCycle = hourCycle ?? (uses24HourClock ? 'h23' : 'h12')
+  const presentedValue = presentTime(value, resolvedHourCycle)
   const [focused, setFocused] = useState(false)
+  const [draft, setDraft] = useState<string | null>(null)
 
   function handleChange(displayValue: string) {
+    setDraft(displayValue)
     if (!displayValue) {
       onClear?.()
       return
     }
-    const parsed = parseTime(displayValue, hourCycle)
+    const parsed = parseTime(displayValue, resolvedHourCycle)
     if (parsed) onChange(parsed)
   }
 
@@ -54,15 +65,21 @@ export function TimeField({
     <View style={styles.root} data-error={error ? '' : undefined}>
       <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
       <TextInput
-        value={presentTime(value, hourCycle)}
+        value={draft ?? presentedValue}
         onChangeText={handleChange}
         editable={!disabled}
         keyboardType="numbers-and-punctuation"
         accessibilityLabel={label}
         accessibilityHint={error ?? hint}
         accessibilityState={{ disabled }}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onFocus={() => {
+          setFocused(true)
+          setDraft(presentedValue)
+        }}
+        onBlur={() => {
+          setFocused(false)
+          setDraft(null)
+        }}
         style={[
           styles.input,
           {

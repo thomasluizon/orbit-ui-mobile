@@ -1,5 +1,5 @@
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -7,6 +7,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const CELL_COUNT = 6
 
 export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputProps>) {
+  const inputRef = useRef<TextInput>(null)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -19,16 +20,21 @@ export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputPro
     onChange(nextValue.replace(/\D/g, '').slice(0, CELL_COUNT))
   }
 
+  useEffect(() => {
+    if (error) inputRef.current?.focus()
+  }, [error])
+
   return (
     <View style={styles.root} data-error={error ? '' : undefined}>
       <View style={styles.cellRow}>
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={handleChange}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="sms-otp"
-          maxLength={CELL_COUNT}
+          autoFocus
           accessibilityLabel={label}
           accessibilityHint={error}
           style={styles.realInput}
