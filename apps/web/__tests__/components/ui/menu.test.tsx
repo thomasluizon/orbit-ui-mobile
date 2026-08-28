@@ -120,7 +120,7 @@ describe('Menu', () => {
   it.each([
     ['Tab', false],
     ['Shift+Tab', true],
-  ])('closes on %s and resumes from a context-menu row', async (_label, shiftKey) => {
+  ])('closes on %s and leaves a context-menu row in the same keypress', async (_label, shiftKey) => {
     setWide(true)
     const user = userEvent.setup()
     function Harness() {
@@ -165,10 +165,47 @@ describe('Menu', () => {
     await user.tab({ shift: shiftKey })
 
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
-    expect(screen.getByText('Habit row')).toHaveFocus()
+    expect(screen.getByRole('button', { name: shiftKey ? 'Before' : 'After' })).toHaveFocus()
+    expect(document.activeElement?.getAttribute('role')).not.toBe('menuitem')
+  })
+
+  it.each([
+    ['Tab', false],
+    ['Shift+Tab', true],
+  ])('closes on %s and leaves a button anchor in the same keypress', async (_label, shiftKey) => {
+    setWide(true)
+    const user = userEvent.setup()
+    function Harness() {
+      const anchorRef = useRef<HTMLButtonElement>(null)
+      const [open, setOpen] = useState(false)
+
+      return (
+        <>
+          <button type="button">Before</button>
+          <button ref={anchorRef} type="button" onClick={() => setOpen(true)}>
+            More
+          </button>
+          <button type="button">After</button>
+          <Menu
+            open={open}
+            title="Habit actions"
+            items={items}
+            anchorRef={anchorRef}
+            onClose={() => setOpen(false)}
+          />
+        </>
+      )
+    }
+    render(<Harness />)
+
+    await user.click(screen.getByRole('button', { name: 'More' }))
+    await screen.findByRole('menu')
+    const edit = screen.getByRole('menuitem', { name: 'Edit' })
+    await waitFor(() => expect(edit).toHaveFocus())
 
     await user.tab({ shift: shiftKey })
 
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
     expect(screen.getByRole('button', { name: shiftKey ? 'Before' : 'After' })).toHaveFocus()
     expect(document.activeElement?.getAttribute('role')).not.toBe('menuitem')
   })

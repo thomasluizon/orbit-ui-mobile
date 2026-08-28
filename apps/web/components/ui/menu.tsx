@@ -131,6 +131,8 @@ export function Menu({
 }: Readonly<MenuProps>) {
   const wide = useWidePresentation(wideFrom)
   const panelRef = useRef<HTMLDivElement>(null)
+  const focusReturnTargetRef = useRef<HTMLElement | null>(null)
+  const restoreFocusOnCleanupRef = useRef(true)
   const [position, setPosition] = useState<Position | null>(null)
   const portalTarget = useSyncExternalStore(
     subscribeToPortalTarget,
@@ -166,6 +168,8 @@ export function Menu({
     if (!open || resolvedPresentation !== 'anchored') return
     const panel = panelRef.current
     const focusReturnTarget = activeFocusReturnTarget() ?? anchorElement(anchorRef)
+    focusReturnTargetRef.current = focusReturnTarget
+    restoreFocusOnCleanupRef.current = true
     panel?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
 
     function dismiss(event: Event) {
@@ -188,13 +192,15 @@ export function Menu({
     return () => {
       document.removeEventListener('pointerdown', dismiss)
       document.removeEventListener('keydown', onKeyDown)
-      focusReturnTarget?.focus()
+      if (restoreFocusOnCleanupRef.current) focusReturnTarget?.focus()
+      focusReturnTargetRef.current = null
     }
   }, [anchorRef, open, resolvedPresentation])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
-      event.preventDefault()
+      focusReturnTargetRef.current?.focus()
+      restoreFocusOnCleanupRef.current = false
       onClose?.()
       return
     }
