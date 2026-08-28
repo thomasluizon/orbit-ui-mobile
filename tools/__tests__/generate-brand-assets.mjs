@@ -20,9 +20,9 @@ const expectedAssets = [
   ["apps/mobile/assets/notification-icon.png", 96, 96],
   ["apps/mobile/assets/splash-icon.png", 1024, 1024],
   ["apps/mobile/store/feature-graphic.png", 1024, 500],
-  ["apps/web/app/icon.png", 64, 64],
+  ["apps/web/app/apple-icon.png", 180, 180],
   ["apps/web/public/favicon-16.png", 16, 16],
-  ["apps/web/public/favicon.png", 64, 64],
+  ["apps/web/public/favicon-32.png", 32, 32],
   ["apps/web/public/logo-no-bg.png", 96, 96],
   ["apps/web/public/og-image.png", 1200, 630],
   ["apps/web/public/pwa-192x192.png", 192, 192],
@@ -52,7 +52,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 21 brand assets/ },
+    { status: 0, stdout: /generated 22 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -64,6 +64,27 @@ export const cases = async () => {
       `${relativePath}: ${JSON.stringify(metadata)}`,
     )
   }
+
+  const faviconIco = readFileSync(join(outputRoot, "apps", "web", "app", "favicon.ico"))
+  const layerCount = faviconIco.readUInt16LE(4)
+  const layerSizes = Array.from({ length: layerCount }, (_, index) => {
+    const directoryOffset = 6 + index * 16
+    return [faviconIco.readUInt8(directoryOffset), faviconIco.readUInt8(directoryOffset + 1)]
+  })
+  T(
+    "generate-brand-assets.mjs: favicon.ico carries native 16 plus canonical 32 and 48 layers",
+    JSON.stringify(layerSizes) === JSON.stringify([[16, 16], [32, 32], [48, 48]]),
+    `ICO layers ${JSON.stringify(layerSizes)}`,
+  )
+
+  const favicon16 = join(outputRoot, "apps", "web", "public", "favicon-16.png")
+  const faviconCorner = await pixelAt(favicon16, 0, 0)
+  const faviconCentre = await pixelAt(favicon16, 8, 8)
+  T(
+    "generate-brand-assets.mjs: tab icons use an opaque canvas disc on transparent corners",
+    faviconCorner[3] === 0 && faviconCentre.join(",") === "9,9,11,255",
+    `corner ${faviconCorner.join(",")}; centre ${faviconCentre.join(",")}`,
+  )
 
   const featureGraphic = join(outputRoot, "apps", "mobile", "store", "feature-graphic.png")
   const featureGraphicMetadata = await sharp(featureGraphic).metadata()
