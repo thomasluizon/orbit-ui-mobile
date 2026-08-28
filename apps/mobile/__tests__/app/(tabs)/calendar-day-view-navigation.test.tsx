@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 
 const mockPush = vi.fn()
@@ -12,6 +12,7 @@ interface SheetStubProps {
 }
 
 let latestSheetProps: SheetStubProps | null = null
+let calendarIsLoading = false
 
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
@@ -57,7 +58,7 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
 vi.mock('@/hooks/use-habits', () => ({
   useCalendarData: () => ({
     dayMap: new Map(),
-    isLoading: false,
+    isLoading: calendarIsLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
@@ -113,15 +114,11 @@ function pressButton(root: TestNode, label: string) {
   onPress()
 }
 
-function findGridDayCell(root: TestNode, dayNumber: number) {
+function findGridDayCell(root: TestNode, dateStr: string) {
   const cell = root.findAll(
-    (candidate) =>
-      candidate.type === 'Pressable' &&
-      candidate.findAll(
-        (child) => child.type === 'Text' && child.props.children === dayNumber,
-      ).length > 0,
+    (candidate) => candidate.props.testID === `calendar-day-button-${dateStr}`,
   )[0]
-  if (!cell) throw new Error(`Day cell not found: ${dayNumber}`)
+  if (!cell) throw new Error(`Day cell not found: ${dateStr}`)
   return cell
 }
 
@@ -132,8 +129,15 @@ function sheetProps() {
 
 describe('CalendarScreen day-detail navigation (mobile)', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
     latestSheetProps = null
+    calendarIsLoading = false
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('navigates to the selected day only after the sheet finishes dismissing natively, and exactly once', () => {
@@ -142,7 +146,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
-    const dayCell = findGridDayCell(tree.root, 15)
+    const dayCell = findGridDayCell(tree.root, '2026-08-15')
     TestRenderer.act(() => {
       ;(dayCell.props.onPress as () => void)()
     })
@@ -169,5 +173,50 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens an older current-month day', () => {
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-01').props.onPress as () => void)()
+    })
+    expect(sheetProps().open).toBe(true)
+  })
+
+  it('allows a future day to become a range endpoint', () => {
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'calendar.view.range')
+    })
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-20').props.onPress as () => void)()
+    })
+    const selectedDates = tree.root.findAll(
+      (node) => node.type === 'Pressable' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true,
+    ).map((node) => node.props.testID)
+    expect(selectedDates).toContain('calendar-day-button-2026-08-20')
+  })
+
+  it('shows only neutral same-size day placeholders while the month is loading', () => {
+    calendarIsLoading = true
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    const skeletons = tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')
+    expect(skeletons.length).toBeGreaterThanOrEqual(35)
+    expect(skeletons[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ width: 44, height: 44 })]),
+    )
+    expect(tree.root.findAll((node) => String(node.props.testID).startsWith('day-cell-'))).toHaveLength(0)
   })
 })
