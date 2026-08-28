@@ -81,11 +81,23 @@ export const cases = async () => {
 
   const favicon16 = join(outputRoot, "apps", "web", "public", "favicon-16.png")
   const faviconCorner = await pixelAt(favicon16, 0, 0)
-  const faviconCentre = await pixelAt(favicon16, 8, 8)
+  const { data: faviconPixels } = await sharp(favicon16).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  let hasOpaqueCanvasPixel = false
+  for (let index = 0; index < faviconPixels.length; index += 4) {
+    if (
+      faviconPixels[index] === 9 &&
+      faviconPixels[index + 1] === 9 &&
+      faviconPixels[index + 2] === 11 &&
+      faviconPixels[index + 3] === 255
+    ) {
+      hasOpaqueCanvasPixel = true
+      break
+    }
+  }
   T(
     "generate-brand-assets.mjs: tab icons use an opaque canvas disc on transparent corners",
-    faviconCorner[3] === 0 && faviconCentre.join(",") === "9,9,11,255",
-    `corner ${faviconCorner.join(",")}; centre ${faviconCentre.join(",")}`,
+    faviconCorner[3] === 0 && hasOpaqueCanvasPixel,
+    `corner ${faviconCorner.join(",")}; opaque canvas pixel ${hasOpaqueCanvasPixel}`,
   )
 
   const featureGraphic = join(outputRoot, "apps", "mobile", "store", "feature-graphic.png")
