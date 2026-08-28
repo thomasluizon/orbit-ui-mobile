@@ -1,8 +1,9 @@
 import type { InputProps } from '@orbit/shared/contracts/forms'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
 
 type InputKind = NonNullable<InputProps['kind']>
 type InputMode = InputProps['inputMode']
@@ -33,6 +34,8 @@ export function Input({
   trailing,
   ...shape
 }: Readonly<InputProps>) {
+  const inputRef = useRef<TextInput>(null)
+  const keyboardAware = useKeyboardAwareInputReveal()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -51,6 +54,7 @@ export function Input({
       <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
       <View style={styles.controlRow}>
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
@@ -69,7 +73,10 @@ export function Input({
           accessibilityLabel={label}
           accessibilityState={{ disabled }}
           accessibilityHint={error}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true)
+            keyboardAware?.revealInput(inputRef.current)
+          }}
           onBlur={() => setFocused(false)}
           style={[
             styles.input,
