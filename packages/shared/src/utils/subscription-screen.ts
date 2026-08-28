@@ -70,9 +70,9 @@ export function resolveSubscriptionScreen(
     view: isManageView ? ('manage' as const) : ('pitch' as const),
   }
 
+  if (!input.isOnline) return { ...base, state: 'offline' }
   if (input.isStatusLoading) return { ...base, state: 'loading' }
   if (input.isStatusError || !status) return { ...base, state: 'load-failed' }
-  if (!input.isOnline) return { ...base, state: 'offline' }
 
   const state = isManageView ? resolveManageState(input, status) : resolvePitchState(status)
   return { ...base, state }

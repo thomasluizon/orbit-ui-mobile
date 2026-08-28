@@ -60,4 +60,11 @@ describe('resolveSubscriptionScreen', () => {
       }).view,
     ).toBe('pitch')
   })
+
+  it('keeps the offline notice authoritative when live status is unavailable', () => {
+    expect(resolve({ status: null, isStatusError: true, isOnline: false })).toMatchObject({
+      state: 'offline',
+      view: 'pitch',
+    })
+  })
 })
