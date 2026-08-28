@@ -32,6 +32,12 @@ function createToast(toast: StoredToast): AppToastItem {
   return { id: toastCounter, toast }
 }
 
+function hasRemovalPath(toast: StoredToast): boolean {
+  return toast.kind === 'done'
+    || toast.kind === 'lost'
+    || (toast.kind === 'neutral' && Boolean(toast.actionLabel))
+}
+
 function enqueueToast(
   set: SetAppToastState,
   toast: StoredToast,
@@ -43,15 +49,20 @@ function enqueueToast(
   set((state) => {
     if (!state.currentToast) return { currentToast: nextToast }
 
-    const current = state.currentToast.toast
-    const currentHasRemovalPath =
-      current.kind === 'done'
-      || current.kind === 'lost'
-      || (current.kind === 'neutral' && Boolean(current.actionLabel))
+    if (!hasRemovalPath(state.currentToast.toast)) {
+      return { currentToast: nextToast }
+    }
 
-    return currentHasRemovalPath
-      ? { queue: [...state.queue, nextToast] }
-      : { currentToast: nextToast }
+    const queuedBlockerIndex = state.queue.findIndex(
+      (item) => !hasRemovalPath(item.toast),
+    )
+    if (queuedBlockerIndex >= 0) {
+      return {
+        queue: [...state.queue.slice(0, queuedBlockerIndex), nextToast],
+      }
+    }
+
+    return { queue: [...state.queue, nextToast] }
   })
 }
 

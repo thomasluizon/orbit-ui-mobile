@@ -30,13 +30,11 @@ describe('app toast store', () => {
     store.showSuccess('Third')
 
     expect(useAppToastStore.getState().currentToast?.toast.message).toBe('First')
-    expect(useAppToastStore.getState().queue.map((item) => item.toast.message)).toEqual([
-      'Second',
-      'Third',
-    ])
+    expect(useAppToastStore.getState().queue.map((item) => item.toast.message)).toEqual(['Third'])
 
     useAppToastStore.getState().dismissToast()
-    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Second')
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Third')
+    expect(useAppToastStore.getState().queue).toEqual([])
   })
 
   it('advances queued to syncing to synced without stalling the host', () => {
