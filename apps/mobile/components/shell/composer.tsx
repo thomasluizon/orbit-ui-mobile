@@ -140,7 +140,9 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
 
   return (
     <View style={styles.inputRow}>
-      <View style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.hairline }]}> 
+      <View
+        style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.hairline }]}
+      >
         <TextInput
           accessibilityLabel={props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}
