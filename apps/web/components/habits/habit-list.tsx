@@ -110,6 +110,11 @@ interface HabitListProps {
   onAllCollapsedChange?: (allCollapsed: boolean) => void
 }
 
+function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 'one-time' {
+  if (habit?.frequencyUnit === null) return 'one-time'
+  return habit?.isFlexible ? 'flexible' : 'recurring'
+}
+
 export interface HabitListHandle {
   collapseAll: () => void
   expandAll: () => void
@@ -170,6 +175,11 @@ export function HabitList({
   )
   const promptedParentIdsRef = useReactRef(new Set<string>())
   const skippedChildIdsRef = useReactRef(new Set<string>())
+  const [parentPrompt, setParentPrompt] = useState<{
+    habit: NormalizedHabit
+    mode: 'log' | 'skip'
+    date: string
+  } | null>(null)
   const promptDataRef = useReactRef<{
     getChildren: (id: string) => NormalizedHabit[]
     isListView: boolean
@@ -536,6 +546,8 @@ export function HabitList({
   const [habitToReschedule, setHabitToReschedule] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
+  const [habitToSkip, setHabitToSkip] = useState<NormalizedHabit | null>(null)
+  const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
 
   const [showMoveParentOverlay, setShowMoveParentOverlay] = useState(false)
   const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
@@ -561,7 +573,11 @@ export function HabitList({
     if (total > 0 && done >= total) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
         promptedParentIdsRef.current.add(parent.id)
-        void settleCompletedParent(parent.id, loggedDone > 0 ? 'log' : 'skip')
+        setParentPrompt({
+          habit: parent,
+          mode: loggedDone > 0 ? 'log' : 'skip',
+          date: data.selectedDateStr,
+        })
       }
     } else {
       promptedParentIdsRef.current.delete(parent.id)
@@ -674,10 +690,13 @@ export function HabitList({
     setShowDeleteConfirm(true)
   }
 
-  async function duplicateImmediately(id: string) {
+  async function confirmDuplicate() {
+    if (!habitToDuplicate) return
     try {
-      await duplicateHabitMut.mutateAsync(id)
+      await duplicateHabitMut.mutateAsync(habitToDuplicate.id)
     } catch {
+    } finally {
+      setHabitToDuplicate(null)
     }
   }
 
@@ -705,14 +724,25 @@ export function HabitList({
     }
   }
 
-  async function handleSkip(habitId: string) {
+  async function confirmSkip() {
+    if (!habitToSkip) return
+    const habitId = habitToSkip.id
     try {
       await skipHabit.mutateAsync({ habitId })
       skippedChildIdsRef.current.add(habitId)
       markRecentlyCompleted(habitId)
       checkAndPromptParentLog(habitId)
     } catch {
+    } finally {
+      setHabitToSkip(null)
     }
+  }
+
+  function confirmParentSettlement() {
+    if (!parentPrompt || parentPrompt.date !== selectedDateStr) return
+    const pending = parentPrompt
+    setParentPrompt(null)
+    void settleCompletedParent(pending.habit.id, pending.mode)
   }
 
   function handleLogged(habitId: string, markAsRecentlyCompleted = true) {
@@ -833,6 +863,7 @@ export function HabitList({
         meta={meta}
         canLog={canLog}
         readOnly={readOnly}
+        hasProAccess={profile?.hasProAccess !== false}
         streak={habit.currentStreak}
         child={isChild}
         depth={displayDepth}
@@ -846,8 +877,8 @@ export function HabitList({
         actions={{
           onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
-          onSkip: () => void handleSkip(habit.id),
-          onDuplicate: () => void duplicateImmediately(habit.id),
+          onSkip: readOnly ? undefined : () => setHabitToSkip(habit),
+          onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
             const onSaved = options?.isDrillCard ? () => drill.refreshCurrent() : null
@@ -855,7 +886,7 @@ export function HabitList({
             setShowEditModal(true)
           },
           onMoveParent: () => openMoveParentPicker(habit.id),
-          onReschedule: habit.isOverdue
+          onReschedule: !readOnly && habit.isOverdue
             ? () => {
                 setHabitToReschedule(habit)
                 setShowRescheduleSheet(true)
@@ -1130,11 +1161,23 @@ export function HabitList({
       <HabitListConfirmDialogs
         t={t}
         showDeleteConfirm={showDeleteConfirm}
+        skipHabitName={habitToSkip?.title ?? null}
+        skipKind={getSkipKind(habitToSkip)}
+        duplicateHabitName={habitToDuplicate?.title ?? null}
+        parentPrompt={parentPrompt?.date === selectedDateStr
+          ? { name: parentPrompt.habit.title, mode: parentPrompt.mode }
+          : null}
         onConfirmDelete={() => void confirmDelete()}
         onCancelDelete={() => {
           setHabitToDelete(null)
           setShowDeleteConfirm(false)
         }}
+        onConfirmSkip={() => void confirmSkip()}
+        onCancelSkip={() => setHabitToSkip(null)}
+        onConfirmDuplicate={() => void confirmDuplicate()}
+        onCancelDuplicate={() => setHabitToDuplicate(null)}
+        onConfirmParent={confirmParentSettlement}
+        onCancelParent={() => setParentPrompt(null)}
       />
 
       <MoveParentOverlay

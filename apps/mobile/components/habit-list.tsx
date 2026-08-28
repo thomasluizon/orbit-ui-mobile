@@ -156,6 +156,11 @@ const SKELETON_KEYS = [
   'skeleton-5',
 ]
 
+function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 'one-time' {
+  if (habit?.frequencyUnit === null) return 'one-time'
+  return habit?.isFlexible ? 'flexible' : 'recurring'
+}
+
 // react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, drill-view, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
@@ -274,6 +279,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     >(new Set())
     const promptedParentIdsRef = useRef(new Set<string>())
     const skippedChildIdsRef = useRef(new Set<string>())
+    const [parentPrompt, setParentPrompt] = useState<{
+      habit: NormalizedHabit
+      mode: 'log' | 'skip'
+      date: string
+    } | null>(null)
     const promptDataRef = useRef<{
       getChildren: (id: string) => NormalizedHabit[]
       isListView: boolean
@@ -283,6 +293,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     } | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
+    const [habitToSkip, setHabitToSkip] = useState<NormalizedHabit | null>(null)
+    const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
     const [showSubHabitModal, setShowSubHabitModal] = useState(false)
     const [subHabitParent, setSubHabitParent] =
       useState<NormalizedHabit | null>(null)
@@ -675,37 +687,46 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
             const mode = progress.loggedDone > 0 ? 'log' : 'skip'
-            markRecentlyCompleted(parentHabit.id)
-            void (async () => {
-              try {
-                if (mode === 'skip') {
-                  skippedChildIdsRef.current.add(parentHabit.id)
-                  await skipMutation.mutateAsync({ habitId: parentHabit.id })
-                } else {
-                  skippedChildIdsRef.current.delete(parentHabit.id)
-                  await logMutation.mutateAsync({ habitId: parentHabit.id })
-                  void showInterstitialIfDue()
-                }
-                checkAndSettleParent(parentHabit.id)
-              } catch {
-                promptedParentIdsRef.current.delete(parentHabit.id)
-                clearRecentlyCompleted(parentHabit.id)
-              }
-            })()
+            setParentPrompt({ habit: parentHabit, mode, date: data.selectedDateStr })
           }
         } else {
           promptedParentIdsRef.current.delete(parentHabit.id)
         }
       },
       [
-        clearRecentlyCompleted,
         getChildrenProgressForPrompt,
-        logMutation,
-        markRecentlyCompleted,
-        showInterstitialIfDue,
-        skipMutation,
       ],
     )
+
+    const confirmParentSettlement = useCallback(async () => {
+      if (!parentPrompt || parentPrompt.date !== selectedDateStr) return
+      const { habit, mode } = parentPrompt
+      setParentPrompt(null)
+      markRecentlyCompleted(habit.id)
+      try {
+        if (mode === 'skip') {
+          skippedChildIdsRef.current.add(habit.id)
+          await skipMutation.mutateAsync({ habitId: habit.id })
+        } else {
+          skippedChildIdsRef.current.delete(habit.id)
+          await logMutation.mutateAsync({ habitId: habit.id })
+          void showInterstitialIfDue()
+        }
+        checkAndPromptParentLog(habit.id)
+      } catch {
+        promptedParentIdsRef.current.delete(habit.id)
+        clearRecentlyCompleted(habit.id)
+      }
+    }, [
+      checkAndPromptParentLog,
+      clearRecentlyCompleted,
+      logMutation,
+      markRecentlyCompleted,
+      parentPrompt,
+      selectedDateStr,
+      showInterstitialIfDue,
+      skipMutation,
+    ])
 
     const handleLogged = useCallback(
       (habitId: string, markAsRecentlyCompleted = true) => {
@@ -801,12 +822,21 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       setShowDeleteConfirm(true)
     }, [])
 
-    const duplicateImmediately = useCallback(async (id: string) => {
+    const confirmDuplicate = useCallback(async () => {
+      if (!habitToDuplicate) return
       try {
-        await duplicateMutation.mutateAsync(id)
+        await duplicateMutation.mutateAsync(habitToDuplicate.id)
       } catch {
+      } finally {
+        setHabitToDuplicate(null)
       }
-    }, [duplicateMutation])
+    }, [duplicateMutation, habitToDuplicate])
+
+    const confirmSkip = useCallback(async () => {
+      if (!habitToSkip) return
+      await skipHabit(habitToSkip.id)
+      setHabitToSkip(null)
+    }, [habitToSkip, skipHabit])
 
     const closeMoveParentDialog = useCallback(() => {
       if (moveParentMutation.isPending) return
@@ -1026,6 +1056,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             childrenTotal={progress.total}
             isSelectMode={isSelectMode}
             isSelected={selectedIds.has(habit.id)}
+            hasProAccess={profile?.hasProAccess !== false}
             actions={{
               onLog: () => {
                 if (onLogHabit) {
@@ -1035,9 +1066,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 void handleDirectLog(habit.id)
               },
               onUnlog: () => logMutation.mutate({ habitId: habit.id }),
-              onSkip: () => {
-                void skipHabit(habit.id)
-              },
+              onSkip: () => setHabitToSkip(habit),
               onReschedule: habit.isOverdue
                 ? () => {
                     setHabitToReschedule(habit)
@@ -1048,7 +1077,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               onDelete: () => {
                 promptDelete(habit.id)
               },
-              onDuplicate: () => void duplicateImmediately(habit.id),
+              onDuplicate: () => setHabitToDuplicate(habit),
               onEdit: () =>
                 onEditHabit?.(
                   habit,
@@ -1108,10 +1137,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         selectedIds,
         onLogHabit,
         logMutation,
-        skipHabit,
         toggleExpand,
         promptDelete,
-        duplicateImmediately,
+        profile?.hasProAccess,
         openMoveParentDialog,
         startAddSubHabit,
         drill,
@@ -1298,11 +1326,23 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListConfirmDialogs
           t={t}
           showDeleteConfirm={showDeleteConfirm}
+          skipHabitName={habitToSkip?.title ?? null}
+          skipKind={getSkipKind(habitToSkip)}
+          duplicateHabitName={habitToDuplicate?.title ?? null}
+          parentPrompt={parentPrompt?.date === selectedDateStr
+            ? { name: parentPrompt.habit.title, mode: parentPrompt.mode }
+            : null}
           onConfirmDelete={() => void confirmDelete()}
           onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)
           }}
+          onConfirmSkip={() => void confirmSkip()}
+          onCancelSkip={() => setHabitToSkip(null)}
+          onConfirmDuplicate={() => void confirmDuplicate()}
+          onCancelDuplicate={() => setHabitToDuplicate(null)}
+          onConfirmParent={() => void confirmParentSettlement()}
+          onCancelParent={() => setParentPrompt(null)}
         />
 
         <MoveParentDialog

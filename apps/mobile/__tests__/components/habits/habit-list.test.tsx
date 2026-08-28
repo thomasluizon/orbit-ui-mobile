@@ -270,7 +270,7 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
-  it('skips a recurring habit immediately without confirmation', async () => {
+  it('asks before skipping a recurring habit', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
 
@@ -293,6 +293,10 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       habitCard?.props.actions.onSkip()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.skipConfirmButton')
       await Promise.resolve()
     })
 
@@ -379,7 +383,7 @@ describe('HabitList', () => {
     expect(descriptionNodes).toHaveLength(0)
   })
 
-  it('skips a one-time task immediately without confirmation', async () => {
+  it('asks before postponing a one-time task', async () => {
     const oneTimeTask = createMockHabit({
       id: 'habit-1',
       title: 'Pay bill',
@@ -406,6 +410,10 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       habitCard?.props.actions.onSkip()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.postponeConfirmButton')
       await Promise.resolve()
     })
 
@@ -1084,7 +1092,7 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
-  it('settles the parent immediately when the last child is marked completed', async () => {
+  it('asks before settling the parent when the last child is marked completed', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1117,6 +1125,10 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
       await Promise.resolve()
     })
 
@@ -1165,6 +1177,10 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child-b')
       await Promise.resolve()
     })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
 
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
@@ -1205,6 +1221,10 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
       await Promise.resolve()
     })
 
@@ -1293,6 +1313,14 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
 
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
@@ -1327,6 +1355,10 @@ describe('HabitList', () => {
         card?.props.actions.onSkip()
         await Promise.resolve()
       })
+      await TestRenderer.act(async () => {
+        pressConfirm(tree, 'habits.skipConfirmButton')
+        await Promise.resolve()
+      })
     }
 
     await skipChild('child-a')
@@ -1334,6 +1366,10 @@ describe('HabitList', () => {
     expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
 
     await skipChild('child-b')
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoSkipParentConfirm')
+      await Promise.resolve()
+    })
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
@@ -1438,7 +1474,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
   })
 
-  it('skips an overdue habit with no date immediately', async () => {
+  it('asks before postponing an overdue habit with no date', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -1462,6 +1498,10 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       overdueCard?.props.actions.onSkip()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.postponeConfirmButton')
       await Promise.resolve()
     })
 
@@ -1643,6 +1683,10 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child-c')
       await Promise.resolve()
     })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
@@ -1672,6 +1716,10 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child')
       await Promise.resolve()
     })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch()
     await TestRenderer.act(async () => {
@@ -1683,6 +1731,10 @@ describe('HabitList', () => {
     refetch()
     await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog('child')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(2)

@@ -29,9 +29,10 @@ function buildMenuItems(
   actions: HabitRowActions,
   canSelect: boolean,
   canDrillInto: boolean,
+  hasProAccess: boolean,
 ): MenuItem[] {
   const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit') })
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit'), badge: hasProAccess ? undefined : 'Pro' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
   if (actions.onSkip) items.push({ id: 'skip', label: t('habits.actions.skip') })
   if (actions.onReschedule) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
@@ -60,6 +61,7 @@ interface HabitRowTrailingProps {
   canSelect: boolean
   canDrillInto: boolean
   actions: HabitRowActions
+  hasProAccess: boolean
   onToggleStatus: () => void
 }
 
@@ -78,6 +80,7 @@ export function HabitRowTrailing({
   canSelect,
   canDrillInto,
   actions,
+  hasProAccess,
   onToggleStatus,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
@@ -95,7 +98,7 @@ export function HabitRowTrailing({
   const statusDotLabelKey = `habits.statusDot.${state}`
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto)
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess)
   const statusLabel = t(statusDotLabelKey)
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
 
