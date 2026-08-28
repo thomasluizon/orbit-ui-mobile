@@ -149,6 +149,25 @@ describe('MonthGrid', () => {
     expect(tree.root.findAllByProps({ testID: 'month-grid-header' })).toHaveLength(0)
     expect(tree.root.findByProps({ testID: 'month-grid-days' }).children).toHaveLength(1)
   })
+
+  it('uses the same gap on both axes and keeps seven slots in one row', () => {
+    const tree = render(
+      <MonthGrid weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} gap={0}>
+        {Array.from({ length: 7 }, (_, day) => <Text key={day}>{day + 1}</Text>)}
+      </MonthGrid>,
+    )
+    const headerStyle = tree.root.findByProps({ testID: 'month-grid-header' }).props.style
+    const daysStyle = tree.root.findByProps({ testID: 'month-grid-days' }).props.style
+    const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
+    expect(headerStyle).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0, marginBottom: 0 })]))
+    expect(daysStyle).toEqual(expect.objectContaining({ rowGap: 0 }))
+    expect(row.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0 })]))
+    const slots = row.findAll(
+      (node) => node.type === 'View' && (node.props.style as { flex?: number }).flex === 1,
+    )
+    expect(slots).toHaveLength(7)
+    expect(7 * 44).toBeLessThanOrEqual(320 - 8)
+  })
 })
 
 describe('EventRow', () => {

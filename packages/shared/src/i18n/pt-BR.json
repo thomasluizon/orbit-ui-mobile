@@ -2723,7 +2723,7 @@
       },
       "legend": {
         "title": "Legenda de cores",
-        "description": "Sua cor de destaque marca o dia de hoje. Um ponto cheio quer dizer todos os hábitos feitos, um anel vazado quer dizer conclusão parcial, e o âmbar marca os hábitos que ficaram para trás. Monte uma sequência de dias cheios"
+        "description": "Sua cor de destaque marca o dia de hoje. Um círculo neutro cheio indica todos os hábitos feitos, o anel de progresso primário indica conclusão parcial e um contorno neutro indica que nenhum foi registrado. Monte uma sequência de dias cheios"
       },
       "monthNav": {
         "title": "Navegação por mês",

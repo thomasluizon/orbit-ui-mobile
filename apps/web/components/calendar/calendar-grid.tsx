@@ -2,9 +2,14 @@
 
 import { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { buildCalendarMonthModel, formatAPIDate } from '@orbit/shared/utils'
+import {
+  buildCalendarMonthModel,
+  buildDayCellAccessibleName,
+  formatAPIDate,
+  resolveDayCellOutcome,
+} from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import type { DayCellWords, DayOutcome } from '@orbit/shared/contracts/dates'
+import type { DayCellWords, DayOutcome, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { DayCell } from '@/components/dates/day-cell'
@@ -18,12 +23,6 @@ interface CalendarGridProps {
   rangeStart?: string | null
   rangeEnd?: string | null
   isLoading?: boolean
-}
-
-function earliestLoggableDate(): string {
-  const earliest = new Date()
-  earliest.setDate(earliest.getDate() - 6)
-  return formatAPIDate(earliest)
 }
 
 function isInRange(dateStr: string, rangeStart: string | null, rangeEnd: string | null): boolean {
@@ -47,7 +46,6 @@ export function CalendarGrid({
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
   const todayKey = formatAPIDate(new Date())
-  const earliestKey = earliestLoggableDate()
 
   const weekdayLabels = useMemo(() => {
     const mondayFirst = [
@@ -80,12 +78,11 @@ export function CalendarGrid({
   }
 
   return (
-    <div data-tour="tour-calendar-grid" style={{ padding: '16px 16px 8px' }}>
-      <div style={{ borderRadius: 20, padding: 16, background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
-        <MonthGrid weekdayLabels={weekdayLabels} label={displayMonthYear(currentMonth)}>
+    <div data-testid="calendar-grid" data-tour="tour-calendar-grid" style={{ padding: '16px 4px 8px' }}>
+      <div data-testid="calendar-grid-card" style={{ borderRadius: 20, padding: 0, background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
+        <MonthGrid weekdayLabels={weekdayLabels} gap={0} label={displayMonthYear(currentMonth)}>
           {gridDays.map((cell, index) => {
             const future = cell.dateStr > todayKey
-            const loggable = cell.isCurrentMonth && !future && cell.dateStr >= earliestKey
             const outcome: DayOutcome | undefined = future ? 'future' : undefined
             const selected = cell.isCurrentMonth && (
               cell.dateStr === selectedDateStr ||
@@ -93,27 +90,48 @@ export function CalendarGrid({
               cell.dateStr === rangeEnd
             )
             const inRange = cell.isCurrentMonth && isInRange(cell.dateStr, rangeStart, rangeEnd)
-            const dayCell = {
+            const dayCell: ReadOnlyDayCellProps = {
               day: cell.day,
-              done: isLoading ? undefined : cell.completedCount,
-              scheduled: isLoading ? undefined : cell.totalCount,
+              done: cell.completedCount,
+              scheduled: cell.totalCount,
               today: cell.isToday,
               selected,
               outsideMonth: !cell.isCurrentMonth,
+              outcome,
               label: displayWeekdayDate(cell.date, true),
               words,
             }
+            const resolvedOutcome = resolveDayCellOutcome(dayCell)
             return (
               <span
                 key={cell.dateStr}
                 data-in-range={inRange ? 'true' : undefined}
                 data-tour={index === 0 ? 'tour-calendar-day' : undefined}
-                style={{ borderRadius: 999, background: inRange ? 'var(--selection-bg)' : 'transparent' }}
+                style={{ position: 'relative', width: 44, height: 44, borderRadius: 999, background: inRange ? 'var(--selection-bg)' : 'transparent' }}
               >
-                {loggable ? (
-                  <DayCell {...dayCell} loggable onPress={() => onSelectDay(cell.dateStr)} />
+                {isLoading ? (
+                  <span
+                    aria-hidden="true"
+                    data-testid="calendar-day-skeleton"
+                    style={{ display: 'block', width: 44, height: 44, borderRadius: 999, background: 'var(--bg-well)', opacity: cell.isCurrentMonth ? 1 : 0 }}
+                  />
                 ) : (
-                  <DayCell {...dayCell} outcome={outcome} />
+                  <>
+                    <span aria-hidden="true">
+                      <DayCell {...dayCell} />
+                    </span>
+                    {cell.isCurrentMonth ? (
+                      <button
+                        type="button"
+                        aria-current={cell.isToday ? 'date' : undefined}
+                        aria-label={buildDayCellAccessibleName(dayCell, resolvedOutcome, false)}
+                        aria-pressed={selected}
+                        data-calendar-date={cell.dateStr}
+                        onClick={() => onSelectDay(cell.dateStr)}
+                        className="absolute inset-0 rounded-full border-0 bg-transparent p-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+                      />
+                    ) : null}
+                  </>
                 )}
               </span>
             )

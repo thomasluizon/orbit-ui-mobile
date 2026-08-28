@@ -1,34 +1,8 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import type { DayCellProps, DayCellWords, DayOutcome } from '@orbit/shared/contracts/dates'
-
-function resolveOutcome({ outcome, done, scheduled }: DayCellProps): DayOutcome {
-  if (outcome === 'future') return 'future'
-  if (scheduled === 0) return 'not-scheduled'
-  if (done !== undefined && scheduled !== undefined && scheduled > 0) {
-    if (done <= 0) return 'none'
-    if (done >= scheduled) return 'full'
-    return 'partial'
-  }
-  return outcome ?? 'none'
-}
-
-function outcomeWord(outcome: DayOutcome, words: DayCellWords): string {
-  if (outcome === 'not-scheduled') return words.notScheduled
-  return words[outcome]
-}
-
-function accessibleName(props: DayCellProps, outcome: DayOutcome): string {
-  const parts = [`${props.label ?? props.day}, ${outcomeWord(outcome, props.words)}`]
-  if (props.done !== undefined && props.scheduled !== undefined && props.scheduled > 0) {
-    parts[0] += ` ${props.done} ${props.words.of} ${props.scheduled}`
-  }
-  if (props.today) parts.push(props.words.today)
-  if (props.selected) parts.push(props.words.selected)
-  if (!props.loggable) parts.push(props.words.readOnly)
-  return parts.join(', ')
-}
+import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
+import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 
 function ringStyle(outcome: DayOutcome): CSSProperties {
   if (outcome === 'full') return { background: 'var(--fg-1)' }
@@ -87,11 +61,11 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
 }
 
 export function DayCell(props: Readonly<DayCellProps>) {
-  const outcome = resolveOutcome(props)
+  const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? 44
   const commonProps = {
     'aria-current': props.today ? ('date' as const) : undefined,
-    'aria-label': accessibleName(props, outcome),
+    'aria-label': buildDayCellAccessibleName(props, outcome),
     'data-outcome': outcome,
     'data-outside-month': props.outsideMonth ? '' : undefined,
     'data-selected': props.selected ? '' : undefined,

@@ -1,19 +1,8 @@
 import type { AccountDayValue, DayStripProps, HabitDayValue } from '@orbit/shared/contracts/dates'
+import { getDayStripStateWord } from '@orbit/shared/utils'
 import { Snowflake } from '@/components/ui/icons'
 
 type StripValue = AccountDayValue | HabitDayValue
-
-function stateWord(props: DayStripProps, state: StripValue): string {
-  if (props.scope === 'habit') {
-    if (state === 'not-scheduled') return props.words.notScheduled
-    if (state === 'done') return props.words.done
-    return props.words.missed
-  }
-  if (state === 'active') return props.words.active
-  if (state === 'frozen') return props.words.frozen
-  if (state === 'today') return props.words.today
-  return props.words.missed
-}
 
 function cellStyle(state: StripValue) {
   if (state === 'done' || state === 'active') return { background: 'var(--fg-1)' }
@@ -38,7 +27,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
           <span
             key={`${cellLabel}-${index}`}
             role="img"
-            aria-label={`${cellLabel}, ${stateWord(props, state)}`}
+            aria-label={`${cellLabel}, ${getDayStripStateWord(props, state)}`}
             aria-current={state === 'today' ? 'date' : undefined}
             data-state={state}
             className="inline-flex shrink-0 items-center justify-center"

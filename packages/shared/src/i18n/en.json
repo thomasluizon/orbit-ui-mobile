@@ -2723,7 +2723,7 @@
       },
       "legend": {
         "title": "Color Legend",
-        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days"
+        "description": "Your accent color marks today. A solid neutral circle means every habit was done, the primary progress ring means partial completion, and a neutral outline means none were logged. Build a streak of solid days"
       },
       "monthNav": {
         "title": "Month Navigation",

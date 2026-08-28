@@ -55,7 +55,7 @@ describe('CalendarGrid', () => {
       />,
     )
     expect(document.querySelectorAll('[data-outcome]').length).toBeGreaterThanOrEqual(28)
-    expect(screen.getAllByRole('button')).toHaveLength(7)
+    expect(screen.getAllByRole('button')).toHaveLength(30)
   })
 
   it('calls onSelectDay when a day is clicked', () => {
@@ -67,12 +67,52 @@ describe('CalendarGrid', () => {
         onSelectDay={onSelectDay}
       />,
     )
-    const juneDay = screen.getAllByRole('button').find(
-      (button) => button.getAttribute('aria-label')?.includes('June 15'),
-    )
+    const juneDay = document.querySelector('[data-calendar-date="2025-06-15"]')
     expect(juneDay).toBeDefined()
     fireEvent.click(juneDay!)
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-15')
+  })
+
+  it('keeps older days and future range endpoints selectable', () => {
+    const onSelectDay = vi.fn()
+    render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={onSelectDay}
+        rangeStart="2025-06-15"
+      />,
+    )
+
+    fireEvent.click(document.querySelector('[data-calendar-date="2025-06-01"]')!)
+    fireEvent.click(document.querySelector('[data-calendar-date="2025-06-20"]')!)
+    expect(onSelectDay).toHaveBeenNthCalledWith(1, '2025-06-01')
+    expect(onSelectDay).toHaveBeenNthCalledWith(2, '2025-06-20')
+  })
+
+  it('renders same-size placeholders without completion outcomes while loading', () => {
+    const { container } = render(
+      <CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} isLoading />,
+    )
+
+    const skeletons = container.querySelectorAll('[data-testid="calendar-day-skeleton"]')
+    expect(skeletons.length).toBeGreaterThanOrEqual(35)
+    expect(skeletons[0]).toHaveStyle({ width: '44px', height: '44px' })
+    expect(container.querySelector('[data-outcome]')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('contains seven 44px targets at a 320px viewport', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 })
+    render(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
+
+    expect(screen.getByTestId('calendar-grid')).toHaveStyle({ paddingLeft: '4px', paddingRight: '4px' })
+    expect(screen.getByTestId('calendar-grid-card')).toHaveStyle({ padding: '0px' })
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '0px' })
+    const firstRowTargets = [...document.querySelectorAll('[data-calendar-date]')].slice(0, 7)
+    expect(firstRowTargets).toHaveLength(7)
+    expect(firstRowTargets.every((target) => target.parentElement?.style.width === '44px')).toBe(true)
+    expect(7 * 44).toBeLessThanOrEqual(window.innerWidth - 8)
   })
 
   it('marks today with aria-current="date"', () => {

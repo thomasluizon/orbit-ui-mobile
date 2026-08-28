@@ -1,22 +1,9 @@
-import type { AccountDayValue, DayStripProps, HabitDayValue } from '@orbit/shared/contracts/dates'
+import type { DayStripProps } from '@orbit/shared/contracts/dates'
+import { getDayStripStateWord } from '@orbit/shared/utils'
 import { StyleSheet, View } from 'react-native'
 import { Snowflake } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-type StripValue = AccountDayValue | HabitDayValue
-
-function stateWord(props: DayStripProps, state: StripValue): string {
-  if (props.scope === 'habit') {
-    if (state === 'not-scheduled') return props.words.notScheduled
-    if (state === 'done') return props.words.done
-    return props.words.missed
-  }
-  if (state === 'active') return props.words.active
-  if (state === 'frozen') return props.words.frozen
-  if (state === 'today') return props.words.today
-  return props.words.missed
-}
 
 export function DayStrip(props: Readonly<DayStripProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -38,7 +25,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
           <View
             key={`${cellLabel}-${index}`}
             accessibilityRole="image"
-            accessibilityLabel={`${cellLabel}, ${stateWord(props, state)}`}
+            accessibilityLabel={`${cellLabel}, ${getDayStripStateWord(props, state)}`}
             accessibilityState={{ selected: state === 'today' }}
             testID={`day-strip-cell-${state}`}
             style={{ width: size, height: size, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor, borderColor, borderWidth: borderColor === 'transparent' ? 0 : state === 'today' ? 2 : 1 }}

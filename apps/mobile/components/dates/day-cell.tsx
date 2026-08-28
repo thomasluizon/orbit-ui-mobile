@@ -1,34 +1,9 @@
-import type { DayCellProps, DayCellWords, DayOutcome } from '@orbit/shared/contracts/dates'
+import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
+import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-function resolveOutcome({ outcome, done, scheduled }: DayCellProps): DayOutcome {
-  if (outcome === 'future') return 'future'
-  if (scheduled === 0) return 'not-scheduled'
-  if (done !== undefined && scheduled !== undefined && scheduled > 0) {
-    if (done <= 0) return 'none'
-    if (done >= scheduled) return 'full'
-    return 'partial'
-  }
-  return outcome ?? 'none'
-}
-
-function outcomeWord(outcome: DayOutcome, words: DayCellWords): string {
-  return outcome === 'not-scheduled' ? words.notScheduled : words[outcome]
-}
-
-function accessibleName(props: DayCellProps, outcome: DayOutcome): string {
-  const parts = [`${props.label ?? props.day}, ${outcomeWord(outcome, props.words)}`]
-  if (props.done !== undefined && props.scheduled !== undefined && props.scheduled > 0) {
-    parts[0] += ` ${props.done} ${props.words.of} ${props.scheduled}`
-  }
-  if (props.today) parts.push(props.words.today)
-  if (props.selected) parts.push(props.words.selected)
-  if (!props.loggable) parts.push(props.words.readOnly)
-  return parts.join(', ')
-}
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -68,7 +43,7 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
 export function DayCell(props: Readonly<DayCellProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const outcome = resolveOutcome(props)
+  const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? 44
   const containerStyle = [
     styles.container,
@@ -84,7 +59,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={accessibleName(props, outcome)}
+        accessibilityLabel={buildDayCellAccessibleName(props, outcome)}
         accessibilityState={state}
         onPress={props.onPress}
         testID={testID}
@@ -98,7 +73,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel={props.outsideMonth ? undefined : accessibleName(props, outcome)}
+      accessibilityLabel={props.outsideMonth ? undefined : buildDayCellAccessibleName(props, outcome)}
       accessibilityState={state}
       accessibilityElementsHidden={props.outsideMonth}
       importantForAccessibility={props.outsideMonth ? 'no-hide-descendants' : 'auto'}

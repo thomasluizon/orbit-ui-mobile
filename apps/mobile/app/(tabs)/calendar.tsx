@@ -397,9 +397,9 @@ export default function CalendarScreen() {
 
       <CalendarLegend
         todayLabel={t("calendar.legend.today")}
-        doneLabel={t("calendar.legend.done")}
-        partialLabel={t("calendar.legend.partial")}
-        missedLabel={t("calendar.legend.missed")}
+        fullLabel={t("calendar.dayCell.full")}
+        partialLabel={t("calendar.dayCell.partial")}
+        noneLabel={t("calendar.dayCell.none")}
         tokens={tokens}
       />
     </>

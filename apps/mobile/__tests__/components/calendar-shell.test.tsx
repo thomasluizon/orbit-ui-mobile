@@ -102,7 +102,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
           onSelectYear={onSelectYear}
           tokens={tokens}
         />,
-      ) as unknown as Tree;
+      );
     });
 
     const texts = hostTextValues(tree!);
@@ -145,7 +145,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
           onSelectYear={onSelectYear}
           tokens={tokens}
         />,
-      ) as unknown as Tree;
+      );
     });
 
     pressByAccessibilityLabel(tree!, "Select year");
@@ -178,7 +178,7 @@ describe("CalendarHeader year modal internals (mobile)", () => {
           onSelectYear={onSelectYear}
           tokens={tokens}
         />,
-      ) as unknown as Tree;
+      );
     });
     return tree!;
   }
@@ -242,7 +242,7 @@ describe("CalendarWeekNav (mobile)", () => {
           onCurrentWeek={onCurrentWeek}
           tokens={tokens}
         />,
-      ) as unknown as Tree;
+      );
     });
 
     expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
@@ -264,18 +264,25 @@ describe("CalendarLegend (mobile)", () => {
       tree = TestRenderer.create(
         <CalendarLegend
           todayLabel="Today"
-          doneLabel="Done"
+          fullLabel="All done"
           partialLabel="Partial"
-          missedLabel="Missed"
+          noneLabel="None logged"
           tokens={tokens}
         />,
-      ) as unknown as Tree;
+      );
     });
 
     const texts = hostTextValues(tree!);
     expect(texts).toEqual(
-      expect.arrayContaining(["Today", "Done", "Partial", "Missed"]),
+      expect.arrayContaining(["Today", "All done", "Partial", "None logged"]),
     );
+    expect(tree!.root.findAll((node) => node.type === "View" && node.props.testID === "calendar-legend-full")).toHaveLength(1);
+    expect(tree!.root.findAll((node) => node.type === "Svg" && node.props.testID === "calendar-legend-partial")).toHaveLength(1);
+    expect(tree!.root.findAll((node) => node.type === "View" && node.props.testID === "calendar-legend-none")).toHaveLength(1);
+    const partialArc = tree!.root.findAll(
+      (node) => node.type === "Circle" && node.props.stroke === tokens.primary,
+    );
+    expect(partialArc).toHaveLength(1);
   });
 });
 
@@ -291,7 +298,7 @@ describe("CalendarStats (mobile)", () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <CalendarStats stats={stats} />,
-      ) as unknown as Tree;
+      );
     });
 
     const texts = hostTextValues(tree!);
