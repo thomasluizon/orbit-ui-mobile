@@ -15,7 +15,7 @@ import { cardLabelStyle, cardSurface, formatBillingDate } from './styles'
 
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 
-function billedPrice(billing: BillingDetails, t: UpgradeTranslations) {
+function planPrice(billing: BillingDetails, t: UpgradeTranslations) {
   if (!billing.currency) return null
   const price = formatPrice(billing.amountPerPeriod, billing.currency)
   if (billing.interval === 'yearly') {
@@ -65,7 +65,7 @@ function PlanSummary({ state, status, billing, locale, t }: Readonly<{
   const canceled = state === 'canceled' || Boolean(billing?.cancelAtPeriodEnd)
   const pastDue = state === 'past-due' || billing?.status === 'past_due'
   const renewalDate = billing?.currentPeriodEnd ?? status.planExpiresAt
-  const price = billing ? billedPrice(billing, t) : null
+  const price = billing ? planPrice(billing, t) : null
   const renewalKey = canceled
     ? 'upgrade.billing.plan.canceledHint'
     : 'upgrade.billing.plan.renewsOn'

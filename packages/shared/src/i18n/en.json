@@ -1960,8 +1960,8 @@
         "pastDue": "Payment past due",
         "trialBadge": "Trial",
         "trialHint": "Your trial ends {date}",
-        "monthlyPrice": "{price} each month",
-        "yearlyPrice": "{price} each year"
+        "monthlyPrice": "Monthly plan price: {price}",
+        "yearlyPrice": "Yearly plan price: {price}"
       },
       "payment": {
         "title": "Payment method",

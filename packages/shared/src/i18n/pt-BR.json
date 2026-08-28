@@ -1960,8 +1960,8 @@
         "pastDue": "Pagamento em atraso",
         "trialBadge": "Teste",
         "trialHint": "Seu teste termina em {date}",
-        "monthlyPrice": "{price} por mês",
-        "yearlyPrice": "{price} por ano"
+        "monthlyPrice": "Preço mensal do plano: {price}",
+        "yearlyPrice": "Preço anual do plano: {price}"
       },
       "payment": {
         "title": "Método de pagamento",

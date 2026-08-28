@@ -2,6 +2,7 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
+import en from '@orbit/shared/i18n/en.json'
 import { createTokensV2 } from '@/lib/theme'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
@@ -73,7 +74,7 @@ function render(element: React.ReactElement) {
 }
 
 describe('subscription dashboards (mobile)', () => {
-  it('shows the billed Stripe amount and interval instead of the status or catalog interval', () => {
+  it('labels the Stripe amount as the monthly plan price instead of the catalog price', () => {
     const tree = render(
       <BillingDashboard
         state="stripe"
@@ -94,6 +95,7 @@ describe('subscription dashboards (mobile)', () => {
     expect(summary.props.meta).toContain(
       'upgrade.billing.plan.monthlyPrice:{"price":"usd 7.77"}',
     )
+    expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
   })
 
   it('shows Play pricing only when a confirmed Play display price is available', () => {

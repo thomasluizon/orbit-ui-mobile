@@ -36,7 +36,7 @@ function invoiceReason(reason: string, t: UpgradeTextFn) {
   return labels[reason] ?? reason
 }
 
-function billedPrice(data: BillingDetails | null, t: UpgradeTextFn) {
+function planPrice(data: BillingDetails | null, t: UpgradeTextFn) {
   if (!data?.currency) return null
   const price = formatPrice(data.amountPerPeriod, data.currency)
   if (data.interval === 'yearly') {
@@ -71,7 +71,7 @@ function PlanDetails({ state, status, data, locale, t, tokens }: Readonly<{
   const canceled = state === 'canceled' || Boolean(data?.cancelAtPeriodEnd)
   const pastDue = state === 'past-due' || data?.status === 'past_due'
   const interval = data?.interval
-  const price = billedPrice(data, t)
+  const price = planPrice(data, t)
   const renewalDate = data?.currentPeriodEnd ?? status.planExpiresAt
   const renewalKey = canceled ? 'upgrade.billing.plan.canceledHint' : 'upgrade.billing.plan.renewsOn'
   const renewal = renewalDate ? t(renewalKey, { date: formatBillingDate(renewalDate, locale) }) : null

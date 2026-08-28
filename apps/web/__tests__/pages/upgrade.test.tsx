@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -303,7 +304,7 @@ describe('UpgradePage', () => {
     expect(screen.getByText('upgrade.billing.plan.monthly')).toBeInTheDocument()
   })
 
-  it('shows the billed Stripe amount and interval when catalog pricing differs', () => {
+  it('labels the Stripe amount as the monthly plan price when catalog pricing differs', () => {
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
@@ -334,6 +335,7 @@ describe('UpgradePage', () => {
     expect(
       screen.getByText('upgrade.billing.plan.monthlyPrice:{"price":"usd 7.77"}'),
     ).toBeInTheDocument()
+    expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
     expect(document.body.textContent).not.toContain('usd 199.99')
   })
 
