@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
@@ -25,6 +25,15 @@ describe('CalendarGrid', () => {
   const currentMonth = new Date(2025, 5, 1)
   const emptyMap = new Map<string, CalendarDayEntry[]>()
 
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2025, 5, 15))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('renders weekday headers', () => {
     render(
       <CalendarGrid
@@ -45,8 +54,8 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    const buttons = screen.getAllByRole('button')
-    expect(buttons.length).toBeGreaterThanOrEqual(28)
+    expect(document.querySelectorAll('[data-outcome]').length).toBeGreaterThanOrEqual(28)
+    expect(screen.getAllByRole('button')).toHaveLength(7)
   })
 
   it('calls onSelectDay when a day is clicked', () => {
@@ -59,10 +68,11 @@ describe('CalendarGrid', () => {
       />,
     )
     const juneDay = screen.getAllByRole('button').find(
-      (btn) => btn.getAttribute('aria-label')?.includes('June'),
+      (button) => button.getAttribute('aria-label')?.includes('June 15'),
     )
-    if (juneDay) fireEvent.click(juneDay)
-    expect(onSelectDay).toHaveBeenCalled()
+    expect(juneDay).toBeDefined()
+    fireEvent.click(juneDay!)
+    expect(onSelectDay).toHaveBeenCalledWith('2025-06-15')
   })
 
   it('marks today with aria-current="date"', () => {
@@ -79,7 +89,7 @@ describe('CalendarGrid', () => {
     expect(todayCell).toBeInTheDocument()
   })
 
-  it('renders status dots inside day cells when entries are present', () => {
+  it('derives the full outcome when all entries are complete', () => {
     const dayMap = new Map<string, CalendarDayEntry[]>([
       [
         '2025-06-15',
@@ -102,11 +112,10 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    const dots = container.querySelectorAll('span.block.rounded-full')
-    expect(dots.length).toBeGreaterThan(0)
+    expect(container.querySelector('[data-outcome="full"]')).toBeInTheDocument()
   })
 
-  it('marks completed days with a full primary dot', () => {
+  it('renders full completion with the neutral foreground token', () => {
     const dayMap = new Map<string, CalendarDayEntry[]>([
       [
         '2025-06-15',
@@ -129,10 +138,8 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    const fullDot = Array.from(
-      container.querySelectorAll<HTMLSpanElement>('span.block.rounded-full'),
-    ).some((el) => el.style.background.includes('var(--primary)'))
-    expect(fullDot).toBe(true)
+    const fullCell = container.querySelector('[data-outcome="full"]')
+    expect(fullCell?.firstElementChild).toHaveStyle({ background: 'var(--fg-1)' })
   })
 
   it('disables non-current-month days', () => {
@@ -143,8 +150,9 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    const disabledCells = document.querySelectorAll('[aria-disabled="true"]')
-    expect(disabledCells.length).toBeGreaterThan(0)
+    const outsideCells = document.querySelectorAll('[data-outside-month]')
+    expect(outsideCells.length).toBeGreaterThan(0)
+    expect(outsideCells[0]).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('marks in-range days when range endpoints are provided', () => {

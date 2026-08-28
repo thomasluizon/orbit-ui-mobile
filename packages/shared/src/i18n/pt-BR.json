@@ -701,6 +701,17 @@
       "partial": "Parcial",
       "missed": "Perdido"
     },
+    "dayCell": {
+      "none": "Sem registro",
+      "partial": "Parcialmente feito",
+      "full": "Feito",
+      "notScheduled": "Não programado",
+      "future": "Ainda por vir",
+      "of": "de",
+      "today": "Hoje",
+      "selected": "Selecionado",
+      "readOnly": "Somente leitura"
+    },
     "thisMonth": "Este mês",
     "bestStreak": "Melhor sequência",
     "totalLogs": "Total de registros",

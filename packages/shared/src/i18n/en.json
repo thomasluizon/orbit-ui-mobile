@@ -701,6 +701,17 @@
       "partial": "Partial",
       "missed": "Missed"
     },
+    "dayCell": {
+      "none": "None logged",
+      "partial": "Partially done",
+      "full": "Done",
+      "notScheduled": "Not scheduled",
+      "future": "Upcoming",
+      "of": "of",
+      "today": "Today",
+      "selected": "Selected",
+      "readOnly": "Read only"
+    },
     "thisMonth": "This month",
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",

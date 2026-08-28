@@ -40,6 +40,7 @@ import {
   formatAPIDate,
   parseAPIDate,
   MAX_RANGE_DAYS,
+  buildCalendarMonthModel,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
@@ -49,7 +50,6 @@ import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { buildCalendarMonthModel } from "@/lib/calendar-month-model";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { EmptyState } from "@/components/ui/empty-state";

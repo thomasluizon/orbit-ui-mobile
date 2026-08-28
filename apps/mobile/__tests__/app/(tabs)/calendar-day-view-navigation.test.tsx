@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 
 const mockPush = vi.fn()
@@ -132,8 +132,14 @@ function sheetProps() {
 
 describe('CalendarScreen day-detail navigation (mobile)', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
     latestSheetProps = null
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('navigates to the selected day only after the sheet finishes dismissing natively, and exactly once', () => {
