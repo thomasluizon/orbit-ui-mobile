@@ -34,7 +34,7 @@ describe('Proposed on web', () => {
     expect(off.container.querySelector('[data-proposed]')).toBeNull()
   })
 
-  it('inherits the proposed foreground through a composite child', () => {
+  it('gives unstyled text fg3 while an explicit child color wins', () => {
     const stylesheet = document.createElement('style')
     stylesheet.textContent = String.raw`
       .text-\[var\(--fg-3\)\] { color: var(--fg-3); }
@@ -45,11 +45,14 @@ describe('Proposed on web', () => {
       const { container } = render(
         <Proposed proposed scope="row" label="Proposed by Astra">
           <CompositeValue />
+          <span data-explicit-value="" style={{ color: 'rgb(1, 2, 3)' }}>Explicit value</span>
         </Proposed>,
       )
 
       const compositeValue = container.querySelector('[data-composite-value]')!
+      const explicitValue = container.querySelector('[data-explicit-value]')!
       expect(getComputedStyle(compositeValue).color).toBe('var(--fg-3)')
+      expect(getComputedStyle(explicitValue).color).toBe('rgb(1, 2, 3)')
     } finally {
       stylesheet.remove()
     }

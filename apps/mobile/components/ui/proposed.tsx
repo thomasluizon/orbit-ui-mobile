@@ -1,19 +1,31 @@
 import type { ProposedProps } from '@orbit/shared/contracts/blocks'
 import { PROPOSED_RADIUS } from '@orbit/shared/contracts/blocks'
-import { Children, type ReactNode } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Children, cloneElement, Fragment, isValidElement, type ReactNode } from 'react'
+import { Pressable, StyleSheet, Text, TextInput, type StyleProp, type TextStyle, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-/** Shared purple ramp: #f8fafc over #020618 matches #90a1b9 luminance at 0.629 opacity;
- * light #0f172b over #f8fafc matches #62748e at 0.595. */
-const PROPOSED_OPACITY = {
-  dark: 0.63,
-  light: 0.6,
-} as const
+type ProposedChildProps = Readonly<{
+  children?: ReactNode
+  style?: StyleProp<TextStyle>
+}>
 
-function renderNativeChild(child: ReactNode): ReactNode {
-  if (typeof child === 'string' || typeof child === 'number') return <Text>{child}</Text>
+function tintChild(child: ReactNode, color: string): ReactNode {
+  if (typeof child === 'string' || typeof child === 'number') {
+    return <Text style={{ color }}>{child}</Text>
+  }
+  if (!isValidElement<ProposedChildProps>(child)) return child
+
+  /** Explicit color wins; unstyled text takes fg3, matching the web inheritance contract. */
+  if (child.type === Text || child.type === TextInput) {
+    if (StyleSheet.flatten(child.props.style ?? {}).color != null) return child
+    return cloneElement(child, { style: [child.props.style, { color }] })
+  }
+
+  if (child.type === Fragment || child.type === View || child.type === Pressable) {
+    const children = Children.map(child.props.children, (nestedChild) => tintChild(nestedChild, color))
+    return cloneElement(child, { children })
+  }
   return child
 }
 
@@ -42,12 +54,7 @@ export function Proposed({ proposed, scope, label, children }: Readonly<Proposed
       >
         {label}
       </Text>
-      <View
-        style={{ opacity: PROPOSED_OPACITY[currentTheme] }}
-        testID={`proposed-${scope}-content`}
-      >
-        {Children.map(children, renderNativeChild)}
-      </View>
+      {Children.map(children, (child) => tintChild(child, tokens.fg3))}
     </View>
   )
 }

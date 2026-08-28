@@ -219,7 +219,17 @@ export const Platform = {
 
 export const StyleSheet = {
   create: <T extends Record<string, unknown>>(styles: T) => styles,
-  flatten: (style: unknown) => style,
+  flatten: (style: unknown): unknown => {
+    if (style === null || typeof style !== 'object') return undefined
+    if (!Array.isArray(style)) return style
+
+    return style.reduce<Record<string, unknown>>((flattened, entry) => {
+      const computedStyle = StyleSheet.flatten(entry)
+      return computedStyle && typeof computedStyle === 'object'
+        ? Object.assign(flattened, computedStyle)
+        : flattened
+    }, {})
+  },
 }
 
 export const LayoutAnimation = {
