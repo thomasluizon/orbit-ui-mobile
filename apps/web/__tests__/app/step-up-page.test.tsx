@@ -64,7 +64,7 @@ vi.mock('@/components/shell/flow-shell', () => ({
   ),
 }))
 
-import { StepUpScreen } from '@/app/step-up/page'
+import { StepUpScreen } from '@/app/step-up/step-up-screen'
 
 function liveRecord(offset = 0) {
   return { operation: 'delete' as const, sentAt: Date.now() - offset }
