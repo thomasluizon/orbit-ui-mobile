@@ -1,23 +1,20 @@
 import type { ProposedProps } from '@orbit/shared/contracts/blocks'
 import { PROPOSED_RADIUS } from '@orbit/shared/contracts/blocks'
-import { Children, cloneElement, Fragment, isValidElement, type ReactNode } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { Children, type ReactNode } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type ProposedChildProps = Readonly<{
-  children?: ReactNode
-  style?: unknown
-}>
+/** Shared purple ramp: #f8fafc over #020618 matches #90a1b9 luminance at 0.629 opacity;
+ * light #0f172b over #f8fafc matches #62748e at 0.595. */
+const PROPOSED_OPACITY = {
+  dark: 0.63,
+  light: 0.6,
+} as const
 
-function tintChild(child: ReactNode, color: string): ReactNode {
-  if (!isValidElement<ProposedChildProps>(child)) return child
-
-  const children = Children.map(child.props.children, (nestedChild) => tintChild(nestedChild, color))
-  if (child.type === Fragment) return cloneElement(child, { children })
-  if (child.type !== Text && child.type !== TextInput) return cloneElement(child, { children })
-
-  return cloneElement(child, { children, style: [child.props.style, { color }] })
+function renderNativeChild(child: ReactNode): ReactNode {
+  if (typeof child === 'string' || typeof child === 'number') return <Text>{child}</Text>
+  return child
 }
 
 export function Proposed({ proposed, scope, label, children }: Readonly<ProposedProps>) {
@@ -45,7 +42,12 @@ export function Proposed({ proposed, scope, label, children }: Readonly<Proposed
       >
         {label}
       </Text>
-      {Children.map(children, (child) => tintChild(child, tokens.fg3))}
+      <View
+        style={{ opacity: PROPOSED_OPACITY[currentTheme] }}
+        testID={`proposed-${scope}-content`}
+      >
+        {Children.map(children, renderNativeChild)}
+      </View>
     </View>
   )
 }

@@ -2,6 +2,10 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Proposed } from '@/components/ui/proposed'
 
+function CompositeValue() {
+  return <span data-composite-value="">Composite value</span>
+}
+
 describe('Proposed on web', () => {
   it('renders the labelled dashed treatment at the scope radius', () => {
     render(
@@ -30,17 +34,25 @@ describe('Proposed on web', () => {
     expect(off.container.querySelector('[data-proposed]')).toBeNull()
   })
 
-  it('applies the proposed foreground to nested text and multiple children', () => {
-    render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
-        <div><span>Nested value</span></div>
-        <span>Second value</span>
-      </Proposed>,
-    )
+  it('inherits the proposed foreground through a composite child', () => {
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = String.raw`
+      .text-\[var\(--fg-3\)\] { color: var(--fg-3); }
+    `
+    document.head.append(stylesheet)
 
-    const wrapper = screen.getByRole('group', { name: 'Proposed by Astra' })
-    expect(wrapper).toHaveTextContent('Nested valueSecond value')
-    expect(wrapper.className).toContain('text-[var(--fg-3)]')
+    try {
+      const { container } = render(
+        <Proposed proposed scope="row" label="Proposed by Astra">
+          <CompositeValue />
+        </Proposed>,
+      )
+
+      const compositeValue = container.querySelector('[data-composite-value]')!
+      expect(getComputedStyle(compositeValue).color).toBe('var(--fg-3)')
+    } finally {
+      stylesheet.remove()
+    }
   })
 
   it('depends only on caller words, not locale defaults', () => {

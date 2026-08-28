@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it } from 'vitest'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text } from 'react-native'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -29,6 +29,10 @@ function prop<T>(node: TestNode, name: string): T {
   return node.props[name] as T
 }
 
+function CompositeValue() {
+  return <Text testID="composite-value" style={{ color: createTokensV2('purple', 'dark').fg1 }}>Composite value</Text>
+}
+
 describe('Proposed on mobile', () => {
   it('renders the labelled dashed treatment at the scope radius', () => {
     const tree = render(
@@ -40,8 +44,7 @@ describe('Proposed on mobile', () => {
     expect(prop(wrapper, 'accessible')).toBe(false)
     expect(prop(tree.root.findByProps({ testID: 'proposed-field-label' }), 'accessibilityLabel')).toBe('Proposed by Astra')
     expect(prop(wrapper, 'style')).toMatchObject({ borderRadius: 12, borderStyle: 'dashed' })
-    const text = tree.root.findAllByType('Text').at(-1)!
-    expect(prop<unknown[]>(text, 'style')).toContainEqual({ color: createTokensV2('purple', 'dark').fg3 })
+    expect(prop<Record<string, unknown>>(tree.root.findByProps({ testID: 'proposed-field-content' }), 'style')).toMatchObject({ opacity: 0.63 })
   })
 
   it('returns the child untouched when the state is off', () => {
@@ -55,17 +58,48 @@ describe('Proposed on mobile', () => {
     expect(prop(tree.root.findByProps({ testID: 'child' }), 'style')).toBeUndefined()
   })
 
-  it('tints nested text and every text node across multiple children', () => {
+  it('dims a composite child without adding per-node tint styles', () => {
     const tree = render(
       <Proposed proposed scope="row" label="Proposed by Astra">
-        <View><Text testID="nested-value">Nested value</Text></View>
-        <Text testID="second-value">Second value</Text>
+        <CompositeValue />
       </Proposed>,
     )
-    const proposedColor = { color: createTokensV2('purple', 'dark').fg3 }
+    const content = tree.root.findByProps({ testID: 'proposed-row-content' })
+    const compositeValue = tree.root.findByProps({ testID: 'composite-value' })
 
-    expect(prop<unknown[]>(tree.root.findByProps({ testID: 'nested-value' }), 'style')).toContainEqual(proposedColor)
-    expect(prop<unknown[]>(tree.root.findByProps({ testID: 'second-value' }), 'style')).toContainEqual(proposedColor)
+    expect(prop(content, 'style')).toMatchObject({ opacity: 0.63 })
+    expect(prop(compositeValue, 'style')).toEqual({ color: createTokensV2('purple', 'dark').fg1 })
+  })
+
+  it('wraps bare string and number children in native Text', () => {
+    const tree = render(
+      <Proposed proposed scope="block" label="Proposed by Astra">
+        Bare value
+        {42}
+      </Proposed>,
+    )
+    const renderedValues = tree.root
+      .findByProps({ testID: 'proposed-block-content' })
+      .findAllByType('Text')
+      .map((node) => prop(node, 'children'))
+
+    expect(renderedValues).toEqual(['Bare value', 42])
+  })
+
+  it('keeps the hairline and status announcement outside the dimmed content', () => {
+    const tree = render(
+      <Proposed proposed scope="row" label="Proposed by Astra">
+        <Text>Value</Text>
+      </Proposed>,
+    )
+    const wrapperStyle = prop<Record<string, unknown>>(tree.root.findByProps({ testID: 'proposed-row' }), 'style')
+    const labelStyle = prop<Record<string, unknown>>(tree.root.findByProps({ testID: 'proposed-row-label' }), 'style')
+    const contentStyle = prop<Record<string, unknown>>(tree.root.findByProps({ testID: 'proposed-row-content' }), 'style')
+
+    expect(wrapperStyle).toMatchObject({ borderStyle: 'dashed', borderWidth: 1 })
+    expect(wrapperStyle.opacity).toBeUndefined()
+    expect(labelStyle.opacity).toBeUndefined()
+    expect(contentStyle.opacity).toBe(0.63)
   })
 
   it('announces the treatment separately from interactive descendants', () => {
