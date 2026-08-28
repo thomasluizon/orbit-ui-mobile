@@ -153,6 +153,14 @@ describe('ChatScreen composer recoveries', () => {
     expect(mocks.watchAdForMessages).toHaveBeenCalledOnce()
   })
 
+  it('removes rewarded recovery after the daily cap is reached', async () => {
+    mocks.reward.rewardsClaimedToday = mocks.reward.dailyRewardCap
+
+    const tree = await renderScreen()
+
+    expect(findByLabel(tree.root, 'ads.watchForMessages')).toBeUndefined()
+  })
+
   it('keeps microphone permission recovery after the transient alert clears', async () => {
     mocks.composer.sendError = 'speech.micDenied'
     mocks.composer.speechError = 'speech.micDenied'
