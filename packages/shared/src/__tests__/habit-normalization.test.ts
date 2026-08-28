@@ -3,7 +3,6 @@ import type { HabitDetail, HabitScheduleChild, HabitScheduleItem } from '../type
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
-  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
@@ -202,7 +201,6 @@ describe('habit normalization utils', () => {
     })
   })
 })
-
 describe('habitDetailToNormalized', () => {
   function makeHabitDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
     return {
@@ -300,125 +298,3 @@ describe('habitDetailToNormalized', () => {
   })
 })
 
-describe('computeDayProgress', () => {
-  it('counts parents and sub-habits scheduled on the selected date alike', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'parent', isCompleted: false }),
-        createMockHabit({ id: 'child-1', parentId: 'parent', isCompleted: true }),
-        createMockHabit({ id: 'child-2', parentId: 'parent', isCompleted: false }),
-        createMockHabit({ id: 'solo', isLoggedInRange: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 2, total: 4 })
-  })
-
-  it('excludes habits with no content on the selected date, mirroring list visibility', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'due-done', isCompleted: true }),
-        createMockHabit({ id: 'due-pending' }),
-        createMockHabit({
-          id: 'not-due-today',
-          scheduledDates: ['2025-01-02'],
-          dueDate: '2025-01-02',
-        }),
-        createMockHabit({
-          id: 'overdue',
-          scheduledDates: [],
-          dueDate: '2024-12-30',
-          isOverdue: true,
-        }),
-        createMockHabit({
-          id: 'general',
-          isGeneral: true,
-          scheduledDates: [],
-          dueDate: '2025-01-02',
-        }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 4 })
-  })
-
-  it('counts a habit logged on the selected date via instances as done', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({
-          id: 'logged-via-instance',
-          instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
-        }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 1 })
-  })
-
-  it('returns zeros for an empty map', () => {
-    expect(computeDayProgress(new Map(), '2025-01-01')).toEqual({ done: 0, total: 0 })
-  })
-
-  it('excludes bad habits from both the total and the done count', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'good-done', isCompleted: true }),
-        createMockHabit({ id: 'good-pending' }),
-        createMockHabit({ id: 'bad-pending', isBadHabit: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 2 })
-  })
-
-  it('does not count a slip-logged bad habit as progress', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'good-pending' }),
-        createMockHabit({
-          id: 'bad-slipped',
-          isBadHabit: true,
-          isCompleted: true,
-          isLoggedInRange: true,
-          instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
-        }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 0, total: 1 })
-  })
-
-  it('returns zeros when the day holds only bad habits', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'bad-1', isBadHabit: true }),
-        createMockHabit({ id: 'bad-2', isBadHabit: true, isCompleted: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 0, total: 0 })
-  })
-
-  it('excludes a bad sub-habit but keeps a good sub-habit under the same parent', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'parent', isCompleted: false }),
-        createMockHabit({ id: 'good-child', parentId: 'parent', isCompleted: true }),
-        createMockHabit({ id: 'bad-child', parentId: 'parent', isBadHabit: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 2 })
-  })
-
-  it('keeps a good sub-habit counting under a bad parent', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'bad-parent', isBadHabit: true }),
-        createMockHabit({ id: 'good-child', parentId: 'bad-parent', isCompleted: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 1 })
-  })
-})

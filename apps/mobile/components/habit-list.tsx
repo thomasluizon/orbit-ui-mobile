@@ -1067,7 +1067,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                     void drill.drillInto(habit.id)
                   }
                 : undefined,
-              onForceLogParent: () => void handleDirectLog(habit.id),
               onEnterSelectMode: () => {
                 if (!isSelectMode) toggleSelectMode()
                 toggleSelectionCascade(
@@ -1174,8 +1173,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const renderEmptyState = useCallback(
       (currentView: 'today' | 'all' | 'general') => (
         <HabitListEmptyState
-          title={t(getHabitEmptyStateKey(currentView))}
-          description={getEmptyHabitsMessage(currentView, t)}
+                  title={currentView === 'today' ? t('habits.emptyState') : t(getHabitEmptyStateKey(currentView))}
+                  description={currentView === 'today' ? t('habits.noHabitsBody') : getEmptyHabitsMessage(currentView, t)}
           askAstraLabel={t('habits.askAstra')}
           onAskAstra={() => router.push('/chat')}
           actionLabel={t('habits.createManually')}

@@ -1076,7 +1076,7 @@ describe('HabitList', () => {
       .find((node: any) => node.props.habit.id === 'parent')
 
     await TestRenderer.act(async () => {
-      parentCard?.props.actions.onForceLogParent()
+      parentCard?.props.actions.onLog()
       await Promise.resolve()
     })
 

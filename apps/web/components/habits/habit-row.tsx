@@ -34,7 +34,6 @@ export interface HabitRowActions {
   onToggleSelection?: () => void
   onAddSubHabit?: () => void
   onToggleExpand?: () => void
-  onForceLogParent?: () => void
   onEnterSelectMode?: () => void
 }
 
@@ -48,6 +47,8 @@ interface HabitRowProps {
   /** Whether the status dot may be tapped to log for the selected date. When false and not done,
    *  the dot renders disabled/read-only (mirrors the backend log rule). Defaults to true. */
   canLog?: boolean
+  /** A day-level boundary where the row is visible for reference only. */
+  readOnly?: boolean
   /** Streak number from `habit.currentStreak` — only rendered when >= 2 and not child. */
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
@@ -141,6 +142,7 @@ export function HabitRow({
   state = 'empty',
   meta = EMPTY_META,
   canLog = true,
+  readOnly = false,
   child = false,
   depth = 0,
   selectMode = false,
@@ -227,12 +229,15 @@ export function HabitRow({
       data-habit-title={habit.title}
       data-depth={depth}
       data-status={state}
+      aria-disabled={readOnly || undefined}
       tabIndex={-1}
       onContextMenuCapture={handleRowContextMenu}
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
         minHeight: isChild ? 52 : 68,
+        opacity: readOnly ? 0.5 : 1,
         paddingInlineStart: isChild ? 24 : 0,
+        pointerEvents: readOnly ? 'none' : undefined,
       }}
     >
       <HabitRowStructuralColumn

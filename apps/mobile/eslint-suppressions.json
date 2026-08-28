@@ -51,11 +51,8 @@
     }
   },
   "app/(tabs)/index.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 5
+      "count": 2
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
@@ -96,11 +93,6 @@
     },
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/profile/profile-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
     }
   },
   "app/(tabs)/profile/_components/profile-stat-row.tsx": {
@@ -190,11 +182,6 @@
   "app/retrospective-styles.ts": {
     "local/spacing-scale": {
       "count": 26
-    }
-  },
-  "components/gamification/streak-sections-styles.ts": {
-    "local/spacing-scale": {
-      "count": 17
     }
   },
   "app/streak.tsx": {
@@ -360,6 +347,11 @@
   "components/gamification/streak-sections-freeze.tsx": {
     "local/no-decorative-glow": {
       "count": 1
+    }
+  },
+  "components/gamification/streak-sections-styles.ts": {
+    "local/spacing-scale": {
+      "count": 17
     }
   },
   "components/gamification/welcome-back-toast.tsx": {
@@ -583,14 +575,6 @@
       "count": 12
     }
   },
-  "components/habits/today-ai-summary.tsx": {
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
   "components/marketing-consent/marketing-consent-prompt.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -730,6 +714,11 @@
       "count": 2
     }
   },
+  "components/profile/profile-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/referral/referral-card.tsx": {
     "local/icon-size-grid": {
       "count": 3
@@ -769,30 +758,6 @@
   "components/share/share-card.tsx": {
     "local/spacing-scale": {
       "count": 18
-    }
-  },
-  "components/today/setup-checklist-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/today/today-habits-header.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "components/today/today-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/tour/tour-replay-modal.tsx": {
