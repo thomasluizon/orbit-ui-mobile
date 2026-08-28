@@ -78,6 +78,8 @@ type ShortHour = Exact<TimeBase & { value: '7:30' }, TimeFieldProps>
 type InvalidHour = Exact<TimeBase & { value: '25:00' }, TimeFieldProps>
 // @ts-expect-error the platform cycle name is h23
 type InvalidHourCycle = Exact<TimeBase & { value: '07:30'; hourCycle: 'h24' }, TimeFieldProps>
+// @ts-expect-error TimeField accepts minute precision only
+type TimeWithStep = Exact<TimeBase & { value: '07:30'; step: 30 }, TimeFieldProps>
 
 type DateRow = Exact<{ label: 'Started'; value: 'August 28, 2026' }, DateRowProps>
 // @ts-expect-error a fixed date is not editable
@@ -125,6 +127,7 @@ export type FormContractAssertions =
   | ShortHour
   | InvalidHour
   | InvalidHourCycle
+  | TimeWithStep
   | DateRow
   | EditableDateRow
   | DisabledDateRow

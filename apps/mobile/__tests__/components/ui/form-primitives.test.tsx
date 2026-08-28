@@ -39,6 +39,12 @@ function prop<T>(node: TestNode, name: string): T {
   return node.props[name] as T
 }
 
+const fireEvent = {
+  changeText(node: TestNode, value: string) {
+    void act(() => prop<(nextValue: string) => void>(node, 'onChangeText')(value))
+  },
+}
+
 function byRole(root: TestNode, role: string): TestNode[] {
   return root.findAll((node) => prop(node, 'accessibilityRole') === role)
 }
@@ -147,6 +153,61 @@ describe('form primitives on mobile', () => {
     expect(onChange).toHaveBeenCalledWith(true)
   })
 
+  it('inserts the h23 separator during fresh numeric-keypad entry', () => {
+    const onChange = vi.fn()
+    const tree = render(
+      <TimeField label="Exact time" value="" onChange={onChange} hourCycle="h23" />,
+    )
+    let input = tree.root.findAllByType('TextInput')[0]!
+
+    expect(prop(input, 'keyboardType')).toBe('number-pad')
+    fireEvent.changeText(input, '1')
+    input = tree.root.findAllByType('TextInput')[0]!
+    expect(prop(input, 'value')).toBe('1')
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.changeText(input, '19')
+    input = tree.root.findAllByType('TextInput')[0]!
+    expect(prop(input, 'value')).toBe('19:')
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.changeText(input, '19:3')
+    input = tree.root.findAllByType('TextInput')[0]!
+    expect(prop(input, 'value')).toBe('19:3')
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.changeText(input, '19:30')
+    input = tree.root.findAllByType('TextInput')[0]!
+    expect(prop(input, 'value')).toBe('19:30')
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenCalledWith('19:30')
+
+    fireEvent.changeText(input, '19:')
+    input = tree.root.findAllByType('TextInput')[0]!
+    fireEvent.changeText(input, '19')
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'value')).toBe('1')
+  })
+
+  it('accepts typed and pasted h23 separators without emitting invalid values', () => {
+    const onChange = vi.fn()
+    const tree = render(
+      <TimeField label="Exact time" value="" onChange={onChange} hourCycle="h23" />,
+    )
+    let input = tree.root.findAllByType('TextInput')[0]!
+
+    fireEvent.changeText(input, '19')
+    input = tree.root.findAllByType('TextInput')[0]!
+    fireEvent.changeText(input, '19::')
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'value')).toBe('19:')
+
+    input = tree.root.findAllByType('TextInput')[0]!
+    fireEvent.changeText(input, '0745')
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'value')).toBe('07:45')
+    expect(onChange).toHaveBeenLastCalledWith('07:45')
+
+    input = tree.root.findAllByType('TextInput')[0]!
+    fireEvent.changeText(input, '29:30')
+    expect(prop(tree.root.findAllByType('TextInput')[0]!, 'value')).toBe('29:30')
+    expect(onChange).not.toHaveBeenCalledWith('29:30')
+  })
+
   it('presents 12 hour time while returning a 24 hour wire value', () => {
     const onChange = vi.fn()
     const tree = render(
@@ -154,6 +215,7 @@ describe('form primitives on mobile', () => {
     )
     const input = tree.root.findAllByType('TextInput')[0]!
     expect(prop(input, 'value')).toBe('7:30 pm')
+    expect(prop(input, 'keyboardType')).toBe('default')
     prop<(value: string) => void>(input, 'onChangeText')('9:15 am')
     expect(onChange).toHaveBeenCalledWith('09:15')
 

@@ -13,5 +13,4 @@ export type TimeFieldProps = {
   hint?: string
   disabled?: boolean
   error?: string
-  step?: number
 }

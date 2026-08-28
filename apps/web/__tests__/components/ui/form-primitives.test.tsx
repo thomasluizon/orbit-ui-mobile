@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CheckRow } from '@/components/ui/check-row'
@@ -104,16 +105,75 @@ describe('form primitives on web', () => {
     expect(onChange).toHaveBeenCalledWith(true)
   })
 
-  it('keeps TimeField values in 24 hour wire format at the input boundary', () => {
+  it('inserts the h23 separator during fresh numeric-keypad entry', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<TimeField label="Exact time" value="" onChange={onChange} hourCycle="h23" />)
+    const input = screen.getByLabelText('Exact time')
+
+    expect(input).toHaveAttribute('inputmode', 'numeric')
+    await user.type(input, '1')
+    expect(input).toHaveValue('1')
+    expect(onChange).not.toHaveBeenCalled()
+    await user.type(input, '9')
+    expect(input).toHaveValue('19:')
+    expect(onChange).not.toHaveBeenCalled()
+    await user.type(input, '3')
+    expect(input).toHaveValue('19:3')
+    expect(onChange).not.toHaveBeenCalled()
+    await user.type(input, '0')
+    expect(input).toHaveValue('19:30')
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenCalledWith('19:30')
+
+    await user.keyboard('{Backspace}{Backspace}')
+    expect(input).toHaveValue('19:')
+    await user.keyboard('{Backspace}')
+    expect(input).toHaveValue('1')
+  })
+
+  it('accepts typed and pasted h23 separators without emitting invalid values', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<TimeField label="Exact time" value="" onChange={onChange} hourCycle="h23" />)
+    const input = screen.getByLabelText('Exact time')
+
+    await user.type(input, '19')
+    await user.type(input, ':')
+    expect(input).toHaveValue('19:')
+    await user.type(input, '30')
+    expect(onChange).toHaveBeenLastCalledWith('19:30')
+
+    await user.clear(input)
+    await user.paste('0745')
+    expect(input).toHaveValue('07:45')
+    expect(onChange).toHaveBeenLastCalledWith('07:45')
+
+    await user.clear(input)
+    await user.paste('07:45')
+    expect(input).toHaveValue('07:45')
+    expect(onChange).toHaveBeenLastCalledWith('07:45')
+
+    onChange.mockClear()
+    await user.clear(input)
+    await user.type(input, '2930')
+    expect(input).toHaveValue('29:30')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps the h12 presentation and 24 hour wire conversion', async () => {
+    const user = userEvent.setup()
     const onChange = vi.fn()
     const { rerender } = render(
       <TimeField label="Exact time" value="19:30" onChange={onChange} hourCycle="h12" />,
     )
     const input = screen.getByLabelText('Exact time')
     expect(input).toHaveAttribute('type', 'text')
+    expect(input).toHaveAttribute('inputmode', 'text')
     expect(input).toHaveAttribute('data-hour-cycle', 'h12')
     expect(input).toHaveValue('7:30 pm')
-    fireEvent.change(input, { target: { value: '7:45 am' } })
+    await user.clear(input)
+    await user.type(input, '7:45 am')
     expect(onChange).toHaveBeenCalledWith('07:45')
 
     fireEvent.blur(input)

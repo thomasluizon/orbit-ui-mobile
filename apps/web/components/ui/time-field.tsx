@@ -3,7 +3,7 @@
 import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import { useId, useState, type ChangeEvent } from 'react'
 import { useLocale } from 'next-intl'
-import { detectDefaultTimeFormat } from '@orbit/shared/utils'
+import { detectDefaultTimeFormat, formatTimeFieldInput } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 
 const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
@@ -34,7 +34,6 @@ export function TimeField({
   hint,
   disabled = false,
   error,
-  step = 60,
 }: Readonly<TimeFieldProps>) {
   const inputId = useId()
   const descriptionId = useId()
@@ -47,7 +46,9 @@ export function TimeField({
   const [draft, setDraft] = useState<string | null>(null)
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextValue = event.target.value
+    const nextValue = resolvedHourCycle === 'h23'
+      ? formatTimeFieldInput(event.target.value, draft ?? presentedValue)
+      : event.target.value
     setDraft(nextValue)
     if (!nextValue) {
       onClear?.()
@@ -69,7 +70,6 @@ export function TimeField({
         onBlur={() => setDraft(null)}
         disabled={disabled}
         inputMode={resolvedHourCycle === 'h23' ? 'numeric' : 'text'}
-        data-step={step}
         data-hour-cycle={resolvedHourCycle}
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? descriptionId : undefined}

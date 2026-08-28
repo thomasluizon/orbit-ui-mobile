@@ -2,7 +2,7 @@ import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { detectDefaultTimeFormat } from '@orbit/shared/utils'
+import { detectDefaultTimeFormat, formatTimeFieldInput } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -52,12 +52,15 @@ export function TimeField({
   const [draft, setDraft] = useState<string | null>(null)
 
   function handleChange(displayValue: string) {
-    setDraft(displayValue)
-    if (!displayValue) {
+    const nextValue = resolvedHourCycle === 'h23'
+      ? formatTimeFieldInput(displayValue, draft ?? presentedValue)
+      : displayValue
+    setDraft(nextValue)
+    if (!nextValue) {
       onClear?.()
       return
     }
-    const parsed = parseTime(displayValue, resolvedHourCycle)
+    const parsed = parseTime(nextValue, resolvedHourCycle)
     if (parsed) onChange(parsed)
   }
 
@@ -68,7 +71,7 @@ export function TimeField({
         value={draft ?? presentedValue}
         onChangeText={handleChange}
         editable={!disabled}
-        keyboardType="numbers-and-punctuation"
+        keyboardType={resolvedHourCycle === 'h23' ? 'number-pad' : 'default'}
         accessibilityLabel={label}
         accessibilityHint={error ?? hint}
         accessibilityState={{ disabled }}
