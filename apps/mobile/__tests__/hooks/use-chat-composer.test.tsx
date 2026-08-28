@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { habitKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -16,6 +17,10 @@ const mocks = vi.hoisted(() => {
     profile: undefined as Profile | undefined,
     speechError: null as string | null,
     recordingDuration: 0,
+    isRecording: false,
+    isTranscribing: false,
+    speechSupported: true,
+    transcript: '',
   }
 
   const queryClient = {
@@ -31,6 +36,7 @@ const mocks = vi.hoisted(() => {
     requestMediaLibraryPermissionsAsync: vi.fn(),
     launchImageLibraryAsync: vi.fn(),
     routerPush: vi.fn(),
+    toggleRecording: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
   }
 })
@@ -62,14 +68,14 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-speech-to-text', () => ({
   useSpeechToText: () => ({
-    isRecording: false,
-    isTranscribing: false,
-    isSupported: true,
-    transcript: '',
+    isRecording: mocks.state.isRecording,
+    isTranscribing: mocks.state.isTranscribing,
+    isSupported: mocks.state.speechSupported,
+    transcript: mocks.state.transcript,
     error: mocks.state.speechError,
     startRecording: vi.fn(),
     stopRecording: vi.fn(),
-    toggleRecording: vi.fn(),
+    toggleRecording: mocks.toggleRecording,
     recordingDuration: mocks.state.recordingDuration,
   }),
 }))
@@ -78,7 +84,7 @@ type ComposerApi = ReturnType<typeof useChatComposer>
 
 async function renderComposer(
   options: { isOnline?: boolean; offlineTitle?: string } = {},
-): Promise<{ current: ComposerApi }> {
+): Promise<{ current: ComposerApi; rerender: () => void; unmount: () => void }> {
   const ref: { current: ComposerApi | null } = { current: null }
 
   function Harness() {
@@ -89,8 +95,9 @@ async function renderComposer(
     return null
   }
 
+  let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
-    TestRenderer.create(<Harness />)
+    tree = TestRenderer.create(<Harness />)
     await Promise.resolve()
   })
 
@@ -98,7 +105,17 @@ async function renderComposer(
     throw new Error('useChatComposer did not render')
   }
 
-  return ref as { current: ComposerApi }
+  return {
+    get current() {
+      return ref.current as ComposerApi
+    },
+    rerender() {
+      TestRenderer.act(() => tree.update(<Harness />))
+    },
+    unmount() {
+      TestRenderer.act(() => tree.unmount())
+    },
+  }
 }
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
@@ -167,11 +184,16 @@ describe('mobile useChatComposer', () => {
     mocks.state.profile = undefined
     mocks.state.speechError = null
     mocks.state.recordingDuration = 0
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = false
+    mocks.state.speechSupported = true
+    mocks.state.transcript = ''
     mocks.apiClient.mockReset()
     mocks.openChatStream.mockReset()
     mocks.requestMediaLibraryPermissionsAsync.mockReset()
     mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
+    mocks.toggleRecording.mockReset()
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
@@ -648,5 +670,97 @@ describe('mobile useChatComposer', () => {
     })
 
     expect(mocks.openChatStream).not.toHaveBeenCalled()
+  })
+
+  it('commits a finished voice transcript after the current draft', async () => {
+    mocks.state.isRecording = true
+    mocks.state.transcript = 'walked outside'
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('I'))
+    mocks.state.isRecording = false
+    composer.rerender()
+
+    expect(composer.current.composerProps.value).toBe('I walked outside')
+  })
+
+  it('omits the voice control when speech is unavailable at the account limit', async () => {
+    mocks.state.speechSupported = false
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+    })
+
+    const composer = await renderComposer()
+
+    expect(composer.current.composerProps.state).toBe('atLimit')
+    expect(composer.current.composerProps.onVoice).toBeUndefined()
+  })
+
+  it('rejects an oversized image with the size error copy', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///large.png',
+          mimeType: 'image/png',
+          fileName: 'large.png',
+          fileSize: 21 * 1024 * 1024,
+        },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+
+    expect(composer.current.sendError).toBe('chat.imageSizeError')
+    expect(composer.current.selectedImage).toBeNull()
+  })
+
+  it('keeps a failed request queued when retry is attempted offline', async () => {
+    mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+    const options = { isOnline: true, offlineTitle: 'offline sentinel' }
+    const composer = await renderComposer(options)
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('log water')
+    })
+    expect(composer.current.canRetryLastSend).toBe(true)
+
+    options.isOnline = false
+    composer.rerender()
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    expect(composer.current.sendError).toBe('offline sentinel')
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends a live suggestion label as the transport message', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    const composer = await renderComposer()
+    const suggestion = composer.current.composerProps.suggestions[0]
+
+    TestRenderer.act(() => suggestion.onSelect())
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+
+    expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
+    appendFormPart.mockRestore()
+  })
+
+  it('refreshes the habit list after a confirmed breakdown', async () => {
+    const composer = await renderComposer()
+
+    composer.current.handleBreakdownConfirmed()
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.lists(),
+    })
   })
 })

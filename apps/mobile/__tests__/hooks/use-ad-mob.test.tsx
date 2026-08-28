@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
+import { Platform } from 'react-native'
 
 vi.unmock('@/hooks/use-ad-mob')
 
@@ -170,6 +171,7 @@ describe('mobile useAdMob', () => {
       isTrialActive: false,
       adRewardsClaimedToday: 0,
     })
+    Platform.OS = 'android'
     mocks.constants.expoGoConfig = null
     mocks.constants.expoConfig.extra = {}
     mocks.state.interstitials = []
@@ -295,6 +297,53 @@ describe('mobile useAdMob', () => {
 
     expect(mocks.createInterstitial).not.toHaveBeenCalledWith('test-interstitial')
     expect(mocks.createRewarded).not.toHaveBeenCalledWith('test-rewarded')
+  })
+
+  it('uses the configured iOS ad unit ids on iOS', async () => {
+    Platform.OS = 'ios'
+    mocks.constants.expoConfig.extra = {
+      adMob: {
+        useTestIds: false,
+        iosInterstitialId: 'ios-interstitial',
+        iosRewardedId: 'ios-rewarded',
+      },
+    }
+    const { result } = await renderUseAdMob()
+
+    await TestRenderer.act(async () => {
+      await result.initialize()
+    })
+
+    const interstitialAttempt = result.showInterstitialIfDue()
+    await Promise.resolve()
+    expect(mocks.createInterstitial).toHaveBeenCalledWith('ios-interstitial')
+    mocks.state.interstitials[0]?.emit('loaded')
+    await Promise.resolve()
+    mocks.state.interstitials[0]?.emit('closed')
+    await interstitialAttempt
+
+    const rewardedAttempt = result.showRewardedAd()
+    await Promise.resolve()
+    expect(mocks.createRewarded).toHaveBeenCalledWith('ios-rewarded')
+    mocks.state.rewardeds[0]?.emit('rewarded_loaded')
+    await Promise.resolve()
+    mocks.state.rewardeds[0]?.emit('rewarded_earned_reward')
+    mocks.state.rewardeds[0]?.emit('closed')
+    await expect(rewardedAttempt).resolves.toBe(true)
+  })
+
+  it('keeps every ad path unavailable in Expo Go', async () => {
+    mocks.constants.expoGoConfig = {}
+    const { result } = await renderUseAdMob()
+
+    expect(result.shouldShowAds()).toBe(false)
+    await result.initialize()
+    await result.showInterstitialIfDue()
+    await expect(result.showRewardedAd()).resolves.toBe(false)
+
+    expect(mocks.initialize).not.toHaveBeenCalled()
+    expect(mocks.createInterstitial).not.toHaveBeenCalled()
+    expect(mocks.createRewarded).not.toHaveBeenCalled()
   })
 
   it('falls back to test ids in development when useTestIds is not configured', async () => {

@@ -439,7 +439,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const buildChatFormData = useCallback(
     (attempted: AttemptedSend) => {
       const formData = new FormData();
-      if (attempted.content) formData.append("message", attempted.content);
+      formData.append("message", attempted.content);
       if (attempted.image) {
         formData.append(
           "image",
@@ -582,7 +582,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         const userMessage: ChatMessage = {
           id: `msg-${Date.now()}`,
           role: "user",
-          content: attempted.content || "(image)",
+          content: attempted.content,
           imageUrl: attempted.preview,
           timestamp: new Date(),
         };

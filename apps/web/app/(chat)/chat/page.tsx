@@ -18,7 +18,7 @@ import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { Composer } from '@/components/shell/composer'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from './chat-empty-state'
 
 export default function ChatPage() {
@@ -171,11 +171,7 @@ export default function ChatPage() {
       <div className="shrink-0">
         {!isOnline ? (
           <div className="px-4 pt-3">
-            <OfflineUnavailableState
-              title={t('chat.offline.title')}
-              description={t('chat.offline.description')}
-              compact
-            />
+            <ErrorState message={t('chat.offline.description')} />
           </div>
         ) : null}
         {sendError ? (

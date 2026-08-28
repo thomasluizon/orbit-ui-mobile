@@ -13,7 +13,7 @@ import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer as ComposerBar } from '@/components/shell/composer'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
@@ -218,11 +218,7 @@ function AstraRailComposer({
     <div className="shrink-0">
       {!isOnline ? (
         <div className="px-4 pt-3">
-          <OfflineUnavailableState
-            title={t('chat.offline.title')}
-            description={t('chat.offline.description')}
-            compact
-          />
+          <ErrorState message={t('chat.offline.description')} />
         </div>
       ) : null}
       {sendError ? (

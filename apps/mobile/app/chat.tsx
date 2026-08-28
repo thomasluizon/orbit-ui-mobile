@@ -30,7 +30,7 @@ import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { GradientTop } from "@/components/ui/gradient-top";
-import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { PillButton } from "@/components/ui/pill-button";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
@@ -280,11 +280,7 @@ export default function ChatScreen() {
         >
           {!isOnline ? (
             <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-              <OfflineUnavailableState
-                title={offlineTitle}
-                description={offlineDescription}
-                compact
-              />
+              <ErrorState message={offlineDescription} />
             </View>
           ) : null}
           {sendError ? (

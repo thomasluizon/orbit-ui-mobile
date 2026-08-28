@@ -31,8 +31,6 @@ function AttachmentTray({
   onRemove: (id: string) => void
   tokens: AppTokensV2
 }>) {
-  if (attachments.length === 0) return null
-
   return (
     <View accessible accessibilityLabel={words.trayLabel} style={styles.tray}>
       {attachments.map((attachment) => (

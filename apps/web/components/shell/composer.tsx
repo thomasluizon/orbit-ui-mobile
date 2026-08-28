@@ -31,8 +31,6 @@ function AttachmentTray({
   words: ComposerAttachWords
   onRemove: (id: string) => void
 }>) {
-  if (attachments.length === 0) return null
-
   return (
     <div aria-label={words.trayLabel} className="flex flex-col gap-2" role="list">
       {attachments.map((attachment) => (

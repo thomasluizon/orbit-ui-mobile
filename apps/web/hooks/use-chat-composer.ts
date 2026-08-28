@@ -365,7 +365,7 @@ export function useChatComposer() {
 
   const buildChatFormData = useCallback((attempted: AttemptedSend) => {
     const formData = new FormData()
-    if (attempted.content) formData.append('message', attempted.content)
+    formData.append('message', attempted.content)
     if (attempted.image) formData.append('image', attempted.image)
 
     const recentHistory = buildRecentChatHistory(useChatStore.getState().messages)
@@ -493,7 +493,7 @@ export function useChatComposer() {
         addMessage({
           id: crypto.randomUUID(),
           role: 'user',
-          content: attempted.content || '(image)',
+          content: attempted.content,
           imageUrl: attempted.preview,
           timestamp: new Date(),
         })

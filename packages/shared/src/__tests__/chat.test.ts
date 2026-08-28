@@ -4,6 +4,17 @@ import {
   resolveChatImageMimeType,
   stripChatDirectives,
 } from '../chat'
+import { hasComposerContent } from '../contracts/composer'
+
+describe('hasComposerContent', () => {
+  it.each(['', ' ', '\t\n'])('rejects blank composer content %j', (content) => {
+    expect(hasComposerContent(content)).toBe(false)
+  })
+
+  it('accepts visible composer content surrounded by whitespace', () => {
+    expect(hasComposerContent('  log my walk  ')).toBe(true)
+  })
+})
 
 describe('resolveChatImageMimeType', () => {
   it('prefers the provided mime type', () => {

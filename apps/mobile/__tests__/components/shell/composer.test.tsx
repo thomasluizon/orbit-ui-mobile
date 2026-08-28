@@ -11,6 +11,35 @@ vi.mock('@/hooks/use-tour-target', () => ({
   useTourTarget: useTourTargetMock,
 }))
 
+vi.mock('react-native', async (importOriginal) => {
+  const original = await importOriginal<typeof import('react-native')>()
+  const ReactModule = await import('react')
+  type PressableMockProps = Record<string, unknown> & {
+    children?: React.ReactNode
+    style?: React.ComponentProps<typeof original.Pressable>['style']
+  }
+
+  const Pressable = ReactModule.forwardRef<unknown, PressableMockProps>(
+    function PressableMock({ children, style, ...rest }, ref) {
+      const [pressed, setPressed] = ReactModule.useState(false)
+      const renderedStyle = typeof style === 'function' ? style({ pressed }) : style
+      return ReactModule.createElement(
+        'Pressable',
+        {
+          ...rest,
+          ref,
+          style: renderedStyle,
+          onPressIn: () => setPressed(true),
+          onPressOut: () => setPressed(false),
+        },
+        children as React.ReactNode,
+      )
+    },
+  )
+
+  return { ...original, Pressable }
+})
+
 const TestRenderer = require('react-test-renderer')
 
 const words = {
@@ -69,6 +98,12 @@ function textValues(root: ReturnType<typeof TestRenderer.create>['root']) {
   return root.findAllByType('Text').map((node: { props: { children: unknown } }) => node.props.children)
 }
 
+function pressControl(control: { props: Record<string, (() => void) | undefined> }) {
+  TestRenderer.act(() => control.props.onPressIn?.())
+  TestRenderer.act(() => control.props.onPress?.())
+  TestRenderer.act(() => control.props.onPressOut?.())
+}
+
 describe('Composer (mobile)', () => {
   beforeEach(() => {
     useTourTargetMock.mockClear()
@@ -92,7 +127,7 @@ describe('Composer (mobile)', () => {
     const secondChip = tree.root.findAllByType('Pressable').find(
       (node: { props: { onPress?: unknown } }) => node.props.onPress === chips[1].onSelect,
     )
-    TestRenderer.act(() => secondChip?.props.onPress())
+    if (secondChip) pressControl(secondChip)
     expect(chips[1].onSelect).toHaveBeenCalledOnce()
     expect(chips[0].onSelect).not.toHaveBeenCalled()
     expect(chips[2].onSelect).not.toHaveBeenCalled()
@@ -115,7 +150,20 @@ describe('Composer (mobile)', () => {
   it('sends a nonblank value once', async () => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value: 'oi', onSend }))
-    TestRenderer.act(() => byLabel(tree.root, words.send)[0].props.onPress())
+    pressControl(byLabel(tree.root, words.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it('submits nonblank text and ignores a blank keyboard submit', async () => {
+    const onSend = vi.fn()
+    const tree = await renderComposer(props({ value: 'oi', onSend }))
+    const input = byLabel(tree.root, words.placeholder)[0]
+
+    TestRenderer.act(() => input.props.onSubmitEditing())
+    expect(onSend).toHaveBeenCalledOnce()
+
+    TestRenderer.act(() => tree.update(<Composer {...props({ value: '  ', onSend })} />))
+    TestRenderer.act(() => byLabel(tree.root, words.placeholder)[0].props.onSubmitEditing())
     expect(onSend).toHaveBeenCalledOnce()
   })
 
@@ -172,7 +220,7 @@ describe('Composer (mobile)', () => {
   it('renders and invokes voice only when the capability is present', async () => {
     const onVoice = vi.fn()
     const tree = await renderComposer(props({ onVoice, voiceWords }))
-    TestRenderer.act(() => byLabel(tree.root, voiceWords.start)[0].props.onPress())
+    pressControl(byLabel(tree.root, voiceWords.start)[0])
     expect(onVoice).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.update(<Composer {...props()} />))
     expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
@@ -185,10 +233,13 @@ describe('Composer (mobile)', () => {
   })
 
   it('replaces suggestions with recording status and a stop control', async () => {
-    const tree = await renderComposer(props({ state: 'recording', onVoice: vi.fn(), voiceWords }))
+    const onVoice = vi.fn()
+    const tree = await renderComposer(props({ state: 'recording', onVoice, voiceWords }))
     expect(textValues(tree.root)).toContain(voiceWords.recording)
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
     expect(byLabel(tree.root, voiceWords.stop)).toHaveLength(1)
+    pressControl(byLabel(tree.root, voiceWords.stop)[0])
+    expect(onVoice).toHaveBeenCalledOnce()
   })
 
   it('renders transcribing status with an unusable input', async () => {
@@ -198,9 +249,12 @@ describe('Composer (mobile)', () => {
   })
 
   it('renders attachment capability without an empty tray', async () => {
-    const tree = await renderComposer(props({ onAttach: vi.fn(), attachWords }))
+    const onAttach = vi.fn()
+    const tree = await renderComposer(props({ onAttach, attachWords }))
     expect(byLabel(tree.root, attachWords.add)).toHaveLength(1)
     expect(byLabel(tree.root, attachWords.trayLabel)).toHaveLength(0)
+    pressControl(byLabel(tree.root, attachWords.add)[0])
+    expect(onAttach).toHaveBeenCalledOnce()
   })
 
   it('names, distinguishes, and removes each attachment independently', async () => {
@@ -212,7 +266,7 @@ describe('Composer (mobile)', () => {
     const tree = await renderComposer(props({ onAttach: vi.fn(), attachWords, attachments, onAttachRemove }))
     expect(textValues(tree.root)).toEqual(expect.arrayContaining(['notes.txt', 'walk.png']))
     expect(byLabel(tree.root, attachWords.remove('notes.txt'))).toHaveLength(1)
-    TestRenderer.act(() => byLabel(tree.root, attachWords.remove('walk.png'))[0].props.onPress())
+    pressControl(byLabel(tree.root, attachWords.remove('walk.png'))[0])
     expect(onAttachRemove).toHaveBeenCalledOnce()
     expect(onAttachRemove).toHaveBeenCalledWith('image-id')
     expect(tree.root.findByProps({ testID: 'composer-attachment-file' })).toBeDefined()
@@ -223,12 +277,10 @@ describe('Composer (mobile)', () => {
     const onRetry = vi.fn()
     const retryWords = { ...words, retry: 'retry sentinel' }
     const tree = await renderComposer(props({ words: retryWords, onRetry }))
-    TestRenderer.act(() => {
-      const retry = tree.root.findAllByType('Pressable').find(
-        (node: { props: { onPress?: unknown } }) => node.props.onPress === onRetry,
-      )
-      retry?.props.onPress()
-    })
+    const retry = tree.root.findAllByType('Pressable').find(
+      (node: { props: { onPress?: unknown } }) => node.props.onPress === onRetry,
+    )
+    if (retry) pressControl(retry)
     expect(onRetry).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.update(<Composer {...props()} />))
     expect(textValues(tree.root)).not.toContain(retryWords.retry)
