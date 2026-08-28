@@ -12574,6 +12574,7 @@
           "auth.signInSubtitle",
           "auth.signInWithGoogle",
           "auth.terms",
+          "auth.verificationCode",
           "auth.verify",
           "offline.description",
           "offline.title",
@@ -12582,7 +12583,6 @@
           "onboarding.flow.saveYourPlan.habitSummaryOne",
           "onboarding.flow.saveYourPlan.subtitle",
           "onboarding.flow.saveYourPlan.title",
-          "profile.deleteAccount.headingConfirmCode",
           "profile.deleteAccount.reactivated",
           "referral.loginBanner"
         ]
