@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { StyleSheet } from 'react-native'
-import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export type Tokens = AppTokensV2
@@ -32,10 +32,6 @@ export function rgbaFromHex(hex: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
-export function isInRun(status: StreakDayView['status']): boolean {
-  return status === 'active' || status === 'frozen'
-}
-
 export const styles = StyleSheet.create({
   groupWrap: {
     paddingHorizontal: 20,
@@ -54,66 +50,6 @@ export const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 14,
     paddingBottom: 14,
-  },
-  weekHeaderRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekHeaderLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 11,
-    letterSpacing: 0.44,
-    fontVariant: ['tabular-nums'],
-  },
-  weekCellsRow: {
-    flexDirection: 'row',
-  },
-  dayCell: {
-    flex: 1,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  runBand: {
-    position: 'absolute',
-    top: 7,
-    bottom: 7,
-  },
-  dayDisc: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayNumeral: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-  },
-  dayNumeralToday: {
-    fontFamily: 'Roboto_700Bold',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-  },
-  freezeDrop: {
-    position: 'absolute',
-    top: 1,
-    width: 17,
-    height: 17,
-    borderTopLeftRadius: 8.5,
-    borderTopRightRadius: 8.5,
-    borderBottomRightRadius: 8.5,
-    borderBottomLeftRadius: 0,
-    transform: [{ rotate: '45deg' }],
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadowsV2.shadow1,
-  },
-  freezeDropIcon: {
-    transform: [{ rotate: '-45deg' }],
   },
   legendRow: {
     flexDirection: 'row',

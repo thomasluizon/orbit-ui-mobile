@@ -16,6 +16,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({
     displayWeekdayDate: (date: Date) => date.toDateString(),
+    displayMonthYear: (date: Date) => date.toDateString(),
   }),
 }))
 

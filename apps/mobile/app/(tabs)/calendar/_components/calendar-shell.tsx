@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
 import { YearPicker } from "@/components/ui/year-picker";
@@ -41,9 +42,9 @@ interface CalendarWeekNavProps {
 
 interface CalendarLegendProps {
   todayLabel: string;
-  doneLabel: string;
+  fullLabel: string;
   partialLabel: string;
-  missedLabel: string;
+  noneLabel: string;
   tokens: ReturnType<typeof createTokensV2>;
 }
 
@@ -144,34 +145,24 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 6,
     },
     legendDotToday: {
-      width: 6,
-      height: 6,
+      width: 12,
+      height: 12,
       borderRadius: 999,
-      borderWidth: 1.5,
+      borderWidth: 2,
       borderColor: tokens.primary,
-      opacity: 0.6,
     },
-    legendDotDone: {
-      width: 6,
-      height: 6,
+    legendDotFull: {
+      width: 12,
+      height: 12,
       borderRadius: 999,
-      backgroundColor: tokens.primary,
-      opacity: 0.6,
+      backgroundColor: tokens.fg1,
     },
-    legendDotPartial: {
-      width: 6,
-      height: 6,
+    legendDotNone: {
+      width: 12,
+      height: 12,
       borderRadius: 999,
-      borderWidth: 1.5,
+      borderWidth: 2,
       borderColor: tokens.fg4,
-      opacity: 0.6,
-    },
-    legendDotMissed: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: tokens.statusOverdue,
-      opacity: 0.6,
     },
     legendLabel: {
       fontFamily: 'Rubik_400Regular',
@@ -341,9 +332,9 @@ export function CalendarWeekNav({
 
 export function CalendarLegend({
   todayLabel,
-  doneLabel,
+  fullLabel,
   partialLabel,
-  missedLabel,
+  noneLabel,
   tokens,
 }: Readonly<CalendarLegendProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -353,20 +344,23 @@ export function CalendarLegend({
   return (
     <View ref={legendRef} collapsable={false} style={styles.legend}>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotToday} />
+        <View testID="calendar-legend-today" style={styles.legendDotToday} />
         <Text style={styles.legendLabel}>{todayLabel}</Text>
       </View>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotDone} />
-        <Text style={styles.legendLabel}>{doneLabel}</Text>
+        <View testID="calendar-legend-full" style={styles.legendDotFull} />
+        <Text style={styles.legendLabel}>{fullLabel}</Text>
       </View>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotPartial} />
+        <Svg testID="calendar-legend-partial" width={12} height={12}>
+          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.fg4} strokeWidth={2} />
+          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 5, Math.PI * 10]} strokeLinecap="round" strokeWidth={2} rotation={-90} origin="6, 6" />
+        </Svg>
         <Text style={styles.legendLabel}>{partialLabel}</Text>
       </View>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotMissed} />
-        <Text style={styles.legendLabel}>{missedLabel}</Text>
+        <View testID="calendar-legend-none" style={styles.legendDotNone} />
+        <Text style={styles.legendLabel}>{noneLabel}</Text>
       </View>
     </View>
   );
