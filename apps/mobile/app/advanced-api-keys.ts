@@ -21,6 +21,7 @@ interface ScopeOption {
 
 interface UseApiKeyManagementParams {
   hasProAccess: boolean
+  initialCreateKeyModalOpen?: boolean
   isOnline: boolean
   queryClient: QueryClient
   t: (key: string, params?: Record<string, unknown>) => string
@@ -31,6 +32,7 @@ interface UseApiKeyManagementParams {
  *  the same order they previously sat inline in the Advanced screen. */
 export function useApiKeyManagement({
   hasProAccess,
+  initialCreateKeyModalOpen = false,
   isOnline,
   queryClient,
   t,
@@ -74,7 +76,7 @@ export function useApiKeyManagement({
     !capabilitiesQuery.error &&
     scopeOptions.length > 0
 
-  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
+  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(initialCreateKeyModalOpen)
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 

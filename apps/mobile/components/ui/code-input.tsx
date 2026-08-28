@@ -1,96 +1,141 @@
-import { useState, type RefObject } from 'react'
-import {
-  StyleSheet,
-  TextInput,
-  View,
-  type TextInputKeyPressEvent,
-} from 'react-native'
+import { useState } from 'react'
+import { StyleSheet, Text, TextInput, View } from 'react-native'
+import type { OtpInputProps } from '@orbit/shared/contracts/forms'
+import { normalizeStepUpCode } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface CodeInputProps {
-  digits: string[]
-  inputRefs: RefObject<(TextInput | null)[]>
-  onChange: (index: number, value: string) => void
-  onKeyPress: (index: number, event: TextInputKeyPressEvent) => void
-  ariaLabelForIndex: (index: number) => string
-  disabled?: boolean
-  autoFocusFirst?: boolean
-}
-
-/** Kit OTP: six 48x58 filled boxes (radius 14, inset hairline ring), Roboto
- *  26/500 digits, primary ring on the focused box. */
-export function CodeInput({
-  digits,
-  inputRefs,
+export function OtpInput({
+  length = 6,
+  value,
   onChange,
-  onKeyPress,
-  ariaLabelForIndex,
+  onComplete,
+  error,
+  hint,
   disabled = false,
-  autoFocusFirst = false,
-}: Readonly<CodeInputProps>) {
+  autoFocus = false,
+  label,
+}: Readonly<OtpInputProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
-  const boxKeys = digits.map((_, position) => `code-digit-${position}`)
+  const [focused, setFocused] = useState(false)
+  const normalizedValue = normalizeStepUpCode(value, length)
+  const activeIndex = Math.min(normalizedValue.length, length - 1)
+
+  function handleChange(nextValue: string) {
+    const normalized = normalizeStepUpCode(nextValue, length)
+    onChange(normalized)
+    if (normalized.length === length) onComplete?.(normalized)
+  }
 
   return (
-    <View style={styles.row}>
-      {digits.map((digit, index) => (
+    <View style={styles.root}>
+      <View style={styles.inputWrap}>
+        <View style={styles.row} pointerEvents="none">
+          {Array.from({ length }, (_, index) => {
+            const digit = normalizedValue[index] ?? ''
+            const active = focused && !disabled && index === activeIndex
+            return (
+              <View
+                key={`otp-cell-${index}`}
+                testID={`otp-cell-${index}`}
+                accessibilityElementsHidden
+                style={[
+                  styles.cell,
+                  {
+                    backgroundColor: tokens.bgField,
+                    borderColor: error
+                      ? tokens.statusBad
+                      : active
+                        ? tokens.primary
+                        : tokens.hairline,
+                    borderWidth: error || active ? 2 : 1,
+                    opacity: disabled ? 0.4 : 1,
+                  },
+                ]}
+              >
+                {digit ? (
+                  <Text style={[styles.digit, { color: tokens.fg1 }]}>{digit}</Text>
+                ) : active ? (
+                  <View style={[styles.caret, { backgroundColor: tokens.primary }]} />
+                ) : null}
+              </View>
+            )
+          })}
+        </View>
         <TextInput
-          key={boxKeys[index]}
-          ref={(node) => {
-            inputRefs.current[index] = node
-          }}
-          value={digit}
-          onChangeText={(value) => onChange(index, value)}
-          onKeyPress={(event) => onKeyPress(index, event)}
-          onFocus={() => setActiveIndex(index)}
-          onBlur={() =>
-            setActiveIndex((current) => (current === index ? null : current))
-          }
-          keyboardType="number-pad"
-          textContentType={index === 0 ? 'oneTimeCode' : 'none'}
-          autoComplete={index === 0 ? 'one-time-code' : 'off'}
-          maxLength={6}
-          selectTextOnFocus
+          value={normalizedValue}
+          onChangeText={handleChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           editable={!disabled}
-          autoFocus={autoFocusFirst && index === 0}
-          accessibilityLabel={ariaLabelForIndex(index)}
-          style={[
-            styles.box,
-            {
-              color: tokens.fg1,
-              backgroundColor: tokens.bgField,
-              borderColor: tokens.hairline,
-            },
-            activeIndex === index
-              ? { borderWidth: 2, borderColor: tokens.primary }
-              : null,
-          ]}
+          autoFocus={autoFocus}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="one-time-code"
+          caretHidden
+          accessibilityLabel={label}
+          accessibilityState={{ disabled }}
+          style={styles.realInput}
         />
-      ))}
+      </View>
+      {error ? (
+        <Text accessibilityRole="alert" style={[styles.feedback, { color: tokens.statusBadText }]}>
+          {error}
+        </Text>
+      ) : hint ? (
+        <Text style={[styles.hint, { color: tokens.fg3 }]}>{hint}</Text>
+      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  root: {
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  inputWrap: {
+    position: 'relative',
+  },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    gap: 8,
   },
-  box: {
-    width: 48,
-    height: 58,
-    borderRadius: 14,
-    borderWidth: 1,
-    textAlign: 'center',
+  cell: {
+    alignItems: 'center',
+    borderRadius: 12,
+    height: 56,
+    justifyContent: 'center',
+    width: 44,
+  },
+  digit: {
     fontFamily: 'Roboto_500Medium',
     fontSize: 26,
     fontVariant: ['tabular-nums'],
-    paddingVertical: 0,
-    paddingHorizontal: 0,
+  },
+  caret: {
+    height: 28,
+    width: 1,
+  },
+  realInput: {
+    bottom: 0,
+    color: 'transparent',
+    left: 0,
+    opacity: 0.02,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  feedback: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  hint: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 18,
   },
 })

@@ -32,18 +32,9 @@ describe('auth server actions', () => {
     })
   }
 
-  function mock204() {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 204,
-      json: () => Promise.reject(new Error('No body')),
-    })
-  }
-
-
   describe('requestDeletion', () => {
     it('sends POST to /api/auth/request-deletion', async () => {
-      mock204()
+      mockApiResponse({ message: 'Deletion code sent' })
 
       await requestDeletion()
 
@@ -53,7 +44,7 @@ describe('auth server actions', () => {
     })
 
     it('includes auth headers', async () => {
-      mock204()
+      mockApiResponse({ message: 'Deletion code sent' })
 
       await requestDeletion()
 
@@ -77,7 +68,10 @@ describe('auth server actions', () => {
 
   describe('confirmDeletion', () => {
     it('sends POST to /api/auth/confirm-deletion with code', async () => {
-      mockApiResponse({ scheduledDeletionAt: '2025-02-15T00:00:00Z' })
+      mockApiResponse({
+        message: 'Account deactivated',
+        scheduledDeletionAt: '2025-02-15T00:00:00Z',
+      })
 
       const result = await confirmDeletion('123456')
 
@@ -85,11 +79,20 @@ describe('auth server actions', () => {
       expect(url).toContain('/api/auth/confirm-deletion')
       expect(init.method).toBe('POST')
       expect(JSON.parse(init.body)).toEqual({ code: '123456' })
-      expect(result.scheduledDeletionAt).toBe('2025-02-15T00:00:00Z')
+      expect(result).toEqual({
+        success: true,
+        response: {
+          message: 'Account deactivated',
+          scheduledDeletionAt: '2025-02-15T00:00:00Z',
+        },
+      })
     })
 
     it('includes auth headers', async () => {
-      mockApiResponse({ scheduledDeletionAt: '2025-02-15T00:00:00Z' })
+      mockApiResponse({
+        message: 'Account deactivated',
+        scheduledDeletionAt: '2025-02-15T00:00:00Z',
+      })
 
       await confirmDeletion('123456')
 
@@ -97,26 +100,41 @@ describe('auth server actions', () => {
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
     })
 
-    it('returns empty object when response is 204', async () => {
-      mock204()
+    it('returns a serializable failure for a bodyless success response', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 204,
+        json: () => Promise.reject(new Error('No body')),
+      })
 
-      const result = await confirmDeletion('123456')
-
-      expect(result).toEqual({})
+      await expect(confirmDeletion('123456')).resolves.toEqual({
+        success: false,
+        errorCode: 'INVALID_RESPONSE_SCHEMA',
+        remaining: null,
+      })
     })
 
-    it('throws on invalid code', async () => {
-      mockApiResponse({ error: 'Invalid or expired code' }, 400)
+    it('returns the backend discriminator for an invalid code', async () => {
+      mockApiResponse({
+        error: 'Invalid code',
+        errorCode: 'INVALID_VERIFICATION_CODE',
+      }, 400)
 
-      await expect(confirmDeletion('000000')).rejects.toThrow(
-        'Invalid or expired code',
-      )
+      await expect(confirmDeletion('000000')).resolves.toEqual({
+        success: false,
+        errorCode: 'INVALID_VERIFICATION_CODE',
+        remaining: null,
+      })
     })
 
-    it('throws on server error', async () => {
+    it('returns a generic serializable result on server error', async () => {
       mockApiResponse({ error: 'Internal error' }, 500)
 
-      await expect(confirmDeletion('123456')).rejects.toThrow('Internal error')
+      await expect(confirmDeletion('123456')).resolves.toEqual({
+        success: false,
+        errorCode: null,
+        remaining: null,
+      })
     })
   })
 
@@ -128,10 +146,14 @@ describe('auth server actions', () => {
       await expect(requestDeletion()).rejects.toThrow('Forbidden')
     })
 
-    it('throws with message field from response body', async () => {
+    it('returns a generic result for a failure with only a message', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
-      await expect(confirmDeletion('')).rejects.toThrow('Validation failed')
+      await expect(confirmDeletion('')).resolves.toEqual({
+        success: false,
+        errorCode: null,
+        remaining: null,
+      })
     })
 
     it('throws with status code when no error body', async () => {
