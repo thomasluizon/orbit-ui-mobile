@@ -7,6 +7,7 @@ import {
 } from 'react'
 
 export type ProposedTintElementProps = Readonly<{
+  className?: unknown
   children?: ReactNode
   style?: unknown
 }>

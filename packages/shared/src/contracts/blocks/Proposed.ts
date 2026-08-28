@@ -19,8 +19,10 @@ export type ProposedProps = {
    * 2. An uncolored native or intrinsic text element takes fg3. Container elements recurse through
    *    fragments, arrays, and their children without taking an inheritable color themselves.
    * 3. An explicit element color wins and stops the walk at that element.
-   * 4. A composite element is returned unchanged. Its uncolored output uses the host's ambient fg1,
-   *    while any color owned by the composite remains intact.
+   * 4. A composite element with a function or class type renders inside Proposed exactly as it
+   *    renders outside it. Proposed neither tints it nor guarantees its foreground. A caller that
+   *    wants the proposed treatment on a composite passes native or intrinsic text, or sets the
+   *    composite's colors itself.
    */
   readonly children: ReactNode
 }

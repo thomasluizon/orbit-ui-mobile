@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Proposed } from '@/components/ui/proposed'
+import { hasExplicitTextColorClass, Proposed } from '@/components/ui/proposed'
 
 function CompositeValue() {
   return (
@@ -11,8 +11,8 @@ function CompositeValue() {
   )
 }
 
-function UnstyledCompositeValue() {
-  return <span data-unstyled-composite="">Unstyled composite</span>
+function UnstyledCompositeValue({ marker }: Readonly<{ marker: string }>) {
+  return <span className="text-sm" data-unstyled-composite={marker}>Unstyled composite</span>
 }
 
 const ambientForeground = 'rgb(18, 19, 21)'
@@ -47,18 +47,28 @@ describe('Proposed on web', () => {
     expect(off.container.querySelector('[data-proposed]')).toBeNull()
   })
 
-  it('leaves unstyled composite output at the exact ambient fg1 color', () => {
+  it('renders unstyled composite output identically inside and outside', () => {
     const { container } = render(
       <div style={{ color: ambientForeground }}>
+        <UnstyledCompositeValue marker="outside" />
         <Proposed proposed scope="row" label="Proposed by Astra">
-          <UnstyledCompositeValue />
+          <UnstyledCompositeValue marker="inside" />
         </Proposed>
       </div>,
     )
 
-    const composite = container.querySelector<HTMLElement>('[data-unstyled-composite]')!
-    expect(composite.style.color).toBe('')
-    expect(getComputedStyle(composite).color).toBe(ambientForeground)
+    const outside = container.querySelector<HTMLElement>('[data-unstyled-composite="outside"]')!
+    const inside = container.querySelector<HTMLElement>('[data-unstyled-composite="inside"]')!
+    expect({
+      className: inside.className,
+      computedColor: getComputedStyle(inside).color,
+      inlineStyle: inside.getAttribute('style'),
+    }).toEqual({
+      className: outside.className,
+      computedColor: getComputedStyle(outside).color,
+      inlineStyle: outside.getAttribute('style'),
+    })
+    expect(getComputedStyle(inside).color).toBe(ambientForeground)
   })
 
   it('tints nested unstyled text through containers, fragments, and arrays', () => {
@@ -93,6 +103,23 @@ describe('Proposed on web', () => {
 
     expect(container.querySelector<HTMLElement>('[data-explicit-value]')).toHaveStyle({ color: explicitForeground })
     expect(container.querySelector<HTMLElement>('[data-explicit-child]')!.style.color).toBe('')
+  })
+
+  it('keeps a class-based status foreground as the exact effective color', () => {
+    const statusForeground = 'rgb(174, 51, 64)'
+    const { container } = render(
+      <>
+        <style>{`.text-\\[var\\(--status-bad-text\\)\\] { color: ${statusForeground}; }`}</style>
+        <Proposed proposed scope="row" label="Proposed by Astra">
+          <span className="text-[var(--status-bad-text)]" data-status-value="">Status value</span>
+        </Proposed>
+      </>,
+    )
+    const statusValue = container.querySelector<HTMLElement>('[data-status-value]')!
+
+    expect(statusValue.className).toBe('text-[var(--status-bad-text)]')
+    expect(statusValue.style.color).toBe('')
+    expect(getComputedStyle(statusValue).color).toBe(statusForeground)
   })
 
   it('leaves the explicit token colors owned by a composite child unaltered', () => {
@@ -130,7 +157,7 @@ describe('Proposed on web', () => {
         <Proposed proposed scope="row" label="Proposed by Astra">
           <div>
             <span data-intrinsic-value="">Intrinsic value</span>
-            <UnstyledCompositeValue />
+            <UnstyledCompositeValue marker="inside" />
           </div>
         </Proposed>
       </div>,
@@ -155,5 +182,38 @@ describe('Proposed on web', () => {
       </Proposed>,
     )
     expect(container.innerHTML).toBe(english)
+  })
+})
+
+describe('hasExplicitTextColorClass', () => {
+  it.each([
+    'text-[var(--fg-1)]',
+    'text-[#b74e12]',
+    'text-[rgb(174_51_64)]',
+    'text-bg',
+    'text-fg-1',
+    'text-primary-soft',
+    'text-status-bad-text',
+    'text-white',
+    'text-white/70',
+    'hover:text-[var(--primary)]',
+    'md:text-violet-500',
+  ])('accepts the foreground utility %s', (className) => {
+    expect(hasExplicitTextColorClass(className)).toBe(true)
+  })
+
+  it.each([
+    'text-sm',
+    'text-[12px]',
+    'text-[length:var(--fs-sm)]',
+    'text-left',
+    'text-center',
+    'text-right',
+    'text-start',
+    'text-balance',
+    'text-ellipsis',
+    'text-fluid-sm',
+  ])('rejects the non-color text utility %s', (className) => {
+    expect(hasExplicitTextColorClass(className)).toBe(false)
   })
 })
