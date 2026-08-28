@@ -451,7 +451,11 @@ describe('web useChatComposer streaming send', () => {
         'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
       )
     } finally {
-      process.env.TZ = previousTimeZone
+      if (previousTimeZone === undefined) {
+        delete process.env.TZ
+      } else {
+        process.env.TZ = previousTimeZone
+      }
     }
   })
 
