@@ -11,7 +11,7 @@ import { BackToTop } from '@/components/ui/back-to-top'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
@@ -361,9 +361,9 @@ function GlobalOverlays({
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
       <StreakFreezeCelebration ref={streakFreezeRef} />
-      <AppOverlay
-        open={showCalendarPrompt}
-        onOpenChange={onCalendarPromptOpenChange}
+      {showCalendarPrompt ? (<Sheet
+        open
+        onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
       >
         <div className="flex flex-col items-center text-center gap-5 py-2">
@@ -383,10 +383,10 @@ function GlobalOverlays({
             </button>
           </div>
         </div>
-      </AppOverlay>
-      <AppOverlay
-        open={showImportPrompt}
-        onOpenChange={onImportPromptOpenChange}
+      </Sheet>) : null}
+      {showImportPrompt ? (<Sheet
+        open
+        onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}
       >
         <div className="flex flex-col items-center text-center gap-5 py-2">
@@ -406,7 +406,7 @@ function GlobalOverlays({
             </button>
           </div>
         </div>
-      </AppOverlay>
+      </Sheet>) : null}
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { View, Text, Pressable, ScrollView } from 'react-native'
+import type { Ref } from 'react'
+import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -9,7 +10,7 @@ import {
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
@@ -270,8 +271,9 @@ interface PreferencePickerSheetProps {
   weekStartDay?: number
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
-  onClose: () => void
-  onDidDismiss: () => void
+  sheetRef: Ref<SheetHandle>
+  closePicker: (exitAction?: () => void) => void
+  onHidden: () => void
   onLanguageChange: (locale: 'en' | 'pt-BR') => void
   onThemeModeChange: (mode: ThemeMode) => void
   onSchemeChange: (scheme: ColorScheme) => void
@@ -290,29 +292,30 @@ export function PreferencePickerSheet({
   weekStartDay,
   themeModeOptions,
   weekStartOptions,
-  onClose,
-  onDidDismiss,
+  sheetRef,
+  closePicker,
+  onHidden,
   onLanguageChange,
   onThemeModeChange,
   onSchemeChange,
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
+  const selectAndClose = (apply: () => void) =>
+    closePicker(() => {
+      onHidden()
+      apply()
+    })
+
   return (
-    <BottomSheetModal
-      open={activePicker !== null}
-      onClose={onClose}
-      onDidDismiss={onDidDismiss}
-      title={activePicker ? pickerTitles[activePicker] : undefined}
-      contentKey={activePicker ?? 'none'}
-      snapPoints={['55%']}
-      contentManagesScroll
+    activePicker !== null ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={onHidden}
+      title={pickerTitles[activePicker]}
+      key={activePicker}
     >
-      <ScrollView
-        style={styles.sheetScroll}
-        contentContainerStyle={styles.sheetContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {activePicker && pickerDescriptions[activePicker] ? (
+      <View style={styles.sheetContent}>
+        {pickerDescriptions[activePicker] ? (
           <Text style={[styles.sheetDescription, { color: tokens.fg3 }]}>
             {pickerDescriptions[activePicker]}
           </Text>
@@ -324,10 +327,7 @@ export function PreferencePickerSheet({
               label={lang.label}
               selected={selectedLanguage === lang.value}
               divider={index < LANGUAGE_OPTIONS.length - 1}
-              onPress={() => {
-                onClose()
-                onLanguageChange(lang.value)
-              }}
+              onPress={() => selectAndClose(() => onLanguageChange(lang.value))}
             />
           ))}
         {activePicker === 'theme' &&
@@ -337,10 +337,7 @@ export function PreferencePickerSheet({
               label={mode.label}
               selected={currentTheme === mode.value}
               divider={index < themeModeOptions.length - 1}
-              onPress={() => {
-                onClose()
-                onThemeModeChange(mode.value)
-              }}
+              onPress={() => selectAndClose(() => onThemeModeChange(mode.value))}
             />
           ))}
         {activePicker === 'scheme' && (
@@ -358,12 +355,7 @@ export function PreferencePickerSheet({
               />
             ))}
             <View style={styles.sheetFooter}>
-              <PillButton
-                variant="secondary"
-
-                onClick={onClose}
-
-              >
+              <PillButton variant="secondary" onClick={() => closePicker()}>
                 {t('common.save')}
               </PillButton>
             </View>
@@ -376,13 +368,10 @@ export function PreferencePickerSheet({
               label={option.label}
               selected={weekStartDay === option.value}
               divider={index < weekStartOptions.length - 1}
-              onPress={() => {
-                onClose()
-                onWeekStartChange(option.value)
-              }}
+              onPress={() => selectAndClose(() => onWeekStartChange(option.value))}
             />
           ))}
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }

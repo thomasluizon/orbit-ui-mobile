@@ -12,7 +12,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
@@ -21,6 +21,7 @@ import {
   McpConnectionInstructions,
   WidgetInfoOverlay,
 } from '@/components/advanced/advanced-sections'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 export default function AdvancedPage() {
   const t = useTranslations()
@@ -123,18 +124,17 @@ export default function AdvancedPage() {
           apiError={createKeyError}
         />
 
-        <ConfirmDialog
+        <ConfirmSheet
           open={revokingKeyId !== null}
-          onOpenChange={(open) => {
-            if (!open) setRevokingKeyId(null)
-          }}
           title={t('orbitMcp.revoke')}
-          description={t('orbitMcp.revokeConfirm')}
+          message={t('orbitMcp.revokeConfirm')}
           cancelLabel={t('orbitMcp.cancel')}
           confirmLabel={t('orbitMcp.confirm')}
-          variant="danger"
+          destructive
+          onCancel={() => setRevokingKeyId(null)}
           onConfirm={() => {
             if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+            setRevokingKeyId(null)
           }}
         />
       </div>

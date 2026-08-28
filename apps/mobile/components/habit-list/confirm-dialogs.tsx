@@ -1,109 +1,31 @@
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, unknown>) => string
   showDeleteConfirm: boolean
-  onDeleteOpenChange: (open: boolean) => void
   onConfirmDelete: () => void
   onCancelDelete: () => void
-  showDuplicateConfirm: boolean
-  onDuplicateOpenChange: (open: boolean) => void
-  duplicateName: string
-  onConfirmDuplicate: () => void
-  onCancelDuplicate: () => void
-  showForceLogConfirm: boolean
-  onForceLogOpenChange: (open: boolean) => void
-  onConfirmForceLog: () => void
-  onCancelForceLog: () => void
-  showAutoLogParent: boolean
-  autoLogParentMode: 'log' | 'skip'
-  onAutoLogParentOpenChange: (open: boolean) => void
-  autoLogParentName: string
-  onConfirmAutoLogParent: () => void
-  onCancelAutoLogParent: () => void
 }
 
-/** The cluster of habit-list confirmation dialogs (delete / duplicate / skip /
- *  force-log / auto-log-parent). Driven entirely by open-flag props and handlers
- *  owned by the parent HabitList. */
-// react-doctor-disable-next-line no-many-boolean-props -- private single-use dialog aggregator; each flag independently gates one dialog's visibility, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+/**
+ * The habit deletion confirmation owned by HabitList. Deleting is the only
+ * irreversible act in the row, so it is the only one that asks (#42).
+ */
 export function HabitListConfirmDialogs({
   t,
   showDeleteConfirm,
-  onDeleteOpenChange,
   onConfirmDelete,
   onCancelDelete,
-  showDuplicateConfirm,
-  onDuplicateOpenChange,
-  duplicateName,
-  onConfirmDuplicate,
-  onCancelDuplicate,
-  showForceLogConfirm,
-  onForceLogOpenChange,
-  onConfirmForceLog,
-  onCancelForceLog,
-  showAutoLogParent,
-  autoLogParentMode,
-  onAutoLogParentOpenChange,
-  autoLogParentName,
-  onConfirmAutoLogParent,
-  onCancelAutoLogParent,
 }: Readonly<HabitListConfirmDialogsProps>) {
-  const isSkipParent = autoLogParentMode === 'skip'
   return (
-    <>
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={onDeleteOpenChange}
-        title={t('habits.deleteConfirmTitle')}
-        description={t('habits.deleteConfirmMessage')}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={onConfirmDelete}
-        onCancel={onCancelDelete}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        open={showDuplicateConfirm}
-        onOpenChange={onDuplicateOpenChange}
-        title={t('habits.duplicateConfirmTitle')}
-        description={t('habits.duplicateConfirmMessage', {
-          name: duplicateName,
-        })}
-        confirmLabel={t('habits.duplicateConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={onConfirmDuplicate}
-        onCancel={onCancelDuplicate}
-        variant="success"
-      />
-
-      <ConfirmDialog
-        open={showForceLogConfirm}
-        onOpenChange={onForceLogOpenChange}
-        title={t('habits.forceLogTitle')}
-        description={t('habits.forceLogMessage')}
-        confirmLabel={t('habits.forceLogConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={onConfirmForceLog}
-        onCancel={onCancelForceLog}
-        variant="warning"
-      />
-
-      <ConfirmDialog
-        open={showAutoLogParent}
-        onOpenChange={onAutoLogParentOpenChange}
-        title={t(isSkipParent ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle')}
-        description={t(
-          isSkipParent ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage',
-          { name: autoLogParentName },
-        )}
-        confirmLabel={t(isSkipParent ? 'habits.autoSkipParentConfirm' : 'habits.autoLogParentConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={onConfirmAutoLogParent}
-        onCancel={onCancelAutoLogParent}
-        variant={isSkipParent ? 'warning' : 'success'}
-      />
-    </>
+    <ConfirmSheet
+      open={showDeleteConfirm}
+      title={t('habits.deleteConfirmTitle')}
+      message={t('habits.deleteConfirmMessage')}
+      confirmLabel={t('common.delete')}
+      destructive
+      onCancel={onCancelDelete}
+      onConfirm={onConfirmDelete}
+    />
   )
 }

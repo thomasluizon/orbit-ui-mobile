@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { Chip } from '@/components/ui/chip'
 import { createTokensV2 } from '@/lib/theme'
@@ -146,12 +146,10 @@ export function FeatureGuideDrawer({
   const items = sectionItems[activeSection]
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      open
       onClose={onClose}
       title={t('onboarding.featureGuide.title')}
-      snapPoints={['70%', '90%']}
-      contentManagesScroll
     >
       <View style={styles.tabBarWrap}>
         <ScrollView
@@ -171,20 +169,15 @@ export function FeatureGuideDrawer({
         </ScrollView>
       </View>
 
-      <ScrollView
-        style={styles.sectionScroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={withDrawerContentInset(styles.sectionContent)}
-      >
-        {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Fixed, small curated set of feature-guide entries (static content per tab, not user data or paginated); a ScrollView is the correct container inside the bottom-sheet drawer and a FlatList would risk gesture conflicts with the sheet. https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
+      <View style={withDrawerContentInset(styles.sectionContent)}>
         {items.map((item) => (
           <View key={item.titleKey} style={styles.sectionItem}>
             <Text style={styles.sectionTitle}>{t(item.titleKey)}</Text>
             <Text style={styles.sectionDesc}>{t(item.descKey)}</Text>
           </View>
         ))}
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 

@@ -17,9 +17,8 @@ import { apiClient } from '@/lib/api-client'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ErrorState } from '@/components/ui/error-state'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -63,9 +62,9 @@ const dangerPillStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
+    gap: 8,
     borderRadius: 999,
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 26,
     width: '100%',
   },
@@ -140,12 +139,7 @@ function DeleteConfirmStep({
           disabled={deleteLoading}
           onPress={onRequestDeletion}
         />
-        <PillButton
-          variant="ghost"
-
-          disabled={deleteLoading}
-          onClick={onClose}
-        >
+        <PillButton variant="ghost" disabled={deleteLoading} onClick={onClose}>
           {t('common.cancel')}
         </PillButton>
       </View>
@@ -288,7 +282,7 @@ export function DeleteAccountModal({
   const { t } = useTranslation()
   const { isOnline } = useOffline()
   const handleLogout = useLogout()
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
@@ -412,7 +406,7 @@ export function DeleteAccountModal({
         onRequestDeletion={() => {
           void handleRequestDeletion()
         }}
-        onClose={onClose}
+        onClose={() => closeSheet()}
       />
     )
   } else if (deleteStep === 'code') {
@@ -437,23 +431,24 @@ export function DeleteAccountModal({
       <DeleteDeactivatedStep
         scheduledDeletionDate={scheduledDeletionDate}
         onLogout={() => {
-          scheduleExitAction(() => void handleLogout())
-          onClose()
+          closeSheet(() => {
+            onClose()
+            void handleLogout()
+          })
         }}
       />
     )
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
-      onDidDismiss={runExitAction}
       title={t('profile.deleteAccount.title')}
-      snapPoints={['70%']}
     >
       {deleteContent}
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

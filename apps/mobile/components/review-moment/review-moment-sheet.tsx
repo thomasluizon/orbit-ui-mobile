@@ -6,7 +6,7 @@ import {
   parseReviewMomentKey,
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AstraAvatar } from '@/components/ui/astra-avatar'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -45,6 +45,7 @@ export function ReviewMomentSheet() {
   const armedKey = armedPrompt?.kind === 'review' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [isRequesting, setIsRequesting] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -85,9 +86,13 @@ export function ReviewMomentSheet() {
     ? parseReviewMomentKey(visibleKey)
     : null
 
-  function snoozeAndClose() {
-    dismiss()
+  function hideAndSnooze() {
     setVisibleKey(null)
+    dismiss()
+  }
+
+  function requestSnooze() {
+    closeSheet()
   }
 
   async function rate() {
@@ -96,14 +101,13 @@ export function ReviewMomentSheet() {
       await requestReview()
     } finally {
       setIsRequesting(false)
-      setVisibleKey(null)
+      closeSheet(() => setVisibleKey(null))
     }
   }
 
   return (
-    <BottomSheetModal open={variant !== null} onClose={snoozeAndClose} snapPoints={['62%']}>
-      {variant ? (
-        <View style={styles.content}>
+    variant !== null ? (<Sheet ref={sheetRef} open onClose={hideAndSnooze}>
+      <View style={styles.content}>
           <AstraAvatar size={96} label={t('reviewMoment.eyebrow')} />
           <Text style={styles.eyebrow}>{t('reviewMoment.eyebrow')}</Text>
           <Text style={styles.title}>
@@ -128,7 +132,7 @@ export function ReviewMomentSheet() {
               {t('reviewMoment.cta')}
             </PillButton>
             <Pressable
-              onPress={snoozeAndClose}
+              onPress={requestSnooze}
               accessibilityRole="button"
               accessibilityLabel={t('reviewMoment.notNow')}
               style={({ pressed }) => [
@@ -145,9 +149,8 @@ export function ReviewMomentSheet() {
               )}
             </Pressable>
           </View>
-        </View>
-      ) : null}
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 

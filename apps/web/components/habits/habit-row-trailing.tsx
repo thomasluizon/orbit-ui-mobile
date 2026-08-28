@@ -1,13 +1,14 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
-import { Popover } from '@/components/ui/popover'
+import { Menu } from '@/components/ui/menu'
 import { CheckCircle } from './habit-row-check-circle'
-import { HabitRowMenu } from './habit-row-menu'
 import type { HabitRowActions } from './habit-row'
+import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 
 function resolveLogAction(
@@ -30,6 +31,29 @@ function resolveParentRingTrackColor(
   if (isBadHabit) return 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
   if (state === 'overdue') return 'color-mix(in srgb, var(--status-overdue) 40%, transparent)'
   return undefined
+}
+
+function buildMenuItems(
+  t: ReturnType<typeof useTranslations>,
+  actions: HabitRowActions,
+  canSelect: boolean,
+  canDrillInto: boolean,
+): MenuItem[] {
+  const items: MenuItem[] = []
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit') })
+  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
+  if (actions.onSkip) items.push({ id: 'skip', label: t('habits.actions.skip') })
+  if (actions.onReschedule) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
+  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit') })
+  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate') })
+  if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select') })
+  if (canDrillInto && actions.onDrillInto) {
+    items.push({ id: 'drill', label: t('habits.actions.openSubHabits') })
+  }
+  if (actions.onDelete) {
+    items.push({ id: 'delete', label: t('habits.deleteHabit'), destructive: true })
+  }
+  return items
 }
 
 interface HabitRowTrailingProps {
@@ -78,6 +102,9 @@ export function HabitRowTrailing({
     onDrillInto,
   } = actions
   const statusDotLabelKey = `habits.statusDot.${state}`
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuAnchorRef = useRef<HTMLButtonElement>(null)
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto)
   const statusLabel = t(statusDotLabelKey)
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
 
@@ -119,37 +146,37 @@ export function HabitRowTrailing({
           />
         ))}
       {!selectMode && hasMenuActions && (
-        <Popover
-          placement="bottom-end"
-          className="min-w-[180px]"
-          trigger={
-            <button
-              type="button"
-              aria-label={t('habits.actions.more')}
-              onClick={(event) => event.stopPropagation()}
-              className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-              style={{ width: 44, height: 44, cursor: 'pointer' }}
-            >
-              <MoreVertical size={20} strokeWidth={1.8} />
-            </button>
-          }
-        >
-          {(close) => (
-            <HabitRowMenu
-              close={close}
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-              onAddSubHabit={onAddSubHabit}
-              onMoveParent={onMoveParent}
-              onSkip={onSkip}
-              onReschedule={onReschedule}
-              onDelete={onDelete}
-              onEnterSelectMode={canSelect ? onEnterSelectMode : undefined}
-              onDrillInto={canDrillInto ? onDrillInto : undefined}
-              t={t}
-            />
-          )}
-        </Popover>
+        <>
+          <button
+            ref={menuAnchorRef}
+            type="button"
+            aria-label={t('habits.actions.more')}
+            aria-expanded={menuOpen}
+            onClick={(event) => {
+              event.stopPropagation()
+              setMenuOpen((current) => !current)
+            }}
+            className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            style={{ width: 44, height: 44, cursor: 'pointer' }}
+          >
+            <MoreVertical size={20} strokeWidth={1.8} />
+          </button>
+          <Menu
+            open={menuOpen}
+            anchorRef={menuAnchorRef}
+            title={t('habits.actions.more')}
+            items={menuItems}
+            onClose={() => setMenuOpen(false)}
+            onSelect={(id) => {
+              const handlers: Record<string, (() => void) | undefined> = {
+                add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
+                edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,
+                drill: onDrillInto, delete: onDelete,
+              }
+              handlers[id]?.()
+            }}
+          />
+        </>
       )}
     </div>
   )

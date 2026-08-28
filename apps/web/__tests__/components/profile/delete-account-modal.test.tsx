@@ -25,26 +25,23 @@ vi.mock('@/app/actions/auth', () => ({
   confirmDeletion: (...args: unknown[]) => mockConfirmDeletion(...args),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
     open,
-    onOpenChange,
+    onClose,
     title,
     children,
   }: {
     open: boolean
-    onOpenChange: (v: boolean) => void
+    onClose?: () => void
     title?: string
     children: React.ReactNode
   }) =>
     open ? (
       <div data-testid="overlay">
         {title && <h2>{title}</h2>}
-        <button data-testid="overlay-close" onClick={() => onOpenChange(false)}>
+        <button data-testid="overlay-close" onClick={onClose}>
           Close
-        </button>
-        <button data-testid="overlay-reopen" onClick={() => onOpenChange(true)}>
-          Reopen
         </button>
         {children}
       </div>
@@ -272,7 +269,7 @@ describe('DeleteAccountModal', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
-  it('resets state when overlay triggers onOpenChange(true)', async () => {
+  it('resets state when the sheet closes', async () => {
     const onOpenChange = vi.fn()
 
     render(
@@ -284,7 +281,7 @@ describe('DeleteAccountModal', () => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTestId('overlay-reopen'))
+    fireEvent.click(screen.getByTestId('overlay-close'))
 
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()

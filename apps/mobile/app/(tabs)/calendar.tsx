@@ -45,13 +45,12 @@ import {
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
-import { useSheetExitAction } from "@/hooks/use-sheet-exit-action";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
@@ -342,12 +341,14 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
-  const { scheduleExitAction, runExitAction } = useSheetExitAction();
+  const { sheetRef, closeSheet } = useSheetHost();
 
   const goToSelectedDay = () => {
     if (!selectedDay) return;
-    scheduleExitAction(() => router.push(`/?date=${selectedDay}`));
-    setIsDayDetailOpen(false);
+    closeSheet(() => {
+      setIsDayDetailOpen(false);
+      router.push(`/?date=${selectedDay}`);
+    });
   };
 
   const monthStatTiles = useMemo(
@@ -540,19 +541,14 @@ export default function CalendarScreen() {
         </ScrollView>
       )}
 
-      <BottomSheetModal
-        open={isDayDetailOpen}
+      {isDayDetailOpen ? (<Sheet
+        ref={sheetRef}
+        open
         onClose={closeDayDetail}
-        onDidDismiss={runExitAction}
         title={formattedSelectedDate}
-        contentKey={selectedDay ?? undefined}
-        contentManagesScroll
+        key={selectedDay ?? undefined}
       >
-        <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={styles.sheetContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.sheetContent}>
           <CalendarDayDetail
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
@@ -564,8 +560,8 @@ export default function CalendarScreen() {
             t={t}
             tokens={tokens}
           />
-        </ScrollView>
-      </BottomSheetModal>
+        </View>
+      </Sheet>) : null}
     </SafeAreaView>
   );
 }

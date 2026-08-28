@@ -10,7 +10,7 @@ import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
 import { GoalsView } from '@/components/goals/goals-view'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { TodayHeader, TodayTabs, TodayDateNavigation, TodayUtilityRow } from './today-shell'
@@ -21,6 +21,7 @@ import {
   TodayHabitsListShell,
 } from './today-sections'
 import type { TodayView } from './use-today-page'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const { nav, currentActiveView } = view
@@ -170,16 +171,17 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         ) : null}
       </AnimatePresence>
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={selection.showBulkDeleteConfirm}
-        onOpenChange={selection.setShowBulkDeleteConfirm}
         title={t('habits.bulkDeleteTitle')}
-        description={plural(t('habits.bulkDeleteMessage', { count }), count)}
+        message={plural(t('habits.bulkDeleteMessage', { count }), count)}
         confirmLabel={t('habits.bulkDeleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={() => void selection.confirmBulkDelete()}
+        destructive
         onCancel={() => selection.setShowBulkDeleteConfirm(false)}
+        onConfirm={() => {
+          selection.setShowBulkDeleteConfirm(false)
+          void selection.confirmBulkDelete()
+        }}
       />
 
       <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />

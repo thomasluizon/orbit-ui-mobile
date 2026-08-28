@@ -24,4 +24,16 @@ describe('FieldInput', () => {
     expect(input).not.toHaveAttribute('aria-invalid')
     expect(input).not.toHaveAttribute('aria-describedby')
   })
+
+  it('keeps the native input inside the single focus-ring well', () => {
+    render(<FieldInput ariaLabel="Search" value="A long value" onChange={() => {}} />)
+    const input = screen.getByRole('textbox', { name: 'Search' })
+    const well = input.parentElement
+
+    expect(input.style.border).toBe('0px')
+    expect(input.style.minWidth).toBe('0px')
+    expect(input.style.outline).toBe('none')
+    expect(input.style.width).toBe('0px')
+    expect(well).toHaveClass('min-w-0', 'w-full', 'max-w-full', 'focus-within:shadow-[inset_0_0_0_2px_var(--primary)]')
+  })
 })

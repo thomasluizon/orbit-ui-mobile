@@ -6,6 +6,7 @@ import { buildWeekStartOptions } from '@orbit/shared/utils'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
+import { useSheetHost } from '@/components/ui/sheet'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { createTokensV2 } from '@/lib/theme'
 import { AppBar } from '@/components/ui/app-bar'
@@ -22,6 +23,7 @@ import {
 export default function PreferencesScreen() {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
+  const { sheetRef, closeSheet } = useSheetHost()
   const {
     profile,
     currentScheme,
@@ -34,9 +36,8 @@ export default function PreferencesScreen() {
     handleSchemeChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
-    runPickerExitAction,
     weekStartMutation,
-  } = usePreferenceControls()
+  } = usePreferenceControls(closeSheet)
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -107,7 +108,7 @@ export default function PreferencesScreen() {
     weekStart: t('settings.weekStartDay.description'),
   }
 
-  function closePicker() {
+  function hidePicker() {
     setActivePicker(null)
   }
 
@@ -181,8 +182,9 @@ export default function PreferencesScreen() {
         weekStartDay={profile?.weekStartDay}
         themeModeOptions={themeModeOptions}
         weekStartOptions={weekStartOptions}
-        onClose={closePicker}
-        onDidDismiss={runPickerExitAction}
+        sheetRef={sheetRef}
+        closePicker={closeSheet}
+        onHidden={hidePicker}
         onLanguageChange={(locale) => {
           void handleLanguageChange(locale)
         }}

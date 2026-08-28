@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -19,6 +19,7 @@ const mockHabitsData = {
 }
 const logHabitMutateAsync = vi.fn()
 const skipHabitMutateAsync = vi.fn()
+const deleteHabitMutateAsync = vi.fn()
 const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
@@ -72,7 +73,7 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
   useSkipHabit: () => ({ mutateAsync: skipHabitMutateAsync, isPending: false }),
-  useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReorderHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -149,6 +150,7 @@ vi.mock('@/components/habits/habit-row', () => ({
       onForceLogParent?: () => void
       onLog?: () => void
       onSkip?: () => void
+      onDelete?: () => void
       onEdit?: () => void
       onToggleSelection?: () => void
     }
@@ -169,6 +171,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       </span>
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
+      </button>
+      <button data-testid={`delete-${habit.id}`} onClick={actions?.onDelete}>
+        delete
       </button>
       <button data-testid={`skip-${habit.id}`} onClick={actions?.onSkip}>
         skip
@@ -225,38 +230,8 @@ vi.mock('@/components/habits/log-habit-modal', () => ({
   LogHabitModal: () => null,
 }))
 
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: ({
-    open,
-    title,
-    description,
-    onConfirm,
-    onCancel,
-  }: {
-    open: boolean
-    title: string
-    description: string
-    onConfirm: () => void
-    onCancel: () => void
-  }) =>
-    open ? (
-      <div data-testid={`confirm-dialog-${title}`}>
-        <span>{title}</span>
-        <span>{description}</span>
-        <button data-testid={`confirm-action-${title}`} onClick={onConfirm}>
-          confirm
-        </button>
-        <button data-testid={`cancel-action-${title}`} onClick={onCancel}>
-          cancel
-        </button>
-      </div>
-    ) : null,
-}))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div data-testid="app-overlay">{children}</div> : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -337,6 +312,7 @@ describe('HabitList', () => {
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     skipHabitMutateAsync.mockReset()
+    deleteHabitMutateAsync.mockReset()
     toggleSelectionSpy.mockReset()
     logHabitMutateAsync.mockReset()
     logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
@@ -678,7 +654,7 @@ describe('HabitList', () => {
       await pendingLog
     })
   })
-  it('opens a force-log confirmation before logging an incomplete parent', () => {
+  it('force-logs an incomplete parent immediately', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -697,16 +673,15 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
-    fireEvent.click(screen.getByTestId('force-log-parent'))
-
-    expect(screen.getByTestId('confirm-dialog-habits.forceLogTitle')).toBeDefined()
-
-    fireEvent.click(screen.getByTestId('confirm-action-habits.forceLogTitle'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('force-log-parent'))
+    })
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(screen.queryByRole('dialog', { name: 'habits.forceLogTitle' })).toBeNull()
   })
 
-  it('prompts the next parent after force-logging its final unresolved child', async () => {
+  it('settles the next parent after force-logging its final unresolved child', async () => {
     const grandparent = createMockHabit({ id: 'grandparent', title: 'Grandparent', hasSubHabits: true, scheduledDates: [TODAY], instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'grandparent', hasSubHabits: true, scheduledDates: [TODAY] })
     const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', isCompleted: true, scheduledDates: [TODAY] })
@@ -715,15 +690,15 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(child.id, [grandchild.id])
     mockHabitsData.topLevelHabits = [grandparent]
     renderWithProviders(<HabitList filters={defaultFilters} />)
-    fireEvent.click(screen.getByTestId('force-log-child'))
     await act(async () => {
-      fireEvent.click(screen.getByTestId('confirm-action-habits.forceLogTitle'))
+      fireEvent.click(screen.getByTestId('force-log-child'))
     })
 
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Grandparent"})')).toBeDefined()
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
   })
 
-  it('prompts the parent immediately when the last child is marked completed', () => {
+  it('settles the parent immediately when the last child is marked completed', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -746,15 +721,15 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
-    act(() => {
+    await act(async () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
-  it('prompts the parent when the final child is logged before the snapshot reflects its completion', () => {
+  it('settles the parent when the final child is logged before the snapshot reflects its completion', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -784,15 +759,15 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
-    act(() => {
+    await act(async () => {
       ref.current?.markRecentlyCompleted('child-b')
       ref.current?.checkAndPromptParentLog('child-b')
     })
 
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
-  it('opens the parent prompt exactly once for a burst of sibling completions', () => {
+  it('settles the parent exactly once for a burst of sibling completions', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -829,18 +804,16 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
-    act(() => {
+    await act(async () => {
       ref.current?.checkAndPromptParentLog('child-a')
       ref.current?.checkAndPromptParentLog('child-b')
       ref.current?.checkAndPromptParentLog('child-c')
     })
 
-    expect(
-      screen.getAllByText('habits.autoLogParentMessage({"name":"Parent"})'),
-    ).toHaveLength(1)
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(1)
   })
 
-  it('preserves dismissed prompts through refetches until progress becomes incomplete', () => {
+  it('deduplicates parent settlement through refetches until progress becomes incomplete', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
     mockHabitsData.habitsById.set(parent.id, parent)
@@ -852,21 +825,21 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
     const refetch = (isCompleted = true) => {
       mockHabitsData.habitsById.set(child.id, { ...child, isCompleted })
+      mockHabitsData.habitsById.set(parent.id, { ...parent, isCompleted: false })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     }
-    act(() => ref.current?.checkAndPromptParentLog('child'))
-    fireEvent.click(screen.getByTestId('cancel-action-habits.autoLogParentTitle'))
+    await act(async () => ref.current?.checkAndPromptParentLog('child'))
     refetch()
-    act(() => ref.current?.checkAndPromptParentLog('child'))
-    expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
+    await act(async () => ref.current?.checkAndPromptParentLog('child'))
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(1)
     refetch(false)
     refetch()
-    act(() => ref.current?.checkAndPromptParentLog('child'))
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+    await act(async () => ref.current?.checkAndPromptParentLog('child'))
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(2)
   })
 
-  it('prompts an overdue parent when the last child is marked completed', () => {
+  it('settles an overdue parent when the last child is marked completed', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -891,12 +864,12 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
-    act(() => {
+    await act(async () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
   it('does not prompt a parent that is only due in the future', () => {
@@ -931,7 +904,7 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
   })
 
-  it('re-prompts the next ancestor after confirming an auto-log parent action', async () => {
+  it('settles the next ancestor after auto-logging a parent', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',
       title: 'Grandparent',
@@ -963,18 +936,12 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
-    act(() => {
+    await act(async () => {
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('confirm-action-habits.autoLogParentTitle'))
-    })
-
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-    expect(screen.getByText('habits.autoLogParentMessage({"name":"Grandparent"})')).toBeDefined()
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
   })
 
   it('does not prompt the parent while an overdue sub-habit is still unresolved', () => {
@@ -1017,7 +984,7 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
   })
 
-  it('prompts to skip the parent once every sub-habit is skipped', async () => {
+  it('skips the parent immediately once every sub-habit is skipped', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1044,38 +1011,20 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(parent.id, [childA.id, childB.id])
     mockHabitsData.topLevelHabits = [parent]
 
-    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-a'))
-      await Promise.resolve()
     })
-
-    expect(screen.queryByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeNull()
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-b'))
-      await Promise.resolve()
     })
 
-    expect(screen.getByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeDefined()
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
-
-    fireEvent.click(screen.getByTestId('cancel-action-habits.autoSkipParentTitle'))
-    rendered.rerenderWithProviders(
-      <HabitList filters={defaultFilters} view="all" selectedDate={new Date(`${TOMORROW}T12:00:00Z`)} />,
-    )
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('skip-child-b'))
-      await Promise.resolve()
-    })
-    expect(screen.queryByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeNull()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('skip-child-a'))
-      await Promise.resolve()
-    })
-    expect(screen.getByText('habits.autoSkipParentMessage({"name":"Parent"})')).toBeDefined()
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
   it('stores drill edit onSaved callback without invoking refresh eagerly', () => {
@@ -1205,6 +1154,36 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
   })
 
+  /**
+   * Ticket #42 is the product authority: a confirmation belongs to an
+   * irreversible act only. Skipping is reversible, so it acts on one press;
+   * deleting is not, so it asks first.
+   */
+  it('skips on one press but asks before the irreversible delete', async () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Stretch' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('skip-h-1'))
+    })
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1' })
+    expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('delete-h-1'))
+    })
+    expect(deleteHabitMutateAsync).not.toHaveBeenCalled()
+
+    const confirmation = screen.getByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    await act(async () => {
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'common.delete' }))
+    })
+    expect(deleteHabitMutateAsync).toHaveBeenCalledWith('h-1')
+  })
+
   it('skips an overdue habit with no date immediately', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
@@ -1220,7 +1199,6 @@ describe('HabitList', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-overdue-1'))
-      await Promise.resolve()
     })
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })

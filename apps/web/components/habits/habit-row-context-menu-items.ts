@@ -1,5 +1,11 @@
 import type { HabitCardTranslationAdapter } from '@orbit/shared/utils'
-import type { ContextMenuItem } from '@/components/ui/context-menu'
+
+export interface HabitRowContextAction {
+  id: string
+  label: string
+  onRun: () => void
+  destructive?: boolean
+}
 
 interface BuildHabitRowContextMenuItemsParams {
   selectMode: boolean
@@ -30,25 +36,25 @@ export function buildHabitRowContextMenuItems({
   onAddSubHabit,
   onDelete,
   t,
-}: BuildHabitRowContextMenuItemsParams): ContextMenuItem[] {
+}: BuildHabitRowContextMenuItemsParams): HabitRowContextAction[] {
   if (selectMode) return []
   return [
     onLog && !isDone && canLog
-      ? { key: 'log', label: t('contextMenu.log'), onSelect: onLog }
+      ? { id: 'log', label: t('contextMenu.log'), onRun: onLog }
       : null,
-    onSkip ? { key: 'skip', label: t('contextMenu.skip'), onSelect: onSkip } : null,
+    onSkip ? { id: 'skip', label: t('contextMenu.skip'), onRun: onSkip } : null,
     onDetail
-      ? { key: 'viewDetails', label: t('contextMenu.viewDetails'), onSelect: onDetail }
+      ? { id: 'viewDetails', label: t('contextMenu.viewDetails'), onRun: onDetail }
       : null,
-    onEdit ? { key: 'edit', label: t('contextMenu.edit'), onSelect: onEdit } : null,
+    onEdit ? { id: 'edit', label: t('contextMenu.edit'), onRun: onEdit } : null,
     onDuplicate
-      ? { key: 'duplicate', label: t('contextMenu.duplicate'), onSelect: onDuplicate }
+      ? { id: 'duplicate', label: t('contextMenu.duplicate'), onRun: onDuplicate }
       : null,
     onAddSubHabit
-      ? { key: 'addSubHabit', label: t('contextMenu.addSubHabit'), onSelect: onAddSubHabit }
+      ? { id: 'addSubHabit', label: t('contextMenu.addSubHabit'), onRun: onAddSubHabit }
       : null,
     onDelete
-      ? { key: 'delete', label: t('contextMenu.delete'), onSelect: onDelete, danger: true }
+      ? { id: 'delete', label: t('contextMenu.delete'), onRun: onDelete, destructive: true }
       : null,
-  ].filter((item): item is ContextMenuItem => item !== null)
+  ].filter((item): item is HabitRowContextAction => item !== null)
 }

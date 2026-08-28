@@ -20,7 +20,7 @@ import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -41,6 +41,7 @@ interface TourReplayModalProps {
 
 export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -74,14 +75,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
     }
   }, [visible])
 
-  const handleReplayAll = useCallback(async () => {
-    onClose()
-
-    try {
-      await apiClient(API.profile.tour, { method: 'DELETE' })
-    } catch {
-    }
-
+  const resetTourProgress = useCallback(async () => {
     queryClient.setQueryData(
       profileKeys.detail(),
       (old: Profile | undefined) => {
@@ -90,31 +84,39 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
       },
     )
 
-    startFullTour()
-  }, [onClose, queryClient, startFullTour])
+    try {
+      await apiClient(API.profile.tour, { method: 'DELETE' })
+    } catch {
+    }
+  }, [queryClient])
+
+  const handleReplayAll = useCallback(() => {
+    closeSheet(() => {
+      onClose()
+      void resetTourProgress()
+      startFullTour()
+    })
+  }, [closeSheet, onClose, resetTourProgress, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
-      onClose()
-      startSectionReplay(section)
+      closeSheet(() => {
+        onClose()
+        startSectionReplay(section)
+      })
     },
-    [onClose, startSectionReplay],
+    [closeSheet, onClose, startSectionReplay],
   )
 
   return (
-    <BottomSheetModal
-      open={visible}
+    visible ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
       title={t('tour.replay.modalTitle')}
-      snapPoints={['80%']}
     >
       <View style={styles.body}>
-        <PillButton
-
-          onClick={() => void handleReplayAll()}
-
-
-        >
+        <PillButton onClick={handleReplayAll}>
           {t('tour.replay.replayAll')}
         </PillButton>
 
@@ -159,7 +161,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
           })}
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

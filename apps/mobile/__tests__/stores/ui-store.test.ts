@@ -39,15 +39,26 @@ vi.mock("@/hooks/use-tour-mock-data", () => ({
 vi.mock("@/components/ui/icons", () => {
   const Icon = () => null;
   return {
+    AdjustmentsHorizontal: Icon,
+    AlertTriangle: Icon,
+    ArrowLeft: Icon,
     Check: Icon,
     CheckCircle2: Icon,
+    ChevronLeft: Icon,
+    ChevronRight: Icon,
     ChevronsDownUp: Icon,
     ChevronsUpDown: Icon,
     Eye: Icon,
     Filter: Icon,
+    Home: Icon,
+    Minus: Icon,
     MoreVertical: Icon,
+    Plus: Icon,
     RefreshCw: Icon,
     Search: Icon,
+    Snowflake: Icon,
+    Target: Icon,
+    WifiOff: Icon,
     X: Icon,
   };
 });
@@ -169,9 +180,7 @@ describe("mobile ui store", () => {
             isFetching: false,
             allCollapsed: false,
             showControlsMenu: false,
-            controlsMenuAnchorRect: null,
             showFreqMenu: false,
-            freqMenuAnchorRect: null,
             controlsButtonRef:
               React.createRef<import("react-native").View | null>(),
             freqMenuButtonRef:

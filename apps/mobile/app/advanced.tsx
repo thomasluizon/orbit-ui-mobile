@@ -25,7 +25,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { useApiKeyManagement } from './advanced-api-keys'
 import {
   ApiKeysSection,
@@ -33,6 +33,7 @@ import {
   WidgetInfoSheet,
 } from '@/components/profile/advanced-sections'
 import { styles, type Tokens } from './advanced-styles'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 function sectionEntrance(index: number) {
   return FadeInDown.duration(280)
@@ -188,17 +189,17 @@ export default function AdvancedScreen() {
         tokens={tokens}
       />
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={revokingKeyId !== null}
-        onOpenChange={(open) => {
-          if (!open) setRevokingKeyId(null)
-        }}
         title={t('orbitMcp.revoke')}
-        description={t('orbitMcp.revokeConfirm')}
+        message={t('orbitMcp.revokeConfirm')}
         cancelLabel={t('orbitMcp.cancel')}
         confirmLabel={t('orbitMcp.confirm')}
+        destructive
+        onCancel={() => setRevokingKeyId(null)}
         onConfirm={() => {
           if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+          setRevokingKeyId(null)
         }}
       />
 

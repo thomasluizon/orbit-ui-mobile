@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native'
@@ -9,9 +8,10 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Expand } from '@/components/ui/icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -22,7 +22,6 @@ import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
 import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
 import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { createDrawerStyles } from './habit-detail-drawer/styles'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
@@ -96,12 +95,7 @@ function HabitDetailContent({
 }: Readonly<HabitDetailContentProps>) {
   const { t } = useTranslation()
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="always"
-    >
+    <View style={withDrawerContentInset(styles.scrollContent)}>
       <HabitDetailHeader
         habit={habit}
         tokens={tokens}
@@ -210,7 +204,7 @@ function HabitDetailContent({
         askPrompt={askPrompt}
         onPress={onAskAstra}
       />
-    </ScrollView>
+    </View>
   )
 }
 
@@ -255,7 +249,7 @@ export function HabitDetailDrawer({
     useState(false)
 
   const router = useRouter()
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const askPrompt = useMemo(() => {
     if (!habit) return ''
     return habit.checklistItems.length > 0
@@ -270,9 +264,11 @@ export function HabitDetailDrawer({
         ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
         : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
-    scheduleExitAction(() => router.push('/chat'))
-    onClose()
-  }, [habit, onClose, router, scheduleExitAction, t])
+    closeSheet(() => {
+      onClose()
+      router.push('/chat')
+    })
+  }, [closeSheet, habit, onClose, router, t])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -309,6 +305,24 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
+  const confirmChecklistLog = useCallback(async () => {
+    if (!habit) return
+    setShowChecklistCompleteConfirm(false)
+    try {
+      await logHabit.mutateAsync({ habitId: habit.id })
+      onLogged?.(habit.id)
+    } catch (error: unknown) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          (key, values) => t(key, values),
+          'errors.logHabit',
+          'habit',
+        ),
+      )
+    }
+  }, [habit, logHabit, onLogged, showError, t])
+
   const summaryStrip = useMemo(() => {
     if (!habit) return ''
     return formatHabitDetailSummary({
@@ -332,58 +346,31 @@ export function HabitDetailDrawer({
         />
       ) : null}
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={showChecklistCompleteConfirm}
-        onOpenChange={setShowChecklistCompleteConfirm}
         title={t('habits.checklistCompleteTitle')}
-        description={t('habits.checklistCompleteMessage', {
-          name: habit?.title ?? '',
-        })}
+        message={t('habits.checklistCompleteMessage', { name: habit?.title ?? '' })}
         confirmLabel={t('habits.checklistCompleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="success"
-        onConfirm={() => {
-          void (async () => {
-          if (!habit) return
-          try {
-            await logHabit.mutateAsync({ habitId: habit.id })
-            onLogged?.(habit.id)
-          } catch (error: unknown) {
-            showError(
-              getFriendlyErrorMessage(
-                error,
-                (key, values) => t(key, values),
-                'errors.logHabit',
-                'habit',
-              ),
-            )
-          } finally {
-            setShowChecklistCompleteConfirm(false)
-          }
-          })()
-        }}
+        onCancel={() => setShowChecklistCompleteConfirm(false)}
+        onConfirm={() => void confirmChecklistLog()}
       />
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={showChecklistClearConfirm}
-        onOpenChange={setShowChecklistClearConfirm}
         title={t('habits.checklistClearTitle')}
-        description={t('habits.checklistClearMessage')}
+        message={t('habits.checklistClearMessage')}
         confirmLabel={t('habits.form.clearChecklist')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={confirmChecklistClear}
+        destructive
         onCancel={() => setShowChecklistClearConfirm(false)}
+        onConfirm={confirmChecklistClear}
       />
 
-      <BottomSheetModal
-        open={open}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
         onClose={onClose}
-        onDidDismiss={runExitAction}
         title={habit?.title}
-        contentKey={habitId}
-        snapPoints={['68%', '92%']}
-        contentManagesScroll
+        key={habitId}
       >
         {habit ? (
           <HabitDetailContent
@@ -405,7 +392,7 @@ export function HabitDetailDrawer({
             onAskAstra={handleAskAstra}
           />
         ) : null}
-      </BottomSheetModal>
+      </Sheet>) : null}
     </>
   )
 }

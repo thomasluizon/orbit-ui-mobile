@@ -4,9 +4,10 @@ import { plural } from "@/lib/plural";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 interface TodayModalsProps {
   showCreateModal: boolean;
@@ -80,17 +81,17 @@ export function TodayModals({
         parentIsGeneral={editHabitParentIsGeneral}
       />
 
-      <ConfirmDialog
+      <ConfirmSheet
         open={showBulkDeleteConfirm}
-        onOpenChange={onBulkDeleteOpenChange}
         title={t("habits.bulkDeleteTitle")}
-        description={plural(
-          t("habits.bulkDeleteMessage", { count: selectedCount }),
-          selectedCount,
-        )}
+        message={plural(t("habits.bulkDeleteMessage", { count: selectedCount }), selectedCount)}
         confirmLabel={t("habits.bulkDeleteConfirm")}
-        onConfirm={onConfirmBulkDelete}
-        variant="danger"
+        destructive
+        onCancel={() => onBulkDeleteOpenChange(false)}
+        onConfirm={() => {
+          onBulkDeleteOpenChange(false)
+          onConfirmBulkDelete()
+        }}
       />
 
       <CreateGoalModal open={showCreateGoalModal} onClose={onCloseCreateGoal} />

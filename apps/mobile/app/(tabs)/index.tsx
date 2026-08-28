@@ -44,7 +44,7 @@ import { DismissibleCard } from "@/components/today/dismissible-card";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReferralCard } from "@/components/referral/referral-card";
 import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
-import { useAnchoredMenu } from "@/components/ui/anchored-menu";
+import { useAnchoredMenu } from "@/components/ui/menu";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useEngagementSlot } from "@/hooks/use-engagement-slot";
@@ -116,14 +116,12 @@ export default function TodayScreen() {
   const {
     anchorRef: controlsButtonRef,
     visible: showControlsMenu,
-    anchorRect: controlsMenuAnchorRect,
     close: closeControlsMenu,
     toggle: toggleControlsMenu,
   } = useAnchoredMenu();
   const {
     anchorRef: freqMenuButtonRef,
     visible: showFreqMenu,
-    anchorRect: freqMenuAnchorRect,
     close: closeFreqMenu,
     toggle: toggleFreqMenu,
   } = useAnchoredMenu();
@@ -539,9 +537,7 @@ export default function TodayScreen() {
         isFetching={habitsQuery.isFetching}
         allCollapsed={habitListAllCollapsed}
         showControlsMenu={showControlsMenu}
-        controlsMenuAnchorRect={controlsMenuAnchorRect}
         showFreqMenu={showFreqMenu}
-        freqMenuAnchorRect={freqMenuAnchorRect}
         controlsButtonRef={controlsButtonRef}
         freqMenuButtonRef={freqMenuButtonRef}
         filtersAnimatedStyle={filtersAnimatedStyle}
@@ -564,7 +560,6 @@ export default function TodayScreen() {
       />
     ),
     [
-      controlsMenuAnchorRect,
       controlsButtonRef,
       currentActiveView,
       dateLabel,
@@ -607,7 +602,6 @@ export default function TodayScreen() {
       swipeGesture,
       tags,
       toggleTagFilter,
-      freqMenuAnchorRect,
       showFreqMenu,
     ],
   );
