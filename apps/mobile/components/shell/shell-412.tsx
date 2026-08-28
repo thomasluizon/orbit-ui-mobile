@@ -24,48 +24,52 @@ export function Shell412(props: Readonly<Shell412Props>) {
       className="flex-1 overflow-hidden"
       style={{ backgroundColor: tokens.bg }}
     >
-      {props.header !== undefined ? (
-        <View testID="shell-header">{props.header}</View>
-      ) : null}
-
       <View
-        testID="shell-scroller"
+        testID="shell-background"
         className="flex-1"
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
-        {props.children}
-      </View>
+        {props.header !== undefined ? (
+          <View testID="shell-header">{props.header}</View>
+        ) : null}
 
-      {hasBottomChrome ? (
-        <View
-          testID="shell-bottom"
-          style={[
-            styles.bottomChrome,
-            {
-              backgroundColor: tokens.bg,
-              borderTopColor: tokens.hairline,
-              paddingBottom: insets.bottom,
-            },
-          ]}
-        >
-          {props.notice !== undefined ? (
-            <View testID="shell-notice">{props.notice}</View>
-          ) : null}
-          <View style={styles.destinationBottom}>
-            {pinnedSlot !== undefined ? (
-              <View testID="shell-pinned-slot">{pinnedSlot}</View>
-            ) : null}
-            {navigationEnabled ? (
-              <View testID="shell-tab-bar">{props.tabBar}</View>
-            ) : null}
-            {props.fab !== undefined ? (
-              <View testID="shell-fab" style={styles.fab}>
-                {props.fab}
-              </View>
-            ) : null}
-          </View>
+        <View testID="shell-scroller" className="flex-1">
+          {props.children}
         </View>
-      ) : null}
+
+        {hasBottomChrome ? (
+          <View
+            testID="shell-bottom"
+            style={[
+              styles.bottomChrome,
+              {
+                backgroundColor: tokens.bg,
+                borderTopColor: tokens.hairline,
+                paddingBottom: insets.bottom,
+              },
+            ]}
+          >
+            {props.notice !== undefined ? (
+              <View testID="shell-notice">{props.notice}</View>
+            ) : null}
+            <View style={styles.destinationBottom}>
+              {pinnedSlot !== undefined ? (
+                <View testID="shell-pinned-slot">{pinnedSlot}</View>
+              ) : null}
+              {navigationEnabled ? (
+                <View testID="shell-tab-bar">{props.tabBar}</View>
+              ) : null}
+              {props.fab !== undefined ? (
+                <View testID="shell-fab" style={styles.fab}>
+                  {props.fab}
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {props.sheets}
+      </View>
 
       {conversationOpen ? (
         <View
@@ -78,8 +82,6 @@ export function Shell412(props: Readonly<Shell412Props>) {
           {props.conversation}
         </View>
       ) : null}
-
-      {props.sheets}
     </View>
   )
 }

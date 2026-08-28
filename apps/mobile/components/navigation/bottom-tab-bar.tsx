@@ -14,7 +14,7 @@ type IconComponent = ComponentType<{
 }>
 
 interface BottomTabBarProps {
-  active: BottomTabId
+  active: BottomTabId | null
   onTab: (id: BottomTabId) => void
 }
 

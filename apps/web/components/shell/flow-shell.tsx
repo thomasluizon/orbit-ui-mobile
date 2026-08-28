@@ -9,14 +9,24 @@ interface FlowShellProps {
   nav?: false
   action?: ReactNode
   children: ReactNode
+  mode?: 'card' | 'full'
   notice?: ReactNode
 }
 
-export function FlowShell({ action, children, notice }: Readonly<FlowShellProps>) {
+export function FlowShell({ action, children, mode = 'card', notice }: Readonly<FlowShellProps>) {
   const wide = useIsWideDesktop()
+  if (mode === 'full') {
+    return (
+      <div data-shell="flow" data-flow-mode="full" className="h-dvh min-h-dvh w-full overflow-hidden">
+        {children}
+      </div>
+    )
+  }
+
   const content = (
     <div
       data-shell="flow"
+      data-flow-mode="card"
       data-nav={false}
       className="mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 md:justify-center md:px-0"
     >

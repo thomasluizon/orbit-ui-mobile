@@ -42,4 +42,12 @@ describe('FlowShell', () => {
     expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-nav', 'false')
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
+
+  it('gives chat a full-width definite-height flow instead of the card', () => {
+    render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
+
+    expect(screen.getByText('Conversation').parentElement).toHaveAttribute('data-flow-mode', 'full')
+    expect(screen.queryByTestId('compact-flow')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
+  })
 })

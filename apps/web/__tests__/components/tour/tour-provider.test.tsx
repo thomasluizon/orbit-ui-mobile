@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
+import {
+  ShellScrollerProvider,
+  useShellScrollerRegistration,
+} from '@/components/shell/shell-scroller-context'
 
 const mockRouterPush = vi.fn()
 let mockPathname = '/'
@@ -25,6 +29,23 @@ vi.mock('@/hooks/use-tour-mock-data', () => ({
 }))
 
 import { TourProvider } from '@/components/tour/tour-provider'
+
+function TourHarness() {
+  const registerScroller = useShellScrollerRegistration()
+  return (
+    <div ref={registerScroller} data-testid="tour-shell-scroller">
+      <TourProvider />
+    </div>
+  )
+}
+
+function renderTourProvider() {
+  return render(
+    <ShellScrollerProvider>
+      <TourHarness />
+    </ShellScrollerProvider>,
+  )
+}
 
 function stubMatchMedia(matches: boolean) {
   Object.defineProperty(window, 'matchMedia', {
@@ -71,7 +92,7 @@ describe('TourProvider step routing', () => {
 
   it('routes the profile-retrospective step to /profile at the desktop breakpoint', () => {
     stubMatchMedia(true)
-    render(<TourProvider />)
+    renderTourProvider()
 
     advanceToRetrospectiveStep()
 
@@ -81,7 +102,7 @@ describe('TourProvider step routing', () => {
 
   it('keeps the profile-retrospective step on /profile at phone widths', () => {
     stubMatchMedia(false)
-    render(<TourProvider />)
+    renderTourProvider()
 
     advanceToRetrospectiveStep()
 
@@ -91,7 +112,7 @@ describe('TourProvider step routing', () => {
 
   it('keeps other profile steps on /profile at the desktop breakpoint', () => {
     stubMatchMedia(true)
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('profile')
@@ -116,7 +137,7 @@ describe('TourProvider session lifecycle', () => {
   })
 
   it('injects tour mock data on activation and restores it when the tour ends', () => {
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('habits')
@@ -131,7 +152,7 @@ describe('TourProvider session lifecycle', () => {
 
   it('restores an active search after the tour ends', () => {
     useUIStore.setState({ searchQuery: 'focus' })
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('habits')
@@ -145,7 +166,7 @@ describe('TourProvider session lifecycle', () => {
   })
 
   it('remeasures the spotlight target on scroll while the tour is active', async () => {
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('habits')
@@ -162,7 +183,7 @@ describe('TourProvider session lifecycle', () => {
     })
 
     await act(async () => {
-      window.dispatchEvent(new Event('scroll'))
+      screen.getByTestId('tour-shell-scroller').dispatchEvent(new Event('scroll'))
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     })
 

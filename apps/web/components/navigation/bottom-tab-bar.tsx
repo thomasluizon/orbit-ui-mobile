@@ -18,7 +18,7 @@ interface BottomTabDefinition {
 }
 
 interface BottomTabBarProps {
-  active: BottomTab
+  active: BottomTab | null
   labels: Record<BottomTab, string>
   navLabel: string
   onTab: (id: BottomTab) => void

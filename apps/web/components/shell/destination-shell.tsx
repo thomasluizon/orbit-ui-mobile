@@ -4,6 +4,7 @@ import { useCallback, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
+import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
@@ -29,13 +30,6 @@ const ROUTES: Record<BottomTab, string> = {
   perfil: '/profile',
 }
 
-function resolveDestination(pathname: string): BottomTab {
-  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendario'
-  if (pathname === '/progress' || pathname.startsWith('/progress/')) return 'progresso'
-  if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'perfil'
-  return 'hoje'
-}
-
 function hasPrimaryNavigation(pathname: string): boolean {
   return pathname !== '/upgrade'
 }
@@ -52,10 +46,10 @@ export function DestinationShell({
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
-  const destination = resolveDestination(pathname)
+  const destination = resolveShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
 
-  useKeyboardShortcuts()
+  useKeyboardShortcuts(navigationEnabled)
 
   const labels = useMemo<Record<BottomTab, string>>(
     () => ({
@@ -121,12 +115,7 @@ export function DestinationShell({
         {children}
       </Shell412>
     )
-    return (
-      <>
-        {flow}
-        {palette}
-      </>
-    )
+    return flow
   }
 
   if (wide) {

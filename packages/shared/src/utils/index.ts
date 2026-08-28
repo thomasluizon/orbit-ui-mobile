@@ -45,6 +45,14 @@ export {
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
+export {
+  resolveShellDestination,
+  SHELL_DESTINATION_ROUTES,
+} from './shell-destinations'
+export type {
+  ShellDestinationId,
+  ShellDestinationRoute,
+} from './shell-destinations'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {

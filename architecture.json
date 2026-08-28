@@ -2829,6 +2829,10 @@
       },
       {
         "from": "apps/web/lib",
+        "to": "apps/web/components"
+      },
+      {
+        "from": "apps/web/lib",
         "to": "apps/web/stores"
       },
       {
@@ -17230,6 +17234,7 @@
         "apps/web/__tests__/components/shell/destination-shell.test.tsx",
         "apps/web/__tests__/components/shell/flow-shell.test.tsx",
         "apps/web/__tests__/components/shell/shell-412.test.tsx",
+        "apps/web/__tests__/components/shell/shell-scroller-context.test.tsx",
         "apps/web/__tests__/components/shell/shell-wide.test.tsx",
         "apps/web/__tests__/components/status-dot-fill.test.ts",
         "apps/web/__tests__/components/today/setup-checklist-card.test.tsx",
@@ -17820,6 +17825,7 @@
         "packages/shared/src/__tests__/referral.test.ts",
         "packages/shared/src/__tests__/retrospective.test.ts",
         "packages/shared/src/__tests__/share-card.test.ts",
+        "packages/shared/src/__tests__/shell-destinations.test.ts",
         "packages/shared/src/__tests__/step-up.test.ts",
         "packages/shared/src/__tests__/streak-week.property.test.ts",
         "packages/shared/src/__tests__/streak-week.test.ts",

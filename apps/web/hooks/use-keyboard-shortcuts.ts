@@ -22,7 +22,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * the tab-switch transition. Chords are ignored while typing in a field or while an
  * overlay is open. The command palette rebuild owns the final destination shortcut set.
  */
-export function useKeyboardShortcuts(): void {
+export function useKeyboardShortcuts(enabled = true): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)
   const setActiveView = useUIStore((state) => state.setActiveView)
@@ -30,6 +30,8 @@ export function useKeyboardShortcuts(): void {
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
+
     function clearChord() {
       chordArmed.current = false
       if (chordTimer.current) {
@@ -91,5 +93,5 @@ export function useKeyboardShortcuts(): void {
       document.removeEventListener('keydown', onKeyDown)
       clearChord()
     }
-  }, [router, togglePalette, setActiveView])
+  }, [enabled, router, togglePalette, setActiveView])
 }
