@@ -679,6 +679,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--fg-4` track | right rail / Today | same |
 | HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+| BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
+| Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
 
 ## Overlay
 

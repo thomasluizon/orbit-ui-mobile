@@ -3,6 +3,14 @@
     "title": "Orbit - Personal Habit Tracker",
     "description": "Build better habits with AI-powered tracking and insights."
   },
+  "blockFrame": {
+    "status": {
+      "done": "Done",
+      "acting": "In progress",
+      "failed": "Failed"
+    },
+    "refresh": "Refresh"
+  },
   "settings": {
     "notifications": {
       "title": "Push Notifications",
