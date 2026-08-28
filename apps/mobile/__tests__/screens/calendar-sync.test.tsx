@@ -203,6 +203,9 @@ vi.mock("@/components/ui/section-label", () => ({
 vi.mock("@/components/ui/settings-row", () => ({
   SettingsRow: ({ label, accessory }: { label: string; accessory?: string }) =>
     React.createElement("SettingsRow", { accessory }, label),
+}));
+
+vi.mock("@/components/ui/switch", () => ({
   Switch: () => null,
 }));
 

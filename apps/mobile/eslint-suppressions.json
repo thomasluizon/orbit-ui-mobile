@@ -75,9 +75,6 @@
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "app/(tabs)/profile/_components/edit-name-sheet.tsx": {
@@ -174,9 +171,6 @@
   "app/advanced.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "app/ai-settings-sections.tsx": {
@@ -564,7 +558,7 @@
   },
   "components/habits/habit-checklist.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 4
@@ -911,11 +905,6 @@
       "count": 2
     }
   },
-  "components/ui/code-input.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/ui/create-api-key-modal.styles.ts": {
     "local/spacing-scale": {
       "count": 8
@@ -927,11 +916,6 @@
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/field-input.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/ui/fresh-start-animation.tsx": {
@@ -996,7 +980,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/ui/trial-banner.tsx": {

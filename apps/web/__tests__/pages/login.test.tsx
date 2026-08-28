@@ -122,16 +122,12 @@ describe('LoginPage', () => {
     expect(container.firstChild).toHaveClass('min-[480px]:min-w-[22rem]')
   })
 
-  it('groups the verification code inputs and exposes one-time-code autocomplete', async () => {
+  it('renders one verification code input and exposes one-time-code autocomplete', async () => {
     render(<LoginPage />)
 
-    await waitFor(() => {
-      expect(screen.getByRole('group')).toBeInTheDocument()
-    })
-
-    const inputs = screen.getAllByRole('textbox')
-    expect(inputs).toHaveLength(6)
-    expect(inputs[0]).toHaveAttribute('autocomplete', 'one-time-code')
+    const input = await screen.findByRole('textbox', { name: 'auth.verificationCode' })
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    expect(input).toHaveAttribute('autocomplete', 'one-time-code')
   })
 
   it('resolves auth motion presets with the reduced-motion preference', () => {

@@ -16,7 +16,7 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
     React.createElement('TextInput', props),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
+vi.mock('@/components/ui/switch', () => ({
   Switch: (props: Record<string, unknown>) => React.createElement('Switch', props),
 }))
 
@@ -73,7 +73,7 @@ function press(tree: TestTree, node: TestNode) {
 }
 
 function buttons(tree: TestTree): TestNode[] {
-  return tree.root.findAll((node) => node.props?.accessibilityRole === 'button')
+  return tree.root.findAll((node) => node.props.accessibilityRole === 'button')
 }
 
 describe('ReminderSection', () => {
@@ -115,7 +115,7 @@ describe('ReminderSection', () => {
       (node) => descendantText(node) === 'habits.form.reminderAdd',
     )
     press(tree, addButton!)
-    const preset = HABIT_REMINDER_PRESETS[0]!
+    const preset = HABIT_REMINDER_PRESETS[0]
     const presetButton = buttons(tree).find(
       (node) => descendantText(node) === preset.key,
     )

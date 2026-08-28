@@ -297,7 +297,6 @@ export function HabitFormFields({
             selectedGoalIds={selectedGoalIds}
             atGoalLimit={atGoalLimit}
             onToggleGoal={onToggleGoal}
-            registerFlush={registerBufferedInputFlusher}
             setValue={setValue}
             styles={styles}
             sectionStyles={sectionStyles}

@@ -78,6 +78,15 @@ describe('mobile useLoginCodeEntry', () => {
     expect(harness.current.codeDigits).toEqual(['6', '5', '4', '3', '2', '1'])
   })
 
+  it('replaces the whole controlled value and clears trailing digits', async () => {
+    const harness = await renderLoginCodeEntry()
+
+    await act(() => harness.current.onCodeChange('123456'))
+    await act(() => harness.current.onCodeChange('92345'))
+
+    expect(harness.current.codeDigits).toEqual(['9', '2', '3', '4', '5', ''])
+  })
+
   it('resets digits to empty', async () => {
     const harness = await renderLoginCodeEntry()
 

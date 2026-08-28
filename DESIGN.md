@@ -85,11 +85,12 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
    in settings. See **The proactive line** below.
 
 **The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
-notifications, metrics and feature explanation. **Billing, API-key management and account deletion
-are not reachable from the chat surface.** They are the only step-up operations in the product, they
-are settings a person taps once, and an assistant that can sell a subscription contradicts the voice
-pillar "describe, never sell". They stay available on the MCP surface, where an external client asks
-for them deliberately.
+notifications, metrics and feature explanation. **API-key management and account deletion are not
+reachable from the chat surface.** They are the only two step-up operations in the product and are
+settings a person taps once. Billing is not a step-up operation because the Stripe customer portal
+authenticates the person itself. An assistant that can sell a subscription contradicts the voice
+pillar "describe, never sell". These settings stay available on the MCP surface, where an external
+client asks for them deliberately.
 
 ### The shell
 
@@ -664,16 +665,20 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | SectionTitle | Geist Sans 20/500 -0.01em | `ui/section-label.tsx` | `ui/section-label.tsx` |
 | ListRow | icon 24/1.5 in a 28px slot, title Geist Sans 17/400, desc 14 fg-3, value + trailing chevron 24 fg-4, **draws no rule of its own**, danger = status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
-| Switch | 48x28 pill, 22px thumb, on = primary / off = `rgba(fg,0.16)` | inside settings-row | inside settings-row |
+| Switch | 48x28 pill, 22px thumb, on = primary / off = `rgba(fg,0.16)` | `ui/switch.tsx` | `ui/switch.tsx` |
 | Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | **radius 8 chip, never a pill**, Geist Mono 10.5/500 +0.06em UPPERCASE, `text-box` trimmed; variants solid / outline | `ui/badge.tsx` | same |
 | PillButton | pill CTA, radius 999, 5 variants x 2 sizes off shared `BUTTON_SIZES`. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
 | StatTile | radius 20, `--bg-card` + inset hairline ring, value Space Grotesk 24/600 tabular held to one line, label 14/20 fg-2 clamped to 2 lines in a fixed reservation | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 20, selected = `--primary-dim` tint + inset 1.5px primary ring; price Space Grotesk 22/600 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 20, borderless tonal aside, **one tone**: `--bg-elev` with an fg-3 icon. There is no accent variant, because a static informational card is not one of the four accent roles | `ui/info-card.tsx` | same |
-| Field | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
+| Input | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2, single line or multiline | `ui/input.tsx` | `ui/input.tsx` |
+| OtpInput | 6 boxes over one real input, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/otp-input.tsx` | `ui/otp-input.tsx` |
+| Checkbox | 24px neutral completion box, error ring, distinct disabled and loading states, button or paint-only span | `ui/checkbox.tsx` | `ui/checkbox.tsx` |
+| CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
+| TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
+| DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
 | Composer | one input, 3 to 6 neutral suggestion chips, one filled send action, paired voice, image attachment and retry capabilities, state exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
-| OTP | 6 boxes, radius 12, `--bg-field`, active inset 2px primary, Geist Mono 26/500, `type="text" inputmode="numeric"`, `autocomplete="one-time-code"`, `spellcheck="false"`. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | neutral / working / done / lost; stable live region; only done self-dismisses, at 5000ms minimum; working draws three dots; done uses `--status-done`; text action only | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |

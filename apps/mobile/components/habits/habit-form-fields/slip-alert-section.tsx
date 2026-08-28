@@ -3,7 +3,7 @@ import { View, Text, Pressable } from "react-native";
 import { ShieldAlert } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { ProBadge } from "@/components/ui/pro-badge";
-import { Switch } from "@/components/ui/settings-row";
+import { Switch } from "@/components/ui/switch";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface SlipAlertSectionProps {
@@ -40,9 +40,9 @@ export function SlipAlertSection({
             </Text>
           </View>
           <Switch
-            on={slipAlertEnabled}
-            onToggle={onToggle}
-            accessibilityLabel={t("habits.form.slipAlert")}
+            checked={slipAlertEnabled}
+            onChange={onToggle}
+            label={t("habits.form.slipAlert")}
           />
         </View>
       ) : (

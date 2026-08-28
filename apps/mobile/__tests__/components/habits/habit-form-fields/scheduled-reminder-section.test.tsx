@@ -16,7 +16,7 @@ vi.mock('@/components/ui/time-field', () => ({
   TimeField: (props: Record<string, unknown>) => React.createElement('TimeField', props),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
+vi.mock('@/components/ui/switch', () => ({
   Switch: (props: Record<string, unknown>) => React.createElement('Switch', props),
 }))
 

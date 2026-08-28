@@ -3,7 +3,8 @@
 import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import type { PreferencePicker } from './preference-picker-sheet'
 import {
@@ -94,9 +95,9 @@ export function PreferenceSettingsList({
             divider={false}
           >
             <Switch
-              on={mounted && showGeneralOnToday}
-              onToggle={onToggleShowGeneral}
-              ariaLabel={t('settings.homeScreen.showGeneral')}
+              checked={mounted && showGeneralOnToday}
+              onChange={onToggleShowGeneral}
+              label={t('settings.homeScreen.showGeneral')}
             />
           </SettingsRow>
         </div>

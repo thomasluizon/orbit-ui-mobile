@@ -1,18 +1,18 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 
 const TestRenderer = require('react-test-renderer')
 
 describe('Switch', () => {
-  it('fires onToggle when pressed', () => {
-    const onToggle = vi.fn()
+  it('fires onChange with the next state when pressed', () => {
+    const onChange = vi.fn()
     let tree: any
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <Switch on={false} onToggle={onToggle} accessibilityLabel="Dark theme" />,
+        <Switch checked={false} onChange={onChange} label="Dark theme" />,
       )
     })
 
@@ -20,13 +20,13 @@ describe('Switch', () => {
       (node: any) => node.props.accessibilityRole === 'switch',
     )
     expect(control.props.accessibilityLabel).toBe('Dark theme')
-    expect(control.props.accessibilityState).toEqual({ checked: false, disabled: false })
+    expect(control.props.accessibilityState).toEqual({ checked: false })
 
     TestRenderer.act(() => {
       control.props.onPress()
     })
 
-    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(true)
   })
 
   it('exposes the on state as checked', () => {
@@ -34,13 +34,13 @@ describe('Switch', () => {
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <Switch on onToggle={() => {}} accessibilityLabel="Dark theme" />,
+        <Switch checked onChange={() => {}} label="Dark theme" />,
       )
     })
 
     const control = tree.root.find(
       (node: any) => node.props.accessibilityRole === 'switch',
     )
-    expect(control.props.accessibilityState).toEqual({ checked: true, disabled: false })
+    expect(control.props.accessibilityState).toEqual({ checked: true })
   })
 })
