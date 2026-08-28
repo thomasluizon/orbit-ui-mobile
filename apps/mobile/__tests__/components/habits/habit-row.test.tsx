@@ -80,6 +80,36 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('makes a read-only row dim and untappable', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Meditate' })} readOnly />,
+      )
+    })
+
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    expect(row.props.pointerEvents).toBe('none')
+    expect(row.props.accessibilityState).toEqual({ disabled: true })
+  })
+
+  it('uses a 500 ms still hold for selection', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          actions={{ onLongPressCard: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body).toBeDefined()
+  })
+
   it('announces the habit name with the state and log action', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -114,6 +144,28 @@ describe('HabitRow status control names (mobile)', () => {
           'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
       }),
     ).toBeDefined()
+  })
+
+  it('logs a parent with open children directly from its ring', () => {
+    const onLog = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Morning routine' })}
+          hasChildren
+          childrenDone={1}
+          childrenTotal={2}
+          actions={{ onLog }}
+        />,
+      )
+    })
+
+    const ring = renderer!.root.findByProps({
+      accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+    })
+    TestRenderer.act(() => ring.props.onPress())
+    expect(onLog).toHaveBeenCalledOnce()
   })
 })
 

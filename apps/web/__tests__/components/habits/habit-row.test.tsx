@@ -36,6 +36,24 @@ describe('HabitRow canonical content', () => {
 })
 
 describe('HabitRow check circle accessible name', () => {
+  it('makes a read-only row dim and untappable', () => {
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    render(
+      <HabitRow
+        habit={createMockHabit({ title: 'Meditate' })}
+        readOnly
+        actions={{ onDetail, onLog }}
+      />,
+    )
+
+    const row = screen.getByTestId('habit-row')
+    expect(row).toHaveAttribute('aria-disabled', 'true')
+    expect(row).toHaveStyle({ opacity: '0.5', pointerEvents: 'none' })
+    expect(onDetail).not.toHaveBeenCalled()
+    expect(onLog).not.toHaveBeenCalled()
+  })
+
   it('announces the state and log action when loggable', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Meditate' })} />)
     expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute('aria-label', 'habits.statusDot.empty, habits.logHabit: Meditate')
@@ -60,5 +78,22 @@ describe('HabitRow check circle accessible name', () => {
         name: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('logs a parent with open children directly from its ring', () => {
+    const onLog = vi.fn()
+    render(
+      <HabitRow
+        habit={createMockHabit({ title: 'Morning routine' })}
+        hasChildren
+        childProgress={{ done: 1, total: 2 }}
+        actions={{ onLog }}
+      />,
+    )
+
+    screen.getByRole('button', {
+      name: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+    }).click()
+    expect(onLog).toHaveBeenCalledOnce()
   })
 })
