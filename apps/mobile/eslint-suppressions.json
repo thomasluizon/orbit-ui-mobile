@@ -75,9 +75,6 @@
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "app/(tabs)/profile/_components/edit-name-sheet.tsx": {
@@ -90,7 +87,7 @@
       "count": 3
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 2
     }
   },
   "app/(tabs)/profile/_components/next-reward-carrot.tsx": {
@@ -174,9 +171,6 @@
   "app/advanced.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "app/ai-settings-sections.tsx": {
@@ -320,11 +314,6 @@
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
       "count": 11
-    }
-  },
-  "components/bottom-sheet-modal.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/chat/action-chips.tsx": {
@@ -525,7 +514,7 @@
   },
   "components/goals/goals-view.tsx": {
     "local/icon-size-grid": {
-      "count": 2
+      "count": 1
     },
     "local/spacing-scale": {
       "count": 4
@@ -546,7 +535,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 7
+      "count": 5
     }
   },
   "components/habits/checklist-templates.tsx": {
@@ -559,7 +548,7 @@
   },
   "components/habits/create-habit-modal.tsx": {
     "local/spacing-scale": {
-      "count": 12
+      "count": 10
     }
   },
   "components/habits/create-habit-modal/sub-habit-editor.tsx": {
@@ -653,7 +642,7 @@
   },
   "components/habits/habit-form-fields/styles.ts": {
     "local/spacing-scale": {
-      "count": 40
+      "count": 29
     }
   },
   "components/habits/habit-form-fields/tags-section.tsx": {
@@ -672,7 +661,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 13
+      "count": 12
     }
   },
   "components/habits/today-ai-summary.tsx": {
@@ -726,7 +715,7 @@
   },
   "components/navigation/notification-detail-modal.tsx": {
     "local/spacing-scale": {
-      "count": 7
+      "count": 6
     }
   },
   "components/navigation/notification-row.tsx": {
@@ -838,10 +827,10 @@
   },
   "components/referral/referral-drawer.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 1
     },
     "local/spacing-scale": {
-      "count": 11
+      "count": 10
     }
   },
   "components/referral/referral-prompt.tsx": {
@@ -852,16 +841,6 @@
   "components/review-moment/review-moment-sheet.tsx": {
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/share/share-card-entry-button.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/share/share-card-sheet.tsx": {
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/share/share-card.tsx": {
@@ -915,25 +894,12 @@
       "count": 4
     }
   },
-  "components/ui/anchored-menu.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/ui/app-bar.tsx": {
     "local/icon-size-grid": {
       "count": 4
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/ui/app-date-picker.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/ui/app-error-boundary.tsx": {
@@ -945,14 +911,6 @@
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/app-select.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/ui/app-text-input.tsx": {
@@ -968,14 +926,6 @@
   "components/ui/chip.tsx": {
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/ui/confirm-dialog.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 6
     }
   },
   "components/ui/create-api-key-modal.styles.ts": {
@@ -1106,11 +1056,6 @@
   "components/upgrade/styles.ts": {
     "local/spacing-scale": {
       "count": 39
-    }
-  },
-  "components/version-update-drawer.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/wrapped/wrapped-entry-button.tsx": {

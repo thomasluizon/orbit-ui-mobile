@@ -106,11 +106,6 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     React.createElement('HabitFormFields', props, props.children),
 }))
 
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement(React.Fragment, null, children),
-}))
-
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
@@ -150,7 +145,7 @@ function findFieldsWrapper(tree: {
 async function renderModal() {
   const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
   let tree: any
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <EditHabitModal open onClose={vi.fn()} habit={habit} />,
     )

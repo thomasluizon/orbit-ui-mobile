@@ -8,11 +8,6 @@ const clipboard = vi.hoisted(() => ({ setString: vi.fn() }))
 
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
 
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('View', null, children),
-}))
-
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
 }))

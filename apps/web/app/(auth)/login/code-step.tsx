@@ -73,6 +73,8 @@ export function CodeStep({
               if (!isSubmitting) onCodeChange(value)
             }}
             error={errorSignal ?? undefined}
+            disabled={isSubmitting}
+            autoFocus
           />
         </motion.div>
 

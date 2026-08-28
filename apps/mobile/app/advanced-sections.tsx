@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, ScrollView } from 'react-native'
+import { View, Text, Pressable } from 'react-native'
 import Animated, {
   FadeInDown,
   ReduceMotion,
@@ -26,7 +26,7 @@ import {
   WIDGET_STEP_KEYS,
   type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { tintFromPrimary } from '@/lib/theme'
 import { styles, type Tokens } from './advanced-styles'
@@ -432,19 +432,13 @@ export function WidgetInfoSheet({
   tokens: Tokens
 }>) {
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      open
       onClose={onClose}
       title={t('profile.widgetTitle')}
-      contentKey="widget-info"
-      snapPoints={['70%']}
-      contentManagesScroll
+        key="widget-info"
     >
-      <ScrollView
-        style={styles.widgetSheetScroll}
-        contentContainerStyle={styles.widgetSheetContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.widgetSheetContent}>
         <Text style={[styles.widgetHeading, { color: tokens.fg1 }]}>
           {t('profile.widgetHow.title')}
         </Text>
@@ -474,7 +468,7 @@ export function WidgetInfoSheet({
             </View>
           ))}
         </View>
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }

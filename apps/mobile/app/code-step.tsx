@@ -68,6 +68,8 @@ export function CodeStep({
           onChange={(value) => {
             if (!isSubmitting) onCodeChange(value)
           }}
+          disabled={isSubmitting}
+          autoFocus
         />
       </Animated.View>
 

@@ -126,6 +126,7 @@ describe('LoginPage', () => {
     render(<LoginPage />)
 
     const input = await screen.findByRole('textbox', { name: 'auth.verificationCode' })
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
   })
 

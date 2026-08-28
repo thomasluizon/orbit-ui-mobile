@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -35,6 +35,8 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
     }
   }
 
+  const { sheetRef, closeSheet } = useSheetHost()
+
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the exact submitted name to the profile cache and rolls back on error; the server stores it verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const mutation = useMutation<unknown, Error, string, { previous: string | undefined }>({
     mutationFn: (nextName) =>
@@ -52,7 +54,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       return { previous }
     },
     onSuccess: () => {
-      onClose()
+      closeSheet()
     },
     onError: (err, _nextName, context) => {
       if (context?.previous !== undefined) {
@@ -81,11 +83,11 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
       title={t('profile.editName.title')}
-      snapPoints={['55%']}
     >
       <View style={styles.body}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>
@@ -123,7 +125,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
           </PillButton>
         </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { CalendarClock, Sparkles } from '@/components/ui/icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -10,11 +10,10 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -47,7 +46,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const hasProAccess = profile?.hasProAccess ?? false
   const locale = profile?.language ?? i18n.language
   const isOverdue = habit?.isOverdue ?? false
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const { suggestion, isLoading, error, refetch } = useRescheduleSuggestion({
     habitId: habit?.id ?? '',
@@ -65,11 +64,11 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     const request = buildRescheduleUpdateRequest(habit, suggestion)
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      onOpenChange(false)
+      closeSheet(() => onOpenChange(false))
     } catch (mutationError: unknown) {
       showError(getFriendlyErrorMessage(mutationError, translate, 'errors.updateHabit', 'habit'))
     }
-  }, [habit, suggestion, updateHabit, onOpenChange, showError, translate])
+  }, [closeSheet, habit, suggestion, updateHabit, onOpenChange, showError, translate])
 
   const scheduleLabel = suggestion
     ? computeHabitFrequencyLabel(
@@ -138,13 +137,15 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton
 
             onClick={() => {
-              scheduleExitAction(() => router.push('/upgrade'))
-              onOpenChange(false)
+              closeSheet(() => {
+                onOpenChange(false)
+                router.push('/upgrade')
+              })
             }}
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
@@ -156,7 +157,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton  onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
@@ -174,9 +175,8 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         </PillButton>
         <PillButton
           variant="ghost"
-
           disabled={updateHabit.isPending}
-          onClick={() => onOpenChange(false)}
+          onClick={() => closeSheet()}
         >
           {t('habits.reschedule.dismiss')}
         </PillButton>
@@ -185,28 +185,22 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={() => onOpenChange(false)}
-      onDidDismiss={runExitAction}
       title={t('habits.reschedule.title')}
-      snapPoints={['60%', '90%']}
-      contentManagesScroll
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
           <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
           <Text style={styles.eyebrow}>Astra</Text>
           <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
         </View>
         {renderBody()}
-      </ScrollView>
+      </View>
       <View style={styles.actionsFooter}>{renderActions()}</View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
@@ -242,7 +236,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       borderRadius: 999,
-      paddingHorizontal: 7,
+      paddingHorizontal: 8,
       paddingVertical: 1,
       overflow: 'hidden',
     },

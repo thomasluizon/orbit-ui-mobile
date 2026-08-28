@@ -52,8 +52,8 @@ vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div>{children}</div> : null,
 }))
 

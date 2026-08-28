@@ -4,20 +4,30 @@ import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const CELL_COUNT = 6
-
-export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputProps>) {
+export function OtpInput({
+  label,
+  value,
+  onChange,
+  onComplete,
+  error,
+  hint,
+  disabled = false,
+  autoFocus = true,
+  length = 6,
+}: Readonly<OtpInputProps>) {
   const inputRef = useRef<TextInput>(null)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const digits = value.slice(0, CELL_COUNT).split('')
-  const activeIndex = Math.min(value.length, CELL_COUNT - 1)
+  const digits = value.slice(0, length).split('')
+  const activeIndex = Math.min(value.length, length - 1)
 
   function handleChange(nextValue: string) {
-    onChange(nextValue.replace(/\D/g, '').slice(0, CELL_COUNT))
+    const sanitizedValue = nextValue.replace(/\D/g, '').slice(0, length)
+    onChange(sanitizedValue)
+    if (sanitizedValue.length === length) onComplete?.(sanitizedValue)
   }
 
   useEffect(() => {
@@ -31,17 +41,20 @@ export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputPro
           ref={inputRef}
           value={value}
           onChangeText={handleChange}
+          editable={!disabled}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="sms-otp"
-          autoFocus
+          autoFocus={autoFocus}
           accessibilityLabel={label}
-          accessibilityHint={error}
+          accessibilityHint={error ?? hint}
+          accessibilityState={{ disabled }}
           style={styles.realInput}
         />
-        {Array.from({ length: CELL_COUNT }, (_, index) => (
+        {Array.from({ length }, (_, index) => (
           <View
             key={index}
+            testID={`otp-cell-${index}`}
             pointerEvents="none"
             data-active={index === activeIndex ? '' : undefined}
             style={[
@@ -61,9 +74,12 @@ export function OtpInput({ label, value, onChange, error }: Readonly<OtpInputPro
           </View>
         ))}
       </View>
-      {error ? (
-        <Text accessibilityRole="alert" style={[styles.caption, { color: tokens.statusBadText }]}>
-          {error}
+      {error || hint ? (
+        <Text
+          accessibilityRole={error ? 'alert' : undefined}
+          style={[styles.caption, { color: error ? tokens.statusBadText : tokens.fg3 }]}
+        >
+          {error ?? hint}
         </Text>
       ) : null}
     </View>

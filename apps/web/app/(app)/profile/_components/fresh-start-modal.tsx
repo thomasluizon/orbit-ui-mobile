@@ -10,7 +10,7 @@ import {
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -89,10 +89,11 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   const [showAnimation, setShowAnimation] = useState(false)
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
-      if (value) {
+      if (!value) {
         setStep('info')
         setConfirmText('')
         setError('')
@@ -112,8 +113,10 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
-      onOpenChange(false)
-      setShowAnimation(true)
+      closeSheet(() => {
+        handleOpenChange(false)
+        setShowAnimation(true)
+      })
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
@@ -133,9 +136,10 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={handleOpenChange}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={() => handleOpenChange(false)}
         title={
           step === 'info'
             ? t('profile.freshStart.heading')
@@ -146,7 +150,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           <FreshStartInfoStep
             deletedItems={deletedItems}
             preservedItems={preservedItems}
-            onCancel={() => onOpenChange(false)}
+            onCancel={() => handleOpenChange(false)}
             onContinue={() => setStep('confirm')}
           />
         ) : (
@@ -156,11 +160,11 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
-            onCancel={() => onOpenChange(false)}
+            onCancel={() => handleOpenChange(false)}
             onReset={() => void handleReset()}
           />
         )}
-      </AppOverlay>
+      </Sheet>) : null}
 
       {showAnimation && <FreshStartAnimation onComplete={handleAnimationComplete} />}
     </>

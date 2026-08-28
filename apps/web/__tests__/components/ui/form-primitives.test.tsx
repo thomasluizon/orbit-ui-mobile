@@ -15,6 +15,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en-US',
+  useTranslations: () => (key: string) => key,
 }))
 
 describe('form primitives on web', () => {

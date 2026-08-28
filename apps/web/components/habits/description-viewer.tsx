@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 import { Markdown } from '@/components/ui/markdown'
 
 interface DescriptionViewerProps {
@@ -46,7 +46,7 @@ export function DescriptionViewer({
   }
 
   return (
-    <AppOverlay open={open} onOpenChange={handleOpenChange} title={title}>
+    open ? (<Sheet open onClose={() => (handleOpenChange)(false)} title={title}>
       <div className="flex items-center justify-end gap-2" style={{ paddingBottom: 10 }}>
         {copyFailed ? (
           <p role="alert" className="text-xs text-[var(--status-bad-text)]">
@@ -76,6 +76,6 @@ export function DescriptionViewer({
       >
         <Markdown content={description} />
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

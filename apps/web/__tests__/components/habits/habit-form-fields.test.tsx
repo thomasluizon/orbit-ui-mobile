@@ -53,8 +53,8 @@ vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: () => <div data-testid="goal-linking-field" />,
 }))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: () => <div data-testid="app-date-picker" />,
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: () => <div data-testid="app-date-picker" />,
 }))
 
 vi.mock('@/components/ui/app-select', () => ({
@@ -178,6 +178,18 @@ function enterTime(triggerLabel: string, hour24: number, minute: number) {
   })
 }
 
+function pickColumnOption(columnLabel: string, label: string) {
+  const column = screen.getByRole('listbox', { name: columnLabel })
+  fireEvent.click(within(column).getByRole('option', { name: label }))
+}
+
+function selectTimeInPicker(triggerLabel: string, hour24: number, minute: number) {
+  fireEvent.click(screen.getByRole('button', { name: `${triggerLabel}: common.selectTime` }))
+  pickColumnOption('common.hours', pad(hour24))
+  pickColumnOption('common.minutes', pad(minute))
+  fireEvent.click(screen.getByRole('button', { name: 'common.done' }))
+}
+
 
 describe('HabitFormFields', () => {
   beforeEach(() => {
@@ -227,7 +239,7 @@ describe('HabitFormFields', () => {
     )
 
     fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
-    expect(screen.getByText('habits.form.emojiPickerTitle')).toBeDefined()
+    expect(screen.getAllByText('habits.form.emojiPickerTitle')).toHaveLength(2)
 
     fireEvent.change(screen.getByPlaceholderText('habits.form.emojiSearchPlaceholder'), {
       target: { value: 'run' },
@@ -446,8 +458,10 @@ describe('HabitFormFields', () => {
     )
 
     enterTime('habits.form.dueTime', 15, 58)
-
     expect(setValue).toHaveBeenCalledWith('dueTime', '15:58', { shouldDirty: true })
+    selectTimeInPicker('habits.form.dueTime', 15, 30)
+
+    expect(setValue).toHaveBeenCalledWith('dueTime', '15:30', { shouldDirty: true })
   })
 
   it('writes dueEndTime directly from the time picker on change', () => {
@@ -488,8 +502,10 @@ describe('HabitFormFields', () => {
     )
 
     enterTime('habits.form.dueEndTime', 22, 15)
-
     expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:15', { shouldDirty: true })
+    selectTimeInPicker('habits.form.dueEndTime', 22, 30)
+
+    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:30', { shouldDirty: true })
   })
 
   it('shows slip alert toggle for bad habits', () => {

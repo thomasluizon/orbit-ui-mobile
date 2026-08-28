@@ -28,8 +28,10 @@ export async function cases() {
     "apps/mobile/app/+not-found.tsx": "export default function NotFound() { return null }\n",
     "apps/mobile/components/chat/pending-operation-card.tsx": "export function PendingOperationCard() { return null }\n",
     "apps/mobile/components/ui/app-error-boundary.tsx": "export function AppErrorBoundary() { return null }\n",
-    "apps/mobile/components/bottom-sheet-modal.tsx": "import { Modal } from 'react-native'\nexport function BottomSheetModal() { return <Modal /> }\n",
-    "apps/mobile/components/preferences/picker.tsx": "import { BottomSheetModal } from '@/components/bottom-sheet-modal'\nexport function Picker() { return <BottomSheetModal /> }\n",
+    "apps/mobile/components/ui/sheet.tsx": "import { Modal } from 'react-native'\nexport function Sheet() { return <Modal /> }\n",
+    "apps/mobile/components/preferences/picker.tsx": "import { Sheet } from '@/components/ui/sheet'\nexport function Picker() { return <Sheet /> }\n",
+    "apps/mobile/components/ui/selection-field.tsx": "import { Sheet } from '@/components/ui/sheet'\nexport function SelectionField() { return <Sheet /> }\n",
+    "apps/mobile/components/preferences/frequency-field.tsx": "import { SelectionField } from '@/components/ui/selection-field'\nexport function FrequencyField() { return <SelectionField /> }\n",
     "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml": "<FrameLayout />\n",
     "apps/mobile/modules/orbit-widget/android/build/generated/widget.xml": "<Generated />\n",
     "apps/mobile/modules/orbit-widget/android/.gradle/cache.bin": "generated\n",
@@ -52,6 +54,7 @@ export async function cases() {
   T("mobile section files without a default export are not routes", !ids.has("m-route-preferences-sections"))
   T("mobile default-export screens remain routes", ids.has("m-route-preferences"))
   T("mobile aliases resolve inside the mobile app for overlays", ids.has("m-overlay-preferences-picker"))
+  T("a caller reaching Sheet only through the selection-field wrapper is inventoried", ids.has("m-overlay-preferences-frequency-field"))
   T("web and mobile not-found surfaces are inventoried", ids.has("not-found-root") && ids.has("m-not-found-root"))
   T("web and mobile error surfaces are inventoried", ids.has("error-chat") && ids.has("m-error-root"))
   T("the Next root-layout global error is inventoried", surfaces.some((surface) => surface.surfaceId === "error-global" && surface.sourceFile === "apps/web/app/global-error.tsx"))

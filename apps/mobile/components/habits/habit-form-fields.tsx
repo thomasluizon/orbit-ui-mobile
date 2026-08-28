@@ -57,7 +57,7 @@ interface HabitFormFieldsProps {
   isSuggesting?: boolean;
   /** When set (not null), locks the FrequencyTypeCards "General" option to this value because a parent or existing children constrain it. */
   lockedGeneral?: boolean | null;
-  /** Routes to the upgrade surface from pro-gated fields. The hosting sheet must run the navigation only after its native dismissal (see hooks/use-sheet-exit-action.ts). */
+  /** Routes to the upgrade surface from pro-gated fields. The hosting sheet must run the navigation only after its native dismissal (see components/ui/sheet.tsx). */
   onUpgrade: () => void;
   children?: ReactNode;
 }

@@ -1,266 +1,22 @@
-import { useState, type ReactNode } from 'react'
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-} from 'react-native'
+import { useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
-import { TriangleAlert } from '@/components/ui/icons'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
+import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { API } from '@orbit/shared/api'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
-import { useOffline } from '@/hooks/use-offline'
+import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { useLogout } from '@/hooks/use-logout'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
-import { ErrorState } from '@/components/ui/error-state'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { OtpInput } from '@/components/ui/otp-input'
-import { PillButton } from '@/components/ui/pill-button'
+import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-
-function DangerPillButton({
-  label,
-  onPress,
-  disabled = false,
-}: Readonly<{
-  label: string
-  onPress: () => void
-  disabled?: boolean
-}>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        dangerPillStyles.base,
-        { backgroundColor: tokens.statusBad },
-        disabled ? dangerPillStyles.disabled : null,
-        pressed && !disabled ? dangerPillStyles.pressed : null,
-      ]}
-    >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnBad }]}>
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
-const dangerPillStyles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    borderRadius: 999,
-    paddingVertical: 15,
-    paddingHorizontal: 26,
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-  },
-})
-
-interface DeleteConfirmStepProps {
-  profile: Profile | undefined
-  deleteError: string
-  deleteLoading: boolean
-  onRequestDeletion: () => void
-  onClose: () => void
-}
-
-function DeleteConfirmStep({
-  profile,
-  deleteError,
-  deleteLoading,
-  onRequestDeletion,
-  onClose,
-}: Readonly<DeleteConfirmStepProps>) {
-  const { t } = useTranslation()
-  const { displayDate } = useDateFormat()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <View style={styles.body}>
-      <View style={styles.destructiveHero}>
-        <View
-          style={[
-            styles.destructiveHeroCircle,
-            { backgroundColor: `${tokens.statusBad}24` },
-          ]}
-        >
-          <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
-        </View>
-        <View style={styles.destructiveHeroBody}>
-          <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
-            {profile?.hasProAccess && profile.planExpiresAt
-              ? t('profile.deleteAccount.warningPro', {
-                  date: displayDate(parseISO(profile.planExpiresAt)),
-                })
-              : t('profile.deleteAccount.warningFree')}
-          </Text>
-          <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
-            {t('profile.deleteAccount.warningDetail')}
-          </Text>
-        </View>
-      </View>
-      {deleteError ? (
-        <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-          {deleteError}
-        </Text>
-      ) : null}
-      <View style={styles.modalActions}>
-        <DangerPillButton
-          label={
-            deleteLoading
-              ? t('profile.deleteAccount.sending')
-              : t('profile.deleteAccount.sendCode')
-          }
-          disabled={deleteLoading}
-          onPress={onRequestDeletion}
-        />
-        <PillButton
-          variant="ghost"
-
-          disabled={deleteLoading}
-          onClick={onClose}
-        >
-          {t('common.cancel')}
-        </PillButton>
-      </View>
-    </View>
-  )
-}
-
-interface DeleteCodeStepProps {
-  deleteCode: string
-  deleteError: string
-  deleteLoading: boolean
-  onCodeChange: (value: string) => void
-  onConfirm: () => void
-  onBack: () => void
-}
-
-function DeleteCodeStep({
-  deleteCode,
-  deleteError,
-  deleteLoading,
-  onCodeChange,
-  onConfirm,
-  onBack,
-}: Readonly<DeleteCodeStepProps>) {
-  const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <View style={styles.body}>
-      <Text
-        style={[
-          styles.modalDescription,
-          { color: tokens.fg2, textAlign: 'center' },
-        ]}
-      >
-        {t('profile.deleteAccount.codeInstructions')}
-      </Text>
-      <OtpInput
-        label={t('profile.deleteAccount.headingConfirmCode')}
-        value={deleteCode}
-        onChange={onCodeChange}
-        error={deleteError || undefined}
-      />
-      <View style={styles.modalActions}>
-        <DangerPillButton
-          label={
-            deleteLoading
-              ? t('profile.deleteAccount.deleting')
-              : t('profile.deleteAccount.confirmDelete')
-          }
-          disabled={deleteLoading || deleteCode.length !== 6}
-          onPress={onConfirm}
-        />
-        <PillButton
-          variant="ghost"
-
-          disabled={deleteLoading}
-          onClick={onBack}
-        >
-          {t('common.back')}
-        </PillButton>
-      </View>
-    </View>
-  )
-}
-
-interface DeleteDeactivatedStepProps {
-  scheduledDeletionDate: string | null
-  onLogout: () => void
-}
-
-function DeleteDeactivatedStep({
-  scheduledDeletionDate,
-  onLogout,
-}: Readonly<DeleteDeactivatedStepProps>) {
-  const { t } = useTranslation()
-  const { displayDate } = useDateFormat()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <View style={styles.body}>
-      <View
-        style={[
-          styles.freshStartBox,
-          {
-            backgroundColor: tokens.bgCard,
-            borderColor: tokens.hairline,
-            alignItems: 'center',
-          },
-        ]}
-      >
-        <Text style={[styles.boxLabel, { color: tokens.statusOverdueText }]}>
-          {t('profile.deleteAccount.title')}
-        </Text>
-        <Text
-          style={[
-            styles.boxItemText,
-            { color: tokens.fg2, textAlign: 'center' },
-          ]}
-        >
-          {t('profile.deleteAccount.deactivated', {
-            date: scheduledDeletionDate
-              ? displayDate(parseISO(scheduledDeletionDate))
-              : '',
-          })}
-        </Text>
-      </View>
-      <View style={styles.modalActions}>
-        <PillButton  onClick={onLogout}>
-          {t('profile.logout')}
-        </PillButton>
-      </View>
-    </View>
-  )
-}
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { PillButton } from '@/components/ui/pill-button'
+import { TriangleAlert } from '@/components/ui/icons'
+import { ErrorState } from '@/components/ui/error-state'
 
 interface DeleteAccountModalProps {
   open: boolean
@@ -274,202 +30,149 @@ export function DeleteAccountModal({
   profile,
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
+  const router = useRouter()
+  const { displayDate } = useDateFormat()
   const { isOnline } = useOffline()
-  const handleLogout = useLogout()
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
-  const [deleteCode, setDeleteCode] = useState('')
-  const [deleteLoading, setDeleteLoading] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
-  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
-  const [prevOpen, setPrevOpen] = useState(open)
-
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
-      setDeleteStep('confirm')
-      setDeleteCode('')
-      setDeleteError('')
-      setDeleteLoading(false)
-      setScheduledDeletionDate(null)
+  const warningMessage = (() => {
+    if (profile?.hasProAccess && profile.planExpiresAt) {
+      return t('profile.deleteAccount.warningPro', {
+        date: displayDate(parseISO(profile.planExpiresAt)),
+      })
     }
-  }
+    return t('profile.deleteAccount.warningFree')
+  })()
 
-  function backToDeleteConfirmStep() {
-    setDeleteStep('confirm')
-    setDeleteCode('')
-    setDeleteError('')
+  function handleClose() {
+    setLoading(false)
+    setError('')
+    onClose()
   }
 
   async function handleRequestDeletion() {
-    if (!isOnline) {
-      setDeleteError(t('errors.offline'))
-      return
-    }
-    setDeleteLoading(true)
-    setDeleteError('')
+    if (!isOnline) return
+    setLoading(true)
+    setError('')
     try {
-      await apiClient(API.auth.requestDeletion, { method: 'POST' })
-      setDeleteStep('code')
-    } catch (err: unknown) {
-      const msg = getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic')
-      setDeleteError(msg)
-    } finally {
-      setDeleteLoading(false)
-    }
-  }
-
-  async function handleConfirmDeletion() {
-    if (deleteCode.length !== 6) return
-    if (!isOnline) {
-      setDeleteError(t('errors.offline'))
-      return
-    }
-    setDeleteLoading(true)
-    setDeleteError('')
-    try {
-      const response = await apiClient<{ scheduledDeletionAt?: string | null }>(
-        API.auth.confirmDeletion,
-        {
-          method: 'POST',
-          body: JSON.stringify({ code: deleteCode }),
-        },
+      await apiClient(
+        API.auth.requestDeletion,
+        { method: 'POST' },
+        stepUpMessageResponseSchema,
       )
-      setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
-      setDeleteStep('deactivated')
-    } catch (err: unknown) {
-      const msg = getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic')
-      setDeleteError(msg)
-    } finally {
-      setDeleteLoading(false)
+      await beginStepUpChallenge('delete')
+      closeSheet(() => {
+        handleClose()
+        router.push('/step-up?operation=delete')
+      })
+    } catch (caught: unknown) {
+      setError(
+        getFriendlyErrorMessage(
+          caught,
+          t,
+          'profile.deleteAccount.errorGeneric',
+          'generic',
+        ),
+      )
+      setLoading(false)
     }
   }
 
-  let deleteContent: ReactNode
-  if (!isOnline) {
-    deleteContent = (
-      <View style={styles.body}>
-        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
-      </View>
-    )
-  } else if (deleteStep === 'confirm') {
-    deleteContent = (
-      <DeleteConfirmStep
-        profile={profile}
-        deleteError={deleteError}
-        deleteLoading={deleteLoading}
-        onRequestDeletion={() => {
-          void handleRequestDeletion()
-        }}
-        onClose={onClose}
-      />
-    )
-  } else if (deleteStep === 'code') {
-    deleteContent = (
-      <DeleteCodeStep
-        deleteCode={deleteCode}
-        deleteError={deleteError}
-        deleteLoading={deleteLoading}
-        onCodeChange={setDeleteCode}
-        onConfirm={() => {
-          void handleConfirmDeletion()
-        }}
-        onBack={backToDeleteConfirmStep}
-      />
-    )
-  } else {
-    deleteContent = (
-      <DeleteDeactivatedStep
-        scheduledDeletionDate={scheduledDeletionDate}
-        onLogout={() => {
-          scheduleExitAction(() => void handleLogout())
-          onClose()
-        }}
-      />
-    )
-  }
+  if (!open) return null
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={onClose}
-      onDidDismiss={runExitAction}
-      title={t('profile.deleteAccount.title')}
-      snapPoints={['70%']}
+    <Sheet
+      ref={sheetRef}
+      open
+      onClose={handleClose}
+      title={t('profile.deleteAccount.headingAreYouSure')}
     >
-      {deleteContent}
-    </BottomSheetModal>
+      {!isOnline ? (
+        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
+      ) : (
+        <View style={styles.body}>
+          <View style={styles.hero}>
+            <View
+              style={[
+                styles.heroCircle,
+                { backgroundColor: `${tokens.statusBad}24` },
+              ]}
+            >
+              <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+            </View>
+            <View style={styles.copy}>
+              <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
+              <Text style={[styles.description, { color: tokens.fg2 }]}>
+                {t('profile.deleteAccount.warningDetail')}
+              </Text>
+            </View>
+          </View>
+          {error ? (
+            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
+              {error}
+            </Text>
+          ) : null}
+          <View style={styles.actions}>
+            <PillButton
+              variant="destructive"
+              onClick={() => void handleRequestDeletion()}
+              disabled={loading}
+              loading={loading}
+            >
+              {t('profile.deleteAccount.sendCode')}
+            </PillButton>
+            <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
+              {t('common.cancel')}
+            </PillButton>
+          </View>
+        </View>
+      )}
+    </Sheet>
   )
 }
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: 22,
-    paddingBottom: 8,
     gap: 16,
   },
-  modalDescription: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  modalActions: {
-    gap: 12,
-    paddingTop: 8,
-  },
-
-  freshStartBox: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-  },
-  boxLabel: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 12,
-    letterSpacing: 0.96,
-    textTransform: 'uppercase',
-  },
-  boxItemText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
-  },
-
-  destructiveHero: {
+  hero: {
     alignItems: 'center',
     gap: 16,
     paddingTop: 4,
   },
-  destructiveHeroCircle: {
-    width: 80,
-    height: 80,
+  heroCircle: {
+    alignItems: 'center',
     borderRadius: 999,
-    alignItems: 'center',
+    height: 80,
     justifyContent: 'center',
+    width: 80,
   },
-  destructiveHeroBody: {
+  copy: {
     alignItems: 'center',
+    gap: 8,
   },
-  deleteWarningTitle: {
-    fontFamily: 'Rubik_500Medium',
+  title: {
+    fontFamily: 'Geist_500Medium',
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 23,
     textAlign: 'center',
   },
-  deleteWarningDetail: {
-    fontFamily: 'Rubik_400Regular',
+  description: {
+    fontFamily: 'Geist_400Regular',
     fontSize: 15,
-    lineHeight: 22,
-    marginTop: 6,
+    lineHeight: 23,
     textAlign: 'center',
   },
-
-  errorTextSmall: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    textAlign: 'center',
+  error: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 13,
+  },
+  actions: {
+    gap: 12,
+    paddingTop: 8,
   },
 })

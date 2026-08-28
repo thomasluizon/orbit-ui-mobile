@@ -110,7 +110,6 @@ export function useLoginFlow() {
   const {
     codeDigits,
     setCodeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
     startResendCountdown,
@@ -265,7 +264,6 @@ export function useLoginFlow() {
     } catch (err: unknown) {
       reportError(resolveLoginErrorState(err).message)
       resetCodeDigits()
-      codeInputRefs.current[0]?.focus()
     } finally {
       setIsSubmitting(false)
     }
@@ -357,7 +355,6 @@ export function useLoginFlow() {
     stepEntrance,
     shakeOffset,
     codeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
     onCodeChange,

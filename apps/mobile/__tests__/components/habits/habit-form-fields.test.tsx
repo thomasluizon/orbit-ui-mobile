@@ -55,8 +55,8 @@ vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: () => React.createElement('View', { testID: 'goal-linking-field' }),
 }))
 
-vi.mock('@/components/ui/app-select', () => ({
-  AppSelect: () => React.createElement('View'),
+vi.mock('@/components/ui/selection-field', () => ({
+  SelectionField: () => React.createElement('View'),
 }))
 
 vi.mock('@/components/ui/time-field', () => ({
@@ -190,7 +190,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -211,7 +212,8 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(dueTimePicker).toBeTruthy()
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       dueTimePicker.props.onChange('15:58')
     })
 
@@ -225,7 +227,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -247,7 +250,8 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(dueEndTimePicker).toBeTruthy()
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       dueEndTimePicker.props.onChange('22:15')
     })
 
@@ -261,7 +265,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -278,19 +283,22 @@ describe('HabitFormFields (mobile)', () => {
 
     const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       emojiTrigger.props.onPress()
     })
 
     const searchInput = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiSearchPlaceholder' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       searchInput.props.onChangeText('run')
     })
 
     const runEmoji = tree.root.findByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       runEmoji.props.onPress()
     })
 
@@ -304,7 +312,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -321,7 +330,8 @@ describe('HabitFormFields (mobile)', () => {
 
     const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       emojiTrigger.props.onPress()
     })
 
@@ -331,7 +341,8 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(natureCategory).toBeTruthy()
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       natureCategory!.props.onPress()
     })
 
@@ -344,7 +355,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -361,7 +373,8 @@ describe('HabitFormFields (mobile)', () => {
 
     const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       emojiTrigger.props.onPress()
     })
 
@@ -371,7 +384,8 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(removeButton).toBeTruthy()
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       removeButton!.props.onPress()
     })
 
@@ -385,7 +399,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -410,7 +425,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -434,7 +450,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -470,7 +487,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -510,7 +528,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -541,7 +560,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -558,7 +578,8 @@ describe('HabitFormFields (mobile)', () => {
 
     const nextArrow = tree.root.findByProps({ accessibilityLabel: 'common.next' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       nextArrow.props.onPress()
     })
 
@@ -571,7 +592,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -588,7 +610,8 @@ describe('HabitFormFields (mobile)', () => {
 
     const previousArrow = tree.root.findByProps({ accessibilityLabel: 'common.previous' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       previousArrow.props.onPress()
     })
 
@@ -601,7 +624,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -620,7 +644,8 @@ describe('HabitFormFields (mobile)', () => {
       accessibilityLabel: 'habits.form.oneTimeTask',
     })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       oneTimeCard.props.onPress()
     })
 
@@ -632,7 +657,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -654,7 +680,8 @@ describe('HabitFormFields (mobile)', () => {
     )[0]
     expect(titleInput).toBeTruthy()
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       titleInput.props.onChangeText('Read a book')
     })
     expect(formHelpers.form.setValue).toHaveBeenLastCalledWith('title', 'Read a book', {
@@ -674,7 +701,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags({ acceptSuggestedTag })
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -699,7 +727,8 @@ describe('HabitFormFields (mobile)', () => {
 
     const healthChip = tree.root.findByProps({ accessibilityLabel: 'Health' })
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       healthChip.props.onPress()
     })
 
@@ -715,7 +744,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -751,7 +781,8 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -773,7 +804,8 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(avoidSegment).toBeTruthy()
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
+await Promise.resolve()
       avoidSegment!.props.onPress()
     })
 

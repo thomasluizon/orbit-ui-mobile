@@ -43,7 +43,6 @@ export function useLoginFlow() {
   const {
     codeDigits,
     setCodeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
     startResendCountdown,
@@ -154,7 +153,6 @@ export function useLoginFlow() {
     } catch (err: unknown) {
       reportError(resolveLoginErrorState(err, t).message)
       resetCodeDigits()
-      codeInputRefs.current[0]?.focus()
     } finally {
       setIsSubmitting(false)
     }
@@ -231,7 +229,6 @@ export function useLoginFlow() {
     authStepMotion,
     feedbackMotion,
     codeDigits,
-    codeInputRefs,
     canResend,
     resendCountdown,
     onCodeChange,

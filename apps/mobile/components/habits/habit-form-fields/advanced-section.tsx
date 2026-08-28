@@ -8,7 +8,7 @@ import { MAX_HABIT_DESCRIPTION_LENGTH } from "@orbit/shared/validation";
 import { HabitChecklist } from "../habit-checklist";
 import { ChecklistTemplates } from "../checklist-templates";
 import { GoalLinkingField } from "../goal-linking-field";
-import { AppDatePicker } from "@/components/ui/app-date-picker";
+import { DateField } from "@/components/ui/date-field";
 import { TimeField } from "@/components/ui/time-field";
 import type { Time24 } from "@orbit/shared/contracts/forms";
 import { type AppTokens, createSectionStyles } from "./styles";
@@ -144,10 +144,10 @@ export function AdvancedSection({
               <Text style={styles.label}>{t("habits.form.endDate")}</Text>
               <View style={styles.endDateRow}>
                 <View style={styles.endDatePicker}>
-                  <AppDatePicker
+                  <DateField
                     value={endDate}
                     placeholder={t("common.selectDate")}
-                    onChange={(value) =>
+                    onChange={(value: string) =>
                       setValue("endDate", value, { shouldDirty: true })
                     }
                   />

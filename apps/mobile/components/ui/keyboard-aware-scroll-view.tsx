@@ -28,8 +28,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { withDrawerContentInset } from './drawer-content-inset'
-
 interface KeyboardAwareViewProps {
   children: ReactNode
   style?: StyleProp<ViewStyle>
@@ -44,7 +42,7 @@ interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView>
   behavior?: Exclude<KeyboardAvoidingViewProps['behavior'], undefined>
 }
 
-interface KeyboardAwareBottomSheetScrollViewProps
+interface KeyboardAwareSheetScrollViewProps
   extends ComponentProps<typeof ScrollView> {
   children: ReactNode
   keyboardVerticalOffset?: number
@@ -339,12 +337,12 @@ export function KeyboardAwareScrollView({
   )
 }
 
-export function KeyboardAwareBottomSheetScrollView({
+export function KeyboardAwareSheetScrollView({
   children,
   keyboardVerticalOffset = 0,
   keyboardShouldPersistTaps = 'always',
   ...props
-}: Readonly<KeyboardAwareBottomSheetScrollViewProps>) {
+}: Readonly<KeyboardAwareSheetScrollViewProps>) {
   const scrollRef = useRef<ScrollView>(null)
   const keyboardAwareContext = useKeyboardAwareContextValue(
     scrollRef,
@@ -357,11 +355,6 @@ export function KeyboardAwareBottomSheetScrollView({
     },
     [keyboardAwareContext, props],
   )
-  const contentContainerStyle = useMemo(
-    () => withDrawerContentInset(props.contentContainerStyle),
-    [props.contentContainerStyle],
-  )
-
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
       <ScrollView
@@ -370,7 +363,7 @@ export function KeyboardAwareBottomSheetScrollView({
         style={[styles.container, props.style]}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         automaticallyAdjustKeyboardInsets
-        contentContainerStyle={contentContainerStyle}
+        nestedScrollEnabled
         onScroll={handleScroll}
       >
         {children}
