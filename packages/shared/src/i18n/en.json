@@ -722,6 +722,17 @@
       "partial": "Partial",
       "missed": "Missed"
     },
+    "dayCell": {
+      "none": "None logged",
+      "partial": "Partially done",
+      "full": "Done",
+      "notScheduled": "Not scheduled",
+      "future": "Upcoming",
+      "of": "of",
+      "today": "Today",
+      "selected": "Selected",
+      "readOnly": "Read only"
+    },
     "thisMonth": "This month",
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
@@ -1139,7 +1150,6 @@
       "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
       "reactivated": "Your account deletion is cancelled.",
       "errorGeneric": "Something went wrong. Please try again.",
-      "offlineTitle": "You're offline",
       "offlineDescription": "Connect to the internet to deactivate your account."
     }
   },
@@ -2078,7 +2088,6 @@
     "completedCelebrationFiled": "Filed.",
     "tab": "Goals",
     "empty": "No goals yet",
-    "emptyHint": "Create your first goal to start tracking progress",
     "create": "New Goal",
     "dragItem": "draggable item",
     "reorderHint": "Hold to reorder",
@@ -2150,8 +2159,7 @@
       "abandoned": "Abandoned",
       "statusFilter": "Filter by status",
       "clearFilter": "Clear filter",
-      "emptyFiltered": "No goals match this filter",
-      "emptyFilteredHint": "Try another status or clear the filter"
+      "emptyFiltered": "No goals match this filter"
     },
     "deadline": {
       "overdue": "Overdue",
@@ -2733,7 +2741,7 @@
       },
       "legend": {
         "title": "Color Legend",
-        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days"
+        "description": "Your accent color marks today. A solid neutral circle means every habit was done, the primary progress ring means partial completion, and a neutral outline means none were logged. Build a streak of solid days"
       },
       "monthNav": {
         "title": "Month Navigation",

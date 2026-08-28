@@ -2,6 +2,8 @@
 
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslations } from 'next-intl'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
@@ -116,46 +118,13 @@ export function HabitListEmptyState({
   )
 }
 
-const SKELETON_BONE = 'color-mix(in srgb, var(--fg-1) 8%, transparent)'
-
 export function HabitListSkeleton() {
+  const t = useTranslations()
+
   return (
-    <div>
+    <div className="flex flex-col gap-3 px-4">
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex items-center animate-pulse"
-          style={{
-            padding: '12px 16px',
-            gap: 12,
-            borderRadius: 20,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            margin: '0 16px 12px',
-          }}
-        >
-          <div
-            className="shrink-0"
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: SKELETON_BONE,
-            }}
-          />
-          <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
-            <div
-              style={{ width: '55%', height: 12, borderRadius: 6, background: SKELETON_BONE }}
-            />
-            <div
-              style={{ width: '32%', height: 12, borderRadius: 6, background: SKELETON_BONE }}
-            />
-          </div>
-          <div
-            className="rounded-full shrink-0"
-            style={{ width: 30, height: 30, background: SKELETON_BONE }}
-          />
-        </div>
+        <Skeleton key={i} variant="habit-row" label={t('common.loading')} />
       ))}
     </div>
   )

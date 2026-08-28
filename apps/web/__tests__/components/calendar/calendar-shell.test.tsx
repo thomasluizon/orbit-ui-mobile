@@ -85,15 +85,18 @@ describe('Calendar shell helpers', () => {
     render(
       <CalendarLegend
         todayLabel="Today"
-        doneLabel="Done"
+        fullLabel="All done"
         partialLabel="Partial"
-        missedLabel="Missed"
+        noneLabel="None logged"
       />,
     )
 
     expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.getByText('Done')).toBeInTheDocument()
+    expect(screen.getByText('All done')).toBeInTheDocument()
     expect(screen.getByText('Partial')).toBeInTheDocument()
-    expect(screen.getByText('Missed')).toBeInTheDocument()
+    expect(screen.getByText('None logged')).toBeInTheDocument()
+    expect(document.querySelector('[data-legend-outcome="full"]')).toHaveStyle({ background: 'var(--fg-1)' })
+    expect(document.querySelector('[data-legend-outcome="partial"] circle:nth-child(2)')).toHaveAttribute('stroke', 'var(--primary)')
+    expect(document.querySelector('[data-legend-outcome="none"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--fg-4)' })
   })
 })

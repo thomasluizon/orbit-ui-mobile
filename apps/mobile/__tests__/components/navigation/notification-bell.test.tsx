@@ -50,6 +50,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
+  radius: { md: 8, xl: 16 },
   tintFromPrimary: () => 'rgba(127,70,247,0.06)',
 }))
 

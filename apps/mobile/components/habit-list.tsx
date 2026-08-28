@@ -61,12 +61,12 @@ import { useTourStore } from '@/stores/tour-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow } from '@/components/habits/habit-row'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
   getEmptyHabitsMessage,
   HabitListEmptyState,
-  SkeletonCard,
 } from './habit-list/empty-state'
 import {
   formatDateGroupLabel,
@@ -1230,10 +1230,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const renderSkeletonItem = useCallback(
       () => (
         <View style={styles.sectionInset}>
-          <SkeletonCard styles={styles} />
+          <Skeleton variant="habit-row" label={t('common.loading')} />
         </View>
       ),
-      [styles],
+      [styles, t],
     )
 
     const renderEmptyState = useCallback(
