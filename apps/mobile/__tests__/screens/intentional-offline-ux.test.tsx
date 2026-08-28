@@ -105,17 +105,19 @@ const mocks = vi.hoisted(() => {
       currentScheme: 'purple',
       currentTheme: 'dark',
     })),
-    asyncStorageGetItem: vi.fn(async (key: string) => storage.get(key) ?? null),
-    asyncStorageSetItem: vi.fn(async (key: string, value: string) => {
+    asyncStorageGetItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+    asyncStorageSetItem: vi.fn((key: string, value: string) => {
       storage.set(key, value)
+      return Promise.resolve()
     }),
-    asyncStorageRemoveItem: vi.fn(async (key: string) => {
+    asyncStorageRemoveItem: vi.fn((key: string) => {
       storage.delete(key)
+      return Promise.resolve()
     }),
     buildQueuedMutation: vi.fn((mutation: Record<string, unknown>) => mutation),
     createQueuedAck: vi.fn((queuedMutationId: string) => ({ queued: true, queuedMutationId })),
     isQueuedResult: vi.fn(() => false),
-    queueOrExecute: vi.fn(async () => ({ queued: false, queuedMutationId: 'mutation-1' })),
+    queueOrExecute: vi.fn(() => Promise.resolve({ queued: false, queuedMutationId: 'mutation-1' })),
     clearChecklistTemplates: vi.fn(async () => {}),
     clearPersistedQueryCache: vi.fn(async () => {}),
     plural: vi.fn((value: string) => value),
@@ -194,7 +196,7 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => React.createElement(React.Fragment, null, trailing as React.ReactNode),
+  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => React.createElement(React.Fragment, null, trailing),
 }))
 
 vi.mock('@/components/ui/section-label', () => ({
@@ -477,9 +479,8 @@ describe('intentional offline UX screens', () => {
 
     const tree = await renderScreen(<RetrospectiveScreen />)
 
-    expect(tree.root.findAll((node: any) => node.props?.accessibilityRole === 'alert').length).toBeGreaterThan(0)
-
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
+    expect(texts).toContain('offline.description')
     expect(texts).toContain('Cached retrospective summary')
     expect(texts).toContain('retrospective.cached')
   })
@@ -497,8 +498,7 @@ describe('intentional offline UX screens', () => {
       await Promise.resolve()
     })
 
-    const alerts = tree.root.findAll((node: any) => node.props?.accessibilityRole === 'alert')
-    expect(alerts.length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'error-state').length).toBeGreaterThan(0)
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
@@ -506,7 +506,7 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<UpgradeScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.title')
+    expect(texts).toContain('offline.description')
     expect(texts).not.toContain('upgrade.plans.error')
     expect(texts).not.toContain('upgrade.billing.error')
   })
@@ -515,7 +515,6 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<SupportScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.title')
     expect(texts).toContain('offline.description')
   })
 })

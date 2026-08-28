@@ -90,9 +90,11 @@ export function Toast(props: Readonly<ToastProps>) {
       aria-live={props.kind === 'lost' ? 'assertive' : 'polite'}
       aria-atomic="true"
       data-kind={props.kind}
+      tabIndex={-1}
       className="flex items-center gap-3 rounded-[var(--r-card)] bg-[var(--bg-elev)] p-4 text-[var(--fg-1)] shadow-[var(--sh-2)]"
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
       onBlurCapture={handleBlur}
     >
       {props.kind === 'working' ? <WorkingMark /> : null}

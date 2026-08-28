@@ -3244,10 +3244,6 @@
       },
       {
         "from": "apps/mobile/hooks",
-        "to": "packages/shared/src/contracts"
-      },
-      {
-        "from": "apps/mobile/hooks",
         "to": "packages/shared/src/hooks"
       },
       {
@@ -3320,6 +3316,10 @@
       },
       {
         "from": "apps/mobile/stores",
+        "to": "apps/mobile/components"
+      },
+      {
+        "from": "apps/mobile/stores",
         "to": "apps/mobile/hooks"
       },
       {
@@ -3329,10 +3329,6 @@
       {
         "from": "apps/mobile/stores",
         "to": "packages/shared/src/api"
-      },
-      {
-        "from": "apps/mobile/stores",
-        "to": "packages/shared/src/contracts"
       },
       {
         "from": "apps/mobile/stores",

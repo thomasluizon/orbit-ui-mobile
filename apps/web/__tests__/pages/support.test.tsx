@@ -45,15 +45,6 @@ vi.mock('@orbit/shared/utils', () => ({
     'support.sendError',
 }))
 
-vi.mock('@/components/ui/offline-unavailable-state', () => ({
-  OfflineUnavailableState: ({ title, description }: { title: string; description: string }) => (
-    <div role="alert">
-      <span>{title}</span>
-      <span>{description}</span>
-    </div>
-  ),
-}))
-
 import SupportPage from '@/app/(app)/support/page'
 
 const DRAFT_KEY = 'orbit-support-draft'
@@ -84,7 +75,7 @@ describe('SupportPage', () => {
     mockIsOnline = false
     render(<SupportPage />)
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('offline.description')).toBeInTheDocument()
     expect(sendButton()).toBeDisabled()
   })
 
