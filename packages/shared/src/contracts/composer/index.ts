@@ -1,3 +1,4 @@
+export { hasComposerContent } from './Composer'
 export type {
   ComposerAttachWords,
   ComposerAttachment,

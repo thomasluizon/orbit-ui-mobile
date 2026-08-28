@@ -1,8 +1,9 @@
-import type {
-  ComposerAttachWords,
-  ComposerAttachment,
-  ComposerProps,
-  ComposerVoiceWords,
+import {
+  hasComposerContent,
+  type ComposerAttachWords,
+  type ComposerAttachment,
+  type ComposerProps,
+  type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { useRef } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
@@ -140,7 +141,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   const voiceRef = useRef<View>(null)
   useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && props.value.trim().length > 0
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isAtLimit = props.state === 'atLimit'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'

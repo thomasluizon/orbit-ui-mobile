@@ -34,6 +34,7 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
+  formatAccountMidnight,
   getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from '@orbit/shared/utils'
@@ -165,6 +166,7 @@ export function useChatComposer() {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
+  const accountTimeZone = profile?.timeZone ?? null
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
   const canSend =
@@ -558,13 +560,6 @@ export function useChatComposer() {
   }, [sendMessage, t])
 
   const composerProps = useMemo(() => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(0, 0, 0, 0)
-    const resetsAt = new Intl.DateTimeFormat(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(tomorrow)
     const words = {
       placeholder: t('shell.composer.placeholder'),
       send: t('shell.composer.send'),
@@ -601,10 +596,12 @@ export function useChatComposer() {
     if (isTranscribing) return { ...common, state: 'transcribing', onVoice: toggleRecording, voiceWords }
 
     if (atMessageLimit) {
-      const limitReason = t('shell.composer.limit.reason', {
-        allowance: aiMessagesLimit,
-        resetsAt,
-      })
+      const limitReason = accountTimeZone
+        ? t('shell.composer.limit.reasonWithTime', {
+            allowance: aiMessagesLimit,
+            resetsAt: formatAccountMidnight(locale, accountTimeZone),
+          })
+        : t('shell.composer.limit.reasonAtMidnight', { allowance: aiMessagesLimit })
       return speechSupported
         ? { ...common, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: 'atLimit', limitReason }
@@ -627,6 +624,7 @@ export function useChatComposer() {
     isTranscribing,
     locale,
     openFilePicker,
+    accountTimeZone,
     removeImage,
     retryLastSend,
     selectedImage,

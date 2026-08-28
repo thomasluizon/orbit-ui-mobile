@@ -216,7 +216,8 @@
         "remove": "Remover {name}"
       },
       "limit": {
-        "reason": "A cota de {allowance} mensagens de hoje foi usada. A Astra volta às {resetsAt}."
+        "reasonWithTime": "A cota de {allowance} mensagens de hoje foi usada. Ela é renovada às {resetsAt}.",
+        "reasonAtMidnight": "A cota de {allowance} mensagens de hoje foi usada. Ela é renovada à meia-noite."
       }
     }
   },

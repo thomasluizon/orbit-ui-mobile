@@ -26,6 +26,13 @@ export type ComposerAttachment = {
   name: string
 }
 
+export function hasComposerContent(
+  value: string,
+  attachments: readonly ComposerAttachment[] = [],
+): boolean {
+  return value.trim().length > 0 || attachments.length > 0
+}
+
 export type ComposerSuggestion = {
   id: string
   label: string

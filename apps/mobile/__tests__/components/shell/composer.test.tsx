@@ -119,6 +119,22 @@ describe('Composer (mobile)', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
+  it('sends an attached image when the text is blank', async () => {
+    const onSend = vi.fn()
+    const tree = await renderComposer(props({
+      value: '   ',
+      onSend,
+      onAttach: vi.fn(),
+      attachWords,
+      attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
+      onAttachRemove: vi.fn(),
+    }))
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.disabled).toBe(false)
+    TestRenderer.act(() => send.props.onPress())
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
   it('disables input and send while keeping suggestions during sending', async () => {
     const tree = await renderComposer(props({ state: 'sending', value: 'oi' }))
     expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)

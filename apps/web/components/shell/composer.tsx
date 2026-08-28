@@ -1,11 +1,12 @@
 'use client'
 
 import type { ClipboardEventHandler } from 'react'
-import type {
-  ComposerAttachWords,
-  ComposerAttachment,
-  ComposerProps,
-  ComposerVoiceWords,
+import {
+  hasComposerContent,
+  type ComposerAttachWords,
+  type ComposerAttachment,
+  type ComposerProps,
+  type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { ArrowUp, FileText, Image as ImageIcon, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 
@@ -114,7 +115,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && props.value.trim().length > 0
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isAtLimit = props.state === 'atLimit'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'

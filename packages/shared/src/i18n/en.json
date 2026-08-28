@@ -216,7 +216,8 @@
         "remove": "Remove {name}"
       },
       "limit": {
-        "reason": "Today's allowance of {allowance} messages is used. Astra comes back at {resetsAt}."
+        "reasonWithTime": "Today's allowance of {allowance} messages is used. It resets at {resetsAt}.",
+        "reasonAtMidnight": "Today's allowance of {allowance} messages is used. It resets at midnight."
       }
     }
   },

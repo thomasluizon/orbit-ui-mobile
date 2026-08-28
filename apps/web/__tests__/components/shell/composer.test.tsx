@@ -83,6 +83,26 @@ describe('Composer', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
+  it('sends an attached image when the text is blank', () => {
+    const onSend = vi.fn()
+    render(
+      <Composer
+        {...props({
+          value: '   ',
+          onSend,
+          onAttach: vi.fn(),
+          attachWords,
+          attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
+          onAttachRemove: vi.fn(),
+        })}
+      />,
+    )
+    const send = screen.getByRole('button', { name: words.send })
+    expect(send).toBeEnabled()
+    fireEvent.click(send)
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
   it('disables input and send while keeping suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()

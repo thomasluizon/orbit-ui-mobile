@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -563,6 +564,42 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.atMessageLimit).toBe(true)
     expect(composer.current.showSuggestions).toBe(true)
     expect(composer.current.starterChips.length).toBeGreaterThan(0)
+  })
+
+  it('states the reset at account-timezone midnight when the device timezone differs', async () => {
+    const previousTimeZone = process.env.TZ
+    process.env.TZ = 'Asia/Tokyo'
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+      timeZone: 'America/New_York',
+    })
+
+    try {
+      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo')
+      const composer = await renderComposer()
+      expect(composer.current.composerProps.limitReason).toBe(
+        'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
+      )
+    } finally {
+      process.env.TZ = previousTimeZone
+    }
+  })
+
+  it('states only midnight when the account timezone is absent', async () => {
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+      timeZone: null,
+    })
+
+    const composer = await renderComposer()
+    expect(composer.current.composerProps.limitReason).toBe(
+      'shell.composer.limit.reasonAtMidnight:{"allowance":20}',
+    )
+    expect(composer.current.composerProps.limitReason).not.toContain('resetsAt')
   })
 
   it('ignores an empty send with nothing typed or attached', async () => {

@@ -1,9 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { ChatResponse } from '@orbit/shared/types/chat'
+import type { Profile } from '@orbit/shared/types/profile'
 
 const mocks = vi.hoisted(() => ({
+  state: {
+    profile: undefined as Profile | undefined,
+  },
   fetch: vi.fn(),
   routerPush: vi.fn(),
   queryClient: {
@@ -13,7 +18,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
   useLocale: () => 'en',
 }))
 
@@ -26,7 +32,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: undefined }),
+  useProfile: () => ({ profile: mocks.state.profile }),
 }))
 
 vi.mock('@/hooks/use-speech-to-text', () => ({
@@ -102,6 +108,7 @@ function controlledSseResponse() {
 
 describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
+    mocks.state.profile = undefined
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
     mocks.queryClient.invalidateQueries.mockReset()
@@ -398,5 +405,41 @@ describe('web useChatComposer streaming send', () => {
     } finally {
       Reflect.deleteProperty(globalThis.navigator, 'onLine')
     }
+  })
+
+  it('states the reset at account-timezone midnight when the device timezone differs', () => {
+    const previousTimeZone = process.env.TZ
+    process.env.TZ = 'Asia/Tokyo'
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+      timeZone: 'America/New_York',
+    })
+
+    try {
+      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo')
+      const { result } = renderHook(() => useChatComposer())
+      expect(result.current.composerProps.limitReason).toBe(
+        'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
+      )
+    } finally {
+      process.env.TZ = previousTimeZone
+    }
+  })
+
+  it('states only midnight when the account timezone is absent', () => {
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+      timeZone: null,
+    })
+
+    const { result } = renderHook(() => useChatComposer())
+    expect(result.current.composerProps.limitReason).toBe(
+      'shell.composer.limit.reasonAtMidnight:{"allowance":20}',
+    )
+    expect(result.current.composerProps.limitReason).not.toContain('resetsAt')
   })
 })
