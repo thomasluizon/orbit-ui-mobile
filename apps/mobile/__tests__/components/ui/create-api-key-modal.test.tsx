@@ -30,9 +30,9 @@ vi.mock('@/components/ui/pill-button', () => ({
     ),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
-  Switch: ({ onToggle, accessibilityLabel }: { onToggle: () => void; accessibilityLabel: string }) =>
-    React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel, onPress: onToggle }),
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ onChange, checked, label }: { onChange: (checked: boolean) => void; checked: boolean; label: string }) =>
+    React.createElement('Pressable', { accessibilityRole: 'switch', accessibilityLabel: label, onPress: () => onChange(!checked) }),
 }))
 
 interface TestNode {

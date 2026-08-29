@@ -207,7 +207,7 @@ await Promise.resolve()
     })
 
     const dueTimePicker = findTimePickers(tree.root).find(
-      (node: any) => node.props.accessibilityLabel === 'habits.form.dueTime',
+      (node: any) => node.props.label === 'habits.form.dueTime',
     )
 
     expect(dueTimePicker).toBeTruthy()
@@ -245,7 +245,7 @@ await Promise.resolve()
     })
 
     const dueEndTimePicker = findTimePickers(tree.root).find(
-      (node: any) => node.props.accessibilityLabel === 'habits.form.dueEndTime',
+      (node: any) => node.props.label === 'habits.form.dueEndTime',
     )
 
     expect(dueEndTimePicker).toBeTruthy()

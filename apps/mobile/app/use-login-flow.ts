@@ -114,6 +114,9 @@ export function useLoginFlow() {
     resendCountdown,
     startResendCountdown,
     resetCodeDigits,
+    onCodeChange,
+    onCodeInput,
+    onCodeKeyPress,
   } = useLoginCodeEntry(() => {
     void verifyCode()
   })
@@ -354,9 +357,9 @@ export function useLoginFlow() {
     codeDigits,
     canResend,
     resendCountdown,
-    onCodeChange: (value: string) => {
-      setCodeDigits(Array.from({ length: 6 }, (_, index) => value[index] ?? ''))
-    },
+    onCodeChange,
+    onCodeInput,
+    onCodeKeyPress,
     canSubmitEmail,
     canSubmitCode,
     sendCode,

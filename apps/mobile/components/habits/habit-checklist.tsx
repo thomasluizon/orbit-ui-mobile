@@ -5,20 +5,14 @@ import {
   Text,
   StyleSheet,
 } from 'react-native'
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withSpring,
-} from 'react-native-reanimated'
-import { ChevronUp, ChevronDown, X, Copy, Check, Plus, RotateCcw } from '@/components/ui/icons'
+import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { CheckRow } from '@/components/ui/check-row'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -157,7 +151,6 @@ interface InteractiveChecklistItemProps {
   interactive: boolean
   onToggle: (index: number) => void
   styles: ReturnType<typeof createStyles>
-  tokens: AppTokens
 }
 
 function InteractiveChecklistItem({
@@ -167,21 +160,8 @@ function InteractiveChecklistItem({
   interactive,
   onToggle,
   styles,
-  tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const scale = useSharedValue(1)
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }))
-
   function handlePress() {
-    if (!item.isChecked && !prefersReducedMotion) {
-      scale.value = withSequence(
-        withSpring(1.18, { damping: 14 }),
-        withSpring(1),
-      )
-    }
     onToggle(index)
   }
 
@@ -205,30 +185,13 @@ function InteractiveChecklistItem({
   }
 
   return (
-    <Pressable
-      onPress={handlePress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={item.text}
-      style={({ pressed }) => [
-        styles.interactiveItem,
-        dividerStyle,
-        pressed ? styles.interactiveItemPressed : null,
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.checkbox,
-          item.isChecked ? styles.checkboxChecked : styles.checkboxUnchecked,
-          animatedStyle,
-        ]}
-      >
-        {item.isChecked && (
-          <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
-        )}
-      </Animated.View>
-      {itemLabel}
-    </Pressable>
+    <View style={dividerStyle}>
+      <CheckRow
+        label={item.text}
+        checked={item.isChecked}
+        onChange={handlePress}
+      />
+    </View>
   )
 }
 
@@ -432,7 +395,6 @@ export function HabitChecklist({
                 interactive={interactive}
                 onToggle={handleToggle}
                 styles={styles}
-                tokens={tokens}
               />
             ))}
           </View>

@@ -4,7 +4,8 @@ import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { toast } from 'sonner'
@@ -98,9 +99,9 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
             divider={index < calendars.length - 1}
           >
             <Switch
-              on={calendar.isSynced}
-              onToggle={() => void handleToggle(calendar.id, !calendar.isSynced)}
-              ariaLabel={t('calendar.calendars.toggleLabel', { name: calendar.name })}
+              checked={calendar.isSynced}
+              onChange={(checked) => void handleToggle(calendar.id, checked)}
+              label={t('calendar.calendars.toggleLabel', { name: calendar.name })}
             />
           </SettingsRow>
         ))}

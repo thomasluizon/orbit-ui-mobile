@@ -87,6 +87,20 @@ describe('mobile AiFeatureToggles', () => {
     expect(props.onToggleProactive).toHaveBeenCalledTimes(1)
   })
 
+  it('hides pending switch descendants behind one disabled accessibility node', () => {
+    const props = { ...baseProps(), summaryPending: true }
+    const tree = renderToggles(props)
+    const summary = findNode(tree, 'switch', SUMMARY_LABEL)
+    expect(summary?.props.accessibilityState).toEqual({ checked: true, disabled: true })
+    expect(
+      tree.root.findAll(
+        (node) =>
+          typeof node.type === 'string'
+          && node.props.importantForAccessibility === 'no-hide-descendants',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('renders exactly two locked upgrade rows for free users', () => {
     const props = { ...baseProps(), hasProAccess: false }
     const tree = renderToggles(props)

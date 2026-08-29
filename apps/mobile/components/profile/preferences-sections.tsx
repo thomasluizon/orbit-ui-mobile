@@ -13,7 +13,8 @@ import type { NotificationPermissionStatus } from '@/lib/push-notification-permi
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { RadioRow } from '@/components/ui/select-check'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
@@ -82,12 +83,24 @@ export function PushNotificationSection({
             accessory="none"
             divider={false}
           >
-            <Switch
-              on={pushEnabled}
-              onToggle={onToggle}
-              disabled={pushLoading}
-              accessibilityLabel={t('settings.notifications.title')}
-            />
+            <View
+              pointerEvents={pushLoading ? 'none' : 'auto'}
+              accessible={pushLoading}
+              accessibilityRole={pushLoading ? 'switch' : undefined}
+              accessibilityLabel={pushLoading ? t('settings.notifications.title') : undefined}
+              accessibilityState={pushLoading ? { checked: pushEnabled, disabled: true } : undefined}
+            >
+              <View
+                accessibilityElementsHidden={pushLoading}
+                importantForAccessibility={pushLoading ? 'no-hide-descendants' : 'auto'}
+              >
+                <Switch
+                  checked={pushEnabled}
+                  onChange={onToggle}
+                  label={t('settings.notifications.title')}
+                />
+              </View>
+            </View>
           </SettingsRow>
           <View style={styles.statusBlock}>
             <Text style={[styles.statusText, { color: pushStatusColor }]}>
@@ -144,12 +157,24 @@ function PersistentReminderRow({
       accessory="none"
       divider={false}
     >
-      <Switch
-        on={enabled}
-        onToggle={onToggle}
-        disabled={isLoading}
-        accessibilityLabel={t('persistentReminder.label')}
-      />
+      <View
+        pointerEvents={isLoading ? 'none' : 'auto'}
+        accessible={isLoading}
+        accessibilityRole={isLoading ? 'switch' : undefined}
+        accessibilityLabel={isLoading ? t('persistentReminder.label') : undefined}
+        accessibilityState={isLoading ? { checked: enabled, disabled: true } : undefined}
+      >
+        <View
+          accessibilityElementsHidden={isLoading}
+          importantForAccessibility={isLoading ? 'no-hide-descendants' : 'auto'}
+        >
+          <Switch
+            checked={enabled}
+            onChange={onToggle}
+            label={t('persistentReminder.label')}
+          />
+        </View>
+      </View>
     </SettingsRow>
   )
 }
@@ -233,9 +258,9 @@ export function PreferenceSettingsList({
           divider={false}
         >
           <Switch
-            on={showGeneralOnToday}
-            onToggle={onToggleShowGeneral}
-            accessibilityLabel={t('settings.homeScreen.showGeneral')}
+            checked={showGeneralOnToday}
+            onChange={onToggleShowGeneral}
+            label={t('settings.homeScreen.showGeneral')}
           />
         </SettingsRow>
       </Animated.View>
