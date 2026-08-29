@@ -82,9 +82,11 @@ export function PricingSection({
 }>) {
   const trialActive = !!profile?.isTrialActive
   const trialEyebrow =
-    trialDaysLeft === 0
+    trialDaysLeft === null
+      ? t('upgrade.convert.trialEyebrow')
+      : trialDaysLeft === 0
       ? t('upgrade.convert.trialLastDay')
-      : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
+      : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
   const eyebrow = trialActive ? trialEyebrow : t('upgrade.convert.freeEyebrow')
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
@@ -175,7 +177,8 @@ export function PricingSection({
           <Pressable
             accessibilityRole="button"
             onPress={onRestore}
-            disabled={isRestoring}
+            disabled={isRestoring || !isOnline}
+            accessibilityState={{ disabled: isRestoring || !isOnline }}
             hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [
               styles.actionChip,

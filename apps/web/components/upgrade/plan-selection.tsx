@@ -10,6 +10,7 @@ interface PlanSelectionProps {
   discountedAmount: (amount: number) => number
   trialActive: boolean
   checkoutLoading: SubscriptionInterval | null
+  checkoutDisabled?: boolean
   onCheckout: (interval: SubscriptionInterval) => void
   onStayFree: () => void
   t: ReturnType<typeof useTranslations>
@@ -19,6 +20,7 @@ export function PlanSelection({
   plans,
   discountedAmount,
   checkoutLoading,
+  checkoutDisabled = false,
   onCheckout,
   onStayFree,
   t,
@@ -40,14 +42,14 @@ export function PlanSelection({
         badge={<Badge>{t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}</Badge>}
         price={formatPrice(monthlyEquivalent(yearlyAmount), plans.currency)}
         selected
-        disabled={checkoutPending}
+        disabled={checkoutPending || checkoutDisabled}
         loading={checkoutLoading === 'yearly'}
         onClick={() => onCheckout('yearly')}
       />
       <PlanCard
         name={t('upgrade.plans.monthly.name')}
         price={formatPrice(monthlyAmount, plans.currency)}
-        disabled={checkoutPending}
+        disabled={checkoutPending || checkoutDisabled}
         loading={checkoutLoading === 'monthly'}
         onClick={() => onCheckout('monthly')}
       />
