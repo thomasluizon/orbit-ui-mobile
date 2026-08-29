@@ -274,6 +274,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<
       Set<string>
     >(new Set())
+    const pendingToggleHabitIdsRef = useRef(new Set<string>())
     const promptedParentIdsRef = useRef(new Set<string>())
     const skippedChildIdsRef = useRef(new Set<string>())
     const resolvedModesRef = useRef(new Map<string, HabitResolutionMode>())
@@ -775,19 +776,28 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [checkAndPromptParentLog, markRecentlyCompleted, showInterstitialIfDue],
     )
 
-    const handleDirectLog = useCallback(
-      async (habitId: string) => {
-        markRecentlyCompleted(habitId)
+    const handleDirectToggle = useCallback(
+      async (habitId: string, intent: 'log' | 'unlog') => {
+        const pendingHabitIds = pendingToggleHabitIdsRef.current
+        if (pendingHabitIds.has(habitId)) return
+
+        pendingHabitIds.add(habitId)
+        if (intent === 'log') markRecentlyCompleted(habitId)
+        let mutationSucceeded = false
 
         try {
           await logMutation.mutateAsync(
             selectedDate
-              ? { habitId, date: selectedDateStr, intent: 'log' }
-              : { habitId, intent: 'log' },
+              ? { habitId, date: selectedDateStr, intent }
+              : { habitId, intent },
           )
-          handleLogged(habitId, false)
+          mutationSucceeded = true
+          if (intent === 'log') handleLogged(habitId, false)
+          await refetch()
         } catch {
-          clearRecentlyCompleted(habitId)
+          if (!mutationSucceeded && intent === 'log') clearRecentlyCompleted(habitId)
+        } finally {
+          pendingHabitIds.delete(habitId)
         }
       },
       [
@@ -795,6 +805,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         handleLogged,
         logMutation,
         markRecentlyCompleted,
+        refetch,
         selectedDate,
         selectedDateStr,
       ],
@@ -1093,9 +1104,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             isSelected={selectedIds.has(habit.id)}
             actions={{
               onLog: () => {
-                void handleDirectLog(habit.id)
+                void handleDirectToggle(habit.id, 'log')
               },
-              onUnlog: () => logMutation.mutate({ habitId: habit.id, intent: 'unlog' }),
+              onUnlog: () => {
+                void handleDirectToggle(habit.id, 'unlog')
+              },
               onSkip: () => {
                 void skipHabit(habit.id)
               },
@@ -1167,7 +1180,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         getChildrenProgress,
         isSelectMode,
         selectedIds,
-        logMutation,
         skipHabit,
         toggleExpand,
         promptDelete,
@@ -1175,7 +1187,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         openMoveParentDialog,
         startAddSubHabit,
         drill,
-        handleDirectLog,
+        handleDirectToggle,
         toggleSelectMode,
         toggleSelectionCascade,
         getDescendantIds,

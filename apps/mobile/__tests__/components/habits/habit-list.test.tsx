@@ -29,6 +29,7 @@ function flattenText(node: unknown): string {
 
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
+const habitListRefetch = vi.fn()
 const deleteMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
 const bulkDeleteMutateAsync = vi.fn()
@@ -93,7 +94,7 @@ vi.mock('@/hooks/use-habits', () => ({
     isLoading: false,
     isFetching: false,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
-    refetch: vi.fn(),
+    refetch: habitListRefetch,
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
       return childIds
@@ -290,6 +291,8 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
     bulkDeleteMutateAsync.mockReset()
@@ -488,6 +491,123 @@ describe('HabitList', () => {
       habitId: 'habit-1',
       date: '2026-04-08',
       intent: 'log',
+    })
+  })
+
+  it('unlogs only the viewed historical occurrence', () => {
+    let occurrences = [
+      { date: YESTERDAY, status: 'Completed', logId: 'log-yesterday' },
+      { date: TODAY, status: 'Pending', logId: null },
+    ]
+    const habit = createMockHabit({
+      id: 'habit-1',
+      title: 'Exercise',
+      isCompleted: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: occurrences,
+    })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(({ date }: { date?: string }) => {
+      occurrences = occurrences.map((occurrence) =>
+        occurrence.date === date
+          ? { ...occurrence, status: 'Pending', logId: null }
+          : occurrence,
+      )
+    })
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    const habitCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habit.id)
+
+    TestRenderer.act(() => {
+      habitCard?.props.actions.onUnlog()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: YESTERDAY,
+      intent: 'unlog',
+    })
+    expect(occurrences).toContainEqual({
+      date: TODAY,
+      status: 'Pending',
+      logId: null,
+    })
+  })
+
+  it('guards only the settling habit until its refetch completes', async () => {
+    const firstHabit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    const secondHabit = createMockHabit({ id: 'habit-2', title: 'Read' })
+    seedHabits([firstHabit, secondHabit])
+
+    let resolveFirstMutation: (() => void) | undefined
+    const firstMutation = new Promise<void>((resolve) => {
+      resolveFirstMutation = resolve
+    })
+    let resolveFirstRefetch: (() => void) | undefined
+    const firstRefetch = new Promise<void>((resolve) => {
+      resolveFirstRefetch = resolve
+    })
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) =>
+      habitId === firstHabit.id ? firstMutation : Promise.resolve(),
+    )
+    habitListRefetch
+      .mockReturnValueOnce(firstRefetch)
+      .mockResolvedValue(undefined)
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date()}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    const findHabitCard = (habitId: string) =>
+      tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === habitId)
+
+    TestRenderer.act(() => {
+      findHabitCard(firstHabit.id)?.props.actions.onLog()
+    })
+    await TestRenderer.act(async () => {
+      resolveFirstMutation?.()
+      await firstMutation
+    })
+    expect(habitListRefetch).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      findHabitCard(firstHabit.id)?.props.actions.onUnlog()
+    })
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      findHabitCard(secondHabit.id)?.props.actions.onLog()
+    })
+    expect(logMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: secondHabit.id }),
+    )
+
+    await TestRenderer.act(async () => {
+      resolveFirstRefetch?.()
+      await firstRefetch
     })
   })
 

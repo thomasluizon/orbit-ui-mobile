@@ -172,6 +172,7 @@ export function HabitList({
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState(
     new Set<string>(),
   )
+  const pendingToggleHabitIdsRef = useReactRef(new Set<string>())
   const promptedParentIdsRef = useReactRef(new Set<string>())
   const skippedChildIdsRef = useReactRef(new Set<string>())
   const resolvedModesRef = useReactRef(new Map<string, HabitResolutionMode>())
@@ -780,15 +781,25 @@ export function HabitList({
     checkAndPromptParentLog(habitId)
   }
 
-  async function handleDirectLog(habitId: string) {
-    markRecentlyCompleted(habitId)
+  async function handleDirectToggle(habitId: string, intent: 'log' | 'unlog') {
+    const pendingHabitIds = pendingToggleHabitIdsRef.current
+    if (pendingHabitIds.has(habitId)) return
+
+    pendingHabitIds.add(habitId)
+    if (intent === 'log') markRecentlyCompleted(habitId)
+    let mutationSucceeded = false
+
     try {
       await logHabit.mutateAsync(
         selectedDate ? { habitId, date: selectedDateStr } : { habitId },
       )
-      handleLogged(habitId, false)
+      mutationSucceeded = true
+      if (intent === 'log') handleLogged(habitId, false)
+      await habitsQuery.refetch()
     } catch {
-      clearRecentlyCompleted(habitId)
+      if (!mutationSucceeded && intent === 'log') clearRecentlyCompleted(habitId)
+    } finally {
+      pendingHabitIds.delete(habitId)
     }
   }
   useImperativeHandle(ref, () => ({
@@ -903,8 +914,8 @@ export function HabitList({
         childProgress={hasChildren ? progress : undefined}
         showLinkedGoalDot={hasLinkedGoal}
         actions={{
-          onLog: () => { void handleDirectLog(habit.id) },
-          onUnlog: () => logHabit.mutate({ habitId: habit.id }),
+          onLog: () => { void handleDirectToggle(habit.id, 'log') },
+          onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
           onSkip: () => void handleSkip(habit.id),
           onDuplicate: () => void duplicateImmediately(habit.id),
           onEdit: () => {

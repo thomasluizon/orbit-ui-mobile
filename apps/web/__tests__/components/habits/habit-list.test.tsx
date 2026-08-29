@@ -19,6 +19,7 @@ const mockHabitsData = {
   topLevelHabits: [] as NormalizedHabit[],
 }
 const logHabitMutateAsync = vi.fn()
+const habitListRefetch = vi.fn()
 const skipHabitMutateAsync = vi.fn()
 const deleteHabitMutateAsync = vi.fn()
 const toggleSelectionSpy = vi.fn()
@@ -65,6 +66,7 @@ vi.mock('@/hooks/use-habits', () => ({
     isLoading: false,
     error: null,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
+    refetch: habitListRefetch,
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
       return childIds
@@ -149,6 +151,7 @@ vi.mock('@/components/habits/habit-row', () => ({
     selected?: boolean
     actions?: {
       onLog?: () => void
+      onUnlog?: () => void
       onSkip?: () => void
       onDelete?: () => void
       onEdit?: () => void
@@ -171,6 +174,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       </span>
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
+      </button>
+      <button data-testid={`unlog-${habit.id}`} onClick={actions?.onUnlog}>
+        unlog
       </button>
       <button data-testid={`delete-${habit.id}`} onClick={actions?.onDelete}>
         delete
@@ -311,6 +317,8 @@ describe('HabitList', () => {
     skipHabitMutateAsync.mockReset()
     deleteHabitMutateAsync.mockReset()
     toggleSelectionSpy.mockReset()
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
     logHabitMutateAsync.mockReset()
     logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
@@ -605,6 +613,97 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-1',
       date: '2026-04-08',
+    })
+  })
+
+  it('unlogs only the viewed historical occurrence', async () => {
+    let occurrences = [
+      { date: YESTERDAY, status: 'Completed', logId: 'log-yesterday' },
+      { date: TODAY, status: 'Pending', logId: null },
+    ]
+    const habit = createMockHabit({
+      id: 'h-1',
+      title: 'Exercise',
+      isCompleted: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: occurrences,
+    })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    logHabitMutateAsync.mockImplementation(async ({ date }: { date?: string }) => {
+      occurrences = occurrences.map((occurrence) =>
+        occurrence.date === date
+          ? { ...occurrence, status: 'Pending', logId: null }
+          : occurrence,
+      )
+    })
+
+    renderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('unlog-h-1'))
+    })
+
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'h-1',
+      date: YESTERDAY,
+    })
+    expect(occurrences).toContainEqual({
+      date: TODAY,
+      status: 'Pending',
+      logId: null,
+    })
+  })
+
+  it('guards only the settling habit until its refetch completes', async () => {
+    const firstHabit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    const secondHabit = createMockHabit({ id: 'h-2', title: 'Read' })
+    mockHabitsData.habitsById.set(firstHabit.id, firstHabit)
+    mockHabitsData.habitsById.set(secondHabit.id, secondHabit)
+    mockHabitsData.topLevelHabits = [firstHabit, secondHabit]
+
+    let resolveFirstMutation: (() => void) | undefined
+    const firstMutation = new Promise<void>((resolve) => {
+      resolveFirstMutation = resolve
+    })
+    let resolveFirstRefetch: (() => void) | undefined
+    const firstRefetch = new Promise<void>((resolve) => {
+      resolveFirstRefetch = resolve
+    })
+    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) =>
+      habitId === firstHabit.id ? firstMutation : Promise.resolve(),
+    )
+    habitListRefetch
+      .mockReturnValueOnce(firstRefetch)
+      .mockResolvedValue(undefined)
+
+    renderWithProviders(<HabitList filters={defaultFilters} selectedDate={new Date()} />)
+    fireEvent.click(screen.getByTestId('log-h-1'))
+
+    await act(async () => {
+      resolveFirstMutation?.()
+      await firstMutation
+    })
+    expect(habitListRefetch).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByTestId('unlog-h-1'))
+    expect(logHabitMutateAsync).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('log-h-2'))
+    })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: 'h-2' }),
+    )
+
+    await act(async () => {
+      resolveFirstRefetch?.()
+      await firstRefetch
     })
   })
 
