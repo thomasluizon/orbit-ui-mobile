@@ -830,7 +830,7 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
-  it('does not settle the parent when a refetch shows it was settled elsewhere', async () => {
+  it('does not settle a recurring parent logged elsewhere after a refetch', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -854,7 +854,11 @@ describe('HabitList', () => {
     act(() => ref.current?.checkAndPromptParentLog(child.id))
 
     act(() => {
-      mockHabitsData.habitsById.set(parent.id, { ...parent, isCompleted: true })
+      mockHabitsData.habitsById.set(parent.id, {
+        ...parent,
+        isCompleted: false,
+        isLoggedInRange: true,
+      })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })

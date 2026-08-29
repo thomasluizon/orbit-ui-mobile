@@ -118,6 +118,25 @@ describe('computeParentSettlementDecision', () => {
       ),
     ).toBeNull()
     expect(
+      computeParentSettlementDecision(
+        { ...parent, isCompleted: false, isLoggedInRange: true },
+        completeChildren,
+      ),
+    ).toBeNull()
+    expect(
+      computeParentSettlementDecision(
+        {
+          ...parent,
+          isCompleted: false,
+          isFlexible: true,
+          flexibleTarget: 0,
+          flexibleCompleted: 0,
+          isLoggedInRange: false,
+        },
+        completeChildren,
+      ),
+    ).toBeNull()
+    expect(
       computeParentSettlementDecision(parent, {
         done: 0,
         total: 1,

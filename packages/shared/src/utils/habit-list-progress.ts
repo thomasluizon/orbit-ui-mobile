@@ -85,9 +85,18 @@ export function computeParentSettlementDecision(
   parent: NormalizedHabit | null,
   children: ParentPromptProgress,
 ): ParentSettlementDecision {
+  if (!parent) return null
+
+  const isSkippedInRange =
+    parent.flexibleTarget != null &&
+    parent.flexibleCompleted != null &&
+    parent.flexibleCompleted >= parent.flexibleTarget &&
+    !parent.isLoggedInRange
+
   if (
-    !parent ||
     parent.isCompleted ||
+    parent.isLoggedInRange ||
+    isSkippedInRange ||
     children.total === 0 ||
     children.done < children.total
   ) {

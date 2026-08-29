@@ -1233,7 +1233,7 @@ describe('HabitList', () => {
     expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
-  it('does not settle the parent when a refetch shows it was settled elsewhere', async () => {
+  it('does not settle a recurring parent logged elsewhere after a refetch', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1267,7 +1267,10 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
     TestRenderer.act(() => {
-      seedHabits([{ ...parent, isCompleted: true }, child])
+      seedHabits([
+        { ...parent, isCompleted: false, isLoggedInRange: true },
+        child,
+      ])
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
