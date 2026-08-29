@@ -95,6 +95,7 @@ vi.mock('@/components/habits/habit-row', () => ({
       data-state={state}
       data-can-log={canLog}
       data-read-only={readOnly}
+      aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
       onClick={state === 'done' ? actions.onUnlog : actions.onLog}
     >
       {habit.title}
@@ -157,6 +158,20 @@ function makeScopedChild(date: string): NormalizedHabit {
     linkedGoals: [],
     instances: [{ date, status: 'Completed', logId: 'child-log' }],
     searchMatches: null,
+  }
+}
+
+function makeLoggedGeneralChild(): NormalizedHabit {
+  return {
+    ...makeScopedChild('2026-08-29'),
+    title: 'General child',
+    frequencyUnit: null,
+    frequencyQuantity: null,
+    isCompleted: true,
+    isGeneral: true,
+    scheduledDates: [],
+    isLoggedInRange: false,
+    instances: [],
   }
 }
 
@@ -223,4 +238,20 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByTestId('child-child-1'))
     expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date: '2026-08-28' })
   })
+
+  it.each(['2026-08-29', '2026-08-28'])(
+    'renders a logged general child done and unlogs it on %s',
+    (date) => {
+      mocks.scopedHabits.set('child-1', makeLoggedGeneralChild())
+      render(<HabitDetailScreen habitId="habit-1" date={date} />)
+
+      const child = screen.getByRole('button', { name: 'unlog-child' })
+      expect(child).toHaveAttribute('data-state', 'done')
+      expect(child).toHaveAttribute('data-can-log', 'true')
+      expect(child).toHaveAttribute('data-read-only', 'false')
+
+      fireEvent.click(child)
+      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date })
+    },
+  )
 })

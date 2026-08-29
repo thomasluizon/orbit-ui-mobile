@@ -100,6 +100,7 @@ vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({ habit, selectedDate, readOnly, actions }: { habit: NormalizedHabit; selectedDate: Date; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
+    action: habit.isCompleted ? 'unlog' : 'log',
     selectedDate: formatAPIDate(selectedDate),
     readOnly,
     actions,
@@ -161,6 +162,20 @@ function makeScopedChild(date: string): NormalizedHabit {
     linkedGoals: [],
     instances: [{ date, status: 'Completed', logId: 'child-log' }],
     searchMatches: null,
+  }
+}
+
+function makeLoggedGeneralChild(): NormalizedHabit {
+  return {
+    ...makeScopedChild('2026-08-29'),
+    title: 'General child',
+    frequencyUnit: null,
+    frequencyQuantity: null,
+    isCompleted: true,
+    isGeneral: true,
+    scheduledDates: [],
+    isLoggedInRange: false,
+    instances: [],
   }
 }
 
@@ -240,4 +255,23 @@ describe('HabitDetailScreen', () => {
     historicalChild.props.actions.onUnlog()
     expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date: '2026-08-28' })
   })
+
+  it.each(['2026-08-29', '2026-08-28'])(
+    'renders a logged general child done and unlogs it on %s',
+    (date) => {
+      mocks.scopedHabits.set('child-1', makeLoggedGeneralChild())
+      let tree: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={date} />)
+      })
+
+      const child = tree!.root.findByProps({ testID: 'child-child-1' })
+      expect(child.props.state).toBe('done')
+      expect(child.props.action).toBe('unlog')
+      expect(child.props.readOnly).toBe(false)
+
+      child.props.actions.onUnlog()
+      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date })
+    },
+  )
 })

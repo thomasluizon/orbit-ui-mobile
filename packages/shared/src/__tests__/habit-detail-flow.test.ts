@@ -171,4 +171,33 @@ describe('habit detail flow model', () => {
     expect(unscoped.habit.isCompleted).toBe(false)
     expect(unscoped.canLog).toBe(false)
   })
+
+  it.each(['2026-08-28', '2026-08-26'])(
+    'preserves selected-date completion for a general child on %s',
+    (dateStr) => {
+      const generalChild = createMockHabit({
+        id: 'general-child',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        isGeneral: true,
+        scheduledDates: [],
+        instances: [],
+      })
+      const model = buildHabitDetailChildDateModel(
+        generalChild,
+        createMockHabit({
+          ...generalChild,
+          isCompleted: true,
+          isLoggedInRange: false,
+        }),
+        dateStr,
+        '2026-08-28',
+      )
+
+      expect(model.completed).toBe(true)
+      expect(model.habit.isCompleted).toBe(true)
+      expect(model.canLog).toBe(true)
+      expect(model.readOnly).toBe(false)
+    },
+  )
 })

@@ -110,9 +110,11 @@ export function buildHabitDetailChildDateModel(
   todayStr: string,
 ): HabitDetailChildDateModel {
   const completed = scopedChild
-    ? scopedChild.instances.some(
-        (instance) => instance.date === dateStr && instance.status === 'Completed',
-      ) || scopedChild.isLoggedInRange
+    ? scopedChild.isGeneral
+      ? scopedChild.isCompleted
+      : scopedChild.instances.some(
+          (instance) => instance.date === dateStr && instance.status === 'Completed',
+        ) || scopedChild.isLoggedInRange
     : false
   const habit = {
     ...detailChild,
