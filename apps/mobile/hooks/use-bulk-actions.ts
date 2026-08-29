@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { HabitResolutionMode } from '@orbit/shared/utils'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import type { HabitListHandle } from '@/components/habit-list'
+import type { QueuedMarker } from '@/lib/offline-mutations'
 
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
@@ -50,7 +51,9 @@ export function useBulkActions({
       const result = await bulkLog.mutateAsync(
         ids.map((habitId) => ({ habitId, date: selectedDateStr })),
       )
-      applyBulkMutationSuccesses(result.results, 'log')
+      if ((result as typeof result & Partial<QueuedMarker>).queued !== true) {
+        applyBulkMutationSuccesses(result.results, 'log')
+      }
     } finally {
       onSuccess()
     }
@@ -63,7 +66,9 @@ export function useBulkActions({
       const result = await bulkSkip.mutateAsync(
         ids.map((habitId) => ({ habitId, date: selectedDateStr })),
       )
-      applyBulkMutationSuccesses(result.results, 'skip')
+      if ((result as typeof result & Partial<QueuedMarker>).queued !== true) {
+        applyBulkMutationSuccesses(result.results, 'skip')
+      }
     } finally {
       onSuccess()
     }

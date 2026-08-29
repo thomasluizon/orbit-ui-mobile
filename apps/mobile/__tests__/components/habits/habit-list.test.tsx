@@ -6,6 +6,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { tourScrollRegistry } from '@/components/tour/tour-target-context'
 import { useTourStore } from '@/stores/tour-store'
 
@@ -30,6 +31,9 @@ const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const deleteMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
+const bulkDeleteMutateAsync = vi.fn()
+const bulkLogMutateAsync = vi.fn()
+const bulkSkipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
@@ -100,6 +104,9 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
   useSkipHabit: () => ({ mutateAsync: skipMutateAsync }),
   useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
+  useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
+  useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
+  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -247,12 +254,47 @@ function pressConfirm(tree: any, label: string) {
   target.props.onPress()
 }
 
+type BulkActions = ReturnType<typeof useBulkActions>
+
+function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
+  const habitListRef = React.createRef<HabitListHandle>()
+  const captured: { current: BulkActions | null } = { current: null }
+
+  function Harness() {
+    captured.current = useBulkActions({
+      selectedHabitIds,
+      selectedDateStr: TODAY,
+      habitListRef,
+      onSuccess: vi.fn(),
+    })
+
+    return (
+      <HabitList
+        ref={habitListRef}
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+  }
+
+  TestRenderer.act(() => {
+    TestRenderer.create(<Harness />)
+  })
+
+  return captured
+}
+
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
+    bulkDeleteMutateAsync.mockReset()
+    bulkLogMutateAsync.mockReset()
+    bulkSkipMutateAsync.mockReset()
     logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
       if (!habit) return
@@ -1726,6 +1768,137 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not mutate a parent when a bulk log is queued', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
+    const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
+    seedHabits([parent, childA, childB])
+    bulkLogMutateAsync.mockResolvedValueOnce({
+      results: [childA, childB].map((child, index) => ({
+        index,
+        status: 'Success',
+        habitId: child.id,
+        logId: null,
+        error: null,
+      })),
+      queued: true,
+      queuedMutationId: 'bulk-log-1',
+    })
+    const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
+
+    await TestRenderer.act(async () => {
+      await actions.current?.confirmBulkLog()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('does not mutate a parent when a bulk skip is queued', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
+    const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
+    seedHabits([parent, childA, childB])
+    bulkSkipMutateAsync.mockResolvedValueOnce({
+      results: [childA, childB].map((child, index) => ({
+        index,
+        status: 'Success',
+        habitId: child.id,
+        error: null,
+      })),
+      queued: true,
+      queuedMutationId: 'bulk-skip-1',
+    })
+    const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
+
+    await TestRenderer.act(async () => {
+      await actions.current?.confirmBulkSkip()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('mutates the parent once after a confirmed bulk log succeeds', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
+    const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
+    seedHabits([parent, childA, childB])
+    bulkLogMutateAsync.mockResolvedValueOnce({
+      results: [childA, childB].map((child, index) => ({
+        index,
+        status: 'Success',
+        habitId: child.id,
+        logId: `log-${index}`,
+        error: null,
+      })),
+    })
+    const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
+
+    await TestRenderer.act(async () => {
+      await actions.current?.confirmBulkLog()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('does not mutate a parent after a confirmed mixed bulk log result', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const acceptedChild = createMockHabit({ id: 'child-accepted', parentId: parent.id })
+    const rejectedChild = createMockHabit({ id: 'child-rejected', parentId: parent.id })
+    seedHabits([parent, acceptedChild, rejectedChild])
+    bulkLogMutateAsync.mockResolvedValueOnce({
+      results: [
+        {
+          index: 0,
+          status: 'Success',
+          habitId: acceptedChild.id,
+          logId: 'log-accepted',
+          error: null,
+        },
+        {
+          index: 1,
+          status: 'Failed',
+          habitId: rejectedChild.id,
+          logId: null,
+          error: 'rejected',
+        },
+      ],
+    })
+    const actions = renderBulkActionsWithHabitList(
+      new Set([acceptedChild.id, rejectedChild.id]),
+    )
+
+    await TestRenderer.act(async () => {
+      await actions.current?.confirmBulkLog()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
   })
 
   it('settles each bulk-resolved parent once on the viewed historical date', async () => {

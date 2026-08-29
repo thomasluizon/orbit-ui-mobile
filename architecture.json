@@ -16733,6 +16733,7 @@
       ],
       "apps/mobile/hooks": [
         "apps/mobile/__tests__/components/habits/habit-form-fields.test.tsx",
+        "apps/mobile/__tests__/components/habits/habit-list.test.tsx",
         "apps/mobile/__tests__/hooks/use-ad-mob.test.tsx",
         "apps/mobile/__tests__/hooks/use-apply-onboarding.test.tsx",
         "apps/mobile/__tests__/hooks/use-billing.test.ts",
