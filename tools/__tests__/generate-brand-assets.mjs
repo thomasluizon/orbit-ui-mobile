@@ -11,6 +11,8 @@ const expectedAssets = [
   ["design/brand/png/orbit-mark-accent-128.png", 128, 128],
   ["design/brand/png/orbit-mark-accent-512.png", 512, 512],
   ["design/brand/png/orbit-platform-icon-512.png", 512, 512],
+  ["design/brand/exports/oauth-consent-logo-512.png", 512, 512],
+  ["design/brand/exports/play-icon-512.png", 512, 512],
   ["apps/mobile/assets/adaptive-icon-background.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-foreground.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-monochrome.png", 1024, 1024],
@@ -20,9 +22,9 @@ const expectedAssets = [
   ["apps/mobile/assets/notification-icon.png", 96, 96],
   ["apps/mobile/assets/splash-icon.png", 1024, 1024],
   ["apps/mobile/store/feature-graphic.png", 1024, 500],
-  ["apps/web/app/icon.png", 64, 64],
+  ["apps/web/app/apple-icon.png", 180, 180],
   ["apps/web/public/favicon-16.png", 16, 16],
-  ["apps/web/public/favicon.png", 64, 64],
+  ["apps/web/public/favicon-32.png", 32, 32],
   ["apps/web/public/logo-no-bg.png", 96, 96],
   ["apps/web/public/og-image.png", 1200, 630],
   ["apps/web/public/pwa-192x192.png", 192, 192],
@@ -46,13 +48,16 @@ const pixelAt = async (path, x, y) => {
   return [...data.subarray(offset, offset + 4)]
 }
 
+const isAccentPixel = (red, green, blue, alpha) =>
+  alpha >= 128 && red > green * 2 && green > blue * 2
+
 export const cases = async () => {
   const outputRoot = fixtureRoot("complete")
   check(
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 21 brand assets/ },
+    { status: 0, stdout: /generated 24 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -65,12 +70,99 @@ export const cases = async () => {
     )
   }
 
+  const faviconIco = readFileSync(join(outputRoot, "apps", "web", "app", "favicon.ico"))
+  const layerCount = faviconIco.readUInt16LE(4)
+  const layerSizes = Array.from({ length: layerCount }, (_, index) => {
+    const directoryOffset = 6 + index * 16
+    return [faviconIco.readUInt8(directoryOffset), faviconIco.readUInt8(directoryOffset + 1)]
+  })
+  T(
+    "generate-brand-assets.mjs: favicon.ico carries native 16 plus canonical 32 and 48 layers",
+    JSON.stringify(layerSizes) === JSON.stringify([[16, 16], [32, 32], [48, 48]]),
+    `ICO layers ${JSON.stringify(layerSizes)}`,
+  )
+
+  const faviconLayerAccentPixelCount = (size) => {
+    const layerIndex = layerSizes.findIndex(([width, height]) => width === size && height === size)
+    if (layerIndex === -1) return -1
+
+    const directoryOffset = 6 + layerIndex * 16
+    const bitmapOffset = faviconIco.readUInt32LE(directoryOffset + 12)
+    const bitmapHeaderSize = faviconIco.readUInt32LE(bitmapOffset)
+    const pixelStart = bitmapOffset + bitmapHeaderSize
+    const pixelEnd = pixelStart + size * size * 4
+    let accent = 0
+    for (let index = pixelStart; index < pixelEnd; index += 4) {
+      if (
+        isAccentPixel(
+          faviconIco[index + 2],
+          faviconIco[index + 1],
+          faviconIco[index],
+          faviconIco[index + 3],
+        )
+      ) {
+        accent += 1
+      }
+    }
+    return accent
+  }
+  for (const size of [32, 48]) {
+    T(
+      `generate-brand-assets.mjs: favicon.ico ${size}px layer keeps the accent moon`,
+      faviconLayerAccentPixelCount(size) > 0,
+      `favicon.ico ${size}px layer carries no #C4530F pixel`,
+    )
+  }
+  T(
+    "generate-brand-assets.mjs: favicon.ico native 16px layer carries no accent",
+    faviconLayerAccentPixelCount(16) === 0,
+    "favicon.ico 16px layer unexpectedly carries an accent pixel",
+  )
+
+  const favicon16 = join(outputRoot, "apps", "web", "public", "favicon-16.png")
+  const faviconCorner = await pixelAt(favicon16, 0, 0)
+  const { data: faviconPixels } = await sharp(favicon16).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  let hasOpaqueCanvasPixel = false
+  for (let index = 0; index < faviconPixels.length; index += 4) {
+    if (
+      faviconPixels[index] === 9 &&
+      faviconPixels[index + 1] === 9 &&
+      faviconPixels[index + 2] === 11 &&
+      faviconPixels[index + 3] === 255
+    ) {
+      hasOpaqueCanvasPixel = true
+      break
+    }
+  }
+  T(
+    "generate-brand-assets.mjs: tab icons use an opaque canvas disc on transparent corners",
+    faviconCorner[3] === 0 && hasOpaqueCanvasPixel,
+    `corner ${faviconCorner.join(",")}; opaque canvas pixel ${hasOpaqueCanvasPixel}`,
+  )
+
   const featureGraphic = join(outputRoot, "apps", "mobile", "store", "feature-graphic.png")
   const featureGraphicMetadata = await sharp(featureGraphic).metadata()
   T(
     "generate-brand-assets.mjs: Play feature graphic is a 24-bit RGB PNG with no alpha channel",
     featureGraphicMetadata.channels === 3 && featureGraphicMetadata.hasAlpha === false,
     JSON.stringify(featureGraphicMetadata),
+  )
+
+  const oauthLogo = join(outputRoot, "design", "brand", "exports", "oauth-consent-logo-512.png")
+  const oauthLogoMetadata = await sharp(oauthLogo).metadata()
+  T(
+    "generate-brand-assets.mjs: OAuth consent logo is opaque and under one megabyte",
+    oauthLogoMetadata.channels === 3 && oauthLogoMetadata.hasAlpha === false && readFileSync(oauthLogo).byteLength < 1_000_000,
+    JSON.stringify(oauthLogoMetadata),
+  )
+
+  const playIcon = join(outputRoot, "design", "brand", "exports", "play-icon-512.png")
+  const playIconMetadata = await sharp(playIcon).metadata()
+  const playIconCorner = await pixelAt(playIcon, 0, 0)
+  T(
+    "generate-brand-assets.mjs: Play icon is a 32-bit PNG with no transparent pixels and is under one megabyte",
+    playIconMetadata.channels === 4 && playIconMetadata.hasAlpha === true && playIconCorner.join(",") === "9,9,11,255" && readFileSync(playIcon).byteLength < 1_000_000,
+    `${JSON.stringify(playIconMetadata)}; corner ${playIconCorner.join(",")}`,
   )
 
   const foreground = join(outputRoot, "apps", "mobile", "assets", "adaptive-icon-foreground.png")
@@ -119,8 +211,7 @@ export const cases = async () => {
       .toBuffer({ resolveWithObject: true })
     let accent = 0
     for (let index = 0; index < data.length; index += info.channels) {
-      if (data[index + 3] < 128) continue
-      if (data[index] === 0xc4 && data[index + 1] === 0x53 && data[index + 2] === 0x0f) accent += 1
+      if (isAccentPixel(data[index], data[index + 1], data[index + 2], data[index + 3])) accent += 1
     }
     return accent
   }
@@ -163,6 +254,7 @@ export const cases = async () => {
     "design/brand/png/orbit-mark-accent-512.png",
     "design/brand/png/orbit-platform-icon-512.png",
     "apps/mobile/assets/icon.png",
+    "apps/web/public/favicon-32.png",
     "apps/web/public/pwa-512x512.png",
   ]) {
     T(

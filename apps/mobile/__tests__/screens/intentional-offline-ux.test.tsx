@@ -311,8 +311,10 @@ vi.mock('@/components/ui/icons', () => {
     React.createElement(name, props)
 
   return {
+    AdjustmentsHorizontal: createIcon('AdjustmentsHorizontal'),
     AlertTriangle: createIcon('AlertTriangle'),
     ArrowLeft: createIcon('ArrowLeft'),
+    ArrowUpRight: createIcon('ArrowUpRight'),
     BadgeCheck: createIcon('BadgeCheck'),
     BarChart3: createIcon('BarChart3'),
     CalendarDays: createIcon('CalendarDays'),
@@ -328,12 +330,14 @@ vi.mock('@/components/ui/icons', () => {
     Share2: createIcon('Share2'),
     Flame: createIcon('Flame'),
     Gift: createIcon('Gift'),
+    Home: createIcon('Home'),
     Info: createIcon('Info'),
     Lightbulb: createIcon('Lightbulb'),
     Lock: createIcon('Lock'),
     LogOut: createIcon('LogOut'),
     MessageCircle: createIcon('MessageCircle'),
     MessageSquare: createIcon('MessageSquare'),
+    Minus: createIcon('Minus'),
     Palette: createIcon('Palette'),
     Pencil: createIcon('Pencil'),
     RefreshCw: createIcon('RefreshCw'),
@@ -344,7 +348,9 @@ vi.mock('@/components/ui/icons', () => {
     Sparkles: createIcon('Sparkles'),
     Star: createIcon('Star'),
     Play: createIcon('Play'),
+    Plus: createIcon('Plus'),
     Send: createIcon('Send'),
+    Snowflake: createIcon('Snowflake'),
     Tag: createIcon('Tag'),
     Target: createIcon('Target'),
     TrendingUp: createIcon('TrendingUp'),
@@ -506,7 +512,7 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<UpgradeScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.description')
+    expect(texts).toContain('upgrade.billing.offline')
     expect(texts).not.toContain('upgrade.plans.error')
     expect(texts).not.toContain('upgrade.billing.error')
   })

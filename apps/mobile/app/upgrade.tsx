@@ -1,44 +1,81 @@
-import { useMemo, useState } from 'react'
-import {
-  Linking,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { API } from '@orbit/shared/api'
 import {
-  getFriendlyErrorMessage,
+  getTrialDaysLeft,
   playManageSubscriptionUrl,
+  resolveSubscriptionScreen,
+} from '@orbit/shared/utils'
+import type {
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenState,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
 import { usePlayBilling } from '@/hooks/use-play-billing'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
-import {
-  useHasProAccess,
-  useProfile,
-  useTrialDaysLeft,
-} from '@/hooks/use-profile'
+import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PillButton } from '@/components/ui/pill-button'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
-import {
-  resolveUpgradeProPanelVisibility,
-  resolveUpgradeSelectedCharge,
-} from '@/app/upgrade-model'
+import { resolveUpgradeSelectedCharge } from '@/app/upgrade-model'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
+import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { PricingFooter } from '@/components/upgrade/pricing-footer'
-import type { SubscriptionInterval } from '@/components/upgrade/types'
+import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
+import { useAppToast } from '@/hooks/use-app-toast'
+
+function UpgradeContent({
+  state,
+  content,
+  billingContent,
+  pitchContent,
+  onRetry,
+  t,
+}: Readonly<{
+  state: SubscriptionScreenState
+  content: SubscriptionScreenContent
+  billingContent: ReactNode
+  pitchContent: ReactNode
+  onRetry: () => void
+  t: UpgradeTextFn
+}>) {
+  let body = pitchContent
+  if (state === 'loading') {
+    body = (
+      <View style={styles.padBlock}>
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+      </View>
+    )
+  } else if (state === 'load-failed') {
+    body = <ErrorState message={t('upgrade.billing.error')} action={
+      <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.billing.retry')}</PillButton>
+    } />
+  } else {
+    body = content === 'pitch' ? pitchContent : billingContent
+  }
+
+  return (
+    <>
+      {state === 'offline' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
+      {body}
+    </>
+  )
+}
 
 export default function UpgradeScreen() {
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
@@ -50,29 +87,36 @@ export default function UpgradeScreen() {
     [currentScheme, currentTheme],
   )
   const { isOnline } = useOffline()
+  const { showSuccess } = useAppToast()
   const locale = i18n.language
-  const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
-  const trialDaysLeft = useTrialDaysLeft()
+  const {
+    status,
+    isLoading: isStatusLoading,
+    isError: isStatusError,
+    refetch: refetchStatus,
+  } = useSubscriptionStatus()
+  const trialDaysLeft = getTrialDaysLeft(status)
   const {
     plans,
     isLoading: isLoadingPlans,
     isError: isPlansError,
     refetch: refetchPlans,
   } = useSubscriptionPlans()
-  const playBilling = usePlayBilling({ preferReferralOffer: !!plans?.couponPercentOff })
-  const isPlaySource = profile?.subscriptionSource === 'play'
-  const showBilling = hasProAccess && !profile?.isTrialActive
+  const playBilling = usePlayBilling({
+    preferReferralOffer: !!plans?.couponPercentOff,
+  })
+  const isPlaySource = status?.source === 'play'
+  const showBilling = Boolean(status?.hasProAccess && !status.isTrialActive)
   const {
     billing,
     isLoading: isBillingLoading,
     isError: isBillingError,
     refetch: refetchBilling,
-  } = useBilling(showBilling && !isPlaySource && !profile?.isLifetimePro)
+  } = useBilling(showBilling && !isPlaySource && !status?.isLifetimePro)
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
-  const [portalLoading, setPortalLoading] = useState(false)
-  const [portalError, setPortalError] = useState('')
+  const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
+  const returningFromBillingRef = useRef(false)
   const [prevProcessing, setPrevProcessing] = useState(false)
   const fallbackRoute = getUpgradeFallbackRoute(from, '/profile')
 
@@ -84,27 +128,40 @@ export default function UpgradeScreen() {
   const checkoutError = playBilling.errorKey ? t(playBilling.errorKey) : ''
 
   const usagePercent = useMemo(() => {
-    if (!profile || profile.aiMessagesLimit === 0) return 0
-    return Math.min(
-      100,
-      Math.round((profile.aiMessagesUsed / profile.aiMessagesLimit) * 100),
-    )
-  }, [profile])
+    if (!status || status.aiMessagesLimit === 0) return 0
+    return Math.min(100, Math.round((status.aiMessagesUsed / status.aiMessagesLimit) * 100))
+  }, [status])
 
-  const usageProfile = profile
+  const usageProfile = status
     ? {
-        aiMessagesUsed: profile.aiMessagesUsed,
-        aiMessagesLimit: profile.aiMessagesLimit,
+        aiMessagesUsed: status.aiMessagesUsed,
+        aiMessagesLimit: status.aiMessagesLimit,
       }
     : null
 
-  const { showGradient } = resolveUpgradeProPanelVisibility({
-    showBilling,
-    isPlaySource,
-    hasBillingData: Boolean(billing),
+  const model = resolveSubscriptionScreen({
+    status,
+    isStatusLoading,
+    isStatusError,
     isBillingLoading,
     isBillingError,
+    billingStatus: billing?.status,
+    cancelAtPeriodEnd: billing?.cancelAtPeriodEnd,
+    isOnline,
+    portalState,
   })
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active' || !returningFromBillingRef.current) return
+      returningFromBillingRef.current = false
+      void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
+        setPortalState('idle')
+        showSuccess(t('upgrade.billing.portalReturned'))
+      })
+    })
+    return () => subscription.remove()
+  }, [refetchBilling, refetchStatus, showSuccess, t])
 
   const selectedCharge = resolveUpgradeSelectedCharge({
     plans,
@@ -114,82 +171,105 @@ export default function UpgradeScreen() {
   })
   const planNameKey = `upgrade.plans.${selectedInterval}.name`
   const planPeriodKey = `upgrade.plans.${selectedInterval}.period`
-  const priceEcho = plans
-    ? `${t(planNameKey)} · ${selectedCharge}${t(planPeriodKey)}`
-    : ''
+  const priceEcho = plans ? `${t(planNameKey)} · ${selectedCharge}${t(planPeriodKey)}` : ''
 
   function handleCheckout(interval: SubscriptionInterval) {
-    if (!isOnline) return
     playBilling.clearError()
     setCheckoutLoading(interval)
     void playBilling.purchase(interval)
   }
 
   function handleManagePlay() {
-    setPortalError('')
-    Linking.openURL(playManageSubscriptionUrl()).catch((err: unknown) =>
-      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic')),
-    )
+    if (!isOnline) return
+    setPortalState('opening')
+    Linking.openURL(playManageSubscriptionUrl())
+      .then(() => {
+        returningFromBillingRef.current = true
+      })
+      .catch(() => setPortalState('failed'))
   }
 
   async function handlePortal() {
     if (!isOnline) {
-      setPortalError(t('offline.title'))
       return
     }
 
-    setPortalLoading(true)
-    setPortalError('')
+    setPortalState('opening')
     try {
-      const res = await apiClient<{ url?: string }>(API.subscription.portal, {
+      const res = await apiClient<{ url: string }>(API.subscription.portal, {
         method: 'POST',
       })
-      if (res.url) await Linking.openURL(res.url)
-    } catch (err: unknown) {
-      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
-    } finally {
-      setPortalLoading(false)
+      await Linking.openURL(res.url)
+      returningFromBillingRef.current = true
+    } catch {
+      setPortalState('failed')
     }
   }
 
-  const billingDashboard = isPlaySource ? (
+  const billingDashboard = model.content === 'play' ? (
     <PlayBillingDashboard
-      profile={profile}
+      status={status}
+      displayPrice={
+        status?.subscriptionInterval === 'yearly'
+          ? playBilling.yearlyOffer?.displayPrice
+          : playBilling.monthlyOffer?.displayPrice
+      }
       locale={locale}
       usagePercent={usagePercent}
       usageProfile={usageProfile}
-      portalError={portalError}
+      portalState={portalState}
+      isOnline={isOnline}
       onManagePlay={handleManagePlay}
       t={t}
       tokens={tokens}
     />
   ) : (
     <BillingDashboard
+      state={model.state}
       data={billing}
-      isBillingLoading={isBillingLoading}
-      isBillingError={isBillingError}
       isOnline={isOnline}
       locale={locale}
       usagePercent={usagePercent}
       usageProfile={usageProfile}
-      profile={profile ?? null}
-      portalLoading={portalLoading}
-      portalError={portalError}
+      status={status}
       onPortal={() => void handlePortal()}
-      onRetryBilling={() => {
-        refetchBilling().catch(() => {})
-      }}
+      onRetryPortal={() => void handlePortal()}
       t={t}
       tokens={tokens}
     />
   )
 
+  const pitchContent = (
+    <>
+      {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} tokens={tokens} /> : null}
+      <PricingSection
+        profile={status}
+        plans={plans}
+        isLoadingPlans={isLoadingPlans}
+        isPlansError={isPlansError}
+        isOnline={isOnline}
+        trialDaysLeft={trialDaysLeft}
+        selectedInterval={selectedInterval}
+        onSelectInterval={setSelectedInterval}
+        onStayFree={() => goBackOrFallback(fallbackRoute)}
+        yearlyOffer={playBilling.yearlyOffer}
+        monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
+        yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
+        isReferralPricing={playBilling.isReferralPricing}
+        isRestoring={playBilling.isRestoring}
+        onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}
+        onRetryPlans={() => { if (isOnline) refetchPlans().catch(() => {}) }}
+        t={t}
+        tokens={tokens}
+      />
+    </>
+  )
+
+  const showPricingFooter = model.content === 'pitch' && Boolean(plans) && isOnline
+    && model.state !== 'loading' && model.state !== 'load-failed'
+
   return (
-    <SafeAreaView
-      style={[styles.safe, { backgroundColor: tokens.bg }]}
-      edges={['top', 'bottom']}
-    >
-      {showGradient ? <GradientTop height={260} /> : null}
+    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
       <AppBar
         back
         onBack={() => goBackOrFallback(fallbackRoute)}
@@ -202,46 +282,20 @@ export default function UpgradeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {!isOnline ? (
-          <View style={styles.padBlock}>
-            <ErrorState message={t('offline.description')} />
-          </View>
-        ) : null}
-
-        {showBilling ? (
-          billingDashboard
-        ) : (
-          <PricingSection
-            profile={profile ?? null}
-            plans={plans}
-            isLoadingPlans={isLoadingPlans}
-            isPlansError={isPlansError}
-            isOnline={isOnline}
-            trialDaysLeft={trialDaysLeft}
-            selectedInterval={selectedInterval}
-            onSelectInterval={setSelectedInterval}
-            onStayFree={() => goBackOrFallback(fallbackRoute)}
-            yearlyOffer={playBilling.yearlyOffer}
-            monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
-            yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
-            isReferralPricing={playBilling.isReferralPricing}
-            isRestoring={playBilling.isRestoring}
-            onRestore={() => {
-              void playBilling.restorePurchases()
-            }}
-            onRetryPlans={() => {
-              refetchPlans().catch(() => {})
-            }}
-            t={t}
-            tokens={tokens}
-          />
-        )}
+        <UpgradeContent
+          state={model.state}
+          content={model.content}
+          billingContent={billingDashboard}
+          pitchContent={pitchContent}
+          onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
+          t={t}
+        />
 
         <View style={styles.bottomSpace} />
       </ScrollView>
-      {!showBilling && plans && isOnline ? (
+      {showPricingFooter ? (
         <PricingFooter
-          trialActive={!!profile?.isTrialActive}
+          trialActive={!!status?.isTrialActive}
           selectedInterval={selectedInterval}
           priceEcho={priceEcho}
           checkoutLoading={checkoutLoading}
