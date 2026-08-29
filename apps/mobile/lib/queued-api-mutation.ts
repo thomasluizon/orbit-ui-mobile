@@ -36,7 +36,7 @@ export async function performQueuedApiMutation<
                 ? undefined
                 : JSON.stringify(resolvedMutation.payload),
           },
-          getMutationResponseSchema(resolvedMutation.type),
+          getMutationResponseSchema<TResult>(resolvedMutation.type),
         )),
     queuedResult,
     queuedResultFactory,

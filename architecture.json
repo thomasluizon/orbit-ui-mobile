@@ -5791,6 +5791,7 @@
           "habits.allDoneToday",
           "habits.askAstra",
           "habits.backToHabits",
+          "habits.bulkBar.connectionRefreshed",
           "habits.bulkBar.delete",
           "habits.bulkBar.log",
           "habits.bulkBar.partialFailure",
@@ -10379,6 +10380,7 @@
           "habits.allDoneToday",
           "habits.askAstra",
           "habits.backToHabits",
+          "habits.bulkBar.connectionRefreshed",
           "habits.bulkBar.delete",
           "habits.bulkBar.log",
           "habits.bulkBar.partialFailure",
@@ -16810,6 +16812,7 @@
         "apps/mobile/__tests__/screens/retrospective-screen.test.tsx",
         "apps/mobile/__tests__/screens/step-up-screen.test.tsx",
         "apps/mobile/__tests__/screens/support-screen.test.tsx",
+        "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-guard-redirects.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-screen.test.tsx"
       ],
