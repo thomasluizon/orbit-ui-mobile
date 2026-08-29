@@ -78,7 +78,11 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
   return {
     showBulkDeleteConfirm,
     setShowBulkDeleteConfirm,
-    confirmBulkDelete: () => executeDelete(Array.from(selectedHabitIds)),
+    confirmBulkDelete: () => executeDelete(
+      Array.from(selectedHabitIds).filter(
+        (habitId) => !hasAncestorInSet(habitId, habitsById, selectedHabitIds),
+      ),
+    ),
     confirmBulkLog: () => executeLog(Array.from(selectedHabitIds)),
     confirmBulkSkip: () => executeSkip(Array.from(selectedHabitIds)),
   }

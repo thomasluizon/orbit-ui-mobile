@@ -23,7 +23,10 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-function renderBulkActions(selectedHabitIds: Set<string>) {
+function renderBulkActions(
+  selectedHabitIds: Set<string>,
+  habitsById = new Map<string, NormalizedHabit>(),
+) {
   const onSuccess = vi.fn()
   const onPartialFailure = vi.fn()
   const markRecentlyCompleted = vi.fn()
@@ -31,8 +34,6 @@ function renderBulkActions(selectedHabitIds: Set<string>) {
   const habitListRef = {
     current: { markRecentlyCompleted, checkAndPromptParentLog },
   } as unknown as React.RefObject<HabitListHandle | null>
-  const habitsById = new Map<string, NormalizedHabit>()
-
   const { result } = renderHook(() =>
     useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess, onPartialFailure }),
   )
@@ -133,5 +134,23 @@ describe('useBulkActions reversibility boundary', () => {
     })
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1'])
     expect(result.current.showBulkDeleteConfirm).toBe(false)
+  })
+
+  it('deletes only selected roots so each request covers its server-side subtree', async () => {
+    bulkDelete.mutateAsync.mockResolvedValueOnce(bulkSuccess(['parent']))
+    const habitsById = new Map<string, NormalizedHabit>([
+      ['parent', { id: 'parent', parentId: null } as NormalizedHabit],
+      ['hidden-child', { id: 'hidden-child', parentId: 'parent' } as NormalizedHabit],
+    ])
+    const { result } = renderBulkActions(
+      new Set(['parent', 'hidden-child']),
+      habitsById,
+    )
+
+    await act(async () => {
+      await result.current.confirmBulkDelete()
+    })
+
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
   })
 })

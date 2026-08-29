@@ -1,6 +1,5 @@
 'use client'
 
-import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
   FastForward,
@@ -12,7 +11,6 @@ import {
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
-import { useIsClient } from '@/hooks/use-is-client'
 import { plural } from '@/lib/plural'
 
 const SELECT_ALL_BUTTON_STYLE = {
@@ -86,11 +84,7 @@ export function SelectionTray({
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
   const nothingSelected = selectedCount === 0
-  const mounted = useIsClient()
-
-  if (!mounted) return null
-
-  return createPortal(
+  return (
     <motion.div
       data-testid="bulk-action-bar"
       className="mx-auto flex w-full max-w-[480px] flex-col"
@@ -179,8 +173,6 @@ export function SelectionTray({
           onClick={onCancel}
         />
       </div>
-    </motion.div>,
-    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: the `if (!mounted) return null` above (useIsClient) returns before this createPortal on the server and first hydration render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    document.querySelector('#today-selection-composer-slot') ?? document.body,
+    </motion.div>
   )
 }

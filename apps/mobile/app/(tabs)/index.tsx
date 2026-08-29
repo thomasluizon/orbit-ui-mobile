@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   getTodayBoundary,
@@ -46,6 +47,7 @@ export default function TodayScreen() {
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [todayFocused, setTodayFocused] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
   const showCompleted = useUIStore((state) => state.showCompleted)
   const setShowCompleted = useUIStore((state) => state.setShowCompleted)
@@ -81,8 +83,18 @@ export default function TodayScreen() {
   })
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
 
+  useFocusEffect(
+    useCallback(() => {
+      setTodayFocused(true)
+      return () => {
+        selection.clearSelection()
+        setTodayFocused(false)
+      }
+    }, [selection.clearSelection]),
+  )
+
   useShellComposerSlot(
-    isSelectMode,
+    isSelectMode && todayFocused,
     () => (
       <View style={styles.selectionTray}>
         <SelectionTray

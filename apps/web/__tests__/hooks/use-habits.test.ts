@@ -1276,16 +1276,11 @@ describe('useBulkDeleteHabits', () => {
     mockFetch.mockReset()
   })
 
-  it('calls bulkDeleteHabits action', async () => {
+  it('deletes each selected root through the cascading delete action', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/app/actions/habits')
-    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
-    mockedBulkDelete.mockResolvedValue({
-      results: [
-        { index: 0, status: 'Success' as const, habitId: 'h-1', error: null },
-        { index: 1, status: 'Success' as const, habitId: 'h-2', error: null },
-      ],
-    })
+    const { deleteHabit, bulkDeleteHabits } = await import('@/app/actions/habits')
+    const mockedDelete = vi.mocked(deleteHabit)
+    mockedDelete.mockReset().mockResolvedValue(undefined)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
@@ -1294,26 +1289,32 @@ describe('useBulkDeleteHabits', () => {
       await result.current.mutateAsync(['h-1', 'h-2'])
     })
 
-    expect(mockedBulkDelete).toHaveBeenCalledWith(['h-1', 'h-2'])
+    expect(mockedDelete.mock.calls).toEqual([['h-1'], ['h-2']])
+    expect(bulkDeleteHabits).not.toHaveBeenCalled()
   })
 
-  it('chunks more than 100 rows and merges globally indexed results', async () => {
+  it('preserves per-root outcomes when a later concurrent delete rejects', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/app/actions/habits')
-    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
-    mockedBulkDelete.mockReset()
-    mockedBulkDelete.mockImplementation(async (ids) => ({
-      results: ids.map((habitId, index) => ({ index, status: 'Success' as const, habitId, error: null })),
-    }))
-    const ids = Array.from({ length: 201 }, (_, index) => `h-${index}`)
+    const { deleteHabit } = await import('@/app/actions/habits')
+    const mockedDelete = vi.mocked(deleteHabit)
+    mockedDelete.mockReset().mockImplementation(async (habitId) => {
+      if (habitId === 'h-4') throw new Error('delete transport failed')
+    })
+    const ids = Array.from({ length: 101 }, (_, index) => `h-${index}`)
     const wrapper = createWrapper()
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
 
-    let response: Awaited<ReturnType<typeof bulkDeleteHabits>> | undefined
+    let response: { results: Array<{ index: number; habitId: string; status: string; error: string | null }> } | undefined
     await act(async () => { response = await result.current.mutateAsync(ids) })
 
-    expect(mockedBulkDelete.mock.calls.map(([chunk]) => chunk.length)).toEqual([100, 100, 1])
-    expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 201 }, (_, index) => index))
+    expect(mockedDelete).toHaveBeenCalledTimes(101)
+    expect(response?.results).toHaveLength(101)
+    expect(response?.results[0]).toMatchObject({ habitId: 'h-0', status: 'Success' })
+    expect(response?.results[4]).toMatchObject({
+      habitId: 'h-4',
+      status: 'Failed',
+      error: 'delete transport failed',
+    })
   })
 })
 
@@ -1343,6 +1344,36 @@ describe('useBulkLogHabits', () => {
 
     expect(mockedBulkLog).toHaveBeenCalledWith(items)
   })
+
+  it('keeps completed chunks and marks unresolved log rows failed on transport error', async () => {
+    const { useBulkLogHabits } = await import('@/hooks/use-habits')
+    const { bulkLogHabits } = await import('@/app/actions/habits')
+    const mockedBulkLog = vi.mocked(bulkLogHabits)
+    mockedBulkLog.mockReset()
+      .mockImplementationOnce(async (items) => ({
+        results: items.map((item, index) => ({
+          index,
+          status: 'Success' as const,
+          habitId: item.habitId,
+          logId: `log-${index}`,
+          error: null,
+        })),
+      }))
+      .mockRejectedValueOnce(new Error('log transport failed'))
+    const items = Array.from({ length: 101 }, (_, index) => ({ habitId: `h-${index}` }))
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useBulkLogHabits(), { wrapper })
+
+    const response = await act(async () => result.current.mutateAsync(items))
+
+    expect(response.results).toHaveLength(101)
+    expect(response.results[99]).toMatchObject({ habitId: 'h-99', status: 'Success' })
+    expect(response.results[100]).toMatchObject({
+      habitId: 'h-100',
+      status: 'Failed',
+      error: 'log transport failed',
+    })
+  })
 })
 
 describe('useBulkSkipHabits', () => {
@@ -1370,5 +1401,34 @@ describe('useBulkSkipHabits', () => {
     })
 
     expect(mockedBulkSkip).toHaveBeenCalledWith(items)
+  })
+
+  it('keeps completed chunks and marks unresolved skip rows failed on transport error', async () => {
+    const { useBulkSkipHabits } = await import('@/hooks/use-habits')
+    const { bulkSkipHabits } = await import('@/app/actions/habits')
+    const mockedBulkSkip = vi.mocked(bulkSkipHabits)
+    mockedBulkSkip.mockReset()
+      .mockImplementationOnce(async (items) => ({
+        results: items.map((item, index) => ({
+          index,
+          status: 'Success' as const,
+          habitId: item.habitId,
+          error: null,
+        })),
+      }))
+      .mockRejectedValueOnce(new Error('skip transport failed'))
+    const items = Array.from({ length: 101 }, (_, index) => ({ habitId: `h-${index}` }))
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useBulkSkipHabits(), { wrapper })
+
+    const response = await act(async () => result.current.mutateAsync(items))
+
+    expect(response.results).toHaveLength(101)
+    expect(response.results[99]).toMatchObject({ habitId: 'h-99', status: 'Success' })
+    expect(response.results[100]).toMatchObject({
+      habitId: 'h-100',
+      status: 'Failed',
+      error: 'skip transport failed',
+    })
   })
 })

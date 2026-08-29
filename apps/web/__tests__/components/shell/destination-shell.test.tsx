@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
@@ -44,7 +44,13 @@ vi.mock('@/components/shell/shell-412', () => ({
     fab?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
-  }) => <div data-testid="compact-shell">{children}{notice}{composer}{tabBar}{fab}</div>,
+  }) => (
+    <div data-testid="compact-shell">
+      {children}{notice}
+      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
+      {tabBar}{fab}
+    </div>
+  ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
   ShellWide: ({ children, items, onSelect, onCreate, notice, composer }: {
@@ -56,7 +62,8 @@ vi.mock('@/components/shell/shell-wide', () => ({
     composer?: ReactNode
   }) => (
     <div data-testid="wide-shell">
-      {children}{notice}{composer}
+      {children}{notice}
+      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       ))}
@@ -65,7 +72,11 @@ vi.mock('@/components/shell/shell-wide', () => ({
   ),
 }))
 
-import { DestinationShell } from '@/components/shell/destination-shell'
+import {
+  DestinationShell,
+  useShellComposerSlot,
+} from '@/components/shell/destination-shell'
+import { SelectionTray } from '@/components/habits/selection-tray'
 
 describe('DestinationShell', () => {
   beforeEach(() => {
@@ -97,6 +108,42 @@ describe('DestinationShell', () => {
     )
 
     expect(screen.getByTestId('selection-composer')).toBeInTheDocument()
+  })
+
+  it('mounts the tray directly in the shell slot on the false-to-true transition', async () => {
+    function TodaySelection() {
+      const [active, setActive] = useState(false)
+      useShellComposerSlot(
+        active,
+        () => (
+          <SelectionTray
+            selectedCount={1}
+            allSelected={false}
+            onSelectAll={() => {}}
+            onDeselectAll={() => {}}
+            onBulkLog={() => {}}
+            onBulkSkip={() => {}}
+            onBulkDelete={() => {}}
+            onCancel={() => {}}
+          />
+        ),
+        active ? 'selected:h-1' : 'empty',
+      )
+      return <button type="button" onClick={() => setActive(true)}>Select habit</button>
+    }
+
+    render(
+      <DestinationShell onCreate={() => {}}>
+        <TodaySelection />
+      </DestinationShell>,
+    )
+
+    expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Select habit' }))
+
+    const tray = await screen.findByTestId('bulk-action-bar')
+    expect(tray.parentElement).toHaveAttribute('data-shell-pinned-slot')
+    expect(tray.parentElement).not.toBe(document.body)
   })
 
   it('removes the compact FAB away from Hoje', () => {

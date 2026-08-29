@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
+  buildUnresolvedBulkFailures,
   buildOptimisticSkipPatch,
   findHabitInList,
   normalizeHabits,
@@ -57,7 +58,6 @@ import {
   createSubHabit as createSubHabitAction,
   moveHabitParent as moveHabitParentAction,
   bulkCreateHabits as bulkCreateHabitsAction,
-  bulkDeleteHabits as bulkDeleteHabitsAction,
   bulkLogHabits as bulkLogHabitsAction,
   bulkSkipHabits as bulkSkipHabitsAction,
 } from '@/app/actions/habits'
@@ -526,9 +526,21 @@ export function useBulkDeleteHabits() {
   return useMutation({
     mutationFn: async (habitIds: string[]): Promise<BulkDeleteResponse> => {
       const results: BulkDeleteResponse['results'] = []
-      for (let index = 0; index < habitIds.length; index += 100) {
-        const response = await bulkDeleteHabitsAction(habitIds.slice(index, index + 100))
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      for (let index = 0; index < habitIds.length; index += 4) {
+        const chunk = habitIds.slice(index, index + 4)
+        const outcomes = await Promise.allSettled(chunk.map((habitId) => deleteHabitAction(habitId)))
+        outcomes.forEach((outcome, itemIndex) => {
+          const habitId = chunk[itemIndex]
+          if (!habitId) return
+          results.push({
+            index: index + itemIndex,
+            status: outcome.status === 'fulfilled' ? 'Success' : 'Failed',
+            habitId,
+            error: outcome.status === 'rejected'
+              ? (outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason))
+              : null,
+          })
+        })
       }
       return { results }
     },
@@ -550,8 +562,24 @@ export function useBulkLogHabits() {
     mutationFn: async (items: BulkLogItemRequest[]): Promise<BulkLogResult> => {
       const results: BulkLogResult['results'] = []
       for (let index = 0; index < items.length; index += 100) {
-        const response = await bulkLogHabitsAction(items.slice(index, index + 100))
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        try {
+          const response = await bulkLogHabitsAction(items.slice(index, index + 100))
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error) {
+          results.push(...buildUnresolvedBulkFailures(
+            items.slice(index),
+            index,
+            error,
+            (item, failureIndex, message) => ({
+              index: failureIndex,
+              status: 'Failed' as const,
+              habitId: item.habitId,
+              logId: null,
+              error: message,
+            }),
+          ))
+          break
+        }
       }
       return { results }
     },
@@ -573,8 +601,23 @@ export function useBulkSkipHabits() {
     mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkSkipResult> => {
       const results: BulkSkipResult['results'] = []
       for (let index = 0; index < items.length; index += 100) {
-        const response = await bulkSkipHabitsAction(items.slice(index, index + 100))
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        try {
+          const response = await bulkSkipHabitsAction(items.slice(index, index + 100))
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error) {
+          results.push(...buildUnresolvedBulkFailures(
+            items.slice(index),
+            index,
+            error,
+            (item, failureIndex, message) => ({
+              index: failureIndex,
+              status: 'Failed' as const,
+              habitId: item.habitId,
+              error: message,
+            }),
+          ))
+          break
+        }
       }
       return { results }
     },

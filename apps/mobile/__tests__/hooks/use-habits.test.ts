@@ -328,7 +328,16 @@ describe('mobile habit hooks', () => {
     mocks.useQuery.mockClear()
     mocks.useQueryClient.mockClear()
     mocks.useMutation.mockClear()
-    mocks.runQueuedMutation.mockClear()
+    mocks.runQueuedMutation.mockReset()
+    mocks.runQueuedMutation.mockImplementation(({ queuedResult, queuedResultFactory }: {
+      queuedResult?: unknown
+      queuedResultFactory?: (mutationId: string) => unknown
+    }) => Promise.resolve(
+      queuedResultFactory?.('mutation-1') ?? queuedResult ?? {
+        queued: true as const,
+        queuedMutationId: 'mutation-1',
+      },
+    ))
     mocks.buildQueuedMutation.mockClear()
     mocks.createQueuedAck.mockClear()
     mocks.createTempEntityId.mockClear()
@@ -1147,23 +1156,117 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
-  it('chunks bulk deletes at 100 and merges globally indexed results', async () => {
+  it('deletes roots individually and restores only a later transport failure', async () => {
+    const ids = Array.from({ length: 101 }, (_, index) => `habit-${index}`)
+    seedHabitState(ids.map((id, position) => makeHabit({ id, position })), ids.length)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { index: number; habitId: string }[] },
+      { results: { index: number; habitId: string; status: string; error: string | null }[] },
       string[],
-      never
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
-    const ids = Array.from({ length: 201 }, (_, index) => `habit-${index}`)
+    let requestIndex = 0
+    mocks.runQueuedMutation.mockImplementation(() => {
+      const currentIndex = requestIndex
+      requestIndex += 1
+      if (currentIndex === 4) return Promise.reject(new Error('delete transport failed'))
+      return Promise.resolve({ queued: true, queuedMutationId: `mutation-${currentIndex}` })
+    })
 
+    const context = await mutation.onMutate?.(ids)
     const response = await mutation.mutationFn(ids)
+    mutation.onSuccess?.(response, ids, context)
 
-    const payloadSizes = mocks.runQueuedMutation.mock.calls.slice(-3).map(
-      ([options]) => (options as { mutation: { payload: { habitIds: string[] } } }).mutation.payload.habitIds.length,
+    const endpoints = mocks.runQueuedMutation.mock.calls.map(
+      ([options]) => (options as { mutation: { endpoint: string } }).mutation.endpoint,
     )
-    expect(payloadSizes).toEqual([100, 100, 1])
-    expect(response.results.map((item) => item.index)).toEqual(
-      Array.from({ length: 201 }, (_, index) => index),
-    )
+    expect(endpoints[0]).toBe(API.habits.delete('habit-0'))
+    expect(endpoints).toHaveLength(101)
+    expect(response.results[4]).toMatchObject({
+      habitId: 'habit-4',
+      status: 'Failed',
+      error: 'delete transport failed',
+    })
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-4'])
+    expect(getCount()).toBe(1)
+  })
+
+  it('keeps the first log chunk and restores only the unresolved optimistic row', async () => {
+    const ids = Array.from({ length: 101 }, (_, index) => `habit-${index}`)
+    seedHabitState(ids.map((id, position) => makeHabit({ id, position })), ids.length)
+    const variables = ids.map((habitId) => ({ habitId }))
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      { results: { index: number; habitId: string; status: string; error: string | null }[] },
+      { habitId: string }[],
+      HabitSnapshotContext
+    >
+    mocks.runQueuedMutation
+      .mockImplementationOnce((options) => {
+        const { mutation } = options as unknown as {
+          mutation: { payload: { items: { habitId: string }[] } }
+        }
+        return Promise.resolve({
+          results: mutation.payload.items.map((item, index) => ({
+            index,
+            status: 'Success',
+            habitId: item.habitId,
+            logId: `log-${index}`,
+            error: null,
+          })),
+        })
+      })
+      .mockRejectedValueOnce(new Error('log transport failed'))
+
+    const context = await mutation.onMutate?.(variables)
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(response.results).toHaveLength(101)
+    expect(response.results[100]).toMatchObject({
+      habitId: 'habit-100',
+      status: 'Failed',
+      error: 'log transport failed',
+    })
+    expect(getHabitList().slice(0, 100).every((habit) => habit.isCompleted)).toBe(true)
+    expect(getHabitList()[100]?.isCompleted).toBe(false)
+  })
+
+  it('keeps the first skip chunk and restores only the unresolved optimistic row', async () => {
+    const ids = Array.from({ length: 101 }, (_, index) => `habit-${index}`)
+    seedHabitState(ids.map((id, position) => makeHabit({ id, position })), ids.length)
+    const variables = ids.map((habitId) => ({ habitId }))
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: { index: number; habitId: string; status: string; error: string | null }[] },
+      { habitId: string }[],
+      HabitSnapshotContext
+    >
+    mocks.runQueuedMutation
+      .mockImplementationOnce((options) => {
+        const { mutation } = options as unknown as {
+          mutation: { payload: { items: { habitId: string }[] } }
+        }
+        return Promise.resolve({
+          results: mutation.payload.items.map((item, index) => ({
+            index,
+            status: 'Success',
+            habitId: item.habitId,
+            error: null,
+          })),
+        })
+      })
+      .mockRejectedValueOnce(new Error('skip transport failed'))
+
+    const context = await mutation.onMutate?.(variables)
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(response.results).toHaveLength(101)
+    expect(response.results[100]).toMatchObject({
+      habitId: 'habit-100',
+      status: 'Failed',
+      error: 'skip transport failed',
+    })
+    expect(getHabitList().slice(0, 100).every((habit) => habit.isCompleted)).toBe(true)
+    expect(getHabitList()[100]?.isCompleted).toBe(false)
   })
 
   it('optimistically completes only same-day bulk skips and restores them on failure', async () => {

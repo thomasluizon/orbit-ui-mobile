@@ -1,15 +1,14 @@
 'use client'
 
-import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
-import { useIsClient } from '@/hooks/use-is-client'
 import { HabitList } from '@/components/habits/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from './today-shell'
+import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import type { TodayView } from './use-today-page'
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
@@ -87,25 +86,27 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
 
 export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
-  const isClient = useIsClient()
   const count = view.selectedHabitIds.size
+
+  useShellComposerSlot(
+    view.isSelectMode,
+    () => (
+      <SelectionTray
+        selectedCount={count}
+        allSelected={view.selection.allSelected}
+        onSelectAll={view.selection.selectAll}
+        onDeselectAll={view.selection.deselectAll}
+        onBulkLog={() => void view.selection.confirmBulkLog()}
+        onBulkSkip={() => void view.selection.confirmBulkSkip()}
+        onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
+        onCancel={view.toggleSelectMode}
+      />
+    ),
+    `${Array.from(view.selectedHabitIds).sort().join(',')}:${view.selection.allSelected ? 'all' : 'some'}`,
+  )
 
   return (
     <>
-      <AnimatePresence initial={false}>
-        {view.isSelectMode && isClient ? (
-          <SelectionTray
-            selectedCount={count}
-            allSelected={view.selection.allSelected}
-            onSelectAll={view.selection.selectAll}
-            onDeselectAll={view.selection.deselectAll}
-            onBulkLog={() => void view.selection.confirmBulkLog()}
-            onBulkSkip={() => void view.selection.confirmBulkSkip()}
-            onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
-            onCancel={view.toggleSelectMode}
-          />
-        ) : null}
-      </AnimatePresence>
       <ConfirmSheet
         open={view.selection.showBulkDeleteConfirm}
         title={t('habits.bulkDeleteTitle')}

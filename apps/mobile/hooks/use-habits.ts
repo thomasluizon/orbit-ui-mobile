@@ -11,6 +11,7 @@ import {
 import { API } from '@orbit/shared/api'
 import {
   applyLinkedGoalUpdates,
+  buildUnresolvedBulkFailures,
   buildOptimisticSkipPatch,
   findHabitInList,
   formatAPIDate,
@@ -49,6 +50,7 @@ import {
   optimisticInsertSubHabit,
   optimisticPatchHabit,
   optimisticRemoveHabits,
+  restoreDeletedHabits,
   optimisticReorderHabits,
   optimisticToggleCompletion,
   optimisticUpdateChecklist,
@@ -62,6 +64,7 @@ import {
   finalizeHabitMutation,
   optimisticMoveHabitParent,
   restoreHabitLists,
+  restoreHabitCompletionForIds,
   snapshotHabitLists,
   updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
@@ -826,26 +829,31 @@ export function useBulkDeleteHabits() {
   >({
     mutationFn: async (habitIds) => {
       const results: BulkDeleteResponse['results'] = []
-      for (let index = 0; index < habitIds.length; index += 100) {
-        const chunk = habitIds.slice(index, index + 100)
-        const response = await performQueuedApiMutation<BulkDeleteResponse, BulkDeleteResponse & QueuedMarker>({
-          type: 'bulkDeleteHabits',
-          scope: 'habits',
-          endpoint: API.habits.bulk,
-          method: 'DELETE',
-          payload: { habitIds: chunk },
-          queuedResultFactory: (mutationId) => ({
-            results: chunk.map((habitId, itemIndex) => ({
-              index: itemIndex,
-              status: 'Success' as const,
-              habitId,
-              error: null,
-            })),
-            queued: true as const,
-            queuedMutationId: mutationId,
+      for (let index = 0; index < habitIds.length; index += 4) {
+        const chunk = habitIds.slice(index, index + 4)
+        const outcomes = await Promise.allSettled(chunk.map((habitId) =>
+          performQueuedApiMutation<void>({
+            type: 'deleteHabit',
+            scope: 'habits',
+            endpoint: API.habits.delete(habitId),
+            method: 'DELETE',
+            payload: null,
+            entityType: 'habit',
+            targetEntityId: habitId,
           }),
+        ))
+        outcomes.forEach((outcome, itemIndex) => {
+          const habitId = chunk[itemIndex]
+          if (!habitId) return
+          results.push({
+            index: index + itemIndex,
+            status: outcome.status === 'fulfilled' ? 'Success' : 'Failed',
+            habitId,
+            error: outcome.status === 'rejected'
+              ? (outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason))
+              : null,
+          })
         })
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
       }
       return { results }
     },
@@ -864,6 +872,20 @@ export function useBulkDeleteHabits() {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
       adjustHabitCount(queryClient, context.deletedCount)
+    },
+
+    onSuccess: (data, _vars, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      if (failedIds.size === 0) return
+      for (const [key, snapshot] of context.previousLists) {
+        if (!snapshot) continue
+        queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
+          current ? restoreDeletedHabits(current, snapshot, failedIds) : current,
+        )
+      }
+      adjustHabitCount(queryClient, failedIds.size)
     },
 
     onSettled: (data, error) =>
@@ -887,25 +909,41 @@ export function useBulkLogHabits() {
       const results: BulkLogResult['results'] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
-        const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
-          type: 'bulkLogHabits',
-          scope: 'habits',
-          endpoint: API.habits.bulkLog,
-          method: 'POST',
-          payload: { items: chunk },
-          queuedResultFactory: (mutationId) => ({
-            results: chunk.map((item, itemIndex) => ({
-              index: itemIndex,
-              status: 'Success' as const,
+        try {
+          const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
+            type: 'bulkLogHabits',
+            scope: 'habits',
+            endpoint: API.habits.bulkLog,
+            method: 'POST',
+            payload: { items: chunk },
+            queuedResultFactory: (mutationId) => ({
+              results: chunk.map((item, itemIndex) => ({
+                index: itemIndex,
+                status: 'Success' as const,
+                habitId: item.habitId,
+                logId: null,
+                error: null,
+              })),
+              queued: true as const,
+              queuedMutationId: mutationId,
+            }),
+          })
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error) {
+          results.push(...buildUnresolvedBulkFailures(
+            items.slice(index),
+            index,
+            error,
+            (item, failureIndex, message) => ({
+              index: failureIndex,
+              status: 'Failed' as const,
               habitId: item.habitId,
               logId: null,
-              error: null,
-            })),
-            queued: true as const,
-            queuedMutationId: mutationId,
-          }),
-        })
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+              error: message,
+            }),
+          ))
+          break
+        }
       }
       return { results }
     },
@@ -940,6 +978,13 @@ export function useBulkLogHabits() {
       }
     },
 
+    onSuccess: (data, _vars, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
+    },
+
     onSettled: (data, error) =>
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
@@ -961,24 +1006,39 @@ export function useBulkSkipHabits() {
       const results: BulkSkipResult['results'] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
-        const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
-          type: 'bulkSkipHabits',
-          scope: 'habits',
-          endpoint: API.habits.bulkSkip,
-          method: 'POST',
-          payload: { items: chunk },
-          queuedResultFactory: (mutationId) => ({
-            results: chunk.map((item, itemIndex) => ({
-              index: itemIndex,
-              status: 'Success' as const,
+        try {
+          const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
+            type: 'bulkSkipHabits',
+            scope: 'habits',
+            endpoint: API.habits.bulkSkip,
+            method: 'POST',
+            payload: { items: chunk },
+            queuedResultFactory: (mutationId) => ({
+              results: chunk.map((item, itemIndex) => ({
+                index: itemIndex,
+                status: 'Success' as const,
+                habitId: item.habitId,
+                error: null,
+              })),
+              queued: true as const,
+              queuedMutationId: mutationId,
+            }),
+          })
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error) {
+          results.push(...buildUnresolvedBulkFailures(
+            items.slice(index),
+            index,
+            error,
+            (item, failureIndex, message) => ({
+              index: failureIndex,
+              status: 'Failed' as const,
               habitId: item.habitId,
-              error: null,
-            })),
-            queued: true as const,
-            queuedMutationId: mutationId,
-          }),
-        })
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+              error: message,
+            }),
+          ))
+          break
+        }
       }
       return { results }
     },
@@ -1006,6 +1066,13 @@ export function useBulkSkipHabits() {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+    },
+
+    onSuccess: (data, _vars, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
     },
 
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
