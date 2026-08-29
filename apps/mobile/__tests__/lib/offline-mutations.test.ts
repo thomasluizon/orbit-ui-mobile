@@ -57,6 +57,14 @@ const mocks = vi.hoisted(() => {
 
   const getAll = vi.fn(() => [...queued])
   const getById = vi.fn((id: string) => queued.find((mutation) => mutation.id === id) ?? null)
+  const findUnfinalizedFirstWrite = vi.fn((mutation: QueuedMutation) =>
+    mutation.type === 'logHabit' && mutation.dedupeKey
+      ? queued.find((queuedMutation) =>
+          queuedMutation.type === mutation.type &&
+          queuedMutation.dedupeKey === mutation.dedupeKey,
+        ) ?? null
+      : null,
+  )
   const count = vi.fn(() => queued.length)
 
   const remove = vi.fn((id: string) => {
@@ -118,6 +126,7 @@ const mocks = vi.hoisted(() => {
     enqueue,
     getAll,
     getById,
+    findUnfinalizedFirstWrite,
     count,
     remove,
     update,
@@ -143,6 +152,7 @@ vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   getAll: mocks.getAll,
   getById: mocks.getById,
+  findUnfinalizedFirstWrite: mocks.findUnfinalizedFirstWrite,
   count: mocks.count,
   remove: mocks.remove,
   update: mocks.update,
@@ -178,6 +188,7 @@ describe('offline mutations', () => {
     mocks.enqueue.mockClear()
     mocks.getAll.mockClear()
     mocks.getById.mockClear()
+    mocks.findUnfinalizedFirstWrite.mockClear()
     mocks.count.mockClear()
     mocks.remove.mockClear()
     mocks.update.mockClear()
@@ -249,6 +260,44 @@ describe('offline mutations', () => {
       queued: true,
       queuedMutationId: 'persisted-log',
     })
+  })
+
+  it('coalesces an online toggle while its matching queued toggle is syncing', async () => {
+    mocks.setOnline(true)
+    const retainedMutation = buildQueuedMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    retainedMutation.status = 'syncing'
+    mocks.queued.push(retainedMutation)
+    const execute = vi.fn(() => Promise.resolve(null))
+
+    const result = await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'logHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-1/log',
+        method: 'POST',
+        payload: { date: '2026-08-29' },
+        dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+        targetEntityId: 'habit-1',
+      }),
+      execute,
+      queuedResultFactory: createQueuedAck,
+    })
+
+    expect(result).toEqual({
+      queued: true,
+      queuedMutationId: retainedMutation.id,
+    })
+    expect(execute).not.toHaveBeenCalled()
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([retainedMutation])
   })
 
   it.each([

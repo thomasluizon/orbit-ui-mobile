@@ -186,6 +186,18 @@ const LAST_WRITE_WINS_TYPES = new Set<string>([
 
 const FIRST_WRITE_WINS_TYPES = new Set<string>(['logHabit'])
 
+export function findUnfinalizedFirstWrite(
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): PersistedQueuedMutation | null {
+  if (!mutation.dedupeKey || !FIRST_WRITE_WINS_TYPES.has(mutation.type)) return null
+
+  return getAll().find(
+    (queuedMutation) =>
+      queuedMutation.type === mutation.type &&
+      queuedMutation.dedupeKey === mutation.dedupeKey,
+  ) ?? null
+}
+
 function mergePayload(existing: unknown, incoming: unknown): unknown {
   if (
     existing &&
@@ -278,18 +290,11 @@ export function enqueue(
     dependsOn: mutation.dependsOn ?? [],
   }
 
-  const queuedMutations = getAll()
-  const existingMutation = normalized.dedupeKey && FIRST_WRITE_WINS_TYPES.has(normalized.type)
-    ? queuedMutations.find(
-        (queuedMutation) =>
-          queuedMutation.type === normalized.type &&
-          queuedMutation.dedupeKey === normalized.dedupeKey,
-      )
-    : undefined
+  const existingMutation = findUnfinalizedFirstWrite(normalized)
 
   if (existingMutation) return existingMutation.id
 
-  const compacted = compactQueuedMutations(queuedMutations, normalized)
+  const compacted = compactQueuedMutations(getAll(), normalized)
   replaceAll(compacted)
   return normalized.id
 }

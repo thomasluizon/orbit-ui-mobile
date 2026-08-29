@@ -6,6 +6,7 @@ import {
   count,
   dequeue,
   enqueue,
+  findUnfinalizedFirstWrite,
   getAll,
   incrementRetries,
   replaceEntityReferences,
@@ -261,6 +262,33 @@ describe('mobile offline queue', () => {
 
     expect(retainedMutationId).toBe(persistedMutation.id)
     expect(getAll()).toEqual([persistedMutation])
+  })
+
+  it('finds the retained habit toggle until its syncing row is finalized', () => {
+    const persistedMutation = makeMutation({
+      id: 'syncing-log',
+      type: 'logHabit',
+      status: 'syncing',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    enqueue(persistedMutation)
+
+    expect(findUnfinalizedFirstWrite(makeMutation({
+      id: 'direct-log',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))).toEqual(persistedMutation)
+
+    remove(persistedMutation.id)
+
+    expect(findUnfinalizedFirstWrite(makeMutation({
+      id: 'second-direct-log',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))).toBeNull()
   })
 
   it('queues toggles independently for a different habit or date', () => {

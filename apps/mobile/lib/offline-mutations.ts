@@ -20,6 +20,7 @@ import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
   count,
   enqueue,
+  findUnfinalizedFirstWrite,
   getAll,
   getById,
   remove,
@@ -457,6 +458,11 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     getCurrentConnectivity(),
   ])
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
+  const retainedMutation = findUnfinalizedFirstWrite(resolvedMutation)
+
+  if (retainedMutation) {
+    return queuedResultFactory?.(retainedMutation.id) ?? queuedResult as TQueuedResult
+  }
 
   if (!online || hasPendingDependencies) {
     if (!allowAutomaticReplay) {

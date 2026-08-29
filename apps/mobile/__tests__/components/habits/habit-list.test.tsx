@@ -70,10 +70,10 @@ const offlineMocks = vi.hoisted(() => {
   const loggedHabits = new Set<string>()
   let online = false
 
-  const apiClient = vi.fn((endpoint: string) => {
+  function receiveHabitToggle(endpoint: string): null {
     const match = endpoint.match(/^\/api\/habits\/([^/]+)\/log$/)
     const habitId = match?.[1]
-    if (!habitId) return Promise.resolve(null)
+    if (!habitId) return null
 
     appliedHabitIds.push(habitId)
     if (loggedHabits.has(habitId)) {
@@ -81,14 +81,17 @@ const offlineMocks = vi.hoisted(() => {
     } else {
       loggedHabits.add(habitId)
     }
-    return Promise.resolve(null)
-  })
+    return null
+  }
+
+  const apiClient = vi.fn((endpoint: string) => Promise.resolve(receiveHabitToggle(endpoint)))
 
   return {
     rows,
     appliedHabitIds,
     loggedHabits,
     apiClient,
+    receiveHabitToggle,
     isOnline: () => online,
     setOnline: (value: boolean) => {
       online = value
@@ -803,6 +806,79 @@ describe('HabitList', () => {
     expect(getQueuedMutations()).toEqual([])
     expect(offlineMocks.appliedHabitIds).toEqual([firstHabit.id, secondHabit.id])
     expect(offlineMocks.loggedHabits).toEqual(new Set([firstHabit.id, secondHabit.id]))
+  })
+
+  it('coalesces a reconnect tap while the retained toggle is still flushing', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    let releaseReplay: (() => void) | undefined
+    const replayResponse = new Promise<null>((resolve) => {
+      releaseReplay = () => resolve(null)
+    })
+    offlineMocks.apiClient.mockImplementationOnce((endpoint) => {
+      offlineMocks.receiveHabitToggle(endpoint)
+      return replayResponse
+    })
+    offlineMocks.setOnline(true)
+    const flush = flushQueuedMutations()
+
+    await vi.waitFor(() => {
+      expect(offlineMocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(getQueuedMutations()[0]?.status).toBe('syncing')
+    })
+
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(offlineMocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(getQueuedMutations()).toEqual([
+      expect.objectContaining({
+        type: 'logHabit',
+        status: 'syncing',
+        targetEntityId: habit.id,
+        payload: { date: TODAY },
+        dedupeKey: `habit-toggle:${habit.id}:${TODAY}`,
+      }),
+    ])
+
+    releaseReplay?.()
+    await flush
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([habit.id]))
   })
 
   it('keeps one persisted toggle when the list remounts before replay', async () => {
