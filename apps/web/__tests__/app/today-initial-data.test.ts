@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const serverAuthFetch = vi.fn()
 
@@ -11,6 +11,10 @@ describe('Today initial habits', () => {
     serverAuthFetch.mockReset()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-29T12:00:00'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('preloads the same dated query used by the Today client', async () => {
