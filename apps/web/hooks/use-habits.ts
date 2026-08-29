@@ -37,6 +37,9 @@ import type {
   BulkCreateRequest,
   BulkLogItemRequest,
   BulkSkipItemRequest,
+  BulkDeleteResponse,
+  BulkLogResult,
+  BulkSkipResult,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -521,7 +524,14 @@ export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (habitIds: string[]) => bulkDeleteHabitsAction(habitIds),
+    mutationFn: async (habitIds: string[]): Promise<BulkDeleteResponse> => {
+      const results: BulkDeleteResponse['results'] = []
+      for (let index = 0; index < habitIds.length; index += 100) {
+        const response = await bulkDeleteHabitsAction(habitIds.slice(index, index + 100))
+        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      }
+      return { results }
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -537,7 +547,14 @@ export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
+    mutationFn: async (items: BulkLogItemRequest[]): Promise<BulkLogResult> => {
+      const results: BulkLogResult['results'] = []
+      for (let index = 0; index < items.length; index += 100) {
+        const response = await bulkLogHabitsAction(items.slice(index, index + 100))
+        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      }
+      return { results }
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -553,7 +570,14 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (items: BulkSkipItemRequest[]) => bulkSkipHabitsAction(items),
+    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkSkipResult> => {
+      const results: BulkSkipResult['results'] = []
+      for (let index = 0; index < items.length; index += 100) {
+        const response = await bulkSkipHabitsAction(items.slice(index, index + 100))
+        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      }
+      return { results }
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

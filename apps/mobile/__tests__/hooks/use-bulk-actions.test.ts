@@ -9,6 +9,7 @@ const TestRenderer = require('react-test-renderer')
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
+const showToast = vi.fn()
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => bulkDelete,
@@ -16,10 +17,15 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkSkipHabits: () => bulkSkip,
 }))
 
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showToast }),
+}))
+
 type BulkActions = ReturnType<typeof useBulkActions>
 
 function renderBulkActions(selectedHabitIds: Set<string>) {
   const onSuccess = vi.fn()
+  const onPartialFailure = vi.fn()
   const markRecentlyCompleted = vi.fn()
   const checkAndPromptParentLog = vi.fn()
   const habitListRef = {
@@ -28,13 +34,13 @@ function renderBulkActions(selectedHabitIds: Set<string>) {
   const habitsById = new Map<string, NormalizedHabit>()
   const captured: { current: BulkActions | null } = { current: null }
   function Probe() {
-    captured.current = useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess })
+    captured.current = useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess, onPartialFailure })
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(React.createElement(Probe))
   })
-  return { captured, onSuccess, markRecentlyCompleted, checkAndPromptParentLog }
+  return { captured, onSuccess, onPartialFailure, markRecentlyCompleted, checkAndPromptParentLog }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -43,7 +49,7 @@ function bulkSuccess(ids: string[]) {
 
 describe('useBulkActions confirmBulkDelete', () => {
   beforeEach(() => {
-    bulkDelete.mutateAsync.mockReset().mockResolvedValue(undefined)
+    bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
   })
 
   it('deletes the selected habits then closes the confirm and reports success', async () => {
@@ -69,7 +75,7 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
-  it('still reports success in the finally block when the delete rejects', async () => {
+  it('does not report success when the delete request rejects', async () => {
     bulkDelete.mutateAsync.mockRejectedValueOnce(new Error('offline'))
     const { captured, onSuccess } = renderBulkActions(new Set(['h-1']))
 
@@ -77,7 +83,7 @@ describe('useBulkActions confirmBulkDelete', () => {
       await expect(captured.current!.confirmBulkDelete()).rejects.toThrow('offline')
     })
 
-    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(onSuccess).not.toHaveBeenCalled()
   })
 })
 
@@ -88,9 +94,29 @@ describe('useBulkActions confirmBulkDelete', () => {
  */
 describe('useBulkActions reversibility boundary', () => {
   beforeEach(() => {
-    bulkDelete.mutateAsync.mockReset().mockResolvedValue(undefined)
+    showToast.mockReset()
+    bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
+  })
+
+  it('keeps failed rows selected and retries only those rows', async () => {
+    bulkSkip.mutateAsync
+      .mockResolvedValueOnce({ results: [
+        { habitId: 'h-1', status: 'Success' },
+        { habitId: 'h-2', status: 'Failed' },
+      ] })
+      .mockResolvedValueOnce(bulkSuccess(['h-2']))
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    const retry = showToast.mock.calls[0]?.[0]?.onAction as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    await TestRenderer.act(async () => { retry?.(); await Promise.resolve() })
+    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2' }])
   })
 
   it('skips the selection on one press, with no confirmation state to clear', async () => {

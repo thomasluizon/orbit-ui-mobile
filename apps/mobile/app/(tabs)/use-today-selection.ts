@@ -41,6 +41,7 @@ export function useTodaySelection({
     habitsById,
     habitListRef,
     onSuccess: clearSelection,
+    onPartialFailure: selectAllHabits,
   });
   const { setShowBulkDeleteConfirm, confirmBulkLog, confirmBulkSkip } =
     bulkActions;

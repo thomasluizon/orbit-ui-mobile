@@ -7,6 +7,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
+const showQueued = vi.fn()
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => bulkDelete,
@@ -14,8 +15,17 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkSkipHabits: () => bulkSkip,
 }))
 
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showQueued }),
+}))
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
 function renderBulkActions(selectedHabitIds: Set<string>) {
   const onSuccess = vi.fn()
+  const onPartialFailure = vi.fn()
   const markRecentlyCompleted = vi.fn()
   const checkAndPromptParentLog = vi.fn()
   const habitListRef = {
@@ -24,10 +34,10 @@ function renderBulkActions(selectedHabitIds: Set<string>) {
   const habitsById = new Map<string, NormalizedHabit>()
 
   const { result } = renderHook(() =>
-    useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess }),
+    useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess, onPartialFailure }),
   )
 
-  return { result, onSuccess, markRecentlyCompleted, checkAndPromptParentLog }
+  return { result, onSuccess, onPartialFailure, markRecentlyCompleted, checkAndPromptParentLog }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -41,9 +51,29 @@ function bulkSuccess(ids: string[]) {
  */
 describe('useBulkActions reversibility boundary', () => {
   beforeEach(() => {
-    bulkDelete.mutateAsync.mockReset().mockResolvedValue(undefined)
+    showQueued.mockReset()
+    bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
+  })
+
+  it('keeps failed rows selected and retries only those rows', async () => {
+    bulkLog.mutateAsync
+      .mockResolvedValueOnce({ results: [
+        { habitId: 'h-1', status: 'Success' },
+        { habitId: 'h-2', status: 'Failed' },
+      ] })
+      .mockResolvedValueOnce(bulkSuccess(['h-2']))
+    const { result, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+
+    await act(async () => { await result.current.confirmBulkLog() })
+
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    const retry = showQueued.mock.calls[0]?.[2] as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    await act(async () => { retry?.(); await Promise.resolve() })
+    expect(bulkLog.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2' }])
   })
 
   it('skips the selection on one press, with no confirmation state to clear', async () => {

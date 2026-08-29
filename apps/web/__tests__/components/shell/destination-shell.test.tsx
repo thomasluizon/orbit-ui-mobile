@@ -38,23 +38,25 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ children, tabBar, fab, notice }: {
+  Shell412: ({ children, tabBar, fab, notice, composer }: {
     children: ReactNode
     tabBar?: ReactNode
     fab?: ReactNode
     notice?: ReactNode
-  }) => <div data-testid="compact-shell">{children}{notice}{tabBar}{fab}</div>,
+    composer?: ReactNode
+  }) => <div data-testid="compact-shell">{children}{notice}{composer}{tabBar}{fab}</div>,
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, items, onSelect, onCreate, notice }: {
+  ShellWide: ({ children, items, onSelect, onCreate, notice, composer }: {
     children: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     onSelect?: (id: string) => void
     onCreate?: () => void
     notice?: ReactNode
+    composer?: ReactNode
   }) => (
     <div data-testid="wide-shell">
-      {children}{notice}
+      {children}{notice}{composer}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       ))}
@@ -85,6 +87,16 @@ describe('DestinationShell', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it('passes the selection tray target through the destination composer slot', () => {
+    render(
+      <DestinationShell onCreate={() => {}} composer={<div data-testid="selection-composer" />}>
+        <h1>Today</h1>
+      </DestinationShell>,
+    )
+
+    expect(screen.getByTestId('selection-composer')).toBeInTheDocument()
   })
 
   it('removes the compact FAB away from Hoje', () => {

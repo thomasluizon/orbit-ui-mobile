@@ -1296,6 +1296,25 @@ describe('useBulkDeleteHabits', () => {
 
     expect(mockedBulkDelete).toHaveBeenCalledWith(['h-1', 'h-2'])
   })
+
+  it('chunks more than 100 rows and merges globally indexed results', async () => {
+    const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
+    const { bulkDeleteHabits } = await import('@/app/actions/habits')
+    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
+    mockedBulkDelete.mockReset()
+    mockedBulkDelete.mockImplementation(async (ids) => ({
+      results: ids.map((habitId, index) => ({ index, status: 'Success' as const, habitId, error: null })),
+    }))
+    const ids = Array.from({ length: 201 }, (_, index) => `h-${index}`)
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
+
+    let response: Awaited<ReturnType<typeof bulkDeleteHabits>> | undefined
+    await act(async () => { response = await result.current.mutateAsync(ids) })
+
+    expect(mockedBulkDelete.mock.calls.map(([chunk]) => chunk.length)).toEqual([100, 100, 1])
+    expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 201 }, (_, index) => index))
+  })
 })
 
 describe('useBulkLogHabits', () => {

@@ -107,6 +107,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
   }, [router])
   const activeView = useUIStore((s) => s.activeView)
+  const isSelectMode = useUIStore((s) => s.isSelectMode)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
@@ -200,6 +201,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
       <DestinationShell
         onCreate={handleCreate}
+        composer={isSelectMode ? <div id="today-selection-composer-slot" /> : undefined}
         notice={
           <>
             <TrialBanner />

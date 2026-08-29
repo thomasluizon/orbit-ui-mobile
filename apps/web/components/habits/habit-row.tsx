@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
-import { SelectCheck } from '@/components/ui/select-check'
+import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
@@ -111,7 +111,7 @@ function HabitRowStructuralColumn({
   if (selectMode) {
     return (
       <span className="flex h-11 w-11 shrink-0 items-center justify-center">
-        <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} />
+        <Checkbox checked={selected} onChange={() => onToggleSelection?.()} label={title} as="span" />
       </span>
     )
   }

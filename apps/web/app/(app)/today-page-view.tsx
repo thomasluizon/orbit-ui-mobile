@@ -6,7 +6,7 @@ import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { HabitList } from '@/components/habits/habit-list'
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from './today-shell'
@@ -94,7 +94,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
     <>
       <AnimatePresence initial={false}>
         {view.isSelectMode && isClient ? (
-          <BulkActionBarV2
+          <SelectionTray
             selectedCount={count}
             allSelected={view.selection.allSelected}
             onSelectAll={view.selection.selectAll}

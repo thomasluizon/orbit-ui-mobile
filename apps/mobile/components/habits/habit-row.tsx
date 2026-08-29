@@ -15,7 +15,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Menu, useAnchoredMenu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
-import { SelectCheck } from '@/components/ui/select-check'
+import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRowContent } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
@@ -132,7 +132,7 @@ function HabitRowStructuralColumn({
   if (selectMode) {
     return (
       <View style={styles.structuralColumn}>
-        <SelectCheck selected={selected} onPress={actions.onToggleSelection} accessibilityLabel={title} />
+        <Checkbox checked={selected} onChange={() => actions.onToggleSelection?.()} label={title} as="span" />
       </View>
     )
   }

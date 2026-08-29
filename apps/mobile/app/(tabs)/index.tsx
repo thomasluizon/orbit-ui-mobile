@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
   getTodayBoundary,
@@ -13,7 +12,7 @@ import { useAdMob } from '@/hooks/use-ad-mob'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { TodayDateControl } from '@/components/today/today-shell'
 import { TodayModals } from '@/components/today/today-modals'
@@ -21,6 +20,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
+import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -33,7 +33,6 @@ function getBoundaryMessageKey(
 
 export default function TodayScreen() {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -81,6 +80,32 @@ export default function TodayScreen() {
     closeControlsMenu,
   })
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
+
+  useShellComposerSlot(
+    isSelectMode,
+    () => (
+      <View style={styles.selectionTray}>
+        <SelectionTray
+          count={selection.selectedCount}
+          allSelected={selection.allSelected}
+          onSelectAll={selection.handleSelectAll}
+          onDeselectAll={selection.handleDeselectAll}
+          onLog={selection.handleOpenBulkLog}
+          onSkip={selection.handleOpenBulkSkip}
+          onDelete={selection.handleOpenBulkDelete}
+          onClose={selection.clearSelection}
+          countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
+          selectAllLabel={t('common.selectAll')}
+          deselectAllLabel={t('common.deselectAll')}
+          logLabel={t('habits.bulkBar.log')}
+          skipLabel={t('habits.bulkBar.skip')}
+          deleteLabel={t('habits.bulkBar.delete')}
+          closeLabel={t('common.cancel')}
+        />
+      </View>
+    ),
+    `${Array.from(selectedHabitIds).sort().join(',')}:${selection.allSelected ? 'all' : 'some'}`,
+  )
 
   const handleHabitLogged = useCallback((habitId: string) => {
     habitListRef.current?.markRecentlyCompleted(habitId)
@@ -146,28 +171,6 @@ export default function TodayScreen() {
         onAllCollapsedChange={setHabitListAllCollapsed}
       />
 
-      {isSelectMode ? (
-        <View style={[styles.bulkBar, { bottom: insets.bottom + 24 }]}>
-          <BulkActionBarV2
-            count={selection.selectedCount}
-            allSelected={selection.allSelected}
-            onSelectAll={selection.handleSelectAll}
-            onDeselectAll={selection.handleDeselectAll}
-            onLog={selection.handleOpenBulkLog}
-            onSkip={selection.handleOpenBulkSkip}
-            onDelete={selection.handleOpenBulkDelete}
-            onClose={selection.clearSelection}
-            countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
-            selectAllLabel={t('common.selectAll')}
-            deselectAllLabel={t('common.deselectAll')}
-            logLabel={t('habits.bulkBar.log')}
-            skipLabel={t('habits.bulkBar.skip')}
-            deleteLabel={t('habits.bulkBar.delete')}
-            closeLabel={t('common.cancel')}
-          />
-        </View>
-      ) : null}
-
       <TodayModals
         showCreateModal={showCreateModal}
         onCloseCreateModal={() => setShowCreateModal(false)}
@@ -198,9 +201,5 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   notice: { paddingBottom: 16, paddingHorizontal: 16 },
-  bulkBar: {
-    left: 20,
-    position: 'absolute',
-    right: 20,
-  },
+  selectionTray: { paddingHorizontal: 20, paddingVertical: 12 },
 })

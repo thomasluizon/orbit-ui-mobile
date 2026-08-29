@@ -1147,6 +1147,25 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
+  it('chunks bulk deletes at 100 and merges globally indexed results', async () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { index: number; habitId: string }[] },
+      string[],
+      never
+    >
+    const ids = Array.from({ length: 201 }, (_, index) => `habit-${index}`)
+
+    const response = await mutation.mutationFn(ids)
+
+    const payloadSizes = mocks.runQueuedMutation.mock.calls.slice(-3).map(
+      ([options]) => (options as { mutation: { payload: { habitIds: string[] } } }).mutation.payload.habitIds.length,
+    )
+    expect(payloadSizes).toEqual([100, 100, 1])
+    expect(response.results.map((item) => item.index)).toEqual(
+      Array.from({ length: 201 }, (_, index) => index),
+    )
+  })
+
   it('optimistically completes only same-day bulk skips and restores them on failure', async () => {
     seedHabitState(
       [

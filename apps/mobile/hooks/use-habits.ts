@@ -824,24 +824,31 @@ export function useBulkDeleteHabits() {
     string[],
     { previousLists: HabitListSnapshots; deletedCount: number }
   >({
-    mutationFn: (habitIds) =>
-      performQueuedApiMutation<BulkDeleteResponse, BulkDeleteResponse & QueuedMarker>({
-        type: 'bulkDeleteHabits',
-        scope: 'habits',
-        endpoint: API.habits.bulk,
-        method: 'DELETE',
-        payload: { habitIds },
-        queuedResultFactory: (mutationId) => ({
-          results: habitIds.map((habitId, index) => ({
-            index,
-            status: 'Success' as const,
-            habitId,
-            error: null,
-          })),
-          queued: true as const,
-          queuedMutationId: mutationId,
-        }),
-      }),
+    mutationFn: async (habitIds) => {
+      const results: BulkDeleteResponse['results'] = []
+      for (let index = 0; index < habitIds.length; index += 100) {
+        const chunk = habitIds.slice(index, index + 100)
+        const response = await performQueuedApiMutation<BulkDeleteResponse, BulkDeleteResponse & QueuedMarker>({
+          type: 'bulkDeleteHabits',
+          scope: 'habits',
+          endpoint: API.habits.bulk,
+          method: 'DELETE',
+          payload: { habitIds: chunk },
+          queuedResultFactory: (mutationId) => ({
+            results: chunk.map((habitId, itemIndex) => ({
+              index: itemIndex,
+              status: 'Success' as const,
+              habitId,
+              error: null,
+            })),
+            queued: true as const,
+            queuedMutationId: mutationId,
+          }),
+        })
+        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      }
+      return { results }
+    },
 
     onMutate: async (habitIds) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -876,25 +883,32 @@ export function useBulkLogHabits() {
     BulkLogItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: (items) =>
-      performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
-        type: 'bulkLogHabits',
-        scope: 'habits',
-        endpoint: API.habits.bulkLog,
-        method: 'POST',
-        payload: { items },
-        queuedResultFactory: (mutationId) => ({
-          results: items.map((item, index) => ({
-            index,
-            status: 'Success' as const,
-            habitId: item.habitId,
-            logId: null,
-            error: null,
-          })),
-          queued: true as const,
-          queuedMutationId: mutationId,
-        }),
-      }),
+    mutationFn: async (items) => {
+      const results: BulkLogResult['results'] = []
+      for (let index = 0; index < items.length; index += 100) {
+        const chunk = items.slice(index, index + 100)
+        const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
+          type: 'bulkLogHabits',
+          scope: 'habits',
+          endpoint: API.habits.bulkLog,
+          method: 'POST',
+          payload: { items: chunk },
+          queuedResultFactory: (mutationId) => ({
+            results: chunk.map((item, itemIndex) => ({
+              index: itemIndex,
+              status: 'Success' as const,
+              habitId: item.habitId,
+              logId: null,
+              error: null,
+            })),
+            queued: true as const,
+            queuedMutationId: mutationId,
+          }),
+        })
+        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      }
+      return { results }
+    },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -943,24 +957,31 @@ export function useBulkSkipHabits() {
     BulkSkipItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: (items) =>
-      performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
-        type: 'bulkSkipHabits',
-        scope: 'habits',
-        endpoint: API.habits.bulkSkip,
-        method: 'POST',
-        payload: { items },
-        queuedResultFactory: (mutationId) => ({
-          results: items.map((item, index) => ({
-            index,
-            status: 'Success' as const,
-            habitId: item.habitId,
-            error: null,
-          })),
-          queued: true as const,
-          queuedMutationId: mutationId,
-        }),
-      }),
+    mutationFn: async (items) => {
+      const results: BulkSkipResult['results'] = []
+      for (let index = 0; index < items.length; index += 100) {
+        const chunk = items.slice(index, index + 100)
+        const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
+          type: 'bulkSkipHabits',
+          scope: 'habits',
+          endpoint: API.habits.bulkSkip,
+          method: 'POST',
+          payload: { items: chunk },
+          queuedResultFactory: (mutationId) => ({
+            results: chunk.map((item, itemIndex) => ({
+              index: itemIndex,
+              status: 'Success' as const,
+              habitId: item.habitId,
+              error: null,
+            })),
+            queued: true as const,
+            queuedMutationId: mutationId,
+          }),
+        })
+        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      }
+      return { results }
+    },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })

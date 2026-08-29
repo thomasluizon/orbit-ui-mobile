@@ -19,6 +19,7 @@ import { ShellWide } from './shell-wide'
 interface DestinationShellProps {
   children: ReactNode
   notice?: ReactNode
+  composer?: ReactNode
   onCreate: () => void
 }
 
@@ -43,6 +44,7 @@ function hasPrimaryNavigation(pathname: string): boolean {
 export function DestinationShell({
   children,
   notice,
+  composer,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const t = useTranslations()
@@ -150,6 +152,7 @@ export function DestinationShell({
           paletteLabel={t('command.title')}
           paletteHint="Ctrl K"
           notice={notice}
+          composer={composer}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -177,6 +180,7 @@ export function DestinationShell({
           ) : undefined
         }
         notice={notice}
+        composer={composer}
       >
         {children}
       </Shell412>

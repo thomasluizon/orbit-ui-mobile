@@ -122,7 +122,6 @@ export interface AppTokensV2 {
   gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
-  statusSkip: string
   statusOverdue: string
   statusBad: string
   statusFrozen: string
@@ -206,7 +205,6 @@ export function createTokensV2(
       gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: neutrals.fg1,
       statusEmpty: alpha.statusEmpty,
-      statusSkip: neutrals.fg3,
       statusOverdue: status.overdue,
       statusBad: status.bad,
       statusFrozen: status.frozen,
@@ -245,7 +243,6 @@ export function createTokensV2(
     gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: neutrals.fg1,
     statusEmpty: alpha.statusEmpty,
-    statusSkip: neutrals.fg3,
     statusOverdue: status.overdue,
     statusBad: status.bad,
     statusFrozen: status.frozen,

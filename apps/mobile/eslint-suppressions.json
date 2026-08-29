@@ -52,7 +52,7 @@
   },
   "app/(tabs)/index.tsx": {
     "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {

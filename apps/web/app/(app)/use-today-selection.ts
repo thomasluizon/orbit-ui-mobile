@@ -77,6 +77,7 @@ export function useTodaySelection({
     habitsById,
     habitListRef,
     onSuccess: clearSelection,
+    onPartialFailure: selectAllHabits,
   })
 
   return {
