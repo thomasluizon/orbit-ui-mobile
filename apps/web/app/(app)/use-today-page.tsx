@@ -9,6 +9,7 @@ import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useTodayNavigation, type TodayNavigation } from './use-today-navigation'
 import { useTodayHabitsData, type TodayHabitsData } from './use-today-habits-data'
 import { useTodaySelection } from './use-today-selection'
+import type { TodayInitialHabits } from './today-initial-data'
 
 export interface TodayView {
   nav: TodayNavigation
@@ -27,10 +28,14 @@ export interface TodayView {
   setShowCreateModal: (value: boolean) => void
 }
 
-export function useTodayPage(): TodayView {
+export function useTodayPage(initialHabits: TodayInitialHabits | null = null): TodayView {
   const prefersReducedMotion = useReducedMotion()
   const nav = useTodayNavigation()
-  const data = useTodayHabitsData({ dateStr: nav.dateStr, selectedDate: nav.selectedDate })
+  const data = useTodayHabitsData({
+    dateStr: nav.dateStr,
+    selectedDate: nav.selectedDate,
+    initialHabits,
+  })
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const toggleSelectMode = useUIStore((state) => state.toggleSelectMode)

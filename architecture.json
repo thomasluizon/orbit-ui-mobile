@@ -1657,6 +1657,7 @@
       "path": "/api/habits",
       "usedBy": {
         "webCallsites": [
+          "apps/web/app/(app)/today-initial-data.ts",
           "apps/web/hooks/use-habit-queries.ts"
         ],
         "mobileCallsites": [
@@ -17298,6 +17299,7 @@
         "apps/web/__tests__/app/onboarding-overlay-state.test.ts",
         "apps/web/__tests__/app/profile-page.test.tsx",
         "apps/web/__tests__/app/step-up-page.test.tsx",
+        "apps/web/__tests__/app/today-initial-data.test.ts",
         "apps/web/__tests__/app/today-model.test.ts",
         "apps/web/__tests__/app/today-page.test.tsx",
         "apps/web/__tests__/app/today-provider.test.tsx",

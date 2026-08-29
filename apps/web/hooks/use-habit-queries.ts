@@ -44,7 +44,7 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
   return { ...filters, pageSize: 200 }
 }
 
-export function useHabits(filters: HabitsFilter) {
+export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[]) {
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
@@ -67,6 +67,7 @@ export function useHabits(filters: HabitsFilter) {
       )
     },
     staleTime: QUERY_STALE_TIMES.habits,
+    initialData: initialItems,
     select: selectNormalizedHabits,
     refetchOnWindowFocus: true,
     refetchOnReconnect: 'always',
