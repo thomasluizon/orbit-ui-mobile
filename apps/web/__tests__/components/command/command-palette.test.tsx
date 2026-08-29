@@ -86,7 +86,7 @@ const navItems = [
 
 function renderPalette() {
   return render(
-    <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} onCreateGoal={vi.fn()} />,
+    <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />,
   )
 }
 
@@ -163,6 +163,12 @@ describe('CommandPalette', () => {
     expect(screen.getByText('command.createHabit')).toBeInTheDocument()
   })
 
+  it('does not expose the removed create goal command', () => {
+    renderPalette()
+
+    expect(screen.queryByText('command.createGoal')).not.toBeInTheDocument()
+  })
+
   it('does not claim no results while the habits query is still loading', () => {
     habitsQuery = { data: undefined, isPending: true, isSuccess: false }
     renderPalette()
@@ -193,7 +199,7 @@ describe('CommandPalette', () => {
     )
 
     paletteOpen = false
-    rerender(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} onCreateGoal={vi.fn()} />)
+    rerender(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
 
     expect(trigger).toHaveFocus()
     trigger.remove()

@@ -269,7 +269,10 @@ export default function UpgradeScreen() {
     && model.state !== 'loading' && model.state !== 'load-failed'
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: tokens.bg }]}
+      edges={['top', 'bottom']}
+    >
       <AppBar
         back
         onBack={() => goBackOrFallback(fallbackRoute)}

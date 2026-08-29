@@ -5,7 +5,7 @@ import { Pencil } from '@/components/ui/icons'
 import type { createTokensV2 } from '@/lib/theme'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { sectionEntrance } from './profile-section-entrance'
+import { sectionEntrance } from '@/components/profile/profile-section-entrance'
 import type { ProfileStyles } from './profile-styles'
 
 type Tokens = ReturnType<typeof createTokensV2>

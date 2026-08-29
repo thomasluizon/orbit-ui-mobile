@@ -8,8 +8,6 @@ import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
-import { useShellStore } from '@/stores/shell-store'
 
 interface TodayAISummaryProps {
   date: string
@@ -18,9 +16,8 @@ interface TodayAISummaryProps {
 /**
  * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
  * tint, 0.28 inset ring, radius 18, sparkles + ASTRA eyebrow over the message.
- * Whole card is tappable; tap destination depends on state (pro opens Astra —
- * the docked copilot on desktop, the /chat page on narrower widths — free →
- * /upgrade, error → refetch).
+ * Whole card is tappable; Pro opens the retained /chat route until the composer
+ * owns the thread, free opens /upgrade, and an error retries the summary.
  *
  * - Pro + enabled: shows the AI summary text
  * - Free: shows the upgrade prompt
@@ -31,9 +28,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const router = useRouter()
   const uiLocale = useLocale()
   const { profile } = useProfile()
-  const isDesktop = useIsDesktop()
-  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
-  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
@@ -48,11 +42,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   })
 
   function openAstra() {
-    if (isDesktop) {
-      setAstraOpen(true)
-      setAstraMaximized(true)
-      return
-    }
     router.push('/chat')
   }
 

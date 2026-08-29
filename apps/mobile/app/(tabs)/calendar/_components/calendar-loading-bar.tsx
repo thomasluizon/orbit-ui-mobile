@@ -9,7 +9,6 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { createTokensV2 } from "@/lib/theme";
 
@@ -20,8 +19,8 @@ interface CalendarLoadingBarProps {
   tokens: Tokens;
 }
 
-/** 2px indeterminate fetch indicator mirroring the web .loading-bar: a primary
- *  gradient sweeping horizontally, transform-only, hidden while idle. */
+/** 2px indeterminate fetch indicator: a primary bar sweeping horizontally,
+ *  transform-only and hidden while idle. */
 export function CalendarLoadingBar({
   active,
   tokens,
@@ -50,7 +49,7 @@ export function CalendarLoadingBar({
           translateX: interpolate(
             progress.value,
             [0, 1],
-            [-trackWidth, trackWidth],
+            [-trackWidth / 3, trackWidth],
           ),
         },
       ],
@@ -70,14 +69,13 @@ export function CalendarLoadingBar({
       onLayout={onTrackLayout}
       style={[styles.track, { opacity: active ? 1 : 0 }]}
     >
-      <Animated.View style={[styles.sweep, { width: trackWidth * 2 }, sweepStyle]}>
-        <LinearGradient
-          colors={["transparent", tokens.primary, "transparent"]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+      <Animated.View
+        style={[
+          styles.sweep,
+          { backgroundColor: tokens.primary, width: trackWidth / 3 },
+          sweepStyle,
+        ]}
+      />
     </View>
   );
 }

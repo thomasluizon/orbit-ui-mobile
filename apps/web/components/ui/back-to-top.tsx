@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ArrowUp } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useShellScroller } from '@/components/shell/shell-scroller-context'
 
 const SHOW_THRESHOLD = 600
 
@@ -21,13 +21,14 @@ const BACK_TO_TOP_STYLE = {
   boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
 } as const
 
-function scrollToTop() {
+function scrollToTop(scroller: HTMLElement | null) {
+  if (!scroller) return
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+  scroller.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
 }
 
 /**
- * Floating control that scrolls the window back to the top. Appears only after the
+ * Floating control that scrolls the shell back to the top. Appears only after the
  * page is scrolled past {@link SHOW_THRESHOLD}, so it stays hidden on short lists and
  * surfaces once a long habit list has been scrolled. Sits bottom-right at every width:
  * above the phone bottom-nav below md, clear of the docked Astra launcher on desktop.
@@ -36,23 +37,24 @@ function scrollToTop() {
  */
 export function BackToTop() {
   const t = useTranslations('common')
-  const astraOpen = useShellStore((state) => state.astraOpen)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const [scrolled, setScrolled] = useState(false)
+  const scroller = useShellScroller()
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > SHOW_THRESHOLD)
+    if (!scroller) return
+    const handleScroll = () => setScrolled(scroller.scrollTop > SHOW_THRESHOLD)
     handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    scroller.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', handleScroll)
+  }, [scroller])
 
-  const visible = scrolled && !astraOpen && !isSelectMode
+  const visible = scrolled && !isSelectMode
 
   return (
     <button
       type="button"
-      onClick={scrollToTop}
+      onClick={() => scrollToTop(scroller)}
       aria-label={t('backToTop')}
       title={t('backToTop')}
       data-testid="back-to-top"

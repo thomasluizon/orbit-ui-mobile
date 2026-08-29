@@ -74,7 +74,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
         color: 'var(--fg-1)',
       }}
     >
-      <div style={{ position: 'relative', padding: '20px 22px 22px', background: 'var(--gradient-header)' }}>
+      <div style={{ position: 'relative', padding: '20px 22px 22px', background: 'var(--bg-card)' }}>
         <div className="flex items-center" style={{ gap: 8 }}>
           <div
             aria-hidden="true"

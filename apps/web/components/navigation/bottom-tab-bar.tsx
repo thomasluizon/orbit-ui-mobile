@@ -1,145 +1,86 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { useTranslations } from 'next-intl'
-import { Home, CalendarDays, User, Plus, type IconProps } from '@/components/ui/icons'
-import { Fab } from '@/components/ui/fab'
-import { AstraMark } from '@/components/ui/astra-avatar'
+import {
+  CalendarDays,
+  ChartLine,
+  Home,
+  User,
+  type IconProps,
+} from '@/components/ui/icons'
 
-/** Kit 4-tab bar (Home / Astra / Calendar / You) + centered 60px Plus FAB on Today. */
-export type BottomTab = 'today' | 'chat' | 'calendar' | 'profile'
+export type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
 
-type IconComponent = ComponentType<IconProps>
-
-interface TabDef {
+interface BottomTabDefinition {
   id: BottomTab
-  labelKey: string
-  icon: IconComponent
+  label: string
+  icon: ComponentType<IconProps>
 }
 
 interface BottomTabBarProps {
-  active: BottomTab
-  onTab?: (id: BottomTab) => void
-  onFab?: () => void
-  astraUnread?: boolean
-  showFab?: boolean
-  tabs?: TabDef[]
+  active: BottomTab | null
+  labels: Record<BottomTab, string>
+  navLabel: string
+  onTab: (id: BottomTab) => void
 }
-
-const DEFAULT_TABS: TabDef[] = [
-  { id: 'today', labelKey: 'home', icon: Home },
-  { id: 'chat', labelKey: 'astra', icon: AstraMark },
-  { id: 'calendar', labelKey: 'calendar', icon: CalendarDays },
-  { id: 'profile', labelKey: 'you', icon: User },
-]
 
 export function BottomTabBar({
   active,
+  labels,
+  navLabel,
   onTab,
-  onFab,
-  astraUnread = false,
-  showFab = true,
-  tabs = DEFAULT_TABS,
 }: Readonly<BottomTabBarProps>) {
-  const t = useTranslations('nav')
-  const fabVisible = showFab && active === 'today'
+  const tabs: readonly BottomTabDefinition[] = [
+    { id: 'hoje', label: labels.hoje, icon: Home },
+    { id: 'calendario', label: labels.calendario, icon: CalendarDays },
+    { id: 'progresso', label: labels.progresso, icon: ChartLine },
+    { id: 'perfil', label: labels.perfil, icon: User },
+  ]
 
   return (
-    <div className="relative shrink-0">
-      {fabVisible && (
-        <div
-          data-tour="tour-fab-button"
-          className="absolute -translate-x-1/2"
-          style={{ left: '50%', top: -30, zIndex: 2 }}
-        >
-          <Fab label={t('create')} onClick={onFab}>
-            <Plus size={28} strokeWidth={2.2} color="var(--fg-on-primary)" />
-          </Fab>
-        </div>
-      )}
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: '1fr 1fr 84px 1fr 1fr' }}
-      >
-        {tabs.slice(0, 2).map((tab) => (
-          <TabBtn
-            key={tab.id}
-            tab={tab}
-            label={t(tab.labelKey)}
-            active={active === tab.id}
-            onClick={() => onTab?.(tab.id)}
-            unread={tab.id === 'chat' && astraUnread}
-          />
-        ))}
-        <div aria-hidden="true" />
-        {tabs.slice(2, 4).map((tab) => (
-          <TabBtn
-            key={tab.id}
-            tab={tab}
-            label={t(tab.labelKey)}
-            active={active === tab.id}
-            onClick={() => onTab?.(tab.id)}
-          />
-        ))}
-      </div>
-    </div>
+    <nav aria-label={navLabel} className="grid h-14 grid-cols-4 bg-[var(--bg)]">
+      {tabs.map((tab) => (
+        <TabButton
+          key={tab.id}
+          tab={tab}
+          active={active === tab.id}
+          onClick={() => onTab(tab.id)}
+        />
+      ))}
+    </nav>
   )
 }
 
-interface TabBtnProps {
-  tab: TabDef
-  label: string
+function TabButton({
+  tab,
+  active,
+  onClick,
+}: Readonly<{
+  tab: BottomTabDefinition
   active: boolean
-  onClick?: () => void
-  unread?: boolean
-}
-
-function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtnProps>) {
+  onClick: () => void
+}>) {
   const Icon = tab.icon
 
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={label}
+      aria-label={tab.label}
       aria-current={active ? 'page' : undefined}
-      className={
-        'appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-[160ms] ease-[var(--ease-standard)] active:opacity-70 ' +
-        (active
-          ? 'text-[var(--primary)]'
-          : 'text-[var(--fg-4)] hover:text-[var(--fg-2)]')
-      }
-      style={{
-        padding: '10px 0 12px',
-        gap: 4,
-      }}
+      className="flex h-11 min-w-0 flex-col items-center justify-center gap-1 self-center bg-transparent transition-[background-color,color,opacity] duration-[var(--dur-fast)] hover:bg-[var(--bg-hover)] active:opacity-70 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
     >
-      <span className="relative">
-        <Icon size={24} strokeWidth={active ? 2.2 : 1.8} color="currentColor" />
-        {unread && (
-          <span
-            aria-hidden="true"
-            className="absolute rounded-full"
-            style={{
-              top: -2,
-              right: -4,
-              width: 6,
-              height: 6,
-              background: 'var(--primary)',
-              boxShadow: '0 0 0 2px var(--bg)',
-            }}
-          />
-        )}
-      </span>
+      <Icon
+        size={24}
+        strokeWidth={active ? 2 : 1.5}
+        color={active ? 'var(--primary)' : 'var(--fg-4)'}
+        aria-hidden="true"
+      />
       <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          // react-doctor-disable-next-line no-tiny-text -- the TabBar label is locked at 11px by DESIGN.md:135; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-          fontSize: 11,
-          fontWeight: active ? 500 : 400,
-        }}
+        className="max-w-full truncate text-[12px] font-medium"
+        style={{ color: active ? 'var(--primary-soft)' : 'var(--fg-3)' }}
       >
-        {label}
+        {tab.label}
       </span>
     </button>
   )

@@ -7,7 +7,7 @@ import type { ProfileNavItem } from '@orbit/shared/utils/profile-navigation'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
-import { sectionEntrance } from './profile-section-entrance'
+import { sectionEntrance } from '@/components/profile/profile-section-entrance'
 import type { ProfileStyles } from './profile-styles'
 
 type Tokens = ReturnType<typeof createTokensV2>

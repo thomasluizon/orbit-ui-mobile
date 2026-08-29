@@ -16,14 +16,6 @@ export function createStyles(tokens: Tokens) {
       flex: 1,
       position: "relative",
     },
-    gradientBackdrop: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 300,
-      zIndex: 0,
-    },
     emptyContent: {
       flex: 1,
       alignItems: "center",

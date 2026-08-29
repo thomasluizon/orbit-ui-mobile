@@ -13,16 +13,9 @@ import { useUIStore } from "@/stores/ui-store";
 import { Animated } from "@/test-mocks/react-native";
 
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
-type RenderedNode = {
-  props: Record<string, unknown>;
-};
-type RenderedTree = {
-  root: {
-    findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[];
-  };
-};
+type RenderedTree = import("react-test-renderer").ReactTestRenderer;
 
-vi.mock("@/app/(tabs)/today-shell", () => ({
+vi.mock("@/components/today/today-shell", () => ({
   TodayDateNavigation: () => null,
 }));
 
@@ -213,7 +206,7 @@ describe("mobile ui store", () => {
             onToggleCompleted: emptyCallback,
             onSelectFrequency: emptyCallback,
           }),
-        ) as unknown as RenderedTree;
+        );
       });
 
       const searchButton = tree?.root.findAll(

@@ -5,9 +5,7 @@ import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 type ActionChipHandler = (entityId: string, actionType: string) => void
 
 const mocks = vi.hoisted(() => ({
-  replace: vi.fn(),
   push: vi.fn(),
-  isDesktop: false,
   goBack: vi.fn(),
   onActionChipClick: null as ActionChipHandler | null,
   composer: {
@@ -55,8 +53,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mocks.replace, push: mocks.push }) }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: undefined }) }))
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
@@ -79,38 +76,22 @@ vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => n
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
 import ChatPage from '@/app/(chat)/chat/page'
-import { useShellStore } from '@/stores/shell-store'
-
 const goalActionType = [...CHAT_GOAL_ACTION_TYPES][0] as string
 
-describe('ChatPage desktop handoff', () => {
+describe('ChatPage', () => {
   beforeEach(() => {
-    mocks.replace.mockClear()
     mocks.push.mockClear()
     mocks.goBack.mockClear()
-    mocks.isDesktop = false
     mocks.onActionChipClick = null
     mocks.composer.messages = []
     mocks.composer.hasProAccess = false
     mocks.composer.showSuggestions = false
-    useShellStore.setState({ astraOpen: false, astraMaximized: false })
   })
 
-  it('hands off to the maximized Astra rail at the desktop breakpoint', () => {
-    mocks.isDesktop = true
+  it('keeps chat as a full page instead of redirecting into shell chrome', () => {
     render(<ChatPage />)
 
-    expect(mocks.replace).toHaveBeenCalledWith('/')
-    expect(useShellStore.getState().astraOpen).toBe(true)
-    expect(useShellStore.getState().astraMaximized).toBe(true)
-  })
-
-  it('keeps the full-page chat below the desktop breakpoint', () => {
-    mocks.isDesktop = false
-    render(<ChatPage />)
-
-    expect(mocks.replace).not.toHaveBeenCalled()
-    expect(useShellStore.getState().astraOpen).toBe(false)
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('renders the empty state when suggestions are shown', () => {

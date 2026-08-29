@@ -1,8 +1,5 @@
 {
   "app/(tabs)/calendar.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 5
     }
@@ -21,9 +18,6 @@
     }
   },
   "app/(tabs)/calendar/_components/calendar-loading-bar.tsx": {
-    "local/no-raw-gradient": {
-      "count": 2
-    },
     "local/spacing-scale": {
       "count": 1
     }
@@ -60,16 +54,8 @@
     "local/no-arbitrary-zindex": {
       "count": 1
     },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 5
-    }
-  },
-  "app/(tabs)/profile.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
@@ -112,7 +98,7 @@
       "count": 2
     }
   },
-  "app/(tabs)/profile/_components/profile-sections.tsx": {
+  "components/profile/profile-sections.tsx": {
     "local/icon-size-grid": {
       "count": 1
     }
@@ -127,25 +113,12 @@
       "count": 10
     }
   },
-  "app/(tabs)/today-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "app/+not-found.tsx": {
     "local/spacing-scale": {
       "count": 2
     }
   },
   "app/about.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/achievements-sections.tsx": {
     "local/spacing-scale": {
       "count": 3
     }
@@ -158,11 +131,6 @@
       "count": 10
     }
   },
-  "app/advanced-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    }
-  },
   "app/advanced-styles.ts": {
     "local/spacing-scale": {
       "count": 24
@@ -171,11 +139,6 @@
   "app/advanced.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    }
-  },
-  "app/ai-settings-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
     }
   },
   "app/ai-settings-styles.ts": {
@@ -187,26 +150,8 @@
     "local/icon-size-grid": {
       "count": 1
     },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "app/calendar-sync-auto-section.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "app/calendar-sync-event-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "app/calendar-sync-select-all-toggle.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
     }
   },
   "app/calendar-sync-styles.ts": {
@@ -227,19 +172,9 @@
       "count": 10
     }
   },
-  "app/chat.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    }
-  },
   "app/login-styles.ts": {
     "local/spacing-scale": {
       "count": 6
-    }
-  },
-  "app/login.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "app/preferences-styles.ts": {
@@ -252,27 +187,12 @@
       "count": 4
     }
   },
-  "app/retrospective-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "app/retrospective-locked-states.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "app/retrospective-styles.ts": {
     "local/spacing-scale": {
       "count": 26
     }
   },
-  "app/streak-sections-freeze.tsx": {
-    "local/no-decorative-glow": {
-      "count": 1
-    }
-  },
-  "app/streak-sections-styles.ts": {
+  "components/gamification/streak-sections-styles.ts": {
     "local/spacing-scale": {
       "count": 17
     }
@@ -300,17 +220,24 @@
       "count": 2
     }
   },
-  "app/wrapped-player.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-raw-gradient": {
-      "count": 1
-    }
-  },
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
       "count": 11
+    }
+  },
+  "components/calendar-sync/calendar-sync-auto-section.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "components/calendar-sync/calendar-sync-event-row.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "components/calendar-sync/calendar-sync-select-all-toggle.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
     }
   },
   "components/chat/action-chips.tsx": {
@@ -395,27 +322,23 @@
       "count": 2
     }
   },
+  "components/gamification/achievements-sections.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
   "components/gamification/all-done-celebration.tsx": {
     "local/no-arbitrary-zindex": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
       "count": 1
     }
   },
   "components/gamification/goal-completed-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    },
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "components/gamification/level-up-overlay.tsx": {
     "local/no-arbitrary-zindex": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
       "count": 1
     }
   },
@@ -427,16 +350,15 @@
   "components/gamification/streak-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    },
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "components/gamification/streak-freeze-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    },
-    "local/no-raw-gradient": {
+    }
+  },
+  "components/gamification/streak-sections-freeze.tsx": {
+    "local/no-decorative-glow": {
       "count": 1
     }
   },
@@ -680,9 +602,6 @@
     }
   },
   "components/milestone-share/milestone-share-card.tsx": {
-    "local/no-raw-gradient": {
-      "count": 2
-    },
     "local/spacing-scale": {
       "count": 12
     }
@@ -690,14 +609,6 @@
   "components/milestone-share/milestone-share-prompt.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/navigation/bottom-tab-bar.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/navigation/notification-bell.styles.ts": {
@@ -783,11 +694,6 @@
       "count": 4
     }
   },
-  "components/onboarding/onboarding-flow.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    }
-  },
   "components/onboarding/onboarding-meet-astra.tsx": {
     "local/spacing-scale": {
       "count": 3
@@ -804,6 +710,16 @@
   "components/onboarding/onboarding-welcome.tsx": {
     "local/spacing-scale": {
       "count": 3
+    }
+  },
+  "components/profile/advanced-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 3
+    }
+  },
+  "components/profile/ai-settings-sections.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
     }
   },
   "components/profile/profile-nav-icon.tsx": {
@@ -835,15 +751,22 @@
       "count": 1
     }
   },
+  "components/review-moment/retrospective-dashboard.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    }
+  },
+  "components/review-moment/retrospective-locked-states.tsx": {
+    "local/icon-size-grid": {
+      "count": 1
+    }
+  },
   "components/review-moment/review-moment-sheet.tsx": {
     "local/spacing-scale": {
       "count": 2
     }
   },
   "components/share/share-card.tsx": {
-    "local/no-raw-gradient": {
-      "count": 2
-    },
     "local/spacing-scale": {
       "count": 18
     }
@@ -862,6 +785,14 @@
     },
     "local/spacing-scale": {
       "count": 8
+    }
+  },
+  "components/today/today-shell.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
+    "local/spacing-scale": {
+      "count": 5
     }
   },
   "components/tour/tour-replay-modal.tsx": {
@@ -944,11 +875,6 @@
     },
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/ui/gradient-top.tsx": {
-    "local/no-raw-gradient": {
-      "count": 2
     }
   },
   "components/ui/highlight-text.tsx": {
@@ -1052,6 +978,14 @@
   },
   "components/wrapped/wrapped-entry-button.tsx": {
     "local/icon-size-grid": {
+      "count": 1
+    }
+  },
+  "components/wrapped/wrapped-player.tsx": {
+    "local/icon-size-grid": {
+      "count": 2
+    },
+    "local/no-raw-gradient": {
       "count": 1
     }
   }

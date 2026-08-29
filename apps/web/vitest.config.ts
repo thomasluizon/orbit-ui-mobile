@@ -44,8 +44,6 @@ export default defineConfig({
         'app/(chat)/error.tsx',
         'components/motion/route-transition-shell.tsx',
         'components/navigation/navigation-history-tracker.tsx',
-        'components/navigation/web-nav.tsx',
-        'components/shell/astra-copilot-rail.tsx',
         'components/calendar/calendar-week-view.tsx',
         'components/ui/parent-ring.tsx',
         'components/onboarding/retained-onboarding-overlay.tsx',

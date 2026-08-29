@@ -38,7 +38,6 @@ import { useUIStore } from "@/stores/ui-store";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { type HabitListHandle } from "@/components/habit-list";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
-import { GradientTop } from "@/components/ui/gradient-top";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { DismissibleCard } from "@/components/today/dismissible-card";
@@ -51,14 +50,14 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useEngagementSlot } from "@/hooks/use-engagement-slot";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
-import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
+import { TodayHeader, TodayTabs, type TodayTabItem } from "@/components/today/today-shell";
 import { buildTodayFilters } from "./today-model";
 import { useTodayViewSync } from "./use-today-view-sync";
-import { TodayScreenBody } from "./today-sections";
+import { TodayScreenBody } from "@/components/today/today-sections";
 import { useTodayDate } from "./use-today-date";
 import { useTodayMotion } from "./use-today-motion";
 import { useTodaySelection } from "./use-today-selection";
-import { TodayModals } from "./today-modals";
+import { TodayModals } from "@/components/today/today-modals";
 
 export { resolveBulkActionBarEnterShift } from "./today-model";
 
@@ -469,8 +468,6 @@ export default function TodayScreen() {
   const sharedHeader = useMemo(
     () => (
       <>
-        <GradientTop height={260} />
-
         <TodayHeader
           currentStreak={profile?.currentStreak ?? 0}
           onGoToToday={goToToday}

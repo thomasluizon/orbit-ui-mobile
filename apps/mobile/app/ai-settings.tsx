@@ -14,7 +14,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { createStyles } from './ai-settings-styles'
-import { AiFeatureToggles } from './ai-settings-sections'
+import { AiFeatureToggles } from '@/components/profile/ai-settings-sections'
 
 export default function AiSettingsScreen() {
   const { t } = useTranslation()

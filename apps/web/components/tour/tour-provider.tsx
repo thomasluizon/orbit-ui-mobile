@@ -12,14 +12,10 @@ import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
 import { useProfile } from '@/hooks/use-profile'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
+import { useShellScroller } from '@/components/shell/shell-scroller-context'
 
 const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 350
-
-const DESKTOP_STEP_ROUTE_OVERRIDES: Record<string, string> = {
-  'profile-retrospective': '/explore',
-}
 
 /**
  * Tour orchestrator: handles navigation, element detection, mock data,
@@ -31,7 +27,7 @@ export function TourProvider() {
   const { inject, restore } = useTourMockData()
   const { profile } = useProfile()
   const hasProAccess = profile?.hasProAccess ?? false
-  const isDesktop = useIsDesktop()
+  const shellScroller = useShellScroller()
 
   const store = useTourStore()
   const {
@@ -43,11 +39,7 @@ export function TourProvider() {
     setHiddenSections,
   } = store
 
-  const resolveStepRoute = useCallback(
-    (step: TourStep) =>
-      (isDesktop ? DESKTOP_STEP_ROUTE_OVERRIDES[step.id] : undefined) ?? step.route,
-    [isDesktop],
-  )
+  const resolveStepRoute = useCallback((step: TourStep) => step.route, [])
 
   const prevStepIdRef = useRef<string | null>(null)
   const uiSnapshotRef = useRef<TourUIState | null>(null)
@@ -242,7 +234,7 @@ export function TourProvider() {
   }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout, resolveStepRoute])
 
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive || !shellScroller) return
 
     let rafId: number
 
@@ -265,15 +257,15 @@ export function TourProvider() {
       rafId = requestAnimationFrame(update)
     }
 
-    window.addEventListener('scroll', handleEvent, { passive: true })
+    shellScroller.addEventListener('scroll', handleEvent, { passive: true })
     window.addEventListener('resize', handleEvent, { passive: true })
 
     return () => {
-      window.removeEventListener('scroll', handleEvent)
+      shellScroller.removeEventListener('scroll', handleEvent)
       window.removeEventListener('resize', handleEvent)
       cancelAnimationFrame(rafId)
     }
-  }, [isActive, getCurrentStep, setTargetRect])
+  }, [isActive, getCurrentStep, setTargetRect, shellScroller])
 
   useEffect(() => {
     return () => {

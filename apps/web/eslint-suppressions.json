@@ -118,9 +118,6 @@
     }
   },
   "app/(app)/calendar/page.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -133,19 +130,9 @@
       "count": 3
     }
   },
-  "app/(app)/explore/page.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/(app)/insights/page.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(app)/layout.tsx": {
     "local/spacing-scale": {
-      "count": 3
+      "count": 2
     }
   },
   "app/(app)/preferences/_components/push-notification-section.tsx": {
@@ -200,9 +187,6 @@
   },
   "app/(app)/profile/_components/profile-header-bar.tsx": {
     "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
       "count": 1
     },
     "local/spacing-scale": {
@@ -305,9 +289,6 @@
     }
   },
   "app/(app)/today-page-view.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 2
     }
@@ -370,11 +351,6 @@
       "count": 1
     }
   },
-  "app/(auth)/layout.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    }
-  },
   "app/(auth)/login/code-step.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -418,11 +394,6 @@
     },
     "local/spacing-scale": {
       "count": 10
-    }
-  },
-  "app/(chat)/chat/page.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "app/(chat)/error.tsx": {
@@ -626,11 +597,6 @@
       "count": 7
     }
   },
-  "components/command/command-palette.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
   "components/command/command-row.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -653,9 +619,6 @@
     },
     "local/no-decorative-glow": {
       "count": 1
-    },
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "components/gamification/goal-completed-celebration.tsx": {
@@ -664,9 +627,6 @@
     },
     "local/no-decorative-glow": {
       "count": 1
-    },
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "components/gamification/level-up-overlay.tsx": {
@@ -674,9 +634,6 @@
       "count": 1
     },
     "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
       "count": 1
     }
   },
@@ -691,9 +648,6 @@
     },
     "local/no-decorative-glow": {
       "count": 1
-    },
-    "local/no-raw-gradient": {
-      "count": 1
     }
   },
   "components/gamification/streak-freeze-celebration.tsx": {
@@ -701,9 +655,6 @@
       "count": 1
     },
     "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
       "count": 1
     },
     "local/react19-api": {
@@ -1029,65 +980,22 @@
       "count": 5
     }
   },
-  "components/insights/insights-headline.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/insights/insights-locked-state.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/insights/insights-section.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/marketing-consent/marketing-consent-prompt.tsx": {
     "local/icon-size-grid": {
       "count": 1
     }
   },
   "components/milestone-share/milestone-share-card.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/react19-api": {
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 11
+      "count": 10
     }
   },
   "components/milestone-share/milestone-share-prompt.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/navigation/app-sidebar.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "components/navigation/bottom-tab-bar.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "components/navigation/notification-bell.tsx": {
@@ -1158,9 +1066,6 @@
     "local/no-arbitrary-zindex": {
       "count": 1
     },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 4
     }
@@ -1218,70 +1123,11 @@
     "local/no-pill-radius-on-static": {
       "count": 1
     },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/react19-api": {
       "count": 1
     },
     "local/spacing-scale": {
       "count": 11
-    }
-  },
-  "components/shell/app-shell.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/shell/astra-copilot-rail.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/shell/desktop-topbar.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/shell/progress-orbit.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/shell/rail-drawer.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/shell/right-rail.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/shell/today-rail.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/today/setup-checklist-card.tsx": {
@@ -1329,7 +1175,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/ui/app-select.tsx": {
@@ -1363,11 +1209,6 @@
   },
   "components/ui/fresh-start-animation.tsx": {
     "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/ui/gradient-top.tsx": {
-    "local/no-raw-gradient": {
       "count": 1
     }
   },

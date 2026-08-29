@@ -4,6 +4,7 @@ import { Providers } from '@/lib/providers'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { FlowShell } from '@/components/shell/flow-shell'
 
 export default function ChatLayout({
   children,
@@ -12,15 +13,17 @@ export default function ChatLayout({
 }>) {
   return (
     <Providers>
-      <div className="h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pt-[var(--safe-top)] flex flex-col">
-        <div className="flex-1 min-h-0 mx-auto w-full max-w-[var(--app-max-w)] px-[var(--app-px)]">
-          <RouteTransitionShell className="h-full">
-            {children}
-          </RouteTransitionShell>
+      <FlowShell mode="full">
+        <div className="flex min-h-full flex-col bg-[var(--bg)] pt-[var(--safe-top)] text-[var(--fg-1)]">
+          <div className="mx-auto min-h-0 w-full max-w-[var(--app-max-w)] flex-1 px-[var(--app-px)]">
+            <RouteTransitionShell className="h-full">
+              {children}
+            </RouteTransitionShell>
+          </div>
+          <TourProvider />
+          <TourOverlay />
         </div>
-        <TourProvider />
-        <TourOverlay />
-      </div>
+      </FlowShell>
     </Providers>
   )
 }
