@@ -204,7 +204,7 @@ describe('Hoje date boundaries', () => {
       await Promise.resolve()
     })
 
-    expect(flattenText(tree!.toJSON())).toContain(en.habits.todayBoundary.readOnly)
+    expect(flattenText(tree!.root)).toContain(en.habits.todayBoundary.readOnly)
   })
 
   it('persists a pending ring log with the selected date', async () => {
@@ -216,7 +216,10 @@ describe('Hoje date boundaries', () => {
     })
 
     await TestRenderer.act(async () => {
-      tree!.root.findByType('PendingRing').props.onPress()
+      const pendingRing = tree!.root.findAll((node) => String(node.type) === 'PendingRing')[0]
+      const onPress = pendingRing?.props.onPress
+      if (typeof onPress !== 'function') throw new Error('Pending ring press handler is missing')
+      onPress()
       await Promise.resolve()
     })
 
