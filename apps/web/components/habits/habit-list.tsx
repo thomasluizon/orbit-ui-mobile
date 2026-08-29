@@ -23,7 +23,6 @@ import {
   isHabitVisibleInAllView,
 } from '@orbit/shared/utils'
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
-import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
 import { RescheduleSheet } from './reschedule-sheet'
@@ -525,8 +524,6 @@ export function HabitList({
 
   const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
 
-  const [showDetailDrawer, setShowDetailDrawer] = useState(false)
-  const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [habitToEdit, setHabitToEdit] = useState<NormalizedHabit | null>(null)
   const [editModalOnSaved, setEditModalOnSaved] = useState<(() => void | Promise<void>) | null>(null)
@@ -657,8 +654,7 @@ export function HabitList({
   }
 
   function openDetail(habit: NormalizedHabit) {
-    setSelectedHabit(habit)
-    setShowDetailDrawer(true)
+    router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
   }
 
   const handleEditModalOpenChange = useCallback((open: boolean) => {
@@ -1094,13 +1090,6 @@ export function HabitList({
   return (
     <div data-tour="tour-habit-list" ref={listContainerRef}>
       {renderMainContent()}
-
-      <HabitDetailDrawer
-        open={showDetailDrawer}
-        onOpenChange={setShowDetailDrawer}
-        habit={selectedHabit}
-        onLogged={handleLogged}
-      />
 
       <EditHabitModal
         open={showEditModal}

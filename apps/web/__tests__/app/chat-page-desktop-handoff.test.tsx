@@ -69,9 +69,6 @@ vi.mock('@/app/(chat)/chat/chat-empty-state', () => ({
 vi.mock('@/components/goals/goal-detail-drawer', () => ({
   GoalDetailDrawer: ({ goalId }: { goalId: string }) => <div data-testid="goal-drawer">{goalId}</div>,
 }))
-vi.mock('@/components/habits/habit-detail-drawer', () => ({
-  HabitDetailDrawer: ({ open }: { open: boolean }) => (open ? <div data-testid="habit-drawer" /> : null),
-}))
 vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
@@ -146,12 +143,12 @@ describe('ChatPage', () => {
     expect(screen.getByTestId('goal-drawer')).toHaveTextContent('goal-9')
   })
 
-  it('opens the habit drawer for a non-goal action chip', () => {
+  it('opens the habit flow for a non-goal action chip', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('habit-3', 'view_habit'))
 
-    expect(screen.getByTestId('habit-drawer')).toBeInTheDocument()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/habit-3')
   })
 })
