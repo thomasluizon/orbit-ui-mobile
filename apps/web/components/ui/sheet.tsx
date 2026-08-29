@@ -1,10 +1,16 @@
 'use client'
 
-import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { Dialog } from '@base-ui/react/dialog'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
+import {
+  registerModalFocusOwner,
+  registerOverlay,
+  unregisterModalFocusOwner,
+  unregisterOverlay,
+} from '@/lib/overlay-stack'
 
 export interface SheetHandle {
   /**
@@ -42,7 +48,10 @@ interface WebSheetProps extends SheetProps {
 export function Sheet({ title, actions, onClose, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
+  const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
+  const overlayId = useId()
   const exitActionRef = useRef<(() => void) | null>(null)
+  const onCloseRef = useRef(onClose)
 
   const requestClose = useCallback((exitAction?: () => void) => {
     exitActionRef.current = exitAction ?? null
@@ -52,6 +61,25 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<WebSh
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
   useImperativeHandle(ref, () => handle, [handle])
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!modalFocusOwnerActive) return
+    registerOverlay({
+      id: overlayId,
+      dismiss: () => {
+        if (onCloseRef.current) requestClose()
+      },
+    })
+    registerModalFocusOwner(overlayId)
+    return () => {
+      unregisterOverlay(overlayId)
+      unregisterModalFocusOwner(overlayId)
+    }
+  }, [modalFocusOwnerActive, overlayId, requestClose])
 
   function runExit() {
     const exitAction = exitActionRef.current
@@ -72,7 +100,10 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<WebSh
         if (!nextOpen && onClose) requestClose()
       }}
       onOpenChangeComplete={(nextOpen: boolean) => {
-        if (!nextOpen) runExit()
+        if (!nextOpen) {
+          setModalFocusOwnerActive(false)
+          runExit()
+        }
       }}
     >
       <Dialog.Portal className="orbit-sheet-portal">

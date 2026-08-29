@@ -5,6 +5,8 @@ const mockPush = vi.fn()
 const mockTogglePalette = vi.fn()
 const mockSetActiveView = vi.fn()
 let overlayOpen = false
+let modalFocusOwnerOpen = false
+let paletteOpen = false
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -14,10 +16,12 @@ vi.mock('@/stores/shell-store', () => ({
   useShellStore: (
     selector: (state: {
       togglePalette: typeof mockTogglePalette
+      paletteOpen: boolean
     }) => unknown,
   ) =>
     selector({
       togglePalette: mockTogglePalette,
+      paletteOpen,
     }),
 }))
 
@@ -28,6 +32,7 @@ vi.mock('@/stores/ui-store', () => ({
 
 vi.mock('@/lib/overlay-stack', () => ({
   hasOpenOverlay: () => overlayOpen,
+  hasOpenModalFocusOwner: () => modalFocusOwnerOpen,
 }))
 
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -43,6 +48,8 @@ function Harness({ enabled = true }: Readonly<{ enabled?: boolean }>) {
 
 beforeEach(() => {
   overlayOpen = false
+  modalFocusOwnerOpen = false
+  paletteOpen = false
   mockPush.mockClear()
   mockTogglePalette.mockClear()
   mockSetActiveView.mockClear()
@@ -60,6 +67,13 @@ describe('useKeyboardShortcuts', () => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
     expect(mockTogglePalette).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not open the palette while another modal owns focus', () => {
+    modalFocusOwnerOpen = true
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+    expect(mockTogglePalette).not.toHaveBeenCalled()
   })
 
   it('registers no palette or destination shortcuts when navigation is disabled', () => {

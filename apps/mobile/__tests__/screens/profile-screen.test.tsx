@@ -335,9 +335,6 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'tour.replay.title').props.hint).toBe(
       'explore.tourHint',
     )
-    expect(findRowByLabel(tree, 'profile.retrospectiveTitle').props.hint).toBe(
-      'profile.retrospectiveHint',
-    )
     expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
       'profile.wrappedHint',
     )
@@ -386,7 +383,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.retrospectiveTitle').props.onPress?.()
+      findRowByLabel(tree, 'calendar.profileButton').props.onPress?.()
       await Promise.resolve()
     })
 

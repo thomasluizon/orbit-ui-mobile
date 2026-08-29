@@ -89,7 +89,7 @@ describe('NotificationDetailModal', () => {
   it('navigates and closes when view button clicked', () => {
     render(<NotificationDetailModal {...defaultProps} />)
     fireEvent.click(screen.getByText('notifications.view'))
-    expect(mockPush).toHaveBeenCalledWith('/achievements')
+    expect(mockPush).toHaveBeenCalledWith('/progress')
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })
 

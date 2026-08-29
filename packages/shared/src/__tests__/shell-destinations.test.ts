@@ -14,7 +14,7 @@ describe('resolveShellDestination', () => {
     ['/streak', 'progresso'],
     ['/retrospective', 'progresso'],
     ['/wrapped', 'progresso'],
-    ['/achievements', 'perfil'],
+    ['/achievements', 'progresso'],
     ['/preferences', 'perfil'],
     ['/advanced', 'perfil'],
     ['/profile/security', 'perfil'],

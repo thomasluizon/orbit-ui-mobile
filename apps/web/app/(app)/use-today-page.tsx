@@ -30,7 +30,6 @@ export interface TodayView {
   data: TodayHabitsData
   selection: ReturnType<typeof useTodaySelection>
   currentActiveView: ActiveView
-  hasProAccess: boolean
   tabItems: TodayTabItem[]
   attemptViewChange: (nextView: TodayTabView) => boolean
   viewsLabel: string

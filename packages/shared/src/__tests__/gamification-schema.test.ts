@@ -5,6 +5,7 @@ import {
   nextRewardCarrotSchema,
   recapResponseSchema,
   reportEventResponseSchema,
+  streakInfoSchema,
 } from '../types/gamification'
 import { profileSchema } from '../types/profile'
 import { createMockGamificationProfile, createMockProfile } from './factories'
@@ -100,6 +101,25 @@ describe('profileSchema.canViewGamification', () => {
     const { canViewGamification: _omit, ...withoutFlag } = createMockProfile()
     const parsed = profileSchema.parse(withoutFlag)
     expect(parsed.canViewGamification).toBeUndefined()
+  })
+})
+
+describe('streakInfoSchema repair offer', () => {
+  it('parses the API-owned repair date', () => {
+    const parsed = streakInfoSchema.parse({
+      currentStreak: 0,
+      longestStreak: 9,
+      lastActiveDate: '2026-08-26',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: [],
+      isRepairAvailable: true,
+      repairDate: '2026-08-27',
+    })
+
+    expect(parsed.repairDate).toBe('2026-08-27')
   })
 })
 

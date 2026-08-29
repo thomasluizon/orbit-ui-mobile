@@ -3,6 +3,7 @@ import {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from '../utils/notification-actions'
 
 describe('notification-actions', () => {
@@ -21,6 +22,20 @@ describe('notification-actions', () => {
     expect(isViewableNotificationUrl('/social')).toBe(false)
     expect(isViewableNotificationUrl('/public-profile')).toBe(false)
     expect(isViewableNotificationUrl('/u/example')).toBe(false)
+  })
+
+  it.each([
+    '/streak',
+    '/achievements?earned=latest',
+    '/retrospective/year',
+  ])('resolves the absorbed route %s to Progresso', (url) => {
+    expect(resolveNotificationUrl(url)).toBe('/progress')
+  })
+
+  it('preserves current notification routes', () => {
+    expect(resolveNotificationUrl('/habits/1?date=2026-08-28')).toBe(
+      '/habits/1?date=2026-08-28',
+    )
   })
 
   it('derives notification detail action visibility', () => {

@@ -117,6 +117,26 @@ function activeFocusReturnTarget(): HTMLElement | null {
   return activeElement
 }
 
+const TAB_TARGET_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+function adjacentTabTarget(anchor: HTMLElement, panel: HTMLElement | null, backwards: boolean): HTMLElement | null {
+  const targets = Array.from(document.querySelectorAll<HTMLElement>(TAB_TARGET_SELECTOR))
+    .filter((candidate) => !panel?.contains(candidate))
+  const anchorIndex = targets.indexOf(anchor)
+  if (anchorIndex >= 0) return targets[anchorIndex + (backwards ? -1 : 1)] ?? null
+
+  const relation = backwards ? Node.DOCUMENT_POSITION_PRECEDING : Node.DOCUMENT_POSITION_FOLLOWING
+  const orderedTargets = backwards ? [...targets].reverse() : targets
+  return orderedTargets.find((candidate) => Boolean(anchor.compareDocumentPosition(candidate) & relation)) ?? null
+}
+
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
 export function Menu({
   open = false,
@@ -201,7 +221,9 @@ export function Menu({
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
-      focusReturnTargetRef.current?.focus()
+      event.preventDefault()
+      const anchor = anchorElement(anchorRef)
+      if (anchor) adjacentTabTarget(anchor, panelRef.current, event.shiftKey)?.focus()
       restoreFocusOnCleanupRef.current = false
       onClose?.()
       return

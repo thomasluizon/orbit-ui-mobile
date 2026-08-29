@@ -51,6 +51,7 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { CommandPaletteBackground } from '@/components/command/command-palette'
 import { TodayProvider } from './today-provider'
 import {
   isCalendarPromptCriteriaMet,
@@ -197,7 +198,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
+    <CommandPaletteBackground className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
       <DestinationShell
         onCreate={handleCreate}
         notice={
@@ -252,7 +253,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <ApiFetchI18nProvider />
       <TourProvider />
       <TourOverlay />
-    </div>
+    </CommandPaletteBackground>
   )
 }
 
