@@ -500,7 +500,7 @@
   },
   "components/habits/habit-checklist.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 4
@@ -824,7 +824,7 @@
   },
   "components/ui/app-bar.tsx": {
     "local/icon-size-grid": {
-      "count": 4
+      "count": 3
     },
     "local/spacing-scale": {
       "count": 3
@@ -867,11 +867,6 @@
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/field-input.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/ui/fresh-start-animation.tsx": {
@@ -931,7 +926,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/ui/trial-banner.tsx": {
@@ -961,11 +956,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/upgrade/billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
     }
   },
   "components/upgrade/plan-comparison-cards.tsx": {

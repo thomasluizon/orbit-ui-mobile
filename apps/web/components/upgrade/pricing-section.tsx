@@ -13,6 +13,7 @@ interface PricingSectionProps {
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
   isLoadingPlans: boolean
   isPlansError: boolean
+  isOnline: boolean
   trialDaysLeft: number | null
   checkoutLoading: SubscriptionInterval | null
   checkoutError: string
@@ -28,6 +29,7 @@ export function PricingSection({
   plans,
   isLoadingPlans,
   isPlansError,
+  isOnline,
   trialDaysLeft,
   checkoutLoading,
   checkoutError,
@@ -41,10 +43,12 @@ export function PricingSection({
   let eyebrow: string
   if (!trialActive) {
     eyebrow = t('upgrade.convert.freeEyebrow')
+  } else if (trialDaysLeft === null) {
+    eyebrow = t('upgrade.convert.trialEyebrow')
   } else if (trialDaysLeft === 0) {
     eyebrow = t('upgrade.convert.trialLastDay')
   } else {
-    eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
+    eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
   }
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
@@ -79,7 +83,7 @@ export function PricingSection({
         </div>
       ) : null}
 
-      {isPlansError && !plans && !isLoadingPlans ? (
+      {isPlansError && !plans && !isLoadingPlans && isOnline ? (
         <div className="rounded-[18px] text-center" style={{ padding: '28px 18px', ...cardSurface }}>
           <AlertTriangle size={26} strokeWidth={1.8} className="mx-auto text-[var(--fg-3)]" />
           <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
@@ -98,6 +102,7 @@ export function PricingSection({
             discountedAmount={discountedAmount}
             trialActive={trialActive}
             checkoutLoading={checkoutLoading}
+            checkoutDisabled={!isOnline}
             onCheckout={onCheckout}
             onStayFree={onStayFree}
             t={t}

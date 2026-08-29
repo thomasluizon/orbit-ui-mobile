@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
-import { OtpInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import type { LoginStyles } from '@/app/login-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -63,9 +63,11 @@ export function CodeStep({
 
       <Animated.View style={{ transform: [{ translateX: shakeOffset }] }}>
         <OtpInput
+          label={t('auth.verificationCode')}
           value={codeDigits.join('')}
-          onChange={onCodeChange}
-          label={t('stepUp.codeLabel')}
+          onChange={(value) => {
+            if (!isSubmitting) onCodeChange(value)
+          }}
           disabled={isSubmitting}
           autoFocus
         />

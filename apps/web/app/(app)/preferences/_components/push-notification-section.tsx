@@ -8,7 +8,8 @@ import {
 } from '@/hooks/use-push-notification-preferences'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 
 export interface PushSectionState {
   supported: boolean
@@ -33,12 +34,13 @@ export function PushNotificationSection({
         divider={false}
       >
         {push.supported && push.permission !== 'denied' && (
-          <Switch
-            on={push.subscribed}
-            onToggle={push.onToggle}
-            ariaLabel={t('settings.notifications.title')}
-            disabled={push.loading}
-          />
+          <fieldset disabled={push.loading} className="m-0 border-0 p-0">
+            <Switch
+              checked={push.subscribed}
+              onChange={push.onToggle}
+              label={t('settings.notifications.title')}
+            />
+          </fieldset>
         )}
       </SettingsRow>
       <SettingsDescription>
