@@ -160,10 +160,6 @@ describe("shared ui store", () => {
       activeFilters: {},
       activeView: "today",
       searchQuery: "",
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: true,
-      setupChecklistDismissed: false,
     });
   });
 
@@ -181,21 +177,18 @@ describe("shared ui store", () => {
     store.setState({
       activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
       searchQuery: "focus",
-      selectedTagIds: ["focus"],
     });
 
     const snapshot = getPersistedUIState(store.getState());
 
     store.setState({
       activeFilters: { dateFrom: "2026-04-07" },
-      selectedTagIds: ["health"],
     });
 
     expect(snapshot.activeFilters).toEqual({
       dateFrom: "2026-04-06",
       includeOverdue: true,
     });
-    expect(snapshot.selectedTagIds).toEqual(["focus"]);
     expect(snapshot).not.toHaveProperty("searchQuery");
   });
 
@@ -219,7 +212,7 @@ describe("shared ui store", () => {
     });
   });
 
-  it("drops legacy day-selection and search keys when migrating persisted state", () => {
+  it("drops legacy day-selection, search, and retired control keys when migrating persisted state", () => {
     const migrated = migratePersistedUIState({
       activeFilters: { search: "focus" },
       selectedDate: "2000-01-01",
@@ -234,13 +227,13 @@ describe("shared ui store", () => {
     expect(migrated).not.toHaveProperty("selectedDate");
     expect(migrated).not.toHaveProperty("followToday");
     expect(migrated).not.toHaveProperty("searchQuery");
+    expect(migrated).not.toHaveProperty("selectedFrequency");
+    expect(migrated).not.toHaveProperty("selectedTagIds");
+    expect(migrated).not.toHaveProperty("showCompleted");
+    expect(migrated).not.toHaveProperty("setupChecklistDismissed");
     expect(migrated).toEqual({
       activeFilters: {},
       activeView: "all",
-      selectedFrequency: "Month",
-      selectedTagIds: ["deep-work"],
-      showCompleted: true,
-      setupChecklistDismissed: false,
     });
   });
 

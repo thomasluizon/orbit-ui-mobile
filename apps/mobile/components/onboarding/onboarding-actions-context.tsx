@@ -164,7 +164,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         await bulkCreateHabits.mutateAsync({ habits: items })
       },
       logHabit: async (habitId) => {
-        await logHabit.mutateAsync({ habitId })
+        await logHabit.mutateAsync({ habitId, intent: 'log' })
       },
       createGoal: async (input) => {
         await createGoal.mutateAsync(input)

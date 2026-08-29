@@ -349,6 +349,11 @@
     }
   },
   "habits": {
+    "todayBoundary": {
+      "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
+      "readOnly": "Somente leitura. Você pode registrar até 7 dias atrás.",
+      "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
+    },
     "emptyState": "Nenhum hábito ainda",
     "count": "nenhum hábito | um hábito | {n} hábitos",
     "overdue": "Atrasado",
@@ -386,11 +391,12 @@
     "refresh": "Atualizar",
     "noDueToday": "Nenhum hábito para hoje",
     "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro",
+    "noHabitsBody": "Comece com um hábito pequeno ou peça uma rotina à Astra.",
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
     "loadError": "Não foi possível carregar seus hábitos.",
     "emptyGeneral": "Nenhum hábito geral ainda",
-    "allDoneToday": "Tudo feito por hoje",
-    "allDoneHint": "Você concluiu todos os seus hábitos.",
+    "allDoneToday": "Por hoje é isso",
+    "allDoneHint": "Tudo que vencia hoje está feito.",
     "allDoneCelebrationTitle": "Tudo feito",
     "allDoneCelebrationSubtitle": "Você arrasou em todos os hábitos hoje.",
     "seeUpcoming": "Ver hábitos de amanhã",
@@ -443,9 +449,6 @@
     "duplicateConfirmTitle": "Duplicar hábito?",
     "duplicateConfirmMessage": "Vamos criar uma cópia de \"{name}\" com tudo: frequência, tags, lembretes e checklist.",
     "duplicateConfirm": "Duplicar",
-    "forceLogTitle": "Registrar com sub-hábitos pendentes",
-    "forceLogMessage": "Alguns sub-hábitos ainda não foram concluídos. Quer registrar este hábito mesmo assim?",
-    "forceLogConfirm": "Registrar",
     "autoLogParentTitle": "Todos os sub-hábitos concluídos",
     "autoLogParentMessage": "Quer registrar \"{name}\" como concluído?",
     "autoLogParentConfirm": "Registrar",
@@ -469,7 +472,9 @@
     "bulkBar": {
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
-      "delete": "Excluir selecionados"
+      "delete": "Excluir selecionados",
+      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão.",
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
     },
     "skipHabit": "Pular",
     "frequency": {

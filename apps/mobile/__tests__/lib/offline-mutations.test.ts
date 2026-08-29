@@ -14,6 +14,7 @@ import {
   flushQueuedMutations,
   getMutationScope,
   isQueuedResult,
+  OfflineMutationPreflightError,
   queueOrExecute,
   runQueuedMutation,
   subscribeDroppedMutations,
@@ -51,10 +52,19 @@ const mocks = vi.hoisted(() => {
 
   const enqueue = vi.fn((mutation: QueuedMutation) => {
     queued.push(mutation)
+    return mutation.id
   })
 
   const getAll = vi.fn(() => [...queued])
   const getById = vi.fn((id: string) => queued.find((mutation) => mutation.id === id) ?? null)
+  const findUnfinalizedFirstWrite = vi.fn((mutation: QueuedMutation) =>
+    mutation.type === 'logHabit' && mutation.dedupeKey
+      ? queued.find((queuedMutation) =>
+          queuedMutation.type === mutation.type &&
+          queuedMutation.dedupeKey === mutation.dedupeKey,
+        ) ?? null
+      : null,
+  )
   const count = vi.fn(() => queued.length)
 
   const remove = vi.fn((id: string) => {
@@ -116,6 +126,7 @@ const mocks = vi.hoisted(() => {
     enqueue,
     getAll,
     getById,
+    findUnfinalizedFirstWrite,
     count,
     remove,
     update,
@@ -141,6 +152,7 @@ vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   getAll: mocks.getAll,
   getById: mocks.getById,
+  findUnfinalizedFirstWrite: mocks.findUnfinalizedFirstWrite,
   count: mocks.count,
   remove: mocks.remove,
   update: mocks.update,
@@ -176,6 +188,7 @@ describe('offline mutations', () => {
     mocks.enqueue.mockClear()
     mocks.getAll.mockClear()
     mocks.getById.mockClear()
+    mocks.findUnfinalizedFirstWrite.mockClear()
     mocks.count.mockClear()
     mocks.remove.mockClear()
     mocks.update.mockClear()
@@ -220,6 +233,98 @@ describe('offline mutations', () => {
     expect(mocks.queued[0]?.clientEntityId).toBe('offline-habit-1')
     expect(mocks.upsertOfflineEntity).toHaveBeenCalledTimes(1)
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
+  })
+
+  it('builds the queued result from the retained durable mutation id', async () => {
+    const mutation = buildQueuedMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    mocks.enqueue.mockImplementationOnce((queuedMutation) => {
+      mocks.queued.push(queuedMutation)
+      return 'persisted-log'
+    })
+
+    const result = await queueOrExecute({
+      mutation,
+      execute: () => Promise.reject(new Error('should not execute while offline')),
+      queuedResultFactory: createQueuedAck,
+    })
+
+    expect(result).toEqual({
+      queued: true,
+      queuedMutationId: 'persisted-log',
+    })
+  })
+
+  it('marks a coalesced online toggle as a retained acknowledgement', async () => {
+    mocks.setOnline(true)
+    const retainedMutation = buildQueuedMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    retainedMutation.status = 'syncing'
+    mocks.queued.push(retainedMutation)
+    const execute = vi.fn(() => Promise.resolve(null))
+
+    const result = await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'logHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-1/log',
+        method: 'POST',
+        payload: { date: '2026-08-29' },
+        dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+        targetEntityId: 'habit-1',
+      }),
+      execute,
+      queuedResultFactory: createQueuedAck,
+    })
+
+    expect(result).toEqual({
+      queued: true,
+      queuedMutationId: retainedMutation.id,
+      retained: true,
+    })
+    expect(execute).not.toHaveBeenCalled()
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([retainedMutation])
+  })
+
+  it.each([
+    ['bulkLogHabits', '/api/habits/bulk-log', 'POST'],
+    ['bulkSkipHabits', '/api/habits/bulk-skip', 'POST'],
+    ['bulkDeleteHabits', '/api/habits/bulk', 'DELETE'],
+  ] as const)('refuses offline %s without persisting it', async (type, endpoint, method) => {
+    const execute = vi.fn(() => Promise.resolve(null))
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type,
+        scope: 'habits',
+        endpoint,
+        method,
+        payload: { habitIds: ['habit-1'] },
+      }),
+      execute,
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toBeInstanceOf(OfflineMutationPreflightError)
+
+    expect(execute).not.toHaveBeenCalled()
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([])
+    expect(mocks.persistQueryCache).not.toHaveBeenCalled()
   })
 
   it('attaches the mutation id as the idempotency key when flushing a queued mutation', async () => {
@@ -826,6 +931,26 @@ describe('offline mutations', () => {
 
     expect(result).toBe(queuedAck)
     expect(mocks.enqueue).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not persist a non-replayable mutation after an online network failure', async () => {
+    mocks.setOnline(true)
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'bulkLogHabits',
+        scope: 'habits',
+        endpoint: '/api/habits/bulk-log',
+        method: 'POST',
+        payload: { items: [{ habitId: 'habit-1' }] },
+      }),
+      execute: () => Promise.reject(new TypeError('Network request failed')),
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toThrow('Network request failed')
+
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([])
   })
 
   it('marks a tombstone when a delete mutation is queued offline', async () => {

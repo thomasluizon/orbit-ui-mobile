@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { BackHandler } from "react-native";
-import type { NormalizedHabit } from "@orbit/shared/types/habit";
+import { getTodayBoundary } from "@orbit/shared/utils";
 import type { HabitListHandle } from "@/components/habit-list";
 import { useUIStore } from "@/stores/ui-store";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 
 interface TodaySelectionInput {
-  habitsById: Map<string, NormalizedHabit>;
+  selectedDateStr: string;
+  today: string;
   habitListRef: RefObject<HabitListHandle | null>;
   habitListAllLoadedIds: Set<string>;
   visibleHabitIds: Set<string>;
@@ -21,7 +22,8 @@ interface TodaySelectionInput {
  * from TodayScreen unchanged.
  */
 export function useTodaySelection({
-  habitsById,
+  selectedDateStr,
+  today,
   habitListRef,
   habitListAllLoadedIds,
   visibleHabitIds,
@@ -35,10 +37,14 @@ export function useTodaySelection({
   const clearSelection = useUIStore((s) => s.clearSelection);
 
   const previousActiveViewRef = useRef(activeView);
+  const readOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
+  const previousSelectedDateRef = useRef(selectedDateStr);
+  const previousReadOnlyRef = useRef(readOnly);
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
-    habitsById,
+    selectedDateStr,
+    readOnly,
     habitListRef,
     onSuccess: clearSelection,
   });
@@ -53,6 +59,23 @@ export function useTodaySelection({
     Array.from(allLoadedIds).every((id) => selectedHabitIds.has(id));
 
   const selectedCount = selectedHabitIds.size;
+
+  useEffect(() => {
+    const dateChanged = previousSelectedDateRef.current !== selectedDateStr;
+    const becameReadOnly = !previousReadOnlyRef.current && readOnly;
+    previousSelectedDateRef.current = selectedDateStr;
+    previousReadOnlyRef.current = readOnly;
+    if (!dateChanged && !becameReadOnly) return;
+    closeControlsMenu();
+    setShowBulkDeleteConfirm(false);
+    clearSelection();
+  }, [
+    clearSelection,
+    closeControlsMenu,
+    readOnly,
+    selectedDateStr,
+    setShowBulkDeleteConfirm,
+  ]);
 
   useEffect(() => {
     if (

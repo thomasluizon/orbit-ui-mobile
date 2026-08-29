@@ -15,11 +15,13 @@ export async function performQueuedApiMutation<
   execute,
   queuedResult,
   queuedResultFactory,
+  allowAutomaticReplay,
   ...mutation
 }: QueuedMutationBuildOptions & {
   execute?: (mutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
-  queuedResultFactory?: (mutationId: string) => TQueuedResult
+  queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
+  allowAutomaticReplay?: boolean
 }): Promise<TResult | TQueuedResult> {
   return runQueuedMutation({
     mutation,
@@ -37,7 +39,8 @@ export async function performQueuedApiMutation<
           },
           getMutationResponseSchema(resolvedMutation.type) as ZodType<TResult> | undefined,
         )),
-    queuedResult: queuedResult as TResult,
+    queuedResult,
     queuedResultFactory,
+    allowAutomaticReplay,
   })
 }

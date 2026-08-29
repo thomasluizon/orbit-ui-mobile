@@ -14,6 +14,7 @@ interface TodayModalsProps {
   onCloseCreateModal: () => void;
   createInitialDate: string | null;
   detailHabit: NormalizedHabit | null;
+  selectedDate: string;
   onCloseDetail: () => void;
   onHabitLogged: (habitId: string) => void;
   editHabit: NormalizedHabit | null;
@@ -41,6 +42,7 @@ export function TodayModals({
   onCloseCreateModal,
   createInitialDate,
   detailHabit,
+  selectedDate,
   onCloseDetail,
   onHabitLogged,
   editHabit,
@@ -70,6 +72,7 @@ export function TodayModals({
         open={!!detailHabit}
         onClose={onCloseDetail}
         habit={detailHabit}
+        selectedDate={selectedDate}
         onLogged={onHabitLogged}
       />
 

@@ -34,7 +34,6 @@ export interface HabitRowActions {
   onToggleSelection?: () => void
   onAddSubHabit?: () => void
   onToggleExpand?: () => void
-  onForceLogParent?: () => void
   onEnterSelectMode?: () => void
 }
 
@@ -48,6 +47,8 @@ interface HabitRowProps {
   /** Whether the status dot may be tapped to log for the selected date. When false and not done,
    *  the dot renders disabled/read-only (mirrors the backend log rule). Defaults to true. */
   canLog?: boolean
+  /** A day-level boundary where the row is visible for reference only. */
+  readOnly?: boolean
   /** Streak number from `habit.currentStreak` — only rendered when >= 2 and not child. */
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
@@ -97,6 +98,7 @@ function HabitRowStructuralColumn({
   expanded,
   onToggleSelection,
   onToggleExpand,
+  readOnly,
   collapseLabel,
   expandLabel,
 }: Readonly<{
@@ -109,11 +111,12 @@ function HabitRowStructuralColumn({
   onToggleExpand?: () => void
   collapseLabel: string
   expandLabel: string
+  readOnly: boolean
 }>) {
   if (selectMode) {
     return (
       <span className="flex h-11 w-11 shrink-0 items-center justify-center">
-        <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} />
+        <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} disabled={readOnly} />
       </span>
     )
   }
@@ -121,7 +124,10 @@ function HabitRowStructuralColumn({
   return (
     <button
       type="button"
-      onClick={onToggleExpand}
+      onClick={() => {
+        if (!readOnly) onToggleExpand?.()
+      }}
+      disabled={readOnly}
       aria-label={expanded ? collapseLabel : expandLabel}
       aria-expanded={expanded}
       className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
@@ -141,6 +147,7 @@ export function HabitRow({
   state = 'empty',
   meta = EMPTY_META,
   canLog = true,
+  readOnly = false,
   child = false,
   depth = 0,
   selectMode = false,
@@ -198,15 +205,18 @@ export function HabitRow({
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
   function handleRowClick() {
+    if (readOnly) return
     rowPrimaryAction?.()
   }
 
   function handleToggleStatus() {
+    if (readOnly) return
     if (isDone) onUnlog?.()
     else onLog?.()
   }
 
   function handleRowContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    if (readOnly) return
     const target = event.target
     if (!(target instanceof Node) || !event.currentTarget.contains(target)) return
     if (contextMenuItems.length === 0) return
@@ -227,11 +237,13 @@ export function HabitRow({
       data-habit-title={habit.title}
       data-depth={depth}
       data-status={state}
+      aria-disabled={readOnly || undefined}
       tabIndex={-1}
       onContextMenuCapture={handleRowContextMenu}
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
         minHeight: isChild ? 52 : 68,
+        opacity: readOnly ? 0.5 : 1,
         paddingInlineStart: isChild ? 24 : 0,
       }}
     >
@@ -245,11 +257,13 @@ export function HabitRow({
         onToggleExpand={onToggleExpand}
         collapseLabel={t('common.collapse')}
         expandLabel={t('common.expand')}
+        readOnly={readOnly}
       />
 
       <button
         type="button"
         onClick={handleRowClick}
+        disabled={readOnly}
         className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         style={{ gap: 12, paddingBlock: isChild ? 4 : 8 }}
       >
@@ -284,6 +298,7 @@ export function HabitRow({
         canDrillInto={canDrillInto}
         actions={actions}
         onToggleStatus={handleToggleStatus}
+        readOnly={readOnly}
       />
     </div>
   )
@@ -298,7 +313,9 @@ export function HabitRow({
         title={t('habits.actions.more')}
         items={contextMenuItems.map(({ onRun: _onRun, ...item }) => item)}
         onClose={() => setContextOpen(false)}
-        onSelect={(id) => contextMenuItems.find((item) => item.id === id)?.onRun()}
+        onSelect={(id) => {
+          if (!readOnly) contextMenuItems.find((item) => item.id === id)?.onRun()
+        }}
       />
     </>
   )

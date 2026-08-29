@@ -46,11 +46,8 @@
     }
   },
   "app/(tabs)/index.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 4
+      "count": 2
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
@@ -504,14 +501,6 @@
       "count": 12
     }
   },
-  "components/habits/today-ai-summary.tsx": {
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
   "components/marketing-consent/marketing-consent-prompt.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -685,30 +674,6 @@
   "components/share/share-card.tsx": {
     "local/spacing-scale": {
       "count": 18
-    }
-  },
-  "components/today/setup-checklist-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/today/today-habits-header.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "components/today/today-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/tour/tour-replay-modal.tsx": {

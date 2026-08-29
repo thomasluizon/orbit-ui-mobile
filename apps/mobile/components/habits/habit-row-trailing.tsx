@@ -26,14 +26,7 @@ interface HabitRowTrailingProps {
   tokens: ReturnType<typeof createTokensV2>
   onToggleStatus: () => void
   onOpenMenu: () => void
-}
-
-function resolveLogAction(
-  childrenDone: number,
-  childrenTotal: number,
-  actions: HabitRowActions,
-): (() => void) | undefined {
-  return childrenDone >= childrenTotal ? actions.onLog : actions.onForceLogParent
+  readOnly: boolean
 }
 
 function resolveParentRingTrackColor(
@@ -70,6 +63,7 @@ export function HabitRowTrailing({
   tokens,
   onToggleStatus,
   onOpenMenu,
+  readOnly,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   const statusLabel = t(`habits.statusDot.${dotState}` as const)
@@ -83,12 +77,15 @@ export function HabitRowTrailing({
           <>
             <Pressable
               onPress={() => {
+                if (readOnly) return
                 const parentAction = isDoneForRange
                   ? actions.onUnlog
-                  : resolveLogAction(childrenDone, childrenTotal, actions)
+                  : actions.onLog
                 parentAction?.()
               }}
               accessibilityRole="button"
+              disabled={readOnly}
+              accessibilityState={{ disabled: readOnly }}
               accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
               style={styles.parentRingButton}
             >
@@ -105,7 +102,7 @@ export function HabitRowTrailing({
           <CheckCircle
             state={dotState}
             onToggle={onToggleStatus}
-            disabled={!canLog && !isDoneForRange}
+            disabled={readOnly || (!canLog && !isDoneForRange)}
             accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
             tokens={tokens}
             size={depth === 1 ? 24 : 30}
@@ -115,8 +112,10 @@ export function HabitRowTrailing({
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
             onPress={onOpenMenu}
+            disabled={readOnly}
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.more')}
+            accessibilityState={{ disabled: readOnly }}
             style={({ pressed }) => [
               styles.menuButton,
               pressed

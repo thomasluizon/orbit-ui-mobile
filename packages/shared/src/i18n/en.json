@@ -349,6 +349,11 @@
     }
   },
   "habits": {
+    "todayBoundary": {
+      "lastLoggable": "This is the oldest day you can log.",
+      "readOnly": "Read only. You can log up to 7 days back.",
+      "future": "This day has not arrived yet. You can log what has no set time."
+    },
     "emptyState": "No habits yet",
     "count": "no habits | one habit | {n} habits",
     "overdue": "Overdue",
@@ -386,11 +391,12 @@
     "refresh": "Refresh",
     "noDueToday": "No habits due today",
     "noHabitsYet": "No habits yet. Create your first one",
+    "noHabitsBody": "Start with one small habit or ask Astra for a routine.",
     "reorderFailed": "Couldn't save the new order. Please try again.",
     "loadError": "Couldn't load your habits.",
     "emptyGeneral": "No general habits yet",
-    "allDoneToday": "All done for today",
-    "allDoneHint": "You've completed all your habits.",
+    "allDoneToday": "That is it for today",
+    "allDoneHint": "Everything due today is done.",
     "allDoneCelebrationTitle": "All done",
     "allDoneCelebrationSubtitle": "You crushed every habit today.",
     "seeUpcoming": "See tomorrow's habits",
@@ -443,9 +449,6 @@
     "duplicateConfirmTitle": "Duplicate habit?",
     "duplicateConfirmMessage": "A copy of \"{name}\" will be created with all its settings (frequency, tags, reminders, checklist).",
     "duplicateConfirm": "Duplicate",
-    "forceLogTitle": "Log with incomplete sub-habits",
-    "forceLogMessage": "Some sub-habits are not complete yet. Logging this habit marks it done anyway.",
-    "forceLogConfirm": "Log",
     "autoLogParentTitle": "All sub-habits complete",
     "autoLogParentMessage": "Would you like to log \"{name}\" as complete?",
     "autoLogParentConfirm": "Log",
@@ -469,7 +472,9 @@
     "bulkBar": {
       "log": "Log selected",
       "skip": "Skip selected",
-      "delete": "Delete selected"
+      "delete": "Delete selected",
+      "offlineFailure": "Nothing changed because your device is offline.",
+      "connectionRefreshed": "The connection dropped. The list was refreshed."
     },
     "skipHabit": "Skip",
     "frequency": {

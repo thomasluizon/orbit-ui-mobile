@@ -6,6 +6,7 @@ import {
   count,
   dequeue,
   enqueue,
+  findUnfinalizedFirstWrite,
   getAll,
   incrementRetries,
   replaceEntityReferences,
@@ -237,6 +238,84 @@ describe('mobile offline queue', () => {
     expect(queued[0]?.payload).toEqual({
       positions: [{ habitId: 'habit-1', position: 3 }],
     })
+  })
+
+  it('keeps a restored habit toggle as the first write for its habit and date', () => {
+    const persistedMutation = makeMutation({
+      id: 'persisted-log',
+      type: 'logHabit',
+      endpoint: '/api/habits/habit-1/log',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    enqueue(persistedMutation)
+
+    const retainedMutationId = enqueue(makeMutation({
+      id: 'duplicate-log',
+      type: 'logHabit',
+      endpoint: '/api/habits/habit-1/log',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))
+
+    expect(retainedMutationId).toBe(persistedMutation.id)
+    expect(getAll()).toEqual([persistedMutation])
+  })
+
+  it('finds the retained habit toggle until its syncing row is finalized', () => {
+    const persistedMutation = makeMutation({
+      id: 'syncing-log',
+      type: 'logHabit',
+      status: 'syncing',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    enqueue(persistedMutation)
+
+    expect(findUnfinalizedFirstWrite(makeMutation({
+      id: 'direct-log',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))).toEqual(persistedMutation)
+
+    remove(persistedMutation.id)
+
+    expect(findUnfinalizedFirstWrite(makeMutation({
+      id: 'second-direct-log',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))).toBeNull()
+  })
+
+  it('queues toggles independently for a different habit or date', () => {
+    enqueue(makeMutation({
+      id: 'habit-1-today',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))
+    enqueue(makeMutation({
+      id: 'habit-2-today',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-2:2026-08-29',
+      targetEntityId: 'habit-2',
+    }))
+    enqueue(makeMutation({
+      id: 'habit-1-tomorrow',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-30',
+      targetEntityId: 'habit-1',
+    }))
+
+    expect(getAll().map((mutation) => mutation.id)).toEqual([
+      'habit-1-today',
+      'habit-2-today',
+      'habit-1-tomorrow',
+    ])
   })
 
   it('rewrites temp ids across endpoint, payload, target ids, and dependencies', () => {

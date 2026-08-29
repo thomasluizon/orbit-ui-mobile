@@ -80,6 +80,70 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('makes every read-only descendant disabled and guards its actions', () => {
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    const onToggleExpand = vi.fn()
+    const onEdit = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          readOnly
+          hasChildren
+          childrenDone={0}
+          childrenTotal={1}
+          actions={{ onDetail, onLog, onToggleExpand, onEdit }}
+        />,
+      )
+    })
+
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    expect(row.props.pointerEvents).toBeUndefined()
+    expect(row.props.accessibilityState).toEqual({ disabled: true })
+
+    const controls = [
+      renderer!.root.findByProps({ accessibilityLabel: 'common.expand' }),
+      renderer!.root.findByProps({ accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' }),
+      renderer!.root.findByProps({ accessibilityLabel: 'habits.actions.more' }),
+    ]
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body?.props.disabled).toBe(true)
+    for (const control of controls) {
+      expect(control.props.disabled).toBe(true)
+      TestRenderer.act(() => control.props.onPress?.())
+    }
+    TestRenderer.act(() => {
+      body?.props.onPress?.()
+      body?.props.onLongPress?.()
+    })
+
+    expect(onDetail).not.toHaveBeenCalled()
+    expect(onLog).not.toHaveBeenCalled()
+    expect(onToggleExpand).not.toHaveBeenCalled()
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+
+  it('uses a 500 ms still hold for selection', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          actions={{ onLongPressCard: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body).toBeDefined()
+  })
+
   it('announces the habit name with the state and log action', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -114,6 +178,28 @@ describe('HabitRow status control names (mobile)', () => {
           'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
       }),
     ).toBeDefined()
+  })
+
+  it('logs a parent with open children directly from its ring', () => {
+    const onLog = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Morning routine' })}
+          hasChildren
+          childrenDone={1}
+          childrenTotal={2}
+          actions={{ onLog }}
+        />,
+      )
+    })
+
+    const ring = renderer!.root.findByProps({
+      accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+    })
+    TestRenderer.act(() => ring.props.onPress())
+    expect(onLog).toHaveBeenCalledOnce()
   })
 })
 

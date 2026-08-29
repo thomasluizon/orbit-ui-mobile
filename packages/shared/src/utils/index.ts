@@ -259,7 +259,6 @@ export {
 export {
   applyLinkedGoalUpdates,
   buildChildrenIndex,
-  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
@@ -276,6 +275,8 @@ export {
 } from './habit-list-progress'
 export type {
   HabitDateBucket,
+  HabitResolution,
+  HabitResolutionMode,
   ParentPromptProgress,
   ParentPromptProgressOptions,
 } from './habit-list-progress'
@@ -337,14 +338,6 @@ export {
   getTrialUrgent,
 } from './profile-selectors'
 export {
-  ENGAGEMENT_SLOT_PRIORITY,
-  resolveEngagementSlot,
-} from './engagement-slot'
-export type {
-  EngagementSlotCard,
-  EngagementSlotEligibility,
-} from './engagement-slot'
-export {
   getAgentCapabilityLabelKey,
   getAgentPolicyReasonKey,
 } from './agent-pending-operation'
@@ -387,7 +380,12 @@ export {
   buildHabitLogDateSet,
 } from './habit-calendar'
 export { buildStreakWeekDays } from './streak-week'
-export { AI_SUMMARY_CLAMP_CHARS } from './ai-summary'
+export {
+  canNavigateToNextDay,
+  getDayOffset,
+  getTodayBoundary,
+  type TodayBoundary,
+} from './today-date'
 export type {
   HabitHierarchyNode,
   HabitReorderPosition,
