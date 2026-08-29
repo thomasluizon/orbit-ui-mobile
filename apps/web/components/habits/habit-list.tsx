@@ -173,6 +173,20 @@ export interface HabitListHandle {
   settleBulkHabitResolutions: (resolutions: readonly HabitResolution[]) => void
 }
 
+interface ParentSettlementData {
+  getChildren: (id: string) => NormalizedHabit[]
+  isListView: boolean
+  visibility: ReturnType<typeof useHabitVisibility>
+  habitsById: Map<string, NormalizedHabit>
+  selectedDateStr: string
+}
+
+interface ParentSettlementOperation {
+  data: ParentSettlementData
+  date: string
+  resolvedModes: Map<string, HabitResolutionMode>
+}
+
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 // react-doctor-disable-next-line no-giant-component -- top-level habit-list surface owning query data, visibility, drill navigation, collapse state, and the full confirm-dialog cluster as one imperative-handle unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -231,13 +245,7 @@ export function HabitList({
     mode: 'log' | 'skip'
     date: string
   } | null>(null)
-  const promptDataRef = useReactRef<{
-    getChildren: (id: string) => NormalizedHabit[]
-    isListView: boolean
-    visibility: ReturnType<typeof useHabitVisibility>
-    habitsById: Map<string, NormalizedHabit>
-    selectedDateStr: string
-  } | null>(null)
+  const promptDataRef = useReactRef<ParentSettlementData | null>(null)
 
   const recentlyCompletedTimersRef = useReactRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
@@ -454,15 +462,15 @@ export function HabitList({
     (
       habitId: string,
       resolvedModes: ReadonlyMap<string, HabitResolutionMode> = resolvedModesRef.current,
+      settlementData: ParentSettlementData | null = promptDataRef.current,
     ) => {
-      const data = promptDataRef.current
-      if (!data) return { done: 0, total: 0, loggedDone: 0 }
+      if (!settlementData) return { done: 0, total: 0, loggedDone: 0 }
       return computeParentPromptProgress({
         parentId: habitId,
-        getChildren: data.getChildren,
-        isRelevantToday: data.visibility.isRelevantToday,
-        isDueOnSelectedDate: data.visibility.isDueOnSelectedDate,
-        isListView: data.isListView,
+        getChildren: settlementData.getChildren,
+        isRelevantToday: settlementData.visibility.isRelevantToday,
+        isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
+        isListView: settlementData.isListView,
         skippedIds: skippedChildIdsRef.current,
         resolvedModes,
       })
@@ -623,24 +631,24 @@ export function HabitList({
   function checkAndSettleParent(
     childHabitId: string,
     resolvedModes: ReadonlyMap<string, HabitResolutionMode>,
+    settlementData: ParentSettlementData | null = promptDataRef.current,
   ) {
-    const data = promptDataRef.current
-    if (!data) return
-    const child = data.habitsById.get(childHabitId)
+    if (!settlementData) return
+    const child = settlementData.habitsById.get(childHabitId)
     if (!child?.parentId) return
-    const parent = data.habitsById.get(child.parentId)
+    const parent = settlementData.habitsById.get(child.parentId)
     if (!parent || parent.isCompleted) return
 
     const parentIsDueOnViewedDate =
       parent.isGeneral ||
       parent.isOverdue ||
-      hasHabitScheduleOnDate(parent, data.selectedDateStr)
+      hasHabitScheduleOnDate(parent, settlementData.selectedDateStr)
     if (!parentIsDueOnViewedDate) return
 
     const mode = computeParentSettlementDecision(
       parent,
-      getChildrenProgressForPrompt(parent.id, resolvedModes),
-      data.selectedDateStr,
+      getChildrenProgressForPrompt(parent.id, resolvedModes, settlementData),
+      settlementData.selectedDateStr,
     )
     if (mode) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
@@ -648,7 +656,7 @@ export function HabitList({
         setParentPrompt({
           habit: parent,
           mode,
-          date: data.selectedDateStr,
+          date: settlementData.selectedDateStr,
         })
       }
     } else {
@@ -658,19 +666,17 @@ export function HabitList({
 
   function settleParentAutomatically(
     childHabitId: string,
-    resolvedModes: ReadonlyMap<string, HabitResolutionMode>,
+    operation: ParentSettlementOperation,
   ) {
-    const promptData = promptDataRef.current
-    if (!promptData) return
-    const child = promptData.habitsById.get(childHabitId)
+    const child = operation.data.habitsById.get(childHabitId)
     if (!child?.parentId) return
-    const parent = promptData.habitsById.get(child.parentId)
+    const parent = operation.data.habitsById.get(child.parentId)
     if (!parent) return
 
     const mode = computeParentSettlementDecision(
       parent,
-      getChildrenProgressForPrompt(parent.id, resolvedModes),
-      promptData.selectedDateStr,
+      getChildrenProgressForPrompt(parent.id, operation.resolvedModes, operation.data),
+      operation.date,
     )
     if (!mode) {
       promptedParentIdsRef.current.delete(parent.id)
@@ -679,36 +685,31 @@ export function HabitList({
     if (promptedParentIdsRef.current.has(parent.id)) return
 
     promptedParentIdsRef.current.add(parent.id)
-    const ancestorResolvedModes = new Map(resolvedModes).set(parent.id, mode)
+    operation.resolvedModes.set(parent.id, mode)
     recordHabitResolution(parent.id, mode)
-    void settleCompletedParent(
-      parent.id,
-      mode,
-      promptData.selectedDateStr,
-      ancestorResolvedModes,
-      true,
-    )
+    void settleCompletedParent(parent.id, mode, operation, true)
   }
 
   async function settleCompletedParent(
     parentId: string,
     mode: HabitResolutionMode,
-    settlementDate: string,
-    resolvedModes: ReadonlyMap<string, HabitResolutionMode>,
+    operation: ParentSettlementOperation,
     automatic = false,
   ) {
     markRecentlyCompleted(parentId)
     try {
       if (mode === 'skip') {
-        await skipHabit.mutateAsync({ habitId: parentId, date: settlementDate })
+        await skipHabit.mutateAsync({ habitId: parentId, date: operation.date })
       } else {
-        await logHabit.mutateAsync({ habitId: parentId, date: settlementDate })
+        await logHabit.mutateAsync({ habitId: parentId, date: operation.date })
       }
-      if (automatic) settleParentAutomatically(parentId, resolvedModes)
-      else checkAndSettleParent(parentId, resolvedModes)
+      if (promptDataRef.current?.selectedDateStr !== operation.date) return
+      if (automatic) settleParentAutomatically(parentId, operation)
+      else checkAndSettleParent(parentId, operation.resolvedModes, operation.data)
     } catch {
       promptedParentIdsRef.current.delete(parentId)
       resolvedModesRef.current.delete(parentId)
+      operation.resolvedModes.delete(parentId)
       skippedChildIdsRef.current.delete(parentId)
       clearRecentlyCompleted(parentId)
     }
@@ -720,6 +721,8 @@ export function HabitList({
   }
 
   function settleBulkHabitResolutions(resolutions: readonly HabitResolution[]) {
+    const settlementData = promptDataRef.current
+    if (!settlementData) return
     const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
     for (const resolution of resolutions) {
       recordHabitResolution(resolution.habitId, resolution.mode)
@@ -735,9 +738,13 @@ export function HabitList({
       }
     }
 
-    const resolvedSnapshot = new Map(resolvedModesRef.current)
+    const operation: ParentSettlementOperation = {
+      data: settlementData,
+      date: settlementData.selectedDateStr,
+      resolvedModes: new Map(resolvedModesRef.current),
+    }
     for (const childId of childIdByAffectedParent.values()) {
-      settleParentAutomatically(childId, resolvedSnapshot)
+      settleParentAutomatically(childId, operation)
     }
   }
 
@@ -879,13 +886,14 @@ export function HabitList({
   }
 
   function confirmParentSettlement() {
-    if (!parentPrompt || parentPrompt.date !== selectedDateStr) return
+    const settlementData = promptDataRef.current
+    if (!parentPrompt || parentPrompt.date !== selectedDateStr || !settlementData) return
     const parentId = parentPrompt.habit.id
-    const currentParent = promptDataRef.current?.habitsById.get(parentId) ?? null
+    const currentParent = settlementData.habitsById.get(parentId) ?? null
     const resolvedModes = new Map(resolvedModesRef.current)
     const mode = computeParentSettlementDecision(
       currentParent,
-      getChildrenProgressForPrompt(parentId, resolvedModes),
+      getChildrenProgressForPrompt(parentId, resolvedModes, settlementData),
       parentPrompt.date,
     )
     setParentPrompt(null)
@@ -893,9 +901,13 @@ export function HabitList({
       promptedParentIdsRef.current.delete(parentId)
       return
     }
-    const ancestorResolvedModes = new Map(resolvedModes).set(parentId, mode)
+    resolvedModes.set(parentId, mode)
     recordHabitResolution(parentId, mode)
-    void settleCompletedParent(parentId, mode, parentPrompt.date, ancestorResolvedModes)
+    void settleCompletedParent(parentId, mode, {
+      data: settlementData,
+      date: parentPrompt.date,
+      resolvedModes,
+    })
   }
 
   function handleLogged(habitId: string, markAsRecentlyCompleted: boolean) {
