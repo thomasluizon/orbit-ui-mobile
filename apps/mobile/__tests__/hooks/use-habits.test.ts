@@ -88,8 +88,10 @@ const mocks = vi.hoisted(() => {
     useQueryClient: vi.fn(() => queryClient),
     useMutation: vi.fn((config: unknown) => config),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
+      mutation: { type: string }
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string) => unknown
+      allowAutomaticReplay?: boolean
     }) => Promise.resolve(
       queuedResultFactory?.('mutation-1') ?? queuedResult ?? {
         queued: true as const,
