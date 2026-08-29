@@ -72,6 +72,7 @@ export default function TodayScreen() {
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
     selectedDateStr: date.dateStr,
+    today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
     visibleHabitIds,
@@ -118,7 +119,7 @@ export default function TodayScreen() {
         selectedHabitIds={selectedHabitIds}
         listHeader={listHeader}
         onCreatePress={() => setShowCreateModal(true)}
-        onSeeUpcoming={date.goToNextDay}
+        onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
         onDetailHabit={setDetailHabit}
         onEditHabit={(habit, onSaved) => {
           setEditHabit(habit)

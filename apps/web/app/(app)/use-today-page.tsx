@@ -48,6 +48,7 @@ export function useTodayPage(
 
   const selection = useTodaySelection({
     selectedDateStr: nav.dateStr,
+    today: nav.today,
     habitsById: data.habitsById,
     childrenByParent: data.childrenByParent,
     habitsCount: data.habitsCount,

@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback } from 'react'
-import { collectSelectableDescendantIds } from '@orbit/shared/utils'
+import { useCallback, useEffect, useRef } from 'react'
+import { collectSelectableDescendantIds, getTodayBoundary } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
@@ -9,6 +9,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface TodaySelectionParams {
   selectedDateStr: string
+  today: string
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>
   habitsCount: number
@@ -22,6 +23,7 @@ interface TodaySelectionParams {
  */
 export function useTodaySelection({
   selectedDateStr,
+  today,
   habitsById,
   childrenByParent,
   habitsCount,
@@ -31,6 +33,7 @@ export function useTodaySelection({
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
+  const previousSelectedDateStrRef = useRef(selectedDateStr)
 
   const getDescendantIds = useCallback(
     (parentId: string): string[] =>
@@ -77,9 +80,18 @@ export function useTodaySelection({
   const bulkActions = useBulkActions({
     selectedHabitIds,
     selectedDateStr,
+    readOnly: getTodayBoundary(selectedDateStr, today) === 'read-only',
     habitListRef,
     onSuccess: clearSelection,
   })
+  const { setShowBulkDeleteConfirm } = bulkActions
+
+  useEffect(() => {
+    if (previousSelectedDateStrRef.current === selectedDateStr) return
+    previousSelectedDateStrRef.current = selectedDateStr
+    setShowBulkDeleteConfirm(false)
+    clearSelection()
+  }, [clearSelection, selectedDateStr, setShowBulkDeleteConfirm])
 
   return {
     handleToggleSelection,

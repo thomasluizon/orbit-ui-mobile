@@ -1,4 +1,5 @@
 import React from 'react'
+import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -164,6 +165,7 @@ const mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
+  totalCount: 0,
 }
 
 const mockDrillState = {
@@ -382,6 +384,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
     captured.current = useBulkActions({
       selectedHabitIds,
       selectedDateStr: TODAY,
+      readOnly: false,
       habitListRef,
       onSuccess: vi.fn(),
     })
@@ -449,7 +452,48 @@ describe('HabitList', () => {
     mockDrillState.drillStack = []
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
+    mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('renders the all-done upcoming action only when it can navigate', () => {
+    seedHabits([])
+    mockHabitsData.totalCount = 1
+    const onSeeUpcoming = vi.fn()
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    let emptyState = tree!.root.findByType(FlatList).props.ListEmptyComponent.props.children
+    expect(emptyState.props.actionLabel).toBeUndefined()
+    expect(emptyState.props.onAction).toBeUndefined()
+
+    TestRenderer.act(() => {
+      tree!.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+          onSeeUpcoming={onSeeUpcoming}
+        />,
+      )
+    })
+    emptyState = tree!.root.findByType(FlatList).props.ListEmptyComponent.props.children
+    expect(emptyState.props.actionLabel).toBe('habits.seeUpcoming')
+    expect(emptyState.props.onAction).toBe(onSeeUpcoming)
+    TestRenderer.act(() => emptyState.props.onAction())
+
+    expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
 
   it('skips a recurring habit immediately without confirmation', async () => {

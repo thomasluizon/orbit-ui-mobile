@@ -24,8 +24,17 @@ vi.mock('motion/react', () => ({
 }))
 
 vi.mock('@/components/habits/habit-list', () => ({
-  HabitList: function MockHabitList(props: { showCompleted?: boolean }) {
-    return <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)} />
+  HabitList: function MockHabitList(props: {
+    showCompleted?: boolean
+    onSeeUpcoming?: () => void
+  }) {
+    return (
+      <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)}>
+        {props.onSeeUpcoming ? (
+          <button type="button" onClick={props.onSeeUpcoming}>See upcoming</button>
+        ) : null}
+      </div>
+    )
   },
 }))
 vi.mock('@/components/habits/bulk-action-bar-v2', () => ({ BulkActionBarV2: () => null }))
@@ -101,6 +110,7 @@ describe('Hoje date control', () => {
       nav: {
         selectedDate: new Date('2026-04-08T00:00:00'),
         goToNextDay: vi.fn(),
+        dateNav: { nextDisabled: false },
       },
       selectedHabitIds: new Set<string>(),
       selection: { handleToggleSelection: vi.fn() },
@@ -117,5 +127,53 @@ describe('Hoje date control', () => {
     )
     expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
     globalThis.localStorage.clear()
+  })
+
+  it('omits the all-done upcoming action at the instance horizon', () => {
+    const goToNextDay = vi.fn()
+    const view = {
+      data: { filters: {} },
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        selectedDate: new Date('2026-07-07T00:00:00'),
+        goToNextDay,
+        dateNav: { nextDisabled: true },
+      },
+      selectedHabitIds: new Set<string>(),
+      selection: { handleToggleSelection: vi.fn() },
+      setHabitListAllCollapsed: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(<TodayHabitsPanel view={view} />)
+
+    expect(screen.queryByRole('button', { name: 'See upcoming' })).not.toBeInTheDocument()
+    expect(goToNextDay).not.toHaveBeenCalled()
+  })
+
+  it('keeps the all-done upcoming action active below the instance horizon', () => {
+    const goToNextDay = vi.fn()
+    const view = {
+      data: { filters: {} },
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        selectedDate: new Date('2026-07-06T00:00:00'),
+        goToNextDay,
+        dateNav: { nextDisabled: false },
+      },
+      selectedHabitIds: new Set<string>(),
+      selection: { handleToggleSelection: vi.fn() },
+      setHabitListAllCollapsed: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(<TodayHabitsPanel view={view} />)
+    fireEvent.click(screen.getByRole('button', { name: 'See upcoming' }))
+
+    expect(goToNextDay).toHaveBeenCalledOnce()
   })
 })

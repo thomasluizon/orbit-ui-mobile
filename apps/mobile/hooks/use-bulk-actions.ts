@@ -8,6 +8,7 @@ import type { HabitListHandle } from '@/components/habit-list'
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
+  readOnly: boolean
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
 }
@@ -20,6 +21,7 @@ interface BulkActionOutcome {
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
+  readOnly,
   habitListRef,
   onSuccess,
 }: UseBulkActionsOptions) {
@@ -57,15 +59,17 @@ export function useBulkActions({
   )
 
   const confirmBulkDelete = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     const result = await bulkDelete.mutateAsync(ids)
     if (reportBulkFailure(result)) return
     onSuccess()
     setShowBulkDeleteConfirm(false)
-  }, [bulkDelete, onSuccess, reportBulkFailure, selectedHabitIds])
+  }, [bulkDelete, onSuccess, readOnly, reportBulkFailure, selectedHabitIds])
 
   const confirmBulkLog = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     const result = await bulkLog.mutateAsync(
@@ -74,9 +78,10 @@ export function useBulkActions({
     if (reportBulkFailure(result)) return
     applyBulkMutationSuccesses(result.results, 'log')
     onSuccess()
-  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, reportBulkFailure, selectedDateStr, selectedHabitIds])
+  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, readOnly, reportBulkFailure, selectedDateStr, selectedHabitIds])
 
   const confirmBulkSkip = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     const result = await bulkSkip.mutateAsync(
@@ -85,7 +90,7 @@ export function useBulkActions({
     if (reportBulkFailure(result)) return
     applyBulkMutationSuccesses(result.results, 'skip')
     onSuccess()
-  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, reportBulkFailure, selectedDateStr, selectedHabitIds])
+  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, readOnly, reportBulkFailure, selectedDateStr, selectedHabitIds])
 
   return {
     showBulkDeleteConfirm,

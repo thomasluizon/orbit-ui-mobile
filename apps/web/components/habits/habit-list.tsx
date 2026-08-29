@@ -1110,7 +1110,7 @@ export function HabitList({
         <HabitListEmptyState
           title={t('habits.allDoneToday')}
           description={t('habits.allDoneHint')}
-          actionLabel={t('habits.seeUpcoming')}
+          actionLabel={onSeeUpcoming ? t('habits.seeUpcoming') : undefined}
           onAction={onSeeUpcoming}
           variant="secondary"
         />

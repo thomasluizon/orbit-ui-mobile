@@ -8,6 +8,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
+  readOnly: boolean
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
 }
@@ -15,6 +16,7 @@ interface UseBulkActionsOptions {
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
+  readOnly,
   habitListRef,
   onSuccess,
 }: UseBulkActionsOptions) {
@@ -35,6 +37,7 @@ export function useBulkActions({
   }, [habitListRef])
 
   const confirmBulkDelete = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
@@ -44,9 +47,10 @@ export function useBulkActions({
       onSuccess()
       setShowBulkDeleteConfirm(false)
     }
-  }, [selectedHabitIds, bulkDelete, onSuccess])
+  }, [readOnly, selectedHabitIds, bulkDelete, onSuccess])
 
   const confirmBulkLog = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
@@ -58,9 +62,10 @@ export function useBulkActions({
     } finally {
       onSuccess()
     }
-  }, [selectedHabitIds, selectedDateStr, bulkLog, onSuccess, applyBulkMutationSuccesses])
+  }, [readOnly, selectedHabitIds, selectedDateStr, bulkLog, onSuccess, applyBulkMutationSuccesses])
 
   const confirmBulkSkip = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
@@ -72,7 +77,7 @@ export function useBulkActions({
     } finally {
       onSuccess()
     }
-  }, [selectedHabitIds, selectedDateStr, bulkSkip, onSuccess, applyBulkMutationSuccesses])
+  }, [readOnly, selectedHabitIds, selectedDateStr, bulkSkip, onSuccess, applyBulkMutationSuccesses])
 
   return {
     showBulkDeleteConfirm,

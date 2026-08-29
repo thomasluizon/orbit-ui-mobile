@@ -114,6 +114,9 @@ vi.mock('@/components/habit-list', () => ({
       props.listHeader as React.ReactNode,
       React.createElement('HabitListProps', { showCompleted: props.showCompleted }),
       React.createElement('PendingRing', { onPress: pressPendingRing }),
+      props.onSeeUpcoming
+        ? React.createElement('UpcomingAction', { onPress: props.onSeeUpcoming })
+        : null,
     )
   }),
 }))
@@ -187,6 +190,7 @@ describe('Hoje date boundaries', () => {
     })
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
     mocks.date.dateStr = '2026-04-08'
+    mocks.date.nextDisabled = false
   })
 
   it('keeps seven days back loggable and marks the next day read only', () => {
@@ -260,5 +264,42 @@ describe('Hoje date boundaries', () => {
       habitId: 'habit-pending',
       date: '2026-04-08',
     })
+  })
+
+  it('omits the all-done upcoming action at the instance horizon', async () => {
+    mocks.date.selectedDate = new Date('2026-07-07T00:00:00')
+    mocks.date.dateStr = '2026-07-07'
+    mocks.date.nextDisabled = true
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    expect(tree!.root.findAll((node) => String(node.type) === 'UpcomingAction')).toHaveLength(0)
+    expect(mocks.date.goToNextDay).not.toHaveBeenCalled()
+  })
+
+  it('keeps the all-done upcoming action active below the instance horizon', async () => {
+    mocks.date.selectedDate = new Date('2026-07-06T00:00:00')
+    mocks.date.dateStr = '2026-07-06'
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    await TestRenderer.act(() => {
+      const upcomingAction = tree!.root.findAll(
+        (node) => String(node.type) === 'UpcomingAction',
+      )[0]
+      const onPress = upcomingAction?.props.onPress
+      if (typeof onPress !== 'function') throw new Error('Upcoming action is missing')
+      onPress()
+    })
+
+    expect(mocks.date.goToNextDay).toHaveBeenCalledOnce()
   })
 })

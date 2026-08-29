@@ -39,6 +39,8 @@ function asMockBackHandler(handler: unknown): { emitBackPress: () => boolean } {
 type SelectionApi = ReturnType<typeof useTodaySelection>
 
 interface RenderOptions {
+  selectedDateStr?: string
+  today?: string
   habitListAllLoadedIds?: Set<string>
   visibleHabitIds?: Set<string>
   closeControlsMenu?: () => void
@@ -50,9 +52,10 @@ function renderSelection(options: RenderOptions = {}) {
   const ref: { current: SelectionApi | null } = { current: null }
   const habitListRef = { current: null } as React.RefObject<HabitListHandle | null>
 
-  function Harness() {
+  function Harness({ selectedDateStr }: { selectedDateStr: string }) {
     ref.current = useTodaySelection({
-      selectedDateStr: '2026-04-01',
+      selectedDateStr,
+      today: options.today ?? '2026-04-08',
       habitListRef,
       habitListAllLoadedIds: options.habitListAllLoadedIds ?? new Set<string>(),
       visibleHabitIds: options.visibleHabitIds ?? new Set<string>(),
@@ -62,17 +65,20 @@ function renderSelection(options: RenderOptions = {}) {
   }
 
   let tree!: { update: (node: React.ReactElement) => void; unmount: () => void }
+  const initialSelectedDateStr = options.selectedDateStr ?? '2026-04-01'
   TestRenderer.act(() => {
-    tree = TestRenderer.create(React.createElement(Harness))
+    tree = TestRenderer.create(
+      React.createElement(Harness, { selectedDateStr: initialSelectedDateStr }),
+    )
   })
 
   if (!ref.current) throw new Error('useTodaySelection did not render')
   mountedTrees.push(tree)
   return {
     api: ref as { current: SelectionApi },
-    rerender: () =>
+    rerender: (selectedDateStr = initialSelectedDateStr) =>
       TestRenderer.act(() => {
-        tree.update(React.createElement(Harness))
+        tree.update(React.createElement(Harness, { selectedDateStr }))
       }),
   }
 }
@@ -193,6 +199,18 @@ describe('mobile useTodaySelection', () => {
 
     expect(closeControlsMenu).not.toHaveBeenCalled()
     expect(mocks.store.clearSelection).not.toHaveBeenCalled()
+  })
+
+  it('clears a loggable-day selection when the viewed date changes', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    const view = renderSelection({ selectedDateStr: '2026-04-01' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender('2026-03-31')
+
+    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
   })
 
   it('clears the selection on a hardware back press while in select mode', () => {

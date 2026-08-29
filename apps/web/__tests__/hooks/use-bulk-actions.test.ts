@@ -14,7 +14,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkSkipHabits: () => bulkSkip,
 }))
 
-function renderBulkActions(selectedHabitIds: Set<string>) {
+function renderBulkActions(selectedHabitIds: Set<string>, readOnly = false) {
   const onSuccess = vi.fn()
   const settleBulkHabitResolutions = vi.fn()
   const habitListRef = {
@@ -25,6 +25,7 @@ function renderBulkActions(selectedHabitIds: Set<string>) {
     useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
+      readOnly,
       habitListRef,
       onSuccess,
     }),
@@ -109,5 +110,24 @@ describe('useBulkActions reversibility boundary', () => {
     })
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1'])
     expect(result.current.showBulkDeleteConfirm).toBe(false)
+  })
+
+  it('refuses log, skip, and delete mutations on a read-only date', async () => {
+    const { result, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1']),
+      true,
+    )
+
+    await act(async () => {
+      await result.current.confirmBulkLog()
+      await result.current.confirmBulkSkip()
+      await result.current.confirmBulkDelete()
+    })
+
+    expect(bulkLog.mutateAsync).not.toHaveBeenCalled()
+    expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
+    expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(onSuccess).not.toHaveBeenCalled()
   })
 })

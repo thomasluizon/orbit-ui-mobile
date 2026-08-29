@@ -63,7 +63,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
         selection.handleToggleSelection(habitId)
       }}
       onCreate={() => setShowCreateModal(true)}
-      onSeeUpcoming={nav.goToNextDay}
+      onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
       onAllCollapsedChange={setHabitListAllCollapsed}
     />
   )

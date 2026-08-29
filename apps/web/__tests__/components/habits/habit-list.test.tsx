@@ -17,6 +17,7 @@ const mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
+  totalCount: 0,
 }
 const logHabitMutateAsync = vi.fn()
 const habitListRefetch = vi.fn()
@@ -335,6 +336,7 @@ describe('HabitList', () => {
     mockHabitsData.habitsById.clear()
     mockHabitsData.childrenByParent.clear()
     mockHabitsData.topLevelHabits = []
+    mockHabitsData.totalCount = 0
   })
 
   it('renders without crashing with no habits', () => {
@@ -343,6 +345,28 @@ describe('HabitList', () => {
     )
     expect(screen.getByText('habits.emptyState')).toBeDefined()
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
+  })
+
+  it('renders the all-done upcoming action only when it can navigate', () => {
+    mockHabitsData.totalCount = 1
+    const onSeeUpcoming = vi.fn()
+    const result = renderWithProviders(
+      <HabitList filters={defaultFilters} view="today" showCompleted={false} />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'habits.seeUpcoming' })).toBeNull()
+
+    result.rerenderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        view="today"
+        showCompleted={false}
+        onSeeUpcoming={onSeeUpcoming}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'habits.seeUpcoming' }))
+
+    expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
 
   it('keeps a completed row in place for 1400 ms', () => {

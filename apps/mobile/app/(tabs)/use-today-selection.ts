@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { BackHandler } from "react-native";
+import { getTodayBoundary } from "@orbit/shared/utils";
 import type { HabitListHandle } from "@/components/habit-list";
 import { useUIStore } from "@/stores/ui-store";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
@@ -7,6 +8,7 @@ import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 
 interface TodaySelectionInput {
   selectedDateStr: string;
+  today: string;
   habitListRef: RefObject<HabitListHandle | null>;
   habitListAllLoadedIds: Set<string>;
   visibleHabitIds: Set<string>;
@@ -21,6 +23,7 @@ interface TodaySelectionInput {
  */
 export function useTodaySelection({
   selectedDateStr,
+  today,
   habitListRef,
   habitListAllLoadedIds,
   visibleHabitIds,
@@ -34,10 +37,12 @@ export function useTodaySelection({
   const clearSelection = useUIStore((s) => s.clearSelection);
 
   const previousActiveViewRef = useRef(activeView);
+  const previousSelectedDateStrRef = useRef(selectedDateStr);
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
     selectedDateStr,
+    readOnly: getTodayBoundary(selectedDateStr, today) === "read-only",
     habitListRef,
     onSuccess: clearSelection,
   });
@@ -52,6 +57,14 @@ export function useTodaySelection({
     Array.from(allLoadedIds).every((id) => selectedHabitIds.has(id));
 
   const selectedCount = selectedHabitIds.size;
+
+  useEffect(() => {
+    if (previousSelectedDateStrRef.current === selectedDateStr) return;
+    previousSelectedDateStrRef.current = selectedDateStr;
+    closeControlsMenu();
+    setShowBulkDeleteConfirm(false);
+    clearSelection();
+  }, [clearSelection, closeControlsMenu, selectedDateStr, setShowBulkDeleteConfirm]);
 
   useEffect(() => {
     if (
