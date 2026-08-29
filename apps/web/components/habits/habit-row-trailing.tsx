@@ -61,6 +61,7 @@ interface HabitRowTrailingProps {
   canDrillInto: boolean
   actions: HabitRowActions
   onToggleStatus: () => void
+  readOnly: boolean
 }
 
 /** Trailing cluster of a habit row: parent ring or status ring, then overflow. */
@@ -79,6 +80,7 @@ export function HabitRowTrailing({
   canDrillInto,
   actions,
   onToggleStatus,
+  readOnly,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
   const {
@@ -113,9 +115,11 @@ export function HabitRowTrailing({
               }
               onClick={(event) => {
                 event.stopPropagation()
+                if (readOnly) return
                 const parentAction = isDone ? actions.onUnlog : actions.onLog
                 parentAction?.()
               }}
+              disabled={readOnly}
               className="appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center cursor-pointer rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96]"
             >
               <ParentRing
@@ -131,7 +135,7 @@ export function HabitRowTrailing({
           <CheckCircle
             state={state}
             onToggle={onToggleStatus}
-            disabled={!canLog && !isDone}
+            disabled={readOnly || (!canLog && !isDone)}
             size={depth === 1 ? 24 : 30}
             ariaLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
           />
@@ -143,8 +147,10 @@ export function HabitRowTrailing({
             type="button"
             aria-label={t('habits.actions.more')}
             aria-expanded={menuOpen}
+            disabled={readOnly}
             onClick={(event) => {
               event.stopPropagation()
+              if (readOnly) return
               setMenuOpen((current) => !current)
             }}
             className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
@@ -159,6 +165,7 @@ export function HabitRowTrailing({
             items={menuItems}
             onClose={() => setMenuOpen(false)}
             onSelect={(id) => {
+              if (readOnly) return
               const handlers: Record<string, (() => void) | undefined> = {
                 add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
                 edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,

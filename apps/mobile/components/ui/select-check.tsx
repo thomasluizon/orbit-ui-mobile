@@ -40,6 +40,7 @@ interface SelectCheckProps {
   size?: number
   onPress?: () => void
   accessibilityLabel?: string
+  disabled?: boolean
 }
 
 export function SelectCheck({
@@ -47,6 +48,7 @@ export function SelectCheck({
   size = 24,
   onPress,
   accessibilityLabel,
+  disabled = false,
 }: Readonly<SelectCheckProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -54,10 +56,11 @@ export function SelectCheck({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       accessibilityRole="checkbox"
       accessibilityLabel={accessibilityLabel ?? t('common.select')}
-      accessibilityState={{ checked: selected }}
+      accessibilityState={{ checked: selected, disabled }}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={{
         width: size,

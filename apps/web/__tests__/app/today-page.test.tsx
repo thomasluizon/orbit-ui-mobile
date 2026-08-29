@@ -3,9 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { TodayHeaderRegion } from '@/app/(app)/today-page-view'
+import { TodayHabitsPanel, TodayHeaderRegion } from '@/app/(app)/today-page-view'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import type { TodayView } from '@/app/(app)/use-today-page'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   locale: string
@@ -22,7 +23,11 @@ vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
 }))
 
-vi.mock('@/components/habits/habit-list', () => ({ HabitList: () => null }))
+vi.mock('@/components/habits/habit-list', () => ({
+  HabitList: function MockHabitList(props: { showCompleted?: boolean }) {
+    return <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)} />
+  },
+}))
 vi.mock('@/components/habits/bulk-action-bar-v2', () => ({ BulkActionBarV2: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
 vi.mock('@/components/ui/capacity-notice', () => ({
@@ -77,5 +82,40 @@ describe('Hoje date control', () => {
     )
 
     expect(screen.getByText(en.habits.todayBoundary.readOnly)).toBeInTheDocument()
+  })
+
+  it('ignores an upgraded showCompleted true payload when rendering Today', async () => {
+    globalThis.localStorage.setItem(
+      'orbit-ui-store',
+      JSON.stringify({
+        state: { activeFilters: {}, activeView: 'today', showCompleted: true },
+        version: 4,
+      }),
+    )
+    await useUIStore.persist.rehydrate()
+
+    const view = {
+      data: { filters: {} },
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        selectedDate: new Date('2026-04-08T00:00:00'),
+        goToNextDay: vi.fn(),
+      },
+      selectedHabitIds: new Set<string>(),
+      selection: { handleToggleSelection: vi.fn() },
+      setHabitListAllCollapsed: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(<TodayHabitsPanel view={view} />)
+
+    expect(screen.getByTestId('today-habit-list')).toHaveAttribute(
+      'data-show-completed',
+      'false',
+    )
+    expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
+    globalThis.localStorage.clear()
   })
 })

@@ -21,6 +21,9 @@ function flattenText(node: unknown): string {
   if (node == null) return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'children' in node) {
+    return flattenText((node as { children?: unknown }).children)
+  }
   if (typeof node === 'object' && 'props' in node) {
     return flattenText((node as { props: { children?: unknown } }).props.children)
   }
@@ -36,6 +39,7 @@ const bulkDeleteMutateAsync = vi.fn()
 const bulkLogMutateAsync = vi.fn()
 const bulkSkipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
+let useActualHabitVisibility = false
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -139,7 +143,9 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
       return {
         ...helpers,
-        hasVisibleContent: () => true,
+        hasVisibleContent: useActualHabitVisibility
+          ? helpers.hasVisibleContent
+          : () => true,
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -291,6 +297,7 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
     habitListRefetch.mockReset()
     habitListRefetch.mockResolvedValue(undefined)
     logMutateAsync.mockReset()
@@ -1636,9 +1643,18 @@ describe('HabitList', () => {
 
   it('keeps a completed row in place for 1400 ms', () => {
     vi.useFakeTimers()
+    useActualHabitVisibility = true
     try {
       const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
-      seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise' })])
+      const activeHabit = createMockHabit({
+        id: 'habit-2',
+        title: 'Read',
+        isGeneral: true,
+      })
+      seedHabits([
+        createMockHabit({ id: 'habit-1', title: 'Exercise' }),
+        activeHabit,
+      ])
       const ref = React.createRef<HabitListHandle>()
       let tree: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => {
@@ -1650,6 +1666,22 @@ describe('HabitList', () => {
       TestRenderer.act(() => ref.current?.markRecentlyCompleted('habit-1'))
 
       expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+      const completedHabit = createMockHabit({
+        id: 'habit-1',
+        title: 'Exercise',
+        isCompleted: true,
+      })
+      seedHabits([completedHabit, activeHabit])
+      TestRenderer.act(() => {
+        tree!.update(
+          <HabitList ref={ref} view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />,
+        )
+      })
+      expect(flattenText(tree!.toJSON())).toContain('Exercise')
+
+      TestRenderer.act(() => vi.advanceTimersByTime(1400))
+
+      expect(flattenText(tree!.toJSON())).not.toContain('Exercise')
       TestRenderer.act(() => tree!.unmount())
       setTimeoutSpy.mockRestore()
     } finally {

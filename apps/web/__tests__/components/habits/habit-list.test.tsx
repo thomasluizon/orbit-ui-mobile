@@ -27,6 +27,7 @@ const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
 const getDrillChildrenMock = vi.fn(() => [])
 let mockHabitsDataUpdatedAt = 1
+let useActualHabitVisibility = false
 const mockDrillState = {
   drillStack: [] as string[],
   currentParentId: null as string | null,
@@ -91,7 +92,9 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
       return {
         ...helpers,
-        hasVisibleContent: () => true,
+        hasVisibleContent: useActualHabitVisibility
+          ? helpers.hasVisibleContent
+          : () => true,
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -304,6 +307,7 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
     drillRefreshCurrent.mockReset()
     drillInto.mockReset()
     getDrillChildrenMock.mockReset()
@@ -343,6 +347,7 @@ describe('HabitList', () => {
 
   it('keeps a completed row in place for 1400 ms', () => {
     vi.useFakeTimers()
+    useActualHabitVisibility = true
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set(habit.id, habit)
@@ -353,6 +358,19 @@ describe('HabitList', () => {
     act(() => ref.current?.markRecentlyCompleted(habit.id))
 
     expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+    const completedHabit = { ...habit, isCompleted: true }
+    mockHabitsData.habitsById.set(habit.id, completedHabit)
+    mockHabitsData.topLevelHabits = [completedHabit]
+    result.rerenderWithProviders(
+      <HabitList ref={ref} filters={defaultFilters} showCompleted={false} />,
+    )
+    expect(screen.getByTestId('habit-card-h-1')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(1400)
+    })
+
+    expect(screen.queryByTestId('habit-card-h-1')).toBeNull()
     result.unmount()
     setTimeoutSpy.mockRestore()
     vi.useRealTimers()

@@ -115,6 +115,7 @@ function HabitRowStructuralColumn({
   tokens,
   collapseLabel,
   expandLabel,
+  readOnly,
 }: Readonly<{
   selectMode: boolean
   selected: boolean
@@ -125,18 +126,20 @@ function HabitRowStructuralColumn({
   tokens: ReturnType<typeof createTokensV2>
   collapseLabel: string
   expandLabel: string
+  readOnly: boolean
 }>) {
   if (selectMode) {
     return (
       <View style={styles.structuralColumn}>
-        <SelectCheck selected={selected} onPress={actions.onToggleSelection} accessibilityLabel={title} />
+        <SelectCheck selected={selected} onPress={actions.onToggleSelection} accessibilityLabel={title} disabled={readOnly} />
       </View>
     )
   }
   if (!hasChildren) return <View style={styles.structuralColumn} />
   return (
     <Pressable
-      onPress={actions.onToggleExpand}
+      onPress={readOnly ? undefined : actions.onToggleExpand}
+      disabled={readOnly}
       accessibilityRole="button"
       accessibilityLabel={expanded ? collapseLabel : expandLabel}
       accessibilityState={{ expanded }}
@@ -263,16 +266,23 @@ export function HabitRow({
   )
 
   const openMenu = useCallback(() => {
+    if (readOnly) return
     openAnchoredMenu()
-  }, [openAnchoredMenu])
+  }, [openAnchoredMenu, readOnly])
 
   const closeMenu = useCallback(() => {
     closeAnchoredMenu()
   }, [closeAnchoredMenu])
 
-  const handlePress = isSelectMode ? actions.onToggleSelection : actions.onDetail
+  const handlePress = readOnly
+    ? undefined
+    : isSelectMode
+      ? actions.onToggleSelection
+      : actions.onDetail
   const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
-  const handleToggleStatus = () => toggleStatusAction?.()
+  const handleToggleStatus = () => {
+    if (!readOnly) toggleStatusAction?.()
+  }
 
   const titleSize = isChild ? 14 : 16
   const emojiSize = isChild ? 16 : 22
@@ -307,7 +317,6 @@ export function HabitRow({
       <View
         testID="habit-row"
         accessibilityState={{ disabled: readOnly }}
-        pointerEvents={readOnly ? 'none' : 'auto'}
         style={[
           styles.row,
           rowStyle,
@@ -325,11 +334,13 @@ export function HabitRow({
           tokens={tokens}
           collapseLabel={t('common.collapse')}
           expandLabel={t('common.expand')}
+          readOnly={readOnly}
         />
 
         <Pressable
           onPress={handlePress}
-          onLongPress={isSelectMode ? undefined : actions.onLongPressCard}
+          onLongPress={readOnly || isSelectMode ? undefined : actions.onLongPressCard}
+          disabled={readOnly}
           delayLongPress={500}
           accessibilityRole="button"
           accessibilityLabel={rowAccessibilityLabel}
@@ -374,6 +385,7 @@ export function HabitRow({
           tokens={tokens}
           onToggleStatus={handleToggleStatus}
           onOpenMenu={openMenu}
+          readOnly={readOnly}
         />
       </View>
 
@@ -384,7 +396,9 @@ export function HabitRow({
           onClose={closeMenu}
           title={t('habits.actions.more')}
           items={menuItems}
-          onSelect={(id) => runMenuAction(actions, id)}
+          onSelect={(id) => {
+            if (!readOnly) runMenuAction(actions, id)
+          }}
         />
       ) : null}
     </View>

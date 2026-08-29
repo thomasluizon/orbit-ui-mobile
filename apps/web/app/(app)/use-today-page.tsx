@@ -23,8 +23,6 @@ export interface TodayView {
   isSelectMode: boolean
   selectedHabitIds: Set<string>
   toggleSelectMode: () => void
-  showCompleted: boolean
-  setShowCompleted: (value: boolean) => void
   setShowCreateModal: (value: boolean) => void
 }
 
@@ -42,8 +40,6 @@ export function useTodayPage(
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const toggleSelectMode = useUIStore((state) => state.toggleSelectMode)
-  const showCompleted = useUIStore((state) => state.showCompleted)
-  const setShowCompleted = useUIStore((state) => state.setShowCompleted)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const habitListRef = useRef<HabitListHandle>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
@@ -74,8 +70,6 @@ export function useTodayPage(
     isSelectMode,
     selectedHabitIds,
     toggleSelectMode,
-    showCompleted,
-    setShowCompleted,
     setShowCreateModal,
   }
 }

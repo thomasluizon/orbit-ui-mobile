@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import TodayScreen from '@/app/(tabs)/index'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -28,6 +29,10 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+const asyncStorageState = vi.hoisted(() => ({
+  values: new Map<string, string>(),
+}))
+
 const pendingHabit = createMockHabit({
   id: 'habit-pending',
   title: 'Exercise',
@@ -35,7 +40,17 @@ const pendingHabit = createMockHabit({
 })
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { getItem: vi.fn(() => Promise.resolve(null)) },
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageState.values.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
+      asyncStorageState.values.set(key, value)
+      return Promise.resolve()
+    }),
+    removeItem: vi.fn((key: string) => {
+      asyncStorageState.values.delete(key)
+      return Promise.resolve()
+    }),
+  },
 }))
 
 vi.mock('react-native-safe-area-context', () => ({
@@ -69,20 +84,6 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
 }))
 
-const uiState = {
-  showCompleted: false,
-  isSelectMode: false,
-  selectedHabitIds: new Set<string>(),
-  showCreateModal: false,
-  setShowCreateModal: vi.fn(),
-  showCreateGoalModal: false,
-  setShowCreateGoalModal: vi.fn(),
-}
-
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: <T,>(selector: (state: typeof uiState) => T) => selector(uiState),
-}))
-
 vi.mock('@/components/habit-list', () => ({
   HabitList: React.forwardRef(function MockHabitList(
     props: Record<string, unknown>,
@@ -111,6 +112,7 @@ vi.mock('@/components/habit-list', () => ({
       React.Fragment,
       null,
       props.listHeader as React.ReactNode,
+      React.createElement('HabitListProps', { showCompleted: props.showCompleted }),
       React.createElement('PendingRing', { onPress: pressPendingRing }),
     )
   }),
@@ -176,6 +178,13 @@ function flattenText(node: unknown): string {
 describe('Hoje date boundaries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    asyncStorageState.values.clear()
+    useUIStore.setState({
+      isSelectMode: false,
+      selectedHabitIds: new Set<string>(),
+      showCreateModal: false,
+      showCreateGoalModal: false,
+    })
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
     mocks.date.dateStr = '2026-04-08'
   })
@@ -205,6 +214,26 @@ describe('Hoje date boundaries', () => {
     })
 
     expect(flattenText(tree!.root)).toContain(en.habits.todayBoundary.readOnly)
+  })
+
+  it('ignores an upgraded showCompleted true payload when rendering Today', async () => {
+    asyncStorageState.values.set(
+      'orbit-ui-store',
+      JSON.stringify({
+        state: { activeFilters: {}, activeView: 'today', showCompleted: true },
+        version: 4,
+      }),
+    )
+    await useUIStore.persist.rehydrate()
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    expect(tree!.root.findByType('HabitListProps').props.showCompleted).toBe(false)
+    expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
   })
 
   it('persists a pending ring log with the selected date', async () => {

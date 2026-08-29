@@ -47,7 +47,6 @@ export default function TodayScreen() {
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const habitListRef = useRef<HabitListHandle>(null)
-  const showCompleted = useUIStore((state) => state.showCompleted)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
@@ -114,7 +113,7 @@ export default function TodayScreen() {
         view="today"
         filters={filters}
         selectedDate={date.selectedDate}
-        showCompleted={showCompleted}
+        showCompleted={false}
         isSelectMode={isSelectMode}
         selectedHabitIds={selectedHabitIds}
         listHeader={listHeader}
