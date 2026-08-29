@@ -15,9 +15,7 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
       'preferences',
       'ai-settings',
-      'retrospective',
       'wrapped',
-      'achievements',
       'calendar-sync',
       'about',
       'advanced',
@@ -26,9 +24,7 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/preferences',
       '/ai-settings',
-      '/retrospective',
       '/wrapped',
-      '/achievements',
       '/calendar-sync',
       '/about',
       '/advanced',
@@ -45,43 +41,31 @@ describe('profile-navigation', () => {
     expect(wrapped?.entitlementMode).toBeNull()
   })
 
-  it('keeps achievements title aligned with web source-of-truth key', () => {
-    const achievements = PROFILE_NAV_ITEMS.find((item) => item.id === 'achievements')
-    expect(achievements?.titleKey).toBe('gamification.profileCard.title')
-    expect(achievements?.hintMode).toBe('gamificationProfile')
-    expect(achievements?.proBadge).toBe(true)
-    expect(achievements?.variant).toBe('primary')
-    expect(achievements?.entitlementRequirement).toBe('pro')
-    expect(achievements?.entitlementMode).toBe('redirect')
-  })
-
   it('splits nav items between account and feature sections', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
     expect(account).toHaveLength(2)
-    expect(features).toHaveLength(6)
+    expect(features).toHaveLength(4)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {
     const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
-    const retrospective = PROFILE_NAV_ITEMS.find((item) => item.id === 'retrospective')
     const preferences = PROFILE_NAV_ITEMS.find((item) => item.id === 'preferences')
 
     expect(calendar?.proBadge).toBe(true)
     expect(calendar?.entitlementRequirement).toBe('pro')
-    expect(retrospective?.entitlementRequirement).toBe('yearlyPro')
     expect(preferences?.entitlementMode).toBe('mixed')
   })
 
   it('expands section definitions into groups selecting matching nav items in id order', () => {
     const sections = buildProfileNavSections([
-      { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
+      { labelKey: 'explore.sections.progress', ids: ['wrapped'] },
       { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
     ])
 
     expect(sections).toHaveLength(2)
     expect(sections[0]?.labelKey).toBe('explore.sections.progress')
-    expect(sections[0]?.items.map((item) => item.id)).toEqual(['retrospective', 'wrapped'])
+    expect(sections[0]?.items.map((item) => item.id)).toEqual(['wrapped'])
     expect(sections[1]?.items.map((item) => item.id)).toEqual(['about', 'advanced'])
   })
 
@@ -129,12 +113,11 @@ describe('profile-navigation', () => {
   })
 
   it('uses the shared entitlement rules for redirect decisions', () => {
-    const achievements = PROFILE_NAV_ITEMS.find((item) => item.id === 'achievements')
-    const retrospective = PROFILE_NAV_ITEMS.find((item) => item.id === 'retrospective')
+    const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
     const advanced = PROFILE_NAV_ITEMS.find((item) => item.id === 'advanced')
 
     expect(
-      shouldRedirectProfileNavItem(achievements!, {
+      shouldRedirectProfileNavItem(calendar!, {
         hasProAccess: false,
         isLifetimePro: false,
         subscriptionInterval: null,
@@ -142,12 +125,12 @@ describe('profile-navigation', () => {
     ).toBe(true)
 
     expect(
-      isProfileNavItemLocked(retrospective!, {
+      isProfileNavItemLocked(calendar!, {
         hasProAccess: true,
         isLifetimePro: false,
         subscriptionInterval: 'monthly',
       }),
-    ).toBe(true)
+    ).toBe(false)
 
     expect(
       shouldRedirectProfileNavItem(advanced!, {

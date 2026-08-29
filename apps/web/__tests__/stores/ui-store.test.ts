@@ -92,8 +92,8 @@ describe('ui store', () => {
       setActiveView('general')
       expect(useUIStore.getState().activeView).toBe('general')
 
-      setActiveView('goals')
-      expect(useUIStore.getState().activeView).toBe('goals')
+      setActiveView('all')
+      expect(useUIStore.getState().activeView).toBe('all')
     })
   })
 
@@ -554,7 +554,7 @@ describe('ui store', () => {
 
       expect(useUIStore.getState()).toMatchObject({
         activeFilters: {},
-        activeView: 'goals',
+        activeView: 'today',
         searchQuery: '',
         selectedFrequency: 'Month',
         selectedTagIds: ['deep-work'],

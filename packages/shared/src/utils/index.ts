@@ -290,6 +290,7 @@ export {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from './notification-actions'
 export {
   buildTempGoal,

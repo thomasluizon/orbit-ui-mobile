@@ -64,23 +64,6 @@ function stubMatchMedia(matches: boolean) {
   })
 }
 
-function advanceToRetrospectiveStep() {
-  act(() => {
-    useTourStore.getState().startSectionReplay('profile')
-  })
-  act(() => {
-    useTourStore.getState().nextStep()
-  })
-  act(() => {
-    useTourStore.getState().nextStep()
-  })
-  mockRouterPush.mockClear()
-  act(() => {
-    useTourStore.getState().nextStep()
-  })
-  expect(useTourStore.getState().getCurrentStep()?.id).toBe('profile-retrospective')
-}
-
 describe('TourProvider step routing', () => {
   beforeEach(() => {
     useTourStore.getState().endTour()
@@ -90,28 +73,11 @@ describe('TourProvider step routing', () => {
     mockProfile = createMockProfile({ hasProAccess: true })
   })
 
-  it('routes the profile-retrospective step to /profile at the desktop breakpoint', () => {
-    stubMatchMedia(true)
-    renderTourProvider()
-
-    advanceToRetrospectiveStep()
-
-    expect(mockRouterPush).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledWith('/profile')
-  })
-
-  it('keeps the profile-retrospective step on /profile at phone widths', () => {
-    stubMatchMedia(false)
-    renderTourProvider()
-
-    advanceToRetrospectiveStep()
-
-    expect(mockRouterPush).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledWith('/profile')
-  })
-
-  it('keeps other profile steps on /profile at the desktop breakpoint', () => {
-    stubMatchMedia(true)
+  it.each([
+    ['desktop', true],
+    ['phone', false],
+  ])('routes the profile section to /profile at the %s breakpoint', (_name, matches) => {
+    stubMatchMedia(matches)
     renderTourProvider()
 
     act(() => {

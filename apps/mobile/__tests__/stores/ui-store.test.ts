@@ -128,7 +128,7 @@ describe("mobile ui store", () => {
     setFilters({ dateFrom: "2026-04-06" });
     setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
-    setActiveView("goals");
+    setActiveView("all");
     setSelectedFrequency("Week");
     setSelectedTagIds(["tag-1"]);
     setShowCompleted(true);
@@ -136,7 +136,7 @@ describe("mobile ui store", () => {
     expect(useUIStore.getState()).toMatchObject({
       activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
-      activeView: "goals",
+      activeView: "all",
       selectedFrequency: "Week",
       selectedTagIds: ["tag-1"],
       showCompleted: true,
