@@ -3,6 +3,14 @@
     "title": "Orbit - Rastreador Pessoal de Hábitos",
     "description": "Crie hábitos melhores com acompanhamento e insights por IA."
   },
+  "blockFrame": {
+    "status": {
+      "done": "Concluído",
+      "acting": "Em andamento",
+      "failed": "Falhou"
+    },
+    "refresh": "Atualizar"
+  },
   "settings": {
     "notifications": {
       "title": "Notificações push",
