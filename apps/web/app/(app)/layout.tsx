@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
-import { WebNav } from '@/components/navigation/web-nav'
-import { AppShell } from '@/components/shell/app-shell'
-import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
+import { DestinationShell } from '@/components/shell/destination-shell'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { BackToTop } from '@/components/ui/back-to-top'
@@ -79,13 +77,6 @@ export default function AppLayout({
   )
 }
 
-function pathnameToTab(pathname: string): BottomTab {
-  if (pathname === '/' || pathname === '/today') return 'today'
-  if (pathname.startsWith('/chat')) return 'chat'
-  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar'
-  return 'profile'
-}
-
 function getSelectedDateFromParam(dateParam: string | null): string {
   if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
   return formatAPIDate(new Date())
@@ -111,7 +102,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [])
 
   useEffect(() => {
-    for (const tabRoute of ['/', '/chat', '/calendar', '/profile']) {
+    for (const tabRoute of ['/', '/calendar', '/progress', '/profile']) {
       router.prefetch(tabRoute)
     }
   }, [router])
@@ -146,15 +137,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }
 
   const handleCreate = useCallback(() => {
-    if (activeView === 'goals') {
-      if (!hasProAccess) {
-        setRouteTransitionIntent('forward')
-        router.push('/upgrade')
-        return
-      }
-      setShowCreateGoalModal(true)
-      return
-    }
     if (!hasProAccess && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
       router.push('/upgrade')
@@ -162,7 +144,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
     setShowCreateModal(true)
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [activeView, hasProAccess, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
+  }, [hasProAccess, totalHabitCount, router, setShowCreateModal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
@@ -215,35 +197,20 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] md:pb-0">
-      <AppShell onCreate={handleCreate}>
-        <TrialBanner />
-        <UpdateAvailableBanner />
+    <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
+      <DestinationShell
+        onCreate={handleCreate}
+        notice={
+          <>
+            <TrialBanner />
+            <UpdateAvailableBanner />
+          </>
+        }
+      >
         <RouteTransitionShell>
           <div>{children}</div>
         </RouteTransitionShell>
-      </AppShell>
-
-      <div
-        data-bottom-nav=""
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden"
-        style={{
-          paddingBottom: 'var(--safe-bottom)',
-          background: 'var(--bg)',
-          borderTop: '1px solid var(--hairline)',
-        }}
-      >
-        <div className="max-w-[var(--app-max-w)] mx-auto">
-          <WebNav
-            active={pathnameToTab(pathname)}
-            onTab={(id) => {
-              if (id === 'today') router.push('/')
-              else router.push(`/${id}`)
-            }}
-            onFab={handleCreate}
-          />
-        </div>
-      </div>
+      </DestinationShell>
 
       <BackToTop />
 

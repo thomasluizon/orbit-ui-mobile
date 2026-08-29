@@ -1,0 +1,71 @@
+import { Text, View } from 'react-native'
+import { Lock } from '@/components/ui/icons'
+import { useTranslation } from 'react-i18next'
+import { tintFromPrimary } from '@/lib/theme'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { styles, type Tokens } from '@/app/retrospective-styles'
+
+interface RetrospectiveLockedYearlyProps {
+  tokens: Tokens
+  isTrialActive: boolean
+  isOnline: boolean
+  portalError: string
+  onSubscribe: () => void
+  onOpenPortal: () => void
+}
+
+export function RetrospectiveLockedYearly({
+  tokens,
+  isTrialActive,
+  isOnline,
+  portalError,
+  onSubscribe,
+  onOpenPortal,
+}: Readonly<RetrospectiveLockedYearlyProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.lockedBlock}>
+      <View
+        style={[
+          styles.lockedIconCircle,
+          { backgroundColor: tintFromPrimary(tokens, 0.16) },
+        ]}
+      >
+        <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
+      </View>
+      <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
+        {t('retrospective.lockedYearly')}
+      </Text>
+      <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
+        {t('retrospective.lockedYearlyHint')}
+      </Text>
+      {isTrialActive ? (
+        <PillButton
+          onClick={onSubscribe}
+
+
+        >
+          {t('upgrade.subscribe')}
+        </PillButton>
+      ) : (
+        <PillButton
+          onClick={onOpenPortal}
+          disabled={!isOnline}
+
+
+        >
+          {t('retrospective.changePlan')}
+        </PillButton>
+      )}
+      {!isOnline ? (
+        <ErrorState message={t('offline.description')} />
+      ) : null}
+      {portalError ? (
+        <Text style={[styles.statusError, { color: tokens.statusBad }]}>
+          {portalError}
+        </Text>
+      ) : null}
+    </View>
+  )
+}

@@ -52,7 +52,6 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
-import { GradientTop } from "@/components/ui/gradient-top";
 import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SectionHeadTabs } from "@/components/ui/section-head-tabs";
@@ -423,7 +422,6 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <GradientTop height={180} />
       <SectionHeadTabs tabs={viewTabs} active={view} onChange={setView} />
       {view !== "week" ? (
         <CalendarHeader

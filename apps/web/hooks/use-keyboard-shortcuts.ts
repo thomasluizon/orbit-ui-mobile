@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -19,22 +18,20 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 /**
  * Global keyboard shortcuts for the desktop shell. Cmd/Ctrl+K toggles the command
- * palette anywhere; a `g`-prefixed chord (g t/c/i/a/p) jumps between the primary
- * surfaces with the tab-switch transition; `g a` opens the maximized Astra copilot
- * at md+ and routes to /chat below it. Chords are ignored while typing in a field
- * or while an overlay is open.
+ * palette anywhere; a `g`-prefixed chord jumps to Today, Calendar, or Profile with
+ * the tab-switch transition. Chords are ignored while typing in a field or while an
+ * overlay is open. The command palette rebuild owns the final destination shortcut set.
  */
-export function useKeyboardShortcuts(): void {
+export function useKeyboardShortcuts(enabled = true): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)
-  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
-  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
   const setActiveView = useUIStore((state) => state.setActiveView)
-  const isDesktop = useIsDesktop()
   const chordArmed = useRef(false)
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
+
     function clearChord() {
       chordArmed.current = false
       if (chordTimer.current) {
@@ -49,15 +46,6 @@ export function useKeyboardShortcuts(): void {
       router.push(path)
     }
 
-    function openAstra() {
-      if (isDesktop) {
-        setAstraOpen(true)
-        setAstraMaximized(true)
-        return
-      }
-      navigate('/chat')
-    }
-
     function runChord(key: string): boolean {
       switch (key) {
         case 't':
@@ -65,12 +53,6 @@ export function useKeyboardShortcuts(): void {
           return true
         case 'c':
           navigate('/calendar')
-          return true
-        case 'i':
-          navigate('/insights')
-          return true
-        case 'a':
-          openAstra()
           return true
         case 'p':
           navigate('/profile')
@@ -111,5 +93,5 @@ export function useKeyboardShortcuts(): void {
       document.removeEventListener('keydown', onKeyDown)
       clearChord()
     }
-  }, [router, togglePalette, setActiveView, isDesktop, setAstraOpen, setAstraMaximized])
+  }, [enabled, router, togglePalette, setActiveView])
 }

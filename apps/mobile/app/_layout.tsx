@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   DarkTheme,
   DefaultTheme,
@@ -42,7 +41,11 @@ import {
   getReviewMomentLevelKey,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
-import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import {
+  formatAPIDate,
+  isShareableAchievement,
+  resolveShellDestination,
+} from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
   useReviewReminderStore,
@@ -52,6 +55,10 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
+import { Shell412 } from '@/components/shell/shell-412'
+import { Fab } from '@/components/ui/fab'
+import { Plus } from '@/components/ui/icons'
+import { useTranslation } from 'react-i18next'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { OverlayLayer } from '@/components/global-overlays'
@@ -180,9 +187,7 @@ function RootLayoutNav() {
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
-  const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
@@ -213,15 +218,6 @@ function RootLayoutNav() {
 
   const handleCreate = useMemo(
     () => () => {
-      if (activeView === 'goals') {
-        if (!hasProAccess) {
-          router.push(buildUpgradeHref(pathname || '/'))
-          return
-        }
-        setShowCreateGoalModal(true)
-        return
-      }
-
       if (!hasProAccess && totalHabitCount >= 10) {
         router.push(buildUpgradeHref(pathname || '/'))
         return
@@ -230,11 +226,9 @@ function RootLayoutNav() {
       setShowCreateModal(true)
     },
     [
-      activeView,
       hasProAccess,
       pathname,
       router,
-      setShowCreateGoalModal,
       setShowCreateModal,
       totalHabitCount,
     ],
@@ -278,15 +272,23 @@ function RootLayoutNav() {
       />
 
       <View style={{ flex: 1 }}>
-        <View style={{ flex: 1 }}>
-          <RootStackScreens
-            screenBackgroundColor={surfaces.screen.backgroundColor}
-          />
-        </View>
-
         {showBottomNav ? (
-          <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
-        ) : null}
+          <Shell412
+            tabBar={<AppBottomTabBar pathname={pathname} />}
+            fab={pathname === '/' ? <AppCreateFab onCreate={handleCreate} /> : undefined}
+          >
+            <RootStackScreens
+              screenBackgroundColor={surfaces.screen.backgroundColor}
+            />
+          </Shell412>
+        ) : (
+          <Shell412 nav={false}>
+            <RootStackScreens
+              screenBackgroundColor={surfaces.screen.backgroundColor}
+            />
+          </Shell412>
+        )}
+
         {captureBuildEnabled && captureReady ? (
           <>
             <View
@@ -467,57 +469,42 @@ function RootLayoutContent() {
  * like the previous BottomNav. Tab labels come from the i18n catalog so
  * pt-BR users see localized strings.
  */
-function AppBottomTabBar({
-  onCreate,
-  pathname,
-}: Readonly<{ onCreate: () => void; pathname: string }>) {
+function AppBottomTabBar({ pathname }: Readonly<{ pathname: string }>) {
   const router = useRouter()
   const setActiveView = useUIStore((s) => s.setActiveView)
-  const fabRef = useRef<View>(null)
-  useTourTarget('tour-fab-button', fabRef)
-  const insets = useSafeAreaInsets()
 
-  const active: BottomTabId = useMemo(() => {
-    if (pathname === '/' || pathname === '/today') return 'today'
-    if (pathname.startsWith('/chat')) return 'chat'
-    if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar'
-    return 'profile'
-  }, [pathname])
+  const active: BottomTabId | null = useMemo(
+    () => resolveShellDestination(pathname),
+    [pathname],
+  )
 
   const handleTab = (id: BottomTabId) => {
-    if (id === 'today') {
+    if (id === 'hoje') {
       setActiveView('today')
       router.navigate('/')
       return
     }
-    if (id === 'chat') router.navigate('/chat')
-    else if (id === 'calendar') router.navigate('/calendar')
+    if (id === 'calendario') router.navigate('/calendar')
+    else if (id === 'progresso') router.navigate('/progress')
     else router.navigate('/profile')
   }
 
+  return <BottomTabBar active={active} onTab={handleTab} />
+}
+
+function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
+  const { t } = useTranslation()
+  const fabRef = useRef<View>(null)
+  useTourTarget('tour-fab-button', fabRef)
+
   return (
-    <View
-      style={[
-        bottomTabStyles.container,
-        { paddingBottom: insets.bottom },
-      ]}
-    >
-      <View ref={fabRef} collapsable={false}>
-        <BottomTabBar
-          active={active}
-          onTab={handleTab}
-          onFab={onCreate}
-        />
-      </View>
+    <View ref={fabRef} collapsable={false}>
+      <Fab label={t('nav.create')} onClick={onCreate}>
+        <Plus size={24} strokeWidth={2} />
+      </Fab>
     </View>
   )
 }
-
-const bottomTabStyles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-})
 
 const styles = StyleSheet.create({
   shellRoot: {

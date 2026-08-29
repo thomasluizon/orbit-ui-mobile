@@ -21,8 +21,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
-import { rgbaFromHex } from '@/app/streak-sections-styles'
-import { GradientTop } from '@/components/ui/gradient-top'
+import { rgbaFromHex } from '@/components/gamification/streak-sections-styles'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
@@ -108,7 +107,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
           accessibilityLabel={t('streakDisplay.freeze.celebrationTitle')}
         >
           <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
-          <GradientTop height={520} />
           <View style={styles.content} pointerEvents="none">
             <RingMotif
               ringCount={3}

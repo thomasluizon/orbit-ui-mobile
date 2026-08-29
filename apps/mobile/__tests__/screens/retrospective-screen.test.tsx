@@ -12,31 +12,37 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
-const mocks = vi.hoisted(() => ({
-  apiClient: vi.fn(),
-  openURL: vi.fn(),
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  isOnline: true,
-  profile: null as ReturnType<typeof createMockProfile> | null,
-  hasProAccess: true,
-  isYearlyPro: true,
-  router: { push: vi.fn(), replace: vi.fn() },
-  goBack: vi.fn(),
-  retro: {
-    data: null as unknown,
-    setData: vi.fn(),
-    isLoading: false,
-    error: null as string | null,
-    setError: vi.fn(),
-    noData: false,
-    setNoData: vi.fn(),
-    fromCache: false,
-    period: 'week' as string,
-    setPeriod: vi.fn(),
-    generate: vi.fn(() => Promise.resolve()),
-  },
-}))
+const mocks = vi.hoisted(() => {
+  const retrospectiveData: unknown = null
+  const retrospectiveError: string | null = null
+  const retrospectivePeriod: string = 'week'
+
+  return {
+    apiClient: vi.fn(),
+    openURL: vi.fn(),
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    isOnline: true,
+    profile: null as ReturnType<typeof createMockProfile> | null,
+    hasProAccess: true,
+    isYearlyPro: true,
+    router: { push: vi.fn(), replace: vi.fn() },
+    goBack: vi.fn(),
+    retro: {
+      data: retrospectiveData,
+      setData: vi.fn(),
+      isLoading: false,
+      error: retrospectiveError,
+      setError: vi.fn(),
+      noData: false,
+      setNoData: vi.fn(),
+      fromCache: false,
+      period: retrospectivePeriod,
+      setPeriod: vi.fn(),
+      generate: vi.fn(() => Promise.resolve()),
+    },
+  }
+})
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
@@ -76,11 +82,11 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 vi.mock('@/components/ui/chip', () => ({
   Chip: (props: Record<string, unknown>) => React.createElement('Chip', props, props.children as never),
 }))
-vi.mock('@/app/retrospective-locked-states', () => ({
+vi.mock('@/components/review-moment/retrospective-locked-states', () => ({
   RetrospectiveLockedYearly: (props: Record<string, unknown>) =>
     React.createElement('RetrospectiveLockedYearly', props),
 }))
-vi.mock('@/app/retrospective-view', () => ({
+vi.mock('@/components/review-moment/retrospective-view', () => ({
   RetrospectiveContent: (props: Record<string, unknown>) =>
     React.createElement('RetrospectiveContent', props),
 }))
@@ -128,7 +134,7 @@ describe('RetrospectiveScreen', () => {
     const monthChip = tree.root.findAll(
       (node) => node.type === 'Chip' && node.props.children === 'retrospective.periods.month',
     )[0]!
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       ;(monthChip.props.onPress as () => void)()
     })
     expect(mocks.retro.setPeriod).toHaveBeenCalledWith('month')
@@ -139,14 +145,14 @@ describe('RetrospectiveScreen', () => {
 
   it('generates online but shows the offline message when disconnected', async () => {
     const tree = await renderScreen()
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       ;(findByType(tree.root, 'RetrospectiveContent').props.onGenerate as () => void)()
     })
     expect(mocks.retro.generate).toHaveBeenCalledTimes(1)
 
     mocks.isOnline = false
     const offlineTree = await renderScreen()
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       ;(findByType(offlineTree.root, 'RetrospectiveContent').props.onGenerate as () => void)()
     })
     expect(mocks.retro.setError).toHaveBeenCalledWith('offline.title')
@@ -187,7 +193,7 @@ describe('RetrospectiveScreen', () => {
     })
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.openURL).toHaveBeenCalledWith('https://portal.test')
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       ;(locked.props.onSubscribe as () => void)()
     })
     expect(mocks.router.push).toHaveBeenCalledTimes(1)

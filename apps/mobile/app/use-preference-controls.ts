@@ -15,7 +15,7 @@ import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
-import type { PreferencePicker } from './preferences-sections'
+import type { PreferencePicker } from '@/components/profile/preferences-sections'
 
 /** `closePicker` runs its action only once the picker sheet has finished dismissing. */
 export function usePreferenceControls(closePicker: (exitAction?: () => void) => void) {

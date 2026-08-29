@@ -17,7 +17,7 @@ import { useGamificationProfile } from '@/hooks/use-gamification'
 import {
   AchievementCategorySection,
   type AchievementCategoryView,
-} from './achievements-sections'
+} from '@/components/gamification/achievements-sections'
 import { NextRewardCarrot } from './(tabs)/profile/_components/next-reward-carrot'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useDateFormat } from '@/hooks/use-date-format'

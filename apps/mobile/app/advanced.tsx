@@ -31,7 +31,7 @@ import {
   ApiKeysSection,
   McpConnectionInstructions,
   WidgetInfoSheet,
-} from './advanced-sections'
+} from '@/components/profile/advanced-sections'
 import { styles, type Tokens } from './advanced-styles'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { StepUp } from '@/components/ui/step-up'

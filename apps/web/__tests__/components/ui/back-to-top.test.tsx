@@ -6,62 +6,70 @@ vi.mock('next-intl', () => ({
 }))
 
 import { BackToTop } from '@/components/ui/back-to-top'
-import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
+import { Shell412 } from '@/components/shell/shell-412'
+import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 
-function setScrollY(value: number) {
-  Object.defineProperty(window, 'scrollY', { configurable: true, value })
+function renderBackToTop() {
+  const view = render(
+    <ShellScrollerProvider>
+      <Shell412 tabBar={<div>Tabs</div>}><div>Today</div></Shell412>
+      <BackToTop />
+    </ShellScrollerProvider>,
+  )
+  const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')
+  if (!scroller) throw new Error('Expected the shell scroller')
+  scroller.scrollTo = vi.fn()
+  return { ...view, scroller }
+}
+
+function setScrollTop(scroller: HTMLElement, value: number) {
+  Object.defineProperty(scroller, 'scrollTop', { configurable: true, value })
 }
 
 describe('BackToTop', () => {
   beforeEach(() => {
-    setScrollY(0)
-    useShellStore.setState({ astraOpen: false })
     useUIStore.setState({ isSelectMode: false })
-    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
-    setScrollY(0)
   })
 
-  it('stays hidden until the page is scrolled past the threshold', () => {
-    render(<BackToTop />)
+  it('stays hidden until the shell scroller passes the threshold', () => {
+    const { scroller } = renderBackToTop()
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
 
     act(() => {
-      setScrollY(700)
-      window.dispatchEvent(new Event('scroll'))
+      setScrollTop(scroller, 700)
+      scroller.dispatchEvent(new Event('scroll'))
     })
 
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'true')
   })
 
-  it('scrolls the window back to the top when pressed', () => {
-    setScrollY(700)
-    render(<BackToTop />)
+  it('scrolls the shell back to the top when pressed', () => {
+    const { scroller } = renderBackToTop()
+    act(() => {
+      setScrollTop(scroller, 700)
+      scroller.dispatchEvent(new Event('scroll'))
+    })
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'true')
 
     fireEvent.click(screen.getByTestId('back-to-top'))
 
-    expect(window.scrollTo).toHaveBeenCalledWith(
+    expect(scroller.scrollTo).toHaveBeenCalledWith(
       expect.objectContaining({ top: 0 }),
     )
   })
 
   it('stays hidden while multi-select is active even when scrolled', () => {
     useUIStore.setState({ isSelectMode: true })
-    setScrollY(700)
-    render(<BackToTop />)
-
-    expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
-  })
-
-  it('stays hidden while the Astra copilot is expanded', () => {
-    useShellStore.setState({ astraOpen: true })
-    setScrollY(700)
-    render(<BackToTop />)
+    const { scroller } = renderBackToTop()
+    act(() => {
+      setScrollTop(scroller, 700)
+      scroller.dispatchEvent(new Event('scroll'))
+    })
 
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
   })

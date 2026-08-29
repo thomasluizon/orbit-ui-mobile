@@ -45,6 +45,14 @@ export {
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
+export {
+  resolveShellDestination,
+  SHELL_DESTINATION_ROUTES,
+} from './shell-destinations'
+export type {
+  ShellDestinationId,
+  ShellDestinationRoute,
+} from './shell-destinations'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
@@ -185,6 +193,14 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
+export { resolveSubscriptionScreen } from './subscription-screen'
+export type {
+  ResolveSubscriptionScreenInput,
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenModel,
+  SubscriptionScreenState,
+} from './subscription-screen'
 export {
   APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
@@ -539,3 +555,9 @@ export type {
   WebPushPermission,
   WebPushPreferenceStatus,
 } from './push-notification-settings'
+export {
+  tintProposedChildren,
+  type ProposedTintAdapter,
+  type ProposedTintDecision,
+  type ProposedTintElementProps,
+} from './proposed-tint'

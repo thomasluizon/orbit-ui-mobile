@@ -330,7 +330,7 @@ vi.mock("@/components/ui/anchored-menu", () => ({
   }),
 }));
 
-vi.mock("../../app/(tabs)/today-shell", () => todayShellMock);
+vi.mock("../../components/today/today-shell", () => todayShellMock);
 vi.mock("@/hooks/use-horizontal-swipe", () => ({
   useHorizontalSwipe: () => ({ toGestureArray: () => [] }),
 }));
@@ -407,12 +407,15 @@ vi.mock("@/components/ui/icons", () => {
     AlertTriangle: createIcon("AlertTriangle"),
     ArrowLeft: createIcon("ArrowLeft"),
     ArrowUp: createIcon("ArrowUp"),
+    ArrowUpRight: createIcon("ArrowUpRight"),
     Check: createIcon("Check"),
     CheckCircle2: createIcon("CheckCircle2"),
     ChevronLeft: createIcon("ChevronLeft"),
     ChevronRight: createIcon("ChevronRight"),
     ChevronsDownUp: createIcon("ChevronsDownUp"),
     ChevronsUpDown: createIcon("ChevronsUpDown"),
+    CreditCard: createIcon("CreditCard"),
+    Download: createIcon("Download"),
     Eye: createIcon("Eye"),
     FastForward: createIcon("FastForward"),
     Filter: createIcon("Filter"),

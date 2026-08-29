@@ -15,7 +15,6 @@ import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { useCelebrationEntrance } from './celebration-motion'
 
 interface LevelUpOverlayProps {
@@ -154,7 +153,6 @@ export function LevelUpOverlay({
         accessibilityLabel={t('gamification.levelUp.title')}
       >
         <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
-        <GradientTop height={520} />
         <View style={styles.content} pointerEvents="none">
           <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
             {t('gamification.levelUp.title')}

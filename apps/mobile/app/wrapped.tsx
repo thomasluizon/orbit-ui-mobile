@@ -9,8 +9,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
-import { WrappedCover } from './wrapped-cover'
-import { WrappedPlayer } from './wrapped-player'
+import { WrappedCover } from '@/components/wrapped/wrapped-cover'
+import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
 import { styles } from './wrapped-styles'
 
 export default function WrappedScreen() {

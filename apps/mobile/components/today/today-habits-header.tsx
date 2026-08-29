@@ -33,7 +33,7 @@ import { TagChip } from "@/components/ui/tag-chip";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Menu, MenuAnchorHost } from "@/components/ui/menu";
 import { TodayAISummary } from "@/components/habits/today-ai-summary";
-import { TodayDateNavigation } from "@/app/(tabs)/today-shell";
+import { TodayDateNavigation } from "@/components/today/today-shell";
 import {
   createAnimatedTimingConfig,
   useResolvedMotionPreset,

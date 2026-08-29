@@ -85,11 +85,13 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
    in settings. See **The proactive line** below.
 
 **The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
-notifications, metrics and feature explanation. **API-key management and account deletion are not
-reachable from the chat surface.** They are the only two step-up operations in the product and are
-settings a person taps once. Billing is not a step-up operation because the Stripe customer portal
-authenticates the person itself. An assistant that can sell a subscription contradicts the voice
-pillar "describe, never sell". These settings stay available on the MCP surface, where an external
+notifications, metrics and feature explanation. **Billing, API-key management and account deletion
+are not reachable from the chat surface.** API-key management and account deletion are the only two
+step-up operations in the product and are settings a person taps once. Billing is not a step-up
+operation because the Stripe customer portal authenticates the person itself. It remains a provider
+handoff from the Subscription flow under Profile. An assistant that can sell a subscription
+contradicts the voice pillar "describe, never sell". API-key management and account deletion stay
+available on the MCP surface, where an external
 client asks for them deliberately.
 
 ### The shell
@@ -138,6 +140,7 @@ for, and building that instead is the defect.
 | **The conversation** | say what you did or what you want, and have it happen | not a transcript, not a help desk |
 | **Onboarding** | produce one real habit the person typed | not a tour, not a quiz, not a preference survey |
 | **Upgrade** | Astra without the daily ceiling | not a feature matrix |
+| **Subscription** | understand the current plan and hand billing changes to its provider | not a shell destination or a billing back office |
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
 
@@ -682,7 +685,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | neutral / working / done / lost; stable live region; only done self-dismisses, at 5000ms minimum; working draws three dots; done uses `--status-done`; text action only | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
-| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 12 (active primary-soft / inactive fg-3), 500 weight; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
@@ -693,6 +696,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
 | EventRow | read-only timed or all-day event row with required title and optional source; time and all-day label are mutually exclusive | `dates/event-row.tsx` | `dates/event-row.tsx` |
 | HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+| BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
+| Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
 
 ## Overlay
 
@@ -1212,4 +1217,3 @@ Everything else, and specifically: the 65ch measure, the 2x gap rhythm, concentr
 ### Not enforceable here
 
 `prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, the 320px reflow, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate, keyed on the matrix above.
-
