@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Shell412 } from './shell-412'
+import { ShellScrollerProvider } from './shell-scroller-context'
 import { ShellWide } from './shell-wide'
 
 interface FlowShellProps {
@@ -17,9 +18,15 @@ export function FlowShell({ action, children, mode = 'card', notice }: Readonly<
   const wide = useIsWideDesktop()
   if (mode === 'full') {
     return (
-      <div data-shell="flow" data-flow-mode="full" className="h-dvh min-h-dvh w-full overflow-hidden">
-        {children}
-      </div>
+      <ShellScrollerProvider>
+        <div
+          data-shell="flow"
+          data-flow-mode="full"
+          className="h-dvh min-h-dvh w-full overflow-hidden"
+        >
+          {children}
+        </div>
+      </ShellScrollerProvider>
     )
   }
 

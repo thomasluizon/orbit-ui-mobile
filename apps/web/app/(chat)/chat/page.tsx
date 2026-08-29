@@ -14,6 +14,7 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
+import { useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { ChatEmptyState } from './chat-empty-state'
 import { ChatComposerBar } from './chat-composer-bar'
 
@@ -37,6 +38,11 @@ export default function ChatPage() {
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = composer
+  const registerShellScroller = useShellScrollerRegistration()
+  const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
+    chatContainerRef.current = element
+    registerShellScroller?.(element)
+  }, [chatContainerRef, registerShellScroller])
 
   const limitLocked = !hasProAccess && atMessageLimit
 
@@ -111,7 +117,7 @@ export default function ChatPage() {
 
       <div
         data-tour="tour-chat-area"
-        ref={chatContainerRef}
+        ref={registerChatContainer}
         className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
         style={{ paddingTop: 8 }}
         role="log"
