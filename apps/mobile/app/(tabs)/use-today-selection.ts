@@ -38,6 +38,7 @@ export function useTodaySelection({
 
   const previousActiveViewRef = useRef(activeView);
   const readOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
+  const previousSelectedDateRef = useRef(selectedDateStr);
   const previousReadOnlyRef = useRef(readOnly);
 
   const bulkActions = useBulkActions({
@@ -60,13 +61,21 @@ export function useTodaySelection({
   const selectedCount = selectedHabitIds.size;
 
   useEffect(() => {
+    const dateChanged = previousSelectedDateRef.current !== selectedDateStr;
     const becameReadOnly = !previousReadOnlyRef.current && readOnly;
+    previousSelectedDateRef.current = selectedDateStr;
     previousReadOnlyRef.current = readOnly;
-    if (!becameReadOnly) return;
+    if (!dateChanged && !becameReadOnly) return;
     closeControlsMenu();
     setShowBulkDeleteConfirm(false);
     clearSelection();
-  }, [clearSelection, closeControlsMenu, readOnly, setShowBulkDeleteConfirm]);
+  }, [
+    clearSelection,
+    closeControlsMenu,
+    readOnly,
+    selectedDateStr,
+    setShowBulkDeleteConfirm,
+  ]);
 
   useEffect(() => {
     if (

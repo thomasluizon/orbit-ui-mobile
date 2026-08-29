@@ -34,6 +34,7 @@ export function useTodaySelection({
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
   const readOnly = getTodayBoundary(selectedDateStr, today) === 'read-only'
+  const previousSelectedDateRef = useRef(selectedDateStr)
   const previousReadOnlyRef = useRef(readOnly)
 
   const getDescendantIds = useCallback(
@@ -88,12 +89,14 @@ export function useTodaySelection({
   const { setShowBulkDeleteConfirm } = bulkActions
 
   useEffect(() => {
+    const dateChanged = previousSelectedDateRef.current !== selectedDateStr
     const becameReadOnly = !previousReadOnlyRef.current && readOnly
+    previousSelectedDateRef.current = selectedDateStr
     previousReadOnlyRef.current = readOnly
-    if (!becameReadOnly) return
+    if (!dateChanged && !becameReadOnly) return
     setShowBulkDeleteConfirm(false)
     clearSelection()
-  }, [clearSelection, readOnly, setShowBulkDeleteConfirm])
+  }, [clearSelection, readOnly, selectedDateStr, setShowBulkDeleteConfirm])
 
   return {
     handleToggleSelection,

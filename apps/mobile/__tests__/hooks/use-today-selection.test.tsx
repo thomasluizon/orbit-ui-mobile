@@ -237,6 +237,19 @@ describe('mobile useTodaySelection', () => {
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
   })
 
+  it('clears selection and closes bulk delete when navigating between loggable days', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    mocks.bulkActions.showBulkDeleteConfirm = true
+    const view = renderSelection({ selectedDateStr: '2026-04-01', today: '2026-04-08' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender('2026-04-02', '2026-04-08')
+
+    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+  })
+
   it('clears a loggable-day selection when navigation makes the viewed date read only', () => {
     mocks.store.isSelectMode = true
     mocks.store.selectedHabitIds = new Set(['a'])

@@ -84,6 +84,16 @@ describe('web useTodaySelection date scope', () => {
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
   })
 
+  it('clears selection and closes bulk delete when navigating between loggable days', () => {
+    mocks.bulkActions.showBulkDeleteConfirm = true
+    const { rerender } = renderSelection('2026-04-01', '2026-04-08')
+
+    rerender({ selectedDateStr: '2026-04-02', today: '2026-04-08' })
+
+    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+  })
+
   it('clears a loggable-day selection when navigation makes the viewed date read only', () => {
     const { rerender } = renderSelection('2026-04-01', '2026-04-08')
 
