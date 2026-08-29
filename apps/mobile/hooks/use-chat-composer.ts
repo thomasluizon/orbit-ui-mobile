@@ -1,21 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
-  CHAT_TEXT_FILE_PICKER_MIME_TYPES,
   consumeChatSseStream,
   getChatImageValidationError,
-  getChatTextFileValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
+import {
+  hasComposerContent,
+  type ComposerProps,
+  type ComposerSuggestions,
+} from "@orbit/shared/contracts/composer";
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
@@ -25,6 +27,7 @@ import type {
 import type { Profile } from "@orbit/shared/types/profile";
 import {
   buildAgentExecutionMessage,
+  CHAT_DRAFT_STORAGE_KEY,
   classifySendFailure,
   findPremiumPolicyDenial,
   invalidateAgentQueries,
@@ -34,6 +37,7 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
+  formatAccountMidnight,
   getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
@@ -137,21 +141,19 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   } = useSpeechToText();
 
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const pendingVoiceCommit = useRef(false);
 
+  const [input, setInput] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedTextFile, setSelectedTextFile] = useState<{
-    name: string;
-    content: string;
-  } | null>(null);
-  const [composerResetSignal, setComposerResetSignal] = useState(0);
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
+  const accountTimeZone = profile?.timeZone ?? null;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
   const isSending = isTyping || streamingMessageId !== null;
   const showSuggestions = messages.length === 0 && !isTyping;
@@ -160,6 +162,33 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
     [t],
   );
+
+  useEffect(() => {
+    let active = true;
+    void AsyncStorage.getItem(CHAT_DRAFT_STORAGE_KEY).then((storedDraft) => {
+      if (active && storedDraft) setInput(storedDraft);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (input.trim()) {
+      void AsyncStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input);
+    } else {
+      void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
+    }
+  }, [input]);
+
+  useEffect(() => {
+    if (isRecording) {
+      pendingVoiceCommit.current = true;
+    } else if (pendingVoiceCommit.current && transcript.trim()) {
+      pendingVoiceCommit.current = false;
+      setInput((current) => current ? `${current} ${transcript.trim()}` : transcript.trim());
+    }
+  }, [isRecording, transcript]);
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60);
@@ -280,45 +309,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const removeImage = useCallback(() => {
     setSelectedImage(null);
     setImagePreview(null);
-  }, []);
-
-  const openTextFilePicker = useCallback(async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: [...CHAT_TEXT_FILE_PICKER_MIME_TYPES],
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    if (!asset) return;
-
-    const file = new File(asset.uri);
-    const validationError = getChatTextFileValidationError({
-      name: asset.name,
-      uri: asset.uri,
-      fileSize: asset.size ?? file.size,
-    });
-    if (validationError === "type") {
-      setSendError(t("chat.fileError"));
-      return;
-    }
-    if (validationError === "size") {
-      setSendError(t("chat.fileSizeError"));
-      return;
-    }
-
-    try {
-      const content = await file.text();
-      setSendError(null);
-      setSelectedTextFile({ name: asset.name, content });
-    } catch {
-      setSendError(t("chat.fileReadError"));
-    }
-  }, [t]);
-
-  const removeTextFile = useCallback(() => {
-    setSelectedTextFile(null);
   }, []);
 
   const handleFailedSend = useCallback(
@@ -449,7 +439,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const buildChatFormData = useCallback(
     (attempted: AttemptedSend) => {
       const formData = new FormData();
-      if (attempted.content) formData.append("message", attempted.content);
+      formData.append("message", attempted.content);
       if (attempted.image) {
         formData.append(
           "image",
@@ -592,7 +582,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         const userMessage: ChatMessage = {
           id: `msg-${Date.now()}`,
           role: "user",
-          content: attempted.content || "(image)",
+          content: attempted.content,
           imageUrl: attempted.preview,
           timestamp: new Date(),
         };
@@ -610,10 +600,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const sendMessage = useCallback(
     async (content?: string) => {
-      const typedContent = content?.trim() ?? "";
+      const typedContent = content?.trim() ?? input.trim();
       const sendState = useChatStore.getState();
       if (
-        (!typedContent && !selectedImage && !selectedTextFile) ||
+        !hasComposerContent(typedContent) ||
         sendState.isTyping ||
         sendState.streamingMessageId !== null
       ) return;
@@ -622,35 +612,25 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         return;
       }
 
-      const messageContent = selectedTextFile
-        ? buildChatMessageWithFileContent({
-            message: typedContent,
-            fileLabel: t("chat.fileAttached", { name: selectedTextFile.name }),
-            fileContent: selectedTextFile.content,
-          })
-        : typedContent;
-
       const attempted: AttemptedSend = {
-        content: messageContent,
+        content: typedContent,
         image: selectedImage,
         preview: imagePreview,
       };
 
-      setComposerResetSignal((current) => current + 1);
+      setInput("");
       setSelectedImage(null);
       setImagePreview(null);
-      setSelectedTextFile(null);
 
       await performSend(attempted, false);
     },
     [
       imagePreview,
+      input,
       isOnline,
       offlineTitle,
       performSend,
       selectedImage,
-      selectedTextFile,
-      t,
     ],
   );
 
@@ -665,6 +645,93 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   }, [isOnline, lastFailedSend, offlineTitle, performSend]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
+
+  const composerSuggestions = useMemo<ComposerSuggestions>(() => {
+    const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
+      const label = t(key);
+      return { id: key, label, onSelect: () => void sendMessage(label) };
+    };
+    return [
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[0]),
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[1]),
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
+      makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
+    ];
+  }, [sendMessage, t]);
+
+  const composerProps = useMemo(() => {
+    const words = {
+      placeholder: t("shell.composer.placeholder"),
+      send: t("shell.composer.send"),
+      suggestionsLabel: t("shell.composer.suggestionsLabel"),
+      retry: t("shell.composer.retry"),
+    };
+    const voiceWords = {
+      start: t("shell.composer.voice.start"),
+      stop: t("shell.composer.voice.stop"),
+      recording: t("shell.composer.voice.recording"),
+      transcribing: t("shell.composer.voice.transcribing"),
+    };
+    const imageName = selectedImage?.fileName ?? selectedImage?.uri.split("/").at(-1);
+    const common = {
+      words,
+      value: input,
+      onChangeValue: setInput,
+      onSend: () => void sendMessage(),
+      suggestions: composerSuggestions,
+      onAttach: () => void openFilePicker(),
+      attachWords: {
+        add: t("shell.composer.attach.add"),
+        trayLabel: t("shell.composer.attach.trayLabel"),
+        remove: (name: string) => t("shell.composer.attach.remove", { name }),
+      },
+      attachments: selectedImage && imageName
+        ? [{ id: "chat-image", kind: "image" as const, name: imageName }]
+        : [],
+      onAttachRemove: removeImage,
+      ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
+    };
+
+    if (isRecording) return { ...common, state: "recording", onVoice: toggleRecording, voiceWords };
+    if (isTranscribing) return { ...common, state: "transcribing", onVoice: toggleRecording, voiceWords };
+
+    if (atMessageLimit) {
+      const limitReason = accountTimeZone
+        ? t("shell.composer.limit.reasonWithTime", {
+            allowance: aiMessagesLimit,
+            resetsAt: formatAccountMidnight(i18n.language, accountTimeZone),
+          })
+        : t("shell.composer.limit.reasonAtMidnight", { allowance: aiMessagesLimit });
+      return speechSupported
+        ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: "atLimit", limitReason };
+    }
+
+    const state: "idle" | "sending" = isSending || !isOnline ? "sending" : "idle";
+    return speechSupported
+      ? { ...common, state, onVoice: toggleRecording, voiceWords }
+      : { ...common, state };
+  }, [
+    aiMessagesLimit,
+    atMessageLimit,
+    canRetryLastSend,
+    composerSuggestions,
+    i18n.language,
+    input,
+    isOnline,
+    isRecording,
+    isSending,
+    isTranscribing,
+    openFilePicker,
+    accountTimeZone,
+    removeImage,
+    retryLastSend,
+    selectedImage,
+    sendMessage,
+    speechSupported,
+    t,
+    toggleRecording,
+  ]) as ComposerProps;
 
   const {
     confirmAndExecutePendingOperation,
@@ -683,9 +750,11 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     isSending,
     streamingMessageId,
     sendError,
+    input,
+    setInput,
     selectedImage,
     imagePreview,
-    composerResetSignal,
+    composerProps,
     isRecording,
     isTranscribing,
     speechSupported,
@@ -701,9 +770,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     showSuggestions,
     openFilePicker,
     removeImage,
-    selectedTextFile,
-    openTextFilePicker,
-    removeTextFile,
     sendMessage,
     retryLastSend,
     canRetryLastSend,

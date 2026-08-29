@@ -156,14 +156,6 @@
       "count": 4
     }
   },
-  "app/chat.styles.ts": {
-    "local/no-decorative-glow": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
   "app/login-styles.ts": {
     "local/spacing-scale": {
       "count": 6
@@ -245,21 +237,6 @@
   "components/chat/breakdown-suggestion.tsx": {
     "local/icon-size-grid": {
       "count": 3
-    }
-  },
-  "components/chat/chat-composer-input.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/chat/chat-input-area.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    }
-  },
-  "components/chat/chat-input-bar.tsx": {
-    "local/icon-size-grid": {
-      "count": 5
     }
   },
   "components/chat/clarification-card.tsx": {

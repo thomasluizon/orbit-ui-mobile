@@ -1,12 +1,24 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import type { ChangeEvent } from 'react'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { goalKeys, habitKeys, tagKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
+import type { Profile } from '@orbit/shared/types/profile'
 
 const mocks = vi.hoisted(() => ({
+  state: {
+    profile: undefined as Profile | undefined,
+    isRecording: false,
+    isTranscribing: false,
+    speechSupported: true,
+    transcript: '',
+    speechError: null as string | null,
+  },
   fetch: vi.fn(),
   routerPush: vi.fn(),
+  toggleRecording: vi.fn(),
   queryClient: {
     invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn(),
@@ -14,7 +26,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
   useLocale: () => 'en',
 }))
 
@@ -27,17 +40,17 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: undefined }),
+  useProfile: () => ({ profile: mocks.state.profile }),
 }))
 
 vi.mock('@/hooks/use-speech-to-text', () => ({
   useSpeechToText: () => ({
-    isRecording: false,
-    isTranscribing: false,
-    isSupported: true,
-    transcript: '',
-    error: null,
-    toggleRecording: vi.fn(),
+    isRecording: mocks.state.isRecording,
+    isTranscribing: mocks.state.isTranscribing,
+    isSupported: mocks.state.speechSupported,
+    transcript: mocks.state.transcript,
+    error: mocks.state.speechError,
+    toggleRecording: mocks.toggleRecording,
     recordingDuration: 0,
   }),
 }))
@@ -51,6 +64,7 @@ vi.mock('@/app/actions/chat', () => ({
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
+import { Composer } from '@/components/shell/composer'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -102,8 +116,15 @@ function controlledSseResponse() {
 
 describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
+    mocks.state.profile = undefined
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = false
+    mocks.state.speechSupported = true
+    mocks.state.transcript = ''
+    mocks.state.speechError = null
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
+    mocks.toggleRecording.mockReset()
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
@@ -346,44 +367,40 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
-  it('folds an attached text file into the sent user message', async () => {
-    mocks.fetch.mockResolvedValue(
-      sseResponse(finalFrame(makeChatResponse({ aiMessage: 'Imported' }))),
-    )
-    const { result } = renderHook(() => useChatComposer())
-    const file = new File(['Run\nRead'], 'habits.csv', { type: 'text/csv' })
-
-    await act(async () => {
-      await result.current.handleTextFileSelect({
-        target: { files: [file], value: '' },
-      } as unknown as ChangeEvent<HTMLInputElement>)
+  it('submits a pasted image with nonblank text through the rendered composer', async () => {
+    const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:pasted-image'),
+      revokeObjectURL: vi.fn(),
     })
-    expect(result.current.selectedTextFileName).toBe('habits.csv')
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
 
-    await act(async () => {
-      await result.current.sendMessage()
-    })
+    function ComposerHarness() {
+      const { composerProps } = useChatComposer()
+      return <Composer {...composerProps} />
+    }
 
-    const userMessage = useChatStore
-      .getState()
-      .messages.find((message) => message.role === 'user')
-    expect(userMessage?.content).toContain('Run\nRead')
-    expect(userMessage?.content).toContain('chat.fileAttached')
-    expect(result.current.selectedTextFileName).toBeNull()
-  })
-
-  it('surfaces the i18n error for an unsupported attachment type', async () => {
-    const { result } = renderHook(() => useChatComposer())
-    const file = new File(['nope'], 'photo.png', { type: 'image/png' })
-
-    await act(async () => {
-      await result.current.handleTextFileSelect({
-        target: { files: [file], value: '' },
-      } as unknown as ChangeEvent<HTMLInputElement>)
+    render(<ComposerHarness />)
+    fireEvent.paste(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+      clipboardData: {
+        items: [{ type: pastedImage.type, getAsFile: () => pastedImage }],
+      },
     })
 
-    expect(result.current.sendError).toBe('chat.fileError')
-    expect(result.current.selectedTextFileName).toBeNull()
+    expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
+    expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+      target: { value: 'log my walk' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    expect(requestBody).toBeInstanceOf(FormData)
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe('log my walk')
+    expect(requestBody.get('image')).toBe(pastedImage)
   })
 
   it('blocks sending while offline and re-enables once back online', async () => {
@@ -415,5 +432,199 @@ describe('web useChatComposer streaming send', () => {
     } finally {
       Reflect.deleteProperty(globalThis.navigator, 'onLine')
     }
+  })
+
+  it('states the reset at account-timezone midnight when the device timezone differs', () => {
+    const previousTimeZone = process.env.TZ
+    process.env.TZ = 'Asia/Tokyo'
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+      timeZone: 'America/New_York',
+    })
+
+    try {
+      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo')
+      const { result } = renderHook(() => useChatComposer())
+      expect(result.current.composerProps.limitReason).toBe(
+        'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
+      )
+    } finally {
+      if (previousTimeZone === undefined) {
+        delete process.env.TZ
+      } else {
+        process.env.TZ = previousTimeZone
+      }
+    }
+  })
+
+  it('states only midnight when the account timezone is absent', () => {
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+      timeZone: null,
+    })
+
+    const { result } = renderHook(() => useChatComposer())
+    expect(result.current.composerProps.limitReason).toBe(
+      'shell.composer.limit.reasonAtMidnight:{"allowance":20}',
+    )
+    expect(result.current.composerProps.limitReason).not.toContain('resetsAt')
+  })
+
+  it('restores a saved draft into the rendered composer', () => {
+    globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'saved walk')
+
+    const { result } = renderHook(() => useChatComposer())
+
+    expect(result.current.composerProps.value).toBe('saved walk')
+  })
+
+  it('commits a finished voice transcript and then exposes transcribing', () => {
+    mocks.state.isRecording = true
+    mocks.state.transcript = 'walked outside'
+    const { result, rerender } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('I'))
+    mocks.state.isRecording = false
+    rerender()
+    expect(result.current.composerProps.value).toBe('I walked outside')
+
+    mocks.state.isTranscribing = true
+    rerender()
+    expect(result.current.composerProps.state).toBe('transcribing')
+    expect(result.current.composerProps.onVoice).toBe(mocks.toggleRecording)
+  })
+
+  it('clears a new speech permission error after its visible timeout', async () => {
+    vi.useFakeTimers()
+    const { result, rerender } = renderHook(() => useChatComposer())
+
+    mocks.state.speechError = 'microphone denied'
+    rerender()
+    expect(result.current.sendError).toBe('microphone denied')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000)
+    })
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it('omits voice when speech is unavailable at the account limit', () => {
+    mocks.state.speechSupported = false
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+    })
+
+    const { result } = renderHook(() => useChatComposer())
+
+    expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.composerProps.onVoice).toBeUndefined()
+  })
+
+  it('arms retry when the transport fails before a response', async () => {
+    mocks.fetch.mockRejectedValue(new Error('network unavailable'))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('log water')
+    })
+
+    expect(result.current.sendError).toBe('chat.sendError')
+    expect(result.current.canRetryLastSend).toBe(true)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('sends a live suggestion label in the transport payload', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    const suggestion = result.current.composerProps.suggestions[0]
+
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    expect(requestBody).toBeInstanceOf(FormData)
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it('refreshes every affected list after successful live actions', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse({
+      actions: [
+        { type: 'CreateHabit', status: 'Success' },
+        { type: 'CreateGoal', status: 'Success' },
+        { type: 'CreateTag', status: 'Success' },
+      ],
+      operations: [{
+        operationId: 'operation-1',
+        sourceName: 'CreateHabit',
+        riskClass: 'Low',
+        confirmationRequirement: 'None',
+        status: 'Succeeded',
+      }],
+    }))))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('set up my week')
+    })
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: tagKeys.lists() })
+  })
+
+  it('routes a final premium denial to upgrade', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse({
+      policyDenials: [{
+        operationId: 'operation-1',
+        sourceName: 'CreateGoal',
+        riskClass: 'Low',
+        confirmationRequirement: 'None',
+        reason: 'Yearly Pro plan required',
+      }],
+    }))))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('make a yearly goal')
+    })
+
+    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('increments the current non-pro usage cache after a final response', async () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: false, aiMessagesUsed: 4 })
+    let updatedProfile: Profile | undefined
+    mocks.queryClient.setQueryData.mockImplementationOnce(
+      (
+        _queryKey: readonly unknown[],
+        updater: Profile | ((current: Profile | undefined) => Profile | undefined),
+      ) => {
+        updatedProfile = typeof updater === 'function' ? updater(mocks.state.profile) : updater
+      },
+    )
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('log water')
+    })
+
+    expect(updatedProfile?.aiMessagesUsed).toBe(5)
+  })
+
+  it('refreshes habits after a confirmed breakdown', () => {
+    const { result } = renderHook(() => useChatComposer())
+
+    result.current.handleBreakdownConfirmed()
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.lists(),
+    })
   })
 })

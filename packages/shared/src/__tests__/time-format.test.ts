@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   capitalizeFirstLetter,
   detectDefaultTimeFormat,
+  formatAccountMidnight,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
@@ -17,6 +18,11 @@ describe('locale-format utils', () => {
 
   it('formats time for Portuguese locale', () => {
     expect(formatLocaleTime('14:30', 'pt-BR')).toBe('14:30')
+  })
+
+  it('formats midnight in the named account timezone without using the device timezone', () => {
+    expect(formatAccountMidnight('en', 'America/New_York')).toBe('12:00 AM')
+    expect(formatAccountMidnight('pt-BR', 'Pacific/Chatham')).toBe('00:00')
   })
 
   it('detects locale-specific default time formats', () => {

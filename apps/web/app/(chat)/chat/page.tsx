@@ -14,31 +14,32 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
+import { Composer } from '@/components/shell/composer'
+import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from './chat-empty-state'
-import { ChatComposerBar } from './chat-composer-bar'
 
 export default function ChatPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
-  const composer = useChatComposer()
   const {
     chatContainerRef,
     messages,
     isTyping,
-    isSending,
     streamingMessageId,
     hasProAccess,
-    atMessageLimit,
     showSuggestions,
     sendMessage,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
-  } = composer
-
-  const limitLocked = !hasProAccess && atMessageLimit
+    isOnline,
+    sendError,
+    fileInputRef,
+    handleFileSelect,
+    composerProps,
+  } = useChatComposer()
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
 
@@ -141,43 +142,26 @@ export default function ChatPage() {
         {isTyping && <TypingIndicator />}
       </div>
 
-      <ChatComposerBar
-        textareaRef={composer.textareaRef}
-        fileInputRef={composer.fileInputRef}
-        input={composer.input}
-        setInput={composer.setInput}
-        sendError={composer.sendError}
-        imagePreview={composer.imagePreview}
-        isOnline={composer.isOnline}
-        isRecording={composer.isRecording}
-        isTranscribing={composer.isTranscribing}
-        speechSupported={composer.speechSupported}
-        toggleRecording={composer.toggleRecording}
-        recordingTime={composer.recordingTime}
-        starterChips={composer.starterChips}
-        isTyping={isSending}
-        hasProAccess={hasProAccess}
-        aiMessagesUsed={composer.aiMessagesUsed}
-        aiMessagesLimit={composer.aiMessagesLimit}
-        atMessageLimit={atMessageLimit}
-        canSend={composer.canSend}
-        hasMessages={messages.length > 0}
-        limitLocked={limitLocked}
-        openFilePicker={composer.openFilePicker}
-        handleFileSelect={composer.handleFileSelect}
-        handlePaste={composer.handlePaste}
-        handleKeyDown={composer.handleKeyDown}
-        removeImage={composer.removeImage}
-        textFileInputRef={composer.textFileInputRef}
-        selectedTextFileName={composer.selectedTextFileName}
-        openTextFilePicker={composer.openTextFilePicker}
-        handleTextFileSelect={(event) => void composer.handleTextFileSelect(event)}
-        removeTextFile={composer.removeTextFile}
-        sendMessage={() => void sendMessage()}
-        retryLastSend={() => void composer.retryLastSend()}
-        canRetryLastSend={composer.canRetryLastSend}
-        onUpgrade={() => router.push('/upgrade')}
-      />
+      <div className="shrink-0">
+        {!isOnline ? (
+          <div className="px-4 pt-3">
+            <ErrorState message={t('chat.offline.description')} />
+          </div>
+        ) : null}
+        {sendError ? (
+          <p role="alert" aria-live="assertive" className="m-0 px-4 pt-3 text-center text-sm text-[var(--status-bad)]">
+            {sendError}
+          </p>
+        ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        <Composer {...composerProps} />
+      </div>
 
       <HabitDetailDrawer
         open={!!selectedHabitId}
