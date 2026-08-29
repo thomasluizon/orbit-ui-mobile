@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { useEffect } from 'react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import type { ComposerProps } from '@orbit/shared/contracts/composer'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -26,6 +27,26 @@ const mockChatComposer = vi.hoisted(() => ({
   confirmAndExecutePendingOperation: vi.fn(),
   prepareStepUpForBubble: vi.fn(),
   verifyStepUpForBubble: vi.fn(),
+  isOnline: true,
+  sendError: null,
+  fileInputRef: { current: null as HTMLInputElement | null },
+  handleFileSelect: vi.fn(),
+  composerProps: {
+    state: 'idle',
+    words: {
+      placeholder: 'Ask Astra',
+      send: 'Send',
+      suggestionsLabel: 'Suggestions',
+    },
+    value: '',
+    onChangeValue: vi.fn(),
+    onSend: vi.fn(),
+    suggestions: [
+      { id: 'one', label: 'One', onSelect: vi.fn() },
+      { id: 'two', label: 'Two', onSelect: vi.fn() },
+      { id: 'three', label: 'Three', onSelect: vi.fn() },
+    ],
+  } satisfies ComposerProps,
 }))
 
 const mockRouterPush = vi.fn()
