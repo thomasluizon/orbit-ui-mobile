@@ -5,7 +5,7 @@ import TodayScreen from '@/app/(tabs)/index'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-type RenderedTree = import('react-test-renderer').ReactTestRenderer
+type RenderedTree = { unmount: () => void }
 type ComponentProps = Record<string, unknown>
 
 const mocks = vi.hoisted(() => ({
@@ -133,7 +133,7 @@ function successfulResult() {
 
 async function renderToday(): Promise<void> {
   await TestRenderer.act(async () => {
-    mountedTrees.push(TestRenderer.create(<TodayScreen />))
+    mountedTrees.push(TestRenderer.create(<TodayScreen />) as unknown as RenderedTree)
     await Promise.resolve()
   })
 }

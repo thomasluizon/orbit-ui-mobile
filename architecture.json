@@ -10301,6 +10301,7 @@
           "habits.backToHabits",
           "habits.bulkBar.delete",
           "habits.bulkBar.log",
+          "habits.bulkBar.offlineFailure",
           "habits.bulkBar.skip",
           "habits.bulkDeleteConfirm",
           "habits.bulkDeleteMessage",
@@ -16628,6 +16629,7 @@
         "apps/mobile/__tests__/screens/retrospective-screen.test.tsx",
         "apps/mobile/__tests__/screens/step-up-screen.test.tsx",
         "apps/mobile/__tests__/screens/support-screen.test.tsx",
+        "apps/mobile/__tests__/screens/today-bulk-actions.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-guard-redirects.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-screen.test.tsx"
@@ -16870,6 +16872,7 @@
         "apps/mobile/__tests__/lib/widget-refresh-timeout.test.ts",
         "apps/mobile/__tests__/screens/account-deletion.test.tsx",
         "apps/mobile/__tests__/screens/intentional-offline-ux.test.tsx",
+        "apps/mobile/__tests__/screens/today-bulk-actions.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-guard-redirects.test.tsx",
         "apps/mobile/__tests__/sentry-before-send.test.ts"
@@ -17421,6 +17424,7 @@
         "apps/mobile/__tests__/lib/orbit-widget.test.ts",
         "apps/mobile/__tests__/lib/queued-api-mutation.test.ts",
         "apps/mobile/__tests__/screens/calendar-views.test.tsx",
+        "apps/mobile/__tests__/screens/today-bulk-actions.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/shared/habit-utils.test.ts",
         "apps/web/__tests__/actions/onboarding.test.ts",
