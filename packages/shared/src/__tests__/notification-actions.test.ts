@@ -91,7 +91,7 @@ describe('notification-actions', () => {
       },
     }
 
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29')).toEqual({
+    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', true)).toEqual({
       kind: 'elapsed',
       days: 4,
     })
@@ -108,13 +108,13 @@ describe('notification-actions', () => {
       },
     }
 
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29')).toEqual({
+    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', true)).toEqual({
       kind: 'elapsed',
       days: 6,
     })
   })
 
-  it('uses bounded guidance when the response has no positive log', () => {
+  it('does not infer a completion interval when the response has no positive log', () => {
     const calendarMonth = {
       habits: [],
       logs: {
@@ -122,10 +122,10 @@ describe('notification-actions', () => {
       },
     }
 
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29')).toEqual({
-      kind: 'outside-window',
-    })
-    expect(getReturningCompletionGuidance(undefined, '2026-08-29')).toBeNull()
+    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', true)).toBeNull()
+    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', false)).toBeNull()
+    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', undefined)).toBeNull()
+    expect(getReturningCompletionGuidance(undefined, '2026-08-29', true)).toBeNull()
   })
 
   it('keeps the proactive line off non-Today, drill, offline, and quota-limit states', () => {

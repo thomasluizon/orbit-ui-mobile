@@ -7,7 +7,6 @@ export const RETURNING_COMPLETION_WINDOW_DAYS = 30
 
 export type ReturningCompletionGuidance =
   | { kind: 'elapsed'; days: number }
-  | { kind: 'outside-window' }
   | null
 
 export function selectNewestUnreadProactiveCheckin(
@@ -32,6 +31,7 @@ export function getReturningCompletionWindow(today: string): {
 export function getReturningCompletionGuidance(
   calendarMonth: CalendarMonthResponse | undefined,
   today: string,
+  hasLoggedFirstHabit: boolean | undefined,
 ): ReturningCompletionGuidance {
   if (!calendarMonth) return null
 
@@ -44,7 +44,8 @@ export function getReturningCompletionGuidance(
     }
   }
 
-  if (!newestCompletionDate) return { kind: 'outside-window' }
+  if (!newestCompletionDate && hasLoggedFirstHabit === false) return null
+  if (!newestCompletionDate) return null
   const days = differenceInCalendarDays(parseAPIDate(today), parseAPIDate(newestCompletionDate))
   return days >= 3 ? { kind: 'elapsed', days } : null
 }

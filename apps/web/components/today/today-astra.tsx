@@ -42,7 +42,11 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const setDraft = useChatStore((state) => state.setDraft)
-  const returning = getReturningCompletionGuidance(completionHistory.calendarMonth, today)
+  const returning = getReturningCompletionGuidance(
+    completionHistory.calendarMonth,
+    today,
+    profile?.hasLoggedFirstHabit,
+  )
   const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const openConversation = () => setConversationOpen(true)
   const createSentence = t('todayAstra.createSentence')
@@ -75,9 +79,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 
   const returningText = returning?.kind === 'elapsed'
     ? t('todayAstra.returning', { days: returning.days })
-    : returning?.kind === 'outside-window'
-      ? t('todayAstra.returningOverWindow')
-      : null
+    : null
   const returningLine = returningText
     ? { text: returningText, action: t('todayAstra.openProgress'), kind: 'progress' as const }
     : null

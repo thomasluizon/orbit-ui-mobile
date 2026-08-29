@@ -10,6 +10,7 @@ import { useUIStore } from '@/stores/ui-store'
 interface TodayAstraMocks {
   composerProps: ComposerProps | null
   calendarMonth: CalendarMonthResponse
+  profile: { hasLoggedFirstHabit?: boolean }
   useCalendarDateRange: ReturnType<typeof vi.fn>
   useStreakInfo: ReturnType<typeof vi.fn>
 }
@@ -17,6 +18,7 @@ interface TodayAstraMocks {
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   composerProps: null,
   calendarMonth: { habits: [], logs: {} },
+  profile: { hasLoggedFirstHabit: true },
   useCalendarDateRange: vi.fn(),
   useStreakInfo: vi.fn(() => ({ data: { lastActiveDate: '2026-08-27' } })),
 }))
@@ -33,7 +35,7 @@ vi.mock('react-native-safe-area-context', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { id: 'profile' }, isPending: false, isError: false }),
+  useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: [] }),
@@ -108,9 +110,18 @@ function hasText(tree: ReactTestRenderer, text: string): boolean {
   ).length > 0
 }
 
+function hasTextStartingWith(tree: ReactTestRenderer, prefix: string): boolean {
+  return tree.root.findAll((node) =>
+    Array.isArray(node.props.children) && node.props.children.some(
+      (child: unknown) => typeof child === 'string' && child.startsWith(prefix),
+    ),
+  ).length > 0
+}
+
 describe('mobile Today Astra', () => {
   beforeEach(() => {
     mocks.composerProps = null
+    mocks.profile = { hasLoggedFirstHabit: true }
     mocks.calendarMonth = calendarWithLogs({
       habit: [
         { id: 'completion', date: '2026-08-25', value: 1, createdAtUtc: '2026-08-25T10:00:00Z' },
@@ -143,16 +154,42 @@ describe('mobile Today Astra', () => {
     expect(mocks.useStreakInfo).not.toHaveBeenCalled()
   })
 
-  it('shows bounded copy when the window has no positive completion', async () => {
-    mocks.calendarMonth = calendarWithLogs({
-      habit: [
-        { id: 'skip', date: '2026-08-28', value: 0, createdAtUtc: '2026-08-28T10:00:00Z' },
-      ],
-    })
+  it('does not claim an interval for a recent subhabit completion omitted by calendar-month', async () => {
+    mocks.calendarMonth = calendarWithLogs({})
 
     const tree = await renderTodayAstra()
 
-    expect(hasText(tree, 'todayAstra.returningOverWindow')).toBe(true)
+    expect(hasTextStartingWith(tree, 'todayAstra.returning')).toBe(false)
+    expect(hasText(tree, 'todayAstra.returningOverWindow')).toBe(false)
+  })
+
+  it('does not claim an interval for a recent general habit completion omitted by calendar-month', async () => {
+    mocks.calendarMonth = calendarWithLogs({})
+
+    const tree = await renderTodayAstra()
+
+    expect(hasTextStartingWith(tree, 'todayAstra.returning')).toBe(false)
+    expect(hasText(tree, 'todayAstra.returningOverWindow')).toBe(false)
+  })
+
+  it('does not claim an interval when the account has never completed a habit', async () => {
+    mocks.profile = { hasLoggedFirstHabit: false }
+    mocks.calendarMonth = calendarWithLogs({})
+
+    const tree = await renderTodayAstra()
+
+    expect(hasTextStartingWith(tree, 'todayAstra.returning')).toBe(false)
+    expect(hasText(tree, 'todayAstra.returningOverWindow')).toBe(false)
+  })
+
+  it('does not claim an interval when completion history is absent from the profile', async () => {
+    mocks.profile = {}
+    mocks.calendarMonth = calendarWithLogs({})
+
+    const tree = await renderTodayAstra()
+
+    expect(hasTextStartingWith(tree, 'todayAstra.returning')).toBe(false)
+    expect(hasText(tree, 'todayAstra.returningOverWindow')).toBe(false)
   })
 
   it('hands a selected chip to the conversation with one logs request for 50 habits', async () => {

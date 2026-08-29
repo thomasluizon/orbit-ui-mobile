@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores/ui-store'
 interface TodayAstraMocks {
   composerProps: ComposerProps | null
   calendarMonth: CalendarMonthResponse
+  profile: { hasLoggedFirstHabit?: boolean }
   useCalendarDateRange: ReturnType<typeof vi.fn>
   useStreakInfo: ReturnType<typeof vi.fn>
 }
@@ -16,6 +17,7 @@ interface TodayAstraMocks {
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   composerProps: null,
   calendarMonth: { habits: [], logs: {} },
+  profile: { hasLoggedFirstHabit: true },
   useCalendarDateRange: vi.fn(),
   useStreakInfo: vi.fn(() => ({ data: { lastActiveDate: '2026-08-27' } })),
 }))
@@ -31,7 +33,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { id: 'profile' }, isPending: false, isError: false }),
+  useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: [] }),
@@ -86,6 +88,7 @@ function renderTodayAstra() {
 describe('web Today Astra', () => {
   beforeEach(() => {
     mocks.composerProps = null
+    mocks.profile = { hasLoggedFirstHabit: true }
     mocks.calendarMonth = calendarWithLogs({
       habit: [
         { id: 'completion', date: '2026-08-25', value: 1, createdAtUtc: '2026-08-25T10:00:00Z' },
@@ -121,16 +124,42 @@ describe('web Today Astra', () => {
     expect(mocks.useStreakInfo).not.toHaveBeenCalled()
   })
 
-  it('shows bounded copy when the window has no positive completion', () => {
-    mocks.calendarMonth = calendarWithLogs({
-      habit: [
-        { id: 'skip', date: '2026-08-28', value: 0, createdAtUtc: '2026-08-28T10:00:00Z' },
-      ],
-    })
+  it('does not claim an interval for a recent subhabit completion omitted by calendar-month', () => {
+    mocks.calendarMonth = calendarWithLogs({})
 
     const { container } = renderTodayAstra()
 
-    expect(container.textContent).toContain('todayAstra.returningOverWindow')
+    expect(container.textContent).not.toContain('todayAstra.returning')
+    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
+  })
+
+  it('does not claim an interval for a recent general habit completion omitted by calendar-month', () => {
+    mocks.calendarMonth = calendarWithLogs({})
+
+    const { container } = renderTodayAstra()
+
+    expect(container.textContent).not.toContain('todayAstra.returning')
+    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
+  })
+
+  it('does not claim an interval when the account has never completed a habit', () => {
+    mocks.profile = { hasLoggedFirstHabit: false }
+    mocks.calendarMonth = calendarWithLogs({})
+
+    const { container } = renderTodayAstra()
+
+    expect(container.textContent).not.toContain('todayAstra.returning')
+    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
+  })
+
+  it('does not claim an interval when completion history is absent from the profile', () => {
+    mocks.profile = {}
+    mocks.calendarMonth = calendarWithLogs({})
+
+    const { container } = renderTodayAstra()
+
+    expect(container.textContent).not.toContain('todayAstra.returning')
+    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
   })
 
   it('hands a selected chip to the conversation with one logs request for 50 habits', () => {
