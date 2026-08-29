@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   onSuggestion: null as SuggestionHandler | null,
   composer: {
     chatContainerRef: { current: null },
-    fileInputRef: { current: null },
+    fileInputId: 'chat-file-input',
     messages: [] as { id: string }[],
     isTyping: false,
     hasProAccess: false,
@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
     openFilePicker: vi.fn(),
     handleFileSelect: vi.fn(),
     removeImage: vi.fn(),
-    composerProps: {},
+    composerProps: {} as { onAttach?: () => void },
     sendMessage: vi.fn(),
     retryLastSend: vi.fn(),
     canRetryLastSend: false,
@@ -87,7 +87,11 @@ vi.mock('@/components/habits/habit-detail-drawer', () => ({
 vi.mock('@/components/chat/typing-indicator', () => ({
   TypingIndicator: () => <div data-testid="typing-indicator" />,
 }))
-vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
+vi.mock('@/components/shell/composer', () => ({
+  Composer: ({ onAttach }: { onAttach?: () => void }) => (
+    onAttach ? <button type="button" onClick={onAttach}>attach sentinel</button> : null
+  ),
+}))
 vi.mock('@/components/shell/shell-scroller-context', () => ({
   useShellScrollerRegistration: () => mocks.registerScroller,
 }))
@@ -110,6 +114,9 @@ describe('ChatPage', () => {
     mocks.composer.isTyping = false
     mocks.composer.isOnline = true
     mocks.composer.sendError = null
+    mocks.composer.composerProps = {
+      onAttach: () => globalThis.document.getElementById(mocks.composer.fileInputId)?.click(),
+    }
   })
 
   it('keeps chat as a full page instead of redirecting into shell chrome', () => {
@@ -158,6 +165,16 @@ describe('ChatPage', () => {
     expect(screen.getByText('chat.offline.description')).toBeInTheDocument()
     expect(screen.getByText('send failed sentinel')).toHaveAttribute('role', 'alert')
     expect(screen.getByTestId('typing-indicator')).toBeInTheDocument()
+  })
+
+  it('opens the attachment picker from the full-page conversation', () => {
+    const pickerClick = vi.spyOn(HTMLInputElement.prototype, 'click')
+    render(<ChatPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'attach sentinel' }))
+
+    expect(pickerClick).toHaveBeenCalledOnce()
+    pickerClick.mockRestore()
   })
 
   it('goes back on Escape when no text is being edited', () => {

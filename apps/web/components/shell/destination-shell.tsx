@@ -60,6 +60,15 @@ export function DestinationShell({
   const conversationOpen = primaryDestination && conversationPathname === pathname
   const openConversation = useCallback(() => setConversationPathname(pathname), [pathname])
   const composer = useChatComposer({ onOpenConversation: openConversation })
+  const persistentFileInput = (
+    <input
+      id={composer.fileInputId}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      className="hidden"
+      onChange={composer.handleFileSelect}
+    />
+  )
 
   useKeyboardShortcuts(navigationEnabled)
 
@@ -144,12 +153,18 @@ export function DestinationShell({
         {children}
       </Shell412>
     )
-    return flow
+    return (
+      <>
+        {persistentFileInput}
+        {flow}
+      </>
+    )
   }
 
   if (wide) {
     return (
       <>
+        {persistentFileInput}
         <a
           href="#orbit-main"
           className="z-tooltip fixed left-4 top-4 -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
@@ -179,6 +194,7 @@ export function DestinationShell({
 
   return (
     <>
+      {persistentFileInput}
       <Shell412
         tabBar={
           <BottomTabBar

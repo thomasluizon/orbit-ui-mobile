@@ -148,7 +148,7 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
-    fileInputRef,
+    fileInputId,
     selectedImage,
     imagePreview,
     openFilePicker,
@@ -652,7 +652,7 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
 
   return {
     chatContainerRef,
-    fileInputRef,
+    fileInputId,
     input,
     setInput,
     sendError,

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   setShowCreateModal: vi.fn(),
   keyboardEnabled: vi.fn(),
   showSendControl: false,
+  showAttachmentControls: false,
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -23,14 +24,18 @@ vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
 vi.mock('@/hooks/use-chat-composer', async () => {
-  const { useState } = await import('react')
+  const { useId, useState } = await import('react')
   return {
     useChatComposer: ({ onOpenConversation }: { onOpenConversation?: () => void } = {}) => {
       const [sendError, setSendError] = useState<string | null>(null)
+      const fileInputId = useId()
       return {
+        fileInputId,
+        handleFileSelect: vi.fn(),
         sendError,
         composerProps: {
           onOpenConversation,
+          onAttach: () => globalThis.document.getElementById(fileInputId)?.click(),
           onSend: () => {
             onOpenConversation?.()
             setSendError('send failed sentinel')
@@ -69,6 +74,7 @@ vi.mock('@/components/shell/shell-composer', () => ({
     composer: {
       composerProps: {
         onOpenConversation?: () => void
+        onAttach?: () => void
         onSend: () => void
       }
     }
@@ -82,6 +88,9 @@ vi.mock('@/components/shell/shell-composer', () => ({
       {mocks.showSendControl ? (
         <button type="button" aria-label="shell-send" onClick={composer.composerProps.onSend} />
       ) : null}
+      {mocks.showAttachmentControls ? (
+        <button type="button" aria-label="shell-attach" onClick={composer.composerProps.onAttach} />
+      ) : null}
     </>
   ),
 }))
@@ -92,12 +101,19 @@ vi.mock('@/components/chat/chat-page-content', () => ({
   }: {
     composer: {
       sendError: string | null
-      composerProps: { onRetry?: () => void }
+      composerProps: { onAttach?: () => void; onRetry?: () => void }
     }
     onClose: () => void
   }) => (
     <>
       <button type="button" aria-label="conversation-close" onClick={onClose} />
+      {mocks.showAttachmentControls ? (
+        <button
+          type="button"
+          aria-label="conversation-attach"
+          onClick={composer.composerProps.onAttach}
+        />
+      ) : null}
       {composer.sendError ? <p role="alert">{composer.sendError}</p> : null}
       {composer.composerProps.onRetry ? (
         <button type="button" onClick={composer.composerProps.onRetry}>retry send</button>
@@ -163,6 +179,7 @@ describe('DestinationShell', () => {
     mocks.pathname = '/'
     mocks.wide = false
     mocks.showSendControl = false
+    mocks.showAttachmentControls = false
     resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
@@ -255,6 +272,31 @@ describe('DestinationShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'conversation-close' }))
 
     expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
+  })
+
+  it('opens the attachment picker from the conversation', () => {
+    mocks.showAttachmentControls = true
+    const pickerClick = vi.spyOn(HTMLInputElement.prototype, 'click')
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'conversation-attach' }))
+
+    expect(pickerClick).toHaveBeenCalledOnce()
+    pickerClick.mockRestore()
+  })
+
+  it('opens the attachment picker from the persistent composer after closing the conversation', () => {
+    mocks.showAttachmentControls = true
+    const pickerClick = vi.spyOn(HTMLInputElement.prototype, 'click')
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'conversation-close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell-attach' }))
+
+    expect(pickerClick).toHaveBeenCalledOnce()
+    pickerClick.mockRestore()
   })
 
   it('shows a failed shell send and retry inside the opened conversation', () => {

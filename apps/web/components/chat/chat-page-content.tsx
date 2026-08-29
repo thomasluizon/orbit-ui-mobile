@@ -50,8 +50,6 @@ export function ChatPageContent({
     verifyStepUpForBubble,
     isOnline,
     sendError,
-    fileInputRef,
-    handleFileSelect,
     composerProps,
   } = composer
   const scrollerOwner = useMemo(() => Symbol('chat-page-content'), [])
@@ -173,13 +171,6 @@ export function ChatPageContent({
             {sendError}
           </p>
         ) : null}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={handleFileSelect}
-        />
         <Composer {...composerProps} />
       </div>
 
@@ -201,5 +192,16 @@ export function ChatPageContent({
 
 export function ChatPageContentOwner() {
   const composer = useChatComposer()
-  return <ChatPageContent composer={composer} />
+  return (
+    <>
+      <input
+        id={composer.fileInputId}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={composer.handleFileSelect}
+      />
+      <ChatPageContent composer={composer} />
+    </>
+  )
 }

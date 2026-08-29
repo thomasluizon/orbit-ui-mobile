@@ -43,6 +43,21 @@ describe('useChatImageAttachment', () => {
     vi.clearAllMocks()
   })
 
+  it('opens its file input', () => {
+    const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
+    const fileInput = document.createElement('input')
+    fileInput.id = result.current.fileInputId
+    const click = vi.spyOn(fileInput, 'click')
+    document.body.appendChild(fileInput)
+
+    act(() => {
+      result.current.openFilePicker()
+    })
+
+    expect(click).toHaveBeenCalledOnce()
+    fileInput.remove()
+  })
+
   it('accepts a valid pick, clears the error, and builds a preview URL', () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))

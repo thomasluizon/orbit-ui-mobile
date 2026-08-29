@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent, type ClipboardEvent } from 'react'
+import { useId, useState, type ChangeEvent, type ClipboardEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { getChatImageValidationError } from '@orbit/shared/chat'
 
@@ -11,7 +11,7 @@ import { getChatImageValidationError } from '@orbit/shared/chat'
  */
 export function useChatImageAttachment(setSendError: (message: string | null) => void) {
   const t = useTranslations()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputId = useId()
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
@@ -27,7 +27,8 @@ export function useChatImageAttachment(setSendError: (message: string | null) =>
   }
 
   function openFilePicker() {
-    fileInputRef.current?.click()
+    const fileInput = globalThis.document.getElementById(fileInputId)
+    if (fileInput instanceof HTMLInputElement) fileInput.click()
   }
 
   function handleFileSelect(event: ChangeEvent<HTMLInputElement>) {
@@ -80,7 +81,7 @@ export function useChatImageAttachment(setSendError: (message: string | null) =>
   }
 
   return {
-    fileInputRef,
+    fileInputId,
     selectedImage,
     imagePreview,
     openFilePicker,
