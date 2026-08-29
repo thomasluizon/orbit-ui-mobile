@@ -546,3 +546,9 @@ export type {
   WebPushPermission,
   WebPushPreferenceStatus,
 } from './push-notification-settings'
+export {
+  tintProposedChildren,
+  type ProposedTintAdapter,
+  type ProposedTintDecision,
+  type ProposedTintElementProps,
+} from './proposed-tint'
