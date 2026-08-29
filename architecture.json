@@ -17307,6 +17307,7 @@
         "apps/web/__tests__/app/today-preload-hydration.test.tsx",
         "apps/web/__tests__/app/today-provider.test.tsx",
         "apps/web/__tests__/app/use-today-search.test.ts",
+        "apps/web/__tests__/app/use-today-selection.test.tsx",
         "apps/web/__tests__/app/use-today-view-sync.test.tsx",
         "apps/web/__tests__/components/ai-settings/ai-feature-toggles.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-page-view-switcher.test.tsx",
@@ -17352,6 +17353,7 @@
         "apps/web/__tests__/privacy-policy-disclosure.test.ts"
       ],
       "apps/web/components": [
+        "apps/web/__tests__/app/use-today-selection.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-agenda-view.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-day-detail.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-grid.test.tsx",

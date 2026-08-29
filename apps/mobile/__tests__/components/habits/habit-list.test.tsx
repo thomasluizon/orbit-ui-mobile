@@ -375,6 +375,12 @@ function pressConfirm(tree: any, label: string) {
 }
 
 type BulkActions = ReturnType<typeof useBulkActions>
+type AllDoneListEmptyComponent = React.ReactElement<{
+  children: React.ReactElement<{
+    actionLabel?: string
+    onAction?: () => void
+  }>
+}>
 
 function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
   const habitListRef = React.createRef<HabitListHandle>()
@@ -473,7 +479,11 @@ describe('HabitList', () => {
       )
     })
 
-    let emptyState = tree!.root.findByType(FlatList).props.ListEmptyComponent.props.children
+    let flatList = tree!.root.findAll((node) => node.type === FlatList)[0]
+    if (!flatList) throw new Error('All-done list is missing')
+    let emptyState = (
+      flatList.props.ListEmptyComponent as AllDoneListEmptyComponent
+    ).props.children
     expect(emptyState.props.actionLabel).toBeUndefined()
     expect(emptyState.props.onAction).toBeUndefined()
 
@@ -488,10 +498,16 @@ describe('HabitList', () => {
         />,
       )
     })
-    emptyState = tree!.root.findByType(FlatList).props.ListEmptyComponent.props.children
+    flatList = tree!.root.findAll((node) => node.type === FlatList)[0]
+    if (!flatList) throw new Error('All-done list is missing')
+    emptyState = (
+      flatList.props.ListEmptyComponent as AllDoneListEmptyComponent
+    ).props.children
     expect(emptyState.props.actionLabel).toBe('habits.seeUpcoming')
     expect(emptyState.props.onAction).toBe(onSeeUpcoming)
-    TestRenderer.act(() => emptyState.props.onAction())
+    const onAction = emptyState.props.onAction
+    if (!onAction) throw new Error('Upcoming action is missing')
+    TestRenderer.act(onAction)
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
