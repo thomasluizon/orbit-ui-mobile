@@ -1,13 +1,15 @@
 'use client'
 
-import { useCallback } from 'react'
-import { collectSelectableDescendantIds } from '@orbit/shared/utils'
+import { useCallback, useEffect, useRef } from 'react'
+import { collectSelectableDescendantIds, getTodayBoundary } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface TodaySelectionParams {
+  selectedDateStr: string
+  today: string
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>
   habitsCount: number
@@ -20,6 +22,8 @@ interface TodaySelectionParams {
  * log/skip/delete confirmations. Pure extraction of TodayPage.
  */
 export function useTodaySelection({
+  selectedDateStr,
+  today,
   habitsById,
   childrenByParent,
   habitsCount,
@@ -29,6 +33,9 @@ export function useTodaySelection({
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
+  const readOnly = getTodayBoundary(selectedDateStr, today) === 'read-only'
+  const previousSelectedDateRef = useRef(selectedDateStr)
+  const previousReadOnlyRef = useRef(readOnly)
 
   const getDescendantIds = useCallback(
     (parentId: string): string[] =>
@@ -74,10 +81,22 @@ export function useTodaySelection({
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
-    habitsById,
+    selectedDateStr,
+    readOnly,
     habitListRef,
     onSuccess: clearSelection,
   })
+  const { setShowBulkDeleteConfirm } = bulkActions
+
+  useEffect(() => {
+    const dateChanged = previousSelectedDateRef.current !== selectedDateStr
+    const becameReadOnly = !previousReadOnlyRef.current && readOnly
+    previousSelectedDateRef.current = selectedDateStr
+    previousReadOnlyRef.current = readOnly
+    if (!dateChanged && !becameReadOnly) return
+    setShowBulkDeleteConfirm(false)
+    clearSelection()
+  }, [clearSelection, readOnly, selectedDateStr, setShowBulkDeleteConfirm])
 
   return {
     handleToggleSelection,

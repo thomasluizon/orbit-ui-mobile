@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useSyncExternalStore } from 'react'
-import { isToday } from 'date-fns'
+import { hashKey } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
@@ -10,6 +11,7 @@ import {
   useHabits,
 } from '@/hooks/use-habits'
 import { buildTodayFilters } from './today-model'
+import type { TodayInitialHabits } from './today-initial-data'
 
 const SHOW_GENERAL_STORAGE_KEY = 'orbit_show_general_on_today'
 
@@ -27,7 +29,8 @@ function getShowGeneralServerSnapshot() {
 
 interface TodayHabitsDataParams {
   dateStr: string
-  selectedDate: Date
+  isTodayDate: boolean
+  initialHabits: TodayInitialHabits | null
 }
 
 export interface TodayHabitsData {
@@ -49,7 +52,8 @@ export interface TodayHabitsData {
  */
 export function useTodayHabitsData({
   dateStr,
-  selectedDate,
+  isTodayDate,
+  initialHabits,
 }: TodayHabitsDataParams): TodayHabitsData {
   const showGeneralOnToday = useSyncExternalStore(
     subscribeToShowGeneral,
@@ -62,16 +66,21 @@ export function useTodayHabitsData({
       buildTodayFilters({
         view: 'today',
         dateStr,
-        isTodayDate: isToday(selectedDate),
+        isTodayDate,
         searchQuery: '',
         selectedFrequency: null,
         selectedTagIds: [],
         showGeneralOnToday,
       }),
-    [dateStr, selectedDate, showGeneralOnToday],
+    [dateStr, isTodayDate, showGeneralOnToday],
   )
 
-  const habitsQuery = useHabits(filters)
+  const queryKey = habitKeys.list(filters)
+  const initialItems =
+    initialHabits && hashKey(initialHabits.queryKey) === hashKey(queryKey)
+      ? initialHabits.items
+      : undefined
+  const habitsQuery = useHabits(filters, initialItems)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size

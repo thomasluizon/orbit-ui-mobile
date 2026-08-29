@@ -17,11 +17,6 @@
       "count": 5
     }
   },
-  "app/(tabs)/calendar/_components/calendar-loading-bar.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/(tabs)/calendar/_components/calendar-range-view.tsx": {
     "local/spacing-scale": {
       "count": 2
@@ -95,11 +90,6 @@
       "count": 2
     }
   },
-  "app/(tabs)/profile/_components/profile-stat-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "app/(tabs)/profile/_components/profile-styles.ts": {
     "local/spacing-scale": {
       "count": 10
@@ -113,14 +103,6 @@
   "app/about.tsx": {
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "app/achievements.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
     }
   },
   "app/advanced-styles.ts": {
@@ -177,16 +159,6 @@
   "app/privacy.tsx": {
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "app/retrospective-styles.ts": {
-    "local/spacing-scale": {
-      "count": 26
-    }
-  },
-  "app/streak.tsx": {
-    "local/spacing-scale": {
-      "count": 12
     }
   },
   "app/support.tsx": {
@@ -309,11 +281,6 @@
       "count": 2
     }
   },
-  "components/gamification/achievements-sections.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/gamification/all-done-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
@@ -342,16 +309,6 @@
   "components/gamification/streak-freeze-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    }
-  },
-  "components/gamification/streak-sections-freeze.tsx": {
-    "local/no-decorative-glow": {
-      "count": 1
-    }
-  },
-  "components/gamification/streak-sections-styles.ts": {
-    "local/spacing-scale": {
-      "count": 17
     }
   },
   "components/gamification/welcome-back-toast.tsx": {
@@ -421,14 +378,6 @@
   "components/goals/goal-metrics-panel.tsx": {
     "local/spacing-scale": {
       "count": 5
-    }
-  },
-  "components/goals/goals-view.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/habit-list/date-group-section.tsx": {
@@ -708,7 +657,7 @@
   },
   "components/profile/profile-nav-icon.tsx": {
     "local/icon-size-grid": {
-      "count": 9
+      "count": 7
     },
     "local/no-sparkle-ai-marker": {
       "count": 2
@@ -736,16 +685,6 @@
     }
   },
   "components/referral/referral-prompt.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/review-moment/retrospective-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "components/review-moment/retrospective-locked-states.tsx": {
     "local/icon-size-grid": {
       "count": 1
     }

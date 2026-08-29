@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
-import { addDays, subDays, isToday } from 'date-fns'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { addDays, subDays } from 'date-fns'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { canNavigateToNextDay, formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
@@ -31,13 +31,17 @@ export interface TodayNavigation {
   dateNav: TodayDateNavBundle
 }
 
+function subscribeToHydrationToday() {
+  return () => {}
+}
+
 /**
  * Owns the Today screen's selected day and its navigation controls: resolves the
  * `?date=` deep link over the rolling `today`, derives the humanised date label,
  * and exposes the prev/today/next handlers plus the shared prop bundle consumed by
  * both the mobile and desktop date-navigation rows. Pure extraction of TodayPage.
  */
-export function useTodayNavigation(): TodayNavigation {
+export function useTodayNavigation(initialToday: string): TodayNavigation {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -50,7 +54,12 @@ export function useTodayNavigation(): TodayNavigation {
     return null
   }, [dateParam])
 
-  const today = useToday()
+  const localToday = useToday()
+  const today = useSyncExternalStore(
+    subscribeToHydrationToday,
+    () => localToday,
+    () => initialToday,
+  )
   const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -81,7 +90,7 @@ export function useTodayNavigation(): TodayNavigation {
     [selectedDate, locale],
   )
 
-  const isTodaySelected = isToday(selectedDate)
+  const isTodaySelected = selectedDateStr === today
 
   const dateNav = useMemo<TodayDateNavBundle>(
     () => ({

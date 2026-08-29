@@ -10,6 +10,23 @@ import { useUIStore } from '@/stores/ui-store'
 import { Shell412 } from '@/components/shell/shell-412'
 import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 
+let observerCallback: ((entries: Array<{ isIntersecting: boolean }>) => void) | null = null
+
+vi.stubGlobal(
+  'IntersectionObserver',
+  class {
+    constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
+      observerCallback = callback
+    }
+
+    observe() {
+      observerCallback?.([{ isIntersecting: true }])
+    }
+
+    disconnect() {}
+  },
+)
+
 function renderBackToTop() {
   const view = render(
     <ShellScrollerProvider>
@@ -23,10 +40,6 @@ function renderBackToTop() {
   return { ...view, scroller }
 }
 
-function setScrollTop(scroller: HTMLElement, value: number) {
-  Object.defineProperty(scroller, 'scrollTop', { configurable: true, value })
-}
-
 describe('BackToTop', () => {
   beforeEach(() => {
     useUIStore.setState({ isSelectMode: false })
@@ -37,23 +50,17 @@ describe('BackToTop', () => {
   })
 
   it('stays hidden until the shell scroller passes the threshold', () => {
-    const { scroller } = renderBackToTop()
+    renderBackToTop()
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
 
-    act(() => {
-      setScrollTop(scroller, 700)
-      scroller.dispatchEvent(new Event('scroll'))
-    })
+    act(() => observerCallback?.([{ isIntersecting: false }]))
 
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'true')
   })
 
   it('scrolls the shell back to the top when pressed', () => {
     const { scroller } = renderBackToTop()
-    act(() => {
-      setScrollTop(scroller, 700)
-      scroller.dispatchEvent(new Event('scroll'))
-    })
+    act(() => observerCallback?.([{ isIntersecting: false }]))
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'true')
 
     fireEvent.click(screen.getByTestId('back-to-top'))
@@ -65,11 +72,8 @@ describe('BackToTop', () => {
 
   it('stays hidden while multi-select is active even when scrolled', () => {
     useUIStore.setState({ isSelectMode: true })
-    const { scroller } = renderBackToTop()
-    act(() => {
-      setScrollTop(scroller, 700)
-      scroller.dispatchEvent(new Event('scroll'))
-    })
+    renderBackToTop()
+    act(() => observerCallback?.([{ isIntersecting: false }]))
 
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
   })

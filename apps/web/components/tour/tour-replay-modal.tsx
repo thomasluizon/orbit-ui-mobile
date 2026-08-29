@@ -10,12 +10,10 @@ import { resetTour } from '@/app/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile, TourSection } from '@orbit/shared/types'
-import { useProfile } from '@/hooks/use-profile'
 import { TOUR_SECTIONS, TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { getSectionStepCount } from '@orbit/shared/tour'
 import {
   CheckCircle,
-  Target,
   MessageCircle,
   CalendarDays,
   User,
@@ -24,7 +22,6 @@ import {
 
 const SECTION_ICON_MAP = {
   'check-circle': CheckCircle,
-  'target': Target,
   'message-circle': MessageCircle,
   'calendar-days': CalendarDays,
   'user': User,
@@ -32,7 +29,6 @@ const SECTION_ICON_MAP = {
 
 const SECTION_ROUTE_MAP: Record<TourSection, string> = {
   habits: '/',
-  goals: '/',
   chat: '/chat',
   calendar: '/calendar',
   profile: '/profile',
@@ -54,7 +50,6 @@ function getSectionCompletion(): Record<TourSection, boolean> {
   }
   return {
     habits: false,
-    goals: false,
     chat: false,
     calendar: false,
     profile: false,
@@ -69,11 +64,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
   const router = useRouter()
   const queryClient = useQueryClient()
   const { startFullTour, startSectionReplay } = useTourStore()
-  const { profile } = useProfile()
   const sectionCompletion = getSectionCompletion()
-  const availableSections = TOUR_SECTIONS.filter((section) =>
-    profile?.hasProAccess ? true : section !== 'goals',
-  )
 
   const { sheetRef, closeSheet } = useSheetHost()
 
@@ -124,7 +115,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
         </div>
 
         <div>
-          {availableSections.map((section, index) => {
+          {TOUR_SECTIONS.map((section, index) => {
             const iconKey = TOUR_SECTION_ICONS[section]
             const Icon = SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
             const stepCount = getSectionStepCount(section)

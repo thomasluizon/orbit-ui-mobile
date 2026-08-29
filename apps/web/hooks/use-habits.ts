@@ -23,6 +23,7 @@ import {
   restoreHabitLists,
   snapshotHabitLists,
   updateHabitLists,
+  type HabitListSnapshots,
 } from '@/lib/habit-mutation-helpers'
 import type {
   HabitScheduleItem,
@@ -63,6 +64,33 @@ import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+
+function restoreRejectedBulkItems(
+  queryClient: ReturnType<typeof useQueryClient>,
+  previousLists: HabitListSnapshots,
+  results: readonly { habitId: string; status: 'Success' | 'Failed' }[],
+): void {
+  const rejectedHabitIds = results.flatMap((item) =>
+    item.status !== 'Success' ? [item.habitId] : [],
+  )
+
+  for (const [queryKey, previousItems] of previousLists) {
+    if (!previousItems) continue
+
+    queryClient.setQueryData<HabitScheduleItem[]>(queryKey, (currentItems) => {
+      if (!currentItems) return currentItems
+
+      return rejectedHabitIds.reduce((nextItems, habitId) => {
+        const previousHabit = findHabitInList(previousItems, habitId)
+        return previousHabit
+          ? optimisticPatchHabit(nextItems, habitId, {
+              isCompleted: previousHabit.isCompleted,
+            })
+          : nextItems
+      }, currentItems)
+    })
+  }
+}
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -541,6 +569,27 @@ export function useBulkLogHabits() {
   return useMutation({
     mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
 
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const completedIds = items.map((item) => item.habitId)
+      updateHabitLists(queryClient, (currentItems) =>
+        completedIds.reduce(
+          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+          currentItems,
+        ),
+      )
+      return { previousLists }
+    },
+
+    onError: (_error, _items, context) => {
+      if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
+    },
+
+    onSuccess: (result, _items, context) => {
+      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
+    },
+
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
@@ -556,6 +605,27 @@ export function useBulkSkipHabits() {
 
   return useMutation({
     mutationFn: (items: BulkSkipItemRequest[]) => bulkSkipHabitsAction(items),
+
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const completedIds = items.map((item) => item.habitId)
+      updateHabitLists(queryClient, (currentItems) =>
+        completedIds.reduce(
+          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+          currentItems,
+        ),
+      )
+      return { previousLists }
+    },
+
+    onError: (_error, _items, context) => {
+      if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
+    },
+
+    onSuccess: (result, _items, context) => {
+      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

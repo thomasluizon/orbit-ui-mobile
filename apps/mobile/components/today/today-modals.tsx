@@ -27,7 +27,7 @@ interface TodayModalsProps {
 }
 
 /**
- * Renders the Today screen's overlay layer: the create/edit/detail habit
+ * Renders the Today screen's overlay layer: the create/edit habit
  * surfaces, the bulk-action confirm dialogs, the create-goal modal,
  * and the referral drawer. Presentational, extracted from TodayScreen unchanged.
  */

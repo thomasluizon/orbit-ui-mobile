@@ -253,7 +253,11 @@ describe('HabitDetailScreen', () => {
     const historicalChild = tree!.root.findByProps({ testID: 'child-child-1' })
     expect(historicalChild.props.state).toBe('done')
     historicalChild.props.actions.onUnlog()
-    expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date: '2026-08-28' })
+    expect(mocks.log).toHaveBeenLastCalledWith({
+      habitId: 'child-1',
+      date: '2026-08-28',
+      intent: 'unlog',
+    })
   })
 
   it.each(['2026-08-29', '2026-08-28'])(
@@ -271,7 +275,7 @@ describe('HabitDetailScreen', () => {
       expect(child.props.readOnly).toBe(false)
 
       child.props.actions.onUnlog()
-      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date })
+      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
 })

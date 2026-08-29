@@ -292,6 +292,8 @@ export {
 } from './habit-list-progress'
 export type {
   HabitDateBucket,
+  HabitResolution,
+  HabitResolutionMode,
   ParentPromptProgress,
   ParentPromptProgressOptions,
 } from './habit-list-progress'
@@ -317,6 +319,7 @@ export {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from './notification-actions'
 export {
   buildTempGoal,
@@ -533,6 +536,18 @@ export type {
   SupportProfileFields,
   SupportRequestBody,
 } from './support'
+export {
+  achievementGlyphKey,
+  buildGoalMovePositions,
+  buildProtectedDayLabels,
+  filterProgressGoals,
+  getAvailableStreakRepairDate,
+  getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
+  PROGRESS_GOAL_FILTERS,
+  visibleProgressAchievements,
+} from './progress'
+export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
 export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,

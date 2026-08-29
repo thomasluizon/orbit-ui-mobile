@@ -9,6 +9,7 @@ import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useTodayNavigation, type TodayNavigation } from './use-today-navigation'
 import { useTodayHabitsData, type TodayHabitsData } from './use-today-habits-data'
 import { useTodaySelection } from './use-today-selection'
+import type { TodayInitialHabits } from './today-initial-data'
 
 export interface TodayView {
   nav: TodayNavigation
@@ -22,20 +23,23 @@ export interface TodayView {
   isSelectMode: boolean
   selectedHabitIds: Set<string>
   toggleSelectMode: () => void
-  showCompleted: boolean
-  setShowCompleted: (value: boolean) => void
   setShowCreateModal: (value: boolean) => void
 }
 
-export function useTodayPage(): TodayView {
+export function useTodayPage(
+  initialToday: string,
+  initialHabits: TodayInitialHabits | null,
+): TodayView {
   const prefersReducedMotion = useReducedMotion()
-  const nav = useTodayNavigation()
-  const data = useTodayHabitsData({ dateStr: nav.dateStr, selectedDate: nav.selectedDate })
+  const nav = useTodayNavigation(initialToday)
+  const data = useTodayHabitsData({
+    dateStr: nav.dateStr,
+    isTodayDate: nav.isTodaySelected,
+    initialHabits,
+  })
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const toggleSelectMode = useUIStore((state) => state.toggleSelectMode)
-  const showCompleted = useUIStore((state) => state.showCompleted)
-  const setShowCompleted = useUIStore((state) => state.setShowCompleted)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const habitListRef = useRef<HabitListHandle>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
@@ -43,6 +47,8 @@ export function useTodayPage(): TodayView {
   useOverlayEscape({ open: isSelectMode, onDismiss: toggleSelectMode })
 
   const selection = useTodaySelection({
+    selectedDateStr: nav.dateStr,
+    today: nav.today,
     habitsById: data.habitsById,
     childrenByParent: data.childrenByParent,
     habitsCount: data.habitsCount,
@@ -65,8 +71,6 @@ export function useTodayPage(): TodayView {
     isSelectMode,
     selectedHabitIds,
     toggleSelectMode,
-    showCompleted,
-    setShowCompleted,
     setShowCreateModal,
   }
 }

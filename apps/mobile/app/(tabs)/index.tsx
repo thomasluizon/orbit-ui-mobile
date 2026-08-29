@@ -10,7 +10,6 @@ import {
 } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
-import { useAdMob } from '@/hooks/use-ad-mob'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
@@ -41,14 +40,12 @@ export default function TodayScreen() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { showInterstitialIfDue } = useAdMob()
   const date = useTodayDate()
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const habitListRef = useRef<HabitListHandle>(null)
-  const showCompleted = useUIStore((state) => state.showCompleted)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
@@ -73,20 +70,14 @@ export default function TodayScreen() {
   const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
-    habitsById,
+    selectedDateStr: date.dateStr,
+    today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
     visibleHabitIds,
     closeControlsMenu,
   })
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
-
-  const handleHabitLogged = useCallback((habitId: string) => {
-    habitListRef.current?.markRecentlyCompleted(habitId)
-    habitListRef.current?.checkAndPromptParentLog(habitId)
-    void showInterstitialIfDue()
-  }, [showInterstitialIfDue])
-
   const listHeader = (
     <>
       <TodayDateControl
@@ -116,14 +107,16 @@ export default function TodayScreen() {
         view="today"
         filters={filters}
         selectedDate={date.selectedDate}
-        showCompleted={showCompleted}
+        showCompleted={false}
         isSelectMode={isSelectMode}
         selectedHabitIds={selectedHabitIds}
         listHeader={listHeader}
         onCreatePress={() => setShowCreateModal(true)}
-        onSeeUpcoming={date.goToNextDay}
-        onLogHabit={(habit) => handleHabitLogged(habit.id)}
-        onDetailHabit={(habit) => router.push({ pathname: '/habits/[id]', params: { id: habit.id, date: date.dateStr, from: 'today' } })}
+        onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
+        onDetailHabit={(habit) => router.push({
+          pathname: '/habits/[id]',
+          params: { id: habit.id, date: date.dateStr, from: 'today' },
+        })}
         onEditHabit={(habit, onSaved) => {
           setEditHabit(habit)
           setEditHabitOnSaved(() => onSaved ?? null)
