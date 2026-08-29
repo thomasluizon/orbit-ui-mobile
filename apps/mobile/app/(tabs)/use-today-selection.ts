@@ -7,6 +7,7 @@ import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 
 interface TodaySelectionInput {
+  selectedDateStr: string;
   habitsById: Map<string, NormalizedHabit>;
   habitListRef: RefObject<HabitListHandle | null>;
   habitListAllLoadedIds: Set<string>;
@@ -21,6 +22,7 @@ interface TodaySelectionInput {
  * from TodayScreen unchanged.
  */
 export function useTodaySelection({
+  selectedDateStr,
   habitsById,
   habitListRef,
   habitListAllLoadedIds,
@@ -38,6 +40,7 @@ export function useTodaySelection({
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
+    selectedDateStr,
     habitsById,
     habitListRef,
     onSuccess: clearSelection,

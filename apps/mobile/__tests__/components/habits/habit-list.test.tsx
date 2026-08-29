@@ -297,7 +297,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -410,7 +410,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -1122,7 +1122,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
-      ref.current?.checkAndPromptParentLog('child')
+      ref.current?.checkAndPromptParentLog('child', TODAY)
       await Promise.resolve()
     })
 
@@ -1168,7 +1168,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child-b')
-      ref.current?.checkAndPromptParentLog('child-b')
+      ref.current?.checkAndPromptParentLog('child-b', TODAY)
       await Promise.resolve()
     })
 
@@ -1210,7 +1210,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
-      ref.current?.checkAndPromptParentLog('child')
+      ref.current?.checkAndPromptParentLog('child', TODAY)
       await Promise.resolve()
     })
 
@@ -1251,7 +1251,7 @@ describe('HabitList', () => {
 
     TestRenderer.act(() => {
       ref.current?.markRecentlyCompleted('child')
-      ref.current?.checkAndPromptParentLog('child')
+      ref.current?.checkAndPromptParentLog('child', TODAY)
     })
 
     expect(logMutateAsync).not.toHaveBeenCalledWith(
@@ -1314,6 +1314,62 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
+  it('skips the final child and every ancestor on the viewed historical date', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: 'grandparent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      scheduledDates: [YESTERDAY],
+    })
+    seedHabits([grandparent, parent, child])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      const childRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === 'child')
+      childRow?.props.actions.onSkip()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(skipMutateAsync.mock.calls).toEqual([
+      [{ habitId: 'child', date: YESTERDAY }],
+      [{ habitId: 'parent', date: YESTERDAY }],
+      [{ habitId: 'grandparent', date: YESTERDAY }],
+    ])
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
+  })
+
   it('skips the parent once every sub-habit is skipped', async () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -1352,8 +1408,8 @@ describe('HabitList', () => {
 
     await skipChild('child-b')
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
@@ -1455,7 +1511,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
   })
 
-  it('skips an overdue habit with no date immediately', async () => {
+  it('skips an overdue habit on the viewed date immediately', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -1482,7 +1538,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', date: TODAY })
   })
 
   it('renders a selectable overdue row in select mode', () => {
@@ -1655,9 +1711,9 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child-a')
-      ref.current?.checkAndPromptParentLog('child-b')
-      ref.current?.checkAndPromptParentLog('child-c')
+      ref.current?.checkAndPromptParentLog('child-a', TODAY)
+      ref.current?.checkAndPromptParentLog('child-b', TODAY)
+      ref.current?.checkAndPromptParentLog('child-c', TODAY)
       await Promise.resolve()
     })
 
@@ -1665,7 +1721,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
 
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child-a')
+      ref.current?.checkAndPromptParentLog('child-a', TODAY)
       await Promise.resolve()
     })
 
@@ -1686,20 +1742,20 @@ describe('HabitList', () => {
       tree.update(renderList())
     })
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child')
+      ref.current?.checkAndPromptParentLog('child', TODAY)
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch()
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child')
+      ref.current?.checkAndPromptParentLog('child', TODAY)
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch(false)
     refetch()
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child')
+      ref.current?.checkAndPromptParentLog('child', TODAY)
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(2)

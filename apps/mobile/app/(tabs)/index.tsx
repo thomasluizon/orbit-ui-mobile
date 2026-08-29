@@ -72,6 +72,7 @@ export default function TodayScreen() {
   const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
+    selectedDateStr: date.dateStr,
     habitsById,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
@@ -81,9 +82,9 @@ export default function TodayScreen() {
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
   const handleHabitLogged = useCallback((habitId: string) => {
     habitListRef.current?.markRecentlyCompleted(habitId)
-    habitListRef.current?.checkAndPromptParentLog(habitId)
+    habitListRef.current?.checkAndPromptParentLog(habitId, date.today)
     void showInterstitialIfDue()
-  }, [showInterstitialIfDue])
+  }, [date.today, showInterstitialIfDue])
 
   const listHeader = (
     <>

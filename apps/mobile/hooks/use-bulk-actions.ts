@@ -6,6 +6,7 @@ import type { HabitListHandle } from '@/components/habit-list'
 
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
+  selectedDateStr: string
   habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
@@ -13,6 +14,7 @@ interface UseBulkActionsOptions {
 
 export function useBulkActions({
   selectedHabitIds,
+  selectedDateStr,
   habitsById,
   habitListRef,
   onSuccess,
@@ -31,9 +33,9 @@ export function useBulkActions({
         continue
       }
 
-      habitListRef.current?.checkAndPromptParentLog(id)
+      habitListRef.current?.checkAndPromptParentLog(id, selectedDateStr)
     }
-  }, [habitsById, habitListRef])
+  }, [habitsById, habitListRef, selectedDateStr])
 
   const applyBulkMutationSuccesses = useCallback(
     (results: readonly { status: string; habitId: string }[]) => {
@@ -66,23 +68,27 @@ export function useBulkActions({
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      const result = await bulkLog.mutateAsync(ids.map((habitId) => ({ habitId })))
+      const result = await bulkLog.mutateAsync(
+        ids.map((habitId) => ({ habitId, date: selectedDateStr })),
+      )
       applyBulkMutationSuccesses(result.results)
     } finally {
       onSuccess()
     }
-  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, selectedHabitIds])
+  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, selectedDateStr, selectedHabitIds])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      const result = await bulkSkip.mutateAsync(ids.map((habitId) => ({ habitId })))
+      const result = await bulkSkip.mutateAsync(
+        ids.map((habitId) => ({ habitId, date: selectedDateStr })),
+      )
       applyBulkMutationSuccesses(result.results)
     } finally {
       onSuccess()
     }
-  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, selectedHabitIds])
+  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, selectedDateStr, selectedHabitIds])
 
   return {
     showBulkDeleteConfirm,

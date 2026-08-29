@@ -8,6 +8,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
+  selectedDateStr: string
   habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
@@ -15,6 +16,7 @@ interface UseBulkActionsOptions {
 
 export function useBulkActions({
   selectedHabitIds,
+  selectedDateStr,
   habitsById,
   habitListRef,
   onSuccess,
@@ -33,9 +35,9 @@ export function useBulkActions({
         continue
       }
 
-      habitListRef.current?.checkAndPromptParentLog(id)
+      habitListRef.current?.checkAndPromptParentLog(id, selectedDateStr)
     }
-  }, [habitsById, habitListRef])
+  }, [habitsById, habitListRef, selectedDateStr])
 
   const confirmBulkDelete = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
@@ -53,7 +55,9 @@ export function useBulkActions({
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      const result = await bulkLog.mutateAsync(ids.map((id) => ({ habitId: id })))
+      const result = await bulkLog.mutateAsync(
+        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
+      )
       const successIds = result.results.flatMap((r) =>
         r.status === 'Success' ? [r.habitId] : [],
       )
@@ -65,13 +69,15 @@ export function useBulkActions({
     } finally {
       onSuccess()
     }
-  }, [selectedHabitIds, bulkLog, habitListRef, onSuccess, promptParentLogsForBulkSuccesses])
+  }, [selectedHabitIds, selectedDateStr, bulkLog, habitListRef, onSuccess, promptParentLogsForBulkSuccesses])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      const result = await bulkSkip.mutateAsync(ids.map((id) => ({ habitId: id })))
+      const result = await bulkSkip.mutateAsync(
+        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
+      )
       const successIds = result.results.flatMap((r) =>
         r.status === 'Success' ? [r.habitId] : [],
       )
@@ -83,7 +89,7 @@ export function useBulkActions({
     } finally {
       onSuccess()
     }
-  }, [selectedHabitIds, bulkSkip, habitListRef, onSuccess, promptParentLogsForBulkSuccesses])
+  }, [selectedHabitIds, selectedDateStr, bulkSkip, habitListRef, onSuccess, promptParentLogsForBulkSuccesses])
 
   return {
     showBulkDeleteConfirm,

@@ -116,7 +116,7 @@ export interface HabitListHandle {
   allCollapsed: boolean
   allLoadedIds: Set<string>
   markRecentlyCompleted: (habitId: string) => void
-  checkAndPromptParentLog: (childHabitId: string) => void
+  checkAndPromptParentLog: (childHabitId: string, settlementDate: string) => void
 }
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
@@ -543,10 +543,9 @@ export function HabitList({
   const [isMovingParent, setIsMovingParent] = useState(false)
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
 
-  function checkAndPromptParentLog(childHabitId: string, settlementDate?: string) {
+  function checkAndPromptParentLog(childHabitId: string, settlementDate: string) {
     const data = promptDataRef.current
     if (!data) return
-    const targetDate = settlementDate ?? data.selectedDateStr
     const child = data.habitsById.get(childHabitId)
     if (!child?.parentId) return
     const parent = data.habitsById.get(child.parentId)
@@ -562,7 +561,7 @@ export function HabitList({
     if (total > 0 && done >= total) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
         promptedParentIdsRef.current.add(parent.id)
-        void settleCompletedParent(parent.id, loggedDone > 0 ? 'log' : 'skip', targetDate)
+        void settleCompletedParent(parent.id, loggedDone > 0 ? 'log' : 'skip', settlementDate)
       }
     } else {
       promptedParentIdsRef.current.delete(parent.id)
@@ -712,18 +711,18 @@ export function HabitList({
 
   async function handleSkip(habitId: string) {
     try {
-      await skipHabit.mutateAsync({ habitId })
+      await skipHabit.mutateAsync({ habitId, date: selectedDateStr })
       skippedChildIdsRef.current.add(habitId)
       markRecentlyCompleted(habitId)
-      checkAndPromptParentLog(habitId)
+      checkAndPromptParentLog(habitId, selectedDateStr)
     } catch {
     }
   }
 
   function handleLogged(
     habitId: string,
-    markAsRecentlyCompleted = true,
-    settlementDate?: string,
+    markAsRecentlyCompleted: boolean,
+    settlementDate: string,
   ) {
     skippedChildIdsRef.current.delete(habitId)
     if (markAsRecentlyCompleted) {
@@ -1110,7 +1109,7 @@ export function HabitList({
         open={showDetailDrawer}
         onOpenChange={setShowDetailDrawer}
         habit={selectedHabit}
-        onLogged={handleLogged}
+        onLogged={(habitId) => handleLogged(habitId, true, todayStr)}
       />
 
       <EditHabitModal

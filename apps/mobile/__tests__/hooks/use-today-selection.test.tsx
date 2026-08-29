@@ -53,6 +53,7 @@ function renderSelection(options: RenderOptions = {}) {
 
   function Harness() {
     ref.current = useTodaySelection({
+      selectedDateStr: '2026-04-01',
       habitsById: new Map<string, NormalizedHabit>(),
       habitListRef,
       habitListAllLoadedIds: options.habitListAllLoadedIds ?? new Set<string>(),

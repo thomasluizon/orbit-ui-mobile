@@ -140,7 +140,7 @@ export interface HabitListHandle {
   collapseAll: () => void
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
-  checkAndPromptParentLog: (childHabitId: string) => void
+  checkAndPromptParentLog: (childHabitId: string, settlementDate: string) => void
   refetch: () => void
   scrollToOffset: (offset: number) => void
 }
@@ -652,10 +652,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt])
 
     const checkAndPromptParentLog = useCallback(
-      function checkAndSettleParent(childHabitId: string, settlementDate?: string) {
+      function checkAndSettleParent(childHabitId: string, settlementDate: string) {
         const data = promptDataRef.current
         if (!data) return
-        const targetDate = settlementDate ?? data.selectedDateStr
 
         const childHabit = data.habitsById.get(childHabitId)
         if (!childHabit?.parentId) return
@@ -679,13 +678,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               try {
                 if (mode === 'skip') {
                   skippedChildIdsRef.current.add(parentHabit.id)
-                  await skipMutation.mutateAsync({ habitId: parentHabit.id, date: targetDate })
+                  await skipMutation.mutateAsync({ habitId: parentHabit.id, date: settlementDate })
                 } else {
                   skippedChildIdsRef.current.delete(parentHabit.id)
-                  await logMutation.mutateAsync({ habitId: parentHabit.id, date: targetDate })
+                  await logMutation.mutateAsync({ habitId: parentHabit.id, date: settlementDate })
                   void showInterstitialIfDue()
                 }
-                checkAndSettleParent(parentHabit.id, targetDate)
+                checkAndSettleParent(parentHabit.id, settlementDate)
               } catch {
                 promptedParentIdsRef.current.delete(parentHabit.id)
                 clearRecentlyCompleted(parentHabit.id)
@@ -707,7 +706,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const handleLogged = useCallback(
-      (habitId: string, markAsRecentlyCompleted = true, settlementDate?: string) => {
+      (habitId: string, markAsRecentlyCompleted: boolean, settlementDate: string) => {
         skippedChildIdsRef.current.delete(habitId)
         if (markAsRecentlyCompleted) {
           markRecentlyCompleted(habitId)
@@ -744,15 +743,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const skipHabit = useCallback(async (habitId: string) => {
       try {
-        await skipMutation.mutateAsync({ habitId })
+        await skipMutation.mutateAsync({ habitId, date: selectedDateStr })
         skippedChildIdsRef.current.add(habitId)
         markRecentlyCompleted(habitId)
-        checkAndPromptParentLog(habitId)
+        checkAndPromptParentLog(habitId, selectedDateStr)
       } catch {
       }
     }, [
       checkAndPromptParentLog,
       markRecentlyCompleted,
+      selectedDateStr,
       skipMutation,
     ])
 

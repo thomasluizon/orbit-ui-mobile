@@ -43,6 +43,7 @@ export function useTodayPage(): TodayView {
   useOverlayEscape({ open: isSelectMode, onDismiss: toggleSelectMode })
 
   const selection = useTodaySelection({
+    selectedDateStr: nav.dateStr,
     habitsById: data.habitsById,
     childrenByParent: data.childrenByParent,
     habitsCount: data.habitsCount,

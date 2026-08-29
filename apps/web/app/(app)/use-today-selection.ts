@@ -8,6 +8,7 @@ import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface TodaySelectionParams {
+  selectedDateStr: string
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>
   habitsCount: number
@@ -20,6 +21,7 @@ interface TodaySelectionParams {
  * log/skip/delete confirmations. Pure extraction of TodayPage.
  */
 export function useTodaySelection({
+  selectedDateStr,
   habitsById,
   childrenByParent,
   habitsCount,
@@ -74,6 +76,7 @@ export function useTodaySelection({
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
+    selectedDateStr,
     habitsById,
     habitListRef,
     onSuccess: clearSelection,
