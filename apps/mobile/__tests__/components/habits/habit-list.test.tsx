@@ -10,6 +10,7 @@ import { tourScrollRegistry } from '@/components/tour/tour-target-context'
 import { useTourStore } from '@/stores/tour-store'
 
 const TODAY = formatAPIDate(new Date())
+const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
@@ -1125,7 +1126,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1171,7 +1172,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1213,7 +1214,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1253,40 +1254,43 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: 'parent' }),
+    )
   })
 
-  it('settles the next ancestor after automatically logging its completed child parent', async () => {
+  it('logs the final child and every ancestor on the viewed historical date', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
       title: 'Child',
       parentId: 'parent',
-      isCompleted: true,
+      scheduledDates: [YESTERDAY],
     })
     seedHabits([grandparent, parent, child])
 
-    const ref = React.createRef<HabitListHandle>()
     let tree: any
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitList
-          ref={ref}
           view="today"
           filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -1294,13 +1298,19 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child')
+      const childRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === 'child')
+      await childRow?.props.actions.onLog()
       await Promise.resolve()
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
+    expect(logMutateAsync.mock.calls).toEqual([
+      [{ habitId: 'child', date: YESTERDAY }],
+      [{ habitId: 'parent', date: YESTERDAY }],
+      [{ habitId: 'grandparent', date: YESTERDAY }],
+    ])
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1336,13 +1346,15 @@ describe('HabitList', () => {
 
     await skipChild('child-a')
 
-    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(skipMutateAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: 'parent' }),
+    )
 
     await skipChild('child-b')
 
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1650,7 +1662,7 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
 
     await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog('child-a')

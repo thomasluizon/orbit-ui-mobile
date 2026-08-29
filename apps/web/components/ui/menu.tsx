@@ -124,7 +124,10 @@ function adjacentTabStop(
   panel: HTMLElement | null,
 ): HTMLElement | null {
   const candidates = Array.from(document.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR))
-    .filter((candidate) => !panel?.contains(candidate))
+    .filter((candidate) => (
+      !panel?.contains(candidate)
+      && (candidate === anchor || !anchor.contains(candidate))
+    ))
   const anchorIndex = candidates.indexOf(anchor)
   if (anchorIndex < 0) return null
   const step = backwards ? -1 : 1

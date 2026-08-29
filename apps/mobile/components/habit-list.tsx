@@ -652,9 +652,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt])
 
     const checkAndPromptParentLog = useCallback(
-      function checkAndSettleParent(childHabitId: string) {
+      function checkAndSettleParent(childHabitId: string, settlementDate?: string) {
         const data = promptDataRef.current
         if (!data) return
+        const targetDate = settlementDate ?? data.selectedDateStr
 
         const childHabit = data.habitsById.get(childHabitId)
         if (!childHabit?.parentId) return
@@ -678,13 +679,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               try {
                 if (mode === 'skip') {
                   skippedChildIdsRef.current.add(parentHabit.id)
-                  await skipMutation.mutateAsync({ habitId: parentHabit.id })
+                  await skipMutation.mutateAsync({ habitId: parentHabit.id, date: targetDate })
                 } else {
                   skippedChildIdsRef.current.delete(parentHabit.id)
-                  await logMutation.mutateAsync({ habitId: parentHabit.id })
+                  await logMutation.mutateAsync({ habitId: parentHabit.id, date: targetDate })
                   void showInterstitialIfDue()
                 }
-                checkAndSettleParent(parentHabit.id)
+                checkAndSettleParent(parentHabit.id, targetDate)
               } catch {
                 promptedParentIdsRef.current.delete(parentHabit.id)
                 clearRecentlyCompleted(parentHabit.id)
@@ -706,13 +707,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const handleLogged = useCallback(
-      (habitId: string, markAsRecentlyCompleted = true) => {
+      (habitId: string, markAsRecentlyCompleted = true, settlementDate?: string) => {
         skippedChildIdsRef.current.delete(habitId)
         if (markAsRecentlyCompleted) {
           markRecentlyCompleted(habitId)
         }
 
-        checkAndPromptParentLog(habitId)
+        checkAndPromptParentLog(habitId, settlementDate)
         void showInterstitialIfDue()
       },
       [checkAndPromptParentLog, markRecentlyCompleted, showInterstitialIfDue],
@@ -726,7 +727,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           await logMutation.mutateAsync(
             selectedDate ? { habitId, date: selectedDateStr } : { habitId },
           )
-          handleLogged(habitId, false)
+          handleLogged(habitId, false, selectedDateStr)
         } catch {
           clearRecentlyCompleted(habitId)
         }

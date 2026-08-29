@@ -150,7 +150,9 @@ describe('Menu', () => {
           <button type="button">Unrelated</button>
           <button type="button">Before</button>
           <div ref={anchorRef} tabIndex={-1}>
+            <button type="button">Primary action</button>
             <span>Habit row</span>
+            <button type="button">Trailing control</button>
           </div>
           <button type="button">After</button>
           <Menu

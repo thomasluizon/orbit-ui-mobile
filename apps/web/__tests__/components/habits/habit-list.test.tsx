@@ -8,6 +8,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 
 const TODAY = formatAPIDate(new Date())
+const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
@@ -714,7 +715,7 @@ describe('HabitList', () => {
     })
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child' })
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent', date: TODAY })
   })
 
   it('settles the parent immediately when the last child is marked completed', async () => {
@@ -745,7 +746,7 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
   })
 
   it('settles the parent when the final child is logged before the snapshot reflects its completion', async () => {
@@ -783,7 +784,7 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child-b')
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
   })
 
   it('settles the parent exactly once for a burst of sibling completions', async () => {
@@ -888,7 +889,7 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
   })
 
   it('does not prompt a parent that is only due in the future', () => {
@@ -923,25 +924,27 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
   })
 
-  it('settles the next ancestor after auto-logging a parent', async () => {
+  it('logs the final child and every ancestor on the viewed historical date', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
       title: 'Child',
       parentId: 'parent',
-      isCompleted: true,
+      scheduledDates: [YESTERDAY],
     })
 
     mockHabitsData.habitsById.set(grandparent.id, grandparent)
@@ -951,16 +954,26 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(parent.id, [child.id])
     mockHabitsData.topLevelHabits = [grandparent]
 
-    const ref = React.createRef<HabitListHandle>()
-
-    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+    renderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+      />,
+    )
 
     await act(async () => {
-      ref.current?.checkAndPromptParentLog('child')
+      fireEvent.click(screen.getByTestId('log-child'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
+    expect(logHabitMutateAsync).toHaveBeenCalledTimes(3)
+    expect(logHabitMutateAsync.mock.calls).toEqual([
+      [{ habitId: 'child', date: YESTERDAY }],
+      [{ habitId: 'parent', date: YESTERDAY }],
+      [{ habitId: 'grandparent', date: YESTERDAY }],
+    ])
   })
 
   it('does not prompt the parent while an overdue sub-habit is still unresolved', () => {
@@ -1035,7 +1048,9 @@ describe('HabitList', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-a'))
     })
-    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: 'parent' }),
+    )
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-b'))
@@ -1043,7 +1058,7 @@ describe('HabitList', () => {
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
-    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
   })
 
   it('stores drill edit onSaved callback without invoking refresh eagerly', () => {

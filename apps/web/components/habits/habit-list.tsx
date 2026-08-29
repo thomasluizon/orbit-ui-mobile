@@ -543,9 +543,10 @@ export function HabitList({
   const [isMovingParent, setIsMovingParent] = useState(false)
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
 
-  function checkAndPromptParentLog(childHabitId: string) {
+  function checkAndPromptParentLog(childHabitId: string, settlementDate?: string) {
     const data = promptDataRef.current
     if (!data) return
+    const targetDate = settlementDate ?? data.selectedDateStr
     const child = data.habitsById.get(childHabitId)
     if (!child?.parentId) return
     const parent = data.habitsById.get(child.parentId)
@@ -561,24 +562,28 @@ export function HabitList({
     if (total > 0 && done >= total) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
         promptedParentIdsRef.current.add(parent.id)
-        void settleCompletedParent(parent.id, loggedDone > 0 ? 'log' : 'skip')
+        void settleCompletedParent(parent.id, loggedDone > 0 ? 'log' : 'skip', targetDate)
       }
     } else {
       promptedParentIdsRef.current.delete(parent.id)
     }
   }
 
-  async function settleCompletedParent(parentId: string, mode: 'log' | 'skip') {
+  async function settleCompletedParent(
+    parentId: string,
+    mode: 'log' | 'skip',
+    settlementDate: string,
+  ) {
     markRecentlyCompleted(parentId)
     try {
       if (mode === 'skip') {
         skippedChildIdsRef.current.add(parentId)
-        await skipHabit.mutateAsync({ habitId: parentId })
+        await skipHabit.mutateAsync({ habitId: parentId, date: settlementDate })
       } else {
         skippedChildIdsRef.current.delete(parentId)
-        await logHabit.mutateAsync({ habitId: parentId })
+        await logHabit.mutateAsync({ habitId: parentId, date: settlementDate })
       }
-      checkAndPromptParentLog(parentId)
+      checkAndPromptParentLog(parentId, settlementDate)
     } catch {
       promptedParentIdsRef.current.delete(parentId)
       clearRecentlyCompleted(parentId)
@@ -715,13 +720,17 @@ export function HabitList({
     }
   }
 
-  function handleLogged(habitId: string, markAsRecentlyCompleted = true) {
+  function handleLogged(
+    habitId: string,
+    markAsRecentlyCompleted = true,
+    settlementDate?: string,
+  ) {
     skippedChildIdsRef.current.delete(habitId)
     if (markAsRecentlyCompleted) {
       markRecentlyCompleted(habitId)
     }
 
-    checkAndPromptParentLog(habitId)
+    checkAndPromptParentLog(habitId, settlementDate)
   }
 
   async function handleDirectLog(habitId: string) {
@@ -730,7 +739,7 @@ export function HabitList({
       await logHabit.mutateAsync(
         selectedDate ? { habitId, date: selectedDateStr } : { habitId },
       )
-      handleLogged(habitId, false)
+      handleLogged(habitId, false, selectedDateStr)
     } catch {
       clearRecentlyCompleted(habitId)
     }
