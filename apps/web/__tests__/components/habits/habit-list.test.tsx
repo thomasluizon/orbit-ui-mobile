@@ -617,7 +617,7 @@ describe('HabitList', () => {
   })
 
   it('unlogs only the viewed historical occurrence', async () => {
-    let occurrences = [
+    let occurrences: NormalizedHabit['instances'] = [
       { date: YESTERDAY, status: 'Completed', logId: 'log-yesterday' },
       { date: TODAY, status: 'Pending', logId: null },
     ]
