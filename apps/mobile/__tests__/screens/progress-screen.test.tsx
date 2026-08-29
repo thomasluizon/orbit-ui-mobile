@@ -90,6 +90,7 @@ const mocks = vi.hoisted(() => ({
       daysUntilNextFreeze: 3,
       freezesAvailableToUse: 2,
       canEarnMore: true,
+      isRepairAvailable: false,
     },
     isFrozenToday: false,
     freezesAvailable: 2,
@@ -164,6 +165,7 @@ describe('mobile ProgressContent', () => {
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
     mocks.freeze.streakInfo.lastActiveDate = null
+    mocks.freeze.streakInfo.isRepairAvailable = false
   })
 
   it('renders the API window figures and all four section labels', async () => {
@@ -193,6 +195,7 @@ describe('mobile ProgressContent', () => {
 
   it('dispatches the explicit repair and finish writes', async () => {
     mocks.freeze.streakInfo.lastActiveDate = localDateOffset(-2)
+    mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.goals.data.allGoals = [{
       id: 'goal-1', title: 'Read 10 books', description: null, targetValue: 10,
       currentValue: 10, unit: 'books', status: 'Active', deadline: null, position: 0,

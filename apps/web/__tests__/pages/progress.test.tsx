@@ -85,6 +85,7 @@ const mocks = vi.hoisted(() => ({
       daysUntilNextFreeze: 3,
       freezesAvailableToUse: 2,
       canEarnMore: true,
+      isRepairAvailable: false,
     },
     isFrozenToday: false,
     freezesAvailable: 2,
@@ -135,6 +136,7 @@ describe('ProgressContent', () => {
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
     mocks.freeze.streakInfo.lastActiveDate = null
+    mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.freezesAvailable = 2
   })
 
@@ -165,6 +167,7 @@ describe('ProgressContent', () => {
 
   it('offers the one day repair and the explicit finish write', () => {
     mocks.freeze.streakInfo.lastActiveDate = localDateOffset(-2)
+    mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.goals.data.allGoals = [{
       id: 'goal-1',
       title: 'Read 10 books',

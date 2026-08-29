@@ -2122,7 +2122,7 @@
       "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
       "edit": "Editar meta",
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
-      "showAllHistory": "Ver tudo",
+      "showAllHistory": "Ver tudo ({count})",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
@@ -2150,6 +2150,7 @@
       "progress": "Não foi possível atualizar o progresso"
     },
     "linkedHabits": "Hábitos Vinculados",
+    "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
       "title": "Análise da Meta",
       "onTrack": "No Caminho",
@@ -2244,6 +2245,19 @@
       "next": "Próximo: nível {level}, {title}. Faltam {xp} XP.",
       "earned": "Conquistada em {date}",
       "progress": "{current} de {target}",
+      "level": "Nível {level} · {title}",
+      "levelTitles": {
+        "starter": "Iniciante",
+        "explorer": "Explorador",
+        "orbiter": "Orbitador",
+        "navigator": "Navegador",
+        "pilot": "Piloto",
+        "captain": "Capitão",
+        "commander": "Comandante",
+        "admiral": "Almirante",
+        "elite": "Elite",
+        "legend": "Lenda"
+      },
       "lockedTitle": "Conquistas",
       "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
       "lockedAction": "Ver o Orbit Pro"

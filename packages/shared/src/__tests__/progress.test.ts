@@ -6,6 +6,7 @@ import {
   buildGoalMovePositions,
   filterProgressGoals,
   getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
   isRepairableStreakGap,
   visibleProgressAchievements,
 } from '../utils/progress'
@@ -103,5 +104,11 @@ describe('progress surface models', () => {
       state: 'later',
     })
     expect(getGoalDeadlinePresentation('2026-08-27', 'Completed', now)).toBeNull()
+  })
+
+  it('keeps the level 10 title while numeric levels continue', () => {
+    expect(getGamificationLevelTitleKey(1)).toBe('progressScreen.achievements.levelTitles.starter')
+    expect(getGamificationLevelTitleKey(10)).toBe('progressScreen.achievements.levelTitles.legend')
+    expect(getGamificationLevelTitleKey(14)).toBe('progressScreen.achievements.levelTitles.legend')
   })
 })

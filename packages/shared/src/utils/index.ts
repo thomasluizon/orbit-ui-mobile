@@ -516,6 +516,7 @@ export {
   buildProtectedDayLabels,
   filterProgressGoals,
   getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
   isProgressSurfaceEmpty,
   isRepairableStreakGap,
   PROGRESS_GOAL_FILTERS,

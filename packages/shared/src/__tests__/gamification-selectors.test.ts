@@ -107,6 +107,7 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
     daysUntilNextFreeze: 0,
     freezesAvailableToUse: 2,
     canEarnMore: true,
+    isRepairAvailable: false,
     ...overrides,
   }
 }

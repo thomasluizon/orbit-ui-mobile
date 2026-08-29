@@ -24,6 +24,18 @@ export type AchievementGlyphKey =
   | 'zap'
 
 const HIDDEN_ACHIEVEMENT_CATEGORIES = new Set(['Social', 'Sharing', 'Together'])
+const GAMIFICATION_LEVEL_TITLE_KEYS = [
+  'starter',
+  'explorer',
+  'orbiter',
+  'navigator',
+  'pilot',
+  'captain',
+  'commander',
+  'admiral',
+  'elite',
+  'legend',
+] as const
 
 export function achievementGlyphKey(iconKey: string): AchievementGlyphKey {
   if (/goal|target|dream/.test(iconKey)) return 'target'
@@ -81,6 +93,11 @@ export function visibleProgressAchievements(
   return achievements.filter(
     (achievement) => !HIDDEN_ACHIEVEMENT_CATEGORIES.has(achievement.category),
   )
+}
+
+export function getGamificationLevelTitleKey(level: number): string {
+  const index = Math.max(0, Math.min(GAMIFICATION_LEVEL_TITLE_KEYS.length - 1, level - 1))
+  return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
 }
 
 export function isRepairableStreakGap(

@@ -110,9 +110,7 @@ export function GoalProgressHistorySection({
             }}
             onClick={() => setShowAllHistory((prev) => !prev)}
           >
-            {showAllHistory
-              ? showLessLabel
-              : `${showAllLabel} (${entries.length})`}
+            {showAllHistory ? showLessLabel : showAllLabel}
           </button>
         </div>
       )}
@@ -209,22 +207,22 @@ export function GoalProgressForm({
 
 interface GoalLinkedHabitsSectionProps {
   title: string
+  emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
 /** Linked-habits list: ListRow language, icon well, Rubik 16 title, hairline dividers. */
 export function GoalLinkedHabitsSection({
   title,
+  emptyLabel,
   linkedHabits,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
-  if (linkedHabits.length === 0) {
-    return null
-  }
-
   return (
     <div data-tour="tour-goal-link">
       <SectionLabel>{title}</SectionLabel>
-      <ul className="list-none" style={{ margin: 0, padding: 0 }}>
+      {linkedHabits.length === 0 ? (
+        <p className="text-[14px] text-[var(--fg-3)]">{emptyLabel}</p>
+      ) : <ul className="list-none" style={{ margin: 0, padding: 0 }}>
         {linkedHabits.map((habit) => (
           <li
             key={habit.id}
@@ -254,7 +252,7 @@ export function GoalLinkedHabitsSection({
             </span>
           </li>
         ))}
-      </ul>
+      </ul>}
     </div>
   )
 }

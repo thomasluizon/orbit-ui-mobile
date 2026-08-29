@@ -20,6 +20,7 @@ import {
   filterProgressGoals,
   getGoalMetricsStatusPresentation,
   getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
   getStreakTierLabelKey,
   isProgressSurfaceEmpty,
   isRepairableStreakGap,
@@ -109,8 +110,9 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date)), [days, locale])
   const tier = t(getStreakTierLabelKey(currentStreak))
-  const repairable = isRepairableStreakGap(freeze.streakInfo?.lastActiveDate, currentStreak)
+  const hasOpenYesterday = isRepairableStreakGap(freeze.streakInfo?.lastActiveDate, currentStreak)
   const available = freeze.freezesAvailable
+  const canRepair = freeze.streakInfo?.isRepairAvailable === true && available > 0
   const dayWords = {
     active: t('progressScreen.streak.active'),
     frozen: t('progressScreen.streak.frozen'),
@@ -128,13 +130,13 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
       <div className="max-w-full overflow-x-auto py-1">
         <DayStrip scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       </div>
-      {repairable ? (
+      {hasOpenYesterday ? (
         <div className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
           <div className="flex flex-col gap-1">
             <p className="text-[16px] font-medium text-[var(--fg-1)]">{t('progressScreen.streak.repairTitle')}</p>
-            <p className="text-[14px] text-[var(--fg-3)]">{available > 0 ? t('progressScreen.streak.repairBody', { count: available }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</p>
+            <p className="text-[14px] text-[var(--fg-3)]">{canRepair ? t('progressScreen.streak.repairBody', { count: available }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</p>
           </div>
-          {available > 0 ? <PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton> : null}
+          {canRepair ? <PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton> : null}
           {repair.isError ? <p role="alert" className="text-[14px] text-[var(--status-bad)]">{t('progressScreen.streak.repairError')}</p> : null}
         </div>
       ) : null}
@@ -349,12 +351,14 @@ function AchievementsSection({ profile, canView, xpProgress }: Readonly<{ profil
   if (!canView || !profile) return <Section compact title={t('progressScreen.sections.achievements')}><LockedCard title={t('progressScreen.achievements.lockedTitle')} body={t('progressScreen.achievements.lockedBody')} action={t('progressScreen.achievements.lockedAction')} /></Section>
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
+  const levelTitle = t(getGamificationLevelTitleKey(profile.level))
+  const nextLevelTitle = t(getGamificationLevelTitleKey(profile.nextReward.nextLevel))
   return (
     <Section compact title={t('progressScreen.sections.achievements')}>
       <div className="flex flex-col gap-2 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-        <div className="flex items-baseline justify-between gap-3"><p className="text-[14px] font-medium text-[var(--fg-1)]">{t('gamification.profileCard.level', { level: profile.level })} · {profile.levelTitle}</p><p className="text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</p></div>
+        <div className="flex items-baseline justify-between gap-3"><p className="text-[14px] font-medium text-[var(--fg-1)]">{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</p><p className="text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</p></div>
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })} />
-        <p className="text-[11px] text-[var(--fg-3)]">{t('progressScreen.achievements.next', { level: profile.nextReward.nextLevel, title: profile.nextReward.nextLevelTitle, xp: profile.nextReward.xpToNextLevel })}</p>
+        <p className="text-[11px] text-[var(--fg-3)]">{t('progressScreen.achievements.next', { level: profile.nextReward.nextLevel, title: nextLevelTitle, xp: profile.nextReward.xpToNextLevel })}</p>
       </div>
       {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="text-[12px] font-medium text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-2">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
     </Section>

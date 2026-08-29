@@ -138,6 +138,7 @@ export const streakInfoSchema = z.object({
   daysUntilNextFreeze: z.number().default(7),
   freezesAvailableToUse: z.number().default(0),
   canEarnMore: z.boolean().default(true),
+  isRepairAvailable: z.boolean().optional(),
 })
 
 export type StreakInfo = z.infer<typeof streakInfoSchema>

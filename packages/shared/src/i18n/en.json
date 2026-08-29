@@ -2122,7 +2122,7 @@
       "deleteConfirm": "This deletes the goal. It cannot be undone.",
       "edit": "Edit Goal",
       "loadError": "Could not load full details. Showing cached data.",
-      "showAllHistory": "Show all",
+      "showAllHistory": "Show all ({count})",
       "showLessHistory": "Show less",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
@@ -2150,6 +2150,7 @@
       "progress": "Failed to update progress"
     },
     "linkedHabits": "Linked Habits",
+    "noLinkedHabits": "No linked habits yet",
     "metrics": {
       "title": "Goal Insights",
       "onTrack": "On Track",
@@ -2244,6 +2245,19 @@
       "next": "Next: level {level}, {title}. {xp} XP to go.",
       "earned": "Earned {date}",
       "progress": "{current} of {target}",
+      "level": "Level {level} · {title}",
+      "levelTitles": {
+        "starter": "Starter",
+        "explorer": "Explorer",
+        "orbiter": "Orbiter",
+        "navigator": "Navigator",
+        "pilot": "Pilot",
+        "captain": "Captain",
+        "commander": "Commander",
+        "admiral": "Admiral",
+        "elite": "Elite",
+        "legend": "Legend"
+      },
       "lockedTitle": "Achievements",
       "lockedBody": "Orbit Pro tracks achievements and XP.",
       "lockedAction": "See Orbit Pro"
