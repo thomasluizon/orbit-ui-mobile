@@ -11,7 +11,6 @@ import {
 import { API } from '@orbit/shared/api'
 import {
   applyLinkedGoalUpdates,
-  buildUnresolvedBulkFailures,
   buildOptimisticSkipPatch,
   findHabitInList,
   formatAPIDate,
@@ -142,10 +141,6 @@ export function useLogHabit() {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(date ?? formatAPIDate(new Date()))
-
       return { previousLists }
     },
 
@@ -163,6 +158,10 @@ export function useLogHabit() {
       if (isQueuedResult(response)) {
         return
       }
+
+      useReviewReminderStore
+        .getState()
+        .trackCompletion(variables.date ?? formatAPIDate(new Date()))
 
       const loggedHabit = findHabitInList(
         queryClient
@@ -911,13 +910,15 @@ export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkLogResult,
+    OfflineBulkMutationOutcome<BulkLogResult>,
     Error,
     BulkLogItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (items) => {
       const results: BulkLogResult['results'] = []
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
         try {
@@ -939,35 +940,26 @@ export function useBulkLogHabits() {
               queuedMutationId: mutationId,
             }),
           })
+          if (isQueuedResult(response)) {
+            continue
+          }
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
-        } catch (error) {
-          results.push(...buildUnresolvedBulkFailures(
-            items.slice(index),
-            index,
-            error,
-            (item, failureIndex, message) => ({
-              index: failureIndex,
-              status: 'Failed' as const,
-              habitId: item.habitId,
-              logId: null,
-              error: message,
-            }),
-          ))
-          break
+        } catch (error: unknown) {
+          const failedIds = chunk.map((item) => item.habitId)
+          if (error instanceof OfflineMutationPreflightError) {
+            offlineFailureIds.push(...failedIds)
+          } else {
+            ambiguousIds.push(...failedIds)
+          }
         }
       }
-      return { results }
+      return { results, ambiguousIds, offlineFailureIds }
     },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      for (const item of items) {
-        useReviewReminderStore
-          .getState()
-          .trackCompletion(item.date ?? formatAPIDate(new Date()))
-      }
       const immediateIds: string[] = []
       for (const item of items) {
         if (!item.date) immediateIds.push(item.habitId)
@@ -989,11 +981,21 @@ export function useBulkLogHabits() {
       }
     },
 
-    onSuccess: (data, _vars, context) => {
+    onSuccess: (data, variables, context) => {
       const failedIds = new Set(
         data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
       )
+      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
       restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
+
+      for (const result of data.results) {
+        if (result.status !== 'Success') continue
+        const item = variables[result.index]
+        if (!item) continue
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(item.date ?? formatAPIDate(new Date()))
+      }
     },
 
     onSettled: (data, error) =>
