@@ -1174,6 +1174,43 @@ describe('mobile habit hooks', () => {
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
   })
 
+  it('restores only the rejected sibling after a mixed bulk skip result', async () => {
+    seedHabitState([
+      makeHabit({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeChild({ id: 'child-accepted', isCompleted: false }),
+          makeChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ], 3)
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: { index: number; status: 'Success' | 'Failed'; habitId: string; error: string | null }[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [
+      { habitId: 'child-accepted' },
+      { habitId: 'child-rejected' },
+    ]
+    const mixedResult = {
+      results: [
+        { index: 0, status: 'Success' as const, habitId: 'child-accepted', error: null },
+        { index: 1, status: 'Failed' as const, habitId: 'child-rejected', error: 'Rejected' },
+      ],
+    }
+    mocks.runQueuedMutation.mockResolvedValueOnce(mixedResult)
+
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(result, variables, context)
+
+    const children = getHabitList()[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+  })
+
   it('restores the list when a bulk log fails', async () => {
     seedHabitState(
       [
@@ -1198,5 +1235,42 @@ describe('mobile habit hooks', () => {
 
     mutation.onError?.(new Error('Bulk log failed'), variables, context)
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(false)
+  })
+
+  it('restores only the rejected sibling after a mixed bulk log result', async () => {
+    seedHabitState([
+      makeHabit({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeChild({ id: 'child-accepted', isCompleted: false }),
+          makeChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ], 3)
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      { results: { index: number; status: 'Success' | 'Failed'; habitId: string; logId: string | null; error: string | null }[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [
+      { habitId: 'child-accepted' },
+      { habitId: 'child-rejected' },
+    ]
+    const mixedResult = {
+      results: [
+        { index: 0, status: 'Success' as const, habitId: 'child-accepted', logId: 'log-1', error: null },
+        { index: 1, status: 'Failed' as const, habitId: 'child-rejected', logId: null, error: 'Rejected' },
+      ],
+    }
+    mocks.runQueuedMutation.mockResolvedValueOnce(mixedResult)
+
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(result, variables, context)
+
+    const children = getHabitList()[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
   })
 })

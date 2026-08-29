@@ -886,6 +886,96 @@ describe('HabitList', () => {
       .toEqual([[{ habitId: skippedParent.id, date: YESTERDAY }]])
   })
 
+  it('does not settle a parent from a rejected sibling in a mixed bulk log', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const acceptedChild = createMockHabit({
+      id: 'child-accepted',
+      parentId: parent.id,
+      isCompleted: true,
+    })
+    const rejectedChild = createMockHabit({
+      id: 'child-rejected',
+      parentId: parent.id,
+      isCompleted: false,
+    })
+    for (const habit of [parent, acceptedChild, rejectedChild]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [acceptedChild.id, rejectedChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }])
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+    expect(skipHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toEqual([[{ habitId: parent.id, date: TODAY }]])
+  })
+
+  it('does not treat a rejected sibling as logged in a mixed bulk skip', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const acceptedChild = createMockHabit({
+      id: 'child-accepted',
+      parentId: parent.id,
+      isCompleted: true,
+    })
+    const rejectedChild = createMockHabit({
+      id: 'child-rejected',
+      parentId: parent.id,
+      isCompleted: false,
+    })
+    for (const habit of [parent, acceptedChild, rejectedChild]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [acceptedChild.id, rejectedChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }])
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+    expect(skipHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+    expect(skipHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toEqual([[{ habitId: parent.id, date: TODAY }]])
+  })
+
   it('deduplicates parent settlement through refetches until progress becomes incomplete', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })

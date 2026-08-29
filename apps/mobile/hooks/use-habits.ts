@@ -88,6 +88,33 @@ type CreateSubHabitMutationInput = {
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 
+function restoreRejectedBulkItems(
+  queryClient: ReturnType<typeof useQueryClient>,
+  previousLists: HabitListSnapshots,
+  results: readonly { habitId: string; status: 'Success' | 'Failed' }[],
+): void {
+  const rejectedHabitIds = results.flatMap((item) =>
+    item.status !== 'Success' ? [item.habitId] : [],
+  )
+
+  for (const [queryKey, previousItems] of previousLists) {
+    if (!previousItems) continue
+
+    queryClient.setQueryData<HabitScheduleItem[]>(queryKey, (currentItems) => {
+      if (!currentItems) return currentItems
+
+      return rejectedHabitIds.reduce((nextItems, habitId) => {
+        const previousHabit = findHabitInList(previousItems, habitId)
+        return previousHabit
+          ? optimisticPatchHabit(nextItems, habitId, {
+              isCompleted: previousHabit.isCompleted,
+            })
+          : nextItems
+      }, currentItems)
+    })
+  }
+}
+
 export {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -923,6 +950,10 @@ export function useBulkLogHabits() {
       }
     },
 
+    onSuccess: (result, _items, context) => {
+      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
+    },
+
     onSettled: (data, error) =>
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
@@ -979,6 +1010,10 @@ export function useBulkSkipHabits() {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+    },
+
+    onSuccess: (result, _items, context) => {
+      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
     },
 
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
