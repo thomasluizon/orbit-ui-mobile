@@ -4,6 +4,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
+
+Element.prototype.scrollIntoView = vi.fn()
 import {
   ShellScrollerProvider,
   useShellScrollerRegistration,
