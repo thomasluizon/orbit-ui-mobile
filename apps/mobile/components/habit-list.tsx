@@ -52,11 +52,6 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import {
-  isQueuedMutationPending,
-  isQueuedResult,
-  subscribeFinalizedMutations,
-} from '@/lib/offline-mutations'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
@@ -280,7 +275,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       Set<string>
     >(new Set())
     const pendingToggleKeysRef = useRef(new Set<string>())
-    const queuedToggleKeysRef = useRef(new Map<string, string>())
     const promptedParentIdsRef = useRef(new Set<string>())
     const skippedChildIdsRef = useRef(new Set<string>())
     const resolvedModesRef = useRef(new Map<string, HabitResolutionMode>())
@@ -323,13 +317,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       skippedChildIdsRef.current.clear()
       resolvedModesRef.current.clear()
     }, [selectedDateStr])
-    useEffect(() => subscribeFinalizedMutations((mutationId) => {
-      const toggleKey = queuedToggleKeysRef.current.get(mutationId)
-      if (!toggleKey) return
-
-      queuedToggleKeysRef.current.delete(mutationId)
-      pendingToggleKeysRef.current.delete(toggleKey)
-    }), [])
     const movingHabit = movingHabitId
       ? (habitsById.get(movingHabitId) ?? null)
       : null
@@ -798,29 +785,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         pendingToggleKeys.add(toggleKey)
         if (intent === 'log') markRecentlyCompleted(habitId)
         let mutationSucceeded = false
-        let queuedMutationId: string | null = null
 
         try {
-          const response = await logMutation.mutateAsync(
+          await logMutation.mutateAsync(
             selectedDate
               ? { habitId, date: selectedDateStr, intent }
               : { habitId, intent },
           )
           mutationSucceeded = true
-          if (isQueuedResult(response)) {
-            queuedMutationId = response.queuedMutationId
-            queuedToggleKeysRef.current.set(queuedMutationId, toggleKey)
-            if (!isQueuedMutationPending(queuedMutationId)) {
-              queuedToggleKeysRef.current.delete(queuedMutationId)
-              pendingToggleKeys.delete(toggleKey)
-            }
-          }
           if (intent === 'log') handleLogged(habitId, false)
           await refetch()
         } catch {
           if (!mutationSucceeded && intent === 'log') clearRecentlyCompleted(habitId)
         } finally {
-          if (!queuedMutationId) pendingToggleKeys.delete(toggleKey)
+          pendingToggleKeys.delete(toggleKey)
         }
       },
       [

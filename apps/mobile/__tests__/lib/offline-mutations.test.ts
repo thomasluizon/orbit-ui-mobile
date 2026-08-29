@@ -13,13 +13,11 @@ import {
   createTempEntityId,
   flushQueuedMutations,
   getMutationScope,
-  isQueuedMutationPending,
   isQueuedResult,
   OfflineMutationPreflightError,
   queueOrExecute,
   runQueuedMutation,
   subscribeDroppedMutations,
-  subscribeFinalizedMutations,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
@@ -54,6 +52,7 @@ const mocks = vi.hoisted(() => {
 
   const enqueue = vi.fn((mutation: QueuedMutation) => {
     queued.push(mutation)
+    return mutation.id
   })
 
   const getAll = vi.fn(() => [...queued])
@@ -225,6 +224,33 @@ describe('offline mutations', () => {
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
   })
 
+  it('builds the queued result from the retained durable mutation id', async () => {
+    const mutation = buildQueuedMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    mocks.enqueue.mockImplementationOnce((queuedMutation) => {
+      mocks.queued.push(queuedMutation)
+      return 'persisted-log'
+    })
+
+    const result = await queueOrExecute({
+      mutation,
+      execute: () => Promise.reject(new Error('should not execute while offline')),
+      queuedResultFactory: createQueuedAck,
+    })
+
+    expect(result).toEqual({
+      queued: true,
+      queuedMutationId: 'persisted-log',
+    })
+  })
+
   it.each([
     ['bulkLogHabits', '/api/habits/bulk-log', 'POST'],
     ['bulkSkipHabits', '/api/habits/bulk-skip', 'POST'],
@@ -291,54 +317,6 @@ describe('offline mutations', () => {
       expect.objectContaining({ method: 'POST', idempotencyKey: mutation.id }),
       logHabitResponseSchema,
     )
-  })
-
-  it('notifies finalization after a queued mutation is applied and removed', async () => {
-    mocks.setOnline(true)
-    const mutation = buildQueuedMutation({
-      type: 'logHabit',
-      scope: 'habits',
-      endpoint: '/api/habits/habit-1/log',
-      method: 'POST',
-      payload: { date: '2026-08-29' },
-      entityType: 'habit',
-      targetEntityId: 'habit-1',
-    })
-    mocks.queued.push(mutation)
-    const listener = vi.fn()
-    const unsubscribe = subscribeFinalizedMutations(listener)
-
-    expect(isQueuedMutationPending(mutation.id)).toBe(true)
-    await flushQueuedMutations()
-
-    expect(isQueuedMutationPending(mutation.id)).toBe(false)
-    expect(listener).toHaveBeenCalledOnce()
-    expect(listener).toHaveBeenCalledWith(mutation.id)
-    unsubscribe()
-  })
-
-  it('notifies finalization after a queued mutation is dropped', async () => {
-    mocks.setOnline(true)
-    mocks.apiClient.mockRejectedValueOnce(new Error('400 validation failed'))
-    const mutation = buildQueuedMutation({
-      type: 'logHabit',
-      scope: 'habits',
-      endpoint: '/api/habits/habit-1/log',
-      method: 'POST',
-      payload: { date: '2026-08-29' },
-      entityType: 'habit',
-      targetEntityId: 'habit-1',
-    })
-    mocks.queued.push(mutation)
-    const listener = vi.fn()
-    const unsubscribe = subscribeFinalizedMutations(listener)
-
-    await flushQueuedMutations()
-
-    expect(isQueuedMutationPending(mutation.id)).toBe(false)
-    expect(listener).toHaveBeenCalledOnce()
-    expect(listener).toHaveBeenCalledWith(mutation.id)
-    unsubscribe()
   })
 
   it('exposes the mutation id as the pending idempotency key during an online execute', async () => {

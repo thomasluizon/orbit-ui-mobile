@@ -370,6 +370,27 @@ describe('mobile habit hooks', () => {
     useReviewReminderStore.getState().reset()
   })
 
+  it('gives queued toggles a durable habit and occurrence date key', async () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      unknown
+    >
+
+    await mutation.mutationFn({
+      habitId: 'habit-1',
+      date: '2026-08-29',
+      intent: 'log',
+    })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        type: 'logHabit',
+        dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      }),
+    }))
+  })
+
   it('tracks every confirmed bulk completion and no requested item before confirmation', async () => {
     seedHabitState(
       [

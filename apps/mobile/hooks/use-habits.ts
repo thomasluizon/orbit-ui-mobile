@@ -153,8 +153,9 @@ export function useLogHabit() {
     LogHabitMutationInput,
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: ({ habitId, date }) =>
-      performQueuedApiMutation<LogHabitResponse>({
+    mutationFn: ({ habitId, date }) => {
+      const occurrenceDate = date ?? formatAPIDate(new Date())
+      return performQueuedApiMutation<LogHabitResponse>({
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
@@ -162,7 +163,9 @@ export function useLogHabit() {
         payload: date ? { date } : undefined,
         entityType: 'habit',
         targetEntityId: habitId,
-      }),
+        dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+      })
+    },
 
     onMutate: ({ habitId, date }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })

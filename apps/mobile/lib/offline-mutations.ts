@@ -62,10 +62,8 @@ export interface DroppedMutation {
 }
 
 type DroppedMutationListener = (dropped: DroppedMutation) => void
-type FinalizedMutationListener = (mutationId: string) => void
 
 const droppedMutationListeners = new Set<DroppedMutationListener>()
-const finalizedMutationListeners = new Set<FinalizedMutationListener>()
 
 /**
  * Subscribe to mutations dropped from the queue (permanent/validation errors or
@@ -80,23 +78,8 @@ export function subscribeDroppedMutations(listener: DroppedMutationListener): ()
   }
 }
 
-export function subscribeFinalizedMutations(listener: FinalizedMutationListener): () => void {
-  finalizedMutationListeners.add(listener)
-  return () => {
-    finalizedMutationListeners.delete(listener)
-  }
-}
-
 function notifyDroppedMutation(dropped: DroppedMutation): void {
   for (const listener of droppedMutationListeners) listener(dropped)
-}
-
-function notifyFinalizedMutation(mutationId: string): void {
-  for (const listener of finalizedMutationListeners) listener(mutationId)
-}
-
-export function isQueuedMutationPending(mutationId: string): boolean {
-  return getById(mutationId) !== null
 }
 
 export interface QueuedMutationBuildOptions {
@@ -175,13 +158,16 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   allowAutomaticReplay?: boolean
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
-  const resolvedQueuedResult =
-    queuedResultFactory?.(builtMutation.id) ?? queuedResult ?? createQueuedAck(builtMutation.id)
 
   return queueOrExecute({
     mutation: builtMutation,
     execute,
-    queuedResult: resolvedQueuedResult as TResult | TQueuedResult,
+    queuedResult,
+    queuedResultFactory:
+      queuedResultFactory ??
+      (queuedResult === undefined
+        ? (mutationId) => createQueuedAck(mutationId) as TResult | TQueuedResult
+        : undefined),
     allowAutomaticReplay,
   })
 }
@@ -430,8 +416,8 @@ export function getMutationScope(type: string): MutationScope | undefined {
   }
 }
 
-async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
-  enqueue(mutation)
+async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
+  const queuedMutationId = enqueue(mutation)
 
   if (mutation.entityType && mutation.clientEntityId) {
     await upsertOfflineEntity({
@@ -450,17 +436,20 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
   }
 
   await persistQueryCache()
+  return queuedMutationId
 }
 
 export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   mutation,
   execute,
   queuedResult,
+  queuedResultFactory,
   allowAutomaticReplay = true,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
-  queuedResult: TQueuedResult
+  queuedResult?: TQueuedResult
+  queuedResultFactory?: (mutationId: string) => TQueuedResult
   allowAutomaticReplay?: boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
@@ -474,8 +463,8 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
       throw new OfflineMutationPreflightError()
     }
 
-    await markQueuedMutation(resolvedMutation)
-    return queuedResult
+    const queuedMutationId = await markQueuedMutation(resolvedMutation)
+    return queuedResultFactory?.(queuedMutationId) ?? queuedResult as TQueuedResult
   }
 
   try {
@@ -486,8 +475,8 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
       throw error
     }
 
-    await markQueuedMutation(resolvedMutation)
-    return queuedResult
+    const queuedMutationId = await markQueuedMutation(resolvedMutation)
+    return queuedResultFactory?.(queuedMutationId) ?? queuedResult as TQueuedResult
   } finally {
     setPendingIdempotencyKey(null)
   }
@@ -658,7 +647,6 @@ async function processQueuedMutationFlush(
     )
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
-    notifyFinalizedMutation(mutation.id)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
@@ -694,7 +682,6 @@ async function runQueueFlush(): Promise<FlushOutcome> {
     if (step.dropped) {
       droppedMutations.push(step.dropped)
       notifyDroppedMutation(step.dropped)
-      notifyFinalizedMutation(step.dropped.id)
     }
     if (step.stopReason) {
       stopReason = step.stopReason

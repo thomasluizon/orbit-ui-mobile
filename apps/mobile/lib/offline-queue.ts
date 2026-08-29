@@ -184,6 +184,8 @@ const LAST_WRITE_WINS_TYPES = new Set<string>([
   'deleteAllNotifications',
 ])
 
+const FIRST_WRITE_WINS_TYPES = new Set<string>(['logHabit'])
+
 function mergePayload(existing: unknown, incoming: unknown): unknown {
   if (
     existing &&
@@ -267,7 +269,7 @@ export function enqueue(
     retries?: number
     maxRetries?: number
   },
-): void {
+): string {
   const normalized: QueuedMutation = {
     ...mutation,
     retries: mutation.retries ?? 0,
@@ -276,8 +278,20 @@ export function enqueue(
     dependsOn: mutation.dependsOn ?? [],
   }
 
-  const compacted = compactQueuedMutations(getAll(), normalized)
+  const queuedMutations = getAll()
+  const existingMutation = normalized.dedupeKey && FIRST_WRITE_WINS_TYPES.has(normalized.type)
+    ? queuedMutations.find(
+        (queuedMutation) =>
+          queuedMutation.type === normalized.type &&
+          queuedMutation.dedupeKey === normalized.dedupeKey,
+      )
+    : undefined
+
+  if (existingMutation) return existingMutation.id
+
+  const compacted = compactQueuedMutations(queuedMutations, normalized)
   replaceAll(compacted)
+  return normalized.id
 }
 
 export function dequeue(): PersistedQueuedMutation | null {

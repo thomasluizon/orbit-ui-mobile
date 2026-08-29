@@ -401,6 +401,20 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
   return captured
 }
 
+function queueHabitToggle({ habitId, date }: { habitId: string; date?: string }) {
+  const occurrenceDate = date ?? TODAY
+  return performQueuedApiMutation({
+    type: 'logHabit',
+    scope: 'habits',
+    endpoint: `/api/habits/${habitId}/log`,
+    method: 'POST',
+    payload: date ? { date } : undefined,
+    entityType: 'habit',
+    targetEntityId: habitId,
+    dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+  })
+}
+
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -734,21 +748,7 @@ describe('HabitList', () => {
     const firstHabit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     const secondHabit = createMockHabit({ id: 'habit-2', title: 'Read' })
     seedHabits([firstHabit, secondHabit])
-    logMutateAsync.mockImplementation(({
-      habitId,
-      date,
-    }: {
-      habitId: string
-      date?: string
-    }) => performQueuedApiMutation({
-      type: 'logHabit',
-      scope: 'habits',
-      endpoint: `/api/habits/${habitId}/log`,
-      method: 'POST',
-      payload: date ? { date } : undefined,
-      entityType: 'habit',
-      targetEntityId: habitId,
-    }))
+    logMutateAsync.mockImplementation(queueHabitToggle)
 
     let tree: any
     TestRenderer.act(() => {
@@ -805,24 +805,117 @@ describe('HabitList', () => {
     expect(offlineMocks.loggedHabits).toEqual(new Set([firstHabit.id, secondHabit.id]))
   })
 
+  it('keeps one persisted toggle when the list remounts before replay', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    const renderList = () => (
+      <HabitList
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+    const queuedMutationId = getQueuedMutations()[0]?.id
+
+    TestRenderer.act(() => {
+      tree.unmount()
+    })
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(getQueuedMutations()).toEqual([
+      expect.objectContaining({
+        id: queuedMutationId,
+        type: 'logHabit',
+        targetEntityId: habit.id,
+        payload: { date: TODAY },
+        dedupeKey: `habit-toggle:${habit.id}:${TODAY}`,
+      }),
+    ])
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([habit.id]))
+  })
+
+  it('keeps one restored toggle after persisted rows are rehydrated before replay', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    const renderList = () => (
+      <HabitList
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+
+    const restoredRows = Array.from(offlineMocks.rows.entries()).map(([id, row]) => [
+      id,
+      { ...row },
+    ] as const)
+    TestRenderer.act(() => {
+      tree.unmount()
+    })
+    offlineMocks.rows.clear()
+    for (const [id, row] of restoredRows) offlineMocks.rows.set(id, row)
+
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(getQueuedMutations()).toHaveLength(1)
+    expect(getQueuedMutations()[0]).toEqual(expect.objectContaining({
+      id: restoredRows[0]?.[0],
+      targetEntityId: habit.id,
+      payload: { date: TODAY },
+      dedupeKey: `habit-toggle:${habit.id}:${TODAY}`,
+    }))
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([habit.id]))
+  })
+
   it('accepts a second offline toggle intent after the first queue item finalizes', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
-    logMutateAsync.mockImplementation(({
-      habitId,
-      date,
-    }: {
-      habitId: string
-      date?: string
-    }) => performQueuedApiMutation({
-      type: 'logHabit',
-      scope: 'habits',
-      endpoint: `/api/habits/${habitId}/log`,
-      method: 'POST',
-      payload: date ? { date } : undefined,
-      entityType: 'habit',
-      targetEntityId: habitId,
-    }))
+    logMutateAsync.mockImplementation(queueHabitToggle)
 
     let tree: any
     TestRenderer.act(() => {
