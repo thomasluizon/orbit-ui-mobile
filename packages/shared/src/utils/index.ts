@@ -256,6 +256,8 @@ export {
 } from './habit-list-progress'
 export type {
   HabitDateBucket,
+  HabitResolution,
+  HabitResolutionMode,
   ParentPromptProgress,
   ParentPromptProgressOptions,
 } from './habit-list-progress'

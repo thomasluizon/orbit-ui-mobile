@@ -1122,7 +1122,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
-      ref.current?.checkAndPromptParentLog('child', TODAY)
+      ref.current?.checkAndPromptParentLog('child')
       await Promise.resolve()
     })
 
@@ -1168,7 +1168,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child-b')
-      ref.current?.checkAndPromptParentLog('child-b', TODAY)
+      ref.current?.checkAndPromptParentLog('child-b')
       await Promise.resolve()
     })
 
@@ -1210,7 +1210,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.markRecentlyCompleted('child')
-      ref.current?.checkAndPromptParentLog('child', TODAY)
+      ref.current?.checkAndPromptParentLog('child')
       await Promise.resolve()
     })
 
@@ -1251,7 +1251,7 @@ describe('HabitList', () => {
 
     TestRenderer.act(() => {
       ref.current?.markRecentlyCompleted('child')
-      ref.current?.checkAndPromptParentLog('child', TODAY)
+      ref.current?.checkAndPromptParentLog('child')
     })
 
     expect(logMutateAsync).not.toHaveBeenCalledWith(
@@ -1711,9 +1711,9 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child-a', TODAY)
-      ref.current?.checkAndPromptParentLog('child-b', TODAY)
-      ref.current?.checkAndPromptParentLog('child-c', TODAY)
+      ref.current?.checkAndPromptParentLog('child-a')
+      ref.current?.checkAndPromptParentLog('child-b')
+      ref.current?.checkAndPromptParentLog('child-c')
       await Promise.resolve()
     })
 
@@ -1721,11 +1721,64 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
 
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child-a', TODAY)
+      ref.current?.checkAndPromptParentLog('child-a')
       await Promise.resolve()
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('settles each bulk-resolved parent once on the viewed historical date', async () => {
+    const loggedParent = createMockHabit({
+      id: 'logged-parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const skippedParent = createMockHabit({
+      id: 'skipped-parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const children = [
+      createMockHabit({ id: 'log-a', parentId: loggedParent.id, scheduledDates: [YESTERDAY] }),
+      createMockHabit({ id: 'log-b', parentId: loggedParent.id, scheduledDates: [YESTERDAY] }),
+      createMockHabit({ id: 'skip-a', parentId: skippedParent.id, scheduledDates: [YESTERDAY] }),
+      createMockHabit({ id: 'skip-b', parentId: skippedParent.id, scheduledDates: [YESTERDAY] }),
+    ]
+    seedHabits([loggedParent, skippedParent, ...children])
+    const ref = React.createRef<HabitListHandle>()
+
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.settleBulkHabitResolutions([
+        { habitId: 'log-a', mode: 'log' },
+        { habitId: 'log-b', mode: 'log' },
+      ])
+      ref.current?.settleBulkHabitResolutions([
+        { habitId: 'skip-a', mode: 'skip' },
+        { habitId: 'skip-b', mode: 'skip' },
+      ])
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === loggedParent.id))
+      .toEqual([[{ habitId: loggedParent.id, date: YESTERDAY }]])
+    expect(skipMutateAsync.mock.calls.filter(([input]) => input.habitId === skippedParent.id))
+      .toEqual([[{ habitId: skippedParent.id, date: YESTERDAY }]])
   })
 
   it('allows parent settlement again after progress becomes incomplete', async () => {
@@ -1742,20 +1795,20 @@ describe('HabitList', () => {
       tree.update(renderList())
     })
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child', TODAY)
+      ref.current?.checkAndPromptParentLog('child')
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch()
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child', TODAY)
+      ref.current?.checkAndPromptParentLog('child')
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
     refetch(false)
     refetch()
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child', TODAY)
+      ref.current?.checkAndPromptParentLog('child')
       await Promise.resolve()
     })
     expect(logMutateAsync).toHaveBeenCalledTimes(2)

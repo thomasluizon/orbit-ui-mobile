@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { BackHandler } from "react-native";
-import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import type { HabitListHandle } from "@/components/habit-list";
 import { useUIStore } from "@/stores/ui-store";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
@@ -8,7 +7,6 @@ import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 
 interface TodaySelectionInput {
   selectedDateStr: string;
-  habitsById: Map<string, NormalizedHabit>;
   habitListRef: RefObject<HabitListHandle | null>;
   habitListAllLoadedIds: Set<string>;
   visibleHabitIds: Set<string>;
@@ -23,7 +21,6 @@ interface TodaySelectionInput {
  */
 export function useTodaySelection({
   selectedDateStr,
-  habitsById,
   habitListRef,
   habitListAllLoadedIds,
   visibleHabitIds,
@@ -41,7 +38,6 @@ export function useTodaySelection({
   const bulkActions = useBulkActions({
     selectedHabitIds,
     selectedDateStr,
-    habitsById,
     habitListRef,
     onSuccess: clearSelection,
   });

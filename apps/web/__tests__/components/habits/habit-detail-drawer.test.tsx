@@ -335,6 +335,33 @@ describe('HabitDetailDrawer', () => {
     await waitFor(() => expect(mockShowError).toHaveBeenCalledTimes(1))
   })
 
+  it('logs the checklist habit on the viewed historical date and notifies onLogged', async () => {
+    const onLogged = vi.fn()
+    const habit = createMockHabit({
+      id: 'h-9',
+      isCompleted: false,
+      checklistItems: [{ text: 'Only item', isChecked: false }],
+    })
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={habit}
+        selectedDate="2026-04-01"
+        onLogged={onLogged}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('toggle-0'))
+    fireEvent.click(screen.getByText('habits.checklistCompleteConfirm'))
+
+    await waitFor(() => expect(onLogged).toHaveBeenCalledWith('h-9'))
+    expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'h-9',
+      date: '2026-04-01',
+    })
+  })
+
   it('lists linked goals with a section label', () => {
     const habit = createMockHabit({
       currentStreak: 3,

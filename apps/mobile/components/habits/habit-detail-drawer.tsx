@@ -32,6 +32,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   formatHabitDetailSummary,
+  formatAPIDate,
   formatLocaleDate,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
@@ -42,6 +43,7 @@ interface HabitDetailDrawerProps {
   open: boolean
   onClose: () => void
   habit: NormalizedHabit | null
+  selectedDate?: string
   onLogged?: (habitId: string) => void
 }
 
@@ -217,6 +219,7 @@ export function HabitDetailDrawer({
   open,
   onClose,
   habit,
+  selectedDate,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
@@ -227,6 +230,7 @@ export function HabitDetailDrawer({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createDrawerStyles(tokens), [tokens])
   const habitId = habit?.id ?? ''
+  const viewedDate = selectedDate ?? formatAPIDate(new Date())
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
     open && habitId ? habitId : null,
@@ -309,7 +313,7 @@ export function HabitDetailDrawer({
     if (!habit) return
     setShowChecklistCompleteConfirm(false)
     try {
-      await logHabit.mutateAsync({ habitId: habit.id })
+      await logHabit.mutateAsync({ habitId: habit.id, date: viewedDate })
       onLogged?.(habit.id)
     } catch (error: unknown) {
       showError(
@@ -321,7 +325,7 @@ export function HabitDetailDrawer({
         ),
       )
     }
-  }, [habit, logHabit, onLogged, showError, t])
+  }, [habit, logHabit, onLogged, showError, t, viewedDate])
 
   const summaryStrip = useMemo(() => {
     if (!habit) return ''

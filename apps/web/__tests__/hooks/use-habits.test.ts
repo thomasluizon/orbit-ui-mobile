@@ -1324,6 +1324,33 @@ describe('useBulkLogHabits', () => {
 
     expect(mockedBulkLog).toHaveBeenCalledWith(items)
   })
+
+  it('optimistically completes every dated item in the viewed list', async () => {
+    const { useBulkLogHabits } = await import('@/hooks/use-habits')
+    const { bulkLogHabits } = await import('@/app/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', isCompleted: false }),
+      makeScheduleItem({ id: 'h-2', isCompleted: false }),
+    ])
+    const { result } = renderHook(() => useBulkLogHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'h-1', date: '2026-04-01' },
+        { habitId: 'h-2', date: '2026-04-01' },
+      ])
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({})))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'h-1', isCompleted: true }),
+        expect.objectContaining({ id: 'h-2', isCompleted: true }),
+      ]))
+  })
 })
 
 describe('useBulkSkipHabits', () => {
@@ -1351,5 +1378,32 @@ describe('useBulkSkipHabits', () => {
     })
 
     expect(mockedBulkSkip).toHaveBeenCalledWith(items)
+  })
+
+  it('optimistically completes every dated item in the viewed list', async () => {
+    const { useBulkSkipHabits } = await import('@/hooks/use-habits')
+    const { bulkSkipHabits } = await import('@/app/actions/habits')
+    vi.mocked(bulkSkipHabits).mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', isCompleted: false }),
+      makeScheduleItem({ id: 'h-2', isCompleted: false }),
+    ])
+    const { result } = renderHook(() => useBulkSkipHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'h-1', date: '2026-04-01' },
+        { habitId: 'h-2', date: '2026-04-01' },
+      ])
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({})))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'h-1', isCompleted: true }),
+        expect.objectContaining({ id: 'h-2', isCompleted: true }),
+      ]))
   })
 })

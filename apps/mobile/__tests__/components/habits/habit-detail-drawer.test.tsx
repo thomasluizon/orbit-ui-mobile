@@ -194,7 +194,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     expect(mockShowError).toHaveBeenCalledTimes(1)
   })
 
-  it('logs the habit and notifies onLogged when the checklist-complete confirm succeeds', async () => {
+  it('logs the checklist habit on the viewed historical date and notifies onLogged', async () => {
     const onLogged = vi.fn()
     const habit = createMockHabit({
       id: 'h-9',
@@ -203,7 +203,13 @@ describe('HabitDetailDrawer (mobile)', () => {
     })
 
     const tree = render(
-      <HabitDetailDrawer open onClose={vi.fn()} habit={habit} onLogged={onLogged} />,
+      <HabitDetailDrawer
+        open
+        onClose={vi.fn()}
+        habit={habit}
+        selectedDate="2026-04-01"
+        onLogged={onLogged}
+      />,
     )
 
     TestRenderer.act(() => {
@@ -214,7 +220,10 @@ describe('HabitDetailDrawer (mobile)', () => {
       await Promise.resolve()
     })
 
-    expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-9' })
+    expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'h-9',
+      date: '2026-04-01',
+    })
     expect(onLogged).toHaveBeenCalledWith('h-9')
     expect(mockShowError).not.toHaveBeenCalled()
   })

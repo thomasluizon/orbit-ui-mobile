@@ -539,6 +539,23 @@ export function useBulkLogHabits() {
   return useMutation({
     mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
 
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const completedIds = items.map((item) => item.habitId)
+      updateHabitLists(queryClient, (currentItems) =>
+        completedIds.reduce(
+          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+          currentItems,
+        ),
+      )
+      return { previousLists }
+    },
+
+    onError: (_error, _items, context) => {
+      if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
+    },
+
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
@@ -554,6 +571,23 @@ export function useBulkSkipHabits() {
 
   return useMutation({
     mutationFn: (items: BulkSkipItemRequest[]) => bulkSkipHabitsAction(items),
+
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const completedIds = items.map((item) => item.habitId)
+      updateHabitLists(queryClient, (currentItems) =>
+        completedIds.reduce(
+          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+          currentItems,
+        ),
+      )
+      return { previousLists }
+    },
+
+    onError: (_error, _items, context) => {
+      if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

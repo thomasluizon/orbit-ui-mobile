@@ -1147,7 +1147,7 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
-  it('optimistically completes only same-day bulk skips and restores them on failure', async () => {
+  it('optimistically completes dated and undated bulk skips and restores them on failure', async () => {
     seedHabitState(
       [
         makeHabit({ id: 'habit-1', isCompleted: false }),
@@ -1168,7 +1168,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(true)
-    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(false)
+    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(true)
 
     mutation.onError?.(new Error('Bulk skip failed'), variables, context)
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
@@ -1188,7 +1188,10 @@ describe('mobile habit hooks', () => {
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
-    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const variables = [
+      { habitId: 'habit-1' },
+      { habitId: 'habit-2', date: '2025-02-01' },
+    ]
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)

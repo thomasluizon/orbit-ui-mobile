@@ -77,7 +77,6 @@ export function useTodaySelection({
   const bulkActions = useBulkActions({
     selectedHabitIds,
     selectedDateStr,
-    habitsById,
     habitListRef,
     onSuccess: clearSelection,
   })

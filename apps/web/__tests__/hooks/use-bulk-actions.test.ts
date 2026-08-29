@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 const bulkDelete = { mutateAsync: vi.fn() }
@@ -17,24 +16,21 @@ vi.mock('@/hooks/use-habits', () => ({
 
 function renderBulkActions(selectedHabitIds: Set<string>) {
   const onSuccess = vi.fn()
-  const markRecentlyCompleted = vi.fn()
-  const checkAndPromptParentLog = vi.fn()
+  const settleBulkHabitResolutions = vi.fn()
   const habitListRef = {
-    current: { markRecentlyCompleted, checkAndPromptParentLog },
+    current: { settleBulkHabitResolutions },
   } as unknown as React.RefObject<HabitListHandle | null>
-  const habitsById = new Map<string, NormalizedHabit>()
 
   const { result } = renderHook(() =>
     useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
-      habitsById,
       habitListRef,
       onSuccess,
     }),
   )
 
-  return { result, onSuccess, markRecentlyCompleted, checkAndPromptParentLog }
+  return { result, onSuccess, settleBulkHabitResolutions }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -54,7 +50,7 @@ describe('useBulkActions reversibility boundary', () => {
   })
 
   it('skips the selection on the viewed historical date with no confirmation state to clear', async () => {
-    const { result, onSuccess, markRecentlyCompleted } = renderBulkActions(
+    const { result, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1', 'h-2']),
     )
 
@@ -68,12 +64,15 @@ describe('useBulkActions reversibility boundary', () => {
       { habitId: 'h-1', date: VIEWED_DATE },
       { habitId: 'h-2', date: VIEWED_DATE },
     ])
-    expect(markRecentlyCompleted).toHaveBeenCalledTimes(2)
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
+      { habitId: 'h-1', mode: 'skip' },
+      { habitId: 'h-2', mode: 'skip' },
+    ])
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
   it('logs the selection on the viewed historical date with no confirmation state to clear', async () => {
-    const { result, onSuccess, checkAndPromptParentLog } = renderBulkActions(
+    const { result, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1', 'h-2']),
     )
 
@@ -87,21 +86,11 @@ describe('useBulkActions reversibility boundary', () => {
       { habitId: 'h-1', date: VIEWED_DATE },
       { habitId: 'h-2', date: VIEWED_DATE },
     ])
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith('h-1', VIEWED_DATE)
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith('h-2', VIEWED_DATE)
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
+      { habitId: 'h-1', mode: 'log' },
+      { habitId: 'h-2', mode: 'log' },
+    ])
     expect(onSuccess).toHaveBeenCalledTimes(1)
-  })
-
-  it('settles every top-level parent once a bulk skip lands', async () => {
-    const { result, checkAndPromptParentLog } = renderBulkActions(new Set(['h-1', 'h-2']))
-
-    await act(async () => {
-      await result.current.confirmBulkSkip()
-    })
-
-    expect(checkAndPromptParentLog).toHaveBeenCalledTimes(2)
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith('h-1', VIEWED_DATE)
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith('h-2', VIEWED_DATE)
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {
