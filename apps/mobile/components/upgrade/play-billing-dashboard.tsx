@@ -1,4 +1,6 @@
 import { Text, View } from 'react-native'
+import type { SubscriptionPortalState } from '@orbit/shared/utils'
+import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { PlanSummaryCard } from './plan-summary-card'
 import { UsageCard } from './usage-card'
@@ -7,69 +9,88 @@ import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
 export function PlayBillingDashboard({
-  profile,
+  status,
+  displayPrice,
   locale,
   usagePercent,
   usageProfile,
-  portalError,
+  portalState,
+  isOnline,
   onManagePlay,
   t,
   tokens,
 }: Readonly<{
-  profile: {
-    subscriptionInterval?: string | null
-    planExpiresAt?: string | null
-  } | null
+  status: SubscriptionStatus | null
+  displayPrice?: string
   locale: string
   usagePercent: number
   usageProfile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
-  portalError: string
+  portalState: SubscriptionPortalState
+  isOnline: boolean
   onManagePlay: () => void
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  if (!status) return null
+  const interval = status.subscriptionInterval
+  const priceLine = displayPrice
+    ? interval === 'yearly'
+      ? t('upgrade.billing.plan.yearlyPrice', { price: displayPrice })
+      : interval === 'monthly'
+        ? t('upgrade.billing.plan.monthlyPrice', { price: displayPrice })
+        : null
+    : null
+
   return (
     <>
       <PlanSummaryCard
         planLabel={
-          profile?.subscriptionInterval === 'yearly'
+          interval === 'yearly'
             ? t('upgrade.billing.plan.yearly')
-            : t('upgrade.billing.plan.monthly')
+            : interval === 'monthly'
+              ? t('upgrade.billing.plan.monthly')
+              : t('upgrade.billing.plan.pro')
         }
-        meta={
-          profile?.planExpiresAt
+        meta={[
+          priceLine,
+          status.planExpiresAt
             ? t('upgrade.billing.plan.renewsOn', {
-                date: formatBillingDate(profile.planExpiresAt, locale),
+                date: formatBillingDate(status.planExpiresAt, locale),
               })
-            : undefined
-        }
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
         t={t}
         tokens={tokens}
       />
       <UsageCard
         usagePercent={usagePercent}
-        usageUrgent={usagePercent > 80}
+        usageUrgent={usagePercent >= 80}
         profile={usageProfile}
         t={t}
         tokens={tokens}
       />
       <View style={styles.actionPad}>
-        <PillButton
-          variant="secondary"
-
-          onClick={onManagePlay}
-
-        >
-          {t('upgrade.billing.actions.managePlay')}
-        </PillButton>
+        {portalState === 'failed' ? (
+          <>
+            <Text accessibilityRole="alert" style={[styles.centerMuted, { color: tokens.fg2 }]}>
+              {t('upgrade.billing.portalFailed')}
+            </Text>
+            <PillButton variant="ghost" onClick={onManagePlay}>
+              {t('upgrade.billing.retry')}
+            </PillButton>
+          </>
+        ) : (
+          <PillButton variant="primary" loading={portalState === 'opening'} disabled={!isOnline} onClick={onManagePlay}>
+            {portalState === 'opening'
+              ? t('upgrade.billing.actions.opening')
+              : t('upgrade.billing.actions.managePlay')}
+          </PillButton>
+        )}
         <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>
           {t('upgrade.billing.actions.managePlayHint')}
         </Text>
-        {portalError ? (
-          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-            {portalError}
-          </Text>
-        ) : null}
       </View>
     </>
   )

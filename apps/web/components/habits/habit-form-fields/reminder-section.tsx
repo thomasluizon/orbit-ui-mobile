@@ -3,7 +3,7 @@ import { X, Plus, Bell } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { AppSelect } from '@/components/ui/app-select'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 
 interface ReminderSectionProps {
   reminderEnabled: boolean
@@ -72,9 +72,9 @@ export function ReminderSection({
           </span>
         </div>
         <Switch
-          on={reminderEnabled}
-          onToggle={onToggleReminder}
-          ariaLabel={t('habits.form.reminder')}
+          checked={reminderEnabled}
+          onChange={onToggleReminder}
+          label={t('habits.form.reminder')}
         />
       </div>
       {reminderEnabled && (

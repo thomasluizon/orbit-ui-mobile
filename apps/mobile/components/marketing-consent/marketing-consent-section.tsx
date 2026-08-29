@@ -1,9 +1,11 @@
 import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
+import { View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
@@ -50,12 +52,24 @@ export function MarketingConsentSection() {
         accessory="none"
         divider={false}
       >
-        <Switch
-          on={enabled}
-          onToggle={() => mutation.mutate(!enabled)}
-          disabled={mutation.isPending}
-          accessibilityLabel={t('profile.marketingEmails.title')}
-        />
+        <View
+          pointerEvents={mutation.isPending ? 'none' : 'auto'}
+          accessible={mutation.isPending}
+          accessibilityRole={mutation.isPending ? 'switch' : undefined}
+          accessibilityLabel={mutation.isPending ? t('profile.marketingEmails.title') : undefined}
+          accessibilityState={mutation.isPending ? { checked: enabled, disabled: true } : undefined}
+        >
+          <View
+            accessibilityElementsHidden={mutation.isPending}
+            importantForAccessibility={mutation.isPending ? 'no-hide-descendants' : 'auto'}
+          >
+            <Switch
+              checked={enabled}
+              onChange={(checked) => mutation.mutate(checked)}
+              label={t('profile.marketingEmails.title')}
+            />
+          </View>
+        </View>
       </SettingsRow>
     </>
   )

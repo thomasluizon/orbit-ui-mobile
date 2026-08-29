@@ -17,7 +17,7 @@ import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 
 interface Suggestion {
@@ -175,16 +175,14 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         {t('onboarding.flow.createHabit.subtitle')}
       </div>
 
-      <FieldInput
+      <Input
+        label={t('onboarding.flow.createHabit.label')}
         value={title}
         onChange={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}
         maxLength={MAX_HABIT_TITLE_LENGTH}
         disabled={isCreating}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void handleCreate()
-        }}
-        ariaLabel={t('onboarding.flow.createHabit.placeholder')}
+        onSubmit={() => void handleCreate()}
       />
 
       <div className="flex justify-center">

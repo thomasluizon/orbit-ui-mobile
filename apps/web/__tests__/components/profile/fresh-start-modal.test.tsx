@@ -101,6 +101,7 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByText('common.continue'))
 
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')).toBeInTheDocument()
   })
 
@@ -238,6 +239,7 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('common.continue'))
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 

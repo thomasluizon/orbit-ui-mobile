@@ -54,7 +54,7 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 11
+      "count": 10
     }
   },
   "app/(app)/calendar-sync/_components/calendar-picker-section.tsx": {
@@ -221,11 +221,8 @@
     }
   },
   "app/(app)/upgrade/page.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "app/(app)/wrapped/_components/wrapped-cover.tsx": {
@@ -724,13 +721,13 @@
   },
   "components/habits/habit-checklist.tsx": {
     "local/icon-size-grid": {
-      "count": 2
+      "count": 1
     },
     "local/no-space-x-y": {
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/habits/habit-detail-drawer.tsx": {
@@ -758,7 +755,7 @@
       "count": 4
     },
     "local/no-space-x-y": {
-      "count": 14
+      "count": 13
     },
     "local/no-sparkle-ai-marker": {
       "count": 3
@@ -1070,7 +1067,7 @@
   },
   "components/ui/app-bar.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 2
     },
     "local/spacing-scale": {
       "count": 3
@@ -1103,11 +1100,6 @@
     },
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/ui/field-input.tsx": {
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/ui/fresh-start-animation.tsx": {
@@ -1163,11 +1155,8 @@
     "local/icon-size-grid": {
       "count": 2
     },
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 5
+      "count": 3
     }
   },
   "components/ui/trial-banner.tsx": {
@@ -1207,34 +1196,12 @@
       "count": 2
     }
   },
-  "components/upgrade/billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 26
-    }
-  },
   "components/upgrade/plan-comparison-cards.tsx": {
     "local/icon-size-grid": {
       "count": 3
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/upgrade/play-billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/upgrade/pricing-section.tsx": {

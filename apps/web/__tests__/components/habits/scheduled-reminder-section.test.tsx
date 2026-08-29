@@ -10,14 +10,14 @@ vi.mock('next-intl', () => ({
 vi.mock('@/components/ui/time-field', () => ({
   TimeField: ({
     value,
-    ariaLabel,
+    label,
     onChange,
   }: {
     value: string
-    ariaLabel?: string
+    label: string
     onChange: (value: string) => void
   }) => (
-    <input aria-label={ariaLabel} value={value} onChange={(event) => onChange(event.target.value)} />
+    <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />
   ),
 }))
 

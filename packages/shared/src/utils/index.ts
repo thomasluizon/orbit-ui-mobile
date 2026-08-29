@@ -192,6 +192,14 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
+export { resolveSubscriptionScreen } from './subscription-screen'
+export type {
+  ResolveSubscriptionScreenInput,
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenModel,
+  SubscriptionScreenState,
+} from './subscription-screen'
 export {
   APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
@@ -199,6 +207,7 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
+export { formatTimeFieldInput } from './time-field'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
   canSnapshotOnboardingEntry,
@@ -558,3 +567,9 @@ export type {
   WebPushPermission,
   WebPushPreferenceStatus,
 } from './push-notification-settings'
+export {
+  tintProposedChildren,
+  type ProposedTintAdapter,
+  type ProposedTintDecision,
+  type ProposedTintElementProps,
+} from './proposed-tint'

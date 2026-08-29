@@ -1,5 +1,5 @@
 import React from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, TextInput } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
@@ -95,9 +95,8 @@ await Promise.resolve()
       )
     })
 
-    const [textTrigger] = tree.root.findAllByType(Pressable)
-    const label = textTrigger.findByType('Text')
-    expect(label.props.children).toBe(
+    const [input] = tree.root.findAllByType('TextInput')
+    expect(input.props.value).toBe(
       formatLocaleTime('14:30', 'pt-BR', {
         hour: 'numeric',
         minute: '2-digit',

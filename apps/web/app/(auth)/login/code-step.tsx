@@ -1,7 +1,7 @@
 import type { useTranslations } from 'next-intl'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
-import { OtpInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 
@@ -67,9 +67,12 @@ export function CodeStep({
           transition={{ duration: 0.28, ease: 'easeInOut' }}
         >
           <OtpInput
+            label={t('auth.verificationCode')}
             value={codeDigits.join('')}
-            onChange={onCodeChange}
-            label={t('stepUp.codeLabel')}
+            onChange={(value) => {
+              if (!isSubmitting) onCodeChange(value)
+            }}
+            error={errorSignal ?? undefined}
             disabled={isSubmitting}
             autoFocus
           />

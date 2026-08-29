@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Repeat, type Icon } from '@/components/ui/icons'
 import type { Goal } from '@orbit/shared/types/goal'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 
@@ -160,9 +160,9 @@ export function GoalProgressForm({
         gap: 14,
       }}
     >
-      <FieldInput
+      <Input
         label={labelValue}
-        type="number"
+        kind="number"
         inputMode="decimal"
         mono
         value={progressValue === null ? '' : String(progressValue)}
@@ -181,7 +181,7 @@ export function GoalProgressForm({
           {labelExceedsTarget}
         </p>
       )}
-      <FieldInput
+      <Input
         label={labelNote}
         value={progressNote}
         onChange={onProgressNoteChange}
