@@ -55,6 +55,7 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const showCreateGoalModal = useUIStore((state) => state.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
 
   useEffect(() => {
     AsyncStorage.getItem('orbit_show_general_on_today')
@@ -80,6 +81,24 @@ export default function TodayScreen() {
     closeControlsMenu,
   })
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
+
+  useEffect(() => {
+    const hidden = isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null ||
+      habitsQuery.isLoading || (habitsQuery.isError && !habitsQuery.data) ||
+      Boolean(habitsQuery.data && habitsById.size === 0)
+    setTodayFabHidden(hidden)
+    return () => setTodayFabHidden(false)
+  }, [
+    detailHabit,
+    editHabit,
+    habitsById.size,
+    habitsQuery.data,
+    habitsQuery.isError,
+    habitsQuery.isLoading,
+    isSelectMode,
+    setTodayFabHidden,
+    showCreateModal,
+  ])
 
   useShellComposerSlot(
     isSelectMode,

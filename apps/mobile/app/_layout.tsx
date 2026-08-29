@@ -184,6 +184,7 @@ function RootLayoutNav() {
   const totalHabitCount = useTotalHabitCount()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
@@ -271,7 +272,9 @@ function RootLayoutNav() {
         {showBottomNav ? (
           <Shell412
             tabBar={<AppBottomTabBar pathname={pathname} />}
-            fab={pathname === '/' ? <AppCreateFab onCreate={handleCreate} /> : undefined}
+            fab={pathname === '/' && !todayFabHidden
+              ? <AppCreateFab onCreate={handleCreate} />
+              : undefined}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}

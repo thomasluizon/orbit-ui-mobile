@@ -20,6 +20,9 @@ interface DestinationShellProps {
   children: ReactNode
   notice?: ReactNode
   composer?: ReactNode
+  conversation?: ReactNode
+  conversationOpen?: boolean
+  conversationLabel?: string
   onCreate: () => void
 }
 
@@ -45,6 +48,9 @@ export function DestinationShell({
   children,
   notice,
   composer,
+  conversation,
+  conversationOpen,
+  conversationLabel,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const t = useTranslations()
@@ -54,6 +60,7 @@ export function DestinationShell({
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const destination = resolveDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
 
@@ -153,6 +160,9 @@ export function DestinationShell({
           paletteHint="Ctrl K"
           notice={notice}
           composer={composer}
+          conversation={conversation}
+          conversationOpen={conversationOpen}
+          conversationLabel={conversationLabel}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -173,7 +183,7 @@ export function DestinationShell({
           />
         }
         fab={
-          pathname === '/' ? (
+          pathname === '/' && !todayFabHidden && !conversationOpen ? (
             <Fab label={t('nav.create')} onClick={onCreate}>
               <Plus size={24} strokeWidth={2} aria-hidden="true" />
             </Fab>
@@ -181,6 +191,9 @@ export function DestinationShell({
         }
         notice={notice}
         composer={composer}
+        conversation={conversation}
+        conversationOpen={conversationOpen}
+        conversationLabel={conversationLabel}
       >
         {children}
       </Shell412>
