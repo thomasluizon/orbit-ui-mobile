@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next'
 import {
   buildHabitDateBuckets,
   computeHabitReorderPositions,
+  computeParentSettlementDecision,
   computeParentPromptProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
@@ -681,11 +682,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           hasHabitScheduleOnDate(parentHabit, data.selectedDateStr)
         if (!parentIsDueToday) return
 
-        const progress = getChildrenProgressForPrompt(parentHabit.id, childHabitId)
-        if (progress.total > 0 && progress.done >= progress.total) {
+        const mode = computeParentSettlementDecision(
+          parentHabit,
+          getChildrenProgressForPrompt(parentHabit.id, childHabitId),
+        )
+        if (mode) {
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
-            const mode = progress.loggedDone > 0 ? 'log' : 'skip'
             setParentPrompt({ habit: parentHabit, mode, date: data.selectedDateStr })
           }
         } else {
@@ -699,26 +702,33 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const confirmParentSettlement = useCallback(async () => {
       if (!parentPrompt || parentPrompt.date !== selectedDateStr) return
-      const { habit, mode } = parentPrompt
+      const parentId = parentPrompt.habit.id
+      const currentParent = promptDataRef.current?.habitsById.get(parentId) ?? null
+      const mode = computeParentSettlementDecision(
+        currentParent,
+        getChildrenProgressForPrompt(parentId),
+      )
       setParentPrompt(null)
-      markRecentlyCompleted(habit.id)
+      if (!mode) return
+      markRecentlyCompleted(parentId)
       try {
         if (mode === 'skip') {
-          skippedChildIdsRef.current.add(habit.id)
-          await skipMutation.mutateAsync({ habitId: habit.id })
+          skippedChildIdsRef.current.add(parentId)
+          await skipMutation.mutateAsync({ habitId: parentId })
         } else {
-          skippedChildIdsRef.current.delete(habit.id)
-          await logMutation.mutateAsync({ habitId: habit.id })
+          skippedChildIdsRef.current.delete(parentId)
+          await logMutation.mutateAsync({ habitId: parentId })
           void showInterstitialIfDue()
         }
-        checkAndPromptParentLog(habit.id)
+        checkAndPromptParentLog(parentId)
       } catch {
-        promptedParentIdsRef.current.delete(habit.id)
-        clearRecentlyCompleted(habit.id)
+        promptedParentIdsRef.current.delete(parentId)
+        clearRecentlyCompleted(parentId)
       }
     }, [
       checkAndPromptParentLog,
       clearRecentlyCompleted,
+      getChildrenProgressForPrompt,
       logMutation,
       markRecentlyCompleted,
       parentPrompt,

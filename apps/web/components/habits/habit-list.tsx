@@ -11,6 +11,7 @@ import {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitReorderPositions,
+  computeParentSettlementDecision,
   computeParentPromptProgress,
   formatAPIDate,
   getHabitEmptyStateKey,
@@ -565,13 +566,16 @@ export function HabitList({
       hasHabitScheduleOnDate(parent, data.selectedDateStr)
     if (!parentIsDueToday) return
 
-    const { done, total, loggedDone } = getChildrenProgressForPrompt(parent.id, childHabitId)
-    if (total > 0 && done >= total) {
+    const mode = computeParentSettlementDecision(
+      parent,
+      getChildrenProgressForPrompt(parent.id, childHabitId),
+    )
+    if (mode) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
         promptedParentIdsRef.current.add(parent.id)
         setParentPrompt({
           habit: parent,
-          mode: loggedDone > 0 ? 'log' : 'skip',
+          mode,
           date: data.selectedDateStr,
         })
       }
@@ -736,9 +740,15 @@ export function HabitList({
 
   function confirmParentSettlement() {
     if (!parentPrompt || parentPrompt.date !== selectedDateStr) return
-    const pending = parentPrompt
+    const parentId = parentPrompt.habit.id
+    const currentParent = promptDataRef.current?.habitsById.get(parentId) ?? null
+    const mode = computeParentSettlementDecision(
+      currentParent,
+      getChildrenProgressForPrompt(parentId),
+    )
     setParentPrompt(null)
-    void settleCompletedParent(pending.habit.id, pending.mode)
+    if (!mode) return
+    void settleCompletedParent(parentId, mode)
   }
 
   function handleLogged(habitId: string, markAsRecentlyCompleted = true) {

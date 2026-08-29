@@ -1136,7 +1136,7 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
-  it('settles the parent when the final child is logged before the snapshot reflects completion', async () => {
+  it('does not settle the parent before the current snapshot reflects the final child completion', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1182,8 +1182,159 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
+  })
+
+  it('does not settle the parent when a refetch makes a child incomplete while confirmation is open', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog(child.id)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      seedHabits([parent, { ...child, isCompleted: false }])
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+  })
+
+  it('does not settle the parent when a refetch shows it was settled elsewhere', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog(child.id)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      seedHabits([{ ...parent, isCompleted: true }, child])
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+  })
+
+  it('uses the current logged and skipped mix when confirmation is accepted', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog(child.id)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      seedHabits([
+        parent,
+        {
+          ...child,
+          isCompleted: false,
+          isFlexible: true,
+          flexibleTarget: 1,
+          flexibleCompleted: 1,
+          isLoggedInRange: false,
+        },
+      ])
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
   it('settles an overdue parent when the last child is marked completed', async () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildHabitDateBuckets,
+  computeParentSettlementDecision,
   computeParentPromptProgress,
 } from '../utils/habit-list-progress'
 import { createMockHabit } from './factories'
@@ -82,6 +83,56 @@ function makeGetChildren(
 }
 
 const scheduledToday = (habit: NormalizedHabit) => habit.scheduledDates.includes(TODAY)
+
+describe('computeParentSettlementDecision', () => {
+  const parent = createMockHabit({ id: 'parent', hasSubHabits: true })
+
+  it('logs an unsettled parent when any eligible child was logged', () => {
+    expect(
+      computeParentSettlementDecision(parent, {
+        done: 2,
+        total: 2,
+        loggedDone: 1,
+      }),
+    ).toBe('log')
+  })
+
+  it('skips an unsettled parent when every eligible child was skipped', () => {
+    expect(
+      computeParentSettlementDecision(parent, {
+        done: 2,
+        total: 2,
+        loggedDone: 0,
+      }),
+    ).toBe('skip')
+  })
+
+  it('does nothing when the parent is missing, settled, or has incomplete children', () => {
+    const completeChildren = { done: 1, total: 1, loggedDone: 1 }
+
+    expect(computeParentSettlementDecision(null, completeChildren)).toBeNull()
+    expect(
+      computeParentSettlementDecision(
+        { ...parent, isCompleted: true },
+        completeChildren,
+      ),
+    ).toBeNull()
+    expect(
+      computeParentSettlementDecision(parent, {
+        done: 0,
+        total: 1,
+        loggedDone: 0,
+      }),
+    ).toBeNull()
+    expect(
+      computeParentSettlementDecision(parent, {
+        done: 0,
+        total: 0,
+        loggedDone: 0,
+      }),
+    ).toBeNull()
+  })
+})
 
 describe('computeParentPromptProgress', () => {
   it('counts a sub-habit skipped before this mount as resolved', () => {

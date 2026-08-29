@@ -79,6 +79,24 @@ export interface ParentPromptProgressOptions {
   assumeCompletedId?: string
 }
 
+export type ParentSettlementDecision = 'log' | 'skip' | null
+
+export function computeParentSettlementDecision(
+  parent: NormalizedHabit | null,
+  children: ParentPromptProgress,
+): ParentSettlementDecision {
+  if (
+    !parent ||
+    parent.isCompleted ||
+    children.total === 0 ||
+    children.done < children.total
+  ) {
+    return null
+  }
+
+  return children.loggedDone > 0 ? 'log' : 'skip'
+}
+
 /**
  * Aggregates a parent habit's sub-habit resolution for the auto-resolve-parent
  * prompt. A sub-habit counts toward `total` when it is due today, overdue,

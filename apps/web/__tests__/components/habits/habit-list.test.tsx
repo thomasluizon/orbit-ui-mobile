@@ -757,7 +757,7 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
-  it('settles the parent when the final child is logged before the snapshot reflects its completion', async () => {
+  it('does not settle the parent before the current snapshot reflects the final child completion', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -793,7 +793,116 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+  })
+
+  it('does not settle the parent when a refetch makes a child incomplete while confirmation is open', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => <HabitList ref={ref} filters={defaultFilters} />
+    const { rerenderWithProviders } = renderWithProviders(renderList())
+
+    act(() => ref.current?.checkAndPromptParentLog(child.id))
+
+    act(() => {
+      mockHabitsData.habitsById.set(child.id, { ...child, isCompleted: false })
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList())
+    })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+  })
+
+  it('does not settle the parent when a refetch shows it was settled elsewhere', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => <HabitList ref={ref} filters={defaultFilters} />
+    const { rerenderWithProviders } = renderWithProviders(renderList())
+
+    act(() => ref.current?.checkAndPromptParentLog(child.id))
+
+    act(() => {
+      mockHabitsData.habitsById.set(parent.id, { ...parent, isCompleted: true })
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList())
+    })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+  })
+
+  it('uses the current logged and skipped mix when confirmation is accepted', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => <HabitList ref={ref} filters={defaultFilters} />
+    const { rerenderWithProviders } = renderWithProviders(renderList())
+
+    act(() => ref.current?.checkAndPromptParentLog(child.id))
+
+    act(() => {
+      mockHabitsData.habitsById.set(child.id, {
+        ...child,
+        isCompleted: false,
+        isFlexible: true,
+        flexibleTarget: 1,
+        flexibleCompleted: 1,
+        isLoggedInRange: false,
+      })
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList())
+    })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
   it('settles the parent exactly once for a burst of sibling completions', async () => {

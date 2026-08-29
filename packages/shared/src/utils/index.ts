@@ -252,12 +252,14 @@ export {
 export type { HabitPickerOption } from './habit-picker'
 export {
   buildHabitDateBuckets,
+  computeParentSettlementDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'
 export type {
   HabitDateBucket,
   ParentPromptProgress,
   ParentPromptProgressOptions,
+  ParentSettlementDecision,
 } from './habit-list-progress'
 export {
   buildGoalTitle,
