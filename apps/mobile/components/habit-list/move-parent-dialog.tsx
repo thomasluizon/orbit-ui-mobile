@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { AppTextInput } from '@/components/ui/app-text-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGlyph } from '@/components/ui/select-check'
+import { RadioRow } from '@/components/ui/radio-row'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -63,52 +63,23 @@ function MoveTargetRow({
   styles: Styles
   onSelect: (optionId: string | null) => void
 }>) {
-  const isRoot = option.id === null
-  const unselectedOptionStyle = isRoot ? styles.moveOptionRoot : styles.moveOptionDefault
+  const availability = option.disabled
+    ? { disabled: true as const, reason: option.reason ?? currentLabel }
+    : { disabled: false as const }
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.moveOption,
-        selected ? styles.moveOptionSelected : unselectedOptionStyle,
-        option.disabled && styles.moveOptionDisabled,
-        pressed && !option.disabled && !selected ? styles.moveOptionPressed : null,
-      ]}
-      disabled={option.disabled}
-      onPress={() => onSelect(option.id)}
-      accessibilityRole="radio"
-      accessibilityLabel={option.label}
-      accessibilityState={{ selected, disabled: option.disabled }}
-    >
-      <View style={styles.moveOptionHeader}>
-        {Array.from({ length: option.depth }, (_, index) => (
-          // react-doctor-disable-next-line no-array-index-as-key -- decorative indent rails: identical stateless spacers keyed by position, with no data identity to preserve https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-          <View key={index} style={styles.rail} />
-        ))}
-        <View style={[styles.well, isRoot ? styles.wellRoot : styles.wellFilled]}>
-          {isRoot ? (
-            <Home size={18} strokeWidth={1.8} color={tokens.fg2} />
-          ) : (
-            <Text style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>
-          )}
-        </View>
-        <Text style={styles.moveOptionLabel} numberOfLines={1}>
-          {option.label}
-        </Text>
-        {option.childCount > 0 ? (
-          <Text style={styles.moveOptionCount}>{option.childCount}</Text>
-        ) : null}
-        {isCurrentParent ? (
-          <Text style={styles.moveOptionCurrent}>{currentLabel}</Text>
-        ) : null}
-        {selected ? <RadioGlyph selected size={22} tokens={tokens} /> : null}
-      </View>
-      {option.reason ? (
-        <Text style={[styles.moveOptionReason, { paddingLeft: option.depth * 20 }]}>
-          {option.reason}
-        </Text>
-      ) : null}
-    </Pressable>
+    <RadioRow
+      label={option.label}
+      selected={selected}
+      {...availability}
+      depth={option.depth}
+      meta={option.childCount > 0 ? String(option.childCount) : undefined}
+      tag={isCurrentParent ? currentLabel : undefined}
+      leading={option.id === null
+        ? <Home size={18} strokeWidth={1.8} color={tokens.fg2} />
+        : <Text style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
+      onSelect={() => onSelect(option.id)}
+    />
   )
 }
 
@@ -172,16 +143,13 @@ export function MoveParentDialog({
 
         {showSearch ? (
           <View style={styles.searchWrap}>
-            <AppTextInput
+            <Input
+              label={t('habits.moveParent.searchPlaceholder')}
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChange={setSearchQuery}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-              accessibilityLabel={t('habits.moveParent.searchPlaceholder')}
-              autoCorrect={false}
+              trailing={<Search size={18} strokeWidth={1.8} color={tokens.fg3} />}
             />
-            <View style={styles.searchIcon} pointerEvents="none">
-              <Search size={18} strokeWidth={1.8} color={tokens.fg3} />
-            </View>
           </View>
         ) : null}
 
