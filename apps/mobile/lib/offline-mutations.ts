@@ -48,6 +48,13 @@ export interface QueuedMarker {
   queuedMutationId: string
 }
 
+export class OfflineMutationPreflightError extends Error {
+  constructor() {
+    super('Mutation requires an active connection')
+    this.name = 'OfflineMutationPreflightError'
+  }
+}
+
 export interface DroppedMutation {
   id: string
   type: string
@@ -447,7 +454,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
 
   if (!online || hasPendingDependencies) {
     if (!allowAutomaticReplay) {
-      throw new Error('Mutation requires an active connection')
+      throw new OfflineMutationPreflightError()
     }
 
     await markQueuedMutation(resolvedMutation)

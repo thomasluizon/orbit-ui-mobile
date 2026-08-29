@@ -8,12 +8,21 @@ const TestRenderer = require('react-test-renderer')
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
+const showToast = vi.fn()
 const VIEWED_DATE = '2026-04-01'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}))
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => bulkDelete,
   useBulkLogHabits: () => bulkLog,
   useBulkSkipHabits: () => bulkSkip,
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showToast }),
 }))
 
 type BulkActions = ReturnType<typeof useBulkActions>
@@ -46,7 +55,8 @@ function bulkSuccess(ids: string[]) {
 
 describe('useBulkActions confirmBulkDelete', () => {
   beforeEach(() => {
-    bulkDelete.mutateAsync.mockReset().mockResolvedValue(undefined)
+    showToast.mockReset()
+    bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
   })
 
   it('deletes the selected habits then closes the confirm and reports success', async () => {
@@ -72,17 +82,27 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
-  it('keeps the selection when an offline delete is refused', async () => {
-    bulkDelete.mutateAsync.mockRejectedValueOnce(new Error('offline'))
+  it('keeps the confirmation and selection when an offline delete is refused', async () => {
+    bulkDelete.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      offlineFailureIds: ['h-1'],
+    })
     const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(new Set(['h-1']))
 
+    TestRenderer.act(() => {
+      captured.current!.setShowBulkDeleteConfirm(true)
+    })
     await TestRenderer.act(async () => {
-      await expect(captured.current!.confirmBulkDelete()).rejects.toThrow('offline')
+      await captured.current!.confirmBulkDelete()
     })
 
     expect(onSuccess).not.toHaveBeenCalled()
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
-    expect(captured.current!.showBulkDeleteConfirm).toBe(false)
+    expect(captured.current!.showBulkDeleteConfirm).toBe(true)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.offlineFailure',
+    })
   })
 })
 
@@ -93,7 +113,8 @@ describe('useBulkActions confirmBulkDelete', () => {
  */
 describe('useBulkActions reversibility boundary', () => {
   beforeEach(() => {
-    bulkDelete.mutateAsync.mockReset().mockResolvedValue(undefined)
+    showToast.mockReset()
+    bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
   })
@@ -145,22 +166,29 @@ describe('useBulkActions reversibility boundary', () => {
   it.each([
     ['log', bulkLog, 'confirmBulkLog'],
     ['skip', bulkSkip, 'confirmBulkSkip'],
-  ] as const)('keeps the selection when an offline bulk %s is refused', async (
+  ] as const)('keeps the selection and reports an offline bulk %s refusal', async (
     _mode,
     mutation,
     action,
   ) => {
-    mutation.mutateAsync.mockRejectedValueOnce(new Error('offline'))
+    mutation.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      offlineFailureIds: ['h-1', 'h-2'],
+    })
     const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1', 'h-2']),
     )
 
     await TestRenderer.act(async () => {
-      await expect(captured.current![action]()).rejects.toThrow('offline')
+      await captured.current![action]()
     })
 
     expect(onSuccess).not.toHaveBeenCalled()
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.offlineFailure',
+    })
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {

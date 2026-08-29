@@ -442,7 +442,8 @@
     "bulkBar": {
       "log": "Log selected",
       "skip": "Skip selected",
-      "delete": "Delete selected"
+      "delete": "Delete selected",
+      "offlineFailure": "Nothing changed because your device is offline."
     },
     "skipHabit": "Skip",
     "frequency": {

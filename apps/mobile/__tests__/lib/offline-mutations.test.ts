@@ -14,6 +14,7 @@ import {
   flushQueuedMutations,
   getMutationScope,
   isQueuedResult,
+  OfflineMutationPreflightError,
   queueOrExecute,
   runQueuedMutation,
   subscribeDroppedMutations,
@@ -240,7 +241,7 @@ describe('offline mutations', () => {
       execute,
       queuedResult: { queued: true as const },
       allowAutomaticReplay: false,
-    })).rejects.toThrow('Mutation requires an active connection')
+    })).rejects.toBeInstanceOf(OfflineMutationPreflightError)
 
     expect(execute).not.toHaveBeenCalled()
     expect(mocks.enqueue).not.toHaveBeenCalled()

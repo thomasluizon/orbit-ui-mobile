@@ -442,7 +442,8 @@
     "bulkBar": {
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
-      "delete": "Excluir selecionados"
+      "delete": "Excluir selecionados",
+      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão."
     },
     "skipHabit": "Pular",
     "frequency": {

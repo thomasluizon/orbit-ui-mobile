@@ -25,6 +25,8 @@ import {
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
 const mocks = vi.hoisted(() => {
+  class OfflineMutationPreflightError extends Error {}
+
   const state = {
     entries: [] as { key: readonly unknown[]; value: unknown }[],
     tempIds: [] as string[],
@@ -124,6 +126,7 @@ const mocks = vi.hoisted(() => {
       (value as { queued?: boolean }).queued === true
     )),
     queueOrExecute: vi.fn(),
+    OfflineMutationPreflightError,
     withQueuedMarker: vi.fn((value: Record<string, unknown>, mutationId: string) => ({
       ...value,
       queued: true as const,
@@ -169,6 +172,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   createTempEntityId: mocks.createTempEntityId,
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
+  OfflineMutationPreflightError: mocks.OfflineMutationPreflightError,
   withQueuedMarker: mocks.withQueuedMarker,
 }))
 
@@ -1187,43 +1191,46 @@ describe('mobile habit hooks', () => {
     ], 2)
 
     const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
-      unknown,
+      { results: unknown[]; offlineFailureIds: string[] },
       string[],
       { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
     const deleteVariables = ['habit-1', 'habit-2']
     const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
-    mocks.runQueuedMutation.mockRejectedValueOnce(new Error('offline'))
-    await expect(bulkDelete.mutationFn(deleteVariables)).rejects.toThrow('offline')
-    bulkDelete.onError?.(new Error('offline'), deleteVariables, deleteContext)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    const deleteResult = await bulkDelete.mutationFn(deleteVariables)
+    bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
 
+    expect(deleteResult.offlineFailureIds).toEqual(deleteVariables)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(getCount()).toBe(2)
 
     const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
-      unknown,
+      { results: unknown[]; offlineFailureIds: string[] },
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
     const logVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
     const logContext = await bulkLog.onMutate?.(logVariables)
-    mocks.runQueuedMutation.mockRejectedValueOnce(new Error('offline'))
-    await expect(bulkLog.mutationFn(logVariables)).rejects.toThrow('offline')
-    bulkLog.onError?.(new Error('offline'), logVariables, logContext)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    const logResult = await bulkLog.mutationFn(logVariables)
+    bulkLog.onSuccess?.(logResult, logVariables, logContext)
 
+    expect(logResult.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
     expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
 
     const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
-      unknown,
+      { results: unknown[]; offlineFailureIds: string[] },
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
     const skipVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
     const skipContext = await bulkSkip.onMutate?.(skipVariables)
-    mocks.runQueuedMutation.mockRejectedValueOnce(new Error('offline'))
-    await expect(bulkSkip.mutationFn(skipVariables)).rejects.toThrow('offline')
-    bulkSkip.onError?.(new Error('offline'), skipVariables, skipContext)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    const skipResult = await bulkSkip.mutationFn(skipVariables)
+    bulkSkip.onSuccess?.(skipResult, skipVariables, skipContext)
 
+    expect(skipResult.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
     expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
   })
 
