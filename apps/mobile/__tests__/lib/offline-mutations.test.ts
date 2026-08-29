@@ -262,7 +262,7 @@ describe('offline mutations', () => {
     })
   })
 
-  it('coalesces an online toggle while its matching queued toggle is syncing', async () => {
+  it('marks a coalesced online toggle as a retained acknowledgement', async () => {
     mocks.setOnline(true)
     const retainedMutation = buildQueuedMutation({
       type: 'logHabit',
@@ -294,6 +294,7 @@ describe('offline mutations', () => {
     expect(result).toEqual({
       queued: true,
       queuedMutationId: retainedMutation.id,
+      retained: true,
     })
     expect(execute).not.toHaveBeenCalled()
     expect(mocks.enqueue).not.toHaveBeenCalled()

@@ -47,6 +47,7 @@ const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> =
 export interface QueuedMarker {
   queued: true
   queuedMutationId: string
+  retained?: true
 }
 
 export class OfflineMutationPreflightError extends Error {
@@ -155,7 +156,7 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
-  queuedResultFactory?: (mutationId: string) => TQueuedResult
+  queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
   allowAutomaticReplay?: boolean
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
@@ -167,17 +168,20 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
     queuedResultFactory:
       queuedResultFactory ??
       (queuedResult === undefined
-        ? (mutationId) => createQueuedAck(mutationId) as TResult | TQueuedResult
+        ? (mutationId, retained) => createQueuedAck(mutationId, retained) as TResult | TQueuedResult
         : undefined),
     allowAutomaticReplay,
   })
 }
 
-export function createQueuedAck(mutationId: string): QueuedMarker {
-  return {
+export function createQueuedAck(mutationId: string, retained = false): QueuedMarker {
+  const marker: QueuedMarker = {
     queued: true,
     queuedMutationId: mutationId,
   }
+
+  if (retained) marker.retained = true
+  return marker
 }
 
 export function withQueuedMarker<T extends Record<string, unknown>>(
@@ -450,7 +454,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult?: TQueuedResult
-  queuedResultFactory?: (mutationId: string) => TQueuedResult
+  queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
   allowAutomaticReplay?: boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
@@ -461,7 +465,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   const retainedMutation = findUnfinalizedFirstWrite(resolvedMutation)
 
   if (retainedMutation) {
-    return queuedResultFactory?.(retainedMutation.id) ?? queuedResult as TQueuedResult
+    return queuedResultFactory?.(retainedMutation.id, true) ?? queuedResult as TQueuedResult
   }
 
   if (!online || hasPendingDependencies) {
@@ -470,7 +474,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     }
 
     const queuedMutationId = await markQueuedMutation(resolvedMutation)
-    return queuedResultFactory?.(queuedMutationId) ?? queuedResult as TQueuedResult
+    return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   }
 
   try {
@@ -482,7 +486,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     }
 
     const queuedMutationId = await markQueuedMutation(resolvedMutation)
-    return queuedResultFactory?.(queuedMutationId) ?? queuedResult as TQueuedResult
+    return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   } finally {
     setPendingIdempotencyKey(null)
   }

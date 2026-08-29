@@ -92,10 +92,10 @@ const mocks = vi.hoisted(() => {
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
       mutation: { type: string }
       queuedResult?: unknown
-      queuedResultFactory?: (mutationId: string) => unknown
+      queuedResultFactory?: (mutationId: string, retained: boolean) => unknown
       allowAutomaticReplay?: boolean
     }) => Promise.resolve(
-      queuedResultFactory?.('mutation-1') ?? queuedResult ?? {
+      queuedResultFactory?.('mutation-1', false) ?? queuedResult ?? {
         queued: true as const,
         queuedMutationId: 'mutation-1',
       },
@@ -114,9 +114,10 @@ const mocks = vi.hoisted(() => {
       dedupeKey: null,
       ...options,
     })),
-    createQueuedAck: vi.fn((mutationId: string) => ({
+    createQueuedAck: vi.fn((mutationId: string, retained = false) => ({
       queued: true as const,
       queuedMutationId: mutationId,
+      ...(retained ? { retained: true as const } : {}),
     })),
     createTempEntityId: vi.fn(() => mocks.state.tempIds.shift() ?? 'offline-habit-fallback'),
     isQueuedResult: vi.fn((value: unknown) => (
@@ -453,6 +454,48 @@ describe('mobile habit hooks', () => {
     )
     expect(useReviewReminderStore.getState()).toMatchObject({
       completionCount: 1,
+      activeDays: ['2026-08-28'],
+    })
+  })
+
+  it('does not count a retained acknowledgement and counts a later confirmed log', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log' as const,
+    }
+
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      variables,
+      undefined,
+    )
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1', retained: true },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-28'],
+    })
+
+    mutation.onSuccess?.(
+      { logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 2,
       activeDays: ['2026-08-28'],
     })
   })

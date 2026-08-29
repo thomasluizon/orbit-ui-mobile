@@ -190,13 +190,15 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      if (variables.intent === 'log') {
+      const queuedResult = isQueuedResult(response)
+
+      if (variables.intent === 'log' && (!queuedResult || response.retained !== true)) {
         useReviewReminderStore
           .getState()
           .trackCompletion(variables.date ?? formatAPIDate(new Date()))
       }
 
-      if (isQueuedResult(response)) {
+      if (queuedResult) {
         return
       }
 
