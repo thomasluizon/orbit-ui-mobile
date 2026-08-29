@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
   keyboardEnabled: vi.fn(),
+  showSendControl: false,
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -21,6 +22,25 @@ vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: (enabled: boolean) => mocks.keyboardEnabled(enabled),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
+vi.mock('@/hooks/use-chat-composer', async () => {
+  const { useState } = await import('react')
+  return {
+    useChatComposer: ({ onOpenConversation }: { onOpenConversation?: () => void } = {}) => {
+      const [sendError, setSendError] = useState<string | null>(null)
+      return {
+        sendError,
+        composerProps: {
+          onOpenConversation,
+          onSend: () => {
+            onOpenConversation?.()
+            setSendError('send failed sentinel')
+          },
+          ...(sendError ? { onRetry: () => setSendError(null) } : {}),
+        },
+      }
+    },
+  }
+})
 vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen }) => unknown) =>
     selector({ setPaletteOpen: mocks.setPaletteOpen }),
@@ -43,13 +63,46 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-composer', () => ({
-  ShellComposer: ({ onOpenConversation }: { onOpenConversation: () => void }) => (
-    <button type="button" aria-label="shell-open" onClick={onOpenConversation} />
+  ShellComposer: ({
+    composer,
+  }: {
+    composer: {
+      composerProps: {
+        onOpenConversation?: () => void
+        onSend: () => void
+      }
+    }
+  }) => (
+    <>
+      <button
+        type="button"
+        aria-label="shell-open"
+        onClick={composer.composerProps.onOpenConversation}
+      />
+      {mocks.showSendControl ? (
+        <button type="button" aria-label="shell-send" onClick={composer.composerProps.onSend} />
+      ) : null}
+    </>
   ),
 }))
 vi.mock('@/components/chat/chat-page-content', () => ({
-  ChatPageContent: ({ onClose }: { onClose: () => void }) => (
-    <button type="button" aria-label="conversation-close" onClick={onClose} />
+  ChatPageContent: ({
+    composer,
+    onClose,
+  }: {
+    composer: {
+      sendError: string | null
+      composerProps: { onRetry?: () => void }
+    }
+    onClose: () => void
+  }) => (
+    <>
+      <button type="button" aria-label="conversation-close" onClick={onClose} />
+      {composer.sendError ? <p role="alert">{composer.sendError}</p> : null}
+      {composer.composerProps.onRetry ? (
+        <button type="button" onClick={composer.composerProps.onRetry}>retry send</button>
+      ) : null}
+    </>
   ),
 }))
 vi.mock('@/components/shell/shell-412', () => ({
@@ -88,7 +141,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     conversationOpen?: boolean
   }) => (
     <div data-testid="wide-shell">
-      {children}{notice}{composer}{conversationOpen ? conversation : null}
+      {children}{notice}{conversationOpen ? null : composer}{conversationOpen ? conversation : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       ))}
@@ -109,6 +162,7 @@ describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
+    mocks.showSendControl = false
     resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
@@ -201,6 +255,29 @@ describe('DestinationShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'conversation-close' }))
 
     expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
+  })
+
+  it('shows a failed shell send and retry inside the opened conversation', () => {
+    mocks.showSendControl = true
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'shell-send' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
+    fireEvent.click(screen.getByRole('button', { name: 'retry send' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps failed-send recovery when the wide shell unmounts its composer', () => {
+    mocks.wide = true
+    mocks.showSendControl = true
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'shell-send' }))
+
+    expect(screen.queryByRole('button', { name: 'shell-send' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
+    expect(screen.getByRole('button', { name: 'retry send' })).toBeInTheDocument()
   })
 
   it('keeps the composer mounted when a notice is present', () => {

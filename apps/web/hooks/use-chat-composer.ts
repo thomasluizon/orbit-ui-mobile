@@ -691,3 +691,5 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
     scrollToBottom,
   }
 }
+
+export type ChatComposerController = ReturnType<typeof useChatComposer>

@@ -7,7 +7,7 @@ import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraMark } from '@/components/ui/astra-avatar'
-import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useChatComposer, type ChatComposerController } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -19,7 +19,13 @@ import { useShellScrollerRegistration } from '@/components/shell/shell-scroller-
 import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from '@/app/(chat)/chat/chat-empty-state'
 
-export function ChatPageContent({ onClose }: Readonly<{ onClose?: () => void }>) {
+export function ChatPageContent({
+  composer,
+  onClose,
+}: Readonly<{
+  composer: ChatComposerController
+  onClose?: () => void
+}>) {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
@@ -30,7 +36,6 @@ export function ChatPageContent({ onClose }: Readonly<{ onClose?: () => void }>)
     }
     goBackOrFallback('/')
   }, [goBackOrFallback, onClose])
-  const composer = useChatComposer()
   const {
     chatContainerRef,
     messages,
@@ -49,7 +54,8 @@ export function ChatPageContent({ onClose }: Readonly<{ onClose?: () => void }>)
     handleFileSelect,
     composerProps,
   } = composer
-  const registerShellScroller = useShellScrollerRegistration()
+  const scrollerOwner = useMemo(() => Symbol('chat-page-content'), [])
+  const registerShellScroller = useShellScrollerRegistration(scrollerOwner)
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
     registerShellScroller?.(element)
@@ -191,4 +197,9 @@ export function ChatPageContent({ onClose }: Readonly<{ onClose?: () => void }>)
       )}
     </div>
   )
+}
+
+export function ChatPageContentOwner() {
+  const composer = useChatComposer()
+  return <ChatPageContent composer={composer} />
 }

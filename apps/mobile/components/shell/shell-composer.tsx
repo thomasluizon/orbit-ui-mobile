@@ -1,20 +1,12 @@
-import { useTranslation } from 'react-i18next'
-import { useChatComposer } from '@/hooks/use-chat-composer'
-import { useOffline } from '@/hooks/use-offline'
+import type { ChatComposerController } from '@/hooks/use-chat-composer'
 import { Composer } from './composer'
 
 export function ShellComposer({
-  onOpenConversation,
+  composer,
 }: Readonly<{
-  onOpenConversation: () => void
+  composer: ChatComposerController
 }>) {
-  const { t } = useTranslation()
-  const { isOnline } = useOffline()
-  const { composerProps } = useChatComposer({
-    isOnline,
-    offlineTitle: t('chat.offline.title'),
-    onOpenConversation,
-  })
+  const { composerProps } = composer
 
   return <Composer {...composerProps} />
 }

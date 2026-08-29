@@ -793,3 +793,5 @@ export function useChatComposer({
     verifyStepUpForBubble,
   };
 }
+
+export type ChatComposerController = ReturnType<typeof useChatComposer>;

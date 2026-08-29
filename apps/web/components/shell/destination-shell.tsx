@@ -12,6 +12,7 @@ import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -57,6 +58,8 @@ export function DestinationShell({
   const navigationEnabled = hasPrimaryNavigation(pathname)
   const [conversationPathname, setConversationPathname] = useState<string | null>(null)
   const conversationOpen = primaryDestination && conversationPathname === pathname
+  const openConversation = useCallback(() => setConversationPathname(pathname), [pathname])
+  const composer = useChatComposer({ onOpenConversation: openConversation })
 
   useKeyboardShortcuts(navigationEnabled)
 
@@ -122,8 +125,10 @@ export function DestinationShell({
 
   const astraSlots = primaryDestination
     ? {
-        composer: <ShellComposer onOpenConversation={() => setConversationPathname(pathname)} />,
-        conversation: <ChatPageContent onClose={() => setConversationPathname(null)} />,
+        composer: <ShellComposer composer={composer} />,
+        conversation: (
+          <ChatPageContent composer={composer} onClose={() => setConversationPathname(null)} />
+        ),
         conversationLabel: t('chat.title'),
         conversationOpen,
       }

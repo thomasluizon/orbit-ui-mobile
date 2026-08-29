@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useMemo,
   useRef,
   useSyncExternalStore,
   type ComponentType,
@@ -203,7 +204,8 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
   )
   const modalOpen = conversationOpen && !sidePanel
   const conversationRef = useRef<HTMLDivElement>(null)
-  const registerScroller = useShellScrollerRegistration()
+  const scrollerOwner = useMemo(() => Symbol('shell-wide'), [])
+  const registerScroller = useShellScrollerRegistration(scrollerOwner)
   useModalFocusTrap(modalOpen, conversationRef)
 
   return (

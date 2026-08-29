@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isPrimaryShellDestination } from '@orbit/shared/utils'
 import { ChatScreenContent } from '@/app/chat'
+import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useOffline } from '@/hooks/use-offline'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Shell412 } from './shell-412'
 import { ShellComposer } from './shell-composer'
@@ -36,6 +38,16 @@ export function DestinationShell(props: Readonly<DestinationShellProps>) {
   const closeConversation = useCallback(() => {
     closeSheet(() => setConversationPathname(null))
   }, [closeSheet])
+  const openConversation = useCallback(
+    () => setConversationPathname(props.pathname),
+    [props.pathname],
+  )
+  const { isOnline } = useOffline()
+  const composer = useChatComposer({
+    isOnline,
+    offlineTitle: t('chat.offline.title'),
+    onOpenConversation: openConversation,
+  })
 
   useEffect(() => {
     if (conversationOpen && !conversationOnCurrentDestination) closeConversation()
@@ -48,7 +60,7 @@ export function DestinationShell(props: Readonly<DestinationShellProps>) {
       onClose={() => setConversationPathname(null)}
       presentation="conversation"
     >
-      <ChatScreenContent onClose={closeConversation} />
+      <ChatScreenContent composer={composer} onClose={closeConversation} />
     </Sheet>
   ) : undefined
   const conversationSlots = conversation
@@ -78,7 +90,7 @@ export function DestinationShell(props: Readonly<DestinationShellProps>) {
       notice={props.notice}
       composer={
         primaryDestination ? (
-          <ShellComposer onOpenConversation={() => setConversationPathname(props.pathname)} />
+          <ShellComposer composer={composer} />
         ) : undefined
       }
       {...conversationSlots}

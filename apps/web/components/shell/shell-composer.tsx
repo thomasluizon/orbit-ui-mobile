@@ -1,16 +1,14 @@
 'use client'
 
-import { useChatComposer } from '@/hooks/use-chat-composer'
+import type { ChatComposerController } from '@/hooks/use-chat-composer'
 import { Composer } from './composer'
 
 export function ShellComposer({
-  onOpenConversation,
+  composer,
 }: Readonly<{
-  onOpenConversation: () => void
+  composer: ChatComposerController
 }>) {
-  const { composerProps, fileInputRef, handleFileSelect } = useChatComposer({
-    onOpenConversation,
-  })
+  const { composerProps, fileInputRef, handleFileSelect } = composer
 
   return (
     <>

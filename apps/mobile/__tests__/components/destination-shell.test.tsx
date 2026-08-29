@@ -4,6 +4,7 @@ import { DestinationShell } from '@/components/shell/destination-shell'
 
 const mocks = vi.hoisted(() => ({
   closeSheet: vi.fn(),
+  showSendControl: false,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -18,13 +19,65 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-chat-composer', async () => {
+  const { useState } = await import('react')
+  return {
+    useChatComposer: ({ onOpenConversation }: { onOpenConversation?: () => void }) => {
+      const [sendError, setSendError] = useState<string | null>(null)
+      return {
+        sendError,
+        composerProps: {
+          onOpenConversation,
+          onSend: () => {
+            onOpenConversation?.()
+            setSendError('send failed sentinel')
+          },
+          ...(sendError ? { onRetry: () => setSendError(null) } : {}),
+        },
+      }
+    },
+  }
+})
 vi.mock('@/components/shell/shell-composer', () => ({
-  ShellComposer: ({ onOpenConversation }: { onOpenConversation: () => void }) =>
-    React.createElement('ShellComposer', { onOpenConversation }),
+  ShellComposer: ({
+    composer,
+  }: {
+    composer: {
+      composerProps: {
+        onOpenConversation?: () => void
+        onSend: () => void
+      }
+    }
+  }) => React.createElement('ShellComposer', {
+    onOpenConversation: composer.composerProps.onOpenConversation,
+    ...(mocks.showSendControl ? { onSend: composer.composerProps.onSend } : {}),
+  }),
 }))
 vi.mock('@/app/chat', () => ({
-  ChatScreenContent: ({ onClose }: { onClose: () => void }) =>
+  ChatScreenContent: ({
+    composer,
+    onClose,
+  }: {
+    composer: {
+      sendError: string | null
+      composerProps: { onRetry?: () => void }
+    }
+    onClose: () => void
+  }) => React.createElement(
+    React.Fragment,
+    null,
     React.createElement('ChatScreenContent', { onClose }),
+    composer.sendError
+      ? React.createElement('Text', { accessibilityRole: 'alert' }, composer.sendError)
+      : null,
+    composer.composerProps.onRetry
+      ? React.createElement('Pressable', {
+          accessibilityLabel: 'retry send',
+          onPress: composer.composerProps.onRetry,
+        })
+      : null,
+  ),
 }))
 vi.mock('@/components/ui/sheet', () => ({
   useSheetHost: () => ({
@@ -77,6 +130,7 @@ function hostCallback(tree: ReactTestRenderer, type: string, name: string) {
 describe('mobile DestinationShell', () => {
   beforeEach(() => {
     mocks.closeSheet.mockReset()
+    mocks.showSendControl = false
   })
 
   it.each(['/', '/calendar', '/progress', '/profile'])('mounts the composer at %s', async (pathname) => {
@@ -102,6 +156,23 @@ describe('mobile DestinationShell', () => {
 
     expect(mocks.closeSheet).toHaveBeenCalledOnce()
     expect(hosts(tree, 'ChatScreenContent')).toHaveLength(0)
+  })
+
+  it('shows a failed shell send and retry inside the opened conversation', async () => {
+    mocks.showSendControl = true
+    const tree = await renderShell('/')
+
+    await TestRenderer.act(() => hostCallback(tree, 'ShellComposer', 'onSend')())
+
+    expect(hosts(tree, 'Text').some((node) => node.props.children === 'send failed sentinel'))
+      .toBe(true)
+    const retry = hosts(tree, 'Pressable').find(
+      (node) => node.props.accessibilityLabel === 'retry send',
+    )
+    expect(retry).toBeDefined()
+    await TestRenderer.act(() => retry?.props.onPress())
+    expect(hosts(tree, 'Text').some((node) => node.props.children === 'send failed sentinel'))
+      .toBe(false)
   })
 
   it('keeps the composer mounted when a notice is present', async () => {

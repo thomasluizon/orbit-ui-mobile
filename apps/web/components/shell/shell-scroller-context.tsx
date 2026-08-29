@@ -11,16 +11,25 @@ import {
 
 interface ShellScrollerContextValue {
   scroller: HTMLElement | null
-  registerScroller: (scroller: HTMLElement | null) => void
+  registerScroller: (owner: symbol, scroller: HTMLElement | null) => void
+}
+
+interface ShellScrollerRegistration {
+  owner: symbol
+  scroller: HTMLElement
 }
 
 const ShellScrollerContext = createContext<ShellScrollerContextValue | null>(null)
 
 export function ShellScrollerProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [scroller, setScroller] = useState<HTMLElement | null>(null)
-  const registerScroller = useCallback((nextScroller: HTMLElement | null) => {
-    setScroller(nextScroller)
+  const [registrations, setRegistrations] = useState<ShellScrollerRegistration[]>([])
+  const registerScroller = useCallback((owner: symbol, nextScroller: HTMLElement | null) => {
+    setRegistrations((current) => {
+      const remaining = current.filter((registration) => registration.owner !== owner)
+      return nextScroller ? [...remaining, { owner, scroller: nextScroller }] : remaining
+    })
   }, [])
+  const scroller = registrations.at(-1)?.scroller ?? null
   const value = useMemo(
     () => ({ scroller, registerScroller }),
     [registerScroller, scroller],
@@ -37,7 +46,14 @@ export function useShellScroller(): HTMLElement | null {
   return useContext(ShellScrollerContext)?.scroller ?? null
 }
 
-export function useShellScrollerRegistration(): ((scroller: HTMLElement | null) => void) | undefined {
+export function useShellScrollerRegistration(
+  owner: symbol,
+): ((scroller: HTMLElement | null) => void) | undefined {
   const context = useContext(ShellScrollerContext)
-  return context?.registerScroller
+  const registerScroller = context?.registerScroller
+  const registration = useCallback(
+    (scroller: HTMLElement | null) => registerScroller?.(owner, scroller),
+    [owner, registerScroller],
+  )
+  return context ? registration : undefined
 }

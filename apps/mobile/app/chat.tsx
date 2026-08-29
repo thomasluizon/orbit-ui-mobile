@@ -18,7 +18,7 @@ import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import { habitDetailToNormalized } from "@orbit/shared/utils";
 import { useHabitDetail } from "@/hooks/use-habits";
 import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
-import { useChatComposer } from "@/hooks/use-chat-composer";
+import { useChatComposer, type ChatComposerController } from "@/hooks/use-chat-composer";
 import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
@@ -79,10 +79,22 @@ function ChatRewardRecovery({
 }
 
 export default function ChatScreen() {
-  return <ChatScreenContent />;
+  const { t } = useTranslation();
+  const { isOnline } = useOffline();
+  const composer = useChatComposer({
+    isOnline,
+    offlineTitle: t("chat.offline.title"),
+  });
+  return <ChatScreenContent composer={composer} />;
 }
 
-export function ChatScreenContent({ onClose }: Readonly<{ onClose?: () => void }>) {
+export function ChatScreenContent({
+  composer,
+  onClose,
+}: Readonly<{
+  composer: ChatComposerController;
+  onClose?: () => void;
+}>) {
   const { t } = useTranslation();
   const router = useRouter();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -106,7 +118,6 @@ export function ChatScreenContent({ onClose }: Readonly<{ onClose?: () => void }
   useTourTarget("tour-chat-area", chatAreaRef);
   useTourTarget("tour-chat-input", chatInputRef);
 
-  const offlineTitle = t("chat.offline.title");
   const offlineDescription = t("chat.offline.description");
 
   const {
@@ -125,7 +136,7 @@ export function ChatScreenContent({ onClose }: Readonly<{ onClose?: () => void }
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
-  } = useChatComposer({ isOnline, offlineTitle });
+  } = composer;
 
   const {
     adsEnabledForUser,
