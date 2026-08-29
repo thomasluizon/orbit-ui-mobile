@@ -52,12 +52,15 @@ type ComposerBase = {
   onChangeValue: (value: string) => void
   onSend: () => void
   suggestions: ComposerSuggestions
+  onOpenConversation?: () => void
+  conversationLabel?: string
 }
 
 type ComposerState =
   | { state: 'idle'; limitReason?: never; limitRecovery?: never }
   | { state: 'sending'; limitReason?: never; limitRecovery?: never }
   | { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
+  | { state: 'offline'; limitReason: string; limitRecovery?: never }
   | {
       state: 'recording'
       limitReason?: never

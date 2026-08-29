@@ -35,6 +35,7 @@ import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
+import { useUIStore } from "@/stores/ui-store";
 
 interface ChatRewardRecoveryProps {
   canWatchRewardAd: boolean;
@@ -89,6 +90,8 @@ export default function ChatScreen() {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { isOnline } = useOffline();
   const goBackOrFallback = useGoBackOrFallback();
+  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen);
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen);
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
@@ -226,7 +229,10 @@ export default function ChatScreen() {
       >
         <AppBar
           back
-          onBack={() => goBackOrFallback("/")}
+          onBack={() => {
+            if (astraConversationOpen) setAstraConversationOpen(false);
+            else goBackOrFallback("/");
+          }}
           backLabel={t("common.goBack")}
           titleIcon={<AstraMark size={18} />}
           title={t("chat.title")}

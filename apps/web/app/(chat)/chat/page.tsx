@@ -16,12 +16,19 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { ErrorState } from '@/components/ui/error-state'
+import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
 
 export default function ChatPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const close = useCallback(() => {
+    if (astraConversationOpen) setAstraConversationOpen(false)
+    else goBackOrFallback('/')
+  }, [astraConversationOpen, goBackOrFallback, setAstraConversationOpen])
   const {
     chatContainerRef,
     messages,
@@ -91,12 +98,12 @@ export default function ChatPage() {
         return
       }
 
-      goBackOrFallback('/')
+      close()
     }
 
     document.addEventListener('keydown', handleKeydown)
     return () => document.removeEventListener('keydown', handleKeydown)
-  }, [goBackOrFallback])
+  }, [close])
 
   return (
     <div className="relative flex flex-col h-full">
@@ -104,7 +111,7 @@ export default function ChatPage() {
         <AppBar
           back
           backLabel={t('common.goBack')}
-          onBack={() => goBackOrFallback('/')}
+          onBack={close}
           titleIcon={<AstraMark size={18} />}
           title={t('chat.title')}
         />

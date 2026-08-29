@@ -227,6 +227,14 @@
       }
     }
   },
+  "todayAstra": {
+    "createSentence": "Help me create a habit for today",
+    "openConversation": "Open the conversation",
+    "openProgress": "See your progress",
+    "returning": "It has been {days} days since your last completion.",
+    "offline": "Astra needs a connection. Habit logging still works offline.",
+    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
+  },
   "command": {
     "title": "Commands",
     "placeholder": "Type a command or search...",

@@ -21,6 +21,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import { TodayAstra } from '@/components/today/today-astra'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -46,6 +47,7 @@ export default function TodayScreen() {
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
   const showCompleted = useUIStore((state) => state.showCompleted)
   const setShowCompleted = useUIStore((state) => state.setShowCompleted)
@@ -83,7 +85,7 @@ export default function TodayScreen() {
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
 
   useEffect(() => {
-    const hidden = isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null ||
+    const hidden = isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen ||
       habitsQuery.isLoading || (habitsQuery.isError && !habitsQuery.data) ||
       Boolean(habitsQuery.data && habitsById.size === 0)
     setTodayFabHidden(hidden)
@@ -96,6 +98,7 @@ export default function TodayScreen() {
     habitsQuery.isError,
     habitsQuery.isLoading,
     isSelectMode,
+    listSurfaceOpen,
     setTodayFabHidden,
     showCreateModal,
   ])
@@ -164,6 +167,12 @@ export default function TodayScreen() {
           <CapacityNotice message={t(boundaryKey)} />
         </View>
       ) : null}
+      <TodayAstra
+        habitsById={habitsById}
+        today={date.today}
+        isTodaySelected={date.dateStr === date.today}
+        suppressed={isSelectMode || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+      />
     </>
   )
 
@@ -188,6 +197,7 @@ export default function TodayScreen() {
         }}
         onAllLoadedIdsChange={setAllLoadedIds}
         onAllCollapsedChange={setHabitListAllCollapsed}
+        onSurfaceOpenChange={setListSurfaceOpen}
       />
 
       <TodayModals

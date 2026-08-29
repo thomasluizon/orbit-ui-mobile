@@ -1,4 +1,41 @@
 import type { NotificationItem } from '../types/notification'
+import { differenceInCalendarDays } from 'date-fns'
+import { parseAPIDate } from './dates'
+
+export function selectNewestUnreadProactiveCheckin(
+  notifications: readonly NotificationItem[],
+): NotificationItem | null {
+  const candidates = notifications
+    .filter((item) => !item.isRead && item.url === '/chat' && item.habitId === null)
+  candidates.sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc))
+  return candidates[0] ?? null
+}
+
+export function getReturningDays(
+  lastCompletedDates: readonly (string | null | undefined)[],
+  today: string,
+): number | null {
+  const dates = lastCompletedDates.filter((date): date is string => typeof date === 'string')
+  dates.sort((left, right) => right.localeCompare(left))
+  const newest = dates[0]
+  if (!newest) return null
+  const days = differenceInCalendarDays(parseAPIDate(today), parseAPIDate(newest))
+  return days >= 3 ? days : null
+}
+
+export function shouldShowTodayAstraLine({
+  isTodaySelected,
+  inDrillOrSurface,
+  isOnline,
+  atLimit,
+}: Readonly<{
+  isTodaySelected: boolean
+  inDrillOrSurface: boolean
+  isOnline: boolean
+  atLimit: boolean
+}>): boolean {
+  return isTodaySelected && !inDrillOrSurface && isOnline && !atLimit
+}
 
 export function isViewableNotificationUrl(
   url: string | null | undefined,
@@ -11,7 +48,7 @@ export function isViewableNotificationUrl(
 
 export function getNotificationDetailActionVisibility(
   notification: Pick<NotificationItem, 'isRead' | 'url'>,
-) {
+): { canView: boolean; canMarkAsRead: boolean } {
   return {
     canView: isViewableNotificationUrl(notification.url),
     canMarkAsRead: !notification.isRead,

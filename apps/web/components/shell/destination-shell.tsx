@@ -63,6 +63,9 @@ export function DestinationShell({
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const destination = resolveDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
+  const conversationSlot = conversation !== undefined && conversationLabel
+    ? { conversation, conversationOpen, conversationLabel }
+    : {}
 
   useKeyboardShortcuts()
 
@@ -148,6 +151,7 @@ export function DestinationShell({
           {t('common.skipToContent')}
         </a>
         <ShellWide
+          {...conversationSlot}
           items={wideItems}
           activeId={destination}
           navLabel={t('nav.mainNavigation')}
@@ -160,9 +164,6 @@ export function DestinationShell({
           paletteHint="Ctrl K"
           notice={notice}
           composer={composer}
-          conversation={conversation}
-          conversationOpen={conversationOpen}
-          conversationLabel={conversationLabel}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -174,6 +175,7 @@ export function DestinationShell({
   return (
     <>
       <Shell412
+        {...conversationSlot}
         tabBar={
           <BottomTabBar
             active={destination}
@@ -191,9 +193,6 @@ export function DestinationShell({
         }
         notice={notice}
         composer={composer}
-        conversation={conversation}
-        conversationOpen={conversationOpen}
-        conversationLabel={conversationLabel}
       >
         {children}
       </Shell412>

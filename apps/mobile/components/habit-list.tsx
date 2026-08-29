@@ -129,6 +129,7 @@ interface HabitListProps {
   /** Notified whenever the all-collapsed status changes. Parents can mirror
    * this in render-time state (refs cannot be read during render). */
   onAllCollapsedChange?: (allCollapsed: boolean) => void
+  onSurfaceOpenChange?: (open: boolean) => void
   /** Notified whenever the set of visible habit ids changes. Parents can
    * mirror this in render-time state. */
   onAllLoadedIdsChange?: (ids: Set<string>) => void
@@ -180,6 +181,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       onScrollBeginDrag,
       onScroll,
       onAllCollapsedChange,
+      onSurfaceOpenChange,
       onAllLoadedIdsChange,
     },
     ref,
@@ -269,6 +271,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const moveParentMutation = useMoveHabitParent()
     const { showInterstitialIfDue } = useAdMob()
     const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
+
+    useEffect(() => {
+      onSurfaceOpenChange?.(drill.currentParentId !== null)
+    }, [drill.currentParentId, onSurfaceOpenChange])
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 

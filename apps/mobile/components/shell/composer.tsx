@@ -8,6 +8,7 @@ import {
 import { useRef } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -115,7 +116,7 @@ function VoiceStatus({
 }
 
 function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  if (props.state === 'atLimit') {
+  if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <View style={styles.limitStatus}>
         <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
@@ -140,14 +141,24 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value)
-  const isAtLimit = props.state === 'atLimit'
+  const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit
+  const voiceDisabled = isTranscribing || props.state === 'sending' || isBlocked
 
   return (
     <View style={styles.inputRow}>
+      {props.onOpenConversation && props.conversationLabel ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={props.conversationLabel}
+          onPress={props.onOpenConversation}
+          style={styles.openConversation}
+        >
+          <AstraGlyph size={20} color={tokens.fg3} />
+        </Pressable>
+      ) : null}
       <View
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.hairline }]}
       >
@@ -352,6 +363,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
+  },
+  openConversation: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   field: {
     minHeight: 48,

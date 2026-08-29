@@ -9,6 +9,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { ArrowUp, FileText, Image as ImageIcon, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
@@ -97,7 +98,7 @@ function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElem
 }
 
 function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
-  if (props.state === 'atLimit') {
+  if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <div className="flex flex-col gap-2">
         <p className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
@@ -114,14 +115,24 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value)
-  const isAtLimit = props.state === 'atLimit'
+  const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit
+  const voiceDisabled = isTranscribing || props.state === 'sending' || isBlocked
 
   return (
     <div className="flex items-end gap-2">
+      {props.onOpenConversation && props.conversationLabel ? (
+        <button
+          type="button"
+          aria-label={props.conversationLabel}
+          onClick={props.onOpenConversation}
+          className="flex size-12 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[color,transform] hover:text-[var(--fg-1)] active:scale-[0.96]"
+        >
+          <AstraGlyph size={20} color="currentColor" />
+        </button>
+      ) : null}
       <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]">
         <textarea
           rows={1}

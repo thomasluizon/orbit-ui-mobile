@@ -283,6 +283,9 @@ export {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  selectNewestUnreadProactiveCheckin,
+  getReturningDays,
+  shouldShowTodayAstraLine,
 } from './notification-actions'
 export {
   buildTempGoal,

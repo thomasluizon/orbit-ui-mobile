@@ -3,6 +3,9 @@ import {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  getReturningDays,
+  selectNewestUnreadProactiveCheckin,
+  shouldShowTodayAstraLine,
 } from '../utils/notification-actions'
 
 describe('notification-actions', () => {
@@ -58,5 +61,31 @@ describe('notification-actions', () => {
   it('falls back to the reminder glyph for habit notifications', () => {
     expect(getNotificationGlyph({ url: '/', habitId: 'habit-1' })).toBe('reminder')
     expect(getNotificationGlyph({ url: '/calendar-sync', habitId: null })).toBe('reminder')
+  })
+
+  it('selects the newest unread Astra check-in without treating habit reminders as check-ins', () => {
+    const base = { title: 'Astra', body: 'Check in', habitId: null, url: '/chat' }
+    const selected = selectNewestUnreadProactiveCheckin([
+      { ...base, id: 'read', isRead: true, createdAtUtc: '2026-08-29T10:00:00Z' },
+      { ...base, id: 'older', isRead: false, createdAtUtc: '2026-08-28T10:00:00Z' },
+      { ...base, id: 'newer', isRead: false, createdAtUtc: '2026-08-29T09:00:00Z' },
+      { ...base, id: 'reminder', habitId: 'habit-1', isRead: false, createdAtUtc: '2026-08-30T09:00:00Z' },
+    ])
+    expect(selected?.id).toBe('newer')
+  })
+
+  it('names a returning state from elapsed days, not missed schedules', () => {
+    expect(getReturningDays(['2026-08-20', '2026-08-26'], '2026-08-29')).toBe(3)
+    expect(getReturningDays(['2026-08-27'], '2026-08-29')).toBeNull()
+    expect(getReturningDays([], '2026-08-29')).toBeNull()
+  })
+
+  it('keeps the proactive line off non-Today, drill, offline, and quota-limit states', () => {
+    const visible = { isTodaySelected: true, inDrillOrSurface: false, isOnline: true, atLimit: false }
+    expect(shouldShowTodayAstraLine(visible)).toBe(true)
+    expect(shouldShowTodayAstraLine({ ...visible, isTodaySelected: false })).toBe(false)
+    expect(shouldShowTodayAstraLine({ ...visible, inDrillOrSurface: true })).toBe(false)
+    expect(shouldShowTodayAstraLine({ ...visible, isOnline: false })).toBe(false)
+    expect(shouldShowTodayAstraLine({ ...visible, atLimit: true })).toBe(false)
   })
 })
