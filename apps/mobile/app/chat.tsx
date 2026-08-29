@@ -79,12 +79,8 @@ function ChatRewardRecovery({
 }
 
 export default function ChatScreen() {
-  const { t } = useTranslation();
   const { isOnline } = useOffline();
-  const composer = useChatComposer({
-    isOnline,
-    offlineTitle: t("chat.offline.title"),
-  });
+  const composer = useChatComposer({ isOnline });
   return <ChatScreenContent composer={composer} />;
 }
 

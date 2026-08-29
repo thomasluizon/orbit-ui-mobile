@@ -144,6 +144,30 @@ describe('Composer', () => {
     expect(container.querySelector('[data-accent]')).toBeNull()
   })
 
+  it('renders the offline refusal without interactive chips or composer controls', () => {
+    const onSend = vi.fn()
+    const chips = suggestions(3)
+    const { container } = render(
+      <Composer
+        {...props({
+          state: 'offline',
+          offlineReason: 'offline sentinel',
+          value: 'hello',
+          onSend,
+          suggestions: chips,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('offline sentinel')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: words.send }))
+    expect(onSend).not.toHaveBeenCalled()
+    expect(chips.every((chip) => !vi.mocked(chip.onSelect).mock.calls.length)).toBe(true)
+    expect(container.querySelector('[data-accent]')).toBeNull()
+  })
+
   it('renders the optional at-limit recovery action', () => {
     render(
       <Composer
@@ -229,11 +253,13 @@ describe('Composer', () => {
     expect(screen.getByPlaceholderText(words.placeholder)).toHaveAccessibleName(words.placeholder)
   })
 
-  it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(
+  it.each(['idle', 'sending', 'recording', 'transcribing', 'offline', 'atLimit'] as const)(
     'exposes the %s state without false boolean attributes',
     (state) => {
       const stateProps = state === 'atLimit'
         ? { state, limitReason: 'limit sentinel' }
+        : state === 'offline'
+          ? { state, offlineReason: 'offline sentinel' }
         : state === 'recording' || state === 'transcribing'
           ? { state, onVoice: vi.fn(), voiceWords }
           : { state }

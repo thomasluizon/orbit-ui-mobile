@@ -59,7 +59,10 @@ export function DestinationShell({
   const [conversationPathname, setConversationPathname] = useState<string | null>(null)
   const conversationOpen = primaryDestination && conversationPathname === pathname
   const openConversation = useCallback(() => setConversationPathname(pathname), [pathname])
-  const composer = useChatComposer({ onOpenConversation: openConversation })
+  const composer = useChatComposer({
+    destination: primaryDestination ? destination ?? undefined : undefined,
+    onOpenConversation: openConversation,
+  })
   const persistentFileInput = (
     <input
       id={composer.fileInputId}

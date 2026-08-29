@@ -218,6 +218,26 @@ describe('Composer (mobile)', () => {
     expect(tree.root.findByProps({ testID: 'composer-send-neutral' })).toBeDefined()
   })
 
+  it('renders the offline refusal without interactive chips or composer controls', async () => {
+    const onSend = vi.fn()
+    const chips = suggestions(3)
+    const tree = await renderComposer(props({
+      state: 'offline',
+      offlineReason: 'offline sentinel',
+      value: 'hello',
+      onSend,
+      suggestions: chips,
+    }))
+
+    expect(textValues(tree.root)).toContain('offline sentinel')
+    expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
+    expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
+    TestRenderer.act(() => byLabel(tree.root, words.send)[0].props.onPress())
+    expect(onSend).not.toHaveBeenCalled()
+    expect(chips.every((chip) => !vi.mocked(chip.onSelect).mock.calls.length)).toBe(true)
+    expect(tree.root.findByProps({ testID: 'composer-send-neutral' })).toBeDefined()
+  })
+
   it('renders the optional at-limit recovery action', async () => {
     const tree = await renderComposer(
       props({
@@ -304,11 +324,13 @@ describe('Composer (mobile)', () => {
     expect(input.props.placeholder).toBe(words.placeholder)
   })
 
-  it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(
+  it.each(['idle', 'sending', 'recording', 'transcribing', 'offline', 'atLimit'] as const)(
     'exposes the %s state through test id and accessibility state',
     async (state) => {
       const stateProps = state === 'atLimit'
         ? { state, limitReason: 'limit sentinel' }
+        : state === 'offline'
+          ? { state, offlineReason: 'offline sentinel' }
         : state === 'recording' || state === 'transcribing'
           ? { state, onVoice: vi.fn(), voiceWords }
           : { state }

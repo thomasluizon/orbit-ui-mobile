@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useSyncExternalStore,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -15,6 +16,8 @@ import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { Goal } from '@orbit/shared/types/goal'
+import type { CalendarMonthResponse, HabitScheduleItem } from '@orbit/shared/types/habit'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
   hasComposerContent,
@@ -25,6 +28,9 @@ import {
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
+  deriveLiveChatSuggestions,
+  type ChatSuggestionDestination,
+  type LiveChatSuggestionState,
 } from '@orbit/shared/chat'
 import {
   buildAgentExecutionMessage,
@@ -38,7 +44,6 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  formatAccountMidnight,
   getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from '@orbit/shared/utils'
@@ -61,7 +66,18 @@ interface StreamSendFailure {
 }
 
 interface UseChatComposerOptions {
+  destination?: ChatSuggestionDestination
   onOpenConversation?: () => void
+}
+
+function lastQueryData<T>(
+  entries: [readonly unknown[], T | undefined][],
+): T | undefined {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const value = entries[index]?.[1]
+    if (value !== undefined) return value
+  }
+  return undefined
 }
 
 function isAbortError(error: unknown): boolean {
@@ -109,7 +125,7 @@ async function* streamTextChunks(
  * send is the one sanctioned client-side `fetch` to the API (a Server Action
  * cannot return a streaming `ReadableStream`); see apps/web/CLAUDE.md.
  */
-export function useChatComposer({ onOpenConversation }: UseChatComposerOptions = {}) {
+export function useChatComposer({ destination, onOpenConversation }: UseChatComposerOptions = {}) {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -170,11 +186,16 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
     readNetworkStatus,
     readServerNetworkStatus,
   )
+  const [suggestionCacheRevision, refreshSuggestions] = useReducer((value) => value + 1, 0)
+
+  useEffect(
+    () => queryClient.getQueryCache().subscribe(() => refreshSuggestions()),
+    [queryClient],
+  )
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
-  const accountTimeZone = profile?.timeZone ?? null
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
   const canSend = hasComposerContent(input) && !isSending && !atMessageLimit && isOnline
@@ -184,6 +205,27 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
     () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
     [t],
   )
+
+  const liveSuggestionState = useMemo<LiveChatSuggestionState | null>(() => {
+    void suggestionCacheRevision
+    if (!destination || !profile) return null
+
+    const habits = lastQueryData(
+      queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() }),
+    )
+    const calendar = lastQueryData(
+      queryClient.getQueriesData<CalendarMonthResponse>({
+        queryKey: habitKeys.calendarPrefix(),
+      }),
+    )
+    const goals = queryClient.getQueryData<Goal[]>(goalKeys.list({}))
+
+    if (destination === 'hoje' && habits === undefined) return null
+    if (destination === 'calendario' && calendar === undefined) return null
+    if (destination === 'progresso' && goals === undefined) return null
+
+    return { destination, habits, calendar, goals, profile }
+  }, [destination, profile, queryClient, suggestionCacheRevision])
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)
@@ -520,7 +562,9 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
       if (
         !hasComposerContent(typedContent) ||
         sendState.isTyping ||
-        sendState.streamingMessageId !== null
+        sendState.streamingMessageId !== null ||
+        !isOnline ||
+        atMessageLimit
       ) return
 
       const attempted: AttemptedSend = {
@@ -538,20 +582,40 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
       clearImage,
       imagePreview,
       input,
+      isOnline,
       performSend,
       selectedImage,
+      atMessageLimit,
     ],
   )
 
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState()
-    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
+    if (
+      !lastFailedSend ||
+      sendState.isTyping ||
+      sendState.streamingMessageId !== null ||
+      !isOnline
+    ) return
     await performSend(lastFailedSend, true)
-  }, [lastFailedSend, performSend])
+  }, [isOnline, lastFailedSend, performSend])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
 
   const composerSuggestions = useMemo<ComposerSuggestions>(() => {
+    if (liveSuggestionState) {
+      const suggestions = deriveLiveChatSuggestions(liveSuggestionState)
+      const makeLiveSuggestion = (suggestion: (typeof suggestions)[number]) => {
+        const label = t(suggestion.key, suggestion.values)
+        return { id: suggestion.key, label, onSelect: () => void sendMessage(label) }
+      }
+      return [
+        makeLiveSuggestion(suggestions[0]),
+        makeLiveSuggestion(suggestions[1]),
+        makeLiveSuggestion(suggestions[2]),
+      ]
+    }
+
     const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
       const label = t(key)
       return { id: key, label, onSelect: () => void sendMessage(label) }
@@ -562,7 +626,7 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
     ]
-  }, [sendMessage, t])
+  }, [liveSuggestionState, sendMessage, t])
 
   const composerProps = useMemo(() => {
     const words = {
@@ -603,22 +667,24 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
     }
 
+    if (!isOnline) {
+      const offlineReason = t('shell.composer.offline.reason')
+      return speechSupported
+        ? { ...common, state: 'offline', offlineReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: 'offline', offlineReason }
+    }
+
     if (isRecording) return { ...common, state: 'recording', onVoice: toggleRecording, voiceWords }
     if (isTranscribing) return { ...common, state: 'transcribing', onVoice: toggleRecording, voiceWords }
 
     if (atMessageLimit) {
-      const limitReason = accountTimeZone
-        ? t('shell.composer.limit.reasonWithTime', {
-            allowance: aiMessagesLimit,
-            resetsAt: formatAccountMidnight(locale, accountTimeZone),
-          })
-        : t('shell.composer.limit.reasonAtMidnight', { allowance: aiMessagesLimit })
+      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
       return speechSupported
         ? { ...common, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: 'atLimit', limitReason }
     }
 
-    const state: 'idle' | 'sending' = isSending || !isOnline ? 'sending' : 'idle'
+    const state: 'idle' | 'sending' = isSending ? 'sending' : 'idle'
     return speechSupported
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state }
@@ -633,10 +699,8 @@ export function useChatComposer({ onOpenConversation }: UseChatComposerOptions =
     isRecording,
     isSending,
     isTranscribing,
-    locale,
     onOpenConversation,
     openFilePicker,
-    accountTimeZone,
     removeImage,
     retryLastSend,
     selectedImage,

@@ -221,9 +221,51 @@
         "trayLabel": "Attached files",
         "remove": "Remove {name}"
       },
+      "offline": {
+        "reason": "No connection. Astra comes back when the connection does."
+      },
       "limit": {
-        "reasonWithTime": "Today's allowance of {allowance} messages is used. It resets at {resetsAt}.",
-        "reasonAtMidnight": "Today's allowance of {allowance} messages is used. It resets at midnight."
+        "reason": "Today's allowance of {allowance} messages is used."
+      },
+      "live": {
+        "today": {
+          "catchUp": "Catch up on {habit}",
+          "start": "Start {habit}",
+          "reviewCompleted": "Review what I finished today",
+          "firstHabit": "Create my first habit",
+          "linkGoal": "Link {habit} to a goal",
+          "reviewGoal": "Review {habit}'s goal",
+          "planRoutine": "Plan my first routine",
+          "oneRemaining": "Review my remaining habit",
+          "remaining": "Review my {count} open habits"
+        },
+        "calendar": {
+          "reschedule": "Reschedule {habit}",
+          "reviewMonth": "Review this month's timing",
+          "planEmpty": "Plan this empty month",
+          "planAround": "Plan around {habit}",
+          "reviewTiming": "Review {habit}'s timing",
+          "oneScheduled": "Review my scheduled habit",
+          "scheduled": "Review {count} scheduled habits",
+          "firstSchedule": "Plan my first schedule"
+        },
+        "progress": {
+          "linkHabits": "Link habits to {goal}",
+          "advanceGoal": "Move {goal} forward",
+          "firstGoal": "Shape my first goal",
+          "protectStreak": "Protect my {count}-day streak",
+          "restartStreak": "Help me restart",
+          "reviewOneGoal": "Review my active goal",
+          "reviewGoals": "Review my {count} active goals"
+        },
+        "profile": {
+          "pauseProactive": "Pause proactive Astra",
+          "enableProactive": "Enable proactive Astra",
+          "reviewCalendar": "Review my calendar sync",
+          "explainCalendar": "Explain calendar sync",
+          "pauseSummary": "Pause weekly summaries",
+          "enableSummary": "Enable weekly summaries"
+        }
       }
     }
   },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { isPrimaryShellDestination } from '@orbit/shared/utils'
+import { isPrimaryShellDestination, resolveShellDestination } from '@orbit/shared/utils'
 import { ChatScreenContent } from '@/app/chat'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useOffline } from '@/hooks/use-offline'
@@ -45,7 +45,9 @@ export function DestinationShell(props: Readonly<DestinationShellProps>) {
   const { isOnline } = useOffline()
   const composer = useChatComposer({
     isOnline,
-    offlineTitle: t('chat.offline.title'),
+    destination: primaryDestination
+      ? resolveShellDestination(props.pathname) ?? undefined
+      : undefined,
     onOpenConversation: openConversation,
   })
 

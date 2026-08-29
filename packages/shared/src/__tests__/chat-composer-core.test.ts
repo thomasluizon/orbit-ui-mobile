@@ -11,6 +11,9 @@ import {
   invalidateAgentQueries,
   selectActionInvalidations,
 } from '../hooks/chat-composer-core'
+import { deriveLiveChatSuggestions } from '../chat'
+import { createMockGoal, createMockHabit, createMockProfile } from './factories'
+import type { HabitScheduleItem } from '../types/habit'
 
 function makeOperation(overrides: Partial<AgentOperationResult> = {}): AgentOperationResult {
   return {
@@ -45,6 +48,55 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
     ...overrides,
   }
 }
+
+describe('deriveLiveChatSuggestions', () => {
+  const profile = createMockProfile({ currentStreak: 6 })
+  const habit: HabitScheduleItem = {
+    ...createMockHabit({
+      id: 'habit-live',
+      title: 'Morning walk',
+      isOverdue: true,
+      scheduledDates: ['2025-01-01'],
+      linkedGoals: [],
+    }),
+    children: [],
+    linkedGoals: [],
+  }
+  const goal = createMockGoal({ id: 'goal-live', title: 'Run a 10K', linkedHabits: [] })
+
+  it('returns three distinct destination suggestions from the supplied live state', () => {
+    const suggestionsByDestination = [
+      deriveLiveChatSuggestions({ destination: 'hoje', habits: [habit], profile }),
+      deriveLiveChatSuggestions({
+        destination: 'calendario',
+        calendar: { habits: [habit], logs: {} },
+        profile,
+      }),
+      deriveLiveChatSuggestions({ destination: 'progresso', goals: [goal], profile }),
+      deriveLiveChatSuggestions({ destination: 'perfil', profile }),
+    ]
+
+    expect(suggestionsByDestination.map((suggestions) => suggestions.length)).toEqual([3, 3, 3, 3])
+    expect(new Set(suggestionsByDestination.map((suggestions) => suggestions[0].key)).size).toBe(4)
+  })
+
+  it('carries live habit, goal, and streak values into the localized prompts', () => {
+    expect(deriveLiveChatSuggestions({ destination: 'hoje', habits: [habit], profile })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ values: { habit: 'Morning walk' } }),
+        expect.objectContaining({ key: 'shell.composer.live.today.oneRemaining' }),
+      ]),
+    )
+    expect(
+      deriveLiveChatSuggestions({ destination: 'progresso', goals: [goal], profile }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ values: { goal: 'Run a 10K' } }),
+        expect.objectContaining({ values: { count: 6 } }),
+      ]),
+    )
+  })
+})
 
 describe('buildAgentExecutionMessage', () => {
   const labels = { done: 'DONE', failed: 'FAILED' }

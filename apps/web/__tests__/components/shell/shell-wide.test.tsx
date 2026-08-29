@@ -107,6 +107,35 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
   })
 
+  it('moves focus into the wide conversation and restores its opening control', () => {
+    media.matches = true
+    const composer = (
+      <button type="button" data-conversation-control="astra">
+        Open Astra
+      </button>
+    )
+    const shellProps = {
+      items,
+      activeId: 'hoje',
+      navLabel: 'Main navigation',
+      composer,
+      conversation: <button type="button">Close conversation</button>,
+      conversationLabel: 'Astra conversation',
+    }
+    const { container, rerender } = render(
+      <ShellWide {...shellProps} conversationOpen={false} />,
+    )
+
+    screen.getByRole('button', { name: 'Open Astra' }).focus()
+    rerender(<ShellWide {...shellProps} conversationOpen />)
+
+    expect(container.querySelector('[data-shell-conversation="panel"]')).toHaveFocus()
+
+    rerender(<ShellWide {...shellProps} conversationOpen={false} />)
+
+    expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
+  })
+
   it('omits navigation and uses the action slot in flow mode', () => {
     const { container } = render(
       <ShellWide nav={false} action={<button type="button">Continue</button>}>

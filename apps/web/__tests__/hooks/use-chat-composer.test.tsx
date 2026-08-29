@@ -22,6 +22,9 @@ const mocks = vi.hoisted(() => ({
   queryClient: {
     invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    getQueriesData: vi.fn(() => []),
+    getQueryCache: vi.fn(() => ({ subscribe: vi.fn(() => vi.fn()) })),
   },
 }))
 
@@ -418,6 +421,16 @@ describe('web useChatComposer streaming send', () => {
 
       expect(result.current.isOnline).toBe(false)
       expect(result.current.canSend).toBe(false)
+      expect(result.current.composerProps.state).toBe('offline')
+      expect(result.current.composerProps.offlineReason).toBe(
+        'shell.composer.offline.reason',
+      )
+
+      await act(async () => {
+        await result.current.sendMessage('hello')
+        result.current.composerProps.suggestions[0].onSelect()
+      })
+      expect(mocks.fetch).not.toHaveBeenCalled()
 
       act(() => {
         Object.defineProperty(globalThis.navigator, 'onLine', {
@@ -434,9 +447,7 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
-  it('states the reset at account-timezone midnight when the device timezone differs', () => {
-    const previousTimeZone = process.env.TZ
-    process.env.TZ = 'Asia/Tokyo'
+  it('states only the consumed allowance at the message limit', () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
@@ -444,22 +455,14 @@ describe('web useChatComposer streaming send', () => {
       timeZone: 'America/New_York',
     })
 
-    try {
-      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo')
-      const { result } = renderHook(() => useChatComposer())
-      expect(result.current.composerProps.limitReason).toBe(
-        'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
-      )
-    } finally {
-      if (previousTimeZone === undefined) {
-        delete process.env.TZ
-      } else {
-        process.env.TZ = previousTimeZone
-      }
-    }
+    const { result } = renderHook(() => useChatComposer())
+    expect(result.current.composerProps.limitReason).toBe(
+      'shell.composer.limit.reason:{"allowance":20}',
+    )
+    expect(result.current.composerProps.limitReason).not.toContain('reset')
   })
 
-  it('states only midnight when the account timezone is absent', () => {
+  it('uses the same allowance-only copy without an account timezone', () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
@@ -469,9 +472,9 @@ describe('web useChatComposer streaming send', () => {
 
     const { result } = renderHook(() => useChatComposer())
     expect(result.current.composerProps.limitReason).toBe(
-      'shell.composer.limit.reasonAtMidnight:{"allowance":20}',
+      'shell.composer.limit.reason:{"allowance":20}',
     )
-    expect(result.current.composerProps.limitReason).not.toContain('resetsAt')
+    expect(result.current.composerProps.limitReason).not.toContain('midnight')
   })
 
   it('restores a saved draft into the rendered composer', () => {

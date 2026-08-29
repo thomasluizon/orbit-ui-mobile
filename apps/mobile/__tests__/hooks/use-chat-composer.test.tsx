@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => {
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    getQueriesData: vi.fn(() => []),
+    getQueryCache: vi.fn(() => ({ subscribe: vi.fn(() => vi.fn()) })),
   }
 
   return {
@@ -83,14 +86,13 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
 type ComposerApi = ReturnType<typeof useChatComposer>
 
 async function renderComposer(
-  options: { isOnline?: boolean; offlineTitle?: string } = {},
+  options: { isOnline?: boolean } = {},
 ): Promise<{ current: ComposerApi; rerender: () => void; unmount: () => void }> {
   const ref: { current: ComposerApi | null } = { current: null }
 
   function Harness() {
     ref.current = useChatComposer({
       isOnline: options.isOnline ?? true,
-      offlineTitle: options.offlineTitle ?? 'offline',
     })
     return null
   }
@@ -382,15 +384,20 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.canRetryLastSend).toBe(false)
   })
 
-  it('blocks sending and surfaces the offline title when offline', async () => {
-    const composer = await renderComposer({ isOnline: false, offlineTitle: 'You are offline' })
+  it('owns the offline refusal and blocks input and suggestion sends', async () => {
+    const composer = await renderComposer({ isOnline: false })
 
     await TestRenderer.act(async () => {
       await composer.current.sendMessage('hello')
+      composer.current.composerProps.suggestions[0].onSelect()
     })
 
     expect(mocks.openChatStream).not.toHaveBeenCalled()
-    expect(composer.current.sendError).toBe('You are offline')
+    expect(composer.current.composerProps.state).toBe('offline')
+    expect(composer.current.composerProps.offlineReason).toBe(
+      'shell.composer.offline.reason',
+    )
+    expect(composer.current.sendError).toBeNull()
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {
@@ -614,9 +621,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.starterChips.length).toBeGreaterThan(0)
   })
 
-  it('states the reset at account-timezone midnight when the device timezone differs', async () => {
-    const previousTimeZone = process.env.TZ
-    process.env.TZ = 'Asia/Tokyo'
+  it('states only the consumed allowance at the message limit', async () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
@@ -624,22 +629,14 @@ describe('mobile useChatComposer', () => {
       timeZone: 'America/New_York',
     })
 
-    try {
-      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo')
-      const composer = await renderComposer()
-      expect(composer.current.composerProps.limitReason).toBe(
-        'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
-      )
-    } finally {
-      if (previousTimeZone === undefined) {
-        delete process.env.TZ
-      } else {
-        process.env.TZ = previousTimeZone
-      }
-    }
+    const composer = await renderComposer()
+    expect(composer.current.composerProps.limitReason).toBe(
+      'shell.composer.limit.reason:{"allowance":20}',
+    )
+    expect(composer.current.composerProps.limitReason).not.toContain('reset')
   })
 
-  it('states only midnight when the account timezone is absent', async () => {
+  it('uses the same allowance-only copy without an account timezone', async () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
@@ -649,9 +646,9 @@ describe('mobile useChatComposer', () => {
 
     const composer = await renderComposer()
     expect(composer.current.composerProps.limitReason).toBe(
-      'shell.composer.limit.reasonAtMidnight:{"allowance":20}',
+      'shell.composer.limit.reason:{"allowance":20}',
     )
-    expect(composer.current.composerProps.limitReason).not.toContain('resetsAt')
+    expect(composer.current.composerProps.limitReason).not.toContain('midnight')
   })
 
   it('ignores an empty send with nothing typed or attached', async () => {
@@ -727,7 +724,7 @@ describe('mobile useChatComposer', () => {
 
   it('keeps a failed request queued when retry is attempted offline', async () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
-    const options = { isOnline: true, offlineTitle: 'offline sentinel' }
+    const options = { isOnline: true }
     const composer = await renderComposer(options)
 
     await TestRenderer.act(async () => {
@@ -741,7 +738,8 @@ describe('mobile useChatComposer', () => {
       await composer.current.retryLastSend()
     })
 
-    expect(composer.current.sendError).toBe('offline sentinel')
+    expect(composer.current.composerProps.state).toBe('offline')
+    expect(composer.current.sendError).toBe('chat.sendError')
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
   })
 

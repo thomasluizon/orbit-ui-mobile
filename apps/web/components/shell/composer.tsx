@@ -68,6 +68,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
         <button
           key={suggestion.id}
           type="button"
+          data-conversation-control={`suggestion:${suggestion.id}`}
           onClick={suggestion.onSelect}
           className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         >
@@ -98,6 +99,13 @@ function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElem
 }
 
 function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
+  if (props.state === 'offline') {
+    return (
+      <p aria-live="polite" className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">
+        {props.offlineReason}
+      </p>
+    )
+  }
   if (props.state === 'atLimit') {
     return (
       <div className="flex flex-col gap-2">
@@ -116,10 +124,11 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value)
   const isAtLimit = props.state === 'atLimit'
+  const isOffline = props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit
+  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit || isOffline
 
   return (
     <div className="flex items-end gap-2">
@@ -127,6 +136,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         {props.onOpenConversation ? (
           <button
             type="button"
+            data-conversation-control="astra"
             aria-label={props.openConversationLabel}
             onClick={props.onOpenConversation}
             className="flex size-11 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
@@ -138,6 +148,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         <textarea
           rows={1}
           data-composer-input
+          data-conversation-control="input"
           data-tour="tour-chat-input"
           aria-label={props.words.placeholder}
           disabled={inputDisabled}
@@ -181,6 +192,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 
       <button
         type="button"
+        data-conversation-control="send"
         aria-label={props.words.send}
         data-accent={sendIsAccent ? '' : undefined}
         disabled={!canSend}
@@ -196,7 +208,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 }
 
 function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
-  if (!props.onRetry) return null
+  if (!props.onRetry || props.state === 'offline') return null
   return (
     <button
       type="button"

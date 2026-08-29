@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { FlatList } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
@@ -10,8 +10,11 @@ import {
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
+  deriveLiveChatSuggestions,
   getChatImageValidationError,
   resolveChatImageMimeType,
+  type ChatSuggestionDestination,
+  type LiveChatSuggestionState,
 } from "@orbit/shared/chat";
 import {
   hasComposerContent,
@@ -25,6 +28,11 @@ import type {
   ChatResponse,
 } from "@orbit/shared/types";
 import type { Profile } from "@orbit/shared/types/profile";
+import type { Goal } from "@orbit/shared/types/goal";
+import type {
+  CalendarMonthResponse,
+  HabitScheduleItem,
+} from "@orbit/shared/types/habit";
 import {
   buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
@@ -37,7 +45,6 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  formatAccountMidnight,
   getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
@@ -106,8 +113,18 @@ function buildImageFileName(asset: ImagePicker.ImagePickerAsset): string {
 
 interface UseChatComposerOptions {
   isOnline: boolean;
-  offlineTitle: string;
+  destination?: ChatSuggestionDestination;
   onOpenConversation?: () => void;
+}
+
+function lastQueryData<T>(
+  entries: [readonly unknown[], T | undefined][],
+): T | undefined {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const value = entries[index]?.[1];
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
 
 /**
@@ -118,7 +135,7 @@ interface UseChatComposerOptions {
  */
 export function useChatComposer({
   isOnline,
-  offlineTitle,
+  destination,
   onOpenConversation,
 }: UseChatComposerOptions) {
   const { t, i18n } = useTranslation();
@@ -154,11 +171,19 @@ export function useChatComposer({
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [suggestionCacheRevision, refreshSuggestions] = useReducer(
+    (value) => value + 1,
+    0,
+  );
+
+  useEffect(
+    () => queryClient.getQueryCache().subscribe(() => refreshSuggestions()),
+    [queryClient],
+  );
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
-  const accountTimeZone = profile?.timeZone ?? null;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
   const isSending = isTyping || streamingMessageId !== null;
   const showSuggestions = messages.length === 0 && !isTyping;
@@ -167,6 +192,27 @@ export function useChatComposer({
     () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
     [t],
   );
+
+  const liveSuggestionState = useMemo<LiveChatSuggestionState | null>(() => {
+    void suggestionCacheRevision;
+    if (!destination || !profile) return null;
+
+    const habits = lastQueryData(
+      queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() }),
+    );
+    const calendar = lastQueryData(
+      queryClient.getQueriesData<CalendarMonthResponse>({
+        queryKey: habitKeys.calendarPrefix(),
+      }),
+    );
+    const goals = queryClient.getQueryData<Goal[]>(goalKeys.list({}));
+
+    if (destination === "hoje" && habits === undefined) return null;
+    if (destination === "calendario" && calendar === undefined) return null;
+    if (destination === "progresso" && goals === undefined) return null;
+
+    return { destination, habits, calendar, goals, profile };
+  }, [destination, profile, queryClient, suggestionCacheRevision]);
 
   useEffect(() => {
     let active = true;
@@ -611,12 +657,10 @@ export function useChatComposer({
       if (
         !hasComposerContent(typedContent) ||
         sendState.isTyping ||
-        sendState.streamingMessageId !== null
+        sendState.streamingMessageId !== null ||
+        !isOnline ||
+        atMessageLimit
       ) return;
-      if (!isOnline) {
-        setSendError(offlineTitle);
-        return;
-      }
 
       const attempted: AttemptedSend = {
         content: typedContent,
@@ -634,25 +678,43 @@ export function useChatComposer({
       imagePreview,
       input,
       isOnline,
-      offlineTitle,
       performSend,
       selectedImage,
+      atMessageLimit,
     ],
   );
 
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState();
-    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return;
-    if (!isOnline) {
-      setSendError(offlineTitle);
-      return;
-    }
+    if (
+      !lastFailedSend ||
+      sendState.isTyping ||
+      sendState.streamingMessageId !== null ||
+      !isOnline
+    ) return;
     await performSend(lastFailedSend, true);
-  }, [isOnline, lastFailedSend, offlineTitle, performSend]);
+  }, [isOnline, lastFailedSend, performSend]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
 
   const composerSuggestions = useMemo<ComposerSuggestions>(() => {
+    if (liveSuggestionState) {
+      const suggestions = deriveLiveChatSuggestions(liveSuggestionState);
+      const makeLiveSuggestion = (suggestion: (typeof suggestions)[number]) => {
+        const label = t(suggestion.key, suggestion.values);
+        return {
+          id: suggestion.key,
+          label,
+          onSelect: () => void sendMessage(label),
+        };
+      };
+      return [
+        makeLiveSuggestion(suggestions[0]),
+        makeLiveSuggestion(suggestions[1]),
+        makeLiveSuggestion(suggestions[2]),
+      ];
+    }
+
     const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
       const label = t(key);
       return { id: key, label, onSelect: () => void sendMessage(label) };
@@ -663,7 +725,7 @@ export function useChatComposer({
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
     ];
-  }, [sendMessage, t]);
+  }, [liveSuggestionState, sendMessage, t]);
 
   const composerProps = useMemo(() => {
     const words = {
@@ -704,22 +766,26 @@ export function useChatComposer({
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
     };
 
+    if (!isOnline) {
+      const offlineReason = t("shell.composer.offline.reason");
+      return speechSupported
+        ? { ...common, state: "offline", offlineReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: "offline", offlineReason };
+    }
+
     if (isRecording) return { ...common, state: "recording", onVoice: toggleRecording, voiceWords };
     if (isTranscribing) return { ...common, state: "transcribing", onVoice: toggleRecording, voiceWords };
 
     if (atMessageLimit) {
-      const limitReason = accountTimeZone
-        ? t("shell.composer.limit.reasonWithTime", {
-            allowance: aiMessagesLimit,
-            resetsAt: formatAccountMidnight(i18n.language, accountTimeZone),
-          })
-        : t("shell.composer.limit.reasonAtMidnight", { allowance: aiMessagesLimit });
+      const limitReason = t("shell.composer.limit.reason", {
+        allowance: aiMessagesLimit,
+      });
       return speechSupported
         ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: "atLimit", limitReason };
     }
 
-    const state: "idle" | "sending" = isSending || !isOnline ? "sending" : "idle";
+    const state: "idle" | "sending" = isSending ? "sending" : "idle";
     return speechSupported
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state };
@@ -728,7 +794,6 @@ export function useChatComposer({
     atMessageLimit,
     canRetryLastSend,
     composerSuggestions,
-    i18n.language,
     input,
     isOnline,
     isRecording,
@@ -736,7 +801,6 @@ export function useChatComposer({
     isTranscribing,
     onOpenConversation,
     openFilePicker,
-    accountTimeZone,
     removeImage,
     retryLastSend,
     selectedImage,

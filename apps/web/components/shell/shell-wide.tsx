@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useLayoutEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
@@ -203,14 +204,43 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
     getServerSnapshot,
   )
   const modalOpen = conversationOpen && !sidePanel
-  const conversationRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const openerControlRef = useRef<string | null>(null)
   const scrollerOwner = useMemo(() => Symbol('shell-wide'), [])
   const registerScroller = useShellScrollerRegistration(scrollerOwner)
-  useModalFocusTrap(modalOpen, conversationRef)
+  useModalFocusTrap(modalOpen, overlayRef)
+
+  useLayoutEffect(() => {
+    if (conversationOpen) {
+      if (sidePanel) panelRef.current?.focus()
+      else overlayRef.current?.focus()
+      return
+    }
+
+    const openerControl = openerControlRef.current
+    if (openerControl) {
+      const controls = document.querySelectorAll<HTMLElement>('[data-conversation-control]')
+      for (const control of controls) {
+        if (control.dataset.conversationControl === openerControl) {
+          control.focus()
+          break
+        }
+      }
+      openerControlRef.current = null
+    }
+
+  }, [conversationOpen, sidePanel])
 
   return (
     <div
       data-shell="wide"
+      onFocusCapture={(event) => {
+        const target = event.target
+        if (target instanceof HTMLElement && target.dataset.conversationControl) {
+          openerControlRef.current = target.dataset.conversationControl
+        }
+      }}
       className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
     >
       <ShellWideBackground
@@ -222,9 +252,11 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
 
       {conversationOpen && sidePanel ? (
         <aside
+          ref={panelRef}
+          tabIndex={-1}
           data-shell-conversation="panel"
           aria-label={props.conversationLabel}
-          className="h-dvh w-[380px] shrink-0 overflow-y-auto bg-[var(--bg)] shadow-[inset_1px_0_0_var(--hairline)]"
+          className="h-dvh w-[380px] shrink-0 overflow-y-auto bg-[var(--bg)] shadow-[inset_1px_0_0_var(--hairline)] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         >
           {props.conversation}
         </aside>
@@ -232,7 +264,7 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
 
       {conversationOpen && !sidePanel ? (
         <div
-          ref={conversationRef}
+          ref={overlayRef}
           role="dialog"
           aria-modal="true"
           aria-label={props.conversationLabel}

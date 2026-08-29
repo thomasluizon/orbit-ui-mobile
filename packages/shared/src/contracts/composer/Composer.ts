@@ -65,11 +65,13 @@ type ComposerBase = {
 }
 
 type ComposerState =
-  | { state: 'idle'; limitReason?: never; limitRecovery?: never }
-  | { state: 'sending'; limitReason?: never; limitRecovery?: never }
-  | { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
+  | { state: 'idle'; offlineReason?: never; limitReason?: never; limitRecovery?: never }
+  | { state: 'sending'; offlineReason?: never; limitReason?: never; limitRecovery?: never }
+  | { state: 'offline'; offlineReason: string; limitReason?: never; limitRecovery?: never }
+  | { state: 'atLimit'; offlineReason?: never; limitReason: string; limitRecovery?: ReactNode }
   | {
       state: 'recording'
+      offlineReason?: never
       limitReason?: never
       limitRecovery?: never
       onVoice: () => void
@@ -77,6 +79,7 @@ type ComposerState =
     }
   | {
       state: 'transcribing'
+      offlineReason?: never
       limitReason?: never
       limitRecovery?: never
       onVoice: () => void

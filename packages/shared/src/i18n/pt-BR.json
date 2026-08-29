@@ -221,9 +221,51 @@
         "trayLabel": "Arquivos anexados",
         "remove": "Remover {name}"
       },
+      "offline": {
+        "reason": "Sem conexão. A Astra volta quando a conexão voltar."
+      },
       "limit": {
-        "reasonWithTime": "A cota de {allowance} mensagens de hoje foi usada. Ela é renovada às {resetsAt}.",
-        "reasonAtMidnight": "A cota de {allowance} mensagens de hoje foi usada. Ela é renovada à meia-noite."
+        "reason": "A cota de {allowance} mensagens de hoje foi usada."
+      },
+      "live": {
+        "today": {
+          "catchUp": "Colocar {habit} em dia",
+          "start": "Começar {habit}",
+          "reviewCompleted": "Revisar o que concluí hoje",
+          "firstHabit": "Criar meu primeiro hábito",
+          "linkGoal": "Ligar {habit} a um objetivo",
+          "reviewGoal": "Revisar o objetivo de {habit}",
+          "planRoutine": "Planejar minha primeira rotina",
+          "oneRemaining": "Revisar o hábito que falta",
+          "remaining": "Revisar {count} hábitos pendentes"
+        },
+        "calendar": {
+          "reschedule": "Reagendar {habit}",
+          "reviewMonth": "Revisar os horários deste mês",
+          "planEmpty": "Planejar este mês vazio",
+          "planAround": "Planejar em torno de {habit}",
+          "reviewTiming": "Revisar o horário de {habit}",
+          "oneScheduled": "Revisar meu hábito agendado",
+          "scheduled": "Revisar {count} hábitos agendados",
+          "firstSchedule": "Planejar meu primeiro horário"
+        },
+        "progress": {
+          "linkHabits": "Ligar hábitos a {goal}",
+          "advanceGoal": "Avançar {goal}",
+          "firstGoal": "Definir meu primeiro objetivo",
+          "protectStreak": "Proteger minha sequência de {count} dias",
+          "restartStreak": "Me ajudar a recomeçar",
+          "reviewOneGoal": "Revisar meu objetivo ativo",
+          "reviewGoals": "Revisar meus {count} objetivos ativos"
+        },
+        "profile": {
+          "pauseProactive": "Pausar Astra proativa",
+          "enableProactive": "Ativar Astra proativa",
+          "reviewCalendar": "Revisar minha sincronização",
+          "explainCalendar": "Explicar sincronização de calendário",
+          "pauseSummary": "Pausar resumos semanais",
+          "enableSummary": "Ativar resumos semanais"
+        }
       }
     }
   },

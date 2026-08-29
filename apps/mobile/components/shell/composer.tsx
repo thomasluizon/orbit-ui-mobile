@@ -116,6 +116,13 @@ function VoiceStatus({
 }
 
 function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+  if (props.state === 'offline') {
+    return (
+      <Text accessibilityLiveRegion="polite" style={[styles.limitReason, { color: tokens.fg2 }]}>
+        {props.offlineReason}
+      </Text>
+    )
+  }
   if (props.state === 'atLimit') {
     return (
       <View style={styles.limitStatus}>
@@ -142,10 +149,11 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value)
   const isAtLimit = props.state === 'atLimit'
+  const isOffline = props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit
+  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit || isOffline
 
   return (
     <View style={styles.inputRow}>
@@ -251,7 +259,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
 }
 
 function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  if (!props.onRetry) return null
+  if (!props.onRetry || props.state === 'offline') return null
   return (
     <Pressable
       accessibilityRole="button"

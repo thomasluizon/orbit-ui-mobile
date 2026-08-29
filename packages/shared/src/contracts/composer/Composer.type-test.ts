@@ -34,6 +34,7 @@ const base = {
 function acceptComposer(_props: ComposerProps) {}
 
 acceptComposer({ ...base, state: 'idle' })
+acceptComposer({ ...base, state: 'offline', offlineReason: 'Offline' })
 acceptComposer({ ...base, state: 'idle', words: { ...words } })
 acceptComposer({
   ...base,
@@ -71,6 +72,10 @@ acceptComposer({ ...base, state: 'idle', words: undefined })
 acceptComposer({ ...base, state: 'idle', words: { placeholder: 'Ask', suggestionsLabel: 'Suggestions' } })
 // @ts-expect-error atLimit requires the caller's real reason
 acceptComposer({ ...base, state: 'atLimit' })
+// @ts-expect-error offline requires the caller's visible reason
+acceptComposer({ ...base, state: 'offline' })
+// @ts-expect-error offlineReason belongs only to offline
+acceptComposer({ ...base, state: 'idle', offlineReason: 'Offline' })
 // @ts-expect-error limitReason belongs only to atLimit
 acceptComposer({ ...base, state: 'idle', limitReason: 'Limit' })
 // @ts-expect-error limitReason belongs only to atLimit
