@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import {
+  ShellScrollerProvider,
+  useShellScroller,
+} from '@/components/shell/shell-scroller-context'
 
 const mocks = vi.hoisted(() => ({ wide: false }))
 
@@ -17,6 +21,11 @@ vi.mock('@/components/shell/shell-wide', () => ({
 }))
 
 import { FlowShell } from '@/components/shell/flow-shell'
+
+function ScrollerConsumer() {
+  const scroller = useShellScroller()
+  return <output>{scroller?.dataset.flowMode ?? 'none'}</output>
+}
 
 describe('FlowShell', () => {
   beforeEach(() => {
@@ -49,5 +58,17 @@ describe('FlowShell', () => {
     expect(screen.getByText('Conversation').parentElement).toHaveAttribute('data-flow-mode', 'full')
     expect(screen.queryByTestId('compact-flow')).not.toBeInTheDocument()
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
+  })
+
+  it('registers the full flow element as the shell scroll owner', () => {
+    render(
+      <ShellScrollerProvider>
+        <FlowShell mode="full">
+          <ScrollerConsumer />
+        </FlowShell>
+      </ShellScrollerProvider>,
+    )
+
+    expect(screen.getByText('full')).toBeInTheDocument()
   })
 })
