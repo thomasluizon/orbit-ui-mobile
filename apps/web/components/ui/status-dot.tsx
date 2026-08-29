@@ -1,6 +1,7 @@
 'use client'
 
-import type { MouseEvent } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
+import { orbitalMotion } from '@orbit/shared/theme'
 import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
 
 /** Single desaturated status dot. Hollow when state === 'empty'. */
@@ -73,8 +74,14 @@ export function StatusDot({
       disabled={disabled}
       aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
-      className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: hitPadding, margin: -hitPadding, opacity: disabled ? 0.4 : 1 }}
+      className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center transition-transform duration-[var(--status-dot-press-duration)] enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{
+        padding: hitPadding,
+        margin: -hitPadding,
+        opacity: disabled ? 0.4 : 1,
+        '--status-dot-press-duration': `${orbitalMotion.press.duration}ms`,
+        '--status-dot-press-scale': orbitalMotion.press.scale,
+      } as CSSProperties}
     >
       <span
         className={`block rounded-full transition-opacity duration-150 ${disabled ? '' : 'group-hover:opacity-80 group-active:opacity-70'}`}

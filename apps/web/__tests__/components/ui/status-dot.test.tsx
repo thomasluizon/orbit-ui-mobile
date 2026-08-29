@@ -16,6 +16,16 @@ describe('StatusDot', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
+  it('uses the shared press scale for interactive feedback', () => {
+    render(<StatusDot state="empty" onToggle={() => {}} ariaLabel="run" />)
+    const button = screen.getByRole('button')
+
+    expect(button).toHaveStyle('--status-dot-press-scale: 0.96')
+    expect(button).toHaveClass(
+      'enabled:active:scale-[var(--status-dot-press-scale)]',
+    )
+  })
+
   it('keeps completion static when an interactive dot becomes done', () => {
     const { container, rerender } = render(
       <StatusDot state="empty" onToggle={() => {}} ariaLabel="run" />,

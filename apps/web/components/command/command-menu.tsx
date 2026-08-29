@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward } from '@/components/ui/icons'
@@ -73,6 +73,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   const t = useTranslations()
   const router = useRouter()
   const setActiveView = useUIStore((state) => state.setActiveView)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
   const [pages, setPages] = useState<CommandPage[]>([])
   const activePage = pages.at(-1) ?? null
@@ -151,6 +152,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
             aria-label={t('common.back')}
             onClick={() => {
               popPage()
+              inputRef.current?.focus()
             }}
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-150 ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
           >
@@ -187,6 +189,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
             />
           </div>
           <CommandInput
+            ref={inputRef}
             value={search}
             onValueChange={setSearch}
             placeholder={t('command.placeholder')}

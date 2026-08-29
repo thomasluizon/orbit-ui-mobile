@@ -73,6 +73,11 @@ describe('StatusDot', () => {
       tree.update(<StatusDot state="done" onToggle={vi.fn()} />)
     })
     expect(nodeWithRole(tree, 'button')!.props.accessibilityLabel).toBe('done')
+    expect(
+      tree.root.findAll((node) =>
+        ['Svg', 'Circle', 'AnimatedView'].includes(String(node.type)),
+      ),
+    ).toHaveLength(0)
     tree.unmount()
   })
 })

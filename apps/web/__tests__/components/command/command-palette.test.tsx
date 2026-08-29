@@ -77,7 +77,10 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
-import { CommandPalette } from '@/components/command/command-palette'
+import {
+  CommandPalette,
+  CommandPaletteBackground,
+} from '@/components/command/command-palette'
 
 const NavIcon = () => <svg data-testid="nav-icon" />
 const navItems = [
@@ -205,6 +208,29 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByLabelText('common.back'))
 
     expect(screen.getByText('command.createHabit')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus()
+  })
+
+  it('isolates the application background while open and restores it on close', () => {
+    const { rerender } = render(
+      <CommandPaletteBackground>
+        <button type="button">Background action</button>
+      </CommandPaletteBackground>,
+    )
+    const background = screen.getByText('Background action').parentElement
+
+    expect(background).toHaveAttribute('inert')
+    expect(background).toHaveAttribute('aria-hidden', 'true')
+
+    paletteOpen = false
+    rerender(
+      <CommandPaletteBackground>
+        <button type="button">Background action</button>
+      </CommandPaletteBackground>,
+    )
+
+    expect(background).not.toHaveAttribute('inert')
+    expect(background).not.toHaveAttribute('aria-hidden')
   })
 
   it('does not expose the removed create goal command', () => {

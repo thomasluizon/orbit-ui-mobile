@@ -2,10 +2,9 @@
 
 import {
   useCallback,
-  useMemo,
   useRef,
   type ComponentType,
-  type RefObject,
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
@@ -14,6 +13,7 @@ import type { IconProps } from '@/components/ui/icons'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
+import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
 import { CommandMenu } from './command-menu'
 
 export interface CommandNavigationItem {
@@ -28,6 +28,29 @@ interface CommandPaletteProps {
   onCreateHabit: () => void
 }
 
+interface CommandPaletteBackgroundProps {
+  children: ReactNode
+  className?: string
+}
+
+export function CommandPaletteBackground({
+  children,
+  className,
+}: Readonly<CommandPaletteBackgroundProps>) {
+  const paletteOpen = useShellStore((state) => state.paletteOpen)
+
+  return (
+    <div
+      data-command-palette-background=""
+      inert={paletteOpen || undefined}
+      aria-hidden={paletteOpen || undefined}
+      className={className}
+    >
+      {children}
+    </div>
+  )
+}
+
 /**
  * Global command palette (Cmd/Ctrl+K). A token-styled portal overlay wrapping the
  * cmdk menu, dismissed through the shared overlay/escape stack, which also traps
@@ -40,20 +63,11 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
   const panelRef = useRef<HTMLDivElement>(null)
-  const inputRef = useMemo<RefObject<HTMLElement | null>>(
-    () => ({
-      get current() {
-        return panelRef.current?.querySelector<HTMLInputElement>(
-          'input[cmdk-input]',
-        ) ?? null
-      },
-    }),
-    [],
-  )
 
   const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
 
-  useOverlayEscape({ open: paletteOpen, onDismiss: close, initialFocusRef: inputRef, panelRef })
+  useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
+  useModalFocusTrap(paletteOpen, panelRef)
 
   if (!mounted) return null
 
