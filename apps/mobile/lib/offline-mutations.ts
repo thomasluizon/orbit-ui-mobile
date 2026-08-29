@@ -142,13 +142,13 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   execute,
   queuedResult,
   queuedResultFactory,
-  queueAfterNetworkError,
+  allowAutomaticReplay,
 }: {
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string) => TQueuedResult
-  queueAfterNetworkError?: boolean
+  allowAutomaticReplay?: boolean
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
   const resolvedQueuedResult =
@@ -158,7 +158,7 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
     mutation: builtMutation,
     execute,
     queuedResult: resolvedQueuedResult as TResult | TQueuedResult,
-    queueAfterNetworkError,
+    allowAutomaticReplay,
   })
 }
 
@@ -432,12 +432,12 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   mutation,
   execute,
   queuedResult,
-  queueAfterNetworkError = true,
+  allowAutomaticReplay = true,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult: TQueuedResult
-  queueAfterNetworkError?: boolean
+  allowAutomaticReplay?: boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
     resolveMutationReferences(mutation),
@@ -446,6 +446,10 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
 
   if (!online || hasPendingDependencies) {
+    if (!allowAutomaticReplay) {
+      throw new Error('Mutation requires an active connection')
+    }
+
     await markQueuedMutation(resolvedMutation)
     return queuedResult
   }
@@ -454,7 +458,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     setPendingIdempotencyKey(resolvedMutation.id)
     return await execute(resolvedMutation)
   } catch (error: unknown) {
-    if (!isTransientNetworkError(error) || !queueAfterNetworkError) {
+    if (!isTransientNetworkError(error) || !allowAutomaticReplay) {
       throw error
     }
 

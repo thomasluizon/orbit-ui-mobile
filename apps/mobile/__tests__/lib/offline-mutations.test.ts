@@ -828,7 +828,45 @@ describe('offline mutations', () => {
     expect(mocks.enqueue).toHaveBeenCalledTimes(1)
   })
 
-  it('does not queue a transport-ambiguous online mutation', async () => {
+  it('rejects a non-replayable mutation offline without persisting it', async () => {
+    mocks.setOnline(false)
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'bulkSkipHabits',
+        scope: 'habits',
+        endpoint: '/api/habits/bulk-skip',
+        method: 'POST',
+        payload: { items: [{ habitId: 'habit-1' }] },
+      }),
+      execute: () => Promise.resolve(null),
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toThrow('Mutation requires an active connection')
+
+    expect(mocks.queued).toEqual([])
+  })
+
+  it('rejects a dependency-blocked non-replayable mutation without persisting it', async () => {
+    mocks.setOnline(true)
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'bulkSkipHabits',
+        scope: 'habits',
+        endpoint: '/api/habits/bulk-skip',
+        method: 'POST',
+        payload: { items: [{ habitId: 'offline-habit-1' }] },
+      }),
+      execute: () => Promise.resolve(null),
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toThrow('Mutation requires an active connection')
+
+    expect(mocks.queued).toEqual([])
+  })
+
+  it('rejects a non-replayable online mutation after a transient network error', async () => {
     mocks.setOnline(true)
 
     await expect(queueOrExecute({
@@ -841,10 +879,56 @@ describe('offline mutations', () => {
       }),
       execute: () => Promise.reject(new TypeError('Network request failed')),
       queuedResult: { queued: true as const },
-      queueAfterNetworkError: false,
+      allowAutomaticReplay: false,
     })).rejects.toThrow('Network request failed')
 
-    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([])
+  })
+
+  it('persists and flushes a replayable mutation that starts offline', async () => {
+    mocks.setOnline(false)
+
+    await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-1',
+        method: 'PUT',
+        payload: { title: 'Retry' },
+      }),
+      execute: () => Promise.resolve(null),
+      queuedResult: { queued: true as const },
+    })
+
+    expect(mocks.queued).toHaveLength(1)
+
+    mocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(mocks.queued).toEqual([])
+  })
+
+  it('cannot retain a non-replayable mutation for backoff after a flush failure', async () => {
+    mocks.setOnline(false)
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'bulkSkipHabits',
+        scope: 'habits',
+        endpoint: '/api/habits/bulk-skip',
+        method: 'POST',
+        payload: { items: [{ habitId: 'habit-1' }] },
+      }),
+      execute: () => Promise.resolve(null),
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toThrow('Mutation requires an active connection')
+
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(new TypeError('Network request failed'))
+    await flushQueuedMutations()
+
+    expect(mocks.queued).toEqual([])
   })
 
   it('marks a tombstone when a delete mutation is queued offline', async () => {

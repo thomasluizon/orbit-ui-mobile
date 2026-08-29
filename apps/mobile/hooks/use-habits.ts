@@ -842,7 +842,7 @@ export function useBulkDeleteHabits() {
             payload: null,
             entityType: 'habit',
             targetEntityId: habitId,
-            queueAfterNetworkError: false,
+            allowAutomaticReplay: false,
           }),
         ))
         outcomes.forEach((outcome, itemIndex) => {
@@ -1016,7 +1016,7 @@ export function useBulkSkipHabits() {
             endpoint: API.habits.bulkSkip,
             method: 'POST',
             payload: { items: chunk },
-            queueAfterNetworkError: false,
+            allowAutomaticReplay: false,
             queuedResultFactory: (mutationId) => ({
               results: chunk.map((item, itemIndex) => ({
                 index: itemIndex,
