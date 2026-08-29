@@ -17337,6 +17337,7 @@
         "apps/web/__tests__/app/api/subscriptions-checkout-route.test.ts",
         "apps/web/__tests__/app/api/subscriptions-plans-route.test.ts",
         "apps/web/__tests__/components/navigation/notification-bell.test.tsx",
+        "apps/web/__tests__/components/shell/destination-shell.test.tsx",
         "apps/web/__tests__/hooks/use-drill-navigation.test.ts",
         "apps/web/__tests__/hooks/use-keyboard-shortcuts.test.tsx",
         "apps/web/__tests__/hooks/use-overlay-escape.test.tsx",
