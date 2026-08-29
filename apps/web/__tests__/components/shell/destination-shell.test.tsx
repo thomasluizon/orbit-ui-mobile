@@ -47,7 +47,7 @@ vi.mock('@/components/shell/shell-composer', () => ({
     <button type="button" aria-label="shell-open" onClick={onOpenConversation} />
   ),
 }))
-vi.mock('@/app/(chat)/chat/page', () => ({
+vi.mock('@/components/chat/chat-page-content', () => ({
   ChatPageContent: ({ onClose }: { onClose: () => void }) => (
     <button type="button" aria-label="conversation-close" onClick={onClose} />
   ),
