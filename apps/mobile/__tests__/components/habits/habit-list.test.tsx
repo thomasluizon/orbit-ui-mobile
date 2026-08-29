@@ -9,6 +9,9 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { tourScrollRegistry } from '@/components/tour/tour-target-context'
 import { useTourStore } from '@/stores/tour-store'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { flushQueuedMutations } from '@/lib/offline-mutations'
+import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
@@ -48,6 +51,111 @@ const colorProxy: Record<string, string> = new Proxy(
     get: (_target, prop) => (prop === 'white' ? '#ffffff' : '#111111'),
   },
 )
+
+interface OfflineQueueRow {
+  id: string
+  timestamp: number
+  type: string
+  endpoint: string
+  method: string
+  payload: string
+  retries: number
+  max_retries: number
+  meta: string | null
+}
+
+const offlineMocks = vi.hoisted(() => {
+  const rows = new Map<string, OfflineQueueRow>()
+  const appliedHabitIds: string[] = []
+  const loggedHabits = new Set<string>()
+  let online = false
+
+  const apiClient = vi.fn((endpoint: string) => {
+    const match = endpoint.match(/^\/api\/habits\/([^/]+)\/log$/)
+    const habitId = match?.[1]
+    if (!habitId) return Promise.resolve(null)
+
+    appliedHabitIds.push(habitId)
+    if (loggedHabits.has(habitId)) {
+      loggedHabits.delete(habitId)
+    } else {
+      loggedHabits.add(habitId)
+    }
+    return Promise.resolve(null)
+  })
+
+  return {
+    rows,
+    appliedHabitIds,
+    loggedHabits,
+    apiClient,
+    isOnline: () => online,
+    setOnline: (value: boolean) => {
+      online = value
+    },
+  }
+})
+
+vi.mock('expo-sqlite', () => ({
+  openDatabaseSync: () => ({
+    execSync: vi.fn(),
+    getAllSync: <T,>(sql: string) => {
+      if (sql.startsWith('PRAGMA table_info')) return [{ name: 'meta' }] as T[]
+      if (sql.startsWith('SELECT * FROM mutation_queue')) {
+        return Array.from(offlineMocks.rows.values())
+          .sort((first, second) => first.timestamp - second.timestamp) as T[]
+      }
+      return [] as T[]
+    },
+    runSync: (sql: string, params: unknown[] = []) => {
+      if (sql.startsWith('INSERT OR REPLACE INTO mutation_queue')) {
+        const [id, timestamp, type, endpoint, method, payload, retries, maxRetries, meta] = params
+        offlineMocks.rows.set(String(id), {
+          id: String(id),
+          timestamp: Number(timestamp),
+          type: String(type),
+          endpoint: String(endpoint),
+          method: String(method),
+          payload: String(payload),
+          retries: Number(retries),
+          max_retries: Number(maxRetries),
+          meta: typeof meta === 'string' ? meta : null,
+        })
+        return
+      }
+      if (sql === 'DELETE FROM mutation_queue') {
+        offlineMocks.rows.clear()
+        return
+      }
+      if (sql.startsWith('DELETE FROM mutation_queue WHERE id = ?')) {
+        offlineMocks.rows.delete(String(params[0]))
+      }
+    },
+    getFirstSync: <T,>(sql: string) => (
+      sql.startsWith('SELECT COUNT(*) as cnt')
+        ? { cnt: offlineMocks.rows.size } as T
+        : null as T
+    ),
+    withTransactionSync: (task: () => void) => task(),
+  }),
+}))
+
+vi.mock('@/lib/api-client', () => ({ apiClient: offlineMocks.apiClient }))
+vi.mock('@/lib/offline-runtime', () => ({
+  getCurrentConnectivity: () => Promise.resolve(offlineMocks.isOnline()),
+}))
+vi.mock('@/lib/query-client', () => ({
+  persistQueryCache: () => Promise.resolve(),
+  queryClient: { invalidateQueries: () => Promise.resolve() },
+}))
+vi.mock('@/lib/offline-state', () => ({
+  clearOfflineEntity: () => Promise.resolve(),
+  getResolvedEntityId: (_entityType: string, id: string) => Promise.resolve(id),
+  markOfflineTombstone: () => Promise.resolve(),
+  resolveOfflineEntity: () => Promise.resolve(),
+  setOfflineEntityStatus: () => Promise.resolve(),
+  upsertOfflineEntity: () => Promise.resolve(),
+}))
 
 const mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
@@ -296,6 +404,10 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearOfflineQueue()
+    offlineMocks.appliedHabitIds.length = 0
+    offlineMocks.loggedHabits.clear()
+    offlineMocks.setOnline(false)
     mockHabitsDataUpdatedAt = 1
     useActualHabitVisibility = false
     habitListRefetch.mockReset()
@@ -616,6 +728,143 @@ describe('HabitList', () => {
       resolveFirstRefetch?.()
       await firstRefetch
     })
+  })
+
+  it('keeps an offline toggle guarded through real queue replay', async () => {
+    const firstHabit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    const secondHabit = createMockHabit({ id: 'habit-2', title: 'Read' })
+    seedHabits([firstHabit, secondHabit])
+    logMutateAsync.mockImplementation(({
+      habitId,
+      date,
+    }: {
+      habitId: string
+      date?: string
+    }) => performQueuedApiMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: `/api/habits/${habitId}/log`,
+      method: 'POST',
+      payload: date ? { date } : undefined,
+      entityType: 'habit',
+      targetEntityId: habitId,
+    }))
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    const findHabitCard = (habitId: string) => tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habitId)
+
+    await TestRenderer.act(async () => {
+      await findHabitCard(firstHabit.id)?.props.actions.onLog()
+    })
+
+    seedHabits([{ ...firstHabit, isCompleted: true }, secondHabit])
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      await findHabitCard(firstHabit.id)?.props.actions.onUnlog()
+      await findHabitCard(secondHabit.id)?.props.actions.onLog()
+    })
+
+    expect(getQueuedMutations().map((mutation) => ({
+      type: mutation.type,
+      targetEntityId: mutation.targetEntityId,
+      payload: mutation.payload,
+    }))).toEqual([
+      { type: 'logHabit', targetEntityId: firstHabit.id, payload: { date: TODAY } },
+      { type: 'logHabit', targetEntityId: secondHabit.id, payload: { date: TODAY } },
+    ])
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([firstHabit.id, secondHabit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([firstHabit.id, secondHabit.id]))
+  })
+
+  it('accepts a second offline toggle intent after the first queue item finalizes', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(({
+      habitId,
+      date,
+    }: {
+      habitId: string
+      date?: string
+    }) => performQueuedApiMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: `/api/habits/${habitId}/log`,
+      method: 'POST',
+      payload: date ? { date } : undefined,
+      entityType: 'habit',
+      targetEntityId: habitId,
+    }))
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+    expect(getQueuedMutations()).toHaveLength(1)
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+    expect(offlineMocks.loggedHabits.has(habit.id)).toBe(true)
+
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id, habit.id])
+    expect(offlineMocks.loggedHabits.has(habit.id)).toBe(false)
   })
 
   it('keeps the row visible while a direct log request is pending', async () => {

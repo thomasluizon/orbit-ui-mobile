@@ -62,8 +62,10 @@ export interface DroppedMutation {
 }
 
 type DroppedMutationListener = (dropped: DroppedMutation) => void
+type FinalizedMutationListener = (mutationId: string) => void
 
 const droppedMutationListeners = new Set<DroppedMutationListener>()
+const finalizedMutationListeners = new Set<FinalizedMutationListener>()
 
 /**
  * Subscribe to mutations dropped from the queue (permanent/validation errors or
@@ -78,8 +80,23 @@ export function subscribeDroppedMutations(listener: DroppedMutationListener): ()
   }
 }
 
+export function subscribeFinalizedMutations(listener: FinalizedMutationListener): () => void {
+  finalizedMutationListeners.add(listener)
+  return () => {
+    finalizedMutationListeners.delete(listener)
+  }
+}
+
 function notifyDroppedMutation(dropped: DroppedMutation): void {
   for (const listener of droppedMutationListeners) listener(dropped)
+}
+
+function notifyFinalizedMutation(mutationId: string): void {
+  for (const listener of finalizedMutationListeners) listener(mutationId)
+}
+
+export function isQueuedMutationPending(mutationId: string): boolean {
+  return getById(mutationId) !== null
 }
 
 export interface QueuedMutationBuildOptions {
@@ -641,6 +658,7 @@ async function processQueuedMutationFlush(
     )
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
+    notifyFinalizedMutation(mutation.id)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
@@ -676,6 +694,7 @@ async function runQueueFlush(): Promise<FlushOutcome> {
     if (step.dropped) {
       droppedMutations.push(step.dropped)
       notifyDroppedMutation(step.dropped)
+      notifyFinalizedMutation(step.dropped.id)
     }
     if (step.stopReason) {
       stopReason = step.stopReason
