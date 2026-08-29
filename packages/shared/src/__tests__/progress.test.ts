@@ -5,9 +5,9 @@ import {
   achievementGlyphKey,
   buildGoalMovePositions,
   filterProgressGoals,
+  getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
-  isRepairableStreakGap,
   visibleProgressAchievements,
 } from '../utils/progress'
 
@@ -61,10 +61,10 @@ describe('progress surface models', () => {
     ])
   })
 
-  it('recognizes only the one-day repair window after local yesterday', () => {
-    const now = new Date('2026-08-28T15:00:00-03:00')
-    expect(isRepairableStreakGap('2026-08-26', 8, now)).toBe(true)
-    expect(isRepairableStreakGap('2026-08-25', 8, now)).toBe(false)
+  it('trusts the repair offer and date returned by the API', () => {
+    expect(getAvailableStreakRepairDate(true, '2026-08-27')).toBe('2026-08-27')
+    expect(getAvailableStreakRepairDate(false, '2026-08-27')).toBeNull()
+    expect(getAvailableStreakRepairDate(true, null)).toBeNull()
   })
 
   it('hides the retired social achievement categories', () => {

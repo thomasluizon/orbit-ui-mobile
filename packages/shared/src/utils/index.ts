@@ -515,10 +515,9 @@ export {
   buildGoalMovePositions,
   buildProtectedDayLabels,
   filterProgressGoals,
+  getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
-  isProgressSurfaceEmpty,
-  isRepairableStreakGap,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
 } from './progress'

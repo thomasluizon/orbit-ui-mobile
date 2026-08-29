@@ -4,7 +4,6 @@ import {
   isSameDay,
   parseISO,
   startOfDay,
-  subDays,
 } from 'date-fns'
 import type { Achievement } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
@@ -100,14 +99,11 @@ export function getGamificationLevelTitleKey(level: number): string {
   return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
 }
 
-export function isRepairableStreakGap(
-  lastActiveDate: string | null | undefined,
-  currentStreak: number,
-  now: Date = new Date(),
-): boolean {
-  if (!lastActiveDate || currentStreak <= 0) return false
-  const expectedLastActive = subDays(startOfDay(now), 2)
-  return isSameDay(startOfDay(parseISO(lastActiveDate)), expectedLastActive)
+export function getAvailableStreakRepairDate(
+  isRepairAvailable: boolean | undefined,
+  repairDate: string | null | undefined,
+): string | null {
+  return isRepairAvailable === true && repairDate ? repairDate : null
 }
 
 export function buildProtectedDayLabels(
@@ -123,18 +119,4 @@ export function buildProtectedDayLabels(
       isToday: isSameDay(parsed, today),
     }
   })
-}
-
-export function isProgressSurfaceEmpty(input: {
-  currentStreak: number
-  goals: readonly Goal[]
-  achievements: readonly Achievement[]
-  totalCompletions: number
-}): boolean {
-  return (
-    input.currentStreak === 0 &&
-    input.goals.length === 0 &&
-    input.achievements.length === 0 &&
-    input.totalCompletions === 0
-  )
 }

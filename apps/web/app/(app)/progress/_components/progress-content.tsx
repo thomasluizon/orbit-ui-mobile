@@ -17,13 +17,13 @@ import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
   buildStreakWeekDays,
+  extractBackendErrorCode,
   filterProgressGoals,
+  getAvailableStreakRepairDate,
   getGoalMetricsStatusPresentation,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
-  isProgressSurfaceEmpty,
-  isRepairableStreakGap,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
@@ -57,6 +57,8 @@ import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hook
 import { useGoals, useReorderGoals, useUpdateGoalStatus } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
+
+const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, compact = false }: Readonly<{ title: string; children: ReactNode; compact?: boolean }>) {
   return (
@@ -110,7 +112,10 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date)), [days, locale])
   const tier = t(getStreakTierLabelKey(currentStreak))
-  const hasOpenYesterday = isRepairableStreakGap(freeze.streakInfo?.lastActiveDate, currentStreak)
+  const repairDate = getAvailableStreakRepairDate(
+    freeze.streakInfo?.isRepairAvailable,
+    freeze.streakInfo?.repairDate,
+  )
   const available = freeze.freezesAvailable
   const canRepair = freeze.streakInfo?.isRepairAvailable === true && available > 0
   const dayWords = {
@@ -118,6 +123,25 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
     frozen: t('progressScreen.streak.frozen'),
     missed: t('progressScreen.streak.missed'),
     today: t('progressScreen.streak.today'),
+  }
+
+  if (canView && freeze.streakQuery.isError) {
+    return (
+      <Section title={t('progressScreen.sections.streak')}>
+        <ErrorState
+          message={t('progressScreen.error')}
+          action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>}
+        />
+      </Section>
+    )
+  }
+
+  if (canView && !freeze.streakInfo) {
+    return (
+      <Section title={t('progressScreen.sections.streak')}>
+        <Skeleton variant="habit-row" label={t('progressScreen.loading')} />
+      </Section>
+    )
   }
 
   return (
@@ -130,7 +154,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
       <div className="max-w-full overflow-x-auto py-1">
         <DayStrip scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       </div>
-      {hasOpenYesterday ? (
+      {repairDate ? (
         <div className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
           <div className="flex flex-col gap-1">
             <p className="text-[16px] font-medium text-[var(--fg-1)]">{t('progressScreen.streak.repairTitle')}</p>
@@ -277,20 +301,32 @@ function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
   )
 }
 
-function WindowSection({ canView }: Readonly<{ canView: boolean }>) {
+function WindowSection({ hasProAccess }: Readonly<{ hasProAccess: boolean }>) {
   const t = useTranslations()
-  const retrospective = useProgressRetrospective(canView)
-  if (!canView) return <Section title={t('progressScreen.sections.window')}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></Section>
-  if (!retrospective.data) return <Section title={t('progressScreen.sections.window')}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
-  const metrics = retrospective.data.metrics
-  const topHabit = metrics.topHabits[0]
+  const retrospective = useProgressRetrospective(hasProAccess)
+  if (!hasProAccess) return <Section title={t('progressScreen.sections.window')}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></Section>
+  if (retrospective.isLoading) return <Section title={t('progressScreen.sections.window')}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
+  const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
+  if (retrospective.isError && !hasNoHabits) {
+    return (
+      <Section title={t('progressScreen.sections.window')}>
+        <ErrorState
+          message={t('progressScreen.error')}
+          action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>}
+        />
+      </Section>
+    )
+  }
+  if (!retrospective.data && !hasNoHabits) return <Section title={t('progressScreen.sections.window')}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
+  const metrics = retrospective.data?.metrics
+  const topHabit = metrics?.topHabits[0]
   return (
     <Section title={t('progressScreen.sections.window')}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
-        <StatTile value={`${metrics.activeDays} / ${metrics.periodDays}`} label={t('progressScreen.window.activeDays', { days: metrics.periodDays })} />
+        <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
+        <StatTile value={metrics ? `${metrics.activeDays} / ${metrics.periodDays}` : '0'} label={t('progressScreen.window.activeDays', { days: metrics?.periodDays ?? 0 })} />
         {topHabit ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
-        <StatTile value={metrics.totalCompletions} label={t('progressScreen.window.totalCompletions')} />
+        <StatTile value={metrics?.totalCompletions ?? 0} label={t('progressScreen.window.totalCompletions')} />
       </div>
     </Section>
   )
@@ -367,25 +403,20 @@ function AchievementsSection({ profile, canView, xpProgress }: Readonly<{ profil
 
 export function ProgressContent() {
   const t = useTranslations()
-  const router = useRouter()
   const account = useProfile()
   const canView = account.profile?.canViewGamification ?? false
   const goals = useGoals()
   const gamification = useGamificationProfile(canView)
-  const retrospective = useProgressRetrospective(canView)
   const allGoals = goals.data?.allGoals ?? []
-  const achievements = gamification.profile ? visibleProgressAchievements(gamification.profile.achievements) : []
-  const loading = account.isLoading || goals.isLoading || (canView && (gamification.isLoading || retrospective.isLoading))
-  const error = account.isError || goals.isError || (canView && (gamification.isError || retrospective.isError))
-  const empty = canView && gamification.profile && retrospective.data ? isProgressSurfaceEmpty({ currentStreak: gamification.profile.currentStreak, goals: allGoals, achievements, totalCompletions: retrospective.data.metrics.totalCompletions }) : false
-  const retry = () => { void account.refetch(); void goals.refetch(); void gamification.refetch(); void retrospective.refetch() }
+  const loading = account.isLoading || goals.isLoading || (canView && gamification.isLoading)
+  const error = account.isError || goals.isError || (canView && gamification.isError)
+  const retry = () => { void account.refetch(); void goals.refetch(); void gamification.refetch() }
   return (
     <main className="flex w-full flex-col gap-8 px-4 py-8 md:px-0">
       <h1 className="t-h1" tabIndex={-1}>{t('progressScreen.title')}</h1>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {!loading && error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /> : null}
-      {!loading && !error && empty ? <EmptyState title={t('progressScreen.empty')} action={<PillButton onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection canView={canView} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
     </main>
   )
 }

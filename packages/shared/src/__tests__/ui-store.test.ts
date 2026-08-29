@@ -243,4 +243,9 @@ describe("shared ui store", () => {
       setupChecklistDismissed: false,
     });
   });
+
+  it("maps every retired active view to today", () => {
+    expect(migratePersistedUIState({ activeView: "goals" }).activeView).toBe("today");
+    expect(migratePersistedUIState({ activeView: "retrospective" }).activeView).toBe("today");
+  });
 });

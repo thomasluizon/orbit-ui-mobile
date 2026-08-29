@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, currentStreak: 4, longestStreak: 9 },
+    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -86,7 +86,9 @@ const mocks = vi.hoisted(() => ({
       freezesAvailableToUse: 2,
       canEarnMore: true,
       isRepairAvailable: false,
+      repairDate: null as string | null,
     },
+    streakQuery: { isError: false, refetch: vi.fn() },
     isFrozenToday: false,
     freezesAvailable: 2,
     streakFreezesAccumulated: 2,
@@ -121,23 +123,21 @@ vi.mock('@/hooks/use-retrospective', () => ({
 
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
-function localDateOffset(offset: number): string {
-  const date = new Date()
-  date.setDate(date.getDate() + offset)
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${day}`
-}
-
 describe('ProgressContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.account.profile.canViewGamification = true
+    mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
     mocks.freeze.streakInfo.lastActiveDate = null
     mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakQuery.isError = false
     mocks.freeze.freezesAvailable = 2
+    mocks.retrospective.isLoading = false
+    mocks.retrospective.isError = false
+    mocks.retrospective.error = null
   })
 
   it('renders the four sections in the decided descending order and the API figures', () => {
@@ -157,6 +157,7 @@ describe('ProgressContent', () => {
 
   it('renders routed boundaries instead of blank gated regions', () => {
     mocks.account.profile.canViewGamification = false
+    mocks.account.profile.hasProAccess = false
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
@@ -165,9 +166,22 @@ describe('ProgressContent', () => {
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
   })
 
+  it('keeps free gamification cohorts open while locking only the Pro figures', () => {
+    mocks.account.profile.canViewGamification = true
+    mocks.account.profile.hasProAccess = false
+
+    render(<ProgressContent />)
+
+    expect(screen.getByText('progressScreen.streak.currentLabel')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
+  })
+
   it('offers the one day repair and the explicit finish write', () => {
-    mocks.freeze.streakInfo.lastActiveDate = localDateOffset(-2)
     mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-08-27'
     mocks.goals.data.allGoals = [{
       id: 'goal-1',
       title: 'Read 10 books',
@@ -193,5 +207,37 @@ describe('ProgressContent', () => {
       goalName: 'Read 10 books',
       data: { status: 'Completed' },
     })
+  })
+
+  it('keeps the page open when the Pro figures report no habits', () => {
+    const retrospectiveData = mocks.retrospective.data
+    mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
+
+    render(<ProgressContent />)
+
+    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    expect(screen.getByText('0%')).toBeInTheDocument()
+
+    mocks.retrospective.data = retrospectiveData
+  })
+
+  it('shows streak loading and failure without a false upgrade boundary', () => {
+    const streakInfo = mocks.freeze.streakInfo
+    mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
+
+    const { rerender } = render(<ProgressContent />)
+    expect(screen.getByLabelText('progressScreen.loading')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
+
+    mocks.freeze.streakQuery.isError = true
+    rerender(<ProgressContent />)
+    expect(screen.getByText('progressScreen.error')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('progressScreen.retry'))
+    expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
+
+    mocks.freeze.streakInfo = streakInfo
   })
 })

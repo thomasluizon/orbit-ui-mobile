@@ -90,9 +90,18 @@ vi.mock('react-native-draggable-flatlist', () => {
     )
   }
 
+  function NestableScrollContainer({
+    children,
+    ...props
+  }: Readonly<{ children?: React.ReactNode; [key: string]: unknown }>) {
+    return React.createElement('NestableScrollContainer', props, children)
+  }
+
   return {
     __esModule: true,
     default: DraggableFlatList,
+    NestableDraggableFlatList: DraggableFlatList,
+    NestableScrollContainer,
   }
 })
 

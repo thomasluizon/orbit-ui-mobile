@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, currentStreak: 4, longestStreak: 9 },
+    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -91,7 +91,9 @@ const mocks = vi.hoisted(() => ({
       freezesAvailableToUse: 2,
       canEarnMore: true,
       isRepairAvailable: false,
+      repairDate: null as string | null,
     },
+    streakQuery: { isError: false, refetch: vi.fn() },
     isFrozenToday: false,
     freezesAvailable: 2,
     streakFreezesAccumulated: 2,
@@ -146,14 +148,6 @@ async function renderProgress(): Promise<{ root: TestNode }> {
   return tree!
 }
 
-function localDateOffset(offset: number): string {
-  const date = new Date()
-  date.setDate(date.getDate() + offset)
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${day}`
-}
-
 function findPill(root: TestNode, label: string): TestNode {
   return root.findAll((node) => node.type === 'PillButton' && node.props.children === label)[0]!
 }
@@ -162,10 +156,16 @@ describe('mobile ProgressContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.account.profile.canViewGamification = true
+    mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
     mocks.freeze.streakInfo.lastActiveDate = null
     mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakQuery.isError = false
+    mocks.retrospective.isLoading = false
+    mocks.retrospective.isError = false
+    mocks.retrospective.error = null
   })
 
   it('renders the API window figures and all four section labels', async () => {
@@ -183,6 +183,7 @@ describe('mobile ProgressContent', () => {
 
   it('renders the three routed plan boundaries', async () => {
     mocks.account.profile.canViewGamification = false
+    mocks.account.profile.hasProAccess = false
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
     expect(text).toEqual(expect.arrayContaining([
@@ -193,9 +194,25 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
   })
 
+  it('keeps free gamification cohorts open while locking only the Pro figures', async () => {
+    mocks.account.profile.canViewGamification = true
+    mocks.account.profile.hasProAccess = false
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toEqual(expect.arrayContaining([
+      'progressScreen.streak.currentLabel',
+      'progressScreen.sections.goals',
+      'progressScreen.window.lockedBody',
+    ]))
+    expect(text).not.toContain('progressScreen.streak.lockedBody')
+    expect(text).not.toContain('progressScreen.achievements.lockedBody')
+  })
+
   it('dispatches the explicit repair and finish writes', async () => {
-    mocks.freeze.streakInfo.lastActiveDate = localDateOffset(-2)
     mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-08-27'
     mocks.goals.data.allGoals = [{
       id: 'goal-1', title: 'Read 10 books', description: null, targetValue: 10,
       currentValue: 10, unit: 'books', status: 'Active', deadline: null, position: 0,
@@ -212,5 +229,70 @@ describe('mobile ProgressContent', () => {
     expect(mocks.updateStatus.mutate).toHaveBeenCalledWith({
       goalId: 'goal-1', goalName: 'Read 10 books', data: { status: 'Completed' },
     })
+  })
+
+  it('keeps the other sections open when the Pro figures report no habits', async () => {
+    const retrospectiveData = mocks.retrospective.data
+    mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+    expect(text).toEqual(expect.arrayContaining([
+      'progressScreen.sections.streak',
+      'progressScreen.sections.goals',
+    ]))
+    const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
+    expect(figures).toEqual(expect.arrayContaining(['0%', 0]))
+
+    mocks.retrospective.data = retrospectiveData
+  })
+
+  it('shows streak loading and failure without a false upgrade boundary', async () => {
+    const streakInfo = mocks.freeze.streakInfo
+    mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
+
+    let tree = await renderProgress()
+    expect(tree.root.findAll((node) => node.props.label === 'progressScreen.loading').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.lockedBody')).toHaveLength(0)
+
+    mocks.freeze.streakQuery.isError = true
+    tree = await renderProgress()
+    const retry = findPill(tree.root, 'progressScreen.retry')
+    await TestRenderer.act(() => {
+      ;(retry.props.onClick as () => void)()
+    })
+    expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
+
+    mocks.freeze.streakInfo = streakInfo
+  })
+
+  it('keeps long-press drag and accessibility goal reordering', async () => {
+    const goalOne = {
+      id: 'goal-1', title: 'Goal one', description: null, targetValue: 10,
+      currentValue: 2, unit: 'days', status: 'Active', deadline: null, position: 0,
+      createdAtUtc: '2026-08-01T00:00:00Z', completedAtUtc: null,
+      progressPercentage: 20, linkedHabits: [],
+    }
+    const goalTwo = { ...goalOne, id: 'goal-2', title: 'Goal two', position: 1 }
+    mocks.goals.data.allGoals = [goalOne, goalTwo]
+
+    const tree = await renderProgress()
+    const list = tree.root.findAll((node) => node.type === 'DraggableFlatList')[0]!
+    const firstGoal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Goal one')[0]!
+
+    expect(list.props.activationDistance).toBe(5)
+    expect(firstGoal.props.delayLongPress).toBe(300)
+    expect(firstGoal.props.onLongPress).toEqual(expect.any(Function))
+    expect(firstGoal.props.accessibilityActions).toHaveLength(2)
+
+    await TestRenderer.act(() => {
+      ;(list.props.onDragEnd as (params: unknown) => void)({ from: 0, to: 1, data: [goalTwo, goalOne] })
+    })
+    expect(mocks.reorder.mutate).toHaveBeenCalledWith([
+      { id: 'goal-2', position: 0 },
+      { id: 'goal-1', position: 1 },
+    ])
   })
 })

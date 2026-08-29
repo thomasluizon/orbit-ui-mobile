@@ -546,7 +546,7 @@ describe('ui store', () => {
             selectedTagIds: ['deep-work'],
             showCompleted: true,
           },
-          version: 2,
+          version: 3,
         }),
       )
 

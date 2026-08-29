@@ -336,6 +336,26 @@ describe("mobile ui store", () => {
     );
   });
 
+  it("migrates the retired goals view from the previous persistence version", async () => {
+    asyncStorageState.data.set(
+      "orbit-ui-store",
+      JSON.stringify({
+        state: {
+          activeFilters: {},
+          activeView: "goals",
+          selectedFrequency: null,
+          selectedTagIds: [],
+          showCompleted: false,
+        },
+        version: 3,
+      }),
+    );
+
+    await useUIStore.persist.rehydrate();
+
+    expect(useUIStore.getState().activeView).toBe("today");
+  });
+
   it("drops legacy day-selection keys when rehydrating an old snapshot", async () => {
     asyncStorageState.data.set(
       "orbit-ui-store",
