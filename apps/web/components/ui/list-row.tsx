@@ -21,7 +21,7 @@ function RowBody({ title, description, icon, value, danger, trailing }: Readonly
 }
 
 export function ListRow(props: Readonly<ListRowProps>) {
-  const { trailing, action, chevron = true, onClick, readOnly = false } = props
+  const { action, chevron = true, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const bodyStyle = { minHeight: 52, padding: '8px 0 8px 20px', gap: 12 } as const
 
