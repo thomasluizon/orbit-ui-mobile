@@ -132,6 +132,7 @@ export function TourProvider() {
     (targetId: string) => {
       const el = document.querySelector(`[data-tour="${targetId}"]`)
       if (!el) return false
+      if (typeof el.scrollIntoView !== 'function') return false
 
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
