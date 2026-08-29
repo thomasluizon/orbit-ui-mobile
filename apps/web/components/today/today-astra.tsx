@@ -2,15 +2,11 @@
 
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import {
-  getReturningCompletionGuidance,
-  getReturningCompletionWindow,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from '@orbit/shared/utils'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { useCalendarDateRange } from '@/hooks/use-calendar-data'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
@@ -21,32 +17,19 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Composer } from '@/components/shell/composer'
 
 interface TodayAstraProps {
-  today: string
   isTodaySelected: boolean
   suppressed: boolean
 }
 
-export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
-  const router = useRouter()
   const isClient = useIsClient()
   const { profile, isPending: profilePending, isError: profileError } = useProfile()
   const chat = useChatComposer()
-  const completionWindow = getReturningCompletionWindow(today)
-  const completionHistory = useCalendarDateRange(
-    completionWindow.dateFrom,
-    completionWindow.dateTo,
-    isTodaySelected,
-  )
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const setDraft = useChatStore((state) => state.setDraft)
-  const returning = getReturningCompletionGuidance(
-    completionHistory.calendarMonth,
-    today,
-    profile?.hasLoggedFirstHabit,
-  )
   const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const openConversation = () => setConversationOpen(true)
   const createSentence = t('todayAstra.createSentence')
@@ -77,16 +60,10 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
     composerProps = { ...composerProps, state: 'offline', limitReason: t('todayAstra.offline') } as ComposerProps
   }
 
-  const returningText = returning?.kind === 'elapsed'
-    ? t('todayAstra.returning', { days: returning.days })
-    : null
-  const returningLine = returningText
-    ? { text: returningText, action: t('todayAstra.openProgress'), kind: 'progress' as const }
-    : null
   const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline: chat.isOnline, atLimit: chat.atMessageLimit })
     ? proactive
-      ? { text: proactive.body, action: t('todayAstra.openConversation'), kind: 'conversation' as const }
-      : returningLine
+      ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
+      : null
     : null
 
   const composerTarget = isClient ? document.getElementById('today-composer-slot') : null
@@ -101,12 +78,8 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
               type="button"
               className="border-0 bg-transparent p-0 text-inherit underline underline-offset-4"
               onClick={() => {
-                if (line.kind === 'conversation') {
-                  if (proactive) markRead.mutate(proactive.id)
-                  openConversation()
-                } else {
-                  router.push('/progress')
-                }
+                markRead.mutate(line.notificationId)
+                openConversation()
               }}
             >
               {line.action}

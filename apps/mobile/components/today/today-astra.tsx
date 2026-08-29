@@ -1,15 +1,11 @@
 import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import {
-  getReturningCompletionGuidance,
-  getReturningCompletionWindow,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from '@orbit/shared/utils'
-import { useCalendarDateRange } from '@/hooks/use-calendar-data'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
 import { useOffline } from '@/hooks/use-offline'
@@ -23,34 +19,21 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface TodayAstraProps {
-  today: string
   isTodaySelected: boolean
   suppressed: boolean
 }
 
-export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const { t } = useTranslation()
-  const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const offline = useOffline()
   const chat = useChatComposer({ isOnline: offline.isOnline, offlineTitle: t('chat.offline.title') })
-  const completionWindow = getReturningCompletionWindow(today)
-  const completionHistory = useCalendarDateRange(
-    completionWindow.dateFrom,
-    completionWindow.dateTo,
-    isTodaySelected,
-  )
   const { profile, isPending: profilePending, isError: profileError } = useProfile()
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const setDraft = useChatStore((state) => state.setDraft)
-  const returning = getReturningCompletionGuidance(
-    completionHistory.calendarMonth,
-    today,
-    profile?.hasLoggedFirstHabit,
-  )
   const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const createSentence = t('todayAstra.createSentence')
   const makeSuggestion = (id: string, label: string) => ({
@@ -81,16 +64,10 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   }
   useShellComposerSlot(!suppressed && suggestions !== null, <Composer {...composerProps} />)
 
-  const returningText = returning?.kind === 'elapsed'
-    ? t('todayAstra.returning', { days: returning.days })
-    : null
-  const returningLine = returningText
-    ? { text: returningText, action: t('todayAstra.openProgress'), conversation: false }
-    : null
   const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline: offline.isOnline, atLimit: chat.atMessageLimit })
     ? proactive
-      ? { text: proactive.body, action: t('todayAstra.openConversation'), conversation: true }
-      : returningLine
+      ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
+      : null
     : null
   if (!line) return null
 
@@ -103,12 +80,8 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
           accessibilityRole="link"
           style={styles.action}
           onPress={() => {
-            if (line.conversation) {
-              if (proactive) markRead.mutate(proactive.id)
-              setConversationOpen(true)
-            } else {
-              router.push('/progress')
-            }
+            markRead.mutate(line.notificationId)
+            setConversationOpen(true)
           }}
         >
           {line.action}

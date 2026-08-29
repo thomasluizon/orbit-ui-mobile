@@ -167,7 +167,6 @@ export default function TodayScreen() {
         </View>
       ) : null}
       <TodayAstra
-        today={date.today}
         isTodaySelected={date.dateStr === date.today}
         suppressed={isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
       />

@@ -1,13 +1,4 @@
 import type { NotificationItem } from '../types/notification'
-import type { CalendarMonthResponse } from '../types/habit'
-import { differenceInCalendarDays, subDays } from 'date-fns'
-import { formatAPIDate, parseAPIDate } from './dates'
-
-export const RETURNING_COMPLETION_WINDOW_DAYS = 30
-
-export type ReturningCompletionGuidance =
-  | { kind: 'elapsed'; days: number }
-  | null
 
 export function selectNewestUnreadProactiveCheckin(
   notifications: readonly NotificationItem[],
@@ -16,38 +7,6 @@ export function selectNewestUnreadProactiveCheckin(
     .filter((item) => !item.isRead && item.url === '/chat' && item.habitId === null)
   candidates.sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc))
   return candidates[0] ?? null
-}
-
-export function getReturningCompletionWindow(today: string): {
-  dateFrom: string
-  dateTo: string
-} {
-  return {
-    dateFrom: formatAPIDate(subDays(parseAPIDate(today), RETURNING_COMPLETION_WINDOW_DAYS)),
-    dateTo: today,
-  }
-}
-
-export function getReturningCompletionGuidance(
-  calendarMonth: CalendarMonthResponse | undefined,
-  today: string,
-  hasLoggedFirstHabit: boolean | undefined,
-): ReturningCompletionGuidance {
-  if (!calendarMonth) return null
-
-  let newestCompletionDate: string | null = null
-  for (const logs of Object.values(calendarMonth.logs)) {
-    for (const log of logs) {
-      if (log.value > 0 && (!newestCompletionDate || log.date > newestCompletionDate)) {
-        newestCompletionDate = log.date
-      }
-    }
-  }
-
-  if (!newestCompletionDate && hasLoggedFirstHabit === false) return null
-  if (!newestCompletionDate) return null
-  const days = differenceInCalendarDays(parseAPIDate(today), parseAPIDate(newestCompletionDate))
-  return days >= 3 ? { kind: 'elapsed', days } : null
 }
 
 export function shouldShowTodayAstraLine({

@@ -3,8 +3,6 @@ import {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
-  getReturningCompletionGuidance,
-  getReturningCompletionWindow,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from '../utils/notification-actions'
@@ -73,59 +71,6 @@ describe('notification-actions', () => {
       { ...base, id: 'reminder', habitId: 'habit-1', isRead: false, createdAtUtc: '2026-08-30T09:00:00Z' },
     ])
     expect(selected?.id).toBe('newer')
-  })
-
-  it('derives the bounded request window from Today', () => {
-    expect(getReturningCompletionWindow('2026-08-29')).toEqual({
-      dateFrom: '2026-07-30',
-      dateTo: '2026-08-29',
-    })
-  })
-
-  it('uses the newest positive completion after missed days', () => {
-    const calendarMonth = {
-      habits: [],
-      logs: {
-        first: [{ id: 'older', date: '2026-08-20', value: 1, createdAtUtc: '2026-08-20T10:00:00Z' }],
-        second: [{ id: 'newest', date: '2026-08-25', value: 1, createdAtUtc: '2026-08-25T10:00:00Z' }],
-      },
-    }
-
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', true)).toEqual({
-      kind: 'elapsed',
-      days: 4,
-    })
-  })
-
-  it('does not move the completion date for a newer non-positive log', () => {
-    const calendarMonth = {
-      habits: [],
-      logs: {
-        habit: [
-          { id: 'completion', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T10:00:00Z' },
-          { id: 'skip', date: '2026-08-28', value: 0, createdAtUtc: '2026-08-28T10:00:00Z' },
-        ],
-      },
-    }
-
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', true)).toEqual({
-      kind: 'elapsed',
-      days: 6,
-    })
-  })
-
-  it('does not infer a completion interval when the response has no positive log', () => {
-    const calendarMonth = {
-      habits: [],
-      logs: {
-        habit: [{ id: 'skip', date: '2026-08-28', value: 0, createdAtUtc: '2026-08-28T10:00:00Z' }],
-      },
-    }
-
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', true)).toBeNull()
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', false)).toBeNull()
-    expect(getReturningCompletionGuidance(calendarMonth, '2026-08-29', undefined)).toBeNull()
-    expect(getReturningCompletionGuidance(undefined, '2026-08-29', true)).toBeNull()
   })
 
   it('keeps the proactive line off non-Today, drill, offline, and quota-limit states', () => {

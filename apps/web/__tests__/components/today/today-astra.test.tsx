@@ -1,46 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ComposerProps } from '@orbit/shared/contracts/composer'
-import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import type { NotificationItem } from '@orbit/shared/types/notification'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 interface TodayAstraMocks {
   composerProps: ComposerProps | null
-  calendarMonth: CalendarMonthResponse
-  profile: { hasLoggedFirstHabit?: boolean }
-  useCalendarDateRange: ReturnType<typeof vi.fn>
-  useStreakInfo: ReturnType<typeof vi.fn>
+  notifications: NotificationItem[]
+  markRead: ReturnType<typeof vi.fn>
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   composerProps: null,
-  calendarMonth: { habits: [], logs: {} },
-  profile: { hasLoggedFirstHabit: true },
-  useCalendarDateRange: vi.fn(),
-  useStreakInfo: vi.fn(() => ({ data: { lastActiveDate: '2026-08-27' } })),
+  notifications: [],
+  markRead: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: { days?: number }) =>
-    values?.days === undefined ? key : `${key}:${values.days}`,
-}))
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useTranslations: () => (key: string) => key,
 }))
 
 vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
+  useProfile: () => ({ profile: { id: 'profile' }, isPending: false, isError: false }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [] }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+  useNotifications: () => ({ notifications: mocks.notifications }),
+  useMarkNotificationRead: () => ({ mutate: mocks.markRead }),
 }))
-vi.mock('@/hooks/use-calendar-data', () => ({ useCalendarDateRange: mocks.useCalendarDateRange }))
-vi.mock('@/hooks/use-gamification', () => ({ useStreakInfo: mocks.useStreakInfo }))
 vi.mock('@/hooks/use-chat-composer', () => ({
   useChatComposer: () => ({
     composerProps: {
@@ -75,28 +64,15 @@ function ConversationComposer() {
   return open ? <input aria-label="conversation draft" readOnly value={draft} /> : null
 }
 
-function calendarWithLogs(
-  logs: CalendarMonthResponse['logs'],
-): CalendarMonthResponse {
-  return { habits: [], logs }
-}
-
 function renderTodayAstra() {
-  return render(<TodayAstra today="2026-08-29" isTodaySelected suppressed={false} />)
+  return render(<TodayAstra isTodaySelected suppressed={false} />)
 }
 
 describe('web Today Astra', () => {
   beforeEach(() => {
     mocks.composerProps = null
-    mocks.profile = { hasLoggedFirstHabit: true }
-    mocks.calendarMonth = calendarWithLogs({
-      habit: [
-        { id: 'completion', date: '2026-08-25', value: 1, createdAtUtc: '2026-08-25T10:00:00Z' },
-      ],
-    })
-    mocks.useCalendarDateRange.mockReset()
-    mocks.useCalendarDateRange.mockImplementation(() => ({ calendarMonth: mocks.calendarMonth }))
-    mocks.useStreakInfo.mockClear()
+    mocks.notifications = []
+    mocks.markRead.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
     const slot = document.createElement('div')
@@ -104,75 +80,34 @@ describe('web Today Astra', () => {
     document.body.append(slot)
   })
 
-  it('keeps the completion interval after at least three missed days', () => {
-    const { container } = renderTodayAstra()
+  it('renders a proactive check-in and opens its conversation', () => {
+    mocks.notifications = [{
+      id: 'check-in',
+      title: 'Astra',
+      body: 'Check in',
+      url: '/chat',
+      habitId: null,
+      isRead: false,
+      createdAtUtc: '2026-08-29T10:00:00Z',
+    }]
 
-    expect(container.textContent).toContain('todayAstra.returning:4')
+    renderTodayAstra()
+
+    expect(screen.getByText(/Check in/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation' }))
+    expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('does not let a newer streak freeze move the completion date', () => {
-    mocks.calendarMonth = calendarWithLogs({
-      habit: [
-        { id: 'completion', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T10:00:00Z' },
-      ],
-    })
-    mocks.useStreakInfo.mockReturnValue({ data: { lastActiveDate: '2026-08-28' } })
-
-    const { container } = renderTodayAstra()
-
-    expect(container.textContent).toContain('todayAstra.returning:6')
-    expect(mocks.useStreakInfo).not.toHaveBeenCalled()
-  })
-
-  it('does not claim an interval for a recent subhabit completion omitted by calendar-month', () => {
-    mocks.calendarMonth = calendarWithLogs({})
-
-    const { container } = renderTodayAstra()
-
-    expect(container.textContent).not.toContain('todayAstra.returning')
-    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
-  })
-
-  it('does not claim an interval for a recent general habit completion omitted by calendar-month', () => {
-    mocks.calendarMonth = calendarWithLogs({})
-
-    const { container } = renderTodayAstra()
-
-    expect(container.textContent).not.toContain('todayAstra.returning')
-    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
-  })
-
-  it('does not claim an interval when the account has never completed a habit', () => {
-    mocks.profile = { hasLoggedFirstHabit: false }
-    mocks.calendarMonth = calendarWithLogs({})
-
-    const { container } = renderTodayAstra()
-
-    expect(container.textContent).not.toContain('todayAstra.returning')
-    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
-  })
-
-  it('does not claim an interval when completion history is absent from the profile', () => {
-    mocks.profile = {}
-    mocks.calendarMonth = calendarWithLogs({})
-
-    const { container } = renderTodayAstra()
-
-    expect(container.textContent).not.toContain('todayAstra.returning')
-    expect(container.textContent).not.toContain('todayAstra.returningOverWindow')
-  })
-
-  it('hands a selected chip to the conversation with one logs request for 50 habits', () => {
+  it('hands a selected chip to the conversation with 50 habits', () => {
     render(
       <>
         {Array.from({ length: 50 }, (_, index) => <div key={index} data-testid="habit" />)}
-        <TodayAstra today="2026-08-29" isTodaySelected suppressed={false} />
+        <TodayAstra isTodaySelected suppressed={false} />
         <ConversationComposer />
       </>,
     )
 
-    expect(mocks.useCalendarDateRange).toHaveBeenCalledTimes(1)
-    expect(mocks.useCalendarDateRange).toHaveBeenCalledWith('2026-07-30', '2026-08-29', true)
     expect(mocks.composerProps?.suggestions).toHaveLength(4)
     const selectedSuggestion = mocks.composerProps?.suggestions[0]
     if (!selectedSuggestion) throw new Error('Today suggestion was not registered')
