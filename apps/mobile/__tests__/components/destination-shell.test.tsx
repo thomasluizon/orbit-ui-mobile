@@ -170,7 +170,9 @@ describe('mobile DestinationShell', () => {
       (node) => node.props.accessibilityLabel === 'retry send',
     )
     expect(retry).toBeDefined()
-    await TestRenderer.act(() => retry?.props.onPress())
+    const retrySend = retry?.props.onPress
+    if (typeof retrySend !== 'function') throw new TypeError('Expected retry send to be callable')
+    await TestRenderer.act(() => retrySend())
     expect(hosts(tree, 'Text').some((node) => node.props.children === 'send failed sentinel'))
       .toBe(false)
   })
