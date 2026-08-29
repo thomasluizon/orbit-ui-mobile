@@ -1,8 +1,12 @@
 'use client'
 
 import {
+  createContext,
   useCallback,
+  useContext,
+  useEffect,
   useRef,
+  useState,
   type ComponentType,
   type ReactNode,
 } from 'react'
@@ -33,21 +37,31 @@ interface CommandPaletteBackgroundProps {
   className?: string
 }
 
+const CommandPalettePortalContext = createContext<
+  (portal: HTMLDivElement | null) => void
+>(() => {})
+
 export function CommandPaletteBackground({
   children,
   className,
 }: Readonly<CommandPaletteBackgroundProps>) {
-  const paletteOpen = useShellStore((state) => state.paletteOpen)
+  const [portalMounted, setPortalMounted] = useState(false)
+  const registerPortal = useCallback(
+    (portal: HTMLDivElement | null) => setPortalMounted(portal !== null),
+    [],
+  )
 
   return (
-    <div
-      data-command-palette-background=""
-      inert={paletteOpen || undefined}
-      aria-hidden={paletteOpen || undefined}
-      className={className}
-    >
-      {children}
-    </div>
+    <CommandPalettePortalContext value={registerPortal}>
+      <div
+        data-command-palette-background=""
+        inert={portalMounted || undefined}
+        aria-hidden={portalMounted || undefined}
+        className={className}
+      >
+        {children}
+      </div>
+    </CommandPalettePortalContext>
   )
 }
 
@@ -63,8 +77,11 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
   const panelRef = useRef<HTMLDivElement>(null)
+  const registerPortal = useContext(CommandPalettePortalContext)
 
   const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
+
+  useEffect(() => () => setPaletteOpen(false), [setPaletteOpen])
 
   useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
   useModalFocusTrap(paletteOpen, panelRef)
@@ -72,7 +89,10 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   if (!mounted) return null
 
   const overlay = paletteOpen ? (
-    <div className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-24">
+    <div
+      ref={registerPortal}
+      className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-24"
+    >
       <button
         type="button"
         aria-label={t('common.close')}

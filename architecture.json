@@ -17366,6 +17366,7 @@
         "apps/web/__tests__/sentry-before-send.test.ts"
       ],
       "apps/web/stores": [
+        "apps/web/__tests__/components/command/command-palette.test.tsx",
         "apps/web/__tests__/components/goals/goals-view.test.tsx",
         "apps/web/__tests__/components/marketing-consent/marketing-consent-prompt.test.tsx",
         "apps/web/__tests__/components/milestone-share/milestone-share-prompt.test.tsx",

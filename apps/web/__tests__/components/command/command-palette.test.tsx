@@ -17,7 +17,6 @@ vi.stubGlobal(
 const mockPush = vi.fn()
 const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
-let paletteOpen = true
 
 interface NormalizedHabitQueryData {
   topLevelHabits: NormalizedHabit[]
@@ -61,11 +60,6 @@ vi.mock('@/hooks/use-is-client', () => ({
   useIsClient: () => true,
 }))
 
-vi.mock('@/stores/shell-store', () => ({
-  useShellStore: (selector: (state: { paletteOpen: boolean; setPaletteOpen: typeof mockSetPaletteOpen }) => unknown) =>
-    selector({ paletteOpen, setPaletteOpen: mockSetPaletteOpen }),
-}))
-
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (state: { setActiveView: typeof mockSetActiveView }) => unknown) =>
     selector({ setActiveView: mockSetActiveView }),
@@ -81,6 +75,7 @@ import {
   CommandPalette,
   CommandPaletteBackground,
 } from '@/components/command/command-palette'
+import { useShellStore } from '@/stores/shell-store'
 
 const NavIcon = () => <svg data-testid="nav-icon" />
 const navItems = [
@@ -97,7 +92,13 @@ function renderPalette() {
 }
 
 beforeEach(() => {
-  paletteOpen = true
+  mockSetPaletteOpen.mockImplementation((value: boolean) => {
+    useShellStore.setState({ paletteOpen: value })
+  })
+  useShellStore.setState({
+    paletteOpen: true,
+    setPaletteOpen: mockSetPaletteOpen,
+  })
   habitsQuery = {
     data: buildQueryData([
       createMockHabit({ id: 'h1', title: 'Run', emoji: '🏃', isOverdue: true }),
@@ -124,7 +125,7 @@ describe('CommandPalette', () => {
   })
 
   it('does not render the menu when the palette is closed', () => {
-    paletteOpen = false
+    useShellStore.setState({ paletteOpen: false })
     renderPalette()
     expect(screen.queryByPlaceholderText('command.placeholder')).not.toBeInTheDocument()
   })
@@ -211,26 +212,35 @@ describe('CommandPalette', () => {
     expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus()
   })
 
-  it('isolates the application background while open and restores it on close', () => {
-    const { rerender } = render(
+  it('drops isolation and closes the palette when upgrade removes its owner', async () => {
+    const route = (pathname: '/' | '/upgrade') => (
       <CommandPaletteBackground>
-        <button type="button">Background action</button>
-      </CommandPaletteBackground>,
+        <main>{pathname}</main>
+        {pathname === '/' ? (
+          <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+        ) : null}
+      </CommandPaletteBackground>
     )
-    const background = screen.getByText('Background action').parentElement
+    const { rerender } = render(
+      route('/'),
+    )
+    const background = document.querySelector('[data-command-palette-background]')
 
     expect(background).toHaveAttribute('inert')
     expect(background).toHaveAttribute('aria-hidden', 'true')
 
-    paletteOpen = false
-    rerender(
-      <CommandPaletteBackground>
-        <button type="button">Background action</button>
-      </CommandPaletteBackground>,
-    )
+    rerender(route('/upgrade'))
 
+    await waitFor(() => {
+      expect(background).not.toHaveAttribute('inert')
+      expect(background).not.toHaveAttribute('aria-hidden')
+      expect(useShellStore.getState().paletteOpen).toBe(false)
+    })
+
+    rerender(route('/'))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(background).not.toHaveAttribute('inert')
-    expect(background).not.toHaveAttribute('aria-hidden')
   })
 
   it('does not expose the removed create goal command', () => {
@@ -268,7 +278,7 @@ describe('CommandPalette', () => {
       expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus(),
     )
 
-    paletteOpen = false
+    useShellStore.setState({ paletteOpen: false })
     rerender(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
 
     expect(trigger).toHaveFocus()
