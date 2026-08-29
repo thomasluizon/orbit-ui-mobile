@@ -447,16 +447,6 @@
       "count": 4
     }
   },
-  "components/habits/habit-detail-drawer.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/habits/habit-detail-drawer/styles.ts": {
-    "local/spacing-scale": {
-      "count": 11
-    }
-  },
   "components/habits/habit-detail-sections.tsx": {
     "local/spacing-scale": {
       "count": 2

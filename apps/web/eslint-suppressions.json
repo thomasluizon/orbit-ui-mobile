@@ -688,21 +688,6 @@
       "count": 3
     }
   },
-  "components/habits/habit-detail-drawer.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/habits/habit-detail-drawer/habit-ask-astra-button.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/habits/habit-detail-drawer/habit-detail-header.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/habits/habit-detail-sections.tsx": {
     "local/spacing-scale": {
       "count": 4
