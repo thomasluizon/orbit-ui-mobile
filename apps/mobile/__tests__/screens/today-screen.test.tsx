@@ -232,7 +232,10 @@ describe('Hoje date boundaries', () => {
       await Promise.resolve()
     })
 
-    expect(tree!.root.findByType('HabitListProps').props.showCompleted).toBe(false)
+    const habitListProps = tree!.root.findAll(
+      (node) => String(node.type) === 'HabitListProps',
+    )[0]
+    expect(habitListProps?.props.showCompleted).toBe(false)
     expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
   })
 

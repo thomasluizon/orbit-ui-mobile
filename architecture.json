@@ -17264,6 +17264,7 @@
         "apps/mobile/__tests__/hooks/use-persistent-reminder.test.tsx",
         "apps/mobile/__tests__/hooks/use-review-reminder.test.tsx",
         "apps/mobile/__tests__/lib/persistent-reminder.test.ts",
+        "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/stores/app-toast-store.test.ts",
         "apps/mobile/__tests__/stores/auth-store.test.ts",
         "apps/mobile/__tests__/stores/chat-store.test.ts",
@@ -17585,6 +17586,7 @@
         "apps/web/__tests__/sentry-before-send.test.ts"
       ],
       "apps/web/stores": [
+        "apps/web/__tests__/app/today-page.test.tsx",
         "apps/web/__tests__/components/command/command-palette.test.tsx",
         "apps/web/__tests__/components/marketing-consent/marketing-consent-prompt.test.tsx",
         "apps/web/__tests__/components/milestone-share/milestone-share-prompt.test.tsx",
