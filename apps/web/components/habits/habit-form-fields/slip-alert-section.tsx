@@ -2,7 +2,7 @@ import { ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 
 interface SlipAlertSectionProps {
   hasProAccess: boolean
@@ -35,9 +35,9 @@ export function SlipAlertSection({
             </span>
           </div>
           <Switch
-            on={slipAlertEnabled}
-            onToggle={onToggle}
-            ariaLabel={t('habits.form.slipAlert')}
+            checked={slipAlertEnabled}
+            onChange={onToggle}
+            label={t('habits.form.slipAlert')}
           />
         </div>
       ) : (

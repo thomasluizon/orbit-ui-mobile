@@ -14,6 +14,7 @@ import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { DateRow } from '@/components/ui/date-row'
 import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
 import { HabitCalendar } from './habit-calendar'
@@ -32,6 +33,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   formatHabitDetailSummary,
+  formatAPIDate,
   formatLocaleDate,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
@@ -42,6 +44,7 @@ interface HabitDetailDrawerProps {
   open: boolean
   onClose: () => void
   habit: NormalizedHabit | null
+  selectedDate?: string
   onLogged?: (habitId: string) => void
 }
 
@@ -173,6 +176,16 @@ function HabitDetailContent({
         />
       ) : null}
 
+      <DateRow
+        label={t('habits.detail.startedOn')}
+        value={formatLocaleDate(habit.createdAtUtc, locale, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
+        note={t('habits.detail.startDateNote')}
+      />
+
       {habit.linkedGoals && habit.linkedGoals.length > 0 ? (
         <View>
           <SectionLabel top={8} bottom={0}>
@@ -217,6 +230,7 @@ export function HabitDetailDrawer({
   open,
   onClose,
   habit,
+  selectedDate,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
@@ -227,6 +241,7 @@ export function HabitDetailDrawer({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createDrawerStyles(tokens), [tokens])
   const habitId = habit?.id ?? ''
+  const viewedDate = selectedDate ?? formatAPIDate(new Date())
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
     open && habitId ? habitId : null,
@@ -309,7 +324,7 @@ export function HabitDetailDrawer({
     if (!habit) return
     setShowChecklistCompleteConfirm(false)
     try {
-      await logHabit.mutateAsync({ habitId: habit.id })
+      await logHabit.mutateAsync({ habitId: habit.id, date: viewedDate, intent: 'log' })
       onLogged?.(habit.id)
     } catch (error: unknown) {
       showError(
@@ -321,7 +336,7 @@ export function HabitDetailDrawer({
         ),
       )
     }
-  }, [habit, logHabit, onLogged, showError, t])
+  }, [habit, logHabit, onLogged, showError, t, viewedDate])
 
   const summaryStrip = useMemo(() => {
     if (!habit) return ''

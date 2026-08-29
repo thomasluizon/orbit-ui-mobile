@@ -27,8 +27,8 @@ export const RELATED_SURFACE_ROUTES: Readonly<Record<string, RelatedSurface>> = 
   gamification: {
     id: 'gamification',
     labelKey: 'chat.related.surface.gamification',
-    webRoute: '/achievements',
-    mobileRoute: '/achievements',
+    webRoute: '/progress',
+    mobileRoute: '/progress',
   },
   notifications: {
     id: 'notifications',

@@ -15,7 +15,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
-import { Switch } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import {
@@ -206,9 +206,9 @@ function ApiKeyCreateForm({
           {t('orbitMcp.readOnlyKeyLabel')}
         </Text>
         <Switch
-          on={isReadOnly}
-          onToggle={onToggleReadOnly}
-          accessibilityLabel={t('orbitMcp.readOnlyKeyLabel')}
+          checked={isReadOnly}
+          onChange={onToggleReadOnly}
+          label={t('orbitMcp.readOnlyKeyLabel')}
         />
       </View>
 

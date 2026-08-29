@@ -54,6 +54,15 @@ describe('useLoginCodeEntry', () => {
     expect(onComplete).toHaveBeenCalledWith('123456')
   })
 
+  it('replaces the whole controlled value and clears trailing digits', () => {
+    const { result } = renderHook(() => useLoginCodeEntry())
+
+    act(() => result.current.onCodeChange('123456'))
+    act(() => result.current.onCodeChange('92345'))
+
+    expect(result.current.codeDigits).toEqual(['9', '2', '3', '4', '5', ''])
+  })
+
   it('auto-submits when the final digit is typed manually', () => {
     const onComplete = vi.fn()
     const { result } = renderHook(() => useLoginCodeEntry(onComplete))

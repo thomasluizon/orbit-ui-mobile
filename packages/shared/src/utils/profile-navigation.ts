@@ -12,9 +12,7 @@ export type ProfileNavVariant = 'default' | 'primary'
 export type ProfileNavIconKey =
   | 'settings'
   | 'orbit'
-  | 'retrospective'
   | 'wrapped'
-  | 'achievements'
   | 'calendar'
   | 'info'
   | 'wrench'
@@ -64,19 +62,6 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     entitlementMode: 'mixed',
   },
   {
-    id: 'retrospective',
-    section: 'features',
-    route: '/retrospective',
-    iconKey: 'retrospective',
-    titleKey: 'profile.retrospectiveTitle',
-    hintKey: 'profile.retrospectiveHint',
-    variant: 'primary',
-    proBadge: true,
-    hintMode: 'static',
-    entitlementRequirement: 'yearlyPro',
-    entitlementMode: 'redirect',
-  },
-  {
     id: 'wrapped',
     section: 'features',
     route: '/wrapped',
@@ -88,19 +73,6 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     hintMode: 'static',
     entitlementRequirement: null,
     entitlementMode: null,
-  },
-  {
-    id: 'achievements',
-    section: 'features',
-    route: '/achievements',
-    iconKey: 'achievements',
-    titleKey: 'gamification.profileCard.title',
-    hintKey: 'gamification.profileCard.hint',
-    variant: 'primary',
-    proBadge: true,
-    hintMode: 'gamificationProfile',
-    entitlementRequirement: 'pro',
-    entitlementMode: 'redirect',
   },
   {
     id: 'calendar-sync',

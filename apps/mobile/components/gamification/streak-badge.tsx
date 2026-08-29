@@ -27,7 +27,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
 
   const handlePress = (event: GestureResponderEvent) => {
     event.stopPropagation()
-    router.push('/streak')
+    router.push('/progress')
   }
 
   return (

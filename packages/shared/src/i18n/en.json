@@ -3,6 +3,14 @@
     "title": "Orbit - Personal Habit Tracker",
     "description": "Build better habits with AI-powered tracking and insights."
   },
+  "blockFrame": {
+    "status": {
+      "done": "Done",
+      "acting": "In progress",
+      "failed": "Failed"
+    },
+    "refresh": "Refresh"
+  },
   "settings": {
     "notifications": {
       "title": "Push Notifications",
@@ -206,9 +214,8 @@
     "skipHabit": "Skip a habit",
     "createHabit": "Create habit",
     "groups": {
-      "create": "Create",
       "actions": "Actions",
-      "navigate": "Navigate",
+      "destinations": "Destinations",
       "search": "Habits"
     },
     "hints": {
@@ -279,6 +286,7 @@
     "sendCode": "Send code",
     "codeSent": "Verification code sent. Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
+    "verificationCode": "Verification code",
     "verify": "Verify",
     "resendCode": "Resend code",
     "resendIn": "Resend in {seconds}s",
@@ -325,6 +333,11 @@
     }
   },
   "habits": {
+    "todayBoundary": {
+      "lastLoggable": "This is the oldest day you can log.",
+      "readOnly": "Read only. You can log up to 7 days back.",
+      "future": "This day has not arrived yet. You can log what has no set time."
+    },
     "emptyState": "No habits yet",
     "count": "no habits | one habit | {n} habits",
     "overdue": "Overdue",
@@ -444,7 +457,9 @@
     "bulkBar": {
       "log": "Log selected",
       "skip": "Skip selected",
-      "delete": "Delete selected"
+      "delete": "Delete selected",
+      "offlineFailure": "Nothing changed because your device is offline.",
+      "connectionRefreshed": "The connection dropped. The list was refreshed."
     },
     "skipHabit": "Skip",
     "frequency": {
@@ -628,6 +643,8 @@
       "day": "day",
       "days": "days",
       "endsOn": "Ends on",
+      "startedOn": "Start date",
+      "startDateNote": "The start date is the day the habit was created and does not change.",
       "viewDescription": "View full description",
       "currentStreak": "Current",
       "longestStreak": "Longest",
@@ -1106,6 +1123,7 @@
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, color scheme, language, and timezone",
       "confirmInstruction": "Type ORBIT below to confirm this action.",
+      "confirmLabel": "Confirmation",
       "confirmPlaceholder": "ORBIT",
       "confirmButton": "Reset my account",
       "processing": "Resetting...",
@@ -1537,6 +1555,7 @@
       "createHabit": {
         "title": "Create your first habit",
         "subtitle": "Habits are the building blocks. What do you want to track?",
+        "label": "Habit name",
         "placeholder": "e.g., Drink water, Read, Exercise",
         "create": "Create habit",
         "creating": "Creating...",
@@ -1566,8 +1585,11 @@
         "proTag": "PRO",
         "starters": "Or try one",
         "subtitle": "Goals give your habits a bigger purpose.",
+        "descriptionLabel": "Goal",
         "descriptionPlaceholder": "e.g., Read 12 books this year",
+        "targetLabel": "Target",
         "targetPlaceholder": "Quantity",
+        "unitLabel": "Unit",
         "unitPlaceholder": "Unit (km, books...)",
         "create": "Create goal",
         "creating": "Creating...",
@@ -1792,7 +1814,7 @@
     }
   },
   "upgrade": {
-    "title": "Upgrade to Pro",
+    "title": "Subscription",
     "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -1897,6 +1919,7 @@
     },
     "convert": {
       "promise": "Everything Orbit can do, in one calm plan.",
+      "trialEyebrow": "Pro Trial",
       "trialDaysLeft": "Pro Trial · {days} day left | Pro Trial · {days} days left",
       "trialLastDay": "Pro Trial · last day",
       "trialHeading": "Keep your Pro features",
@@ -1950,14 +1973,19 @@
     "billing": {
       "plan": {
         "title": "Current plan",
+        "pro": "Orbit Pro",
         "monthly": "Pro Monthly",
         "yearly": "Pro Yearly",
         "lifetime": "Lifetime Pro",
-        "lifetimeHint": "Your Pro access never expires",
+        "lifetimeHint": "Your Pro access never expires. There is no renewal.",
         "renewsOn": "Renews {date}",
         "canceledBadge": "Cancels at period end",
         "canceledHint": "Access until {date}",
-        "pastDue": "Payment past due"
+        "pastDue": "Payment past due",
+        "trialBadge": "Trial",
+        "trialHint": "Your trial ends {date}",
+        "monthlyPrice": "Monthly plan price: {price}",
+        "yearlyPrice": "Yearly plan price: {price}"
       },
       "payment": {
         "title": "Payment method",
@@ -1966,9 +1994,11 @@
         "change": "Change"
       },
       "usage": {
-        "title": "This month",
-        "aiMessages": "AI messages",
-        "aiMessagesOf": "{used} of {limit}"
+        "title": "Astra messages",
+        "aiMessages": "Today",
+        "aiMessagesOf": "{used} of {limit}",
+        "nearLimit": "You are close to today's Astra limit",
+        "nearLimitBody": "Your allowance resets automatically tomorrow."
       },
       "invoices": {
         "title": "Invoice history",
@@ -1984,11 +2014,26 @@
       "actions": {
         "manage": "Manage Subscription",
         "manageHint": "Change plan, update payment method, or cancel",
+        "providerNote": "Stripe handles billing changes. Orbit does not store card details and will never ask for your password here.",
         "managePlay": "Manage on Google Play",
-        "managePlayHint": "Your subscription is billed through Google Play. Manage or cancel it there."
+        "managePlayHint": "Google Play handles this subscription. You can change or cancel it there.",
+        "opening": "Opening billing settings"
       },
       "error": "Couldn't load billing details",
-      "retry": "Try again"
+      "retry": "Try again",
+      "portalFailed": "Billing settings did not open. Check your connection and try again.",
+      "portalReturned": "Subscription details refreshed",
+      "offline": "You are offline. Reconnect to manage billing.",
+      "lapsed": {
+        "title": "Your Pro subscription ended",
+        "canceled": "Your subscription was canceled on {date}.",
+        "payment_failed": "Your subscription ended after a payment problem on {date}.",
+        "expired": "Your subscription expired on {date}.",
+        "fallback": "Your subscription has ended.",
+        "features": "Astra's higher daily limit and calendar sync are no longer active.",
+        "yearlyFeature": "Yearly retrospective access is no longer active.",
+        "action": "Subscribe again"
+      }
     },
     "playError": {
       "unavailable": "Google Play billing isn't available on this device.",
@@ -2116,7 +2161,8 @@
     "status": {
       "active": "Active",
       "completed": "Completed",
-      "abandoned": "Abandoned"
+      "abandoned": "Abandoned",
+      "achieved": "Achieved"
     },
     "detail": {
       "markCompleted": "Mark Completed",
@@ -2126,7 +2172,7 @@
       "deleteConfirm": "This deletes the goal. It cannot be undone.",
       "edit": "Edit Goal",
       "loadError": "Could not load full details. Showing cached data.",
-      "showAllHistory": "Show all",
+      "showAllHistory": "Show all ({count})",
       "showLessHistory": "Show less",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
@@ -2154,6 +2200,7 @@
       "progress": "Failed to update progress"
     },
     "linkedHabits": "Linked Habits",
+    "noLinkedHabits": "No linked habits yet",
     "metrics": {
       "title": "Goal Insights",
       "onTrack": "On Track",
@@ -2166,6 +2213,104 @@
       "habitAdherence": "Linked Habit Performance",
       "noData": "No data",
       "perDay": "day"
+    }
+  },
+  "progressScreen": {
+    "title": "Progress",
+    "loading": "Loading your progress",
+    "error": "Your progress could not be loaded.",
+    "retry": "Try again",
+    "empty": "Your progress starts with the next habit you practice.",
+    "startHabit": "Go to habits",
+    "sections": {
+      "streak": "Streak",
+      "goals": "Goals",
+      "window": "Last 30 days",
+      "achievements": "Achievements"
+    },
+    "streak": {
+      "current": "{count, plural, one {# day} other {# days}}",
+      "currentLabel": "Current streak",
+      "stripWindow": "Activity over the last {count, plural, one {# day} other {# days}}",
+      "frozenToday": "Today is protected by a freeze.",
+      "longest": "Longest streak",
+      "active": "Active",
+      "frozen": "Protected",
+      "missed": "Missed",
+      "today": "Today",
+      "legend": "Streak day legend",
+      "showFreeze": "Show freeze details",
+      "hideFreeze": "Hide freeze details",
+      "banked": "Banked",
+      "used": "Used this month",
+      "next": "Next freeze",
+      "nextProgress": "Progress toward the next freeze",
+      "nextIn": "Next freeze in {count, plural, one {# day} other {# days}}",
+      "capacity": "Bank full at 3 freezes",
+      "protectedDays": "Protected days",
+      "protectedEmpty": "No protected days in this window",
+      "protected": "Protected",
+      "protectedToday": "Protected today",
+      "lockedTitle": "Freeze protection",
+      "lockedBody": "Orbit Pro keeps a freeze bank for missed days.",
+      "lockedAction": "See Orbit Pro",
+      "repairTitle": "Yesterday is still open",
+      "repairBody": "One day is open and {count, plural, one {# freeze is} other {# freezes are}} available.",
+      "repairAction": "Spend 1 freeze",
+      "repairEmpty": "No freeze is banked. The next freeze arrives in {count, plural, one {# day} other {# days}}.",
+      "repairError": "The streak could not be repaired. Try again."
+    },
+    "goals": {
+      "views": "Goal views",
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "abandoned": "Abandoned",
+      "empty": "No goals yet. A habit is the next useful step.",
+      "filterEmpty": "No goals match this view.",
+      "clearFilter": "Show all goals",
+      "progress": "{current} of {target} {unit}",
+      "dueToday": "Due today",
+      "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+      "daysOverdue": "{count, plural, one {# day overdue} other {# days overdue}}",
+      "finishReason": "The target is reached. Finishing records the goal as completed.",
+      "finish": "Finish goal",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "reorderHint": "Use Alt and the arrow keys to reorder"
+    },
+    "window": {
+      "completionRate": "Completion rate",
+      "activeDays": "Active days out of {days}",
+      "topHabit": "Top habit",
+      "topHabitEmpty": "No top habit yet",
+      "totalCompletions": "Total completions",
+      "lockedTitle": "Thirty day figures",
+      "lockedBody": "Orbit Pro shows your rolling thirty day figures.",
+      "lockedAction": "See Orbit Pro"
+    },
+    "achievements": {
+      "empty": "No achievements are available yet.",
+      "xp": "{current} / {next} XP",
+      "next": "Next: level {level}, {title}. {xp} XP to go.",
+      "earned": "Earned {date}",
+      "progress": "{current} of {target}",
+      "level": "Level {level} · {title}",
+      "levelTitles": {
+        "starter": "Starter",
+        "explorer": "Explorer",
+        "orbiter": "Orbiter",
+        "navigator": "Navigator",
+        "pilot": "Pilot",
+        "captain": "Captain",
+        "commander": "Commander",
+        "admiral": "Admiral",
+        "elite": "Elite",
+        "legend": "Legend"
+      },
+      "lockedTitle": "Achievements",
+      "lockedBody": "Orbit Pro tracks achievements and XP.",
+      "lockedAction": "See Orbit Pro"
     }
   },
   "gamification": {

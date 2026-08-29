@@ -8,6 +8,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { DateRow } from '@/components/ui/date-row'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
@@ -24,6 +25,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   formatHabitDetailSummary,
+  formatAPIDate,
   formatLocaleDate,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
@@ -32,6 +34,7 @@ interface HabitDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
+  selectedDate?: string
   onLogged?: (habitId: string) => void
 }
 
@@ -39,6 +42,7 @@ export function HabitDetailDrawer({
   open,
   onOpenChange,
   habit,
+  selectedDate,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
@@ -46,6 +50,7 @@ export function HabitDetailDrawer({
   const { displayTime } = useTimeFormat()
   const { showError } = useAppToast()
   const habitId = habit?.id ?? ''
+  const viewedDate = selectedDate ?? formatAPIDate(new Date())
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
     open && habitId ? habitId : null,
@@ -96,7 +101,7 @@ export function HabitDetailDrawer({
     if (!habit) return
     setShowChecklistLogPrompt(false)
     try {
-      await logHabit.mutateAsync({ habitId: habit.id })
+      await logHabit.mutateAsync({ habitId: habit.id, date: viewedDate })
       onLogged?.(habit.id)
     } catch (error: unknown) {
       showError(
@@ -108,7 +113,7 @@ export function HabitDetailDrawer({
         ),
       )
     }
-  }, [habit, logHabit, onLogged, showError, t])
+  }, [habit, logHabit, onLogged, showError, t, viewedDate])
 
   const handleChecklistReset = useCallback(() => {
     if (!habit) return
@@ -214,6 +219,16 @@ export function HabitDetailDrawer({
                 divider={false}
               />
             )}
+
+            <DateRow
+              label={t('habits.detail.startedOn')}
+              value={formatLocaleDate(habit.createdAtUtc, locale, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+              note={t('habits.detail.startDateNote')}
+            />
 
             {habit.linkedGoals && habit.linkedGoals.length > 0 && (
               <>

@@ -48,8 +48,7 @@ export default function TodayScreen() {
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
-  const showCompleted = useUIStore((state) => state.showCompleted)
-  const setShowCompleted = useUIStore((state) => state.setShowCompleted)
+  const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
@@ -74,14 +73,14 @@ export default function TodayScreen() {
   const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
-    habitsById,
+    selectedDateStr: date.dateStr,
+    today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
     visibleHabitIds,
     closeControlsMenu,
   })
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
-
   const handleHabitLogged = useCallback((habitId: string) => {
     habitListRef.current?.markRecentlyCompleted(habitId)
     habitListRef.current?.checkAndPromptParentLog(habitId)
@@ -135,8 +134,7 @@ export default function TodayScreen() {
         selectedHabitIds={selectedHabitIds}
         listHeader={listHeader}
         onCreatePress={() => setShowCreateModal(true)}
-        onSeeUpcoming={date.goToNextDay}
-        onLogHabit={(habit) => handleHabitLogged(habit.id)}
+        onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
         onDetailHabit={setDetailHabit}
         onEditHabit={(habit, onSaved) => {
           setEditHabit(habit)
@@ -173,6 +171,7 @@ export default function TodayScreen() {
         onCloseCreateModal={() => setShowCreateModal(false)}
         createInitialDate={date.dateStr}
         detailHabit={detailHabit}
+        selectedDate={date.dateStr}
         onCloseDetail={() => setDetailHabit(null)}
         onHabitLogged={handleHabitLogged}
         editHabit={editHabit}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   AnimatePresence,
@@ -29,7 +29,6 @@ export function RouteTransitionShell({
   const pathname = usePathname()
   const prefersReducedMotion = useReducedMotion()
   const routeIntent = useRouteTransitionIntent()
-  const [activeIntent, setActiveIntent] = useState(routeIntent.intent)
   const previousPathnameRef = useRef(pathname)
 
   useEffect(() => {
@@ -38,8 +37,6 @@ export function RouteTransitionShell({
     }
 
     previousPathnameRef.current = pathname
-    setActiveIntent(routeIntent.intent)
-
     const timer = globalThis.setTimeout(() => {
       resetRouteTransitionIntent()
     }, 0)
@@ -50,10 +47,10 @@ export function RouteTransitionShell({
   }, [pathname, routeIntent.intent])
 
   const motionPreset = useMemo(
-    () => resolveMotionPreset(getRouteScenarioForIntent(activeIntent), Boolean(prefersReducedMotion)),
-    [activeIntent, prefersReducedMotion],
+    () => resolveMotionPreset(getRouteScenarioForIntent(routeIntent.intent), Boolean(prefersReducedMotion)),
+    [prefersReducedMotion, routeIntent.intent],
   )
-  const direction = getRouteDirectionForIntent(activeIntent)
+  const direction = getRouteDirectionForIntent(routeIntent.intent)
   let enterX = 0
   if (direction > 0) {
     enterX = motionPreset.shift

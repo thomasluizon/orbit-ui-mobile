@@ -18,6 +18,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 const DEFAULT_WIDE_FROM = 900
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
+const TAB_STOP_SELECTOR = 'a[href], button, input, select, textarea, [tabindex]'
 const subscribeToPortalTarget = () => () => {}
 const getPortalTarget = () => document.body
 const getServerPortalTarget = () => null
@@ -117,26 +118,30 @@ function activeFocusReturnTarget(): HTMLElement | null {
   return activeElement
 }
 
-const TABBABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',')
-
-function adjacentTabTarget(
-  anchor: HTMLElement | null,
-  panel: HTMLElement | null,
+function adjacentTabStop(
+  anchor: HTMLElement,
   backwards: boolean,
+  panel: HTMLElement | null,
 ): HTMLElement | null {
-  if (!anchor) return null
-  const candidates = Array.from(document.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR))
-    .filter((candidate) => candidate !== anchor && !panel?.contains(candidate))
-  const relation = backwards ? Node.DOCUMENT_POSITION_PRECEDING : Node.DOCUMENT_POSITION_FOLLOWING
-  const ordered = backwards ? candidates.reverse() : candidates
-  return ordered.find((candidate) => Boolean(anchor.compareDocumentPosition(candidate) & relation)) ?? null
+  const candidates = Array.from(document.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR))
+    .filter((candidate) => (
+      !panel?.contains(candidate)
+      && (candidate === anchor || !anchor.contains(candidate))
+    ))
+  const anchorIndex = candidates.indexOf(anchor)
+  if (anchorIndex < 0) return null
+  const step = backwards ? -1 : 1
+  for (let index = anchorIndex + step; index >= 0 && index < candidates.length; index += step) {
+    const candidate = candidates[index]
+    if (!candidate) continue
+    if (
+      candidate.tabIndex >= 0
+      && !candidate.hasAttribute('disabled')
+      && candidate.getAttribute('aria-disabled') !== 'true'
+      && !candidate.closest('[hidden], [inert]')
+    ) return candidate
+  }
+  return null
 }
 
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
@@ -224,14 +229,12 @@ export function Menu({
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
       event.preventDefault()
-      const nextTarget = adjacentTabTarget(
-        anchorElement(anchorRef),
-        panelRef.current,
-        event.shiftKey,
-      )
+      const focusTarget = focusReturnTargetRef.current
+        ? adjacentTabStop(focusReturnTargetRef.current, event.shiftKey, panelRef.current)
+        : null
       restoreFocusOnCleanupRef.current = false
       onClose?.()
-      nextTarget?.focus()
+      focusTarget?.focus()
       return
     }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return

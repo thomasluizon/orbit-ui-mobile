@@ -9,7 +9,8 @@ import {
   validateScheduledReminders,
 } from "@orbit/shared/validation";
 import { TimeField } from "@/components/ui/time-field";
-import { Switch } from "@/components/ui/settings-row";
+import type { Time24 } from "@orbit/shared/contracts/forms";
+import { Switch } from "@/components/ui/switch";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ScheduledReminderSectionProps {
@@ -45,7 +46,7 @@ export function ScheduledReminderSection({
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const [showForm, setShowForm] = useState(false);
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState<Time24 | "">("");
 
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
 
@@ -97,9 +98,9 @@ export function ScheduledReminderSection({
         </View>
         {!nested && (
           <Switch
-            on={reminderEnabled}
-            onToggle={onToggleReminder}
-            accessibilityLabel={t("habits.form.scheduledReminder")}
+            checked={reminderEnabled}
+            onChange={onToggleReminder}
+            label={t("habits.form.scheduledReminder")}
           />
         )}
       </View>
@@ -199,15 +200,10 @@ export function ScheduledReminderSection({
 
               <View style={sectionStyles.timeRow}>
                 <TimeField
+                  label={t("habits.form.scheduledReminderTimePlaceholder")}
                   value={time}
-                  containerStyle={{ flex: 1 }}
-                  accessibilityLabel={t(
-                    "habits.form.scheduledReminderTimePlaceholder",
-                  )}
-                  placeholder={t(
-                    "habits.form.scheduledReminderTimePlaceholder",
-                  )}
                   onChange={setTime}
+                  onClear={() => setTime("")}
                 />
                 <Pressable
                   style={({ pressed }) => [

@@ -4,6 +4,7 @@ import { useCallback, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
+import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
@@ -13,6 +14,10 @@ import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
+import {
+  resetRouteTransitionIntent,
+  setRouteTransitionIntent,
+} from '@/lib/motion/route-intent'
 import { Shell412 } from './shell-412'
 import { ShellWide } from './shell-wide'
 
@@ -27,13 +32,6 @@ const ROUTES: Record<BottomTab, string> = {
   calendario: '/calendar',
   progresso: '/progress',
   perfil: '/profile',
-}
-
-function resolveDestination(pathname: string): BottomTab {
-  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendario'
-  if (pathname === '/progress' || pathname.startsWith('/progress/')) return 'progresso'
-  if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'perfil'
-  return 'hoje'
 }
 
 function hasPrimaryNavigation(pathname: string): boolean {
@@ -52,10 +50,10 @@ export function DestinationShell({
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
-  const destination = resolveDestination(pathname)
+  const destination = resolveShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
 
-  useKeyboardShortcuts()
+  useKeyboardShortcuts(navigationEnabled)
 
   const labels = useMemo<Record<BottomTab, string>>(
     () => ({
@@ -69,9 +67,15 @@ export function DestinationShell({
 
   const navigate = useCallback(
     (id: BottomTab) => {
-      router.push(ROUTES[id])
+      const route = ROUTES[id]
+      if (route === pathname) {
+        resetRouteTransitionIntent()
+        return
+      }
+      setRouteTransitionIntent('tab')
+      router.push(route)
     },
-    [router],
+    [pathname, router],
   )
 
   const wideItems = useMemo<ShellWideItem[]>(
@@ -121,12 +125,7 @@ export function DestinationShell({
         {children}
       </Shell412>
     )
-    return (
-      <>
-        {flow}
-        {palette}
-      </>
-    )
+    return flow
   }
 
   if (wide) {

@@ -24,13 +24,13 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
     <button
       type="button"
       aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
-      onClick={() => router.push('/streak')}
+      onClick={() => router.push('/progress')}
       className="touch-target appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] hover:bg-[var(--bg-elev-2)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
       style={{
         minWidth: 40,
         height: 40,
         borderRadius: 999,
-        padding: '0 9px',
+        padding: '0 8px',
         gap: 4,
         boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}

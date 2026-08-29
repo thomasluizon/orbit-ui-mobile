@@ -1,21 +1,22 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { hasAncestorInSet } from '@orbit/shared/utils'
+import type { HabitResolutionMode } from '@orbit/shared/utils'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
-  habitsById: Map<string, NormalizedHabit>
+  selectedDateStr: string
+  readOnly: boolean
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
 }
 
 export function useBulkActions({
   selectedHabitIds,
-  habitsById,
+  selectedDateStr,
+  readOnly,
   habitListRef,
   onSuccess,
 }: UseBulkActionsOptions) {
@@ -25,19 +26,18 @@ export function useBulkActions({
 
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
-  const promptParentLogsForBulkSuccesses = useCallback((successIds: string[]) => {
-    const successIdSet = new Set(successIds)
-
-    for (const id of successIds) {
-      if (hasAncestorInSet(id, habitsById, successIdSet)) {
-        continue
-      }
-
-      habitListRef.current?.checkAndPromptParentLog(id)
-    }
-  }, [habitsById, habitListRef])
+  const applyBulkMutationSuccesses = useCallback((
+    results: readonly { status: string; habitId: string }[],
+    mode: HabitResolutionMode,
+  ) => {
+    const resolutions = results.flatMap((item) =>
+      item.status === 'Success' ? [{ habitId: item.habitId, mode }] : [],
+    )
+    habitListRef.current?.settleBulkHabitResolutions(resolutions)
+  }, [habitListRef])
 
   const confirmBulkDelete = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
@@ -47,43 +47,37 @@ export function useBulkActions({
       onSuccess()
       setShowBulkDeleteConfirm(false)
     }
-  }, [selectedHabitIds, bulkDelete, onSuccess])
+  }, [readOnly, selectedHabitIds, bulkDelete, onSuccess])
 
   const confirmBulkLog = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      const result = await bulkLog.mutateAsync(ids.map((id) => ({ habitId: id })))
-      const successIds = result.results.flatMap((r) =>
-        r.status === 'Success' ? [r.habitId] : [],
+      const result = await bulkLog.mutateAsync(
+        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
       )
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-      promptParentLogsForBulkSuccesses(successIds)
+      applyBulkMutationSuccesses(result.results, 'log')
     } catch {
     } finally {
       onSuccess()
     }
-  }, [selectedHabitIds, bulkLog, habitListRef, onSuccess, promptParentLogsForBulkSuccesses])
+  }, [readOnly, selectedHabitIds, selectedDateStr, bulkLog, onSuccess, applyBulkMutationSuccesses])
 
   const confirmBulkSkip = useCallback(async () => {
+    if (readOnly) return
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      const result = await bulkSkip.mutateAsync(ids.map((id) => ({ habitId: id })))
-      const successIds = result.results.flatMap((r) =>
-        r.status === 'Success' ? [r.habitId] : [],
+      const result = await bulkSkip.mutateAsync(
+        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
       )
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-      promptParentLogsForBulkSuccesses(successIds)
+      applyBulkMutationSuccesses(result.results, 'skip')
     } catch {
     } finally {
       onSuccess()
     }
-  }, [selectedHabitIds, bulkSkip, habitListRef, onSuccess, promptParentLogsForBulkSuccesses])
+  }, [readOnly, selectedHabitIds, selectedDateStr, bulkSkip, onSuccess, applyBulkMutationSuccesses])
 
   return {
     showBulkDeleteConfirm,

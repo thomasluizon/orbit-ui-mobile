@@ -13,6 +13,31 @@ export const subscriptionSourceSchema = z.enum(['stripe', 'play'])
 
 export type SubscriptionSource = z.infer<typeof subscriptionSourceSchema>
 
+export const subscriptionLapseReasonSchema = z.enum([
+  'canceled',
+  'payment_failed',
+  'expired',
+])
+
+export type SubscriptionLapseReason = z.infer<typeof subscriptionLapseReasonSchema>
+
+export const subscriptionStatusSchema = z.object({
+  plan: planTypeSchema,
+  hasProAccess: z.boolean(),
+  isTrialActive: z.boolean(),
+  trialEndsAt: z.string().nullable(),
+  planExpiresAt: z.string().nullable(),
+  aiMessagesUsed: z.number(),
+  aiMessagesLimit: z.number(),
+  isLifetimePro: z.boolean(),
+  subscriptionInterval: subscriptionIntervalSchema.nullable(),
+  source: subscriptionSourceSchema.nullable(),
+  lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
+  subscriptionEndedAtUtc: z.string().nullable().optional(),
+})
+
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>
+
 export const supportedLocaleSchema = z.enum(['en', 'pt-BR'])
 
 export type SupportedLocale = z.infer<typeof supportedLocaleSchema>
@@ -70,6 +95,8 @@ export const profileSchema = z.object({
   }).optional(),
   proactiveAstraEnabled: z.boolean().optional(),
   marketingEmailConsent: z.boolean().nullable().optional(),
+  lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
+  subscriptionEndedAt: z.string().nullable().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

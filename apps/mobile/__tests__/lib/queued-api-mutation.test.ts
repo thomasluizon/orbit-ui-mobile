@@ -33,6 +33,7 @@ describe('performQueuedApiMutation', () => {
       payload: { language: 'en' },
       dedupeKey: 'profile-language',
       queuedResult: undefined,
+      allowAutomaticReplay: false,
     })
 
     expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(1)
@@ -46,6 +47,7 @@ describe('performQueuedApiMutation', () => {
         dedupeKey: 'profile-language',
       },
       queuedResult: undefined,
+      allowAutomaticReplay: false,
     })
     expect(typeof mocks.runQueuedMutation.mock.calls[0]?.[0]?.execute).toBe('function')
   })

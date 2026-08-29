@@ -1,22 +1,16 @@
-'use client'
+import { formatAPIDate } from '@orbit/shared/utils'
+import { loadTodayInitialHabits } from './today-initial-data'
+import { TodayPageClient } from './today-page-client'
 
-import { useTodayPage } from './use-today-page'
-import {
-  TodayHeaderRegion,
-  TodayHabitsPanel,
-  TodayOverlays,
-} from './today-page-view'
+interface TodayPageProps {
+  searchParams: Promise<{ date?: string | string[] }>
+}
 
-export default function TodayPage() {
-  const view = useTodayPage()
+export default async function TodayPage({ searchParams }: Readonly<TodayPageProps>) {
+  const { date } = await searchParams
+  const requestedDate = Array.isArray(date) ? date[0] : date
+  const initialToday = formatAPIDate(new Date())
+  const initialHabits = await loadTodayInitialHabits(requestedDate, initialToday)
 
-  return (
-    <div className="relative">
-      <TodayHeaderRegion view={view} />
-
-      <TodayHabitsPanel view={view} />
-
-      <TodayOverlays view={view} />
-    </div>
-  )
+  return <TodayPageClient initialToday={initialToday} initialHabits={initialHabits} />
 }

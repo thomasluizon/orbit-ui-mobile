@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
+  keyboardEnabled: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -16,7 +17,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
-vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
+vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
+  useKeyboardShortcuts: (enabled: boolean) => mocks.keyboardEnabled(enabled),
+}))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
 vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen }) => unknown) =>
@@ -31,7 +34,9 @@ vi.mock('@/stores/ui-store', () => ({
     setShowCreateModal: mocks.setShowCreateModal,
   }),
 }))
-vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/components/command/command-palette', () => ({
+  CommandPalette: () => <div data-testid="command-palette" />,
+}))
 vi.mock('@/components/ui/fab', () => ({
   Fab: ({ label, onClick }: { label: string; onClick: () => void }) => (
     <button type="button" aria-label={label} onClick={onClick} />
@@ -64,11 +69,18 @@ vi.mock('@/components/shell/shell-wide', () => ({
 }))
 
 import { DestinationShell } from '@/components/shell/destination-shell'
+import {
+  getCurrentRouteTransitionIntent,
+  getRouteScenarioForIntent,
+  resetRouteTransitionIntent,
+  setRouteTransitionIntent,
+} from '@/lib/motion/route-intent'
 
 describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
+    resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
 
@@ -85,6 +97,8 @@ describe('DestinationShell', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
   })
 
   it('removes the compact FAB away from Hoje', () => {
@@ -92,6 +106,20 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
 
     expect(screen.queryByRole('button', { name: 'nav.create' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a later pushed flow after selecting the active destination', () => {
+    setRouteTransitionIntent('tab')
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'nav.today' }))
+    mocks.push('/habits/h1')
+
+    expect(mocks.push).toHaveBeenCalledOnce()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/h1')
+    expect(
+      getRouteScenarioForIntent(getCurrentRouteTransitionIntent()),
+    ).toBe('route-push')
   })
 
   it('renders the same four destinations in the wide shell', () => {
@@ -117,6 +145,45 @@ describe('DestinationShell', () => {
     expect(screen.getByTestId('compact-shell')).toBeInTheDocument()
     expect(screen.queryAllByRole('button')).toHaveLength(0)
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it.each([
+    '/preferences',
+    '/advanced',
+    '/profile/security',
+    '/notifications/123',
+    '/account/billing',
+  ])('selects Profile for its secondary route %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Profile flow</h1></DestinationShell>)
+
+    expect(screen.getByRole('button', { name: 'nav.profile' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it.each(['/achievements', '/retrospective', '/streak'])(
+    'selects Progresso for an absorbed route %s',
+    (pathname) => {
+      mocks.pathname = pathname
+      render(<DestinationShell onCreate={() => {}}><h1>Progress flow</h1></DestinationShell>)
+
+      expect(screen.getByRole('button', { name: 'nav.progress' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+    },
+  )
+
+  it('selects no destination for a route outside the shared table', () => {
+    mocks.pathname = '/unknown'
+    render(<DestinationShell onCreate={() => {}}><h1>Unknown</h1></DestinationShell>)
+
+    expect(screen.getAllByRole('button').filter((button) => button.hasAttribute('aria-current')))
+      .toHaveLength(0)
   })
 
   it.each([

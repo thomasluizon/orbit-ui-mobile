@@ -21,7 +21,6 @@ const TestRenderer = require('react-test-renderer')
 vi.hoisted(() => {
   ;(globalThis as { __DEV__?: boolean }).__DEV__ = false
 })
-
 const colorProxy = new Proxy(
   {},
   {

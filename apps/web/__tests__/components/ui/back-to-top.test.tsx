@@ -7,51 +7,73 @@ vi.mock('next-intl', () => ({
 
 import { BackToTop } from '@/components/ui/back-to-top'
 import { useUIStore } from '@/stores/ui-store'
+import { Shell412 } from '@/components/shell/shell-412'
+import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 
-function setScrollY(value: number) {
-  Object.defineProperty(window, 'scrollY', { configurable: true, value })
+let observerCallback: ((entries: Array<{ isIntersecting: boolean }>) => void) | null = null
+
+vi.stubGlobal(
+  'IntersectionObserver',
+  class {
+    constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
+      observerCallback = callback
+    }
+
+    observe() {
+      observerCallback?.([{ isIntersecting: true }])
+    }
+
+    disconnect() {}
+  },
+)
+
+function renderBackToTop() {
+  const view = render(
+    <ShellScrollerProvider>
+      <Shell412 tabBar={<div>Tabs</div>}><div>Today</div></Shell412>
+      <BackToTop />
+    </ShellScrollerProvider>,
+  )
+  const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')
+  if (!scroller) throw new Error('Expected the shell scroller')
+  scroller.scrollTo = vi.fn()
+  return { ...view, scroller }
 }
 
 describe('BackToTop', () => {
   beforeEach(() => {
-    setScrollY(0)
     useUIStore.setState({ isSelectMode: false })
-    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
-    setScrollY(0)
   })
 
-  it('stays hidden until the page is scrolled past the threshold', () => {
-    render(<BackToTop />)
+  it('stays hidden until the shell scroller passes the threshold', () => {
+    renderBackToTop()
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
 
-    act(() => {
-      setScrollY(700)
-      window.dispatchEvent(new Event('scroll'))
-    })
+    act(() => observerCallback?.([{ isIntersecting: false }]))
 
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'true')
   })
 
-  it('scrolls the window back to the top when pressed', () => {
-    setScrollY(700)
-    render(<BackToTop />)
+  it('scrolls the shell back to the top when pressed', () => {
+    const { scroller } = renderBackToTop()
+    act(() => observerCallback?.([{ isIntersecting: false }]))
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'true')
 
     fireEvent.click(screen.getByTestId('back-to-top'))
 
-    expect(window.scrollTo).toHaveBeenCalledWith(
+    expect(scroller.scrollTo).toHaveBeenCalledWith(
       expect.objectContaining({ top: 0 }),
     )
   })
 
   it('stays hidden while multi-select is active even when scrolled', () => {
     useUIStore.setState({ isSelectMode: true })
-    setScrollY(700)
-    render(<BackToTop />)
+    renderBackToTop()
+    act(() => observerCallback?.([{ isIntersecting: false }]))
 
     expect(screen.getByTestId('back-to-top')).toHaveAttribute('data-visible', 'false')
   })

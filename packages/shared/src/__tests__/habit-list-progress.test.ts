@@ -250,7 +250,7 @@ describe('computeParentPromptProgress', () => {
       isDueOnSelectedDate: scheduledToday,
       isListView: false,
       skippedIds: new Set(),
-      assumeCompletedId: loggedAfterSkip.id,
+      resolvedModes: new Map([[loggedAfterSkip.id, 'log']]),
     })
 
     expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1 })
@@ -399,7 +399,7 @@ describe('computeParentPromptProgress', () => {
       isDueOnSelectedDate: scheduledToday,
       isListView: false,
       skippedIds: new Set(),
-      assumeCompletedId: 'a',
+      resolvedModes: new Map([['a', 'log']]),
     })
 
     expect(progress.total).toBe(2)
@@ -428,12 +428,32 @@ describe('computeParentPromptProgress', () => {
       isDueOnSelectedDate: scheduledToday,
       isListView: false,
       skippedIds: new Set(),
-      assumeCompletedId: 'b',
+      resolvedModes: new Map([['b', 'log']]),
     })
 
     expect(progress.total).toBe(2)
     expect(progress.done).toBe(2)
     expect(progress.loggedDone).toBe(2)
+  })
+
+  it('sees every sibling resolved by one bulk operation before the snapshot refetches', () => {
+    const first = createMockHabit({ id: 'a', parentId: 'p', scheduledDates: [TODAY] })
+    const second = createMockHabit({ id: 'b', parentId: 'p', scheduledDates: [TODAY] })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'p',
+      getChildren: makeGetChildren({ p: [first, second] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+      resolvedModes: new Map([
+        ['a', 'log'],
+        ['b', 'log'],
+      ]),
+    })
+
+    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 2 })
   })
 
   it('reports all-done with no logged children when every sub-habit was skipped', () => {

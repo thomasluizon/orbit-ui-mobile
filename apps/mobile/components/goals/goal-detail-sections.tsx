@@ -71,9 +71,7 @@ export function GoalProgressHistorySection({
           accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}
         >
           <Text style={styles.toggleAllText}>
-            {showAllHistory
-              ? showLessLabel
-              : `${showAllLabel} (${entries.length})`}
+            {showAllHistory ? showLessLabel : showAllLabel}
           </Text>
         </Pressable>
       ) : null}
@@ -83,18 +81,18 @@ export function GoalProgressHistorySection({
 
 interface GoalLinkedHabitsSectionProps {
   title: string
+  emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
 export function GoalLinkedHabitsSection({
   title,
+  emptyLabel,
   linkedHabits,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
-
-  if (linkedHabits.length === 0) return null
 
   return (
     <View
@@ -102,7 +100,9 @@ export function GoalLinkedHabitsSection({
       accessibilityRole="list"
       accessibilityLabel={title}
     >
-      {linkedHabits.map((habit) => (
+      {linkedHabits.length === 0 ? (
+        <Text style={styles.emptyLabel}>{emptyLabel}</Text>
+      ) : linkedHabits.map((habit) => (
         <View key={habit.id} style={styles.linkedRow}>
           <View style={styles.linkedWell}>
             <Repeat size={18} strokeWidth={1.8} color={tokens.fg2} />
@@ -158,6 +158,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     linkedList: {
+    },
+    emptyLabel: {
+      color: tokens.fg3,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
     },
     linkedRow: {
       paddingHorizontal: 20,

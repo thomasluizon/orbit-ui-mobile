@@ -45,7 +45,7 @@ function AppBarBackButton({
 }: Readonly<AppBarBackButtonProps>) {
   return (
     <button type="button" aria-label={resolvedBackLabel} onClick={onBack} className="icon-btn">
-      {back ? <ChevronLeft size={26} strokeWidth={2} /> : leadingIcon}
+      {back ? <ChevronLeft size={24} strokeWidth={2} /> : leadingIcon}
     </button>
   )
 }

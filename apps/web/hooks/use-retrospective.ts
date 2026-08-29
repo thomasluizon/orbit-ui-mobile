@@ -1,17 +1,35 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations, useLocale } from 'next-intl'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import {
   buildRetrospectiveRequestUrl,
   type RetrospectivePeriod,
   type RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { fetchJson } from '@/lib/api-fetch'
 
 export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
+
+export function useProgressRetrospective(enabled: boolean) {
+  const locale = useLocale()
+  return useQuery({
+    queryKey: habitKeys.retrospective('month'),
+    queryFn: () =>
+      fetchJson(
+        buildRetrospectiveRequestUrl('month', locale),
+        retrospectiveResponseSchema,
+      ),
+    staleTime: QUERY_STALE_TIMES.gamification,
+    enabled,
+  })
+}
 
 export function useRetrospective() {
   const t = useTranslations()

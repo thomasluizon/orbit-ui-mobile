@@ -23,7 +23,7 @@ import {
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { fetchJson } from '@/lib/api-fetch'
-import { reportAchievementEvent } from '@/app/actions/gamification'
+import { repairStreak, reportAchievementEvent } from '@/app/actions/gamification'
 import { useUIStore } from '@/stores/ui-store'
 
 export function useGamificationProfile(enabled = true) {
@@ -131,6 +131,17 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
     streakInfo,
     ...state,
   }
+}
+
+export function useRepairStreak() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: repairStreak,
+    onSuccess: (streakInfo) => {
+      queryClient.setQueryData(gamificationKeys.streak(), streakInfo)
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
+    },
+  })
 }
 
 /**

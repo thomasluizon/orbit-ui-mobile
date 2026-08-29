@@ -95,6 +95,7 @@ function HabitRowStructuralColumn({
   expanded,
   onToggleSelection,
   onToggleExpand,
+  readOnly,
   collapseLabel,
   expandLabel,
 }: Readonly<{
@@ -107,11 +108,12 @@ function HabitRowStructuralColumn({
   onToggleExpand?: () => void
   collapseLabel: string
   expandLabel: string
+  readOnly: boolean
 }>) {
   if (selectMode) {
     return (
       <span className="flex h-11 w-11 shrink-0 items-center justify-center">
-        <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} />
+        <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} disabled={readOnly} />
       </span>
     )
   }
@@ -119,7 +121,10 @@ function HabitRowStructuralColumn({
   return (
     <button
       type="button"
-      onClick={onToggleExpand}
+      onClick={() => {
+        if (!readOnly) onToggleExpand?.()
+      }}
+      disabled={readOnly}
       aria-label={expanded ? collapseLabel : expandLabel}
       aria-expanded={expanded}
       className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
@@ -176,10 +181,12 @@ export function HabitRow({
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
   function handleRowClick() {
+    if (readOnly) return
     rowPrimaryAction?.()
   }
 
   function handleToggleStatus() {
+    if (readOnly) return
     if (isDone) onUnlog?.()
     else onLog?.()
   }
@@ -203,7 +210,6 @@ export function HabitRow({
         minHeight: isChild ? 52 : 68,
         opacity: readOnly ? 0.5 : 1,
         paddingInlineStart: isChild ? 24 : 0,
-        pointerEvents: readOnly ? 'none' : undefined,
       }}
     >
       <HabitRowStructuralColumn
@@ -216,11 +222,13 @@ export function HabitRow({
         onToggleExpand={onToggleExpand}
         collapseLabel={t('common.collapse')}
         expandLabel={t('common.expand')}
+        readOnly={readOnly}
       />
 
       <button
         type="button"
         onClick={handleRowClick}
+        disabled={readOnly}
         className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         style={{ gap: 12, paddingBlock: isChild ? 4 : 8 }}
       >
@@ -256,6 +264,7 @@ export function HabitRow({
         actions={actions}
         hasProAccess={hasProAccess}
         onToggleStatus={handleToggleStatus}
+        readOnly={readOnly}
       />
     </div>
   )
