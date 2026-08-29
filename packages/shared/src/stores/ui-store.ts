@@ -36,16 +36,6 @@ type UIStoreGet = () => UIStoreState;
 export type HabitFrequencyFilter = "Day" | "Week" | "Month" | "Year" | "none";
 export type ActiveView = "today" | "all" | "general";
 
-function isHabitFrequencyFilter(value: unknown): value is HabitFrequencyFilter {
-  return (
-    value === "Day" ||
-    value === "Week" ||
-    value === "Month" ||
-    value === "Year" ||
-    value === "none"
-  );
-}
-
 function isActiveView(value: unknown): value is ActiveView {
   return (
     value === "today" ||
@@ -57,10 +47,6 @@ function isActiveView(value: unknown): value is ActiveView {
 export interface PersistedUIState {
   activeFilters: HabitsFilter;
   activeView: ActiveView;
-  selectedFrequency: HabitFrequencyFilter | null;
-  selectedTagIds: string[];
-  showCompleted: boolean;
-  setupChecklistDismissed: boolean;
 }
 
 export interface TourUIState extends PersistedUIState {
@@ -79,20 +65,6 @@ export function migratePersistedUIState(
   return {
     activeFilters,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
-    selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
-      ? state.selectedFrequency
-      : null,
-    selectedTagIds: Array.isArray(state.selectedTagIds)
-      ? state.selectedTagIds.filter(
-          (tagId): tagId is string => typeof tagId === "string",
-        )
-      : [],
-    showCompleted:
-      typeof state.showCompleted === "boolean" ? state.showCompleted : false,
-    setupChecklistDismissed:
-      typeof state.setupChecklistDismissed === "boolean"
-        ? state.setupChecklistDismissed
-        : false,
   };
 }
 
@@ -146,17 +118,6 @@ export interface UIStoreState {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 
-  selectedFrequency: HabitFrequencyFilter | null;
-  setSelectedFrequency: (frequency: HabitFrequencyFilter | null) => void;
-
-  selectedTagIds: string[];
-  setSelectedTagIds: (tagIds: string[]) => void;
-
-  showCompleted: boolean;
-  setShowCompleted: (show: boolean) => void;
-
-  setupChecklistDismissed: boolean;
-  setSetupChecklistDismissed: (dismissed: boolean) => void;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
@@ -166,10 +127,6 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
     activeFilters,
     activeView: state.activeView,
-    selectedFrequency: state.selectedFrequency,
-    selectedTagIds: [...state.selectedTagIds],
-    showCompleted: state.showCompleted,
-    setupChecklistDismissed: state.setupChecklistDismissed,
   };
 }
 
@@ -185,10 +142,6 @@ export function createTourUIState(): TourUIState {
     activeFilters: {},
     activeView: "today",
     searchQuery: "",
-    selectedFrequency: null,
-    selectedTagIds: [],
-    showCompleted: true,
-    setupChecklistDismissed: false,
   };
 }
 
@@ -387,17 +340,5 @@ export function createUIStoreState(
     searchQuery: "",
     setSearchQuery: (query) => set({ searchQuery: query }),
 
-    selectedFrequency: null,
-    setSelectedFrequency: (frequency) => set({ selectedFrequency: frequency }),
-
-    selectedTagIds: [],
-    setSelectedTagIds: (tagIds) => set({ selectedTagIds: tagIds }),
-
-    showCompleted: false,
-    setShowCompleted: (show) => set({ showCompleted: show }),
-
-    setupChecklistDismissed: false,
-    setSetupChecklistDismissed: (dismissed) =>
-      set({ setupChecklistDismissed: dismissed }),
   };
 }

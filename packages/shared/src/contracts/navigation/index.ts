@@ -3,3 +3,4 @@ export type {
   SegmentedOption,
   SegmentedOptions,
 } from './SegmentedControl'
+export type { SectionTitleProps } from './SectionTitle'

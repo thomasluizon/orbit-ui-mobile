@@ -22,14 +22,14 @@ const mocks = vi.hoisted(() => ({
     bufferColorScheme: vi.fn(),
     markOnboardingLocallyDone: vi.fn(),
   },
-  createHabitMutateAsync: vi.fn(async () => ({ id: 'server-id' })),
-  bulkCreateHabitsMutateAsync: vi.fn(async () => ({ results: [] })),
-  logHabitMutateAsync: vi.fn(async () => undefined),
-  createGoalMutateAsync: vi.fn(async () => ({ id: 'goal-id' })),
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  createHabitMutateAsync: vi.fn(() => Promise.resolve({ id: 'server-id' })),
+  bulkCreateHabitsMutateAsync: vi.fn(() => Promise.resolve({ results: [] })),
+  logHabitMutateAsync: vi.fn(() => Promise.resolve(undefined)),
+  createGoalMutateAsync: vi.fn(() => Promise.resolve({ id: 'goal-id' })),
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   patchProfile: vi.fn(),
   applyScheme: vi.fn(),
-  setItem: vi.fn(async () => undefined),
+  setItem: vi.fn(() => Promise.resolve(undefined)),
   setQueryData: vi.fn(),
 }))
 
@@ -168,7 +168,10 @@ describe('onboarding action provider factories', () => {
     const actions = captureActions(useLiveOnboardingActions)
 
     await actions.logHabit('server-id')
-    expect(mocks.logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'server-id' })
+    expect(mocks.logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'server-id',
+      intent: 'log',
+    })
 
     await actions.createGoal({ title: 'Ship', targetValue: 1, unit: 'app' })
     expect(mocks.createGoalMutateAsync).toHaveBeenCalledWith({
@@ -227,13 +230,13 @@ describe('onboarding action provider factories', () => {
 })
 
 const stubActions: OnboardingActions = {
-  createHabit: vi.fn(async () => ({ id: '1', title: 'x' })),
-  createHabitsBulk: vi.fn(async () => {}),
-  logHabit: vi.fn(async () => {}),
-  createGoal: vi.fn(async () => {}),
-  setWeekStartDay: vi.fn(async () => {}),
-  setColorScheme: vi.fn(async () => {}),
-  finishOnboarding: vi.fn(async () => {}),
+  createHabit: vi.fn(() => Promise.resolve({ id: '1', title: 'x' })),
+  createHabitsBulk: vi.fn(() => Promise.resolve()),
+  logHabit: vi.fn(() => Promise.resolve()),
+  createGoal: vi.fn(() => Promise.resolve()),
+  setWeekStartDay: vi.fn(() => Promise.resolve()),
+  setColorScheme: vi.fn(() => Promise.resolve()),
+  finishOnboarding: vi.fn(() => Promise.resolve()),
 }
 
 describe('OnboardingActionsProvider', () => {

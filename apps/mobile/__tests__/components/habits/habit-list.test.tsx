@@ -1,4 +1,5 @@
 import React from 'react'
+import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -6,10 +7,15 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { tourScrollRegistry } from '@/components/tour/tour-target-context'
 import { useTourStore } from '@/stores/tour-store'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { flushQueuedMutations } from '@/lib/offline-mutations'
+import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 
 const TODAY = formatAPIDate(new Date())
+const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
@@ -19,6 +25,9 @@ function flattenText(node: unknown): string {
   if (node == null) return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'children' in node) {
+    return flattenText((node as { children?: unknown }).children)
+  }
   if (typeof node === 'object' && 'props' in node) {
     return flattenText((node as { props: { children?: unknown } }).props.children)
   }
@@ -27,9 +36,14 @@ function flattenText(node: unknown): string {
 
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
+const habitListRefetch = vi.fn()
 const deleteMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
+const bulkDeleteMutateAsync = vi.fn()
+const bulkLogMutateAsync = vi.fn()
+const bulkSkipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
+let useActualHabitVisibility = false
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -39,10 +53,119 @@ const colorProxy: Record<string, string> = new Proxy(
   },
 )
 
+interface OfflineQueueRow {
+  id: string
+  timestamp: number
+  type: string
+  endpoint: string
+  method: string
+  payload: string
+  retries: number
+  max_retries: number
+  meta: string | null
+}
+
+const offlineMocks = vi.hoisted(() => {
+  const rows = new Map<string, OfflineQueueRow>()
+  const appliedHabitIds: string[] = []
+  const loggedHabits = new Set<string>()
+  let online = false
+
+  function receiveHabitToggle(endpoint: string): null {
+    const match = endpoint.match(/^\/api\/habits\/([^/]+)\/log$/)
+    const habitId = match?.[1]
+    if (!habitId) return null
+
+    appliedHabitIds.push(habitId)
+    if (loggedHabits.has(habitId)) {
+      loggedHabits.delete(habitId)
+    } else {
+      loggedHabits.add(habitId)
+    }
+    return null
+  }
+
+  const apiClient = vi.fn((endpoint: string) => Promise.resolve(receiveHabitToggle(endpoint)))
+
+  return {
+    rows,
+    appliedHabitIds,
+    loggedHabits,
+    apiClient,
+    receiveHabitToggle,
+    isOnline: () => online,
+    setOnline: (value: boolean) => {
+      online = value
+    },
+  }
+})
+
+vi.mock('expo-sqlite', () => ({
+  openDatabaseSync: () => ({
+    execSync: vi.fn(),
+    getAllSync: <T,>(sql: string) => {
+      if (sql.startsWith('PRAGMA table_info')) return [{ name: 'meta' }] as T[]
+      if (sql.startsWith('SELECT * FROM mutation_queue')) {
+        return Array.from(offlineMocks.rows.values())
+          .sort((first, second) => first.timestamp - second.timestamp) as T[]
+      }
+      return [] as T[]
+    },
+    runSync: (sql: string, params: unknown[] = []) => {
+      if (sql.startsWith('INSERT OR REPLACE INTO mutation_queue')) {
+        const [id, timestamp, type, endpoint, method, payload, retries, maxRetries, meta] = params
+        offlineMocks.rows.set(String(id), {
+          id: String(id),
+          timestamp: Number(timestamp),
+          type: String(type),
+          endpoint: String(endpoint),
+          method: String(method),
+          payload: String(payload),
+          retries: Number(retries),
+          max_retries: Number(maxRetries),
+          meta: typeof meta === 'string' ? meta : null,
+        })
+        return
+      }
+      if (sql === 'DELETE FROM mutation_queue') {
+        offlineMocks.rows.clear()
+        return
+      }
+      if (sql.startsWith('DELETE FROM mutation_queue WHERE id = ?')) {
+        offlineMocks.rows.delete(String(params[0]))
+      }
+    },
+    getFirstSync: <T,>(sql: string) => (
+      sql.startsWith('SELECT COUNT(*) as cnt')
+        ? { cnt: offlineMocks.rows.size } as T
+        : null as T
+    ),
+    withTransactionSync: (task: () => void) => task(),
+  }),
+}))
+
+vi.mock('@/lib/api-client', () => ({ apiClient: offlineMocks.apiClient }))
+vi.mock('@/lib/offline-runtime', () => ({
+  getCurrentConnectivity: () => Promise.resolve(offlineMocks.isOnline()),
+}))
+vi.mock('@/lib/query-client', () => ({
+  persistQueryCache: () => Promise.resolve(),
+  queryClient: { invalidateQueries: () => Promise.resolve() },
+}))
+vi.mock('@/lib/offline-state', () => ({
+  clearOfflineEntity: () => Promise.resolve(),
+  getResolvedEntityId: (_entityType: string, id: string) => Promise.resolve(id),
+  markOfflineTombstone: () => Promise.resolve(),
+  resolveOfflineEntity: () => Promise.resolve(),
+  setOfflineEntityStatus: () => Promise.resolve(),
+  upsertOfflineEntity: () => Promise.resolve(),
+}))
+
 const mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
+  totalCount: 0,
 }
 
 const mockDrillState = {
@@ -88,7 +211,7 @@ vi.mock('@/hooks/use-habits', () => ({
     isLoading: false,
     isFetching: false,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
-    refetch: vi.fn(),
+    refetch: habitListRefetch,
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
       return childIds
@@ -99,6 +222,9 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
   useSkipHabit: () => ({ mutateAsync: skipMutateAsync }),
   useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
+  useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
+  useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
+  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -130,7 +256,9 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
       return {
         ...helpers,
-        hasVisibleContent: () => true,
+        hasVisibleContent: useActualHabitVisibility
+          ? helpers.hasVisibleContent
+          : () => true,
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -246,12 +374,75 @@ function pressConfirm(tree: any, label: string) {
   target.props.onPress()
 }
 
+type BulkActions = ReturnType<typeof useBulkActions>
+type AllDoneListEmptyComponent = React.ReactElement<{
+  children: React.ReactElement<{
+    actionLabel?: string
+    onAction?: () => void
+  }>
+}>
+
+function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
+  const habitListRef = React.createRef<HabitListHandle>()
+  const captured: { current: BulkActions | null } = { current: null }
+
+  function Harness() {
+    captured.current = useBulkActions({
+      selectedHabitIds,
+      selectedDateStr: TODAY,
+      readOnly: false,
+      habitListRef,
+      onSuccess: vi.fn(),
+    })
+
+    return (
+      <HabitList
+        ref={habitListRef}
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+  }
+
+  TestRenderer.act(() => {
+    TestRenderer.create(<Harness />)
+  })
+
+  return captured
+}
+
+function queueHabitToggle({ habitId, date }: { habitId: string; date?: string }) {
+  const occurrenceDate = date ?? TODAY
+  return performQueuedApiMutation({
+    type: 'logHabit',
+    scope: 'habits',
+    endpoint: `/api/habits/${habitId}/log`,
+    method: 'POST',
+    payload: date ? { date } : undefined,
+    entityType: 'habit',
+    targetEntityId: habitId,
+    dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+  })
+}
+
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearOfflineQueue()
+    offlineMocks.appliedHabitIds.length = 0
+    offlineMocks.loggedHabits.clear()
+    offlineMocks.setOnline(false)
     mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
+    bulkDeleteMutateAsync.mockReset()
+    bulkLogMutateAsync.mockReset()
+    bulkSkipMutateAsync.mockReset()
     logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
       if (!habit) return
@@ -267,7 +458,58 @@ describe('HabitList', () => {
     mockDrillState.drillStack = []
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
+    mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('renders the all-done upcoming action only when it can navigate', () => {
+    seedHabits([])
+    mockHabitsData.totalCount = 1
+    const onSeeUpcoming = vi.fn()
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    let flatList = tree!.root.findAll((node) => node.type === FlatList)[0]
+    if (!flatList) throw new Error('All-done list is missing')
+    let emptyState = (
+      flatList.props.ListEmptyComponent as AllDoneListEmptyComponent
+    ).props.children
+    expect(emptyState.props.actionLabel).toBeUndefined()
+    expect(emptyState.props.onAction).toBeUndefined()
+
+    TestRenderer.act(() => {
+      tree!.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+          onSeeUpcoming={onSeeUpcoming}
+        />,
+      )
+    })
+    flatList = tree!.root.findAll((node) => node.type === FlatList)[0]
+    if (!flatList) throw new Error('All-done list is missing')
+    emptyState = (
+      flatList.props.ListEmptyComponent as AllDoneListEmptyComponent
+    ).props.children
+    expect(emptyState.props.actionLabel).toBe('habits.seeUpcoming')
+    expect(emptyState.props.onAction).toBe(onSeeUpcoming)
+    const onAction = emptyState.props.onAction
+    if (!onAction) throw new Error('Upcoming action is missing')
+    TestRenderer.act(onAction)
+
+    expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
 
   it('skips a recurring habit immediately without confirmation', async () => {
@@ -296,7 +538,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -409,7 +651,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -417,6 +659,7 @@ describe('HabitList', () => {
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
+    const selectedDate = new Date('2026-04-08T00:00:00')
 
     let tree: any
 
@@ -425,6 +668,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
+          selectedDate={selectedDate}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -439,7 +683,417 @@ describe('HabitList', () => {
       await habitCard?.props.actions.onLog()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-04-08',
+      intent: 'log',
+    })
+  })
+
+  it('unlogs only the viewed historical occurrence', () => {
+    let occurrences: NormalizedHabit['instances'] = [
+      { date: YESTERDAY, status: 'Completed', logId: 'log-yesterday' },
+      { date: TODAY, status: 'Pending', logId: null },
+    ]
+    const habit = createMockHabit({
+      id: 'habit-1',
+      title: 'Exercise',
+      isCompleted: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: occurrences,
+    })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(({ date }: { date?: string }) => {
+      occurrences = occurrences.map((occurrence) =>
+        occurrence.date === date
+          ? { ...occurrence, status: 'Pending', logId: null }
+          : occurrence,
+      )
+    })
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    const habitCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habit.id)
+
+    TestRenderer.act(() => {
+      habitCard?.props.actions.onUnlog()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: YESTERDAY,
+      intent: 'unlog',
+    })
+    expect(occurrences).toContainEqual({
+      date: TODAY,
+      status: 'Pending',
+      logId: null,
+    })
+  })
+
+  it('guards only the settling habit until its refetch completes', async () => {
+    const firstHabit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    const secondHabit = createMockHabit({ id: 'habit-2', title: 'Read' })
+    seedHabits([firstHabit, secondHabit])
+
+    let resolveFirstMutation: (() => void) | undefined
+    const firstMutation = new Promise<void>((resolve) => {
+      resolveFirstMutation = resolve
+    })
+    let resolveFirstRefetch: (() => void) | undefined
+    const firstRefetch = new Promise<void>((resolve) => {
+      resolveFirstRefetch = resolve
+    })
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) =>
+      habitId === firstHabit.id ? firstMutation : Promise.resolve(),
+    )
+    habitListRefetch
+      .mockReturnValueOnce(firstRefetch)
+      .mockResolvedValue(undefined)
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date()}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    const findHabitCard = (habitId: string) =>
+      tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === habitId)
+
+    TestRenderer.act(() => {
+      findHabitCard(firstHabit.id)?.props.actions.onLog()
+    })
+    await TestRenderer.act(async () => {
+      resolveFirstMutation?.()
+      await firstMutation
+    })
+    expect(habitListRefetch).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      findHabitCard(firstHabit.id)?.props.actions.onUnlog()
+    })
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      findHabitCard(secondHabit.id)?.props.actions.onLog()
+    })
+    expect(logMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: secondHabit.id }),
+    )
+
+    await TestRenderer.act(async () => {
+      resolveFirstRefetch?.()
+      await firstRefetch
+    })
+  })
+
+  it('keeps an offline toggle guarded through real queue replay', async () => {
+    const firstHabit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    const secondHabit = createMockHabit({ id: 'habit-2', title: 'Read' })
+    seedHabits([firstHabit, secondHabit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    const findHabitCard = (habitId: string) => tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habitId)
+
+    await TestRenderer.act(async () => {
+      await findHabitCard(firstHabit.id)?.props.actions.onLog()
+    })
+
+    seedHabits([{ ...firstHabit, isCompleted: true }, secondHabit])
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      await findHabitCard(firstHabit.id)?.props.actions.onUnlog()
+      await findHabitCard(secondHabit.id)?.props.actions.onLog()
+    })
+
+    expect(getQueuedMutations().map((mutation) => ({
+      type: mutation.type,
+      targetEntityId: mutation.targetEntityId,
+      payload: mutation.payload,
+    }))).toEqual([
+      { type: 'logHabit', targetEntityId: firstHabit.id, payload: { date: TODAY } },
+      { type: 'logHabit', targetEntityId: secondHabit.id, payload: { date: TODAY } },
+    ])
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([firstHabit.id, secondHabit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([firstHabit.id, secondHabit.id]))
+  })
+
+  it('coalesces a reconnect tap while the retained toggle is still flushing', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    let releaseReplay: (() => void) | undefined
+    const replayResponse = new Promise<null>((resolve) => {
+      releaseReplay = () => resolve(null)
+    })
+    offlineMocks.apiClient.mockImplementationOnce((endpoint) => {
+      offlineMocks.receiveHabitToggle(endpoint)
+      return replayResponse
+    })
+    offlineMocks.setOnline(true)
+    const flush = flushQueuedMutations()
+
+    await vi.waitFor(() => {
+      expect(offlineMocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(getQueuedMutations()[0]?.status).toBe('syncing')
+    })
+
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(offlineMocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(getQueuedMutations()).toEqual([
+      expect.objectContaining({
+        type: 'logHabit',
+        status: 'syncing',
+        targetEntityId: habit.id,
+        payload: { date: TODAY },
+        dedupeKey: `habit-toggle:${habit.id}:${TODAY}`,
+      }),
+    ])
+
+    releaseReplay?.()
+    await flush
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([habit.id]))
+  })
+
+  it('keeps one persisted toggle when the list remounts before replay', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    const renderList = () => (
+      <HabitList
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+    const queuedMutationId = getQueuedMutations()[0]?.id
+
+    TestRenderer.act(() => {
+      tree.unmount()
+    })
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(getQueuedMutations()).toEqual([
+      expect.objectContaining({
+        id: queuedMutationId,
+        type: 'logHabit',
+        targetEntityId: habit.id,
+        payload: { date: TODAY },
+        dedupeKey: `habit-toggle:${habit.id}:${TODAY}`,
+      }),
+    ])
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([habit.id]))
+  })
+
+  it('keeps one restored toggle after persisted rows are rehydrated before replay', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    const renderList = () => (
+      <HabitList
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+
+    const restoredRows = Array.from(offlineMocks.rows.entries()).map(([id, row]) => [
+      id,
+      { ...row },
+    ] as const)
+    TestRenderer.act(() => {
+      tree.unmount()
+    })
+    offlineMocks.rows.clear()
+    for (const [id, row] of restoredRows) offlineMocks.rows.set(id, row)
+
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(getQueuedMutations()).toHaveLength(1)
+    expect(getQueuedMutations()[0]).toEqual(expect.objectContaining({
+      id: restoredRows[0]?.[0],
+      targetEntityId: habit.id,
+      payload: { date: TODAY },
+      dedupeKey: `habit-toggle:${habit.id}:${TODAY}`,
+    }))
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id])
+    expect(offlineMocks.loggedHabits).toEqual(new Set([habit.id]))
+  })
+
+  it('accepts a second offline toggle intent after the first queue item finalizes', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+    logMutateAsync.mockImplementation(queueHabitToggle)
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onLog()
+    })
+    expect(getQueuedMutations()).toHaveLength(1)
+
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+    expect(offlineMocks.loggedHabits.has(habit.id)).toBe(true)
+
+    seedHabits([{ ...habit, isCompleted: true }])
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    await TestRenderer.act(async () => {
+      await tree.root.findByType(HabitRow).props.actions.onUnlog()
+    })
+
+    expect(getQueuedMutations()).toEqual([])
+    expect(offlineMocks.appliedHabitIds).toEqual([habit.id, habit.id])
+    expect(offlineMocks.loggedHabits.has(habit.id)).toBe(false)
   })
 
   it('keeps the row visible while a direct log request is pending', async () => {
@@ -1076,11 +1730,11 @@ describe('HabitList', () => {
       .find((node: any) => node.props.habit.id === 'parent')
 
     await TestRenderer.act(async () => {
-      parentCard?.props.actions.onForceLogParent()
+      parentCard?.props.actions.onLog()
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', intent: 'log' })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1120,7 +1774,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1166,7 +1824,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1208,7 +1870,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1248,40 +1914,43 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child')
     })
 
-    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: 'parent' }),
+    )
   })
 
-  it('settles the next ancestor after automatically logging its completed child parent', async () => {
+  it('logs the final child and every ancestor on the viewed historical date', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
       title: 'Child',
       parentId: 'parent',
-      isCompleted: true,
+      scheduledDates: [YESTERDAY],
     })
     seedHabits([grandparent, parent, child])
 
-    const ref = React.createRef<HabitListHandle>()
     let tree: any
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitList
-          ref={ref}
           view="today"
           filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -1289,13 +1958,75 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.checkAndPromptParentLog('child')
+      const childRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === 'child')
+      await childRow?.props.actions.onLog()
       await Promise.resolve()
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent' })
+    expect(logMutateAsync.mock.calls).toEqual([
+      [{ habitId: 'child', date: YESTERDAY, intent: 'log' }],
+      [{ habitId: 'parent', date: YESTERDAY, intent: 'log' }],
+      [{ habitId: 'grandparent', date: YESTERDAY, intent: 'log' }],
+    ])
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
+  })
+
+  it('skips the final child and every ancestor on the viewed historical date', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: 'grandparent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      scheduledDates: [YESTERDAY],
+    })
+    seedHabits([grandparent, parent, child])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      const childRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === 'child')
+      childRow?.props.actions.onSkip()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(skipMutateAsync.mock.calls).toEqual([
+      [{ habitId: 'child', date: YESTERDAY }],
+      [{ habitId: 'parent', date: YESTERDAY }],
+      [{ habitId: 'grandparent', date: YESTERDAY }],
+    ])
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1331,13 +2062,15 @@ describe('HabitList', () => {
 
     await skipChild('child-a')
 
-    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(skipMutateAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ habitId: 'parent' }),
+    )
 
     await skipChild('child-b')
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1386,6 +2119,54 @@ describe('HabitList', () => {
     }
   })
 
+  it('keeps a completed row in place for 1400 ms', () => {
+    vi.useFakeTimers()
+    useActualHabitVisibility = true
+    try {
+      const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+      const activeHabit = createMockHabit({
+        id: 'habit-2',
+        title: 'Read',
+        isGeneral: true,
+      })
+      seedHabits([
+        createMockHabit({ id: 'habit-1', title: 'Exercise' }),
+        activeHabit,
+      ])
+      const ref = React.createRef<HabitListHandle>()
+      let tree: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <HabitList ref={ref} view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />,
+        )
+      })
+
+      TestRenderer.act(() => ref.current?.markRecentlyCompleted('habit-1'))
+
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+      const completedHabit = createMockHabit({
+        id: 'habit-1',
+        title: 'Exercise',
+        isCompleted: true,
+      })
+      seedHabits([completedHabit, activeHabit])
+      TestRenderer.act(() => {
+        tree!.update(
+          <HabitList ref={ref} view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />,
+        )
+      })
+      expect(flattenText(tree!.toJSON())).toContain('Exercise')
+
+      TestRenderer.act(() => vi.advanceTimersByTime(1400))
+
+      expect(flattenText(tree!.toJSON())).not.toContain('Exercise')
+      TestRenderer.act(() => tree!.unmount())
+      setTimeoutSpy.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('logs an overdue habit directly with no date', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
@@ -1412,10 +2193,10 @@ describe('HabitList', () => {
       await overdueCard?.props.actions.onLog()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', intent: 'log' })
   })
 
-  it('skips an overdue habit with no date immediately', async () => {
+  it('skips an overdue habit on the viewed date immediately', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -1442,7 +2223,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', date: TODAY })
   })
 
   it('renders a selectable overdue row in select mode', () => {
@@ -1622,7 +2403,11 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
 
     await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog('child-a')
@@ -1630,6 +2415,277 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not mutate a parent when an offline bulk log is refused', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
+    const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
+    seedHabits([parent, childA, childB])
+    bulkLogMutateAsync.mockRejectedValueOnce(new Error('offline'))
+    const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
+
+    await TestRenderer.act(async () => {
+      await expect(actions.current?.confirmBulkLog()).rejects.toThrow('offline')
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('does not mutate a parent when an offline bulk skip is refused', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
+    const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
+    seedHabits([parent, childA, childB])
+    bulkSkipMutateAsync.mockRejectedValueOnce(new Error('offline'))
+    const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
+
+    await TestRenderer.act(async () => {
+      await expect(actions.current?.confirmBulkSkip()).rejects.toThrow('offline')
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('mutates the parent once after a confirmed bulk log succeeds', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
+    const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
+    seedHabits([parent, childA, childB])
+    bulkLogMutateAsync.mockResolvedValueOnce({
+      results: [childA, childB].map((child, index) => ({
+        index,
+        status: 'Success',
+        habitId: child.id,
+        logId: `log-${index}`,
+        error: null,
+      })),
+    })
+    const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
+
+    await TestRenderer.act(async () => {
+      await actions.current?.confirmBulkLog()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledTimes(1)
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: parent.id,
+      date: TODAY,
+      intent: 'log',
+    })
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('does not mutate a parent after a confirmed mixed bulk log result', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const acceptedChild = createMockHabit({ id: 'child-accepted', parentId: parent.id })
+    const rejectedChild = createMockHabit({ id: 'child-rejected', parentId: parent.id })
+    seedHabits([parent, acceptedChild, rejectedChild])
+    bulkLogMutateAsync.mockResolvedValueOnce({
+      results: [
+        {
+          index: 0,
+          status: 'Success',
+          habitId: acceptedChild.id,
+          logId: 'log-accepted',
+          error: null,
+        },
+        {
+          index: 1,
+          status: 'Failed',
+          habitId: rejectedChild.id,
+          logId: null,
+          error: 'rejected',
+        },
+      ],
+    })
+    const actions = renderBulkActionsWithHabitList(
+      new Set([acceptedChild.id, rejectedChild.id]),
+    )
+
+    await TestRenderer.act(async () => {
+      await actions.current?.confirmBulkLog()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('settles each bulk-resolved parent once on the viewed historical date', async () => {
+    const loggedParent = createMockHabit({
+      id: 'logged-parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const skippedParent = createMockHabit({
+      id: 'skipped-parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const children = [
+      createMockHabit({ id: 'log-a', parentId: loggedParent.id, scheduledDates: [YESTERDAY] }),
+      createMockHabit({ id: 'log-b', parentId: loggedParent.id, scheduledDates: [YESTERDAY] }),
+      createMockHabit({ id: 'skip-a', parentId: skippedParent.id, scheduledDates: [YESTERDAY] }),
+      createMockHabit({ id: 'skip-b', parentId: skippedParent.id, scheduledDates: [YESTERDAY] }),
+    ]
+    seedHabits([loggedParent, skippedParent, ...children])
+    const ref = React.createRef<HabitListHandle>()
+
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.settleBulkHabitResolutions([
+        { habitId: 'log-a', mode: 'log' },
+        { habitId: 'log-b', mode: 'log' },
+      ])
+      ref.current?.settleBulkHabitResolutions([
+        { habitId: 'skip-a', mode: 'skip' },
+        { habitId: 'skip-b', mode: 'skip' },
+      ])
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === loggedParent.id))
+      .toEqual([[{ habitId: loggedParent.id, date: YESTERDAY, intent: 'log' }]])
+    expect(skipMutateAsync.mock.calls.filter(([input]) => input.habitId === skippedParent.id))
+      .toEqual([[{ habitId: skippedParent.id, date: YESTERDAY }]])
+  })
+
+  it('does not settle a parent from a rejected sibling in a mixed bulk log', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const acceptedChild = createMockHabit({
+      id: 'child-accepted',
+      parentId: parent.id,
+      isCompleted: true,
+    })
+    const rejectedChild = createMockHabit({
+      id: 'child-rejected',
+      parentId: parent.id,
+      isCompleted: false,
+    })
+    seedHabits([parent, acceptedChild, rejectedChild])
+    const ref = React.createRef<HabitListHandle>()
+
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }])
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+    expect(skipMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toEqual([[{ habitId: parent.id, date: TODAY, intent: 'log' }]])
+  })
+
+  it('does not treat a rejected sibling as logged in a mixed bulk skip', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const acceptedChild = createMockHabit({
+      id: 'child-accepted',
+      parentId: parent.id,
+      isCompleted: true,
+    })
+    const rejectedChild = createMockHabit({
+      id: 'child-rejected',
+      parentId: parent.id,
+      isCompleted: false,
+    })
+    seedHabits([parent, acceptedChild, rejectedChild])
+    const ref = React.createRef<HabitListHandle>()
+
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }])
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+    expect(skipMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toHaveLength(0)
+    expect(skipMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
+      .toEqual([[{ habitId: parent.id, date: TODAY }]])
   })
 
   it('allows parent settlement again after progress becomes incomplete', async () => {

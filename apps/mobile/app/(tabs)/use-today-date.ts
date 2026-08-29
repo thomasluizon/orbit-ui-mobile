@@ -1,165 +1,98 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, AppState } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
-import { useTranslation } from "react-i18next";
-import { formatAPIDate, formatLocaleDate } from "@orbit/shared/utils";
-import { useUIStore } from "@/stores/ui-store";
-import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
-import { toAnimatedEasing } from "@/lib/motion";
-import { easings } from "@/lib/theme";
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AppState } from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { addDays, subDays } from 'date-fns'
+import { useTranslation } from 'react-i18next'
+import {
+  canNavigateToNextDay,
+  formatAPIDate,
+  formatLocaleDate,
+} from '@orbit/shared/utils'
 
 function getMillisecondsUntilNextLocalMidnight(): number {
-  const now = new Date();
-  const nextMidnight = new Date(now);
-  nextMidnight.setHours(24, 0, 0, 0);
-  return Math.max(nextMidnight.getTime() - now.getTime(), 1_000);
+  const now = new Date()
+  const nextMidnight = new Date(now)
+  nextMidnight.setHours(24, 0, 0, 0)
+  return Math.max(nextMidnight.getTime() - now.getTime(), 1_000)
 }
 
 function getTodayDate(): string {
-  return formatAPIDate(new Date());
+  return formatAPIDate(new Date())
 }
 
 export interface TodayDate {
-  pinnedDateStr: string | null;
-  selectedDateStr: string;
-  selectedDate: Date;
-  dateStr: string;
-  dateLabel: string;
-  slideDirection: "left" | "right";
-  dateLabelAnim: Animated.Value;
-  goToPreviousDay: () => void;
-  goToNextDay: () => void;
-  goToToday: () => void;
-  swipeGesture: ReturnType<typeof useHorizontalSwipe>;
+  pinnedDateStr: string | null
+  today: string
+  selectedDateStr: string
+  selectedDate: Date
+  dateStr: string
+  dayName: string
+  numericDate: string
+  nextDisabled: boolean
+  goToPreviousDay: () => void
+  goToNextDay: () => void
+  goToToday: () => void
 }
 
-/**
- * Owns the Today screen's "which day am I viewing" concern: the pinned/rollover
- * date, the localized day label and its enter animation, day-to-day navigation,
- * and the horizontal swipe gesture. Extracted from TodayScreen unchanged.
- */
 export function useTodayDate(): TodayDate {
-  const { t, i18n } = useTranslation();
-  const router = useRouter();
-  const setActiveView = useUIStore((s) => s.setActiveView);
-  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
-  const { date } = useLocalSearchParams<{ date?: string | string[] }>();
-
-  const [slideDirection, setSlideDirection] = useState<"left" | "right">(
-    "right",
-  );
-  const dateLabelAnim = useMemo(() => new Animated.Value(1), []);
-  const hasAnimatedDateLabelRef = useRef(false);
-
-  const dateParam = Array.isArray(date) ? date[0] : date;
-  const pinnedDateStr =
-    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null;
-
-  const [today, setToday] = useState(getTodayDate);
-  const handleTodayRollover = useCallback(() => {
-    setToday(getTodayDate());
-  }, []);
-
-  const selectedDateStr = pinnedDateStr ?? today;
+  const { i18n } = useTranslation()
+  const router = useRouter()
+  const { date } = useLocalSearchParams<{ date?: string | string[] }>()
+  const dateParam = Array.isArray(date) ? date[0] : date
+  const pinnedDateStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null
+  const [today, setToday] = useState(getTodayDate)
+  const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
-    () => new Date((pinnedDateStr ?? today) + "T00:00:00"),
-    [pinnedDateStr, today],
-  );
-  const dateStr = formatAPIDate(selectedDate);
+    () => new Date(`${selectedDateStr}T00:00:00`),
+    [selectedDateStr],
+  )
 
   const goToPreviousDay = useCallback(() => {
-    setSlideDirection("left");
-    setSearchQuery("");
-    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`);
-  }, [router, selectedDate, setSearchQuery]);
-
+    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
+  }, [router, selectedDate])
   const goToNextDay = useCallback(() => {
-    setSlideDirection("right");
-    setSearchQuery("");
-    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`);
-  }, [router, selectedDate, setSearchQuery]);
-
-  const goToToday = useCallback(() => {
-    setSlideDirection(selectedDate > new Date() ? "left" : "right");
-    setActiveView("today");
-    setSearchQuery("");
-    router.navigate("/");
-  }, [router, selectedDate, setActiveView, setSearchQuery]);
+    if (!canNavigateToNextDay(selectedDateStr, today)) return
+    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
+  }, [router, selectedDate, selectedDateStr, today])
+  const goToToday = useCallback(() => router.navigate('/'), [router])
 
   useEffect(() => {
-    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
-
-    const resetRolloverTimer = () => {
-      if (rolloverTimer) {
-        globalThis.clearTimeout(rolloverTimer);
-      }
-
+    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
+    const reset = () => {
+      if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
       rolloverTimer = globalThis.setTimeout(() => {
-        handleTodayRollover();
-        resetRolloverTimer();
-      }, getMillisecondsUntilNextLocalMidnight());
-    };
-
-    resetRolloverTimer();
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState !== "active") return;
-      handleTodayRollover();
-      resetRolloverTimer();
-    });
-
-    return () => {
-      if (rolloverTimer) {
-        globalThis.clearTimeout(rolloverTimer);
-      }
-      subscription.remove();
-    };
-  }, [handleTodayRollover]);
-
-  const swipeGesture = useHorizontalSwipe({
-    onSwipeLeft: goToNextDay,
-    onSwipeRight: goToPreviousDay,
-  });
-
-  const dateLabel = useMemo(() => {
-    if (isToday(selectedDate)) return t("dates.today");
-    if (isYesterday(selectedDate)) return t("dates.yesterday");
-    if (isTomorrow(selectedDate)) return t("dates.tomorrow");
-    return formatLocaleDate(selectedDate, i18n.language, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }, [selectedDate, t, i18n.language]);
-
-  useEffect(() => {
-    if (!hasAnimatedDateLabelRef.current) {
-      hasAnimatedDateLabelRef.current = true;
-      return;
+        setToday(getTodayDate())
+        reset()
+      }, getMillisecondsUntilNextLocalMidnight())
     }
-
-    dateLabelAnim.setValue(0);
-    Animated.timing(dateLabelAnim, {
-      toValue: 1,
-      duration: 180,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: true,
-    }).start();
-  }, [dateLabelAnim, selectedDateStr, slideDirection]);
+    reset()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setToday(getTodayDate())
+        reset()
+      }
+    })
+    return () => {
+      if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
+      subscription.remove()
+    }
+  }, [])
 
   return {
     pinnedDateStr,
+    today,
     selectedDateStr,
     selectedDate,
-    dateStr,
-    dateLabel,
-    slideDirection,
-    dateLabelAnim,
+    dateStr: formatAPIDate(selectedDate),
+    dayName: formatLocaleDate(selectedDate, i18n.language, { weekday: 'long' }),
+    numericDate: formatLocaleDate(selectedDate, i18n.language, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }),
+    nextDisabled: !canNavigateToNextDay(selectedDateStr, today),
     goToPreviousDay,
     goToNextDay,
     goToToday,
-    swipeGesture,
-  };
+  }
 }
