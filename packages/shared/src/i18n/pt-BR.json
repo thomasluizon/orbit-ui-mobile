@@ -450,7 +450,8 @@
       "delete": "Excluir selecionados",
       "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
       "retryFailed": "Tentar só as falhas",
-      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
+      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão."
     },
     "skipHabit": "Pular",
     "frequency": {

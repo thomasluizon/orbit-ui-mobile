@@ -25,6 +25,8 @@ import {
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
 const mocks = vi.hoisted(() => {
+  class OfflineMutationPreflightError extends Error {}
+
   const state = {
     entries: [] as { key: readonly unknown[]; value: unknown }[],
     tempIds: [] as string[],
@@ -122,6 +124,7 @@ const mocks = vi.hoisted(() => {
       (value as { queued?: boolean }).queued === true
     )),
     queueOrExecute: vi.fn(),
+    OfflineMutationPreflightError,
     withQueuedMarker: vi.fn((value: Record<string, unknown>, mutationId: string) => ({
       ...value,
       queued: true as const,
@@ -167,6 +170,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   createTempEntityId: mocks.createTempEntityId,
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
+  OfflineMutationPreflightError: mocks.OfflineMutationPreflightError,
   withQueuedMarker: mocks.withQueuedMarker,
 }))
 
@@ -1167,6 +1171,7 @@ describe('mobile habit hooks', () => {
       {
         results: { index: number; habitId: string; status: string; error: string | null }[]
         ambiguousIds: string[]
+        offlineFailureIds: string[]
       },
       string[],
       { previousLists: HabitSnapshotContext['previousLists'] }
@@ -1175,7 +1180,7 @@ describe('mobile habit hooks', () => {
     mocks.runQueuedMutation.mockImplementation(() => {
       const currentIndex = requestIndex
       requestIndex += 1
-      if (currentIndex === 4) return Promise.reject(new Error('delete transport failed'))
+      if (currentIndex === 4) return Promise.reject(new TypeError('delete transport failed'))
       return Promise.resolve({ queued: true, queuedMutationId: `mutation-${currentIndex}` })
     })
 
@@ -1190,10 +1195,40 @@ describe('mobile habit hooks', () => {
     expect(endpoints).toHaveLength(101)
     expect(response.results).toHaveLength(100)
     expect(response.ambiguousIds).toEqual(['habit-4'])
+    expect(response.offlineFailureIds).toEqual([])
     expect(getHabitList()).toEqual([])
     expect(getCount()).toBe(101)
     mutation.onSettled?.(response, null, ids, context)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
+  it('restores bulk deletes refused by the offline preflight', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', position: 0 }),
+      makeHabit({ id: 'habit-2', position: 1 }),
+    ])
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      {
+        results: { index: number; habitId: string; status: string; error: string | null }[]
+        ambiguousIds: string[]
+        offlineFailureIds: string[]
+      },
+      string[],
+      HabitSnapshotContext
+    >
+    mocks.runQueuedMutation.mockRejectedValue(new mocks.OfflineMutationPreflightError())
+
+    const variables = ['habit-1', 'habit-2']
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList()).toEqual([])
+
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(response.results).toEqual([])
+    expect(response.ambiguousIds).toEqual([])
+    expect(response.offlineFailureIds).toEqual(variables)
+    expect(getHabitList().map((habit) => habit.id)).toEqual(variables)
   })
 
   it('keeps the first log chunk and restores only the unresolved optimistic row', async () => {
@@ -1244,6 +1279,7 @@ describe('mobile habit hooks', () => {
       {
         results: { index: number; habitId: string; status: string; error: string | null }[]
         ambiguousIds: string[]
+        offlineFailureIds: string[]
       },
       { habitId: string }[],
       HabitSnapshotContext
@@ -1262,7 +1298,7 @@ describe('mobile habit hooks', () => {
           })),
         })
       })
-      .mockRejectedValueOnce(new Error('skip transport failed'))
+      .mockRejectedValueOnce(new TypeError('skip transport failed'))
 
     const context = await mutation.onMutate?.(variables)
     const response = await mutation.mutationFn(variables)
@@ -1270,9 +1306,39 @@ describe('mobile habit hooks', () => {
 
     expect(response.results).toHaveLength(100)
     expect(response.ambiguousIds).toEqual(['habit-100'])
+    expect(response.offlineFailureIds).toEqual([])
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
     mutation.onSettled?.(response, null, variables, context)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
+  it('restores bulk skips refused by the offline preflight', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ])
+    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
+      {
+        results: { index: number; habitId: string; status: string; error: string | null }[]
+        ambiguousIds: string[]
+        offlineFailureIds: string[]
+      },
+      { habitId: string }[],
+      HabitSnapshotContext
+    >
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(response.results).toEqual([])
+    expect(response.ambiguousIds).toEqual([])
+    expect(response.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
   })
 
   it('optimistically completes only same-day bulk skips and restores them on failure', async () => {

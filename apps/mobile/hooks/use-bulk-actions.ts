@@ -19,6 +19,7 @@ interface BulkResultItem { status: string; habitId: string }
 interface BulkActionOutcome {
   results: readonly BulkResultItem[]
   ambiguousIds?: readonly string[]
+  offlineFailureIds?: readonly string[]
 }
 
 function failedHabitIds(results: readonly BulkResultItem[]): string[] {
@@ -41,7 +42,11 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
   }
 
   function finish(outcome: BulkActionOutcome, retry: (ids: string[]) => void) {
-    const failedIds = failedHabitIds(outcome.results)
+    const offlineFailureIds = outcome.offlineFailureIds ?? []
+    const failedIds = Array.from(new Set([
+      ...failedHabitIds(outcome.results),
+      ...offlineFailureIds,
+    ]))
     if (outcome.ambiguousIds?.length) {
       showToast({
         kind: 'neutral',
@@ -50,6 +55,13 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
     }
     if (failedIds.length === 0) return onSuccess()
     onPartialFailure(failedIds)
+    if (offlineFailureIds.length > 0) {
+      showToast({
+        kind: 'neutral',
+        message: t('habits.bulkBar.offlineFailure'),
+      })
+      return
+    }
     showToast({
       kind: 'neutral',
       message: t('habits.bulkBar.partialFailure', { count: failedIds.length }),

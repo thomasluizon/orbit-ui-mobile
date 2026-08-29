@@ -13,7 +13,9 @@ import {
   createTempEntityId,
   flushQueuedMutations,
   getMutationScope,
+  isAutomaticReplayBlocked,
   isQueuedResult,
+  OfflineMutationPreflightError,
   queueOrExecute,
   runQueuedMutation,
   subscribeDroppedMutations,
@@ -841,9 +843,9 @@ describe('offline mutations', () => {
       }),
       execute: () => Promise.resolve(null),
       queuedResult: { queued: true as const },
-      allowAutomaticReplay: false,
-    })).rejects.toThrow('Mutation requires an active connection')
+    })).rejects.toBeInstanceOf(OfflineMutationPreflightError)
 
+    expect(isAutomaticReplayBlocked('bulkSkipHabits')).toBe(true)
     expect(mocks.queued).toEqual([])
   })
 
@@ -860,8 +862,7 @@ describe('offline mutations', () => {
       }),
       execute: () => Promise.resolve(null),
       queuedResult: { queued: true as const },
-      allowAutomaticReplay: false,
-    })).rejects.toThrow('Mutation requires an active connection')
+    })).rejects.toBeInstanceOf(OfflineMutationPreflightError)
 
     expect(mocks.queued).toEqual([])
   })
@@ -879,56 +880,83 @@ describe('offline mutations', () => {
       }),
       execute: () => Promise.reject(new TypeError('Network request failed')),
       queuedResult: { queued: true as const },
-      allowAutomaticReplay: false,
     })).rejects.toThrow('Network request failed')
 
     expect(mocks.queued).toEqual([])
   })
 
-  it('persists and flushes a replayable mutation that starts offline', async () => {
-    mocks.setOnline(false)
-
-    await queueOrExecute({
-      mutation: buildQueuedMutation({
-        type: 'updateHabit',
-        scope: 'habits',
-        endpoint: '/api/habits/habit-1',
-        method: 'PUT',
-        payload: { title: 'Retry' },
-      }),
-      execute: () => Promise.resolve(null),
-      queuedResult: { queued: true as const },
+  it('flushes a released-format replayable row normally', async () => {
+    mocks.queued.push({
+      id: 'released-update-habit',
+      timestamp: 1,
+      type: 'updateHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1',
+      method: 'PUT',
+      payload: { title: 'Retry' },
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dedupeKey: null,
+      targetEntityId: 'habit-1',
+      clientEntityId: null,
+      dependsOn: [],
+      lastError: null,
     })
 
     expect(mocks.queued).toHaveLength(1)
 
     mocks.setOnline(true)
-    await flushQueuedMutations()
+    const result = await flushQueuedMutations()
 
     expect(mocks.queued).toEqual([])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({
+      succeeded: 1,
+      failed: 0,
+      remaining: 0,
+      droppedMutations: [],
+    })
   })
 
-  it('cannot retain a non-replayable mutation for backoff after a flush failure', async () => {
-    mocks.setOnline(false)
-
-    await expect(queueOrExecute({
-      mutation: buildQueuedMutation({
-        type: 'bulkSkipHabits',
-        scope: 'habits',
-        endpoint: '/api/habits/bulk-skip',
-        method: 'POST',
-        payload: { items: [{ habitId: 'habit-1' }] },
-      }),
-      execute: () => Promise.resolve(null),
-      queuedResult: { queued: true as const },
-      allowAutomaticReplay: false,
-    })).rejects.toThrow('Mutation requires an active connection')
+  it('retires a released-format non-replayable row without network execution', async () => {
+    const dropped: { id: string; type: string; lastError: string | null }[] = []
+    const unsubscribe = subscribeDroppedMutations((mutation) => dropped.push(mutation))
+    mocks.queued.push({
+      id: 'released-bulk-skip',
+      timestamp: 1,
+      type: 'bulkSkipHabits',
+      scope: 'habits',
+      endpoint: '/api/habits/bulk-skip',
+      method: 'POST',
+      payload: { items: [{ habitId: 'habit-1' }] },
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dedupeKey: null,
+      targetEntityId: null,
+      clientEntityId: null,
+      dependsOn: [],
+      lastError: null,
+    })
 
     mocks.setOnline(true)
-    mocks.apiClient.mockRejectedValueOnce(new TypeError('Network request failed'))
-    await flushQueuedMutations()
+    const result = await flushQueuedMutations()
+    unsubscribe()
 
     expect(mocks.queued).toEqual([])
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      succeeded: 0,
+      failed: 1,
+      remaining: 0,
+      droppedMutations: [{
+        id: 'released-bulk-skip',
+        type: 'bulkSkipHabits',
+        lastError: 'Automatic replay is blocked for this mutation while offline',
+      }],
+    })
+    expect(dropped).toEqual(result.droppedMutations)
   })
 
   it('marks a tombstone when a delete mutation is queued offline', async () => {
@@ -936,19 +964,19 @@ describe('offline mutations', () => {
 
     await queueOrExecute({
       mutation: buildQueuedMutation({
-        type: 'deleteHabit',
-        scope: 'habits',
-        endpoint: '/api/habits/habit-7',
+        type: 'deleteGoal',
+        scope: 'goals',
+        endpoint: '/api/goals/goal-7',
         method: 'DELETE',
         payload: undefined,
-        entityType: 'habit',
-        targetEntityId: 'habit-7',
+        entityType: 'goal',
+        targetEntityId: 'goal-7',
       }),
       execute: () => Promise.resolve(undefined),
       queuedResult: { queued: true as const },
     })
 
-    expect(mocks.markOfflineTombstone).toHaveBeenCalledWith('habit', 'habit-7', true)
+    expect(mocks.markOfflineTombstone).toHaveBeenCalledWith('goal', 'goal-7', true)
   })
 
   it('clears the temp entity when a flushed create returns no server id', async () => {
@@ -979,19 +1007,19 @@ describe('offline mutations', () => {
 
     mocks.queued.push(
       buildQueuedMutation({
-        type: 'deleteHabit',
-        scope: 'habits',
-        endpoint: '/api/habits/habit-9',
+        type: 'deleteGoal',
+        scope: 'goals',
+        endpoint: '/api/goals/goal-9',
         method: 'DELETE',
         payload: undefined,
-        entityType: 'habit',
-        targetEntityId: 'habit-9',
+        entityType: 'goal',
+        targetEntityId: 'goal-9',
       }),
     )
 
     await flushQueuedMutations()
 
-    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'habit-9')
+    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('goal', 'goal-9')
   })
 
   it('marks a temp entity failed on a retryable non-transient error without dropping it', async () => {

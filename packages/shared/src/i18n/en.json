@@ -450,7 +450,8 @@
       "delete": "Delete selected",
       "partialFailure": "{count} selected row could not be updated. | {count} selected rows could not be updated.",
       "retryFailed": "Retry failed only",
-      "connectionRefreshed": "The connection dropped. The list was refreshed."
+      "connectionRefreshed": "The connection dropped. The list was refreshed.",
+      "offlineFailure": "Nothing changed because your device is offline."
     },
     "skipHabit": "Skip",
     "frequency": {

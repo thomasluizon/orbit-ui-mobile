@@ -14,13 +14,11 @@ export async function performQueuedApiMutation<
   execute,
   queuedResult,
   queuedResultFactory,
-  allowAutomaticReplay,
   ...mutation
 }: QueuedMutationBuildOptions & {
   execute?: (mutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string) => TQueuedResult
-  allowAutomaticReplay?: boolean
 }): Promise<TResult | TQueuedResult> {
   return runQueuedMutation({
     mutation,
@@ -40,6 +38,5 @@ export async function performQueuedApiMutation<
         )),
     queuedResult,
     queuedResultFactory,
-    allowAutomaticReplay,
   })
 }

@@ -51,6 +51,7 @@ function bulkSuccess(ids: string[]) {
 
 describe('useBulkActions confirmBulkDelete', () => {
   beforeEach(() => {
+    showToast.mockReset()
     bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
   })
 
@@ -86,6 +87,27 @@ describe('useBulkActions confirmBulkDelete', () => {
     })
 
     expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('keeps an offline-refused delete selected and reports that nothing changed', async () => {
+    bulkDelete.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      ambiguousIds: [],
+      offlineFailureIds: ['h-1'],
+    })
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1']))
+
+    await TestRenderer.act(async () => {
+      await captured.current!.confirmBulkDelete()
+    })
+
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-1'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.offlineFailure',
+    })
   })
 })
 
@@ -138,6 +160,31 @@ describe('useBulkActions reversibility boundary', () => {
     expect(onPartialFailure).not.toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalledTimes(1)
     expect(bulkSkip.mutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an offline-refused skip selected without reporting success or refresh', async () => {
+    bulkSkip.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      ambiguousIds: [],
+      offlineFailureIds: ['h-1', 'h-2'],
+    })
+    const { captured, onSuccess, onPartialFailure, markRecentlyCompleted } = renderBulkActions(
+      new Set(['h-1', 'h-2']),
+    )
+
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-1', 'h-2'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(markRecentlyCompleted).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.offlineFailure',
+    })
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({
+      message: 'habits.bulkBar.connectionRefreshed',
+    }))
   })
 
   it('skips the selection on one press, with no confirmation state to clear', async () => {

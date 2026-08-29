@@ -48,6 +48,22 @@ export interface QueuedMarker {
   queuedMutationId: string
 }
 
+export class OfflineMutationPreflightError extends Error {
+  constructor() {
+    super('Mutation requires an active connection')
+    this.name = 'OfflineMutationPreflightError'
+  }
+}
+
+const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
+  'bulkSkipHabits',
+  'deleteHabit',
+])
+
+export function isAutomaticReplayBlocked(type: string): boolean {
+  return AUTOMATIC_REPLAY_BLOCKED_TYPES.has(type)
+}
+
 export interface DroppedMutation {
   id: string
   type: string
@@ -142,13 +158,11 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   execute,
   queuedResult,
   queuedResultFactory,
-  allowAutomaticReplay,
 }: {
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string) => TQueuedResult
-  allowAutomaticReplay?: boolean
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
   const resolvedQueuedResult =
@@ -158,7 +172,6 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
     mutation: builtMutation,
     execute,
     queuedResult: resolvedQueuedResult as TResult | TQueuedResult,
-    allowAutomaticReplay,
   })
 }
 
@@ -432,12 +445,10 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   mutation,
   execute,
   queuedResult,
-  allowAutomaticReplay = true,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult: TQueuedResult
-  allowAutomaticReplay?: boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
     resolveMutationReferences(mutation),
@@ -446,8 +457,8 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
 
   if (!online || hasPendingDependencies) {
-    if (!allowAutomaticReplay) {
-      throw new Error('Mutation requires an active connection')
+    if (isAutomaticReplayBlocked(resolvedMutation.type)) {
+      throw new OfflineMutationPreflightError()
     }
 
     await markQueuedMutation(resolvedMutation)
@@ -458,7 +469,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     setPendingIdempotencyKey(resolvedMutation.id)
     return await execute(resolvedMutation)
   } catch (error: unknown) {
-    if (!isTransientNetworkError(error) || !allowAutomaticReplay) {
+    if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
     }
 
@@ -556,14 +567,7 @@ async function handleFlushFailure(
   let dropped: DroppedMutation | null = null
 
   if (dropMutation) {
-    remove(mutation.id)
-    addTouchedScope(touchedScopes, mutation)
-
-    if (mutation.entityType && mutation.clientEntityId) {
-      await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
-    }
-
-    dropped = { id: mutation.id, type: mutation.type, lastError }
+    dropped = await dropQueuedMutation(mutation, lastError, touchedScopes)
   } else {
     update(mutation.id, {
       retries: nextRetries,
@@ -586,6 +590,21 @@ async function handleFlushFailure(
     stopReason: shouldStopFlushing(error) ? 'auth' : null,
     dropped,
   }
+}
+
+async function dropQueuedMutation(
+  mutation: PersistedQueuedMutation,
+  lastError: string,
+  touchedScopes: Set<MutationScope>,
+): Promise<DroppedMutation> {
+  remove(mutation.id)
+  addTouchedScope(touchedScopes, mutation)
+
+  if (mutation.entityType && mutation.clientEntityId) {
+    await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
+  }
+
+  return { id: mutation.id, type: mutation.type, lastError }
 }
 
 async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void> {
@@ -612,6 +631,15 @@ async function processQueuedMutationFlush(
   const currentMutation = getById(originalMutation.id)
   if (!currentMutation) {
     return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
+  }
+
+  if (isAutomaticReplayBlocked(currentMutation.type)) {
+    const dropped = await dropQueuedMutation(
+      currentMutation,
+      'Automatic replay is blocked for this mutation while offline',
+      touchedScopes,
+    )
+    return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
   }
 
   const mutation = await resolveMutationReferences(currentMutation)

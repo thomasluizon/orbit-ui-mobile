@@ -10383,6 +10383,7 @@
           "habits.bulkBar.connectionRefreshed",
           "habits.bulkBar.delete",
           "habits.bulkBar.log",
+          "habits.bulkBar.offlineFailure",
           "habits.bulkBar.partialFailure",
           "habits.bulkBar.retryFailed",
           "habits.bulkBar.skip",
