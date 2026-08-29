@@ -510,6 +510,18 @@ export type {
   SupportRequestBody,
 } from './support'
 export {
+  achievementGlyphKey,
+  buildGoalMovePositions,
+  buildProtectedDayLabels,
+  filterProgressGoals,
+  getGoalDeadlinePresentation,
+  isProgressSurfaceEmpty,
+  isRepairableStreakGap,
+  PROGRESS_GOAL_FILTERS,
+  visibleProgressAchievements,
+} from './progress'
+export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
+export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
   resolveProfileNavHint,

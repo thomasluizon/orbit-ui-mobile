@@ -2111,7 +2111,8 @@
     "status": {
       "active": "Active",
       "completed": "Completed",
-      "abandoned": "Abandoned"
+      "abandoned": "Abandoned",
+      "achieved": "Achieved"
     },
     "detail": {
       "markCompleted": "Mark Completed",
@@ -2161,6 +2162,91 @@
       "habitAdherence": "Linked Habit Performance",
       "noData": "No data",
       "perDay": "day"
+    }
+  },
+  "progressScreen": {
+    "title": "Progress",
+    "loading": "Loading your progress",
+    "error": "Your progress could not be loaded.",
+    "retry": "Try again",
+    "empty": "Your progress starts with the next habit you practice.",
+    "startHabit": "Go to habits",
+    "sections": {
+      "streak": "Streak",
+      "goals": "Goals",
+      "window": "Last 30 days",
+      "achievements": "Achievements"
+    },
+    "streak": {
+      "current": "{count, plural, one {# day} other {# days}}",
+      "currentLabel": "Current streak",
+      "stripWindow": "Activity over the last {count, plural, one {# day} other {# days}}",
+      "frozenToday": "Today is protected by a freeze.",
+      "longest": "Longest streak",
+      "active": "Active",
+      "frozen": "Protected",
+      "missed": "Missed",
+      "today": "Today",
+      "legend": "Streak day legend",
+      "showFreeze": "Show freeze details",
+      "hideFreeze": "Hide freeze details",
+      "banked": "Banked",
+      "used": "Used this month",
+      "next": "Next freeze",
+      "nextProgress": "Progress toward the next freeze",
+      "nextIn": "Next freeze in {count, plural, one {# day} other {# days}}",
+      "capacity": "Bank full at 3 freezes",
+      "protectedDays": "Protected days",
+      "protectedEmpty": "No protected days in this window",
+      "protected": "Protected",
+      "protectedToday": "Protected today",
+      "lockedTitle": "Freeze protection",
+      "lockedBody": "Orbit Pro keeps a freeze bank for missed days.",
+      "lockedAction": "See Orbit Pro",
+      "repairTitle": "Yesterday is still open",
+      "repairBody": "One day is open and {count, plural, one {# freeze is} other {# freezes are}} available.",
+      "repairAction": "Spend 1 freeze",
+      "repairEmpty": "No freeze is banked. The next freeze arrives in {count, plural, one {# day} other {# days}}.",
+      "repairError": "The streak could not be repaired. Try again."
+    },
+    "goals": {
+      "views": "Goal views",
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "abandoned": "Abandoned",
+      "empty": "No goals yet. A habit is the next useful step.",
+      "filterEmpty": "No goals match this view.",
+      "clearFilter": "Show all goals",
+      "progress": "{current} of {target} {unit}",
+      "dueToday": "Due today",
+      "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+      "daysOverdue": "{count, plural, one {# day overdue} other {# days overdue}}",
+      "finishReason": "The target is reached. Finishing records the goal as completed.",
+      "finish": "Finish goal",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "reorderHint": "Use Alt and the arrow keys to reorder"
+    },
+    "window": {
+      "completionRate": "Completion rate",
+      "activeDays": "Active days out of {days}",
+      "topHabit": "Top habit",
+      "topHabitEmpty": "No top habit yet",
+      "totalCompletions": "Total completions",
+      "lockedTitle": "Thirty day figures",
+      "lockedBody": "Orbit Pro shows your rolling thirty day figures.",
+      "lockedAction": "See Orbit Pro"
+    },
+    "achievements": {
+      "empty": "No achievements are available yet.",
+      "xp": "{current} / {next} XP",
+      "next": "Next: level {level}, {title}. {xp} XP to go.",
+      "earned": "Earned {date}",
+      "progress": "{current} of {target}",
+      "lockedTitle": "Achievements",
+      "lockedBody": "Orbit Pro tracks achievements and XP.",
+      "lockedAction": "See Orbit Pro"
     }
   },
   "gamification": {

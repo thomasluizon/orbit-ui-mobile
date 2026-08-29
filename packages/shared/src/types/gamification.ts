@@ -24,6 +24,8 @@ export const achievementSchema = z.object({
   iconKey: z.string(),
   isEarned: z.boolean(),
   earnedAtUtc: z.string().nullable(),
+  progressCurrent: z.number().nullable().optional(),
+  progressTarget: z.number().nullable().optional(),
 })
 
 export type Achievement = z.infer<typeof achievementSchema>
@@ -100,6 +102,18 @@ export const retrospectiveMetricsSchema = z.object({
   weeklyConsistency: z.array(z.number()),
   topHabits: z.array(retrospectiveHabitStatSchema),
   needsAttention: z.array(retrospectiveHabitStatSchema),
+})
+
+export const retrospectiveResponseSchema = z.object({
+  period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
+  metrics: retrospectiveMetricsSchema,
+  narrative: z.object({
+    highlights: z.string(),
+    missed: z.string(),
+    trends: z.string(),
+    suggestion: z.string(),
+  }),
+  fromCache: z.boolean(),
 })
 
 export const recapResponseSchema = z.object({
