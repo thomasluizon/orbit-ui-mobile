@@ -747,6 +747,68 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
+    const settleParentAutomatically = useCallback(
+      function settleParentForChild(
+        childHabitId: string,
+        resolvedModes: ReadonlyMap<string, HabitResolutionMode>,
+      ) {
+        const promptData = promptDataRef.current
+        if (!promptData) return
+        const childHabit = promptData.habitsById.get(childHabitId)
+        if (!childHabit?.parentId) return
+        const parentHabit = promptData.habitsById.get(childHabit.parentId)
+        if (!parentHabit) return
+
+        const mode = computeParentSettlementDecision(
+          parentHabit,
+          getChildrenProgressForPrompt(parentHabit.id, resolvedModes),
+          promptData.selectedDateStr,
+        )
+        if (!mode) {
+          promptedParentIdsRef.current.delete(parentHabit.id)
+          return
+        }
+        if (promptedParentIdsRef.current.has(parentHabit.id)) return
+
+        promptedParentIdsRef.current.add(parentHabit.id)
+        const ancestorResolvedModes = new Map(resolvedModes).set(parentHabit.id, mode)
+        recordHabitResolution(parentHabit.id, mode)
+        markRecentlyCompleted(parentHabit.id)
+        void (async () => {
+          try {
+            if (mode === 'skip') {
+              await skipMutation.mutateAsync({
+                habitId: parentHabit.id,
+                date: promptData.selectedDateStr,
+              })
+            } else {
+              await logMutation.mutateAsync({
+                habitId: parentHabit.id,
+                date: promptData.selectedDateStr,
+                intent: 'log',
+              })
+              void showInterstitialIfDue()
+            }
+            settleParentForChild(parentHabit.id, ancestorResolvedModes)
+          } catch {
+            promptedParentIdsRef.current.delete(parentHabit.id)
+            resolvedModesRef.current.delete(parentHabit.id)
+            skippedChildIdsRef.current.delete(parentHabit.id)
+            clearRecentlyCompleted(parentHabit.id)
+          }
+        })()
+      },
+      [
+        clearRecentlyCompleted,
+        getChildrenProgressForPrompt,
+        logMutation,
+        markRecentlyCompleted,
+        recordHabitResolution,
+        showInterstitialIfDue,
+        skipMutation,
+      ],
+    )
+
     const checkAndPromptParentLog = useCallback((childHabitId: string) => {
       recordHabitResolution(childHabitId, 'log')
       checkAndSettleParent(childHabitId, new Map(resolvedModesRef.current))
@@ -772,9 +834,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       const resolvedSnapshot = new Map(resolvedModesRef.current)
       for (const childId of childIdByAffectedParent.values()) {
-        checkAndSettleParent(childId, resolvedSnapshot)
+        settleParentAutomatically(childId, resolvedSnapshot)
       }
-    }, [checkAndSettleParent, habitsById, markRecentlyCompleted, recordHabitResolution])
+    }, [habitsById, markRecentlyCompleted, recordHabitResolution, settleParentAutomatically])
 
     const confirmParentSettlement = useCallback(async () => {
       const resolvedModes = new Map(resolvedModesRef.current)

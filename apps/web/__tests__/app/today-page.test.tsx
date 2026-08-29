@@ -99,11 +99,18 @@ describe('Hoje date control', () => {
 
   it('renders the resolved read-only boundary notice', () => {
     const view = {
+      data: { isFetching: false, refetch: vi.fn() },
+      habitListAllCollapsed: false,
+      habitListRef: { current: null },
+      isSelectMode: false,
       nav: {
         dateStr: '2026-03-31',
         today: '2026-04-08',
         dateNav: { ...baseProps, isTodaySelected: false },
       },
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
     render(
@@ -138,6 +145,8 @@ describe('Hoje date control', () => {
       selection: { handleToggleSelection: vi.fn() },
       setHabitListAllCollapsed: vi.fn(),
       setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
       toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
@@ -166,6 +175,8 @@ describe('Hoje date control', () => {
       selection: { handleToggleSelection: vi.fn() },
       setHabitListAllCollapsed: vi.fn(),
       setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
       toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
@@ -190,6 +201,8 @@ describe('Hoje date control', () => {
       selection: { handleToggleSelection: vi.fn() },
       setHabitListAllCollapsed: vi.fn(),
       setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
       toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 

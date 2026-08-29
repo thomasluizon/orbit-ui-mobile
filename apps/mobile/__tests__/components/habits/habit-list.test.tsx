@@ -2051,7 +2051,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
     expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
@@ -2192,6 +2192,14 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
 
     expect(logMutateAsync.mock.calls).toEqual([
       [{ habitId: 'child', date: YESTERDAY, intent: 'log' }],
@@ -2249,11 +2257,15 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      pressConfirm(tree, 'habits.skipConfirmButton')
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      pressConfirm(tree, 'habits.autoSkipParentConfirm')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoSkipParentConfirm')
       await Promise.resolve()
     })
 

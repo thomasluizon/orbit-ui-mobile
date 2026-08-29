@@ -303,7 +303,7 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 async function confirmVisibleSheet(title: string, confirmLabel: string) {
-  const confirmation = screen.getByRole('dialog', { name: title })
+  const confirmation = await screen.findByRole('dialog', { name: title })
   await act(async () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: confirmLabel }))
   })
@@ -1093,7 +1093,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
     expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
@@ -1424,6 +1424,8 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
     expect(logHabitMutateAsync).toHaveBeenCalledTimes(3)
     expect(logHabitMutateAsync.mock.calls).toEqual([
@@ -1476,8 +1478,9 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet('habits.skipConfirmTitle', 'habits.skipConfirmButton')
+    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
+    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
 
     expect(skipHabitMutateAsync.mock.calls).toEqual([
       [{ habitId: 'child', date: YESTERDAY }],

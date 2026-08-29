@@ -118,7 +118,12 @@ function DeferredCreateHabitModal(props: Readonly<ComponentProps<typeof CreateHa
 function DeferredConfirmDialogs(
   props: Readonly<ComponentProps<typeof HabitListConfirmDialogs>>,
 ) {
-  return props.showDeleteConfirm ? <HabitListConfirmDialogs {...props} /> : null
+  const open =
+    props.showDeleteConfirm ||
+    props.skipHabitName !== null ||
+    props.duplicateHabitName !== null ||
+    props.parentPrompt !== null
+  return open ? <HabitListConfirmDialogs {...props} /> : null
 }
 
 function DeferredMoveParentOverlay(
@@ -651,11 +656,46 @@ export function HabitList({
     }
   }
 
+  function settleParentAutomatically(
+    childHabitId: string,
+    resolvedModes: ReadonlyMap<string, HabitResolutionMode>,
+  ) {
+    const promptData = promptDataRef.current
+    if (!promptData) return
+    const child = promptData.habitsById.get(childHabitId)
+    if (!child?.parentId) return
+    const parent = promptData.habitsById.get(child.parentId)
+    if (!parent) return
+
+    const mode = computeParentSettlementDecision(
+      parent,
+      getChildrenProgressForPrompt(parent.id, resolvedModes),
+      promptData.selectedDateStr,
+    )
+    if (!mode) {
+      promptedParentIdsRef.current.delete(parent.id)
+      return
+    }
+    if (promptedParentIdsRef.current.has(parent.id)) return
+
+    promptedParentIdsRef.current.add(parent.id)
+    const ancestorResolvedModes = new Map(resolvedModes).set(parent.id, mode)
+    recordHabitResolution(parent.id, mode)
+    void settleCompletedParent(
+      parent.id,
+      mode,
+      promptData.selectedDateStr,
+      ancestorResolvedModes,
+      true,
+    )
+  }
+
   async function settleCompletedParent(
     parentId: string,
     mode: HabitResolutionMode,
     settlementDate: string,
     resolvedModes: ReadonlyMap<string, HabitResolutionMode>,
+    automatic = false,
   ) {
     markRecentlyCompleted(parentId)
     try {
@@ -664,7 +704,8 @@ export function HabitList({
       } else {
         await logHabit.mutateAsync({ habitId: parentId, date: settlementDate })
       }
-      checkAndSettleParent(parentId, resolvedModes)
+      if (automatic) settleParentAutomatically(parentId, resolvedModes)
+      else checkAndSettleParent(parentId, resolvedModes)
     } catch {
       promptedParentIdsRef.current.delete(parentId)
       resolvedModesRef.current.delete(parentId)
@@ -696,7 +737,7 @@ export function HabitList({
 
     const resolvedSnapshot = new Map(resolvedModesRef.current)
     for (const childId of childIdByAffectedParent.values()) {
-      checkAndSettleParent(childId, resolvedSnapshot)
+      settleParentAutomatically(childId, resolvedSnapshot)
     }
   }
 
