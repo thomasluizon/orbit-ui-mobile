@@ -828,6 +828,25 @@ describe('offline mutations', () => {
     expect(mocks.enqueue).toHaveBeenCalledTimes(1)
   })
 
+  it('does not queue a transport-ambiguous online mutation', async () => {
+    mocks.setOnline(true)
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'bulkSkipHabits',
+        scope: 'habits',
+        endpoint: '/api/habits/bulk-skip',
+        method: 'POST',
+        payload: { items: [{ habitId: 'habit-1' }] },
+      }),
+      execute: () => Promise.reject(new TypeError('Network request failed')),
+      queuedResult: { queued: true as const },
+      queueAfterNetworkError: false,
+    })).rejects.toThrow('Network request failed')
+
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+  })
+
   it('marks a tombstone when a delete mutation is queued offline', async () => {
     mocks.setOnline(false)
 

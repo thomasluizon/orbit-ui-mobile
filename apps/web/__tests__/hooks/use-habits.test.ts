@@ -1293,7 +1293,7 @@ describe('useBulkDeleteHabits', () => {
     expect(bulkDeleteHabits).not.toHaveBeenCalled()
   })
 
-  it('preserves per-root outcomes when a later concurrent delete rejects', async () => {
+  it('refreshes after a later concurrent delete has an ambiguous outcome', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
     const { deleteHabit } = await import('@/app/actions/habits')
     const mockedDelete = vi.mocked(deleteHabit)
@@ -1301,20 +1301,22 @@ describe('useBulkDeleteHabits', () => {
       if (habitId === 'h-4') throw new Error('delete transport failed')
     })
     const ids = Array.from({ length: 101 }, (_, index) => `h-${index}`)
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
 
-    let response: { results: Array<{ index: number; habitId: string; status: string; error: string | null }> } | undefined
+    let response: {
+      results: Array<{ index: number; habitId: string; status: string; error: string | null }>
+      ambiguousIds: string[]
+    } | undefined
     await act(async () => { response = await result.current.mutateAsync(ids) })
 
     expect(mockedDelete).toHaveBeenCalledTimes(101)
-    expect(response?.results).toHaveLength(101)
+    expect(response?.results).toHaveLength(100)
     expect(response?.results[0]).toMatchObject({ habitId: 'h-0', status: 'Success' })
-    expect(response?.results[4]).toMatchObject({
-      habitId: 'h-4',
-      status: 'Failed',
-      error: 'delete transport failed',
-    })
+    expect(response?.ambiguousIds).toEqual(['h-4'])
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 })
 
@@ -1403,7 +1405,7 @@ describe('useBulkSkipHabits', () => {
     expect(mockedBulkSkip).toHaveBeenCalledWith(items)
   })
 
-  it('keeps completed chunks and marks unresolved skip rows failed on transport error', async () => {
+  it('keeps completed chunks and refreshes after a later skip chunk is ambiguous', async () => {
     const { useBulkSkipHabits } = await import('@/hooks/use-habits')
     const { bulkSkipHabits } = await import('@/app/actions/habits')
     const mockedBulkSkip = vi.mocked(bulkSkipHabits)
@@ -1418,17 +1420,16 @@ describe('useBulkSkipHabits', () => {
       }))
       .mockRejectedValueOnce(new Error('skip transport failed'))
     const items = Array.from({ length: 101 }, (_, index) => ({ habitId: `h-${index}` }))
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useBulkSkipHabits(), { wrapper })
 
     const response = await act(async () => result.current.mutateAsync(items))
 
-    expect(response.results).toHaveLength(101)
+    expect(response.results).toHaveLength(100)
     expect(response.results[99]).toMatchObject({ habitId: 'h-99', status: 'Success' })
-    expect(response.results[100]).toMatchObject({
-      habitId: 'h-100',
-      status: 'Failed',
-      error: 'skip transport failed',
-    })
+    expect(response.ambiguousIds).toEqual(['h-100'])
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 })

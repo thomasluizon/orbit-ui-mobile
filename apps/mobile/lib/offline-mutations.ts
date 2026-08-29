@@ -142,11 +142,13 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   execute,
   queuedResult,
   queuedResultFactory,
+  queueAfterNetworkError,
 }: {
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string) => TQueuedResult
+  queueAfterNetworkError?: boolean
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
   const resolvedQueuedResult =
@@ -156,6 +158,7 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
     mutation: builtMutation,
     execute,
     queuedResult: resolvedQueuedResult as TResult | TQueuedResult,
+    queueAfterNetworkError,
   })
 }
 
@@ -429,10 +432,12 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   mutation,
   execute,
   queuedResult,
+  queueAfterNetworkError = true,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult: TQueuedResult
+  queueAfterNetworkError?: boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
     resolveMutationReferences(mutation),
@@ -449,7 +454,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     setPendingIdempotencyKey(resolvedMutation.id)
     return await execute(resolvedMutation)
   } catch (error: unknown) {
-    if (!isTransientNetworkError(error)) {
+    if (!isTransientNetworkError(error) || !queueAfterNetworkError) {
       throw error
     }
 

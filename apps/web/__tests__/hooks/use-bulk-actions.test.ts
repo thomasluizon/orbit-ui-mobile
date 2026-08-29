@@ -7,6 +7,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
+const showToast = vi.fn()
 const showQueued = vi.fn()
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -16,7 +17,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showQueued }),
+  useAppToast: () => ({ showToast, showQueued }),
 }))
 
 vi.mock('next-intl', () => ({
@@ -52,6 +53,7 @@ function bulkSuccess(ids: string[]) {
  */
 describe('useBulkActions reversibility boundary', () => {
   beforeEach(() => {
+    showToast.mockReset()
     showQueued.mockReset()
     bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
@@ -75,6 +77,22 @@ describe('useBulkActions reversibility boundary', () => {
     expect(retry).toBeTypeOf('function')
     await act(async () => { retry?.(); await Promise.resolve() })
     expect(bulkLog.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2' }])
+  })
+
+  it('refreshes after an ambiguous skip without offering a retry', async () => {
+    bulkSkip.mutateAsync.mockResolvedValueOnce({
+      results: [{ habitId: 'h-1', status: 'Success' }],
+      ambiguousIds: ['h-2'],
+    })
+    const { result, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+
+    await act(async () => { await result.current.confirmBulkSkip() })
+
+    expect(showToast).toHaveBeenCalledWith('habits.bulkBar.connectionRefreshed')
+    expect(showQueued).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(bulkSkip.mutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('skips the selection on one press, with no confirmation state to clear', async () => {

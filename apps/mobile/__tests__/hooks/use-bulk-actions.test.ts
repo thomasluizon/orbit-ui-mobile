@@ -121,6 +121,25 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2' }])
   })
 
+  it('refreshes after an ambiguous skip without offering a retry', async () => {
+    bulkSkip.mutateAsync.mockResolvedValueOnce({
+      results: [{ habitId: 'h-1', status: 'Success' }],
+      ambiguousIds: ['h-2'],
+    })
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.connectionRefreshed',
+    })
+    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(bulkSkip.mutateAsync).toHaveBeenCalledTimes(1)
+  })
+
   it('skips the selection on one press, with no confirmation state to clear', async () => {
     const { captured, onSuccess, markRecentlyCompleted } = renderBulkActions(
       new Set(['h-1', 'h-2']),

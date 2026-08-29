@@ -449,7 +449,8 @@
       "skip": "Pular selecionados",
       "delete": "Excluir selecionados",
       "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
-      "retryFailed": "Tentar só as falhas"
+      "retryFailed": "Tentar só as falhas",
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
     },
     "skipHabit": "Pular",
     "frequency": {

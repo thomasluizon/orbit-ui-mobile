@@ -31,6 +31,7 @@ import type {
   BulkCreateRequest,
   BulkCreateResponse,
   BulkDeleteResponse,
+  BulkMutationOutcome,
   BulkLogItemRequest,
   BulkLogResult,
   BulkSkipItemRequest,
@@ -822,13 +823,14 @@ export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkDeleteResponse,
+    BulkMutationOutcome<BulkDeleteResponse>,
     Error,
     string[],
-    { previousLists: HabitListSnapshots; deletedCount: number }
+    { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (habitIds) => {
       const results: BulkDeleteResponse['results'] = []
+      const ambiguousIds: string[] = []
       for (let index = 0; index < habitIds.length; index += 4) {
         const chunk = habitIds.slice(index, index + 4)
         const outcomes = await Promise.allSettled(chunk.map((habitId) =>
@@ -840,22 +842,25 @@ export function useBulkDeleteHabits() {
             payload: null,
             entityType: 'habit',
             targetEntityId: habitId,
+            queueAfterNetworkError: false,
           }),
         ))
         outcomes.forEach((outcome, itemIndex) => {
           const habitId = chunk[itemIndex]
           if (!habitId) return
+          if (outcome.status === 'rejected') {
+            ambiguousIds.push(habitId)
+            return
+          }
           results.push({
             index: index + itemIndex,
-            status: outcome.status === 'fulfilled' ? 'Success' : 'Failed',
+            status: 'Success',
             habitId,
-            error: outcome.status === 'rejected'
-              ? (outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason))
-              : null,
+            error: null,
           })
         })
       }
-      return { results }
+      return { results, ambiguousIds }
     },
 
     onMutate: async (habitIds) => {
@@ -863,15 +868,13 @@ export function useBulkDeleteHabits() {
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, habitIds))
-      adjustHabitCount(queryClient, -habitIds.length)
 
-      return { previousLists, deletedCount: habitIds.length }
+      return { previousLists }
     },
 
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, context.deletedCount)
     },
 
     onSuccess: (data, _vars, context) => {
@@ -885,7 +888,6 @@ export function useBulkDeleteHabits() {
           current ? restoreDeletedHabits(current, snapshot, failedIds) : current,
         )
       }
-      adjustHabitCount(queryClient, failedIds.size)
     },
 
     onSettled: (data, error) =>
@@ -997,13 +999,14 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkSkipResult,
+    BulkMutationOutcome<BulkSkipResult>,
     Error,
     BulkSkipItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (items) => {
       const results: BulkSkipResult['results'] = []
+      const ambiguousIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
         try {
@@ -1013,6 +1016,7 @@ export function useBulkSkipHabits() {
             endpoint: API.habits.bulkSkip,
             method: 'POST',
             payload: { items: chunk },
+            queueAfterNetworkError: false,
             queuedResultFactory: (mutationId) => ({
               results: chunk.map((item, itemIndex) => ({
                 index: itemIndex,
@@ -1025,22 +1029,11 @@ export function useBulkSkipHabits() {
             }),
           })
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
-        } catch (error) {
-          results.push(...buildUnresolvedBulkFailures(
-            items.slice(index),
-            index,
-            error,
-            (item, failureIndex, message) => ({
-              index: failureIndex,
-              status: 'Failed' as const,
-              habitId: item.habitId,
-              error: message,
-            }),
-          ))
-          break
+        } catch {
+          ambiguousIds.push(...chunk.map((item) => item.habitId))
         }
       }
-      return { results }
+      return { results, ambiguousIds }
     },
 
     onMutate: async (items) => {

@@ -18,13 +18,18 @@ interface UseBulkActionsOptions {
 
 interface BulkResultItem { status: string; habitId: string }
 
+interface BulkActionOutcome {
+  results: readonly BulkResultItem[]
+  ambiguousIds?: readonly string[]
+}
+
 function failedHabitIds(results: readonly BulkResultItem[]): string[] {
   return results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : [])
 }
 
 export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess, onPartialFailure }: UseBulkActionsOptions) {
   const t = useTranslations()
-  const { showQueued } = useAppToast()
+  const { showToast, showQueued } = useAppToast()
   const bulkDelete = useBulkDeleteHabits()
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
@@ -37,8 +42,11 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
     }
   }
 
-  function finish(results: readonly BulkResultItem[], retry: (ids: string[]) => void) {
-    const failedIds = failedHabitIds(results)
+  function finish(outcome: BulkActionOutcome, retry: (ids: string[]) => void) {
+    const failedIds = failedHabitIds(outcome.results)
+    if (outcome.ambiguousIds?.length) {
+      showToast(t('habits.bulkBar.connectionRefreshed'))
+    }
     if (failedIds.length === 0) return onSuccess()
     onPartialFailure(failedIds)
     showQueued(t('habits.bulkBar.partialFailure', { count: failedIds.length }), t('habits.bulkBar.retryFailed'), () => retry(failedIds))
@@ -48,7 +56,7 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
     if (ids.length === 0) return
     try {
       const result = await bulkDelete.mutateAsync(ids)
-      finish(result.results, (failedIds) => void executeDelete(failedIds))
+      finish(result, (failedIds) => void executeDelete(failedIds))
     } finally {
       setShowBulkDeleteConfirm(false)
     }
@@ -60,7 +68,7 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
     const successIds = result.results.flatMap((item) => item.status === 'Success' ? [item.habitId] : [])
     for (const id of successIds) habitListRef.current?.markRecentlyCompleted(id)
     promptParentLogs(successIds)
-    finish(result.results, (failedIds) => void executeLog(failedIds))
+    finish(result, (failedIds) => void executeLog(failedIds))
   }
 
   async function executeSkip(ids: string[]) {
@@ -69,7 +77,7 @@ export function useBulkActions({ selectedHabitIds, habitsById, habitListRef, onS
     const successIds = result.results.flatMap((item) => item.status === 'Success' ? [item.habitId] : [])
     for (const id of successIds) habitListRef.current?.markRecentlyCompleted(id)
     promptParentLogs(successIds)
-    finish(result.results, (failedIds) => void executeSkip(failedIds))
+    finish(result, (failedIds) => void executeSkip(failedIds))
   }
 
   return {

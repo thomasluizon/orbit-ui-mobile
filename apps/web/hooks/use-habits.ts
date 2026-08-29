@@ -39,6 +39,7 @@ import type {
   BulkLogItemRequest,
   BulkSkipItemRequest,
   BulkDeleteResponse,
+  BulkMutationOutcome,
   BulkLogResult,
   BulkSkipResult,
 } from '@orbit/shared/types/habit'
@@ -524,25 +525,28 @@ export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (habitIds: string[]): Promise<BulkDeleteResponse> => {
+    mutationFn: async (habitIds: string[]): Promise<BulkMutationOutcome<BulkDeleteResponse>> => {
       const results: BulkDeleteResponse['results'] = []
+      const ambiguousIds: string[] = []
       for (let index = 0; index < habitIds.length; index += 4) {
         const chunk = habitIds.slice(index, index + 4)
         const outcomes = await Promise.allSettled(chunk.map((habitId) => deleteHabitAction(habitId)))
         outcomes.forEach((outcome, itemIndex) => {
           const habitId = chunk[itemIndex]
           if (!habitId) return
+          if (outcome.status === 'rejected') {
+            ambiguousIds.push(habitId)
+            return
+          }
           results.push({
             index: index + itemIndex,
-            status: outcome.status === 'fulfilled' ? 'Success' : 'Failed',
+            status: 'Success',
             habitId,
-            error: outcome.status === 'rejected'
-              ? (outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason))
-              : null,
+            error: null,
           })
         })
       }
-      return { results }
+      return { results, ambiguousIds }
     },
 
     onSettled: () => {
@@ -598,28 +602,19 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkSkipResult> => {
+    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkMutationOutcome<BulkSkipResult>> => {
       const results: BulkSkipResult['results'] = []
+      const ambiguousIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
+        const chunk = items.slice(index, index + 100)
         try {
-          const response = await bulkSkipHabitsAction(items.slice(index, index + 100))
+          const response = await bulkSkipHabitsAction(chunk)
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
-        } catch (error) {
-          results.push(...buildUnresolvedBulkFailures(
-            items.slice(index),
-            index,
-            error,
-            (item, failureIndex, message) => ({
-              index: failureIndex,
-              status: 'Failed' as const,
-              habitId: item.habitId,
-              error: message,
-            }),
-          ))
-          break
+        } catch {
+          ambiguousIds.push(...chunk.map((item) => item.habitId))
         }
       }
-      return { results }
+      return { results, ambiguousIds }
     },
 
     onSettled: () => {
