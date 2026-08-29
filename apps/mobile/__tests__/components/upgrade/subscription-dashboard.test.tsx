@@ -286,9 +286,14 @@ describe('subscription dashboards (mobile)', () => {
       />,
     )
     expect(renderedText(offline)).toContain('upgrade.billing.payment.card')
+    expect(renderedText(offline)).toContain('upgrade.billing.invoices.reasonCycle')
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),
+    ).toHaveLength(0)
+    expect(
+      offline.root.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityLabel === 'upgrade.billing.invoices.download'),
     ).toHaveLength(0)
     const manageButton = offline.root.findAll(
       (node) => Boolean(node.type === 'Pressable'

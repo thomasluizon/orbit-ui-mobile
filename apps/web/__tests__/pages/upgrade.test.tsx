@@ -470,12 +470,19 @@ describe('UpgradePage', () => {
         },
       ],
     }
-    render(<UpgradePage />)
+    const online = render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.statusOpen')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonManual')
     expect(screen.getAllByRole('button', { name: 'upgrade.billing.invoices.download' })).toHaveLength(1)
+
+    online.unmount()
+    mockIsOnline = false
+    render(<UpgradePage />)
+    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
+    expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
+    expect(screen.queryByRole('button', { name: 'upgrade.billing.invoices.download' })).not.toBeInTheDocument()
   })
 
   it('shows usage stats for Pro users with billing', () => {

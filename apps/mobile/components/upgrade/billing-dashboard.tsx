@@ -126,9 +126,10 @@ function PaymentMethodSection({ method, state, onPortal, t, tokens }: Readonly<{
   )
 }
 
-function InvoiceRow({ invoice, locale, t, tokens }: Readonly<{
+function InvoiceRow({ invoice, locale, state, t, tokens }: Readonly<{
   invoice: BillingInvoice
   locale: string
+  state: SubscriptionScreenState
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
@@ -138,7 +139,7 @@ function InvoiceRow({ invoice, locale, t, tokens }: Readonly<{
   const value = invoiceStatus(invoice.status, t)
   return (
     <View style={invoice.status === 'paid' ? undefined : { backgroundColor: tokens.bgWell }}>
-      {url ? (
+      {url && state !== 'offline' ? (
         <ListRow title={title} description={description} value={value} chevron={false} action={{
           icon: 'download',
           label: t('upgrade.billing.invoices.download'),
@@ -149,9 +150,10 @@ function InvoiceRow({ invoice, locale, t, tokens }: Readonly<{
   )
 }
 
-function InvoiceHistory({ invoices, locale, t, tokens }: Readonly<{
+function InvoiceHistory({ invoices, locale, state, t, tokens }: Readonly<{
   invoices: BillingInvoice[] | undefined
   locale: string
+  state: SubscriptionScreenState
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
@@ -160,7 +162,16 @@ function InvoiceHistory({ invoices, locale, t, tokens }: Readonly<{
     <>
       <SectionLabel>{t('upgrade.billing.invoices.title')}</SectionLabel>
       <View style={[styles.card, { paddingHorizontal: 0, paddingVertical: 0, backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-        {invoices.map((invoice) => <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} t={t} tokens={tokens} />)}
+        {invoices.map((invoice) => (
+          <InvoiceRow
+            key={invoice.id}
+            invoice={invoice}
+            locale={locale}
+            state={state}
+            t={t}
+            tokens={tokens}
+          />
+        ))}
       </View>
     </>
   )
@@ -232,7 +243,13 @@ export function BillingDashboard({
         t={t}
         tokens={tokens}
       />
-      <InvoiceHistory invoices={data?.recentInvoices} locale={locale} t={t} tokens={tokens} />
+      <InvoiceHistory
+        invoices={data?.recentInvoices}
+        locale={locale}
+        state={state}
+        t={t}
+        tokens={tokens}
+      />
       <PortalActions
         state={state}
         isLifetime={status.isLifetimePro}

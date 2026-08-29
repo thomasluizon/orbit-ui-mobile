@@ -120,9 +120,10 @@ function PaymentMethodSection({ method, state, onOpenPortal, t }: Readonly<{
   )
 }
 
-function InvoiceRow({ invoice, locale, t }: Readonly<{
+function InvoiceRow({ invoice, locale, state, t }: Readonly<{
   invoice: BillingInvoice
   locale: string
+  state: SubscriptionScreenState
   t: UpgradeTranslations
 }>) {
   const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
@@ -130,7 +131,7 @@ function InvoiceRow({ invoice, locale, t }: Readonly<{
   const description = `${formatBillingDate(invoice.date, locale)} · ${invoiceReason(invoice.billingReason, t)}`
   return (
     <div className={invoice.status === 'paid' ? '' : 'bg-[var(--bg-well)]'}>
-      {url ? (
+      {url && state !== 'offline' ? (
         <ListRow title={title} description={description} chevron={false} action={{
           icon: 'download',
           label: t('upgrade.billing.invoices.download'),
@@ -141,9 +142,10 @@ function InvoiceRow({ invoice, locale, t }: Readonly<{
   )
 }
 
-function InvoiceHistory({ invoices, locale, t }: Readonly<{
+function InvoiceHistory({ invoices, locale, state, t }: Readonly<{
   invoices: BillingInvoice[] | undefined
   locale: string
+  state: SubscriptionScreenState
   t: UpgradeTranslations
 }>) {
   if (!invoices?.length) return null
@@ -151,7 +153,9 @@ function InvoiceHistory({ invoices, locale, t }: Readonly<{
     <section>
       <p className="t-eyebrow mb-2 text-[var(--fg-3)]">{t('upgrade.billing.invoices.title')}</p>
       <div className="overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)]">
-        {invoices.map((invoice) => <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} t={t} />)}
+        {invoices.map((invoice) => (
+          <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} state={state} t={t} />
+        ))}
       </div>
     </section>
   )
@@ -211,7 +215,7 @@ export function BillingDashboard({
       <PlanSummary state={state} status={status} billing={billing} locale={locale} t={t} />
       <PaymentMethodSection method={billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
-      <InvoiceHistory invoices={billing?.recentInvoices} locale={locale} t={t} />
+      <InvoiceHistory invoices={billing?.recentInvoices} locale={locale} state={state} t={t} />
       <PortalActions
         state={state}
         isLifetime={status.isLifetimePro}
