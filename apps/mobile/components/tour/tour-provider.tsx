@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { Dimensions, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
@@ -10,7 +10,6 @@ import {
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
-import { useProfile } from '@/hooks/use-profile'
 import { tourTargetRegistry, tourScrollRegistry } from './tour-target-context'
 
 const TARGET_FIND_TIMEOUT = 5000
@@ -30,8 +29,6 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
   const { inject, restore } = useTourMockData()
-  const { profile } = useProfile()
-  const hasProAccess = profile?.hasProAccess ?? false
 
   const store = useTourStore()
   const {
@@ -40,7 +37,6 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
     setTargetRect,
     setNavigating,
     nextStep,
-    setHiddenSections,
   } = store
 
   const prevStepIdRef = useRef<string | null>(null)
@@ -50,12 +46,6 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reMeasureRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const managedTimeoutsRef = useRef(new Set<ReturnType<typeof setTimeout>>())
-
-  const [prevHasProAccess, setPrevHasProAccess] = useState<boolean | null>(null)
-  if (hasProAccess !== prevHasProAccess) {
-    setPrevHasProAccess(hasProAccess)
-    setHiddenSections(hasProAccess ? [] : ['goals'])
-  }
 
   const yAdjust = Platform.OS === 'android' ? insets.top : 0
 
@@ -127,9 +117,6 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
   const executePreAction = useCallback(
     (preAction: string) => {
       switch (preAction) {
-        case 'switchToGoalsTab':
-          useUIStore.getState().setActiveView(profile?.hasProAccess ? 'goals' : 'today')
-          break
         case 'switchToTodayTab':
           useUIStore.getState().setActiveView('today')
           break
@@ -145,7 +132,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
         }
       }
     },
-    [profile?.hasProAccess],
+    [],
   )
 
   /** Measure an element and apply Y correction */

@@ -1,12 +1,10 @@
 import {
   Calendar,
-  ChartLine,
   CircleHelp,
   Compass,
   Gift,
   Settings,
   Sparkles,
-  Trophy,
   Wrench,
   type Icon,
 } from '@/components/ui/icons'
@@ -23,9 +21,7 @@ interface ProfileNavIconProps {
 const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
   settings: Settings,
   orbit: Sparkles,
-  retrospective: ChartLine,
   wrapped: Gift,
-  achievements: Trophy,
   calendar: Calendar,
   info: CircleHelp,
   wrench: Wrench,

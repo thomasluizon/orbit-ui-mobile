@@ -9,7 +9,6 @@ import { habitKeys } from '@orbit/shared/query'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
-import { GoalsView } from '@/components/goals/goals-view'
 
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -35,7 +34,6 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         <TodayTabs
           tabs={view.tabItems}
           activeView={currentActiveView}
-          hasProAccess={view.hasProAccess}
           onChangeView={view.attemptViewChange}
           viewsLabel={view.viewsLabel}
         />
@@ -56,14 +54,6 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         <TodayDateNavigation visible={currentActiveView === 'today'} {...nav.dateNav} />
       </div>
     </>
-  )
-}
-
-export function TodayGoalsPanel({ view }: Readonly<{ view: TodayView }>) {
-  return (
-    <div id="tabpanel-goals" role="tabpanel" aria-labelledby="tab-goals">
-      {view.currentActiveView === 'goals' && <GoalsView />}
-    </div>
   )
 }
 

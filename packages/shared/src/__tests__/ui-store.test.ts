@@ -48,12 +48,12 @@ describe("shared ui store", () => {
     setFilters({ dateFrom: "2026-04-06" });
     setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
-    setActiveView("goals");
+    setActiveView("all");
 
     expect(store.getState()).toMatchObject({
       activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
-      activeView: "goals",
+      activeView: "all",
     });
   });
 
@@ -242,5 +242,10 @@ describe("shared ui store", () => {
       showCompleted: true,
       setupChecklistDismissed: false,
     });
+  });
+
+  it("maps every retired active view to today", () => {
+    expect(migratePersistedUIState({ activeView: "goals" }).activeView).toBe("today");
+    expect(migratePersistedUIState({ activeView: "retrospective" }).activeView).toBe("today");
   });
 });

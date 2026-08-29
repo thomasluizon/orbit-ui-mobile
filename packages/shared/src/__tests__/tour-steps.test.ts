@@ -38,12 +38,6 @@ describe('getTourStepsBySection', () => {
     expect(habitsSteps.every((s) => s.section === 'habits')).toBe(true)
   })
 
-  it('returns steps for goals section', () => {
-    const goalsSteps = getTourStepsBySection('goals')
-    expect(goalsSteps.length).toBeGreaterThan(0)
-    expect(goalsSteps.every((s) => s.section === 'goals')).toBe(true)
-  })
-
   it('returns empty array for unknown section', () => {
     const steps = getTourStepsBySection('nonexistent' as TourSection)
     expect(steps).toEqual([])

@@ -9,8 +9,6 @@ import { computeHabitCardStatus } from "@orbit/shared/utils";
 
 import TodayScreen, {
   resolveBulkActionBarEnterShift,
-  resolveTodayView,
-  shouldRedirectGoalsTab,
 } from "@/app/(tabs)/index";
 import { BackHandler } from "@/test-mocks/react-native";
 
@@ -285,11 +283,6 @@ vi.mock("@/components/ui/section-label", () => ({
       props,
       props.children as React.ReactNode,
     ),
-}));
-
-vi.mock("@/components/goals/goals-view", () => ({
-  GoalsView: (props: Record<string, unknown>) =>
-    React.createElement("GoalsView", props),
 }));
 
 vi.mock("@/components/goals/create-goal-modal", () => ({
@@ -624,24 +617,6 @@ describe("TodayScreen", () => {
     expect(checkAndPromptParentLog).toHaveBeenCalledWith("parent");
   });
 
-  it("routes free users to upgrade when they select goals", () => {
-    expect(shouldRedirectGoalsTab("goals", false)).toBe(true);
-    expect(shouldRedirectGoalsTab("today", false)).toBe(false);
-  });
-
-  it("lets pro users switch to goals", () => {
-    expect(shouldRedirectGoalsTab("goals", true)).toBe(false);
-    expect(resolveTodayView("goals", true)).toBe("goals");
-  });
-
-  it("recovers a stale free goals view back to today", async () => {
-    uiState.activeView = "goals";
-    const tree = await renderTodayScreen();
-
-    const habitList = tree.root.findByType("HabitList");
-    expect(habitList.props.view).toBe("today");
-  });
-
   it("advances a followed today selection after midnight without reopening the screen", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-07T23:59:55"));
@@ -843,31 +818,6 @@ describe("TodayScreen", () => {
     expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
   });
 
-  it("gates the back-to-top button on the goals view scroll offset", async () => {
-    mockProfile = createMockProfile({
-      hasProAccess: true,
-      aiSummaryEnabled: false,
-    });
-    uiState.activeView = "goals";
-
-    const tree = await renderTodayScreen();
-
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
-
-    const driveGoalsScroll = async (offsetY: number) => {
-      const goalsView = tree.root.findByType("GoalsView");
-      await TestRenderer.act(async () => {
-        (goalsView.props.onScroll as (offsetY: number) => void)(offsetY);
-        await Promise.resolve();
-      });
-    };
-
-    await driveGoalsScroll(650);
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(false);
-
-    await driveGoalsScroll(80);
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
-  });
 });
 
 describe("TodayScreen overdue bulk selection", () => {

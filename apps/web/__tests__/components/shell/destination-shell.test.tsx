@@ -150,7 +150,6 @@ describe('DestinationShell', () => {
   })
 
   it.each([
-    '/achievements',
     '/preferences',
     '/advanced',
     '/profile/security',
@@ -165,6 +164,19 @@ describe('DestinationShell', () => {
       'page',
     )
   })
+
+  it.each(['/achievements', '/retrospective', '/streak'])(
+    'selects Progresso for an absorbed route %s',
+    (pathname) => {
+      mocks.pathname = pathname
+      render(<DestinationShell onCreate={() => {}}><h1>Progress flow</h1></DestinationShell>)
+
+      expect(screen.getByRole('button', { name: 'nav.progress' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+    },
+  )
 
   it('selects no destination for a route outside the shared table', () => {
     mocks.pathname = '/unknown'

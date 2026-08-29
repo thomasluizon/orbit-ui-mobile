@@ -68,35 +68,6 @@ export const TOUR_STEPS: TourStep[] = [
   },
 
   {
-    id: 'goals-tab',
-    section: 'goals',
-    targetId: 'tour-goals-tab',
-    titleKey: 'tour.goals.tab.title',
-    descriptionKey: 'tour.goals.tab.description',
-    placement: 'bottom',
-    route: '/',
-    preAction: 'switchToGoalsTab',
-  },
-  {
-    id: 'goals-card',
-    section: 'goals',
-    targetId: 'tour-goal-card',
-    titleKey: 'tour.goals.card.title',
-    descriptionKey: 'tour.goals.card.description',
-    placement: 'bottom',
-    route: '/',
-  },
-  {
-    id: 'goals-progress',
-    section: 'goals',
-    targetId: 'tour-goal-progress',
-    titleKey: 'tour.goals.progress.title',
-    descriptionKey: 'tour.goals.progress.description',
-    placement: 'bottom',
-    route: '/',
-  },
-
-  {
     id: 'chat-area',
     section: 'chat',
     targetId: 'tour-chat-area',
@@ -198,27 +169,6 @@ export const TOUR_STEPS: TourStep[] = [
     placement: 'bottom',
     route: '/profile',
   },
-  {
-    id: 'profile-retrospective',
-    section: 'profile',
-    targetId: 'tour-profile-retrospective',
-    titleKey: 'tour.profile.retrospective.title',
-    descriptionKey: 'tour.profile.retrospective.description',
-    placement: 'bottom',
-    route: '/profile',
-    proBadge: true,
-  },
-  {
-    id: 'profile-achievements',
-    section: 'profile',
-    targetId: 'tour-profile-achievements',
-    titleKey: 'tour.profile.achievements.title',
-    descriptionKey: 'tour.profile.achievements.description',
-    placement: 'bottom',
-    route: '/profile',
-    proBadge: true,
-  },
-
   {
     id: 'coach-today',
     section: 'coach-today',
