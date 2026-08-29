@@ -10415,6 +10415,7 @@
           "habits.allDoneToday",
           "habits.askAstra",
           "habits.backToHabits",
+          "habits.bulkBar.connectionRefreshed",
           "habits.bulkBar.delete",
           "habits.bulkBar.log",
           "habits.bulkBar.offlineFailure",

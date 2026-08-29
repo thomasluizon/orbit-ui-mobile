@@ -11,9 +11,19 @@ const bulkSkip = { mutateAsync: vi.fn() }
 const showToast = vi.fn()
 const VIEWED_DATE = '2026-04-01'
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}))
+vi.mock('react-i18next', async () => {
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  const translate = (key: string) => {
+    let value: unknown = messages
+    for (const segment of key.split('.')) {
+      if (typeof value !== 'object' || value === null || !(segment in value)) return key
+      value = (value as Record<string, unknown>)[segment]
+    }
+    return typeof value === 'string' ? value : key
+  }
+
+  return { useTranslation: () => ({ t: translate }) }
+})
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => bulkDelete,
@@ -101,7 +111,7 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(captured.current!.showBulkDeleteConfirm).toBe(true)
     expect(showToast).toHaveBeenCalledWith({
       kind: 'neutral',
-      message: 'habits.bulkBar.offlineFailure',
+      message: 'Nothing changed because your device is offline.',
     })
   })
 
@@ -124,7 +134,7 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(captured.current!.showBulkDeleteConfirm).toBe(false)
     expect(showToast).toHaveBeenCalledWith({
       kind: 'neutral',
-      message: 'habits.bulkBar.connectionRefreshed',
+      message: 'The connection dropped. The list was refreshed.',
     })
     expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
   })
@@ -211,7 +221,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
     expect(showToast).toHaveBeenCalledWith({
       kind: 'neutral',
-      message: 'habits.bulkBar.offlineFailure',
+      message: 'Nothing changed because your device is offline.',
     })
   })
 
@@ -240,7 +250,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(onSuccess).toHaveBeenCalledTimes(1)
     expect(showToast).toHaveBeenCalledWith({
       kind: 'neutral',
-      message: 'habits.bulkBar.connectionRefreshed',
+      message: 'The connection dropped. The list was refreshed.',
     })
     expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
   })

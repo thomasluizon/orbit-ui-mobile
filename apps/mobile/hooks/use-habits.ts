@@ -182,13 +182,13 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      if (isQueuedResult(response)) {
-        return
-      }
-
       useReviewReminderStore
         .getState()
         .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+
+      if (isQueuedResult(response)) {
+        return
+      }
 
       const loggedHabit = findHabitInList(
         queryClient

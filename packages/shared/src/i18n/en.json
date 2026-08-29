@@ -451,7 +451,8 @@
       "log": "Log selected",
       "skip": "Skip selected",
       "delete": "Delete selected",
-      "offlineFailure": "Nothing changed because your device is offline."
+      "offlineFailure": "Nothing changed because your device is offline.",
+      "connectionRefreshed": "The connection dropped. The list was refreshed."
     },
     "skipHabit": "Skip",
     "frequency": {

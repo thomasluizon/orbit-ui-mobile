@@ -451,7 +451,8 @@
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
       "delete": "Excluir selecionados",
-      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão."
+      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão.",
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
     },
     "skipHabit": "Pular",
     "frequency": {

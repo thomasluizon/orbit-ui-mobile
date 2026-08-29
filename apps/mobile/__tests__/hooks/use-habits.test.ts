@@ -401,34 +401,52 @@ describe('mobile habit hooks', () => {
     })
   })
 
-  it('tracks a single completion only after an online response confirms it', () => {
+  it('tracks a single completion when it is durably queued', () => {
     seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
 
     const mutation = useLogHabit() as unknown as MutationConfig<
-      LogHabitResponse | { queued: true; queuedMutationId: string },
+      unknown,
       { habitId: string; date?: string },
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
-    void mutation.onMutate?.({ habitId: 'habit-1' })
+    const variables = { habitId: 'habit-1', date: '2026-08-28' }
+    void mutation.onMutate?.(variables)
 
     expect(useReviewReminderStore.getState().completionCount).toBe(0)
 
     mutation.onSuccess?.(
       { queued: true, queuedMutationId: 'mutation-1' },
-      { habitId: 'habit-1' },
-      undefined,
-    )
-    expect(useReviewReminderStore.getState().completionCount).toBe(0)
-
-    mutation.onSuccess?.(
-      { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 },
-      { habitId: 'habit-1' },
+      variables,
       undefined,
     )
     expect(useReviewReminderStore.getState()).toMatchObject({
       completionCount: 1,
-      activeDays: [expect.any(String)],
+      activeDays: ['2026-08-28'],
+    })
+  })
+
+  it('tracks a confirmed online completion exactly once', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = { habitId: 'habit-1', date: '2026-08-29' }
+
+    void mutation.onMutate?.(variables)
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    mutation.onSuccess?.(
+      { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 },
+      variables,
+      undefined,
+    )
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-29'],
     })
   })
 
