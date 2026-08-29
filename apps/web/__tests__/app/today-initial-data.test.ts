@@ -27,7 +27,16 @@ describe('Today initial habits', () => {
     })
 
     await expect(loadTodayInitialHabits(undefined)).resolves.toEqual({
-      dateStr: '2026-08-29',
+      queryKey: [
+        'habits',
+        'list',
+        {
+          dateFrom: '2026-08-29',
+          dateTo: '2026-08-29',
+          includeOverdue: true,
+          includeGeneral: undefined,
+        },
+      ],
       items: [],
     })
     expect(serverAuthFetch).toHaveBeenCalledWith(

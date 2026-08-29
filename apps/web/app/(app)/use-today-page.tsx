@@ -28,12 +28,15 @@ export interface TodayView {
   setShowCreateModal: (value: boolean) => void
 }
 
-export function useTodayPage(initialHabits: TodayInitialHabits | null = null): TodayView {
+export function useTodayPage(
+  initialToday: string,
+  initialHabits: TodayInitialHabits | null,
+): TodayView {
   const prefersReducedMotion = useReducedMotion()
-  const nav = useTodayNavigation()
+  const nav = useTodayNavigation(initialToday)
   const data = useTodayHabitsData({
     dateStr: nav.dateStr,
-    selectedDate: nav.selectedDate,
+    isTodayDate: nav.isTodaySelected,
     initialHabits,
   })
   const isSelectMode = useUIStore((state) => state.isSelectMode)

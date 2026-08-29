@@ -9,11 +9,15 @@ import {
 import type { TodayInitialHabits } from './today-initial-data'
 
 interface TodayPageClientProps {
+  initialToday: string
   initialHabits: TodayInitialHabits | null
 }
 
-export function TodayPageClient({ initialHabits }: Readonly<TodayPageClientProps>) {
-  const view = useTodayPage(initialHabits)
+export function TodayPageClient({
+  initialToday,
+  initialHabits,
+}: Readonly<TodayPageClientProps>) {
+  const view = useTodayPage(initialToday, initialHabits)
 
   return (
     <div className="relative">

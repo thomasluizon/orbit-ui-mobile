@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useSyncExternalStore } from 'react'
-import { isToday } from 'date-fns'
+import { hashKey } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
@@ -28,7 +29,7 @@ function getShowGeneralServerSnapshot() {
 
 interface TodayHabitsDataParams {
   dateStr: string
-  selectedDate: Date
+  isTodayDate: boolean
   initialHabits: TodayInitialHabits | null
 }
 
@@ -51,7 +52,7 @@ export interface TodayHabitsData {
  */
 export function useTodayHabitsData({
   dateStr,
-  selectedDate,
+  isTodayDate,
   initialHabits,
 }: TodayHabitsDataParams): TodayHabitsData {
   const showGeneralOnToday = useSyncExternalStore(
@@ -65,17 +66,18 @@ export function useTodayHabitsData({
       buildTodayFilters({
         view: 'today',
         dateStr,
-        isTodayDate: isToday(selectedDate),
+        isTodayDate,
         searchQuery: '',
         selectedFrequency: null,
         selectedTagIds: [],
         showGeneralOnToday,
       }),
-    [dateStr, selectedDate, showGeneralOnToday],
+    [dateStr, isTodayDate, showGeneralOnToday],
   )
 
+  const queryKey = habitKeys.list(filters)
   const initialItems =
-    initialHabits?.dateStr === dateStr && !showGeneralOnToday
+    initialHabits && hashKey(initialHabits.queryKey) === hashKey(queryKey)
       ? initialHabits.items
       : undefined
   const habitsQuery = useHabits(filters, initialItems)
