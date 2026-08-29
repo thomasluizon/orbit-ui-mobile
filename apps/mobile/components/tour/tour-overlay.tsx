@@ -59,7 +59,6 @@ export function TourOverlay() {
         'orbit_tour_sections',
         JSON.stringify({
           habits: true,
-          goals: true,
           chat: true,
           calendar: true,
           profile: true,

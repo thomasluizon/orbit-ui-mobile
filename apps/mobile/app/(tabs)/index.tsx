@@ -8,9 +8,7 @@ import {
 } from "react";
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, View } from "react-native";
-import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isToday } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -22,7 +20,6 @@ import {
 } from "@orbit/shared/utils";
 import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
-import type { Goal } from "@orbit/shared/types/goal";
 import { plural } from "@/lib/plural";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
@@ -48,7 +45,6 @@ import { useAnchoredMenu } from "@/components/ui/menu";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useEngagementSlot } from "@/hooks/use-engagement-slot";
-import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { TodayHeader, TodayTabs, type TodayTabItem } from "@/components/today/today-shell";
 import { buildTodayFilters } from "./today-model";
@@ -61,22 +57,8 @@ import { TodayModals } from "@/components/today/today-modals";
 
 export { resolveBulkActionBarEnterShift } from "./today-model";
 
-const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
+const TAB_VIEWS = ["today", "all", "general"] as const;
 export type TodayView = (typeof TAB_VIEWS)[number];
-
-export function resolveTodayView(
-  activeView: TodayView,
-  hasProAccess: boolean,
-): TodayView {
-  return !hasProAccess && activeView === "goals" ? "today" : activeView;
-}
-
-export function shouldRedirectGoalsTab(
-  nextView: TodayView,
-  hasProAccess: boolean,
-): boolean {
-  return nextView === "goals" && !hasProAccess;
-}
 
 type FreqKey = "Day" | "Week" | "Month" | "Year" | "none";
 
@@ -88,7 +70,6 @@ export default function TodayScreen() {
     () => createTokensV2(theme.currentScheme, theme.currentTheme),
     [theme.currentScheme, theme.currentTheme],
   );
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
@@ -109,8 +90,7 @@ export default function TodayScreen() {
   const setShowCompleted = useUIStore((s) => s.setShowCompleted);
   const isSelectMode = useUIStore((s) => s.isSelectMode);
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds);
-  const hasProAccess = profile?.hasProAccess ?? false;
-  const currentActiveView = resolveTodayView(activeView, hasProAccess);
+  const currentActiveView = activeView;
 
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false);
   const {
@@ -141,32 +121,6 @@ export default function TodayScreen() {
   >(() => new Set());
   const habitsTourRef = useRef<View>(null);
   useTourTarget("tour-habit-list", habitsTourRef);
-  const goalsScrollRef = useRef<FlatList<Goal>>(null);
-  const goalsScrollTo = useCallback((y: number) => {
-    goalsScrollRef.current?.scrollToOffset({ offset: y, animated: true });
-  }, []);
-  const { onTourScrollOffset: onGoalsTourScrollOffset } = useTourScrollContainer(
-    "/",
-    goalsScrollTo,
-  );
-  const scrollGoalsToTop = useCallback(() => {
-    goalsScrollTo(0);
-  }, [goalsScrollTo]);
-  const handleGoalsScroll = useCallback(
-    (offsetY: number) => {
-      onGoalsTourScrollOffset(offsetY);
-      setShowScrollTop(offsetY > 600);
-    },
-    [onGoalsTourScrollOffset],
-  );
-  const isGoalsView = currentActiveView === "goals";
-  const [scrollTopResetGoalsView, setScrollTopResetGoalsView] =
-    useState(isGoalsView);
-  if (isGoalsView !== scrollTopResetGoalsView) {
-    setScrollTopResetGoalsView(isGoalsView);
-    setShowScrollTop(false);
-  }
-
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<
@@ -232,15 +186,10 @@ export default function TodayScreen() {
 
   const handleChangeView = useCallback(
     (nextView: TodayView) => {
-      if (shouldRedirectGoalsTab(nextView, profile?.hasProAccess ?? false)) {
-        router.push("/upgrade");
-        return;
-      }
-
       setActiveView(nextView);
       setSearchQueryStore("");
     },
-    [profile?.hasProAccess, router, setActiveView, setSearchQueryStore],
+    [setActiveView, setSearchQueryStore],
   );
 
   const tabItems = useMemo<TodayTabItem[]>(
@@ -249,8 +198,7 @@ export default function TodayScreen() {
         let label: string;
         if (view === "today") label = t("habits.viewToday");
         else if (view === "all") label = t("habits.viewAll");
-        else if (view === "general") label = t("habits.viewGeneral");
-        else label = t("goals.tab");
+        else label = t("habits.viewGeneral");
         return { view, label };
       }),
     [t],
@@ -491,7 +439,6 @@ export default function TodayScreen() {
         <TodayTabs
           tabs={tabItems}
           activeView={currentActiveView}
-          hasProAccess={profile?.hasProAccess ?? false}
           onChangeView={handleChangeView}
           viewsLabel={t("habits.viewsLabel")}
         />
@@ -501,7 +448,6 @@ export default function TodayScreen() {
       currentActiveView,
       profile?.currentStreak,
       engagementSlot,
-      profile?.hasProAccess,
       insets.top,
       goToToday,
       handleChangeView,
@@ -614,7 +560,6 @@ export default function TodayScreen() {
         sharedHeader={sharedHeader}
         habitsHeader={habitsHeader}
         styles={styles}
-        goalsScrollRef={goalsScrollRef}
         habitsTourRef={habitsTourRef}
         habitListRef={habitListRef}
         isSelectMode={isSelectMode}
@@ -625,7 +570,6 @@ export default function TodayScreen() {
         showCompleted={showCompleted}
         searchQuery={searchQueryStore}
         selectedHabitIds={selectedHabitIds}
-        onGoalsScroll={handleGoalsScroll}
         onScrollBeginDrag={handleListScrollBeginDrag}
         onRetry={() => {
           void habitsQuery.refetch();
@@ -673,7 +617,7 @@ export default function TodayScreen() {
 
       <ScrollToTopButton
         visible={showScrollTop && !isSelectMode}
-        onPress={isGoalsView ? scrollGoalsToTop : scrollHabitsToTop}
+        onPress={scrollHabitsToTop}
         bottom={insets.bottom + 24}
       />
 
@@ -712,9 +656,6 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     safeArea: {
       flex: 1,
       backgroundColor: tokens.bg,
-    },
-    scrollContentWithBulkBar: {
-      paddingBottom: 220,
     },
     listShell: {
       flex: 1,

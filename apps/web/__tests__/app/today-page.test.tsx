@@ -168,10 +168,6 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: () => null,
 }))
 
-vi.mock('@/components/goals/goals-view', () => ({
-  GoalsView: () => <div>Goals view</div>,
-}))
-
 vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => null,
 }))
@@ -287,38 +283,6 @@ describe('TodayPage bulk parent prompts', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(uiState.toggleSelectMode).toHaveBeenCalled()
-  })
-
-  it('routes free users to upgrade when they click goals', async () => {
-    renderPage()
-
-    fireEvent.click(screen.getByText('goals.tab'))
-
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
-    expect(uiState.setActiveView).not.toHaveBeenCalledWith('goals')
-  })
-
-  it('lets pro users switch to goals', async () => {
-    mockProfile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: false })
-
-    renderPage()
-
-    fireEvent.click(screen.getByText('goals.tab'))
-
-    expect(uiState.setActiveView).toHaveBeenCalledWith('goals')
-    expect(mockRouterPush).not.toHaveBeenCalled()
-  })
-
-  it('recovers a stale free goals view back to today', async () => {
-    uiState.activeView = 'goals'
-
-    renderPage()
-
-    expect(screen.queryByText('Goals view')).not.toBeInTheDocument()
-    expect(screen.getByTestId('habit-list')).toHaveTextContent('"today"')
-    await waitFor(() => {
-      expect(uiState.setActiveView).toHaveBeenCalledWith('today')
-    })
   })
 
   it('advances a followed today selection after midnight without refresh', async () => {

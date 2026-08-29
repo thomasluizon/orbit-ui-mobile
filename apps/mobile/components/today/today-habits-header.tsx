@@ -42,7 +42,7 @@ import { createTokensV2, tintFromPrimary } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 type FreqKey = "Day" | "Week" | "Month" | "Year" | "none";
-type TodayView = "today" | "all" | "general" | "goals";
+type TodayView = "today" | "all" | "general";
 
 interface TodaySearchBarProps {
   initialValue: string;

@@ -99,6 +99,7 @@ export {
   IconUserPlus as UserPlus,
   IconUserX as UserX,
   IconWifiOff as WifiOff,
+  IconBolt as Zap,
   IconTool as Wrench,
   IconX as X,
   IconCircleX as XCircle,

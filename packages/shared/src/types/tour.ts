@@ -1,6 +1,5 @@
 export type TourSection =
   | 'habits'
-  | 'goals'
   | 'chat'
   | 'calendar'
   | 'profile'
@@ -32,14 +31,12 @@ export interface TourStep {
 }
 
 type TourPreAction =
-  | 'switchToGoalsTab'
   | 'switchToTodayTab'
   | 'scrollHabitsDown'
   | 'scrollHabitsUp'
 
 export const TOUR_SECTIONS: TourSection[] = [
   'habits',
-  'goals',
   'chat',
   'calendar',
   'profile',
@@ -54,7 +51,6 @@ export const COACH_MARK_SECTIONS: TourSection[] = [
 
 export const TOUR_SECTION_ICONS: Record<TourSection, string> = {
   habits: 'check-circle',
-  goals: 'target',
   chat: 'message-circle',
   calendar: 'calendar-days',
   profile: 'user',

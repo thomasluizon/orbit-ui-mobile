@@ -11,14 +11,12 @@ import {
 import { useTranslation } from "react-i18next";
 import type { HabitsFilter } from "@orbit/shared/types/habit";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
-import { GoalsView } from "@/components/goals/goals-view";
 import { PillButton } from "@/components/ui/pill-button";
 import { SatelliteGlyph } from "@/components/ui/satellite-glyph";
 import type { createStyles, TodayView } from "@/app/(tabs)";
 
 type TodayScreenStyles = ReturnType<typeof createStyles>;
 type AnimatedViewStyle = Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
-type GoalsViewProps = ComponentProps<typeof GoalsView>;
 type HabitListProps = ComponentProps<typeof HabitList>;
 
 interface TodayScreenBodyProps {
@@ -27,7 +25,6 @@ interface TodayScreenBodyProps {
   sharedHeader: ReactElement;
   habitsHeader: ReactElement;
   styles: TodayScreenStyles;
-  goalsScrollRef: GoalsViewProps["scrollRef"];
   habitsTourRef: RefObject<View | null>;
   habitListRef: RefObject<HabitListHandle | null>;
   isSelectMode: boolean;
@@ -38,7 +35,6 @@ interface TodayScreenBodyProps {
   showCompleted: boolean;
   searchQuery: string;
   selectedHabitIds: Set<string>;
-  onGoalsScroll: GoalsViewProps["onScroll"];
   onScrollBeginDrag: () => void;
   onRetry: () => void;
   onCreatePress: () => void;
@@ -51,8 +47,8 @@ interface TodayScreenBodyProps {
 }
 
 /**
- * Renders the Today screen's main content region: goals view, habits load-error
- * state, or the animated habit list. Presentational, extracted verbatim from
+ * Renders the Today screen's main content region: habits load-error state or
+ * the animated habit list. Presentational, extracted verbatim from
  * TodayScreen so the screen stays under the cognitive-complexity threshold.
  */
 export function TodayScreenBody({
@@ -61,7 +57,6 @@ export function TodayScreenBody({
   sharedHeader,
   habitsHeader,
   styles,
-  goalsScrollRef,
   habitsTourRef,
   habitListRef,
   isSelectMode,
@@ -72,7 +67,6 @@ export function TodayScreenBody({
   showCompleted,
   searchQuery,
   selectedHabitIds,
-  onGoalsScroll,
   onScrollBeginDrag,
   onRetry,
   onCreatePress,
@@ -84,20 +78,6 @@ export function TodayScreenBody({
   onAllLoadedIdsChange,
 }: Readonly<TodayScreenBodyProps>) {
   const { t } = useTranslation();
-
-  if (currentActiveView === "goals") {
-    return (
-      <GoalsView
-        listHeader={sharedHeader}
-        scrollRef={goalsScrollRef}
-        contentContainerStyle={
-          isSelectMode ? styles.scrollContentWithBulkBar : undefined
-        }
-        onScroll={onGoalsScroll}
-        onScrollBeginDrag={onScrollBeginDrag}
-      />
-    );
-  }
 
   if (showHabitsLoadError) {
     return (

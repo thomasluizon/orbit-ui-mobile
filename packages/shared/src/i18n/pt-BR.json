@@ -2150,7 +2150,8 @@
     "status": {
       "active": "Ativa",
       "completed": "Concluída",
-      "abandoned": "Abandonada"
+      "abandoned": "Abandonada",
+      "achieved": "Alcançada"
     },
     "detail": {
       "markCompleted": "Marcar como concluída",
@@ -2160,7 +2161,7 @@
       "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
       "edit": "Editar meta",
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
-      "showAllHistory": "Ver tudo",
+      "showAllHistory": "Ver tudo ({count})",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
@@ -2188,6 +2189,7 @@
       "progress": "Não foi possível atualizar o progresso"
     },
     "linkedHabits": "Hábitos Vinculados",
+    "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
       "title": "Análise da Meta",
       "onTrack": "No Caminho",
@@ -2200,6 +2202,104 @@
       "habitAdherence": "Desempenho dos Hábitos Vinculados",
       "noData": "Sem dados",
       "perDay": "dia"
+    }
+  },
+  "progressScreen": {
+    "title": "Progresso",
+    "loading": "Carregando seu progresso",
+    "error": "Não foi possível carregar seu progresso.",
+    "retry": "Tentar novamente",
+    "empty": "Seu progresso começa com o próximo hábito que você praticar.",
+    "startHabit": "Ir para hábitos",
+    "sections": {
+      "streak": "Sequência",
+      "goals": "Metas",
+      "window": "Últimos 30 dias",
+      "achievements": "Conquistas"
+    },
+    "streak": {
+      "current": "{count, plural, one {# dia} other {# dias}}",
+      "currentLabel": "Sequência atual",
+      "stripWindow": "Atividade nos últimos {count, plural, one {# dia} other {# dias}}",
+      "frozenToday": "Hoje está protegido por um congelamento.",
+      "longest": "Maior sequência",
+      "active": "Ativo",
+      "frozen": "Protegido",
+      "missed": "Perdido",
+      "today": "Hoje",
+      "legend": "Legenda dos dias da sequência",
+      "showFreeze": "Mostrar detalhes dos congelamentos",
+      "hideFreeze": "Ocultar detalhes dos congelamentos",
+      "banked": "Guardados",
+      "used": "Usados neste mês",
+      "next": "Próximo congelamento",
+      "nextProgress": "Progresso até o próximo congelamento",
+      "nextIn": "Próximo congelamento em {count, plural, one {# dia} other {# dias}}",
+      "capacity": "Banco cheio com 3 congelamentos",
+      "protectedDays": "Dias protegidos",
+      "protectedEmpty": "Nenhum dia protegido nesta janela",
+      "protected": "Protegido",
+      "protectedToday": "Hoje protegido",
+      "lockedTitle": "Proteção por congelamento",
+      "lockedBody": "O Orbit Pro mantém um banco de congelamentos para dias perdidos.",
+      "lockedAction": "Ver o Orbit Pro",
+      "repairTitle": "Ontem ainda está aberto",
+      "repairBody": "Um dia está aberto e há {count, plural, one {# congelamento disponível} other {# congelamentos disponíveis}}.",
+      "repairAction": "Usar 1 congelamento",
+      "repairEmpty": "Não há congelamento guardado. O próximo chega em {count, plural, one {# dia} other {# dias}}.",
+      "repairError": "Não foi possível reparar a sequência. Tente novamente."
+    },
+    "goals": {
+      "views": "Visualizações das metas",
+      "all": "Todas",
+      "active": "Ativas",
+      "completed": "Concluídas",
+      "abandoned": "Abandonadas",
+      "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
+      "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
+      "clearFilter": "Mostrar todas as metas",
+      "progress": "{current} de {target} {unit}",
+      "dueToday": "Prazo hoje",
+      "daysLeft": "{count, plural, one {Falta # dia} other {Faltam # dias}}",
+      "daysOverdue": "{count, plural, one {Atrasada em # dia} other {Atrasada em # dias}}",
+      "finishReason": "O alvo foi alcançado. Finalizar registra a meta como concluída.",
+      "finish": "Finalizar meta",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "reorderHint": "Use Alt e as setas para reordenar"
+    },
+    "window": {
+      "completionRate": "Taxa de conclusão",
+      "activeDays": "Dias ativos de {days}",
+      "topHabit": "Melhor hábito",
+      "topHabitEmpty": "Ainda não há melhor hábito",
+      "totalCompletions": "Total de conclusões",
+      "lockedTitle": "Números de trinta dias",
+      "lockedBody": "O Orbit Pro mostra seus números dos últimos trinta dias.",
+      "lockedAction": "Ver o Orbit Pro"
+    },
+    "achievements": {
+      "empty": "Ainda não há conquistas disponíveis.",
+      "xp": "{current} / {next} XP",
+      "next": "Próximo: nível {level}, {title}. Faltam {xp} XP.",
+      "earned": "Conquistada em {date}",
+      "progress": "{current} de {target}",
+      "level": "Nível {level} · {title}",
+      "levelTitles": {
+        "starter": "Iniciante",
+        "explorer": "Explorador",
+        "orbiter": "Orbitador",
+        "navigator": "Navegador",
+        "pilot": "Piloto",
+        "captain": "Capitão",
+        "commander": "Comandante",
+        "admiral": "Almirante",
+        "elite": "Elite",
+        "legend": "Lenda"
+      },
+      "lockedTitle": "Conquistas",
+      "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
+      "lockedAction": "Ver o Orbit Pro"
     }
   },
   "gamification": {

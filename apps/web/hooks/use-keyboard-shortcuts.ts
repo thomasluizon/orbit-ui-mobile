@@ -40,7 +40,7 @@ export function useKeyboardShortcuts(enabled = true): void {
       }
     }
 
-    function navigate(path: string, view?: 'today' | 'goals') {
+    function navigate(path: string, view?: 'today') {
       if (view) setActiveView(view)
       setRouteTransitionIntent('tab')
       router.push(path)

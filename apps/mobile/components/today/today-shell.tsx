@@ -20,7 +20,7 @@ import { useResolvedMotionPreset } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
+export type TodayTabView = 'today' | 'all' | 'general'
 
 export type TodayTabItem = {
   view: TodayTabView
@@ -70,45 +70,38 @@ export function TodayHeader({
   )
 }
 
-/** Kit pill-chip strip used as the Today/All/General/Goals view switcher. */
+/** Kit pill-chip strip used as the Today, All and General view switcher. */
 export function TodayTabs({
   tabs,
   activeView,
-  hasProAccess,
   onChangeView,
   viewsLabel,
 }: Readonly<{
   tabs: TodayTabItem[]
   activeView: TodayTabView
-  hasProAccess: boolean
   onChangeView: (view: TodayTabView) => void
   viewsLabel: string
 }>) {
   const tabsRef = useRef<View>(null)
-  const goalsTabRef = useRef<View>(null)
   useTourTarget('tour-tabs-bar', tabsRef)
-  useTourTarget('tour-goals-tab', goalsTabRef)
 
   const chipTabs = useMemo<SectionHeadTab<TodayTabView>[]>(
     () =>
       tabs.map((tab) => ({
         id: tab.view,
         label: tab.label,
-        locked: tab.view === 'goals' && !hasProAccess,
       })),
-    [tabs, hasProAccess],
+    [tabs],
   )
 
   return (
     <View ref={tabsRef} collapsable={false}>
-      <View ref={goalsTabRef} collapsable={false}>
-        <SectionHeadTabs
-          tabs={chipTabs}
-          active={activeView}
-          onChange={onChangeView}
-          ariaLabel={viewsLabel}
-        />
-      </View>
+      <SectionHeadTabs
+        tabs={chipTabs}
+        active={activeView}
+        onChange={onChangeView}
+        ariaLabel={viewsLabel}
+      />
     </View>
   )
 }

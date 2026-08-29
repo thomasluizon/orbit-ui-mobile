@@ -34,7 +34,7 @@ type UIStoreSet = {
 type UIStoreGet = () => UIStoreState;
 
 export type HabitFrequencyFilter = "Day" | "Week" | "Month" | "Year" | "none";
-export type ActiveView = "today" | "all" | "general" | "goals";
+export type ActiveView = "today" | "all" | "general";
 
 function isHabitFrequencyFilter(value: unknown): value is HabitFrequencyFilter {
   return (
@@ -50,8 +50,7 @@ function isActiveView(value: unknown): value is ActiveView {
   return (
     value === "today" ||
     value === "all" ||
-    value === "general" ||
-    value === "goals"
+    value === "general"
   );
 }
 

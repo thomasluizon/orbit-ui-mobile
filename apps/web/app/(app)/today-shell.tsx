@@ -15,7 +15,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
 import type { Tag } from '@/hooks/use-tags'
 
-export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
+export type TodayTabView = 'today' | 'all' | 'general'
 
 export type TodayTabItem = {
   view: TodayTabView
@@ -54,7 +54,6 @@ export function TodayHeader({ streak }: Readonly<TodayHeaderProps>) {
 interface TodayTabsProps {
   tabs: TodayTabItem[]
   activeView: TodayTabView
-  hasProAccess: boolean
   onChangeView: (view: TodayTabView) => boolean | void
   viewsLabel: string
 }
@@ -62,15 +61,12 @@ interface TodayTabsProps {
 export function TodayTabs({
   tabs,
   activeView,
-  hasProAccess,
   onChangeView,
   viewsLabel,
 }: Readonly<TodayTabsProps>) {
   const tabItems: SectionHeadTabItem<TodayTabView>[] = tabs.map((tab) => ({
     id: tab.view,
     label: tab.label,
-    locked: tab.view === 'goals' && !hasProAccess,
-    dataTour: tab.view === 'goals' ? 'tour-goals-tab' : undefined,
   }))
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
