@@ -118,11 +118,12 @@ describe('mobile Today Astra', () => {
 
     expect(hasText(tree, 'Check in')).toBe(true)
     const action = tree.root.findAll((node) =>
-      node.props.onPress && node.props.children === 'todayAstra.openConversation',
+      typeof node.props.onPress === 'function' &&
+      node.props.children === 'todayAstra.openConversation',
     )[0]
     if (!action) throw new Error('Proactive conversation action did not render')
     await TestRenderer.act(async () => {
-      action.props.onPress()
+      ;(action.props.onPress as () => void)()
       await Promise.resolve()
     })
     expect(mocks.markRead).toHaveBeenCalledWith('check-in')
