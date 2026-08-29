@@ -159,7 +159,7 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
 
-  return queueOrExecute({
+  return queueOrExecute<TResult, TResult | TQueuedResult>({
     mutation: builtMutation,
     execute,
     queuedResult,
