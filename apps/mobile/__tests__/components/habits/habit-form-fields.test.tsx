@@ -394,7 +394,7 @@ await Promise.resolve()
     })
   })
 
-  it('hides goal linking for free users', async () => {
+  it('keeps goal linking available for free users', async () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
@@ -416,7 +416,7 @@ await Promise.resolve()
       )
     })
 
-    expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(1)
   })
 
   it('shows goal linking for pro users', async () => {

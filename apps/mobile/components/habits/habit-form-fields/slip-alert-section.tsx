@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
-import { ShieldAlert } from "@/components/ui/icons";
+import { ChevronRight, ShieldAlert } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { ProBadge } from "@/components/ui/pro-badge";
 import { Switch } from "@/components/ui/switch";
@@ -68,9 +68,7 @@ export function SlipAlertSection({
               {t("habits.form.slipAlertDescription")}
             </Text>
           </View>
-          <View style={sectionStyles.disabledSwitch}>
-            <View style={sectionStyles.disabledThumb} />
-          </View>
+          <ChevronRight size={20} color={tokens.fg3} strokeWidth={1.8} />
         </Pressable>
       )}
     </View>
