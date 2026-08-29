@@ -1218,16 +1218,23 @@ describe('HabitList', () => {
       scheduledDates: [YESTERDAY],
       instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
-    const leaves = [
-      createMockHabit({ id: 'leaf-a', parentId: parentA.id, scheduledDates: [YESTERDAY] }),
-      createMockHabit({ id: 'leaf-b', parentId: parentB.id, scheduledDates: [YESTERDAY] }),
-    ]
+    const leafA = createMockHabit({
+      id: 'leaf-a',
+      parentId: parentA.id,
+      scheduledDates: [YESTERDAY],
+    })
+    const leafB = createMockHabit({
+      id: 'leaf-b',
+      parentId: parentB.id,
+      scheduledDates: [YESTERDAY],
+    })
+    const leaves = [leafA, leafB]
     for (const habit of [grandparent, parentA, parentB, ...leaves]) {
       mockHabitsData.habitsById.set(habit.id, habit)
     }
     mockHabitsData.childrenByParent.set(grandparent.id, [parentA.id, parentB.id])
-    mockHabitsData.childrenByParent.set(parentA.id, [leaves[0].id])
-    mockHabitsData.childrenByParent.set(parentB.id, [leaves[1].id])
+    mockHabitsData.childrenByParent.set(parentA.id, [leafA.id])
+    mockHabitsData.childrenByParent.set(parentB.id, [leafB.id])
     mockHabitsData.topLevelHabits = [grandparent]
     const ref = React.createRef<HabitListHandle>()
 
@@ -1241,8 +1248,8 @@ describe('HabitList', () => {
 
     await act(async () => {
       ref.current?.settleBulkHabitResolutions([
-        { habitId: leaves[0].id, mode: 'log' },
-        { habitId: leaves[1].id, mode: 'log' },
+        { habitId: leafA.id, mode: 'log' },
+        { habitId: leafB.id, mode: 'log' },
       ])
       await Promise.resolve()
       await Promise.resolve()

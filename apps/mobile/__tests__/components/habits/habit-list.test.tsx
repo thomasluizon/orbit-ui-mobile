@@ -2870,10 +2870,17 @@ describe('HabitList', () => {
       scheduledDates: [YESTERDAY],
       instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
     })
-    const leaves = [
-      createMockHabit({ id: 'leaf-a', parentId: parentA.id, scheduledDates: [YESTERDAY] }),
-      createMockHabit({ id: 'leaf-b', parentId: parentB.id, scheduledDates: [YESTERDAY] }),
-    ]
+    const leafA = createMockHabit({
+      id: 'leaf-a',
+      parentId: parentA.id,
+      scheduledDates: [YESTERDAY],
+    })
+    const leafB = createMockHabit({
+      id: 'leaf-b',
+      parentId: parentB.id,
+      scheduledDates: [YESTERDAY],
+    })
+    const leaves = [leafA, leafB]
     seedHabits([grandparent, parentA, parentB, ...leaves])
     const ref = React.createRef<HabitListHandle>()
 
@@ -2892,8 +2899,8 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       ref.current?.settleBulkHabitResolutions([
-        { habitId: leaves[0].id, mode: 'log' },
-        { habitId: leaves[1].id, mode: 'log' },
+        { habitId: leafA.id, mode: 'log' },
+        { habitId: leafB.id, mode: 'log' },
       ])
       await Promise.resolve()
       await Promise.resolve()
