@@ -324,7 +324,7 @@ export function HabitDetailDrawer({
     if (!habit) return
     setShowChecklistCompleteConfirm(false)
     try {
-      await logHabit.mutateAsync({ habitId: habit.id, date: viewedDate })
+      await logHabit.mutateAsync({ habitId: habit.id, date: viewedDate, intent: 'log' })
       onLogged?.(habit.id)
     } catch (error: unknown) {
       showError(

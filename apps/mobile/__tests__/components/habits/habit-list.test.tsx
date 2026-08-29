@@ -487,6 +487,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({
       habitId: 'habit-1',
       date: '2026-04-08',
+      intent: 'log',
     })
   })
 
@@ -1128,7 +1129,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', intent: 'log' })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1168,7 +1169,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1214,7 +1219,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1256,7 +1265,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 
@@ -1349,9 +1362,9 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync.mock.calls).toEqual([
-      [{ habitId: 'child', date: YESTERDAY }],
-      [{ habitId: 'parent', date: YESTERDAY }],
-      [{ habitId: 'grandparent', date: YESTERDAY }],
+      [{ habitId: 'child', date: YESTERDAY, intent: 'log' }],
+      [{ habitId: 'parent', date: YESTERDAY, intent: 'log' }],
+      [{ habitId: 'grandparent', date: YESTERDAY, intent: 'log' }],
     ])
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
@@ -1550,7 +1563,7 @@ describe('HabitList', () => {
       await overdueCard?.props.actions.onLog()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', intent: 'log' })
   })
 
   it('skips an overdue habit on the viewed date immediately', async () => {
@@ -1760,7 +1773,11 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'parent',
+      date: TODAY,
+      intent: 'log',
+    })
 
     await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog('child-a')
@@ -1838,7 +1855,11 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: parent.id,
+      date: TODAY,
+      intent: 'log',
+    })
     expect(skipMutateAsync).not.toHaveBeenCalled()
   })
 
@@ -1930,7 +1951,7 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === loggedParent.id))
-      .toEqual([[{ habitId: loggedParent.id, date: YESTERDAY }]])
+      .toEqual([[{ habitId: loggedParent.id, date: YESTERDAY, intent: 'log' }]])
     expect(skipMutateAsync.mock.calls.filter(([input]) => input.habitId === skippedParent.id))
       .toEqual([[{ habitId: skippedParent.id, date: YESTERDAY }]])
   })
@@ -1982,7 +2003,7 @@ describe('HabitList', () => {
     })
 
     expect(logMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
-      .toEqual([[{ habitId: parent.id, date: TODAY }]])
+      .toEqual([[{ habitId: parent.id, date: TODAY, intent: 'log' }]])
   })
 
   it('does not treat a rejected sibling as logged in a mixed bulk skip', async () => {

@@ -223,6 +223,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-9',
       date: '2026-04-01',
+      intent: 'log',
     })
     expect(onLogged).toHaveBeenCalledWith('h-9')
     expect(mockShowError).not.toHaveBeenCalled()

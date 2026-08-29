@@ -82,6 +82,11 @@ import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
+type LogHabitMutationInput = {
+  habitId: string
+  date?: string
+  intent: 'log' | 'unlog'
+}
 type CreateSubHabitMutationInput = {
   parentId: string
   data: CreateSubHabitRequest
@@ -145,7 +150,7 @@ export function useLogHabit() {
   return useMutation<
     LogHabitResponse | QueuedMarker,
     Error,
-    { habitId: string; date?: string },
+    LogHabitMutationInput,
     { previousLists: HabitListSnapshots }
   >({
     mutationFn: ({ habitId, date }) =>
@@ -182,9 +187,11 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+      if (variables.intent === 'log') {
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+      }
 
       if (isQueuedResult(response)) {
         return

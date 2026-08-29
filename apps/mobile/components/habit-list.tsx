@@ -703,7 +703,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 if (mode === 'skip') {
                   await skipMutation.mutateAsync({ habitId: parentHabit.id, date: data.selectedDateStr })
                 } else {
-                  await logMutation.mutateAsync({ habitId: parentHabit.id, date: data.selectedDateStr })
+                  await logMutation.mutateAsync({
+                    habitId: parentHabit.id,
+                    date: data.selectedDateStr,
+                    intent: 'log',
+                  })
                   void showInterstitialIfDue()
                 }
                 settleParentForChild(parentHabit.id, ancestorResolvedModes)
@@ -777,7 +781,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         try {
           await logMutation.mutateAsync(
-            selectedDate ? { habitId, date: selectedDateStr } : { habitId },
+            selectedDate
+              ? { habitId, date: selectedDateStr, intent: 'log' }
+              : { habitId, intent: 'log' },
           )
           handleLogged(habitId, false)
         } catch {
@@ -1089,7 +1095,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               onLog: () => {
                 void handleDirectLog(habit.id)
               },
-              onUnlog: () => logMutation.mutate({ habitId: habit.id }),
+              onUnlog: () => logMutation.mutate({ habitId: habit.id, intent: 'unlog' }),
               onSkip: () => {
                 void skipHabit(habit.id)
               },

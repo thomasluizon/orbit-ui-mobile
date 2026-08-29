@@ -245,6 +245,12 @@ type BulkLogOutcome = {
   offlineFailureIds: string[]
 }
 
+type LogHabitVariables = {
+  habitId: string
+  date?: string
+  intent: 'log' | 'unlog'
+}
+
 function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
     id: overrides.id ?? 'habit-1',
@@ -401,16 +407,20 @@ describe('mobile habit hooks', () => {
     })
   })
 
-  it('tracks a single completion when it is durably queued', () => {
+  it('tracks an incomplete habit when its log is durably queued', () => {
     seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
-    const variables = { habitId: 'habit-1', date: '2026-08-28' }
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log' as const,
+    }
     void mutation.onMutate?.(variables)
 
     expect(useReviewReminderStore.getState().completionCount).toBe(0)
@@ -426,15 +436,42 @@ describe('mobile habit hooks', () => {
     })
   })
 
-  it('tracks a confirmed online completion exactly once', () => {
+  it('does not track a completed habit when its unlog is durably queued', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: true })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = { habitId: 'habit-1', intent: 'unlog' as const }
+
+    void mutation.onMutate?.(variables)
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
+  })
+
+  it('tracks a confirmed online log exactly once', () => {
     seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
-    const variables = { habitId: 'habit-1', date: '2026-08-29' }
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-29',
+      intent: 'log' as const,
+    }
 
     void mutation.onMutate?.(variables)
     expect(useReviewReminderStore.getState().completionCount).toBe(0)
@@ -450,6 +487,33 @@ describe('mobile habit hooks', () => {
     })
   })
 
+  it('does not track a confirmed online unlog', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: true })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-29',
+      intent: 'unlog' as const,
+    }
+
+    void mutation.onMutate?.(variables)
+    mutation.onSuccess?.(
+      { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 0 },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
+  })
+
   it('optimistically completes before query cancellation resolves', () => {
     seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
 
@@ -461,11 +525,11 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
-    void mutation.onMutate?.({ habitId: 'habit-1' })
+    void mutation.onMutate?.({ habitId: 'habit-1', intent: 'log' })
 
     expect(getHabitList()[0]?.isCompleted).toBe(true)
 
@@ -823,7 +887,7 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -835,7 +899,7 @@ describe('mobile habit hooks', () => {
       newAchievementIds: [],
     }
 
-    mutation.onSuccess?.(response, { habitId: 'habit-1' }, undefined)
+    mutation.onSuccess?.(response, { habitId: 'habit-1', intent: 'log' }, undefined)
 
     expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
@@ -855,7 +919,7 @@ describe('mobile habit hooks', () => {
     seedHabitState([makeHabit({ id: 'habit-1' })])
     const mutation = useLogHabit() as unknown as MutationConfig<
       LogHabitResponse,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -864,7 +928,12 @@ describe('mobile habit hooks', () => {
       currentStreak: 1,
     }
 
-    mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
+    mutation.onSettled?.(
+      response,
+      null,
+      { habitId: 'habit-1', intent: 'log' },
+      undefined,
+    )
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
@@ -890,7 +959,7 @@ describe('mobile habit hooks', () => {
     mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -900,7 +969,7 @@ describe('mobile habit hooks', () => {
       xpEarned: 0,
     }
 
-    mutation.onSuccess?.(response, { habitId: 'bad-child' }, undefined)
+    mutation.onSuccess?.(response, { habitId: 'bad-child', intent: 'log' }, undefined)
 
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
@@ -920,7 +989,7 @@ describe('mobile habit hooks', () => {
     mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -931,7 +1000,7 @@ describe('mobile habit hooks', () => {
       newAchievementIds: ['first-week'],
     }
 
-    mutation.onSuccess?.(response, { habitId: 'never-listed' }, undefined)
+    mutation.onSuccess?.(response, { habitId: 'never-listed', intent: 'log' }, undefined)
 
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(125)
@@ -984,7 +1053,7 @@ describe('mobile habit hooks', () => {
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -993,7 +1062,7 @@ describe('mobile habit hooks', () => {
       currentStreak: 3,
     }
 
-    mutation.onSuccess?.(response, { habitId }, undefined)
+    mutation.onSuccess?.(response, { habitId, intent: 'log' }, undefined)
 
     if (celebrates) {
       expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
@@ -1009,11 +1078,15 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
 
-    mutation.onSuccess?.({ queued: true, queuedMutationId: 'm-1' }, { habitId: 'habit-1' }, undefined)
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'm-1' },
+      { habitId: 'habit-1', intent: 'log' },
+      undefined,
+    )
 
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
@@ -1024,14 +1097,15 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       HabitSnapshotContext
     >
 
-    const context = await mutation.onMutate?.({ habitId: 'habit-1' })
+    const variables = { habitId: 'habit-1', intent: 'log' as const }
+    const context = await mutation.onMutate?.(variables)
     expect(getHabitList()[0]?.isCompleted).toBe(true)
 
-    mutation.onError?.(new Error('Log failed'), { habitId: 'habit-1' }, context)
+    mutation.onError?.(new Error('Log failed'), variables, context)
     expect(getHabitList()[0]?.isCompleted).toBe(false)
   })
 
