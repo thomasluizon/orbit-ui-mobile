@@ -868,6 +868,46 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
+  it.each([
+    ['one-time', null],
+    ['recurring', 'Day'],
+  ] as const)('does not settle a %s parent postponed while confirmation is open', async (_label, frequencyUnit) => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      dueDate: TODAY,
+      frequencyUnit,
+      hasSubHabits: true,
+      instances: [],
+      scheduledDates: [],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => <HabitList ref={ref} filters={defaultFilters} />
+    const { rerenderWithProviders } = renderWithProviders(renderList())
+
+    act(() => ref.current?.checkAndPromptParentLog(child.id))
+
+    act(() => {
+      mockHabitsData.habitsById.set(parent.id, { ...parent, dueDate: TOMORROW })
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList())
+    })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+  })
+
   it('uses the current logged and skipped mix when confirmation is accepted', async () => {
     const parent = createMockHabit({
       id: 'parent',

@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '../types/habit'
+import { hasHabitScheduleOnDate } from './habits'
 
 export interface HabitDateBucket {
   key: string
@@ -84,8 +85,16 @@ export type ParentSettlementDecision = 'log' | 'skip' | null
 export function computeParentSettlementDecision(
   parent: NormalizedHabit | null,
   children: ParentPromptProgress,
+  promptDate: string,
 ): ParentSettlementDecision {
-  if (!parent) return null
+  if (
+    !parent ||
+    (!parent.isGeneral &&
+      !parent.isOverdue &&
+      !hasHabitScheduleOnDate(parent, promptDate))
+  ) {
+    return null
+  }
 
   const isSkippedInRange =
     parent.flexibleTarget != null &&

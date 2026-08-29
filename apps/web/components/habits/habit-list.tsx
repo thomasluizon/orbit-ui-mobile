@@ -569,6 +569,7 @@ export function HabitList({
     const mode = computeParentSettlementDecision(
       parent,
       getChildrenProgressForPrompt(parent.id, childHabitId),
+      data.selectedDateStr,
     )
     if (mode) {
       if (!promptedParentIdsRef.current.has(parent.id)) {
@@ -745,6 +746,7 @@ export function HabitList({
     const mode = computeParentSettlementDecision(
       currentParent,
       getChildrenProgressForPrompt(parentId),
+      parentPrompt.date,
     )
     setParentPrompt(null)
     if (!mode) return

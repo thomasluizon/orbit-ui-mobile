@@ -85,42 +85,57 @@ function makeGetChildren(
 const scheduledToday = (habit: NormalizedHabit) => habit.scheduledDates.includes(TODAY)
 
 describe('computeParentSettlementDecision', () => {
-  const parent = createMockHabit({ id: 'parent', hasSubHabits: true })
+  const parent = createMockHabit({
+    id: 'parent',
+    dueDate: TODAY,
+    hasSubHabits: true,
+    scheduledDates: [TODAY],
+  })
 
   it('logs an unsettled parent when any eligible child was logged', () => {
     expect(
-      computeParentSettlementDecision(parent, {
-        done: 2,
-        total: 2,
-        loggedDone: 1,
-      }),
+      computeParentSettlementDecision(
+        parent,
+        {
+          done: 2,
+          total: 2,
+          loggedDone: 1,
+        },
+        TODAY,
+      ),
     ).toBe('log')
   })
 
   it('skips an unsettled parent when every eligible child was skipped', () => {
     expect(
-      computeParentSettlementDecision(parent, {
-        done: 2,
-        total: 2,
-        loggedDone: 0,
-      }),
+      computeParentSettlementDecision(
+        parent,
+        {
+          done: 2,
+          total: 2,
+          loggedDone: 0,
+        },
+        TODAY,
+      ),
     ).toBe('skip')
   })
 
   it('does nothing when the parent is missing, settled, or has incomplete children', () => {
     const completeChildren = { done: 1, total: 1, loggedDone: 1 }
 
-    expect(computeParentSettlementDecision(null, completeChildren)).toBeNull()
+    expect(computeParentSettlementDecision(null, completeChildren, TODAY)).toBeNull()
     expect(
       computeParentSettlementDecision(
         { ...parent, isCompleted: true },
         completeChildren,
+        TODAY,
       ),
     ).toBeNull()
     expect(
       computeParentSettlementDecision(
         { ...parent, isCompleted: false, isLoggedInRange: true },
         completeChildren,
+        TODAY,
       ),
     ).toBeNull()
     expect(
@@ -134,21 +149,52 @@ describe('computeParentSettlementDecision', () => {
           isLoggedInRange: false,
         },
         completeChildren,
+        TODAY,
       ),
     ).toBeNull()
     expect(
-      computeParentSettlementDecision(parent, {
-        done: 0,
-        total: 1,
-        loggedDone: 0,
-      }),
+      computeParentSettlementDecision(
+        parent,
+        {
+          done: 0,
+          total: 1,
+          loggedDone: 0,
+        },
+        TODAY,
+      ),
     ).toBeNull()
     expect(
-      computeParentSettlementDecision(parent, {
-        done: 0,
-        total: 0,
-        loggedDone: 0,
-      }),
+      computeParentSettlementDecision(
+        parent,
+        {
+          done: 0,
+          total: 0,
+          loggedDone: 0,
+        },
+        TODAY,
+      ),
+    ).toBeNull()
+  })
+
+  it.each([
+    ['one-time', null],
+    ['recurring', 'Day'],
+  ] as const)('does nothing when a %s parent moved off the prompt date', (_label, frequencyUnit) => {
+    const movedParent = createMockHabit({
+      id: 'parent',
+      dueDate: '2026-06-23',
+      frequencyUnit,
+      hasSubHabits: true,
+      instances: [],
+      scheduledDates: [],
+    })
+
+    expect(
+      computeParentSettlementDecision(
+        movedParent,
+        { done: 1, total: 1, loggedDone: 1 },
+        TODAY,
+      ),
     ).toBeNull()
   })
 })

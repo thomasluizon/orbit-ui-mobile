@@ -1283,6 +1283,59 @@ describe('HabitList', () => {
     expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
+  it.each([
+    ['one-time', null],
+    ['recurring', 'Day'],
+  ] as const)('does not settle a %s parent postponed while confirmation is open', async (_label, frequencyUnit) => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      dueDate: TODAY,
+      frequencyUnit,
+      hasSubHabits: true,
+      instances: [],
+      scheduledDates: [],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+
+    await TestRenderer.act(async () => {
+      ref.current?.checkAndPromptParentLog(child.id)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      seedHabits([{ ...parent, dueDate: TOMORROW }, child])
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
+    })
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+  })
+
   it('uses the current logged and skipped mix when confirmation is accepted', async () => {
     const parent = createMockHabit({
       id: 'parent',
