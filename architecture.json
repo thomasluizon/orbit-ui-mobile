@@ -17158,7 +17158,8 @@
         "apps/mobile/__tests__/hooks/use-timezone-auto-sync.test.tsx",
         "apps/mobile/__tests__/hooks/use-tour-mock-data.test.tsx",
         "apps/mobile/__tests__/hooks/use-version-check.test.ts",
-        "apps/mobile/__tests__/hooks/use-wrapped.test.ts"
+        "apps/mobile/__tests__/hooks/use-wrapped.test.ts",
+        "apps/mobile/__tests__/screens/today-bulk-actions.test.tsx"
       ],
       "apps/mobile/lib": [
         "apps/mobile/__tests__/app/(tabs)/profile/_components/fresh-start-modal.test.tsx",

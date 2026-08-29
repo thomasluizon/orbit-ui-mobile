@@ -104,6 +104,30 @@ describe('useBulkActions confirmBulkDelete', () => {
       message: 'habits.bulkBar.offlineFailure',
     })
   })
+
+  it('closes after an ambiguous delete and refreshes without offering a retry', async () => {
+    bulkDelete.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      ambiguousIds: ['h-1'],
+      offlineFailureIds: [],
+    })
+    const { captured, onSuccess } = renderBulkActions(new Set(['h-1']))
+
+    TestRenderer.act(() => {
+      captured.current!.setShowBulkDeleteConfirm(true)
+    })
+    await TestRenderer.act(async () => {
+      await captured.current!.confirmBulkDelete()
+    })
+
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(captured.current!.showBulkDeleteConfirm).toBe(false)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.connectionRefreshed',
+    })
+    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
+  })
 })
 
 /**
@@ -189,6 +213,36 @@ describe('useBulkActions reversibility boundary', () => {
       kind: 'neutral',
       message: 'habits.bulkBar.offlineFailure',
     })
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('refreshes after an ambiguous bulk %s without settling or offering a retry', async (
+    _mode,
+    mutation,
+    action,
+  ) => {
+    mutation.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      ambiguousIds: ['h-1', 'h-2'],
+      offlineFailureIds: [],
+    })
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1', 'h-2']),
+    )
+
+    await TestRenderer.act(async () => {
+      await captured.current![action]()
+    })
+
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([])
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.connectionRefreshed',
+    })
+    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {

@@ -11,9 +11,9 @@ type ComponentProps = Record<string, unknown>
 const mocks = vi.hoisted(() => ({
   bulkBarProps: null as ComponentProps | null,
   modalProps: null as ComponentProps | null,
-  bulkDelete: { mutateAsync: vi.fn() },
-  bulkLog: { mutateAsync: vi.fn() },
-  bulkSkip: { mutateAsync: vi.fn() },
+  execute: vi.fn(),
+  invalidateQueries: vi.fn(async () => {}),
+  OfflineMutationPreflightError: class OfflineMutationPreflightError extends Error {},
   clearSelection: vi.fn(),
   settleBulkHabitResolutions: vi.fn(),
   showToast: vi.fn(),
@@ -32,8 +32,57 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  const queryClient = {
+    cancelQueries: vi.fn(async () => {}),
+    getQueriesData: vi.fn(() => []),
+    getQueryData: vi.fn(),
+    setQueriesData: vi.fn(),
+    setQueryData: vi.fn(),
+    invalidateQueries: mocks.invalidateQueries,
+  }
+
+  return {
+    ...actual,
+    useQuery: vi.fn(),
+    useQueryClient: () => queryClient,
+    useMutation: (config: {
+      mutationFn: (variables: unknown) => Promise<unknown>
+      onMutate?: (variables: unknown) => unknown
+      onSuccess?: (result: unknown, variables: unknown, context: unknown) => unknown
+      onError?: (error: Error, variables: unknown, context: unknown) => unknown
+      onSettled?: (
+        result: unknown,
+        error: Error | null,
+        variables: unknown,
+        context: unknown,
+      ) => unknown
+    }) => ({
+      mutateAsync: async (variables: unknown) => {
+        const context = await config.onMutate?.(variables)
+        try {
+          const result = await config.mutationFn(variables)
+          await config.onSuccess?.(result, variables, context)
+          await config.onSettled?.(result, null, variables, context)
+          return result
+        } catch (error: unknown) {
+          const mutationError = error instanceof Error ? error : new Error(String(error))
+          await config.onError?.(mutationError, variables, context)
+          await config.onSettled?.(undefined, mutationError, variables, context)
+          throw mutationError
+        }
+      },
+    }),
+  }
+})
+
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { getItem: vi.fn(() => Promise.resolve(null)) },
+  default: {
+    getItem: vi.fn(() => Promise.resolve(null)),
+    setItem: vi.fn(() => Promise.resolve()),
+    removeItem: vi.fn(() => Promise.resolve()),
+  },
 }))
 
 vi.mock('react-native-safe-area-context', () => ({
@@ -48,13 +97,38 @@ vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({ showInterstitialIfDue: vi.fn() }),
 }))
 
-vi.mock('@/hooks/use-habits', () => ({
-  EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
-  useHabits: () => ({ data: { habitsById: new Map<string, NormalizedHabit>() } }),
-  useBulkDeleteHabits: () => mocks.bulkDelete,
-  useBulkLogHabits: () => mocks.bulkLog,
-  useBulkSkipHabits: () => mocks.bulkSkip,
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: vi.fn(),
 }))
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: vi.fn(),
+}))
+
+vi.mock('@/lib/offline-mutations', () => ({
+  createTempEntityId: vi.fn(),
+  isQueuedResult: (value: unknown) => (
+    typeof value === 'object' && value !== null && 'queued' in value
+  ),
+  OfflineMutationPreflightError: mocks.OfflineMutationPreflightError,
+}))
+
+vi.mock('@/lib/queued-api-mutation', () => ({
+  performQueuedApiMutation: (options: unknown) => mocks.execute(options),
+}))
+
+vi.mock('@/lib/orbit-widget', () => ({
+  syncWidgetData: vi.fn(async () => {}),
+}))
+
+vi.mock('@/hooks/use-habits', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habits')>()
+  return {
+    ...actual,
+    EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
+    useHabits: () => ({ data: { habitsById: new Map<string, NormalizedHabit>() } }),
+  }
+})
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showToast: mocks.showToast }),
@@ -124,11 +198,23 @@ vi.mock('@/app/(tabs)/use-today-date', () => ({
 
 const mountedTrees: RenderedTree[] = []
 
-function successfulResult() {
-  return {
-    results: [{ habitId: 'habit-1', status: 'Success' as const }],
-    offlineFailureIds: [],
+function successfulExecution(options: unknown) {
+  const mutation = options as {
+    type: string
+    payload: { habitIds?: string[]; items?: { habitId: string }[] }
   }
+  const habitIds = mutation.payload.habitIds
+    ?? mutation.payload.items?.map((item) => item.habitId)
+    ?? []
+  return Promise.resolve({
+    results: habitIds.map((habitId, index) => ({
+      index,
+      habitId,
+      status: 'Success' as const,
+      logId: mutation.type === 'bulkLogHabits' ? `log-${index}` : undefined,
+      error: null,
+    })),
+  })
 }
 
 async function renderToday(): Promise<void> {
@@ -159,24 +245,82 @@ describe('Hoje production bulk action path', () => {
     mocks.modalProps = null
     mocks.showToast.mockReset()
     mocks.settleBulkHabitResolutions.mockReset()
+    mocks.invalidateQueries.mockReset().mockResolvedValue(undefined)
+    mocks.execute.mockReset().mockImplementation(successfulExecution)
     mocks.store.clearSelection = mocks.clearSelection
     mocks.clearSelection.mockReset()
     mocks.store.selectedHabitIds = new Set(['habit-1'])
-    mocks.bulkDelete.mutateAsync.mockReset().mockResolvedValue(successfulResult())
-    mocks.bulkLog.mutateAsync.mockReset().mockResolvedValue(successfulResult())
-    mocks.bulkSkip.mutateAsync.mockReset().mockResolvedValue(successfulResult())
   })
 
-  it('reports offline log and skip refusals without an unhandled rejection', async () => {
-    const offlineResult = {
-      results: [],
-      offlineFailureIds: ['habit-1'],
-    }
-    mocks.bulkLog.mutateAsync.mockResolvedValueOnce(offlineResult)
-    mocks.bulkSkip.mutateAsync.mockResolvedValueOnce(offlineResult)
+  it('consumes rejected log and skip executions without an unhandled rejection', async () => {
+    const unhandledRejection = vi.fn()
+    process.on('unhandledRejection', unhandledRejection)
     await renderToday()
 
+    try {
+      mocks.execute.mockRejectedValueOnce(new TypeError('Network request failed'))
+      await press(mocks.bulkBarProps?.onLog)
+      mocks.execute.mockRejectedValueOnce(new TypeError('Network request failed'))
+      await press(mocks.bulkBarProps?.onSkip)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    } finally {
+      process.removeListener('unhandledRejection', unhandledRejection)
+    }
+
+    expect(unhandledRejection).not.toHaveBeenCalled()
+    expect(mocks.showToast).toHaveBeenCalledTimes(2)
+    expect(mocks.showToast).toHaveBeenNthCalledWith(1, {
+      kind: 'neutral',
+      message: 'habits.bulkBar.connectionRefreshed',
+    })
+    expect(mocks.showToast).toHaveBeenNthCalledWith(2, {
+      kind: 'neutral',
+      message: 'habits.bulkBar.connectionRefreshed',
+    })
+    expect(mocks.showToast.mock.calls.every(([toast]) => toast.onAction === undefined)).toBe(true)
+    expect(mocks.clearSelection).toHaveBeenCalledTimes(2)
+    expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(1, [])
+    expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(2, [])
+    expect(mocks.invalidateQueries).toHaveBeenCalled()
+    expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'bulkLogHabits',
+    }))
+    expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'bulkSkipHabits',
+    }))
+  })
+
+  it('consumes a rejected delete execution and closes after refreshing', async () => {
+    const unhandledRejection = vi.fn()
+    process.on('unhandledRejection', unhandledRejection)
+    await renderToday()
+
+    await press(mocks.bulkBarProps?.onDelete)
+    try {
+      mocks.execute.mockRejectedValueOnce(new TypeError('Network request failed'))
+      await press(mocks.modalProps?.onConfirmBulkDelete)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    } finally {
+      process.removeListener('unhandledRejection', unhandledRejection)
+    }
+
+    expect(unhandledRejection).not.toHaveBeenCalled()
+    expect(mocks.showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'habits.bulkBar.connectionRefreshed',
+    })
+    expect(mocks.showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
+    expect(mocks.modalProps?.showBulkDeleteConfirm).toBe(false)
+    expect(mocks.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.invalidateQueries).toHaveBeenCalled()
+  })
+
+  it('reports offline log and skip refusals without clearing selection', async () => {
+    await renderToday()
+
+    mocks.execute.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
     await press(mocks.bulkBarProps?.onLog)
+    mocks.execute.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
     await press(mocks.bulkBarProps?.onSkip)
 
     expect(mocks.showToast).toHaveBeenCalledTimes(2)
@@ -193,14 +337,12 @@ describe('Hoje production bulk action path', () => {
   })
 
   it('keeps the delete confirmation and selection after an offline refusal, then retries online', async () => {
-    mocks.bulkDelete.mutateAsync
-      .mockResolvedValueOnce({ results: [], offlineFailureIds: ['habit-1'] })
-      .mockResolvedValueOnce(successfulResult())
     await renderToday()
 
     await press(mocks.bulkBarProps?.onDelete)
     expect(mocks.modalProps?.showBulkDeleteConfirm).toBe(true)
 
+    mocks.execute.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
     await press(mocks.modalProps?.onConfirmBulkDelete)
     expect(mocks.showToast).toHaveBeenCalledWith({
       kind: 'neutral',

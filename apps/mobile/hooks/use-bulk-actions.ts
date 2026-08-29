@@ -13,6 +13,7 @@ interface UseBulkActionsOptions {
 }
 
 interface BulkActionOutcome {
+  ambiguousIds?: readonly string[]
   offlineFailureIds?: readonly string[]
 }
 
@@ -30,7 +31,13 @@ export function useBulkActions({
 
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
-  const reportOfflineFailure = useCallback((outcome: BulkActionOutcome): boolean => {
+  const reportBulkFailure = useCallback((outcome: BulkActionOutcome): boolean => {
+    if (outcome.ambiguousIds?.length) {
+      showToast({
+        kind: 'neutral',
+        message: t('habits.bulkBar.connectionRefreshed'),
+      })
+    }
     if (!outcome.offlineFailureIds?.length) return false
     showToast({
       kind: 'neutral',
@@ -53,10 +60,10 @@ export function useBulkActions({
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     const result = await bulkDelete.mutateAsync(ids)
-    if (reportOfflineFailure(result)) return
+    if (reportBulkFailure(result)) return
     onSuccess()
     setShowBulkDeleteConfirm(false)
-  }, [bulkDelete, onSuccess, reportOfflineFailure, selectedHabitIds])
+  }, [bulkDelete, onSuccess, reportBulkFailure, selectedHabitIds])
 
   const confirmBulkLog = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
@@ -64,10 +71,10 @@ export function useBulkActions({
     const result = await bulkLog.mutateAsync(
       ids.map((habitId) => ({ habitId, date: selectedDateStr })),
     )
-    if (reportOfflineFailure(result)) return
+    if (reportBulkFailure(result)) return
     applyBulkMutationSuccesses(result.results, 'log')
     onSuccess()
-  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, reportOfflineFailure, selectedDateStr, selectedHabitIds])
+  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, reportBulkFailure, selectedDateStr, selectedHabitIds])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
@@ -75,10 +82,10 @@ export function useBulkActions({
     const result = await bulkSkip.mutateAsync(
       ids.map((habitId) => ({ habitId, date: selectedDateStr })),
     )
-    if (reportOfflineFailure(result)) return
+    if (reportBulkFailure(result)) return
     applyBulkMutationSuccesses(result.results, 'skip')
     onSuccess()
-  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, reportOfflineFailure, selectedDateStr, selectedHabitIds])
+  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, reportBulkFailure, selectedDateStr, selectedHabitIds])
 
   return {
     showBulkDeleteConfirm,

@@ -89,6 +89,7 @@ type CreateSubHabitMutationInput = {
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 type OfflineBulkMutationOutcome<TResponse> = TResponse & {
+  ambiguousIds: string[]
   offlineFailureIds: string[]
 }
 
@@ -167,10 +168,6 @@ export function useLogHabit() {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(date ?? formatAPIDate(new Date()))
-
       return { previousLists }
     },
 
@@ -188,6 +185,10 @@ export function useLogHabit() {
       if (isQueuedResult(response)) {
         return
       }
+
+      useReviewReminderStore
+        .getState()
+        .trackCompletion(variables.date ?? formatAPIDate(new Date()))
 
       const loggedHabit = findHabitInList(
         queryClient
@@ -880,12 +881,12 @@ export function useBulkDeleteHabits() {
             queuedMutationId: mutationId,
           }),
         })
-        return { ...response, offlineFailureIds: [] }
+        return { ...response, ambiguousIds: [], offlineFailureIds: [] }
       } catch (error: unknown) {
         if (error instanceof OfflineMutationPreflightError) {
-          return { results: [], offlineFailureIds: habitIds }
+          return { results: [], ambiguousIds: [], offlineFailureIds: habitIds }
         }
-        throw error
+        return { results: [], ambiguousIds: habitIds, offlineFailureIds: [] }
       }
     },
 
@@ -952,15 +953,20 @@ export function useBulkLogHabits() {
             queuedMutationId: mutationId,
           }),
         })
-        return { ...response, offlineFailureIds: [] }
+        return { ...response, ambiguousIds: [], offlineFailureIds: [] }
       } catch (error: unknown) {
         if (error instanceof OfflineMutationPreflightError) {
           return {
             results: [],
+            ambiguousIds: [],
             offlineFailureIds: items.map((item) => item.habitId),
           }
         }
-        throw error
+        return {
+          results: [],
+          ambiguousIds: items.map((item) => item.habitId),
+          offlineFailureIds: [],
+        }
       }
     },
 
@@ -968,11 +974,6 @@ export function useBulkLogHabits() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      for (const item of items) {
-        useReviewReminderStore
-          .getState()
-          .trackCompletion(item.date ?? formatAPIDate(new Date()))
-      }
       const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
@@ -991,13 +992,22 @@ export function useBulkLogHabits() {
       }
     },
 
-    onSuccess: (result, _items, context) => {
+    onSuccess: (result, items, context) => {
       restoreRejectedBulkItems(
         queryClient,
         context.previousLists,
         result.results,
         result.offlineFailureIds,
       )
+
+      for (const itemResult of result.results) {
+        if (itemResult.status !== 'Success') continue
+        const item = items[itemResult.index]
+        if (!item) continue
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(item.date ?? formatAPIDate(new Date()))
+      }
     },
 
     onSettled: (data, error) =>
@@ -1040,15 +1050,20 @@ export function useBulkSkipHabits() {
             queuedMutationId: mutationId,
           }),
         })
-        return { ...response, offlineFailureIds: [] }
+        return { ...response, ambiguousIds: [], offlineFailureIds: [] }
       } catch (error: unknown) {
         if (error instanceof OfflineMutationPreflightError) {
           return {
             results: [],
+            ambiguousIds: [],
             offlineFailureIds: items.map((item) => item.habitId),
           }
         }
-        throw error
+        return {
+          results: [],
+          ambiguousIds: items.map((item) => item.habitId),
+          offlineFailureIds: [],
+        }
       }
     },
 

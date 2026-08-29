@@ -233,6 +233,18 @@ type HabitSnapshotContext = {
   previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 }
 
+type BulkLogOutcome = {
+  results: {
+    index: number
+    habitId: string
+    status: 'Success' | 'Failed'
+    logId: string | null
+    error: string | null
+  }[]
+  ambiguousIds: string[]
+  offlineFailureIds: string[]
+}
+
 function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
     id: overrides.id ?? 'habit-1',
@@ -349,9 +361,10 @@ describe('mobile habit hooks', () => {
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
+    useReviewReminderStore.getState().reset()
   })
 
-  it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
+  it('tracks every confirmed bulk completion and no requested item before confirmation', async () => {
     seedHabitState(
       [
         makeHabit({ id: 'habit-1', isCompleted: false }),
@@ -359,36 +372,64 @@ describe('mobile habit hooks', () => {
       ],
       2,
     )
-    useReviewReminderStore.getState().reset()
+    mocks.runQueuedMutation.mockResolvedValueOnce({
+      results: [
+        { index: 0, status: 'Success', habitId: 'habit-1', logId: 'log-1', error: null },
+        { index: 1, status: 'Success', habitId: 'habit-2', logId: 'log-2', error: null },
+      ],
+    })
 
     const mutation = useBulkLogHabits() as unknown as MutationConfig<
-      unknown,
+      BulkLogOutcome,
       { habitId: string; date?: string }[],
-      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+      HabitSnapshotContext
     >
+    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
 
-    await mutation.onMutate?.([{ habitId: 'habit-1' }, { habitId: 'habit-2' }])
+    const context = await mutation.onMutate?.(variables)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
 
-    const reviewState = useReviewReminderStore.getState()
-    expect(reviewState.completionCount).toBe(2)
-    expect(reviewState.activeDays).toHaveLength(1)
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 2,
+      activeDays: [expect.any(String)],
+    })
   })
 
-  it('counts the completion toward the review floor at mutate time, so queued completions are never missed', () => {
+  it('tracks a single completion only after an online response confirms it', () => {
     seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
-    useReviewReminderStore.getState().reset()
 
     const mutation = useLogHabit() as unknown as MutationConfig<
-      unknown,
+      LogHabitResponse | { queued: true; queuedMutationId: string },
       { habitId: string; date?: string },
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
     void mutation.onMutate?.({ habitId: 'habit-1' })
 
-    const reviewState = useReviewReminderStore.getState()
-    expect(reviewState.completionCount).toBe(1)
-    expect(reviewState.activeDays).toHaveLength(1)
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      { habitId: 'habit-1' },
+      undefined,
+    )
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    mutation.onSuccess?.(
+      { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 },
+      { habitId: 'habit-1' },
+      undefined,
+    )
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: [expect.any(String)],
+    })
   })
 
   it('optimistically completes before query cancellation resolves', () => {
@@ -1184,14 +1225,14 @@ describe('mobile habit hooks', () => {
     ])
   })
 
-  it('restores every bulk optimistic update after an offline refusal', async () => {
+  it('restores every bulk optimistic update after an offline refusal without changing reminders', async () => {
     seedHabitState([
       makeHabit({ id: 'habit-1', isCompleted: false }),
       makeHabit({ id: 'habit-2', isCompleted: false }),
     ], 2)
 
     const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: unknown[]; offlineFailureIds: string[] },
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
       string[],
       { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
@@ -1202,25 +1243,35 @@ describe('mobile habit hooks', () => {
     bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
 
     expect(deleteResult.offlineFailureIds).toEqual(deleteVariables)
+    expect(deleteResult.ambiguousIds).toEqual([])
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(getCount()).toBe(2)
 
     const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
-      { results: unknown[]; offlineFailureIds: string[] },
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
     const logVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
     const logContext = await bulkLog.onMutate?.(logVariables)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
     mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
     const logResult = await bulkLog.mutationFn(logVariables)
     bulkLog.onSuccess?.(logResult, logVariables, logContext)
 
     expect(logResult.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
+    expect(logResult.ambiguousIds).toEqual([])
     expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
 
     const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
-      { results: unknown[]; offlineFailureIds: string[] },
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
@@ -1231,7 +1282,82 @@ describe('mobile habit hooks', () => {
     bulkSkip.onSuccess?.(skipResult, skipVariables, skipContext)
 
     expect(skipResult.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
+    expect(skipResult.ambiguousIds).toEqual([])
     expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+  })
+
+  it('keeps every post-send bulk failure ambiguous and refreshes the list', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+
+    const deleteVariables = ['habit-1', 'habit-2']
+    const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new TypeError('Network request failed'))
+    const deleteResult = await bulkDelete.mutationFn(deleteVariables)
+    bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
+    bulkDelete.onSettled?.(deleteResult, null, deleteVariables, deleteContext)
+
+    expect(deleteResult).toEqual({
+      results: [],
+      ambiguousIds: deleteVariables,
+      offlineFailureIds: [],
+    })
+    expect(getHabitList()).toEqual([])
+
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+    const logVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
+      BulkLogOutcome,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const logContext = await bulkLog.onMutate?.(logVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new TypeError('Network request failed'))
+    const logResult = await bulkLog.mutationFn(logVariables)
+    bulkLog.onSuccess?.(logResult, logVariables, logContext)
+    bulkLog.onSettled?.(logResult, null, logVariables, logContext)
+
+    expect(logResult).toEqual({
+      results: [],
+      ambiguousIds: ['habit-1', 'habit-2'],
+      offlineFailureIds: [],
+    })
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+    const skipVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const skipContext = await bulkSkip.onMutate?.(skipVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new TypeError('Network request failed'))
+    const skipResult = await bulkSkip.mutationFn(skipVariables)
+    bulkSkip.onSuccess?.(skipResult, skipVariables, skipContext)
+    bulkSkip.onSettled?.(skipResult, null, skipVariables, skipContext)
+
+    expect(skipResult).toEqual({
+      results: [],
+      ambiguousIds: ['habit-1', 'habit-2'],
+      offlineFailureIds: [],
+    })
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
   it('optimistically completes dated and undated bulk skips and restores them on failure', async () => {
@@ -1336,13 +1462,13 @@ describe('mobile habit hooks', () => {
       }),
     ], 3)
     const mutation = useBulkLogHabits() as unknown as MutationConfig<
-      { results: { index: number; status: 'Success' | 'Failed'; habitId: string; logId: string | null; error: string | null }[] },
+      BulkLogOutcome,
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
     const variables = [
-      { habitId: 'child-accepted' },
-      { habitId: 'child-rejected' },
+      { habitId: 'child-accepted', date: '2026-08-28' },
+      { habitId: 'child-rejected', date: '2026-08-29' },
     ]
     const mixedResult = {
       results: [
@@ -1359,5 +1485,9 @@ describe('mobile habit hooks', () => {
     const children = getHabitList()[0]?.children
     expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-28'],
+    })
   })
 })
