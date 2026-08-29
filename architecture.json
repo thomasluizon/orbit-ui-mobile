@@ -17571,7 +17571,6 @@
         "apps/mobile/__tests__/screens/retrospective-screen.test.tsx",
         "apps/mobile/__tests__/screens/step-up-screen.test.tsx",
         "apps/mobile/__tests__/screens/support-screen.test.tsx",
-        "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-guard-redirects.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-screen.test.tsx"
       ],
@@ -18384,7 +18383,6 @@
         "apps/mobile/__tests__/lib/orbit-widget.test.ts",
         "apps/mobile/__tests__/lib/queued-api-mutation.test.ts",
         "apps/mobile/__tests__/screens/calendar-views.test.tsx",
-        "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/shared/habit-utils.test.ts",
         "apps/web/__tests__/actions/onboarding.test.ts",
         "apps/web/__tests__/components/calendar/calendar-agenda-view.test.tsx",
