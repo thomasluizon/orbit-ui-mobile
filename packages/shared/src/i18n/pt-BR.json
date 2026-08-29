@@ -231,6 +231,7 @@
     "openConversation": "Abrir a conversa",
     "openProgress": "Ver seu progresso",
     "returning": "Já se passaram {days} dias desde sua última conclusão.",
+    "returningOverWindow": "Já se passaram mais de 30 dias desde sua última conclusão.",
     "offline": "A Astra precisa de conexão. Você ainda pode registrar hábitos offline.",
     "offlineLog": "Salvo neste dispositivo. O Orbit sincroniza quando você se reconectar."
   },

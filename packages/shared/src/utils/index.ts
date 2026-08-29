@@ -283,9 +283,12 @@ export {
   getNotificationGlyph,
   isViewableNotificationUrl,
   selectNewestUnreadProactiveCheckin,
-  getReturningDays,
+  getReturningCompletionGuidance,
+  getReturningCompletionWindow,
+  RETURNING_COMPLETION_WINDOW_DAYS,
   shouldShowTodayAstraLine,
 } from './notification-actions'
+export type { ReturningCompletionGuidance } from './notification-actions'
 export {
   buildTempGoal,
   nextGoalPosition,

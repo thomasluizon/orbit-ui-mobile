@@ -231,6 +231,7 @@
     "openConversation": "Open the conversation",
     "openProgress": "See your progress",
     "returning": "It has been {days} days since your last completion.",
+    "returningOverWindow": "It has been more than 30 days since your last completion.",
     "offline": "Astra needs a connection. Habit logging still works offline.",
     "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
   },

@@ -19,7 +19,11 @@ export function parseISO(value: string): Date {
   return new Date(value)
 }
 
-export function parse(value: string, _pattern: string, _referenceDate: Date): Date {
+export function parse(value: string, pattern: string, _referenceDate: Date): Date {
+  if (pattern === 'yyyy-MM-dd') {
+    const [year, month, day] = value.split('-').map(Number)
+    return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1)
+  }
   return new Date(value)
 }
 
@@ -103,12 +107,14 @@ export function isTomorrow(dateInput: Date | number | string): boolean {
 
 export function subDays(dateInput: Date | number | string, amount: number): Date {
   const date = toDate(dateInput)
-  return new Date(date.getTime() - amount * 86400000)
+  date.setDate(date.getDate() - amount)
+  return date
 }
 
 export function addDays(dateInput: Date | number | string, amount: number): Date {
   const date = toDate(dateInput)
-  return new Date(date.getTime() + amount * 86400000)
+  date.setDate(date.getDate() + amount)
+  return date
 }
 
 export function addWeeks(dateInput: Date | number | string, amount: number): Date {

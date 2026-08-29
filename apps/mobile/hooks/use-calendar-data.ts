@@ -27,6 +27,7 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
   }, [query.data])
 
   return {
+    calendarMonth: query.data,
     dayMap,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
@@ -46,10 +47,14 @@ export function useCalendarData(currentMonth: Date) {
   return useCalendarRangeQuery(monthStart, monthEnd)
 }
 
+export function useCalendarDateRange(rangeStart: string, rangeEnd: string, enabled = true) {
+  return useCalendarRangeQuery(rangeStart, rangeEnd, enabled)
+}
+
 /** Calendar entries for an arbitrary contiguous date range, powering the
  *  week and custom-range time-grid views. Disabled in month view. */
 export function useCalendarRange(rangeStart: Date, rangeEnd: Date, enabled = true) {
-  return useCalendarRangeQuery(
+  return useCalendarDateRange(
     formatAPIDate(rangeStart),
     formatAPIDate(rangeEnd),
     enabled,

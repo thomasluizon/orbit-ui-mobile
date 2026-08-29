@@ -1,18 +1,31 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComposerProps } from '@orbit/shared/contracts/composer'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
-const mocks = vi.hoisted(() => ({
-  composerProps: null as ComposerProps | null,
+interface TodayAstraMocks {
+  composerProps: ComposerProps | null
+  calendarMonth: CalendarMonthResponse
+  useCalendarDateRange: ReturnType<typeof vi.fn>
+  useStreakInfo: ReturnType<typeof vi.fn>
+}
+
+const mocks = vi.hoisted((): TodayAstraMocks => ({
+  composerProps: null,
+  calendarMonth: { habits: [], logs: {} },
+  useCalendarDateRange: vi.fn(),
   useStreakInfo: vi.fn(() => ({ data: { lastActiveDate: '2026-08-27' } })),
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, values?: { days?: number }) =>
+      values?.days === undefined ? key : `${key}:${values.days}`,
+  }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('react-native-safe-area-context', () => ({
@@ -26,6 +39,7 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: [] }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
+vi.mock('@/hooks/use-calendar-data', () => ({ useCalendarDateRange: mocks.useCalendarDateRange }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakInfo: mocks.useStreakInfo }))
 vi.mock('@/hooks/use-chat-composer', () => ({
   useChatComposer: () => ({
@@ -69,15 +83,79 @@ function ConversationComposer() {
   return open ? React.createElement('ConversationInput', { value: draft }) : null
 }
 
+function calendarWithLogs(
+  logs: CalendarMonthResponse['logs'],
+): CalendarMonthResponse {
+  return { habits: [], logs }
+}
+
+async function renderTodayAstra(): Promise<ReactTestRenderer> {
+  let tree!: ReactTestRenderer
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(
+      <Shell412 tabBar={React.createElement('TabBar')}>
+        <TodayAstra today="2026-08-29" isTodaySelected suppressed={false} />
+      </Shell412>,
+    )
+    await Promise.resolve()
+  })
+  return tree
+}
+
+function hasText(tree: ReactTestRenderer, text: string): boolean {
+  return tree.root.findAll((node) =>
+    Array.isArray(node.props.children) && node.props.children.includes(text),
+  ).length > 0
+}
+
 describe('mobile Today Astra', () => {
   beforeEach(() => {
     mocks.composerProps = null
+    mocks.calendarMonth = calendarWithLogs({
+      habit: [
+        { id: 'completion', date: '2026-08-25', value: 1, createdAtUtc: '2026-08-25T10:00:00Z' },
+      ],
+    })
+    mocks.useCalendarDateRange.mockReset()
+    mocks.useCalendarDateRange.mockImplementation(() => ({ calendarMonth: mocks.calendarMonth }))
     mocks.useStreakInfo.mockClear()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
   })
 
-  it('hands a selected chip to the opened conversation with one aggregate request for 50 habits', async () => {
+  it('keeps the completion interval after at least three missed days', async () => {
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'todayAstra.returning:4')).toBe(true)
+  })
+
+  it('does not let a newer streak freeze move the completion date', async () => {
+    mocks.calendarMonth = calendarWithLogs({
+      habit: [
+        { id: 'completion', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T10:00:00Z' },
+      ],
+    })
+    mocks.useStreakInfo.mockReturnValue({ data: { lastActiveDate: '2026-08-28' } })
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'todayAstra.returning:6')).toBe(true)
+    expect(mocks.useStreakInfo).not.toHaveBeenCalled()
+  })
+
+  it('shows bounded copy when the window has no positive completion', async () => {
+    mocks.calendarMonth = calendarWithLogs({
+      habit: [
+        { id: 'skip', date: '2026-08-28', value: 0, createdAtUtc: '2026-08-28T10:00:00Z' },
+      ],
+    })
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'todayAstra.returningOverWindow')).toBe(true)
+  })
+
+  it('hands a selected chip to the conversation with one logs request for 50 habits', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
@@ -94,8 +172,8 @@ describe('mobile Today Astra', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.useStreakInfo).toHaveBeenCalledTimes(1)
-    expect(mocks.useStreakInfo).toHaveBeenCalledWith(true)
+    expect(mocks.useCalendarDateRange).toHaveBeenCalledTimes(1)
+    expect(mocks.useCalendarDateRange).toHaveBeenCalledWith('2026-07-30', '2026-08-29', true)
     expect(mocks.composerProps?.suggestions).toHaveLength(4)
     const selectedSuggestion = mocks.composerProps?.suggestions[0]
     if (!selectedSuggestion) throw new Error('Today suggestion was not registered')

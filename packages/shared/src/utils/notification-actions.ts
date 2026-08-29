@@ -1,6 +1,14 @@
 import type { NotificationItem } from '../types/notification'
-import { differenceInCalendarDays } from 'date-fns'
-import { parseAPIDate } from './dates'
+import type { CalendarMonthResponse } from '../types/habit'
+import { differenceInCalendarDays, subDays } from 'date-fns'
+import { formatAPIDate, parseAPIDate } from './dates'
+
+export const RETURNING_COMPLETION_WINDOW_DAYS = 30
+
+export type ReturningCompletionGuidance =
+  | { kind: 'elapsed'; days: number }
+  | { kind: 'outside-window' }
+  | null
 
 export function selectNewestUnreadProactiveCheckin(
   notifications: readonly NotificationItem[],
@@ -11,16 +19,34 @@ export function selectNewestUnreadProactiveCheckin(
   return candidates[0] ?? null
 }
 
-export function getReturningDays(
-  lastCompletedDates: readonly (string | null | undefined)[],
+export function getReturningCompletionWindow(today: string): {
+  dateFrom: string
+  dateTo: string
+} {
+  return {
+    dateFrom: formatAPIDate(subDays(parseAPIDate(today), RETURNING_COMPLETION_WINDOW_DAYS)),
+    dateTo: today,
+  }
+}
+
+export function getReturningCompletionGuidance(
+  calendarMonth: CalendarMonthResponse | undefined,
   today: string,
-): number | null {
-  const dates = lastCompletedDates.filter((date): date is string => typeof date === 'string')
-  dates.sort((left, right) => right.localeCompare(left))
-  const newest = dates[0]
-  if (!newest) return null
-  const days = differenceInCalendarDays(parseAPIDate(today), parseAPIDate(newest))
-  return days >= 3 ? days : null
+): ReturningCompletionGuidance {
+  if (!calendarMonth) return null
+
+  let newestCompletionDate: string | null = null
+  for (const logs of Object.values(calendarMonth.logs)) {
+    for (const log of logs) {
+      if (log.value > 0 && (!newestCompletionDate || log.date > newestCompletionDate)) {
+        newestCompletionDate = log.date
+      }
+    }
+  }
+
+  if (!newestCompletionDate) return { kind: 'outside-window' }
+  const days = differenceInCalendarDays(parseAPIDate(today), parseAPIDate(newestCompletionDate))
+  return days >= 3 ? { kind: 'elapsed', days } : null
 }
 
 export function shouldShowTodayAstraLine({
