@@ -178,6 +178,36 @@ describe('Sheet (mobile)', () => {
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.footer).toBeDefined()
   })
+
+  it('gives the shell conversation a full-height body with no sheet chrome or nested scroller', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Sheet open onClose={() => undefined} presentation="conversation">
+          <Text>Conversation</Text>
+        </Sheet>,
+      )
+      await Promise.resolve()
+    })
+
+    const nativeSheet = tree!.root.findByType(TrueSheet)
+    expect(nativeSheet.props).toMatchObject({
+      cornerRadius: 0,
+      detents: [1],
+      draggable: false,
+      grabber: false,
+      header: undefined,
+      scrollable: false,
+    })
+    expect(tree!.root.findAll(
+      (node: { type: unknown; props: { testID?: string } }) =>
+        typeof node.type === 'string' && node.props.testID === 'sheet-conversation-body',
+    )).toHaveLength(1)
+    expect(tree!.root.findAll(
+      (node: { type: unknown; props: { testID?: string } }) =>
+        typeof node.type === 'string' && node.props.testID === 'sheet-body-scroll',
+    )).toHaveLength(0)
+  })
 })
 
 /**

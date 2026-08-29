@@ -7,6 +7,16 @@ export type ComposerWords = {
   retry?: string
 }
 
+type ComposerConversationControl =
+  | {
+      onOpenConversation: () => void
+      openConversationLabel: string
+    }
+  | {
+      onOpenConversation?: never
+      openConversationLabel?: never
+    }
+
 export type ComposerVoiceWords = {
   start: string
   stop: string
@@ -105,4 +115,5 @@ export type ComposerProps = ComposerBase &
   ComposerState &
   ComposerVoice &
   ComposerAttach &
-  ComposerRetry
+  ComposerRetry &
+  ComposerConversationControl

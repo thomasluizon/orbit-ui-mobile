@@ -8,6 +8,7 @@ import {
 import { useRef } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -151,6 +152,20 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
       <View
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.hairline }]}
       >
+        {props.onOpenConversation ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={props.openConversationLabel}
+            onPress={props.onOpenConversation}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+            ]}
+          >
+            <AstraGlyph size={24} color={tokens.primary} />
+          </Pressable>
+        ) : null}
+
         <TextInput
           accessibilityLabel={props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}

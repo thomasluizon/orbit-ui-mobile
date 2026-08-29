@@ -9,6 +9,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { ArrowUp, FileText, Image as ImageIcon, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
@@ -123,6 +124,17 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   return (
     <div className="flex items-end gap-2">
       <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]">
+        {props.onOpenConversation ? (
+          <button
+            type="button"
+            aria-label={props.openConversationLabel}
+            onClick={props.onOpenConversation}
+            className="flex size-11 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+          >
+            <AstraGlyph size={24} />
+          </button>
+        ) : null}
+
         <textarea
           rows={1}
           data-composer-input

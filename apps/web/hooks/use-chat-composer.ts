@@ -60,6 +60,10 @@ interface StreamSendFailure {
   code: string | null
 }
 
+interface UseChatComposerOptions {
+  onOpenConversation?: () => void
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
@@ -105,7 +109,7 @@ async function* streamTextChunks(
  * send is the one sanctioned client-side `fetch` to the API (a Server Action
  * cannot return a streaming `ReadableStream`); see apps/web/CLAUDE.md.
  */
-export function useChatComposer() {
+export function useChatComposer({ onOpenConversation }: UseChatComposerOptions = {}) {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -486,6 +490,7 @@ export function useChatComposer() {
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
+      onOpenConversation?.()
       setSendError(null)
       setLastFailedSend(null)
 
@@ -505,7 +510,7 @@ export function useChatComposer() {
 
       await runStreamingSend(attempted)
     },
-    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
+    [addMessage, onOpenConversation, runStreamingSend, scrollToBottom, setIsTyping],
   )
 
   const sendMessage = useCallback(
@@ -589,6 +594,12 @@ export function useChatComposer() {
         ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
         : [],
       onAttachRemove: removeImage,
+      ...(onOpenConversation
+        ? {
+            onOpenConversation,
+            openConversationLabel: t('shell.composer.openConversation'),
+          }
+        : {}),
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
     }
 
@@ -623,6 +634,7 @@ export function useChatComposer() {
     isSending,
     isTranscribing,
     locale,
+    onOpenConversation,
     openFilePicker,
     accountTimeZone,
     removeImage,

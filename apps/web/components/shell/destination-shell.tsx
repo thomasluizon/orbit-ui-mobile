@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
-import { resolveShellDestination } from '@orbit/shared/utils'
+import { isPrimaryShellDestination, resolveShellDestination } from '@orbit/shared/utils'
+import { ChatPageContent } from '@/app/(chat)/chat/page'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
@@ -15,6 +16,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import { Shell412 } from './shell-412'
+import { ShellComposer } from './shell-composer'
 import { ShellWide } from './shell-wide'
 
 interface DestinationShellProps {
@@ -47,7 +49,10 @@ export function DestinationShell({
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const destination = resolveShellDestination(pathname)
+  const primaryDestination = isPrimaryShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
+  const [conversationPathname, setConversationPathname] = useState<string | null>(null)
+  const conversationOpen = primaryDestination && conversationPathname === pathname
 
   useKeyboardShortcuts(navigationEnabled)
 
@@ -105,6 +110,15 @@ export function DestinationShell({
     />
   )
 
+  const astraSlots = primaryDestination
+    ? {
+        composer: <ShellComposer onOpenConversation={() => setConversationPathname(pathname)} />,
+        conversation: <ChatPageContent onClose={() => setConversationPathname(null)} />,
+        conversationLabel: t('chat.title'),
+        conversationOpen,
+      }
+    : {}
+
   if (!navigationEnabled) {
     const flow = wide ? (
       <ShellWide nav={false} notice={notice}>
@@ -139,6 +153,7 @@ export function DestinationShell({
           paletteLabel={t('command.title')}
           paletteHint="Ctrl K"
           notice={notice}
+          {...astraSlots}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -166,6 +181,7 @@ export function DestinationShell({
           ) : undefined
         }
         notice={notice}
+        {...astraSlots}
       >
         {children}
       </Shell412>

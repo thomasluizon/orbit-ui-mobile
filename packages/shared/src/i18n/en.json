@@ -206,6 +206,7 @@
     "openPalette": "Open command palette",
     "composer": {
       "placeholder": "Ask Astra",
+      "openConversation": "Open conversation",
       "send": "Send",
       "suggestionsLabel": "Suggestions",
       "retry": "Try again",

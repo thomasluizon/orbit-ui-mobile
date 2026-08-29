@@ -79,6 +79,10 @@ function ChatRewardRecovery({
 }
 
 export default function ChatScreen() {
+  return <ChatScreenContent />;
+}
+
+export function ChatScreenContent({ onClose }: Readonly<{ onClose?: () => void }>) {
   const { t } = useTranslation();
   const router = useRouter();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -89,6 +93,13 @@ export default function ChatScreen() {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { isOnline } = useOffline();
   const goBackOrFallback = useGoBackOrFallback();
+  const closeConversation = useCallback(() => {
+    if (onClose) {
+      onClose();
+      return;
+    }
+    goBackOrFallback("/");
+  }, [goBackOrFallback, onClose]);
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
@@ -226,7 +237,7 @@ export default function ChatScreen() {
       >
         <AppBar
           back
-          onBack={() => goBackOrFallback("/")}
+          onBack={closeConversation}
           backLabel={t("common.goBack")}
           titleIcon={<AstraMark size={18} />}
           title={t("chat.title")}

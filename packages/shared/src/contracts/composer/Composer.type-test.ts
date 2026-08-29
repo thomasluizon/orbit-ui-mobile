@@ -35,6 +35,12 @@ function acceptComposer(_props: ComposerProps) {}
 
 acceptComposer({ ...base, state: 'idle' })
 acceptComposer({ ...base, state: 'idle', words: { ...words } })
+acceptComposer({
+  ...base,
+  state: 'idle',
+  onOpenConversation: () => undefined,
+  openConversationLabel: 'Open conversation',
+})
 acceptComposer({ ...base, state: 'atLimit', limitReason: 'Limit' })
 acceptComposer({ ...base, state: 'recording', onVoice: () => undefined, voiceWords })
 acceptComposer({ ...base, state: 'transcribing', onVoice: () => undefined, voiceWords })
@@ -91,6 +97,10 @@ acceptComposer({ ...base, state: 'idle', onAttachRemove: () => undefined })
 acceptComposer({ ...base, state: 'idle', onAttach: () => undefined, attachWords, attachments: [] })
 // @ts-expect-error retry requires its accessible word
 acceptComposer({ ...base, state: 'idle', onRetry: () => undefined })
+// @ts-expect-error the conversation trigger requires its accessible name
+acceptComposer({ ...base, state: 'idle', onOpenConversation: () => undefined })
+// @ts-expect-error a conversation name without its trigger names nothing
+acceptComposer({ ...base, state: 'idle', openConversationLabel: 'Open conversation' })
 
 // @ts-expect-error remove names each attachment and is therefore a function
 const invalidAttachWords: ComposerAttachWords = { add: 'Add', trayLabel: 'Tray', remove: 'Remove' }

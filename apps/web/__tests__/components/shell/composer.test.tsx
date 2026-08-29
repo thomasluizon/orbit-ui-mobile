@@ -69,6 +69,15 @@ describe('Composer', () => {
     expect(onChangeValue).toHaveBeenCalledWith('oi')
   })
 
+  it('opens the conversation from the visible Astra trigger', () => {
+    const onOpenConversation = vi.fn()
+    render(<Composer {...props({ onOpenConversation, openConversationLabel: 'Open conversation' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
+
+    expect(onOpenConversation).toHaveBeenCalledOnce()
+  })
+
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)

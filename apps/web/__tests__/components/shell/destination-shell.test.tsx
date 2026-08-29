@@ -42,24 +42,53 @@ vi.mock('@/components/ui/fab', () => ({
     <button type="button" aria-label={label} onClick={onClick} />
   ),
 }))
+vi.mock('@/components/shell/shell-composer', () => ({
+  ShellComposer: ({ onOpenConversation }: { onOpenConversation: () => void }) => (
+    <button type="button" aria-label="shell-open" onClick={onOpenConversation} />
+  ),
+}))
+vi.mock('@/app/(chat)/chat/page', () => ({
+  ChatPageContent: ({ onClose }: { onClose: () => void }) => (
+    <button type="button" aria-label="conversation-close" onClick={onClose} />
+  ),
+}))
 vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ children, tabBar, fab, notice }: {
+  Shell412: ({ children, tabBar, fab, notice, composer, conversation, conversationOpen }: {
     children: ReactNode
     tabBar?: ReactNode
     fab?: ReactNode
     notice?: ReactNode
-  }) => <div data-testid="compact-shell">{children}{notice}{tabBar}{fab}</div>,
+    composer?: ReactNode
+    conversation?: ReactNode
+    conversationOpen?: boolean
+  }) => (
+    <div data-testid="compact-shell">
+      {children}{notice}{composer}{tabBar}{fab}{conversationOpen ? conversation : null}
+    </div>
+  ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, items, onSelect, onCreate, notice }: {
+  ShellWide: ({
+    children,
+    items,
+    onSelect,
+    onCreate,
+    notice,
+    composer,
+    conversation,
+    conversationOpen,
+  }: {
     children: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     onSelect?: (id: string) => void
     onCreate?: () => void
     notice?: ReactNode
+    composer?: ReactNode
+    conversation?: ReactNode
+    conversationOpen?: boolean
   }) => (
     <div data-testid="wide-shell">
-      {children}{notice}
+      {children}{notice}{composer}{conversationOpen ? conversation : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       ))}
@@ -82,6 +111,7 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'shell-open',
       'nav.today',
       'nav.calendar',
       'nav.progress',
@@ -107,6 +137,7 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      '',
       'nav.today',
       'nav.calendar',
       'nav.progress',
@@ -126,6 +157,40 @@ describe('DestinationShell', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
     expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it.each(['/', '/calendar', '/progress', '/profile'])('mounts the composer at %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Destination</h1></DestinationShell>)
+
+    expect(screen.getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
+  })
+
+  it('does not mount the composer on a pushed screen', () => {
+    mocks.pathname = '/preferences'
+    render(<DestinationShell onCreate={() => {}}><h1>Preferences</h1></DestinationShell>)
+
+    expect(screen.queryByRole('button', { name: 'shell-open' })).not.toBeInTheDocument()
+  })
+
+  it('opens and closes the shell conversation from the Astra trigger', () => {
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'conversation-close' }))
+
+    expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the composer mounted when a notice is present', () => {
+    render(
+      <DestinationShell onCreate={() => {}} notice={<div>Notice sentinel</div>}>
+        <h1>Today</h1>
+      </DestinationShell>,
+    )
+
+    expect(screen.getByText('Notice sentinel')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
   })
 
   it.each([

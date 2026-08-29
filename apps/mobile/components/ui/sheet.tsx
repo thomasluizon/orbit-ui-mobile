@@ -43,6 +43,7 @@ interface MobileSheetProps extends SheetProps {
   ref?: Ref<SheetHandle>
   /** Handles a blocked native dismissal attempt without letting navigation receive Android Back. */
   onAttemptDismiss?: () => void
+  presentation?: 'standard' | 'conversation'
 }
 
 /** The native overlay surface. Callers mount it only while it is open. */
@@ -51,6 +52,7 @@ export function Sheet({
   actions,
   onClose,
   onAttemptDismiss,
+  presentation = 'standard',
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
@@ -103,8 +105,9 @@ export function Sheet({
     onAttemptDismiss?.()
     return true
   }, [onAttemptDismiss])
+  const conversation = presentation === 'conversation'
 
-  const header = title || onClose ? (
+  const header = !conversation && (title || onClose) ? (
     <View style={styles.header}>
       {title ? <Text style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
       {onClose ? (
@@ -121,39 +124,50 @@ export function Sheet({
     </View>
   ) : undefined
 
-  const footer = actions ? <View style={styles.actions}>{actions}</View> : undefined
+  const footer = !conversation && actions ? <View style={styles.actions}>{actions}</View> : undefined
 
   return (
     <TrueSheet
       ref={sheetRef}
-      backgroundColor={tokens.bgSheet}
-      cornerRadius={28}
-      detents={['auto', MAX_HEIGHT_RATIO]}
+      backgroundColor={conversation ? tokens.bg : tokens.bgSheet}
+      cornerRadius={conversation ? 0 : 28}
+      detents={conversation ? [1] : ['auto', MAX_HEIGHT_RATIO]}
       dimmed
       dismissible={onClose != null}
+      draggable={!conversation}
       footer={footer}
-      grabber
-      grabberOptions={{
-        adaptive: false,
-        color: tokens.hairlineStrong,
-        height: 4,
-        topMargin: 12,
-        width: 48,
-      }}
+      grabber={!conversation}
+      grabberOptions={
+        conversation
+          ? undefined
+          : {
+              adaptive: false,
+              color: tokens.hairlineStrong,
+              height: 4,
+              topMargin: 12,
+              width: 48,
+            }
+      }
       header={header}
-      maxContentHeight={height * MAX_HEIGHT_RATIO}
+      maxContentHeight={conversation ? height : height * MAX_HEIGHT_RATIO}
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
-      scrollable
+      scrollable={!conversation}
     >
-      <KeyboardAwareSheetScrollView
-        testID="sheet-body-scroll"
-        contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {children}
-      </KeyboardAwareSheetScrollView>
+      {conversation ? (
+        <View testID="sheet-conversation-body" style={[styles.conversation, { height }]}>
+          {children}
+        </View>
+      ) : (
+        <KeyboardAwareSheetScrollView
+          testID="sheet-body-scroll"
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </KeyboardAwareSheetScrollView>
+      )}
     </TrueSheet>
   )
 }
@@ -194,6 +208,9 @@ function createStyles(tokens: Tokens) {
       flexGrow: 1,
       padding: 16,
       paddingBottom: 24,
+    },
+    conversation: {
+      flex: 1,
     },
     actions: {
       alignItems: 'center',

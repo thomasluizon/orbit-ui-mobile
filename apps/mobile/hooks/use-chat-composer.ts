@@ -107,6 +107,7 @@ function buildImageFileName(asset: ImagePicker.ImagePickerAsset): string {
 interface UseChatComposerOptions {
   isOnline: boolean;
   offlineTitle: string;
+  onOpenConversation?: () => void;
 }
 
 /**
@@ -115,7 +116,11 @@ interface UseChatComposerOptions {
  * I/O, mirroring the web `useChatComposer`. Offline gating is injected because
  * the offline UI itself lives on the screen.
  */
-export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptions) {
+export function useChatComposer({
+  isOnline,
+  offlineTitle,
+  onOpenConversation,
+}: UseChatComposerOptions) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -575,6 +580,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
+      onOpenConversation?.();
       setSendError(null);
       setLastFailedSend(null);
 
@@ -595,7 +601,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       await runStreamingSend(attempted);
     },
-    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
+    [addMessage, onOpenConversation, runStreamingSend, scrollToBottom, setIsTyping],
   );
 
   const sendMessage = useCallback(
@@ -689,6 +695,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         ? [{ id: "chat-image", kind: "image" as const, name: imageName }]
         : [],
       onAttachRemove: removeImage,
+      ...(onOpenConversation
+        ? {
+            onOpenConversation,
+            openConversationLabel: t("shell.composer.openConversation"),
+          }
+        : {}),
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
     };
 
@@ -722,6 +734,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     isRecording,
     isSending,
     isTranscribing,
+    onOpenConversation,
     openFilePicker,
     accountTimeZone,
     removeImage,

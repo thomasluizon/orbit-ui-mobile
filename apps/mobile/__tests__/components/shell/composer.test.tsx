@@ -140,6 +140,18 @@ describe('Composer (mobile)', () => {
     expect(onChangeValue).toHaveBeenCalledWith('oi')
   })
 
+  it('opens the conversation from the visible Astra trigger', async () => {
+    const onOpenConversation = vi.fn()
+    const tree = await renderComposer(props({
+      onOpenConversation,
+      openConversationLabel: 'Open conversation',
+    }))
+
+    pressControl(byLabel(tree.root, 'Open conversation')[0])
+
+    expect(onOpenConversation).toHaveBeenCalledOnce()
+  })
+
   it.each(['', '   '])('does not send a blank value %j', async (value) => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value, onSend }))

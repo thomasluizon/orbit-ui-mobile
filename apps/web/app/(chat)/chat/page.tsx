@@ -20,9 +20,20 @@ import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from './chat-empty-state'
 
 export default function ChatPage() {
+  return <ChatPageContent />
+}
+
+export function ChatPageContent({ onClose }: Readonly<{ onClose?: () => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const closeConversation = useCallback(() => {
+    if (onClose) {
+      onClose()
+      return
+    }
+    goBackOrFallback('/')
+  }, [goBackOrFallback, onClose])
   const composer = useChatComposer()
   const {
     chatContainerRef,
@@ -98,12 +109,12 @@ export default function ChatPage() {
         return
       }
 
-      goBackOrFallback('/')
+      closeConversation()
     }
 
     document.addEventListener('keydown', handleKeydown)
     return () => document.removeEventListener('keydown', handleKeydown)
-  }, [goBackOrFallback])
+  }, [closeConversation])
 
   return (
     <div className="relative flex flex-col h-full">
@@ -111,7 +122,7 @@ export default function ChatPage() {
         <AppBar
           back
           backLabel={t('common.goBack')}
-          onBack={() => goBackOrFallback('/')}
+          onBack={closeConversation}
           titleIcon={<AstraMark size={18} />}
           title={t('chat.title')}
         />

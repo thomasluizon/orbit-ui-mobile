@@ -55,7 +55,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
-import { Shell412 } from '@/components/shell/shell-412'
+import { DestinationShell } from '@/components/shell/destination-shell'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -273,20 +273,21 @@ function RootLayoutNav() {
 
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
-          <Shell412
+          <DestinationShell
+            pathname={pathname}
             tabBar={<AppBottomTabBar pathname={pathname} />}
             fab={pathname === '/' ? <AppCreateFab onCreate={handleCreate} /> : undefined}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
-          </Shell412>
+          </DestinationShell>
         ) : (
-          <Shell412 nav={false}>
+          <DestinationShell nav={false} pathname={pathname}>
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
-          </Shell412>
+          </DestinationShell>
         )}
 
         {captureBuildEnabled && captureReady ? (
