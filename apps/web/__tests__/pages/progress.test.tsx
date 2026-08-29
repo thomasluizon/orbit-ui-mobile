@@ -68,6 +68,7 @@ const mocks = vi.hoisted(() => ({
     },
     isLoading: false,
     isError: false,
+    error: null as { data: { errorCode: string } } | null,
     refetch: vi.fn(),
   },
   freeze: {
