@@ -90,8 +90,10 @@ vi.mock('@/app/(tabs)/use-today-selection', () => ({
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-function isSuppressed(tree: import('react-test-renderer').ReactTestRenderer): boolean {
-  return tree.root.find((node) => String(node.type) === 'TodayAstraMock').props.suppressed
+function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
+  const astra = tree.root.findAll((node) => String(node.type) === 'TodayAstraMock')[0]
+  if (!astra) throw new Error('Today Astra did not render')
+  return astra.props.suppressed === true
 }
 
 describe('mobile Today Astra owned surfaces', () => {
@@ -110,7 +112,7 @@ describe('mobile Today Astra owned surfaces', () => {
     ['detail', (props: Record<string, unknown>) => (props.onDetailHabit as (habit: NormalizedHabit) => void)(mocks.habit)],
     ['edit', (props: Record<string, unknown>) => (props.onEditHabit as (habit: NormalizedHabit) => void)(mocks.habit)],
   ])('stands down while the %s surface is open', async (_surface, openSurface) => {
-    let tree!: import('react-test-renderer').ReactTestRenderer
+    let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<TodayScreen />)
       await Promise.resolve()
@@ -123,6 +125,5 @@ describe('mobile Today Astra owned surfaces', () => {
     })
 
     expect(isSuppressed(tree)).toBe(true)
-    tree.unmount()
   })
 })

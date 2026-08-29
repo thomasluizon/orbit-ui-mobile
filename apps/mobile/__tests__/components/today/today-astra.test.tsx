@@ -105,7 +105,8 @@ describe('mobile Today Astra', () => {
       await Promise.resolve()
     })
 
-    const input = tree.root.find((node) => String(node.type) === 'ConversationInput')
+    const input = tree.root.findAll((node) => String(node.type) === 'ConversationInput')[0]
+    if (!input) throw new Error('Conversation composer did not open')
     expect(input.props.value).toBe('todayAstra.createSentence')
   })
 })
