@@ -1857,7 +1857,7 @@
     }
   },
   "upgrade": {
-    "title": "Upgrade para o Pro",
+    "title": "Assinatura",
     "alreadyPro": "Você está no plano Pro",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -1962,6 +1962,7 @@
     },
     "convert": {
       "promise": "Tudo o que o Orbit faz, em um plano só.",
+      "trialEyebrow": "Teste Pro",
       "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
       "trialLastDay": "Teste Pro · último dia",
       "trialHeading": "Mantenha seus recursos Pro",
@@ -2015,14 +2016,19 @@
     "billing": {
       "plan": {
         "title": "Plano atual",
+        "pro": "Orbit Pro",
         "monthly": "Pro Mensal",
         "yearly": "Pro Anual",
         "lifetime": "Pro Vitalício",
-        "lifetimeHint": "Seu acesso Pro nunca expira",
+        "lifetimeHint": "Seu acesso Pro nunca expira. Não há renovação.",
         "renewsOn": "Renova em {date}",
         "canceledBadge": "Cancela no fim do período",
         "canceledHint": "Acesso até {date}",
-        "pastDue": "Pagamento em atraso"
+        "pastDue": "Pagamento em atraso",
+        "trialBadge": "Teste",
+        "trialHint": "Seu teste termina em {date}",
+        "monthlyPrice": "Preço mensal do plano: {price}",
+        "yearlyPrice": "Preço anual do plano: {price}"
       },
       "payment": {
         "title": "Método de pagamento",
@@ -2031,9 +2037,11 @@
         "change": "Alterar"
       },
       "usage": {
-        "title": "Este mês",
-        "aiMessages": "Mensagens de IA",
-        "aiMessagesOf": "{used} de {limit}"
+        "title": "Mensagens da Astra",
+        "aiMessages": "Hoje",
+        "aiMessagesOf": "{used} de {limit}",
+        "nearLimit": "Você está perto do limite da Astra de hoje",
+        "nearLimitBody": "Seu limite será renovado automaticamente amanhã."
       },
       "invoices": {
         "title": "Histórico de faturas",
@@ -2049,11 +2057,26 @@
       "actions": {
         "manage": "Gerenciar assinatura",
         "manageHint": "Trocar de plano, atualizar o pagamento ou cancelar",
+        "providerNote": "A Stripe cuida das alterações de cobrança. O Orbit não armazena os dados do cartão e nunca pede sua senha aqui.",
         "managePlay": "Gerenciar no Google Play",
-        "managePlayHint": "Sua assinatura é cobrada pelo Google Play. Gerencie ou cancele por lá."
+        "managePlayHint": "O Google Play cuida desta assinatura. Você pode alterá-la ou cancelá-la por lá.",
+        "opening": "Abrindo configurações de cobrança"
       },
       "error": "Não foi possível carregar os detalhes de cobrança",
-      "retry": "Tentar de novo"
+      "retry": "Tentar de novo",
+      "portalFailed": "As configurações de cobrança não abriram. Confira sua conexão e tente de novo.",
+      "portalReturned": "Detalhes da assinatura atualizados",
+      "offline": "Você está sem conexão. Reconecte para gerenciar a cobrança.",
+      "lapsed": {
+        "title": "Sua assinatura Pro terminou",
+        "canceled": "Sua assinatura foi cancelada em {date}.",
+        "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
+        "expired": "Sua assinatura expirou em {date}.",
+        "fallback": "Sua assinatura terminou.",
+        "features": "O limite diário maior da Astra e a sincronização do calendário não estão mais ativos.",
+        "yearlyFeature": "A retrospectiva anual não está mais ativa.",
+        "action": "Assinar de novo"
+      }
     },
     "playError": {
       "unavailable": "A cobrança do Google Play não está disponível neste aparelho.",

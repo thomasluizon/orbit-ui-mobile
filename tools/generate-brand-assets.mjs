@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import sharp from "sharp"
+import pngToIco from "png-to-ico"
 
 const USAGE = `usage: generate-brand-assets.mjs --write [--root <path>]
 
@@ -79,6 +80,10 @@ const generatedAssets = [
   { path: "design/brand/png/orbit-mark-accent-128.png", width: 128, height: 128, ink: FOREGROUND, accent: true, sourceCanvas: true },
   { path: "design/brand/png/orbit-mark-accent-512.png", width: 512, height: 512, ink: FOREGROUND, accent: true, sourceCanvas: true },
   { path: "design/brand/png/orbit-platform-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  // Console upload exports keep the same platform icon composition. OAuth gets a 24-bit opaque
+  // PNG; Play requires a 32-bit PNG, so its alpha channel stays present with every pixel opaque.
+  { path: "design/brand/exports/oauth-consent-logo-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true, opaque: true },
+  { path: "design/brand/exports/play-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
   { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.6, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: 0.6 },
@@ -95,15 +100,11 @@ const generatedAssets = [
   // when every alpha value is opaque. Other canvases retain alpha because their platform contracts
   // need transparency or accept RGBA.
   { path: "apps/mobile/store/feature-graphic.png", width: 1024, height: 500, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true, opaque: true },
-  // app/icon.png is a Next.js App Router FILE CONVENTION, not an ordinary public asset. It is the
-  // browser-tab icon Next serves for the app segment, so leaving it out of this list is how the old
-  // mark survived every previous regeneration: it is the one icon that metadata.icons does not
-  // reach. Same geometry as the public favicon, because it does the same job.
-  { path: "apps/web/app/icon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
-  // The browser tab draws a favicon at 16px. Downscaling the 64 into that slot is exactly the soft
-  // stroke DESIGN.md:267 forbids, so this one comes from the native 16 redraw at its designed size.
-  { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, background: CANVAS, nativeMark: true },
-  { path: "apps/web/public/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  // Browser tabs render against uncontrolled light and dark chrome. The canvas disc keeps the
+  // hairline mark visible in both, while the native 16 redraw avoids downscaling the 1024 geometry.
+  { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, nativeMark: true, disc: true },
+  { path: "apps/web/public/favicon-32.png", width: 32, height: 32, ink: FOREGROUND, scale: 0.68, accent: true, disc: true },
+  { path: "apps/web/app/apple-icon.png", width: 180, height: 180, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, accent: true },
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
   { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
@@ -196,7 +197,8 @@ async function renderAccentMark(source, ink, accent, targetWidth) {
 
 async function renderAsset(sources, asset) {
   const source = asset.nativeMark ? sources.mark16 : asset.accent ? sources.markAccent : sources.mark
-  const background = asset.background ?? { r: 0, g: 0, b: 0, alpha: 0 }
+  const transparent = { r: 0, g: 0, b: 0, alpha: 0 }
+  const background = asset.disc ? transparent : asset.background ?? transparent
   const canvas = sharp({
     create: {
       width: asset.width,
@@ -205,6 +207,15 @@ async function renderAsset(sources, asset) {
       background,
     },
   })
+  const backgroundLayers = asset.disc
+    ? [{
+        input: Buffer.from(
+          `<svg width="${asset.width}" height="${asset.height}" viewBox="0 0 ${asset.width} ${asset.height}"><circle cx="${asset.width / 2}" cy="${asset.height / 2}" r="${asset.width / 2}" fill="${CANVAS}"/></svg>`,
+        ),
+        left: 0,
+        top: 0,
+      }]
+    : []
 
   if (!asset.ink) {
     return canvas.png({ compressionLevel: 9 }).toBuffer()
@@ -213,7 +224,7 @@ async function renderAsset(sources, asset) {
   if (asset.nativeMark) {
     const mark = await renderNativeMark(source, asset.ink, asset.width)
     return canvas
-      .composite([{ input: mark, left: 0, top: 0 }])
+      .composite([...backgroundLayers, { input: mark, left: 0, top: 0 }])
       .png({ compressionLevel: 9 })
       .toBuffer()
   }
@@ -233,12 +244,22 @@ async function renderAsset(sources, asset) {
   const left = Math.floor((asset.width - info.width) / 2)
   const top = Math.floor((asset.height - info.height) / 2)
 
-  const composed = canvas.composite([{ input: mark, left, top }])
+  const composed = canvas.composite([...backgroundLayers, { input: mark, left, top }])
   if (asset.opaque) composed.removeAlpha()
 
   return composed
     .png({ compressionLevel: 9 })
     .toBuffer()
+}
+
+const faviconLayerAssets = [
+  generatedAssets.find(({ path }) => path === "apps/web/public/favicon-16.png"),
+  generatedAssets.find(({ path }) => path === "apps/web/public/favicon-32.png"),
+  { width: 48, height: 48, ink: FOREGROUND, scale: 0.68, accent: true, disc: true },
+]
+
+if (faviconLayerAssets.some((asset) => !asset)) {
+  throw new Error("favicon PNG assets must exist before the ICO layers are assembled")
 }
 
 async function main() {
@@ -254,14 +275,26 @@ async function main() {
     throw new Error("orbit-mark-accent.svg must carry the accent moon as var(--primary, currentColor)")
   }
 
+  const renderedAssets = new Map()
   for (const asset of generatedAssets) {
     const outputPath = join(repositoryRoot, ...asset.path.split("/"))
     await mkdir(dirname(outputPath), { recursive: true })
-    await writeFile(outputPath, await renderAsset(sources, asset))
+    const renderedAsset = await renderAsset(sources, asset)
+    renderedAssets.set(asset.path, renderedAsset)
+    await writeFile(outputPath, renderedAsset)
   }
 
+  const faviconLayers = await Promise.all(
+    faviconLayerAssets.map((asset) =>
+      asset.path ? renderedAssets.get(asset.path) : renderAsset(sources, asset),
+    ),
+  )
+  const faviconPath = join(repositoryRoot, "apps", "web", "app", "favicon.ico")
+  await mkdir(dirname(faviconPath), { recursive: true })
+  await writeFile(faviconPath, await pngToIco(faviconLayers))
+
   console.log(
-    `generated ${generatedAssets.length} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
+    `generated ${generatedAssets.length + 1} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
   )
 }
 

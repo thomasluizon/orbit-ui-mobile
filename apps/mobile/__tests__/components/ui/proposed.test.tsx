@@ -46,8 +46,8 @@ function CompositeValue() {
   )
 }
 
-function UnstyledCompositeValue() {
-  return <Text style={{ fontSize: 17 }} testID="unstyled-composite">Unstyled composite</Text>
+function UnstyledCompositeValue({ testID }: Readonly<{ testID: string }>) {
+  return <Text style={{ fontSize: 17 }} testID={testID}>Unstyled composite</Text>
 }
 
 describe('Proposed on mobile', () => {
@@ -110,17 +110,23 @@ describe('Proposed on mobile', () => {
     expect(flattenedStyle(tree.root.findByProps({ testID: 'composite-input' })).color).toBe(compositeInputStyle.color)
   })
 
-  it('leaves unstyled composite output at the ambient fg1 color', () => {
+  it('renders unstyled composite output with the exact same flattened style inside and outside', () => {
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
-        <UnstyledCompositeValue />
-      </Proposed>,
+      <>
+        <UnstyledCompositeValue testID="outside-composite" />
+        <Proposed proposed scope="row" label="Proposed by Astra">
+          <UnstyledCompositeValue testID="inside-composite" />
+        </Proposed>
+      </>,
     )
-    const compositeStyle = flattenedStyle(tree.root.findByProps({ testID: 'unstyled-composite' }))
+    const renderedText = tree.root.findAllByType('Text')
+    const outsideText = renderedText.find((node) => prop(node, 'testID') === 'outside-composite')!
+    const insideText = renderedText.find((node) => prop(node, 'testID') === 'inside-composite')!
+    const outsideStyle = flattenedStyle(outsideText)
+    const insideStyle = flattenedStyle(insideText)
 
-    expect(compositeStyle).toMatchObject({ fontSize: 17 })
-    expect(compositeStyle.color).toBeUndefined()
-    expect(compositeStyle.color).not.toBe(createTokensV2('purple', 'dark').fg3)
+    expect(insideStyle).toEqual(outsideStyle)
+    expect(insideStyle).toEqual({ fontSize: 17 })
   })
 
   it('tints unstyled nested text and text input through arrays and fragments', () => {
