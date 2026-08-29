@@ -19,7 +19,7 @@ export function CommandRow({ leading, label, value, onSelect }: Readonly<Command
     <CommandItem
       value={value}
       onSelect={onSelect}
-      className="flex min-h-[44px] cursor-pointer select-none items-center gap-3 rounded-[12px] px-2.5 text-[16px] text-[var(--fg-1)] [&_svg]:text-[var(--fg-3)] data-[selected=true]:bg-[rgba(var(--primary-rgb),0.12)] data-[selected=true]:[&_svg]:text-[var(--primary)]"
+      className="flex min-h-[44px] cursor-pointer select-none items-center gap-3 rounded-[12px] px-3 text-[16px] text-[var(--fg-1)] transition-[background-color,box-shadow,transform] duration-150 ease-[var(--ease-standard)] [&_svg]:text-[var(--fg-3)] data-[selected=true]:bg-[var(--primary-dim)] data-[selected=true]:shadow-[inset_0_0_0_1px_var(--primary)] data-[selected=true]:[&_svg]:text-[var(--primary)] active:scale-[0.96]"
     >
       <span className="grid size-[26px] shrink-0 place-items-center">{leading}</span>
       <span className="flex-1 truncate leading-tight">{label}</span>

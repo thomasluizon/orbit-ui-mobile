@@ -17,11 +17,6 @@
       "count": 5
     }
   },
-  "app/(tabs)/calendar/_components/calendar-loading-bar.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/(tabs)/calendar/_components/calendar-range-view.tsx": {
     "local/spacing-scale": {
       "count": 2

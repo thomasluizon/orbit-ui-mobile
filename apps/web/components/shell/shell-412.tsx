@@ -34,8 +34,13 @@ export function Shell412(props: Readonly<Shell412Props>) {
         <main
           ref={registerScroller}
           data-shell-scroller=""
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+          className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
         >
+          <span
+            aria-hidden="true"
+            data-shell-scroll-origin=""
+            className="pointer-events-none absolute left-0 top-0 h-px w-px"
+          />
           {props.children}
         </main>
 

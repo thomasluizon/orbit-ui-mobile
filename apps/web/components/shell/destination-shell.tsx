@@ -14,6 +14,10 @@ import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
+import {
+  resetRouteTransitionIntent,
+  setRouteTransitionIntent,
+} from '@/lib/motion/route-intent'
 import { Shell412 } from './shell-412'
 import { ShellWide } from './shell-wide'
 
@@ -63,9 +67,15 @@ export function DestinationShell({
 
   const navigate = useCallback(
     (id: BottomTab) => {
-      router.push(ROUTES[id])
+      const route = ROUTES[id]
+      if (route === pathname) {
+        resetRouteTransitionIntent()
+        return
+      }
+      setRouteTransitionIntent('tab')
+      router.push(route)
     },
-    [router],
+    [pathname, router],
   )
 
   const wideItems = useMemo<ShellWideItem[]>(

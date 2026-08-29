@@ -69,11 +69,18 @@ vi.mock('@/components/shell/shell-wide', () => ({
 }))
 
 import { DestinationShell } from '@/components/shell/destination-shell'
+import {
+  getCurrentRouteTransitionIntent,
+  getRouteScenarioForIntent,
+  resetRouteTransitionIntent,
+  setRouteTransitionIntent,
+} from '@/lib/motion/route-intent'
 
 describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
+    resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
 
@@ -99,6 +106,20 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
 
     expect(screen.queryByRole('button', { name: 'nav.create' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a later pushed flow after selecting the active destination', () => {
+    setRouteTransitionIntent('tab')
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'nav.today' }))
+    mocks.push('/habits/h1')
+
+    expect(mocks.push).toHaveBeenCalledOnce()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/h1')
+    expect(
+      getRouteScenarioForIntent(getCurrentRouteTransitionIntent()),
+    ).toBe('route-push')
   })
 
   it('renders the same four destinations in the wide shell', () => {
