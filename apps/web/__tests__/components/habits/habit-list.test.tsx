@@ -1372,7 +1372,7 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
   })
 
-  it('stores drill edit onSaved callback without invoking refresh eagerly', () => {
+  it('stores drill edit onSaved callback without invoking refresh eagerly', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -1399,7 +1399,7 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByTestId('edit-child'))
     expect(drillRefreshCurrent).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByTestId('edit-habit-modal-save'))
+    fireEvent.click(await screen.findByTestId('edit-habit-modal-save'))
     expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
   })
 
@@ -1522,7 +1522,9 @@ describe('HabitList', () => {
     })
     expect(deleteHabitMutateAsync).not.toHaveBeenCalled()
 
-    const confirmation = screen.getByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    const confirmation = await screen.findByRole('dialog', {
+      name: 'habits.deleteConfirmTitle',
+    })
     await act(async () => {
       fireEvent.click(within(confirmation).getByRole('button', { name: 'common.delete' }))
     })

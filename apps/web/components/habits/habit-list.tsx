@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useImperativeHandle, type Ref } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import {
   ArrowLeft,
   Home,
 } from '@/components/ui/icons'
 import { useTranslations, useLocale } from 'next-intl'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import {
   buildHabitDateBuckets,
@@ -26,10 +27,6 @@ import {
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
-import { HabitDetailDrawer } from './habit-detail-drawer'
-import { CreateHabitModal } from './create-habit-modal'
-import { EditHabitModal } from './edit-habit-modal'
-import { RescheduleSheet } from './reschedule-sheet'
 import {
   HabitListEmptyState,
   HabitListSkeleton,
@@ -40,9 +37,8 @@ import {
   type HabitListDateGroup,
 } from './habit-list/date-group-section'
 import { formatDateGroupLabel } from './habit-list/date-group-label'
-import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import { HabitListDrillContent } from './habit-list/drill-content'
-import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-parent-overlay'
+import type { MoveParentOption } from './habit-list/move-parent-overlay'
 import {
   buildDragItemsFlat,
   buildMoveParentOptions,
@@ -86,6 +82,53 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+
+const HabitDetailDrawer = dynamic(() =>
+  import('./habit-detail-drawer').then((module) => module.HabitDetailDrawer),
+)
+const CreateHabitModal = dynamic(() =>
+  import('./create-habit-modal').then((module) => module.CreateHabitModal),
+)
+const EditHabitModal = dynamic(() =>
+  import('./edit-habit-modal').then((module) => module.EditHabitModal),
+)
+const RescheduleSheet = dynamic(() =>
+  import('./reschedule-sheet').then((module) => module.RescheduleSheet),
+)
+const HabitListConfirmDialogs = dynamic(() =>
+  import('./habit-list/confirm-dialogs').then((module) => module.HabitListConfirmDialogs),
+)
+const MoveParentOverlay = dynamic(() =>
+  import('./habit-list/move-parent-overlay').then((module) => module.MoveParentOverlay),
+)
+
+function DeferredHabitDetailDrawer(props: Readonly<ComponentProps<typeof HabitDetailDrawer>>) {
+  return props.open ? <HabitDetailDrawer {...props} /> : null
+}
+
+function DeferredEditHabitModal(props: Readonly<ComponentProps<typeof EditHabitModal>>) {
+  return props.open ? <EditHabitModal {...props} /> : null
+}
+
+function DeferredRescheduleSheet(props: Readonly<ComponentProps<typeof RescheduleSheet>>) {
+  return props.open ? <RescheduleSheet {...props} /> : null
+}
+
+function DeferredCreateHabitModal(props: Readonly<ComponentProps<typeof CreateHabitModal>>) {
+  return props.open ? <CreateHabitModal {...props} /> : null
+}
+
+function DeferredConfirmDialogs(
+  props: Readonly<ComponentProps<typeof HabitListConfirmDialogs>>,
+) {
+  return props.showDeleteConfirm ? <HabitListConfirmDialogs {...props} /> : null
+}
+
+function DeferredMoveParentOverlay(
+  props: Readonly<ComponentProps<typeof MoveParentOverlay>>,
+) {
+  return props.open ? <MoveParentOverlay {...props} /> : null
+}
 
 const HABIT_PANEL_STYLE = {
   marginInline: 16,
@@ -1165,7 +1208,7 @@ export function HabitList({
     <div data-tour="tour-habit-list" ref={listContainerRef}>
       {renderMainContent()}
 
-      <HabitDetailDrawer
+      <DeferredHabitDetailDrawer
         open={showDetailDrawer}
         onOpenChange={setShowDetailDrawer}
         habit={selectedHabit}
@@ -1173,7 +1216,7 @@ export function HabitList({
         onLogged={(habitId) => handleLogged(habitId, true)}
       />
 
-      <EditHabitModal
+      <DeferredEditHabitModal
         open={showEditModal}
         onOpenChange={handleEditModalOpenChange}
         habit={habitToEdit}
@@ -1181,7 +1224,7 @@ export function HabitList({
         lockedGeneral={editHabitLockedGeneral}
       />
 
-      <RescheduleSheet
+      <DeferredRescheduleSheet
         open={showRescheduleSheet}
         onOpenChange={(open) => {
           setShowRescheduleSheet(open)
@@ -1190,15 +1233,13 @@ export function HabitList({
         habit={habitToReschedule}
       />
 
-      {showSubHabitModal && (
-        <CreateHabitModal
-          open={showSubHabitModal}
-          onOpenChange={setShowSubHabitModal}
-          parentHabit={subHabitParent}
-        />
-      )}
+      <DeferredCreateHabitModal
+        open={showSubHabitModal}
+        onOpenChange={setShowSubHabitModal}
+        parentHabit={subHabitParent}
+      />
 
-      <HabitListConfirmDialogs
+      <DeferredConfirmDialogs
         t={t}
         showDeleteConfirm={showDeleteConfirm}
         onConfirmDelete={() => void confirmDelete()}
@@ -1208,7 +1249,7 @@ export function HabitList({
         }}
       />
 
-      <MoveParentOverlay
+      <DeferredMoveParentOverlay
         t={t}
         open={showMoveParentOverlay}
         isMoving={isMovingParent}
