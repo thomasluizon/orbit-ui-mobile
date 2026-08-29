@@ -98,6 +98,121 @@ describe('habit detail flow model', () => {
     expect(weekly.find((day) => day.dateStr === '2026-08-10')?.outcome).toBe('none')
   })
 
+  it('preserves non-unit monthly cadence while clamping short months', () => {
+    const everyOtherMonth = {
+      ...recurring,
+      createdAtUtc: '2026-01-31T12:00:00Z',
+      days: [],
+      dueDate: '2026-01-31',
+      frequencyUnit: 'Month',
+      frequencyQuantity: 2,
+    }
+    const february = buildHabitHistoryMonth(
+      everyOtherMonth,
+      [],
+      new Date(2026, 1, 1),
+      new Date(2026, 3, 1),
+      1,
+    )
+    expect(february.find((day) => day.dateStr === '2026-02-28')?.outcome).toBe('not-scheduled')
+
+    const march = buildHabitHistoryMonth(
+      everyOtherMonth,
+      [],
+      new Date(2026, 2, 1),
+      new Date(2026, 3, 1),
+      1,
+    )
+    expect(march.find((day) => day.dateStr === '2026-03-31')?.outcome).toBe('none')
+    expect(march.find((day) => day.dateStr === '2026-03-30')?.outcome).toBe('not-scheduled')
+  })
+
+  it('preserves non-unit yearly cadence and maps leap-day anchors in common years', () => {
+    const everyOtherYear = {
+      ...recurring,
+      createdAtUtc: '2024-01-01T12:00:00Z',
+      days: [],
+      dueDate: '2024-02-29',
+      frequencyUnit: 'Year',
+      frequencyQuantity: 2,
+    }
+    const leapYear = buildHabitHistoryMonth(
+      everyOtherYear,
+      [],
+      new Date(2024, 1, 1),
+      new Date(2026, 2, 1),
+      1,
+    )
+    expect(leapYear.find((day) => day.dateStr === '2024-02-29')?.outcome).toBe('none')
+
+    const skippedYear = buildHabitHistoryMonth(
+      everyOtherYear,
+      [],
+      new Date(2025, 1, 1),
+      new Date(2026, 2, 1),
+      1,
+    )
+    expect(skippedYear.find((day) => day.dateStr === '2025-02-28')?.outcome).toBe('not-scheduled')
+
+    const commonYear = buildHabitHistoryMonth(
+      everyOtherYear,
+      [],
+      new Date(2026, 1, 1),
+      new Date(2026, 2, 1),
+      1,
+    )
+    expect(commonYear.find((day) => day.dateStr === '2026-02-28')?.outcome).toBe('none')
+    expect(commonYear.find((day) => day.dateStr === '2026-02-27')?.outcome).toBe('not-scheduled')
+  })
+
+  it('keeps one-time, flexible, creation, and end schedule bounds distinct', () => {
+    const oneTime = buildHabitHistoryMonth(
+      {
+        ...recurring,
+        days: [],
+        dueDate: '2026-08-28',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+      },
+      [],
+      today,
+      today,
+      1,
+    )
+    expect(oneTime.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('none')
+    expect(oneTime.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('not-scheduled')
+
+    const flexible = buildHabitHistoryMonth(
+      {
+        ...recurring,
+        days: ['Monday'],
+        isFlexible: true,
+      },
+      [],
+      today,
+      today,
+      1,
+    )
+    expect(flexible.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('none')
+
+    const bounded = buildHabitHistoryMonth(
+      {
+        ...recurring,
+        createdAtUtc: '2026-08-27T12:00:00Z',
+        days: [],
+        endDate: '2026-08-27',
+        frequencyUnit: 'Day',
+      },
+      [],
+      today,
+      today,
+      1,
+    )
+    expect(bounded.find((day) => day.dateStr === '2026-08-26')?.outcome).toBe('not-scheduled')
+    expect(bounded.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('none')
+    expect(bounded.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('not-scheduled')
+  })
+
   it('clamps monthly anchors and respects creation and end boundaries', () => {
     const monthly = {
       ...recurring,
@@ -172,6 +287,90 @@ describe('habit detail flow model', () => {
     expect(unscoped.canLog).toBe(false)
   })
 
+  it('distinguishes recurring child instances from range completion', () => {
+    const detailChild = createMockHabit({
+      id: 'recurring-child',
+      scheduledDates: ['2026-08-26'],
+      instances: [],
+    })
+    const completedByInstance = buildHabitDetailChildDateModel(
+      detailChild,
+      createMockHabit({
+        ...detailChild,
+        isLoggedInRange: false,
+        instances: [{ date: '2026-08-26', status: 'Completed', logId: 'log-1' }],
+      }),
+      '2026-08-26',
+      '2026-08-28',
+    )
+    expect(completedByInstance.completed).toBe(true)
+
+    const completedByRange = buildHabitDetailChildDateModel(
+      detailChild,
+      createMockHabit({
+        ...detailChild,
+        isLoggedInRange: true,
+        instances: [{ date: '2026-08-25', status: 'Completed', logId: 'log-2' }],
+      }),
+      '2026-08-26',
+      '2026-08-28',
+    )
+    expect(completedByRange.completed).toBe(true)
+
+    const incomplete = buildHabitDetailChildDateModel(
+      detailChild,
+      createMockHabit({
+        ...detailChild,
+        isLoggedInRange: false,
+        instances: [{ date: '2026-08-26', status: 'Pending', logId: null }],
+      }),
+      '2026-08-26',
+      '2026-08-28',
+    )
+    expect(incomplete.completed).toBe(false)
+  })
+
+  it('keeps future one-time children editable and recurring children read-only', () => {
+    const oneTimeChild = createMockHabit({
+      id: 'one-time-child',
+      dueDate: '2026-08-29',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      scheduledDates: ['2026-08-29'],
+    })
+    const oneTime = buildHabitDetailChildDateModel(
+      oneTimeChild,
+      oneTimeChild,
+      '2026-08-29',
+      '2026-08-28',
+    )
+    expect(oneTime.canLog).toBe(true)
+    expect(oneTime.readOnly).toBe(false)
+
+    const recurringChild = createMockHabit({
+      id: 'recurring-child',
+      dueDate: '2026-08-29',
+      scheduledDates: ['2026-08-29'],
+    })
+    const recurringFuture = buildHabitDetailChildDateModel(
+      recurringChild,
+      recurringChild,
+      '2026-08-29',
+      '2026-08-28',
+    )
+    expect(recurringFuture.canLog).toBe(false)
+    expect(recurringFuture.readOnly).toBe(true)
+
+    const recurringHistory = buildHabitDetailChildDateModel(
+      recurringChild,
+      recurringChild,
+      '2026-08-20',
+      '2026-08-28',
+    )
+    expect(recurringHistory.canLog).toBe(false)
+    expect(recurringHistory.readOnly).toBe(true)
+  })
+
   it.each(['2026-08-28', '2026-08-26'])(
     'preserves selected-date completion for a general child on %s',
     (dateStr) => {
@@ -200,4 +399,27 @@ describe('habit detail flow model', () => {
       expect(model.readOnly).toBe(false)
     },
   )
+
+  it('preserves incomplete general child state', () => {
+    const generalChild = createMockHabit({
+      id: 'general-child',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      isGeneral: true,
+      isCompleted: false,
+      scheduledDates: [],
+      instances: [],
+    })
+    const model = buildHabitDetailChildDateModel(
+      generalChild,
+      generalChild,
+      '2026-08-28',
+      '2026-08-28',
+    )
+
+    expect(model.completed).toBe(false)
+    expect(model.habit.isCompleted).toBe(false)
+    expect(model.canLog).toBe(true)
+    expect(model.readOnly).toBe(false)
+  })
 })
