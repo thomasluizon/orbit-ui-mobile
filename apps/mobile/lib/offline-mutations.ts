@@ -57,7 +57,8 @@ export class OfflineMutationPreflightError extends Error {
 
 const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
   'bulkSkipHabits',
-  'deleteHabit',
+  'bulkLogHabits',
+  'bulkCascadeDeleteHabits',
 ])
 
 export function isAutomaticReplayBlocked(type: string): boolean {

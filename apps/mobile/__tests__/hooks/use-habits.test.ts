@@ -728,6 +728,19 @@ describe('mobile habit hooks', () => {
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function))
   })
 
+  it('keeps an ordinary habit delete on the released queue identity', async () => {
+    const mutation = useDeleteHabit() as unknown as MutationConfig<unknown, string, undefined>
+
+    await mutation.mutationFn('habit-1')
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        type: 'deleteHabit',
+        endpoint: API.habits.delete('habit-1'),
+      }),
+    }))
+  })
+
   it('restores a habit through the queued path, targets the restore endpoint, and confirms', async () => {
     mocks.runQueuedMutation.mockResolvedValueOnce({})
 
@@ -1229,6 +1242,39 @@ describe('mobile habit hooks', () => {
     expect(response.ambiguousIds).toEqual([])
     expect(response.offlineFailureIds).toEqual(variables)
     expect(getHabitList().map((habit) => habit.id)).toEqual(variables)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(2)
+    for (const [options] of mocks.runQueuedMutation.mock.calls) {
+      expect(options).toEqual(expect.objectContaining({
+        mutation: expect.objectContaining({ type: 'bulkCascadeDeleteHabits' }),
+      }))
+    }
+  })
+
+  it('restores bulk logs refused by the offline preflight without reporting success', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ])
+    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      { results: { index: number; habitId: string; status: string; error: string | null }[] },
+      { habitId: string }[],
+      HabitSnapshotContext
+    >
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(response.results).toHaveLength(2)
+    expect(response.results.every((result) => result.status === 'Failed')).toBe(true)
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({ type: 'bulkLogHabits' }),
+    }))
   })
 
   it('keeps the first log chunk and restores only the unresolved optimistic row', async () => {

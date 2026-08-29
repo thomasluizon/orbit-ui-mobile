@@ -830,6 +830,44 @@ describe('offline mutations', () => {
     expect(mocks.enqueue).toHaveBeenCalledTimes(1)
   })
 
+  it('persists and flushes an ordinary habit delete that starts offline', async () => {
+    const mutation = buildQueuedMutation({
+      type: 'deleteHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1',
+      method: 'DELETE',
+      payload: null,
+      entityType: 'habit',
+      targetEntityId: 'habit-1',
+    })
+
+    await queueOrExecute({
+      mutation,
+      execute: () => Promise.reject(new Error('should not execute while offline')),
+      queuedResult: { queued: true as const },
+    })
+
+    expect(mocks.queued).toEqual([
+      expect.objectContaining({
+        id: mutation.id,
+        type: 'deleteHabit',
+        endpoint: '/api/habits/habit-1',
+        targetEntityId: 'habit-1',
+      }),
+    ])
+
+    mocks.setOnline(true)
+    const result = await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/habits/habit-1',
+      expect.objectContaining({ method: 'DELETE', idempotencyKey: mutation.id }),
+      undefined,
+    )
+    expect(mocks.queued).toEqual([])
+    expect(result.droppedMutations).toEqual([])
+  })
+
   it('rejects a non-replayable mutation offline without persisting it', async () => {
     mocks.setOnline(false)
 
@@ -846,6 +884,28 @@ describe('offline mutations', () => {
     })).rejects.toBeInstanceOf(OfflineMutationPreflightError)
 
     expect(isAutomaticReplayBlocked('bulkSkipHabits')).toBe(true)
+    expect(mocks.queued).toEqual([])
+  })
+
+  it.each([
+    ['bulkLogHabits', '/api/habits/bulk-log'],
+    ['bulkCascadeDeleteHabits', '/api/habits/habit-1'],
+  ] as const)('rejects %s offline without persisting it', async (type, endpoint) => {
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type,
+        scope: 'habits',
+        endpoint,
+        method: type === 'bulkLogHabits' ? 'POST' : 'DELETE',
+        payload: type === 'bulkLogHabits' ? { items: [{ habitId: 'habit-1' }] } : null,
+        entityType: type === 'bulkCascadeDeleteHabits' ? 'habit' : undefined,
+        targetEntityId: type === 'bulkCascadeDeleteHabits' ? 'habit-1' : undefined,
+      }),
+      execute: () => Promise.resolve(null),
+      queuedResult: { queued: true as const },
+    })).rejects.toBeInstanceOf(OfflineMutationPreflightError)
+
+    expect(isAutomaticReplayBlocked(type)).toBe(true)
     expect(mocks.queued).toEqual([])
   })
 
@@ -919,15 +979,56 @@ describe('offline mutations', () => {
     })
   })
 
-  it('retires a released-format non-replayable row without network execution', async () => {
+  it('flushes a released-format deleteHabit row without retiring it', async () => {
+    mocks.queued.push({
+      id: 'released-delete-habit',
+      timestamp: 1,
+      type: 'deleteHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1',
+      method: 'DELETE',
+      payload: null,
+      retries: 0,
+      maxRetries: 3,
+      status: 'pending',
+      dedupeKey: null,
+      targetEntityId: 'habit-1',
+      clientEntityId: null,
+      dependsOn: [],
+      lastError: null,
+    })
+
+    mocks.setOnline(true)
+    const result = await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/habits/habit-1',
+      expect.objectContaining({ method: 'DELETE', idempotencyKey: 'released-delete-habit' }),
+      undefined,
+    )
+    expect(mocks.queued).toEqual([])
+    expect(result).toEqual({
+      succeeded: 1,
+      failed: 0,
+      remaining: 0,
+      droppedMutations: [],
+    })
+  })
+
+  it.each([
+    ['bulkSkipHabits', 'released-bulk-skip', '/api/habits/bulk-skip'],
+    ['bulkLogHabits', 'released-bulk-log', '/api/habits/bulk-log'],
+  ] as const)(
+    'retires a released-format %s row without network execution',
+    async (type, id, endpoint) => {
     const dropped: { id: string; type: string; lastError: string | null }[] = []
     const unsubscribe = subscribeDroppedMutations((mutation) => dropped.push(mutation))
     mocks.queued.push({
-      id: 'released-bulk-skip',
+      id,
       timestamp: 1,
-      type: 'bulkSkipHabits',
+      type,
       scope: 'habits',
-      endpoint: '/api/habits/bulk-skip',
+      endpoint,
       method: 'POST',
       payload: { items: [{ habitId: 'habit-1' }] },
       retries: 0,
@@ -951,13 +1052,14 @@ describe('offline mutations', () => {
       failed: 1,
       remaining: 0,
       droppedMutations: [{
-        id: 'released-bulk-skip',
-        type: 'bulkSkipHabits',
+        id,
+        type,
         lastError: 'Automatic replay is blocked for this mutation while offline',
       }],
     })
     expect(dropped).toEqual(result.droppedMutations)
-  })
+    },
+  )
 
   it('marks a tombstone when a delete mutation is queued offline', async () => {
     mocks.setOnline(false)

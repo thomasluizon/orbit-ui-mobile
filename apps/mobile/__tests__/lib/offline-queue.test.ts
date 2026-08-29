@@ -214,6 +214,26 @@ describe('mobile offline queue', () => {
     expect(getAll()).toHaveLength(0)
   })
 
+  it('drops a pending create when a cascading selection delete targets it', () => {
+    enqueue(makeMutation({
+      id: 'create-1',
+      type: 'createHabit',
+      clientEntityId: 'offline-habit-3',
+      targetEntityId: 'offline-habit-3',
+    }))
+
+    enqueue(makeMutation({
+      id: 'delete-1',
+      type: 'bulkCascadeDeleteHabits',
+      method: 'DELETE',
+      endpoint: '/api/habits/offline-habit-3',
+      targetEntityId: 'offline-habit-3',
+      payload: null,
+    }))
+
+    expect(getAll()).toHaveLength(0)
+  })
+
   it('keeps only the latest last-write-wins mutation for the same dedupe key', () => {
     enqueue(makeMutation({
       id: 'reorder-1',

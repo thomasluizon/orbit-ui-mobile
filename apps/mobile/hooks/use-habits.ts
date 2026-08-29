@@ -840,7 +840,7 @@ export function useBulkDeleteHabits() {
         const chunk = habitIds.slice(index, index + 4)
         const outcomes = await Promise.allSettled(chunk.map((habitId) =>
           performQueuedApiMutation<void>({
-            type: 'deleteHabit',
+            type: 'bulkCascadeDeleteHabits',
             scope: 'habits',
             endpoint: API.habits.delete(habitId),
             method: 'DELETE',
