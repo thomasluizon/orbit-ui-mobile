@@ -29,7 +29,7 @@ import {
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 import { FlowShell } from '@/components/shell/flow-shell'
-import { OtpInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { CapacityNotice } from '@/components/ui/capacity-notice'

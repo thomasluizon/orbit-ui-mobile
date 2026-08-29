@@ -3,6 +3,14 @@
     "title": "Orbit - Personal Habit Tracker",
     "description": "Build better habits with AI-powered tracking and insights."
   },
+  "blockFrame": {
+    "status": {
+      "done": "Done",
+      "acting": "In progress",
+      "failed": "Failed"
+    },
+    "refresh": "Refresh"
+  },
   "settings": {
     "notifications": {
       "title": "Push Notifications",
@@ -277,6 +285,7 @@
     "sendCode": "Send code",
     "codeSent": "Verification code sent. Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
+    "verificationCode": "Verification code",
     "verify": "Verify",
     "resendCode": "Resend code",
     "resendIn": "Resend in {seconds}s",
@@ -622,6 +631,8 @@
       "day": "day",
       "days": "days",
       "endsOn": "Ends on",
+      "startedOn": "Start date",
+      "startDateNote": "The start date is the day the habit was created and does not change.",
       "viewDescription": "View full description",
       "currentStreak": "Current",
       "longestStreak": "Longest",
@@ -1100,6 +1111,7 @@
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, color scheme, language, and timezone",
       "confirmInstruction": "Type ORBIT below to confirm this action.",
+      "confirmLabel": "Confirmation",
       "confirmPlaceholder": "ORBIT",
       "confirmButton": "Reset my account",
       "processing": "Resetting...",
@@ -1531,6 +1543,7 @@
       "createHabit": {
         "title": "Create your first habit",
         "subtitle": "Habits are the building blocks. What do you want to track?",
+        "label": "Habit name",
         "placeholder": "e.g., Drink water, Read, Exercise",
         "create": "Create habit",
         "creating": "Creating...",
@@ -1560,8 +1573,11 @@
         "proTag": "PRO",
         "starters": "Or try one",
         "subtitle": "Goals give your habits a bigger purpose.",
+        "descriptionLabel": "Goal",
         "descriptionPlaceholder": "e.g., Read 12 books this year",
+        "targetLabel": "Target",
         "targetPlaceholder": "Quantity",
+        "unitLabel": "Unit",
         "unitPlaceholder": "Unit (km, books...)",
         "create": "Create goal",
         "creating": "Creating...",
@@ -1786,7 +1802,7 @@
     }
   },
   "upgrade": {
-    "title": "Upgrade to Pro",
+    "title": "Subscription",
     "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -1891,6 +1907,7 @@
     },
     "convert": {
       "promise": "Everything Orbit can do, in one calm plan.",
+      "trialEyebrow": "Pro Trial",
       "trialDaysLeft": "Pro Trial · {days} day left | Pro Trial · {days} days left",
       "trialLastDay": "Pro Trial · last day",
       "trialHeading": "Keep your Pro features",
@@ -1944,14 +1961,19 @@
     "billing": {
       "plan": {
         "title": "Current plan",
+        "pro": "Orbit Pro",
         "monthly": "Pro Monthly",
         "yearly": "Pro Yearly",
         "lifetime": "Lifetime Pro",
-        "lifetimeHint": "Your Pro access never expires",
+        "lifetimeHint": "Your Pro access never expires. There is no renewal.",
         "renewsOn": "Renews {date}",
         "canceledBadge": "Cancels at period end",
         "canceledHint": "Access until {date}",
-        "pastDue": "Payment past due"
+        "pastDue": "Payment past due",
+        "trialBadge": "Trial",
+        "trialHint": "Your trial ends {date}",
+        "monthlyPrice": "Monthly plan price: {price}",
+        "yearlyPrice": "Yearly plan price: {price}"
       },
       "payment": {
         "title": "Payment method",
@@ -1960,9 +1982,11 @@
         "change": "Change"
       },
       "usage": {
-        "title": "This month",
-        "aiMessages": "AI messages",
-        "aiMessagesOf": "{used} of {limit}"
+        "title": "Astra messages",
+        "aiMessages": "Today",
+        "aiMessagesOf": "{used} of {limit}",
+        "nearLimit": "You are close to today's Astra limit",
+        "nearLimitBody": "Your allowance resets automatically tomorrow."
       },
       "invoices": {
         "title": "Invoice history",
@@ -1978,11 +2002,26 @@
       "actions": {
         "manage": "Manage Subscription",
         "manageHint": "Change plan, update payment method, or cancel",
+        "providerNote": "Stripe handles billing changes. Orbit does not store card details and will never ask for your password here.",
         "managePlay": "Manage on Google Play",
-        "managePlayHint": "Your subscription is billed through Google Play. Manage or cancel it there."
+        "managePlayHint": "Google Play handles this subscription. You can change or cancel it there.",
+        "opening": "Opening billing settings"
       },
       "error": "Couldn't load billing details",
-      "retry": "Try again"
+      "retry": "Try again",
+      "portalFailed": "Billing settings did not open. Check your connection and try again.",
+      "portalReturned": "Subscription details refreshed",
+      "offline": "You are offline. Reconnect to manage billing.",
+      "lapsed": {
+        "title": "Your Pro subscription ended",
+        "canceled": "Your subscription was canceled on {date}.",
+        "payment_failed": "Your subscription ended after a payment problem on {date}.",
+        "expired": "Your subscription expired on {date}.",
+        "fallback": "Your subscription has ended.",
+        "features": "Astra's higher daily limit and calendar sync are no longer active.",
+        "yearlyFeature": "Yearly retrospective access is no longer active.",
+        "action": "Subscribe again"
+      }
     },
     "playError": {
       "unavailable": "Google Play billing isn't available on this device.",

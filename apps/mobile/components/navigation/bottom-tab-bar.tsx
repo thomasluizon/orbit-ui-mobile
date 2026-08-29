@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   pressed: {
-    transform: [{ scale: 0.96 }],
+    opacity: 0.7,
   },
   label: {
     fontFamily: 'Geist_500Medium',

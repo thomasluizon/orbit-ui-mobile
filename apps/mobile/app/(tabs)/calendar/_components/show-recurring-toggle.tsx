@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Switch } from "@/components/ui/settings-row";
+import { Switch } from "@/components/ui/switch";
 import { createTokensV2 } from "@/lib/theme";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -25,9 +25,9 @@ export function ShowRecurringToggle({
   return (
     <View style={styles.row}>
       <Switch
-        on={checked}
-        onToggle={() => onChange(!checked)}
-        accessibilityLabel={label}
+        checked={checked}
+        onChange={onChange}
+        label={label}
       />
       <Pressable
         accessibilityElementsHidden

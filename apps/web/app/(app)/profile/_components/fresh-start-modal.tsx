@@ -12,7 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/app/actions/profile'
 
@@ -311,18 +311,15 @@ function FreshStartConfirmStep({
       >
         {t('profile.freshStart.confirmInstruction')}
       </p>
-      <FieldInput
+      <Input
+        label={t('profile.freshStart.confirmLabel')}
         mono
         value={confirmText}
         onChange={onConfirmTextChange}
         placeholder={t('profile.freshStart.confirmPlaceholder')}
         autoComplete="off"
-        ariaLabel={t('profile.freshStart.confirmInstruction')}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && isConfirmed && !loading) {
-            event.preventDefault()
-            onReset()
-          }
+        onSubmit={() => {
+          if (isConfirmed && !loading) onReset()
         }}
       />
       {error && (

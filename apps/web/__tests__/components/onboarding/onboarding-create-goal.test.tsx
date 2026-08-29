@@ -54,6 +54,9 @@ describe('OnboardingCreateGoal', () => {
 
   it('renders suggestion chips', () => {
     renderStep(defaultProps)
+    expect(screen.getByLabelText('onboarding.flow.createGoal.descriptionLabel')).toBeInTheDocument()
+    expect(screen.getByLabelText('onboarding.flow.createGoal.targetLabel')).toBeInTheDocument()
+    expect(screen.getByLabelText('onboarding.flow.createGoal.unitLabel')).toBeInTheDocument()
     expect(screen.getByText('onboarding.flow.createGoal.suggestions.run')).toBeInTheDocument()
     expect(screen.getByText('onboarding.flow.createGoal.suggestions.books')).toBeInTheDocument()
     expect(screen.getByText('onboarding.flow.createGoal.suggestions.save')).toBeInTheDocument()

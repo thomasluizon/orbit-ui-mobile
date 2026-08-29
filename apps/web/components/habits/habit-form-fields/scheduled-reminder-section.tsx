@@ -5,7 +5,8 @@ import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shared/validation'
 import { TimeField } from '@/components/ui/time-field'
-import { Switch } from '@/components/ui/settings-row'
+import type { Time24 } from '@orbit/shared/contracts/forms'
+import { Switch } from '@/components/ui/switch'
 
 interface ScheduledReminderSectionProps {
   reminderEnabled: boolean
@@ -29,7 +30,7 @@ export function ScheduledReminderSection({
   const locale = useLocale()
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
-  const [time, setTime] = useState('')
+  const [time, setTime] = useState<Time24 | ''>('')
 
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
 
@@ -77,9 +78,9 @@ export function ScheduledReminderSection({
         </div>
         {!nested && (
           <Switch
-            on={reminderEnabled}
-            onToggle={onToggleReminder}
-            ariaLabel={t('habits.form.scheduledReminder')}
+            checked={reminderEnabled}
+            onChange={onToggleReminder}
+            label={t('habits.form.scheduledReminder')}
           />
         )}
       </div>
@@ -141,11 +142,10 @@ export function ScheduledReminderSection({
 
                 <div className="flex items-center gap-2">
                   <TimeField
+                    label={t('habits.form.scheduledReminderTimePlaceholder')}
                     value={time}
-                    ariaLabel={t('habits.form.scheduledReminderTimePlaceholder')}
-                    placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                    className="flex-1"
                     onChange={setTime}
+                    onClear={() => setTime('')}
                   />
                   <button
                     type="button"
