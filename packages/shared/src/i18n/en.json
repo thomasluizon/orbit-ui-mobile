@@ -206,7 +206,7 @@
     "createHabit": "Create habit",
     "groups": {
       "actions": "Actions",
-      "navigate": "Navigate",
+      "destinations": "Destinations",
       "search": "Habits"
     },
     "hints": {

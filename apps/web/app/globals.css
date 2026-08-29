@@ -347,9 +347,10 @@
   --dur-1: 160ms;
   --dur-2: 220ms;
   --dur-3: 280ms;
-  --dur-fast: 240ms;
+  --dur-fast: 160ms;
   --dur-base: var(--dur-2);
   --dur-slow: var(--dur-3);
+  --dur-hover-control: 240ms;
   --dur-hover: 380ms;
   --dur-enter: 220ms;
   --duration-fast: 160ms;

@@ -119,6 +119,9 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   if (activePage !== null) {
     activePageLabel = t(activePage === 'log' ? 'command.logHabit' : 'command.skipHabit')
   }
+  const escapeHintLabel = activePage === null
+    ? t('command.hints.close')
+    : t('command.hints.back')
 
   const renderHabitActionGroup = () => {
     if (isPending) {
@@ -154,7 +157,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
               popPage()
               inputRef.current?.focus()
             }}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-150 ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
           >
             <ArrowLeft size={20} strokeWidth={1.8} aria-hidden />
           </button>
@@ -248,7 +251,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
 
             <CommandGroup
               forceMount
-              heading={t('command.groups.navigate')}
+              heading={t('command.groups.destinations')}
               className={GROUP_CLASS}
               data-command-group="destinations"
             >
@@ -274,7 +277,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
       >
         <CommandKeyHint keys={['↑', '↓']} label={t('command.hints.navigate')} />
         <CommandKeyHint keys={['↵']} label={t('command.hints.select')} />
-        <CommandKeyHint keys={['Esc']} label={t('command.hints.close')} />
+        <CommandKeyHint keys={['Esc']} label={escapeHintLabel} />
         {activePage !== null && <CommandKeyHint keys={['⌫']} label={t('command.hints.back')} />}
       </div>
     </Command>

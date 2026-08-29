@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
@@ -21,9 +23,17 @@ describe('StatusDot', () => {
     const button = screen.getByRole('button')
 
     expect(button).toHaveStyle('--status-dot-press-scale: 0.96')
+    expect(button).toHaveStyle('--status-dot-press-duration: 150ms')
     expect(button).toHaveClass(
       'enabled:active:scale-[var(--status-dot-press-scale)]',
     )
+  })
+
+  it('keeps the shared fast alias separate from control hover feedback', () => {
+    const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+
+    expect(css).toMatch(/--dur-fast:\s*160ms;/)
+    expect(css).toMatch(/--dur-hover-control:\s*240ms;/)
   })
 
   it('keeps completion static when an interactive dot becomes done', () => {

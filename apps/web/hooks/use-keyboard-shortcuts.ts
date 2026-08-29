@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
-import { hasOpenOverlay } from '@/lib/overlay-stack'
+import { hasOpenModalFocusOwner, hasOpenOverlay } from '@/lib/overlay-stack'
 
 const CHORD_TIMEOUT_MS = 1200
 
@@ -25,6 +25,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function useKeyboardShortcuts(enabled = true): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)
+  const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setActiveView = useUIStore((state) => state.setActiveView)
   const chordArmed = useRef(false)
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -65,6 +66,7 @@ export function useKeyboardShortcuts(enabled = true): void {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'K')) {
         event.preventDefault()
+        if (!paletteOpen && hasOpenModalFocusOwner()) return
         togglePalette()
         return
       }
@@ -93,5 +95,5 @@ export function useKeyboardShortcuts(enabled = true): void {
       document.removeEventListener('keydown', onKeyDown)
       clearChord()
     }
-  }, [enabled, router, togglePalette, setActiveView])
+  }, [enabled, paletteOpen, router, togglePalette, setActiveView])
 }

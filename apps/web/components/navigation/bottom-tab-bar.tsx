@@ -68,7 +68,7 @@ function TabButton({
       onClick={onClick}
       aria-label={tab.label}
       aria-current={active ? 'page' : undefined}
-      className="flex h-11 min-w-0 flex-col items-center justify-center gap-1 self-center bg-transparent transition-[background-color,color,transform] duration-150 hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+      className="flex h-11 min-w-0 flex-col items-center justify-center gap-1 self-center bg-transparent transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
     >
       <Icon
         size={24}
