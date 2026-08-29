@@ -44,6 +44,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexGrow: 1,
     gap: 24,
+    maxWidth: 740,
     paddingHorizontal: 16,
     paddingVertical: 32,
     width: '100%',
