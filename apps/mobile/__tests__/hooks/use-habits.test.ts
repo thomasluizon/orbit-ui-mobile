@@ -1147,6 +1147,84 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
+  it('marks every non-idempotent bulk habit mutation as non-replayable', async () => {
+    const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      HabitSnapshotContext
+    >
+    const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+
+    await bulkDelete.mutationFn(['habit-1'])
+    await bulkLog.mutationFn([{ habitId: 'habit-1' }])
+    await bulkSkip.mutationFn([{ habitId: 'habit-1' }])
+
+    expect(mocks.runQueuedMutation.mock.calls.map(([options]) => ({
+      type: options.mutation.type,
+      allowAutomaticReplay: options.allowAutomaticReplay,
+    }))).toEqual([
+      { type: 'bulkDeleteHabits', allowAutomaticReplay: false },
+      { type: 'bulkLogHabits', allowAutomaticReplay: false },
+      { type: 'bulkSkipHabits', allowAutomaticReplay: false },
+    ])
+  })
+
+  it('restores every bulk optimistic update after an offline refusal', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+
+    const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const deleteVariables = ['habit-1', 'habit-2']
+    const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new Error('offline'))
+    await expect(bulkDelete.mutationFn(deleteVariables)).rejects.toThrow('offline')
+    bulkDelete.onError?.(new Error('offline'), deleteVariables, deleteContext)
+
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
+    expect(getCount()).toBe(2)
+
+    const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const logVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const logContext = await bulkLog.onMutate?.(logVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new Error('offline'))
+    await expect(bulkLog.mutationFn(logVariables)).rejects.toThrow('offline')
+    bulkLog.onError?.(new Error('offline'), logVariables, logContext)
+
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+
+    const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const skipVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const skipContext = await bulkSkip.onMutate?.(skipVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new Error('offline'))
+    await expect(bulkSkip.mutationFn(skipVariables)).rejects.toThrow('offline')
+    bulkSkip.onError?.(new Error('offline'), skipVariables, skipContext)
+
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+  })
+
   it('optimistically completes dated and undated bulk skips and restores them on failure', async () => {
     seedHabitState(
       [

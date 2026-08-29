@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react'
 import type { HabitResolutionMode } from '@orbit/shared/utils'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import type { HabitListHandle } from '@/components/habit-list'
-import type { QueuedMarker } from '@/lib/offline-mutations'
 
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
@@ -38,8 +37,8 @@ export function useBulkActions({
     if (ids.length === 0) return
     try {
       await bulkDelete.mutateAsync(ids)
-    } finally {
       onSuccess()
+    } finally {
       setShowBulkDeleteConfirm(false)
     }
   }, [bulkDelete, onSuccess, selectedHabitIds])
@@ -47,31 +46,21 @@ export function useBulkActions({
   const confirmBulkLog = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
-    try {
-      const result = await bulkLog.mutateAsync(
-        ids.map((habitId) => ({ habitId, date: selectedDateStr })),
-      )
-      if ((result as typeof result & Partial<QueuedMarker>).queued !== true) {
-        applyBulkMutationSuccesses(result.results, 'log')
-      }
-    } finally {
-      onSuccess()
-    }
+    const result = await bulkLog.mutateAsync(
+      ids.map((habitId) => ({ habitId, date: selectedDateStr })),
+    )
+    applyBulkMutationSuccesses(result.results, 'log')
+    onSuccess()
   }, [bulkLog, applyBulkMutationSuccesses, onSuccess, selectedDateStr, selectedHabitIds])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
-    try {
-      const result = await bulkSkip.mutateAsync(
-        ids.map((habitId) => ({ habitId, date: selectedDateStr })),
-      )
-      if ((result as typeof result & Partial<QueuedMarker>).queued !== true) {
-        applyBulkMutationSuccesses(result.results, 'skip')
-      }
-    } finally {
-      onSuccess()
-    }
+    const result = await bulkSkip.mutateAsync(
+      ids.map((habitId) => ({ habitId, date: selectedDateStr })),
+    )
+    applyBulkMutationSuccesses(result.results, 'skip')
+    onSuccess()
   }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, selectedDateStr, selectedHabitIds])
 
   return {

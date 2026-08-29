@@ -222,6 +222,32 @@ describe('offline mutations', () => {
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ['bulkLogHabits', '/api/habits/bulk-log', 'POST'],
+    ['bulkSkipHabits', '/api/habits/bulk-skip', 'POST'],
+    ['bulkDeleteHabits', '/api/habits/bulk', 'DELETE'],
+  ] as const)('refuses offline %s without persisting it', async (type, endpoint, method) => {
+    const execute = vi.fn(() => Promise.resolve(null))
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type,
+        scope: 'habits',
+        endpoint,
+        method,
+        payload: { habitIds: ['habit-1'] },
+      }),
+      execute,
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toThrow('Mutation requires an active connection')
+
+    expect(execute).not.toHaveBeenCalled()
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([])
+    expect(mocks.persistQueryCache).not.toHaveBeenCalled()
+  })
+
   it('attaches the mutation id as the idempotency key when flushing a queued mutation', async () => {
     mocks.setOnline(true)
     const mutation = buildQueuedMutation({
@@ -826,6 +852,26 @@ describe('offline mutations', () => {
 
     expect(result).toBe(queuedAck)
     expect(mocks.enqueue).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not persist a non-replayable mutation after an online network failure', async () => {
+    mocks.setOnline(true)
+
+    await expect(queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'bulkLogHabits',
+        scope: 'habits',
+        endpoint: '/api/habits/bulk-log',
+        method: 'POST',
+        payload: { items: [{ habitId: 'habit-1' }] },
+      }),
+      execute: () => Promise.reject(new TypeError('Network request failed')),
+      queuedResult: { queued: true as const },
+      allowAutomaticReplay: false,
+    })).rejects.toThrow('Network request failed')
+
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.queued).toEqual([])
   })
 
   it('marks a tombstone when a delete mutation is queued offline', async () => {

@@ -1770,7 +1770,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledTimes(1)
   })
 
-  it('does not mutate a parent when a bulk log is queued', async () => {
+  it('does not mutate a parent when an offline bulk log is refused', async () => {
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -1779,21 +1779,11 @@ describe('HabitList', () => {
     const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
     const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
     seedHabits([parent, childA, childB])
-    bulkLogMutateAsync.mockResolvedValueOnce({
-      results: [childA, childB].map((child, index) => ({
-        index,
-        status: 'Success',
-        habitId: child.id,
-        logId: null,
-        error: null,
-      })),
-      queued: true,
-      queuedMutationId: 'bulk-log-1',
-    })
+    bulkLogMutateAsync.mockRejectedValueOnce(new Error('offline'))
     const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
 
     await TestRenderer.act(async () => {
-      await actions.current?.confirmBulkLog()
+      await expect(actions.current?.confirmBulkLog()).rejects.toThrow('offline')
       await Promise.resolve()
     })
 
@@ -1801,7 +1791,7 @@ describe('HabitList', () => {
     expect(skipMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('does not mutate a parent when a bulk skip is queued', async () => {
+  it('does not mutate a parent when an offline bulk skip is refused', async () => {
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -1810,20 +1800,11 @@ describe('HabitList', () => {
     const childA = createMockHabit({ id: 'child-a', parentId: parent.id })
     const childB = createMockHabit({ id: 'child-b', parentId: parent.id })
     seedHabits([parent, childA, childB])
-    bulkSkipMutateAsync.mockResolvedValueOnce({
-      results: [childA, childB].map((child, index) => ({
-        index,
-        status: 'Success',
-        habitId: child.id,
-        error: null,
-      })),
-      queued: true,
-      queuedMutationId: 'bulk-skip-1',
-    })
+    bulkSkipMutateAsync.mockRejectedValueOnce(new Error('offline'))
     const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
 
     await TestRenderer.act(async () => {
-      await actions.current?.confirmBulkSkip()
+      await expect(actions.current?.confirmBulkSkip()).rejects.toThrow('offline')
       await Promise.resolve()
     })
 

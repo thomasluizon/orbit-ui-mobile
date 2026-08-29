@@ -72,15 +72,17 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
-  it('still reports success in the finally block when the delete rejects', async () => {
+  it('keeps the selection when an offline delete is refused', async () => {
     bulkDelete.mutateAsync.mockRejectedValueOnce(new Error('offline'))
-    const { captured, onSuccess } = renderBulkActions(new Set(['h-1']))
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(new Set(['h-1']))
 
     await TestRenderer.act(async () => {
       await expect(captured.current!.confirmBulkDelete()).rejects.toThrow('offline')
     })
 
-    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(captured.current!.showBulkDeleteConfirm).toBe(false)
   })
 })
 
@@ -138,6 +140,27 @@ describe('useBulkActions reversibility boundary', () => {
       { habitId: 'h-2', mode: 'log' },
     ])
     expect(onSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('keeps the selection when an offline bulk %s is refused', async (
+    _mode,
+    mutation,
+    action,
+  ) => {
+    mutation.mutateAsync.mockRejectedValueOnce(new Error('offline'))
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1', 'h-2']),
+    )
+
+    await TestRenderer.act(async () => {
+      await expect(captured.current![action]()).rejects.toThrow('offline')
+    })
+
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {

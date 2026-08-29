@@ -858,6 +858,7 @@ export function useBulkDeleteHabits() {
         endpoint: API.habits.bulk,
         method: 'DELETE',
         payload: { habitIds },
+        allowAutomaticReplay: false,
         queuedResultFactory: (mutationId) => ({
           results: habitIds.map((habitId, index) => ({
             index,
@@ -910,6 +911,7 @@ export function useBulkLogHabits() {
         endpoint: API.habits.bulkLog,
         method: 'POST',
         payload: { items },
+        allowAutomaticReplay: false,
         queuedResultFactory: (mutationId) => ({
           results: items.map((item, index) => ({
             index,
@@ -978,6 +980,7 @@ export function useBulkSkipHabits() {
         endpoint: API.habits.bulkSkip,
         method: 'POST',
         payload: { items },
+        allowAutomaticReplay: false,
         queuedResultFactory: (mutationId) => ({
           results: items.map((item, index) => ({
             index,
