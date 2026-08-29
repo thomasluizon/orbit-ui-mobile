@@ -66,27 +66,18 @@ export default function ProfileScreen() {
   const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
   const { data: streakInfo } = useStreakInfo(canViewGamification)
   const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
-  const achievementsLocked = gamificationProfile?.achievementsLocked ?? false
-  const achievementsTileValue = achievementsLocked
-    ? gamificationProfile?.achievementsTotal ?? 0
-    : gamificationProfile?.achievementsEarned ?? 0
   const { isExporting, exportError, exportData } = useDataExport()
   const streak = profile?.currentStreak ?? 0
-  const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
+  const statsLoading = isLoading
   const streakLabel = t('streakDisplay.title')
   const streakValue = `${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`
-  const achievementsLabel = t('gamification.profileCard.tileLabel')
   const styles = useMemo(() => createProfileStyles(tokens), [tokens])
 
   const subscriptionRef = useRef<View>(null)
   const preferencesRef = useRef<View>(null)
-  const retroRef = useRef<View>(null)
-  const achievementsRef = useRef<View>(null)
   const streakRef = useRef<View>(null)
   useTourTarget('tour-profile-subscription', subscriptionRef)
   useTourTarget('tour-profile-preferences', preferencesRef)
-  useTourTarget('tour-profile-retrospective', retroRef)
-  useTourTarget('tour-profile-achievements', achievementsRef)
   useTourTarget('tour-profile-streak', streakRef)
 
   const profileScrollRef = useRef<ScrollView>(null)
@@ -101,10 +92,6 @@ export default function ProfileScreen() {
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
-  const achievementsNavItem = PROFILE_NAV_ITEMS.find(
-    (item) => item.id === 'achievements',
-  )
-
   const [showResetModal, setShowResetModal] = useState(false)
   const [showEditName, setShowEditName] = useState(false)
   const [showTourReplay, setShowTourReplay] = useState(false)
@@ -130,7 +117,7 @@ export default function ProfileScreen() {
   )
 
   const handleStreakPress = useCallback(() => {
-    router.push('/streak')
+    router.push('/progress')
   }, [router])
 
   const subscriptionDisplay = resolveProfileSubscriptionDisplay(
@@ -188,18 +175,9 @@ export default function ProfileScreen() {
           statsLoading={statsLoading}
           streakValue={streakValue}
           streakLabel={streakLabel}
-          achievementsNavItem={achievementsNavItem}
-          achievementsTileValue={achievementsTileValue}
-          achievementsLabel={achievementsLabel}
-          achievementsLocked={achievementsLocked}
-          tokens={tokens}
           styles={styles}
           streakRef={streakRef}
-          achievementsRef={achievementsRef}
           onStreakPress={handleStreakPress}
-          onAchievementsPress={() => {
-            if (achievementsNavItem) handleNavPress(achievementsNavItem)
-          }}
         />
 
         <Animated.View entering={sectionEntrance(2)}>
@@ -222,7 +200,6 @@ export default function ProfileScreen() {
           tokens={tokens}
           styles={styles}
           preferencesRef={preferencesRef}
-          retroRef={retroRef}
           subscriptionRef={subscriptionRef}
           onNavPress={handleNavPress}
           onUpgrade={() => router.push(buildUpgradeHref('/profile'))}

@@ -271,11 +271,15 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             >
               {t('profile.freshStart.confirmInstruction')}
             </Text>
+            <Text style={[styles.confirmLabel, { color: tokens.fg2 }]}>
+              {t('profile.freshStart.confirmLabel')}
+            </Text>
             <AppTextInput
               style={styles.confirmInput}
               value={resetConfirmText}
               onChangeText={setResetConfirmText}
               placeholder={t('profile.freshStart.confirmPlaceholder')}
+              accessibilityLabel={t('profile.freshStart.confirmLabel')}
               placeholderTextColor={tokens.fg3}
               autoCapitalize="characters"
               autoCorrect={false}
@@ -380,6 +384,10 @@ const styles = StyleSheet.create({
   confirmInput: {
     fontFamily: 'Roboto_500Medium',
     fontSize: 16,
+  },
+  confirmLabel: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 14,
   },
   errorTextSmall: {
     fontFamily: 'Rubik_400Regular',

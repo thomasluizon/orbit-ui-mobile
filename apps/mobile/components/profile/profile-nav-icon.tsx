@@ -1,13 +1,11 @@
 import {
   Calendar,
-  ChartLine,
   Compass,
   Gift,
   Settings,
   Sparkles,
   CircleHelp,
   Wrench,
-  Trophy,
 } from '@/components/ui/icons'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
@@ -23,12 +21,8 @@ export function ProfileNavIcon({
       return <Settings size={22} color={color} strokeWidth={1.8} />
     case 'orbit':
       return <Sparkles size={22} color={color} strokeWidth={1.8} />
-    case 'retrospective':
-      return <ChartLine size={22} color={color} strokeWidth={1.8} />
     case 'wrapped':
       return <Gift size={22} color={color} strokeWidth={1.8} />
-    case 'achievements':
-      return <Trophy size={22} color={color} strokeWidth={1.8} />
     case 'calendar':
       return <Calendar size={22} color={color} strokeWidth={1.8} />
     case 'info':

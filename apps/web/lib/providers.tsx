@@ -7,6 +7,7 @@ import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getQueryClient } from './query-client'
 import type { ReactNode } from 'react'
+import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 
 export function Providers({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = getQueryClient()
@@ -19,7 +20,7 @@ export function Providers({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ShellScrollerProvider>{children}</ShellScrollerProvider>
     </QueryClientProvider>
   )
 }

@@ -6,6 +6,7 @@ import {
   formatNotificationRelativeTime,
   getNotificationDetailActionVisibility,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -36,7 +37,7 @@ export function NotificationDetailModal({
     if (!url || !isViewableNotificationUrl(url)) return
     closeSheet(() => {
       onOpenChange(false)
-      router.push(url)
+      router.push(resolveNotificationUrl(url))
     })
   }
 

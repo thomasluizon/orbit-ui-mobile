@@ -343,6 +343,18 @@ describe('GoalDetailDrawer', () => {
     expect(labels).toContain('goals.detail.delete')
   })
 
+  it('keeps the linked habits section visible at count zero', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    expect(collectText(tree.toJSON())).toContain('goals.noLinkedHabits')
+  })
+
   it('orders history before linked habits for standard goals', () => {
     detailGoal = {
       ...listGoal,

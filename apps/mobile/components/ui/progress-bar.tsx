@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ProgressBarProps } from '@orbit/shared/contracts/display'
+import { motionEasings } from '@orbit/shared/theme'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the bar scaleX on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -7,7 +8,7 @@ import {
   View,
 } from 'react-native'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
-import { createTokensV2, easings, radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const FILL_MS = 220
@@ -31,7 +32,7 @@ export function ProgressBar({ value = 0, max = 100, label }: Readonly<ProgressBa
     Animated.timing(scaleX, {
       toValue: ratio,
       duration: FILL_MS,
-      easing: toAnimatedEasing(easings.smooth),
+      easing: toAnimatedEasing(motionEasings.linear),
       useNativeDriver: true,
     }).start()
   }, [prefersReducedMotion, ratio, scaleX])

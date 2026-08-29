@@ -4,7 +4,8 @@ import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/app/actions/profile'
 
@@ -37,12 +38,13 @@ export function MarketingConsentSection() {
         accessory="none"
         divider={false}
       >
-        <Switch
-          on={enabled}
-          onToggle={() => mutation.mutate(!enabled)}
-          ariaLabel={t('profile.marketingEmails.title')}
-          disabled={mutation.isPending}
-        />
+        <fieldset disabled={mutation.isPending} className="m-0 border-0 p-0">
+          <Switch
+            checked={enabled}
+            onChange={(checked) => mutation.mutate(checked)}
+            label={t('profile.marketingEmails.title')}
+          />
+        </fieldset>
       </SettingsRow>
     </>
   )

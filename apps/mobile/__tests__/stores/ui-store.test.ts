@@ -17,10 +17,6 @@ vi.mock("@/components/today/today-shell", () => ({
   TodayDateNavigation: () => null,
 }));
 
-vi.mock("@/components/habits/today-ai-summary", () => ({
-  TodayAISummary: () => null,
-}));
-
 vi.mock("expo-router", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push: vi.fn() }),
@@ -40,12 +36,15 @@ vi.mock("@/components/ui/icons", () => {
     AdjustmentsHorizontal: Icon,
     AlertTriangle: Icon,
     ArrowLeft: Icon,
+    ArrowUpRight: Icon,
     Check: Icon,
     CheckCircle2: Icon,
     ChevronLeft: Icon,
     ChevronRight: Icon,
     ChevronsDownUp: Icon,
     ChevronsUpDown: Icon,
+    CreditCard: Icon,
+    Download: Icon,
     Eye: Icon,
     Filter: Icon,
     Home: Icon,
@@ -126,7 +125,7 @@ describe("mobile ui store", () => {
     setFilters({ dateFrom: "2026-04-06" });
     setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
-    setActiveView("goals");
+    setActiveView("all");
     setSelectedFrequency("Week");
     setSelectedTagIds(["tag-1"]);
     setShowCompleted(true);
@@ -134,7 +133,7 @@ describe("mobile ui store", () => {
     expect(useUIStore.getState()).toMatchObject({
       activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
-      activeView: "goals",
+      activeView: "all",
       selectedFrequency: "Week",
       selectedTagIds: ["tag-1"],
       showCompleted: true,
@@ -243,6 +242,26 @@ describe("mobile ui store", () => {
     expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain(
       "searchQuery",
     );
+  });
+
+  it("migrates the retired goals view from the previous persistence version", async () => {
+    asyncStorageState.data.set(
+      "orbit-ui-store",
+      JSON.stringify({
+        state: {
+          activeFilters: {},
+          activeView: "goals",
+          selectedFrequency: null,
+          selectedTagIds: [],
+          showCompleted: false,
+        },
+        version: 3,
+      }),
+    );
+
+    await useUIStore.persist.rehydrate();
+
+    expect(useUIStore.getState().activeView).toBe("today");
   });
 
   it("drops legacy day-selection keys when rehydrating an old snapshot", async () => {

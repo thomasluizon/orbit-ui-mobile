@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
@@ -16,26 +18,31 @@ describe('StatusDot', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
-  it('plays the completion sweep on an interactive transition into done', () => {
+  it('uses the shared press scale for interactive feedback', () => {
+    render(<StatusDot state="empty" onToggle={() => {}} ariaLabel="run" />)
+    const button = screen.getByRole('button')
+
+    expect(button).toHaveStyle('--status-dot-press-scale: 0.96')
+    expect(button).toHaveStyle('--status-dot-press-duration: 150ms')
+    expect(button).toHaveClass(
+      'enabled:active:scale-[var(--status-dot-press-scale)]',
+    )
+  })
+
+  it('keeps the shared fast alias separate from control hover feedback', () => {
+    const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+
+    expect(css).toMatch(/--dur-fast:\s*160ms;/)
+    expect(css).toMatch(/--dur-hover-control:\s*240ms;/)
+  })
+
+  it('keeps completion static when an interactive dot becomes done', () => {
     const { container, rerender } = render(
       <StatusDot state="empty" onToggle={() => {}} ariaLabel="run" />,
     )
     expect(container.querySelector('svg')).toBeNull()
 
     rerender(<StatusDot state="done" onToggle={() => {}} ariaLabel="run" />)
-    expect(container.querySelector('svg')).not.toBeNull()
-  })
-
-  it('does not sweep for a dot that mounts already done', () => {
-    const { container } = render(
-      <StatusDot state="done" onToggle={() => {}} ariaLabel="run" />,
-    )
-    expect(container.querySelector('svg')).toBeNull()
-  })
-
-  it('does not sweep a read-only dot (no onToggle)', () => {
-    const { container, rerender } = render(<StatusDot state="empty" ariaLabel="run" />)
-    rerender(<StatusDot state="done" ariaLabel="run" />)
     expect(container.querySelector('svg')).toBeNull()
   })
 

@@ -33,17 +33,8 @@ export default function ProfilePage() {
         />
         <ProfileStatTiles
           streak={screen.streak}
-          achievementsValue={screen.achievementsTileValue}
-          achievementsLocked={screen.achievementsLocked}
-          showAchievements={!!screen.achievementsNavItem}
-          achievementsDataTour={
-            screen.achievementsNavItem
-              ? screen.navTourMap[screen.achievementsNavItem.id]
-              : undefined
-          }
           isLoading={screen.statsLoading}
           onStreakClick={screen.handleStreakClick}
-          onAchievementsClick={screen.handleAchievementsClick}
         />
         <ReferralCard onOpen={() => screen.setShowReferral(true)} />
         <NextRewardCarrot carrot={screen.nextRewardCarrot} />

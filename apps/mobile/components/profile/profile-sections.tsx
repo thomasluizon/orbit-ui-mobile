@@ -20,7 +20,7 @@ import type { ProfileStyles } from '@/app/(tabs)/profile/_components/profile-sty
 type Tokens = ReturnType<typeof createTokensV2>
 
 const PROFILE_FEATURE_SECTIONS = [
-  { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
+  { labelKey: 'explore.sections.progress', ids: ['wrapped'] },
   { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
   { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
 ].map((section) => ({
@@ -37,7 +37,6 @@ interface ProfileSectionsProps {
   tokens: Tokens
   styles: ProfileStyles
   preferencesRef: RefObject<View | null>
-  retroRef: RefObject<View | null>
   subscriptionRef: RefObject<View | null>
   onNavPress: (item: ProfileNavItem) => void
   onUpgrade: () => void
@@ -53,7 +52,6 @@ export function ProfileSections({
   tokens,
   styles,
   preferencesRef,
-  retroRef,
   subscriptionRef,
   onNavPress,
   onUpgrade,
@@ -113,11 +111,7 @@ export function ProfileSections({
           <View style={styles.groupWrap}>
             <SettingsGroup>
               {section.items.map((item) => (
-                <View
-                  key={item.id}
-                  ref={item.id === 'retrospective' ? retroRef : undefined}
-                  collapsable={false}
-                >
+                <View key={item.id} collapsable={false}>
                   <SettingsGroupRow
                     icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
                     label={t(item.titleKey)}

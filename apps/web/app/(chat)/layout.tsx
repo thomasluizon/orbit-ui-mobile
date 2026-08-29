@@ -13,7 +13,7 @@ export default function ChatLayout({
 }>) {
   return (
     <Providers>
-      <FlowShell>
+      <FlowShell mode="full">
         <div className="flex min-h-full flex-col bg-[var(--bg)] pt-[var(--safe-top)] text-[var(--fg-1)]">
           <div className="mx-auto min-h-0 w-full max-w-[var(--app-max-w)] flex-1 px-[var(--app-px)]">
             <RouteTransitionShell className="h-full">

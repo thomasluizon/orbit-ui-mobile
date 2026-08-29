@@ -164,15 +164,15 @@ describe('tour-store (web)', () => {
   })
 
   it('filters hidden sections out of the active steps', () => {
-    useTourStore.getState().setHiddenSections(['goals'])
+    useTourStore.getState().setHiddenSections(['chat'])
     useTourStore.getState().startFullTour()
 
-    expect(useTourStore.getState().getActiveSteps().every((step) => step.section !== 'goals')).toBe(true)
+    expect(useTourStore.getState().getActiveSteps().every((step) => step.section !== 'chat')).toBe(true)
   })
 
   it('does not start replay for a hidden section', () => {
-    useTourStore.getState().setHiddenSections(['goals'])
-    useTourStore.getState().startSectionReplay('goals')
+    useTourStore.getState().setHiddenSections(['chat'])
+    useTourStore.getState().startSectionReplay('chat')
 
     expect(useTourStore.getState().isActive).toBe(false)
     expect(useTourStore.getState().replaySection).toBeNull()

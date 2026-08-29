@@ -111,6 +111,7 @@ export const API = {
     profile: '/api/gamification/profile',
     achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
+    repairStreak: '/api/gamification/streak/repair',
     recap: '/api/gamification/recap',
     streakHistory: '/api/gamification/streak-history',
     xpHistory: '/api/gamification/xp-history',

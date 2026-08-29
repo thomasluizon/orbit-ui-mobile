@@ -69,7 +69,7 @@ export type ShellWideNavProps = ShellWideBase &
     nav?: true
     /** Four destinations, never five. */
     items: ShellWideItem[]
-    activeId: string
+    activeId: string | null
     onSelect?: (id: string) => void
     /** The nav landmark's accessible name, in the screen's locale. */
     navLabel: string

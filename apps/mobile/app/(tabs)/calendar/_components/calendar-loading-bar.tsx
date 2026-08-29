@@ -32,7 +32,7 @@ export function CalendarLoadingBar({
   useEffect(() => {
     if (!active || prefersReducedMotion) return;
     progress.value = withRepeat(
-      withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, { duration: 1500, easing: Easing.linear }),
       -1,
       false,
     );
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 999,
     overflow: "hidden",
-    marginHorizontal: 20,
+    marginHorizontal: 24,
   },
   sweep: {
     position: "absolute",

@@ -30,7 +30,7 @@ describe('StreakBadge', () => {
     const button = screen.getByRole('button')
     expect(button).toBeInTheDocument()
     fireEvent.click(button)
-    expect(pushMock).toHaveBeenCalledWith('/streak')
+    expect(pushMock).toHaveBeenCalledWith('/progress')
   })
 
   it('renders badge as a button for positive streak', () => {
@@ -46,7 +46,7 @@ describe('StreakBadge', () => {
   it('navigates to the streak page when clicked', () => {
     render(<StreakBadge streak={5} />)
     fireEvent.click(screen.getByRole('button'))
-    expect(pushMock).toHaveBeenCalledWith('/streak')
+    expect(pushMock).toHaveBeenCalledWith('/progress')
   })
 
   it('shows frozen icon when isFrozen is true', () => {

@@ -37,7 +37,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { FlowShell } from '@/components/shell/flow-shell'
-import { OtpInput } from '@/components/ui/code-input'
+import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 

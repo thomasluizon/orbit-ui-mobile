@@ -45,6 +45,14 @@ export {
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
+export {
+  resolveShellDestination,
+  SHELL_DESTINATION_ROUTES,
+} from './shell-destinations'
+export type {
+  ShellDestinationId,
+  ShellDestinationRoute,
+} from './shell-destinations'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
@@ -184,6 +192,14 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
+export { resolveSubscriptionScreen } from './subscription-screen'
+export type {
+  ResolveSubscriptionScreenInput,
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenModel,
+  SubscriptionScreenState,
+} from './subscription-screen'
 export {
   APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
@@ -191,6 +207,7 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
+export { formatTimeFieldInput } from './time-field'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
   canSnapshotOnboardingEntry,
@@ -283,6 +300,7 @@ export {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from './notification-actions'
 export {
   buildTempGoal,
@@ -500,6 +518,18 @@ export type {
   SupportRequestBody,
 } from './support'
 export {
+  achievementGlyphKey,
+  buildGoalMovePositions,
+  buildProtectedDayLabels,
+  filterProgressGoals,
+  getAvailableStreakRepairDate,
+  getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
+  PROGRESS_GOAL_FILTERS,
+  visibleProgressAchievements,
+} from './progress'
+export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
+export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
   resolveProfileNavHint,
@@ -535,3 +565,9 @@ export type {
   WebPushPermission,
   WebPushPreferenceStatus,
 } from './push-notification-settings'
+export {
+  tintProposedChildren,
+  type ProposedTintAdapter,
+  type ProposedTintDecision,
+  type ProposedTintElementProps,
+} from './proposed-tint'
