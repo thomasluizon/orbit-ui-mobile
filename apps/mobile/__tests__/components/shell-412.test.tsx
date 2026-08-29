@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
@@ -25,7 +25,7 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
 describe('Shell412 mobile', () => {
   it('accepts a destination-owned selection tray in the composer slot', async () => {
     function Screen() {
-      useShellComposerSlot(true, () => React.createElement('SelectionTray'), 'selected:h-1')
+      useShellComposerSlot(true, React.createElement('SelectionTray'))
       return React.createElement('Screen')
     }
     let tree!: ReactTestRenderer
@@ -40,6 +40,44 @@ describe('Shell412 mobile', () => {
 
     expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
     expect(tree.root.findAll((node) => String(node.type) === 'SelectionTray')).toHaveLength(1)
+  })
+
+  it('refreshes the Today composer tray when an image is selected and removed', async () => {
+    let setImageSelected!: (selected: boolean) => void
+
+    function TodayScreen() {
+      const [imageSelected, setSelected] = useState(false)
+      setImageSelected = setSelected
+      useShellComposerSlot(
+        true,
+        imageSelected
+          ? React.createElement('AttachmentTray', { name: 'walk.jpg' })
+          : React.createElement('EmptyComposer'),
+      )
+      return React.createElement('TodayScreen')
+    }
+
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Shell412 tabBar={React.createElement('TabBar')}>
+          <TodayScreen />
+        </Shell412>,
+      )
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node) => String(node.type) === 'AttachmentTray')).toHaveLength(0)
+    await TestRenderer.act(async () => {
+      setImageSelected(true)
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'AttachmentTray')).toHaveLength(1)
+    await TestRenderer.act(async () => {
+      setImageSelected(false)
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'AttachmentTray')).toHaveLength(0)
   })
 
   it('owns the notice, composer, tab bar, FAB, and Android safe-area bottom', async () => {

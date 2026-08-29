@@ -16,10 +16,9 @@ export default function TodayPage() {
       <TodayHeaderRegion view={view} />
 
       <TodayAstra
-        habitsById={view.data.habitsById}
         today={view.nav.today}
         isTodaySelected={view.nav.dateStr === view.nav.today}
-        suppressed={view.isSelectMode || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError || view.data.habitsCount === 0}
+        suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError || view.data.habitsCount === 0}
       />
 
       <TodayHabitsPanel view={view} />

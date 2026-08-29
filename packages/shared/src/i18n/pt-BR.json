@@ -222,8 +222,7 @@
         "remove": "Remover {name}"
       },
       "limit": {
-        "reasonWithTime": "A cota de {allowance} mensagens de hoje foi usada. Ela é renovada às {resetsAt}.",
-        "reasonAtMidnight": "A cota de {allowance} mensagens de hoje foi usada. Ela é renovada à meia-noite."
+        "reason": "A cota de {allowance} mensagens de hoje foi usada."
       }
     }
   },

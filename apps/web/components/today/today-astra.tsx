@@ -1,12 +1,8 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { useQueries } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
-import { API } from '@orbit/shared/api'
-import type { HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   getReturningDays,
   selectNewestUnreadProactiveCheckin,
@@ -14,39 +10,33 @@ import {
 } from '@orbit/shared/utils'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
 import { useProfile } from '@/hooks/use-profile'
 import { useUIStore } from '@/stores/ui-store'
-import { fetchJson } from '@/lib/api-fetch'
+import { useChatStore } from '@/stores/chat-store'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Composer } from '@/components/shell/composer'
 
 interface TodayAstraProps {
-  habitsById: Map<string, NormalizedHabit>
   today: string
   isTodaySelected: boolean
   suppressed: boolean
 }
 
-export function TodayAstra({ habitsById, today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
   const router = useRouter()
   const isClient = useIsClient()
   const { profile, isPending: profilePending, isError: profileError } = useProfile()
   const chat = useChatComposer()
+  const streak = useStreakInfo(isTodaySelected)
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const metrics = useQueries({
-    queries: Array.from(habitsById.keys()).map((id) => ({
-      queryKey: habitKeys.metrics(id),
-      queryFn: () => fetchJson<HabitMetrics>(API.habits.metrics(id)),
-      staleTime: QUERY_STALE_TIMES.habits,
-      enabled: isTodaySelected,
-    })),
-  })
-  const returningDays = getReturningDays(metrics.map((query) => query.data?.lastCompletedDate), today)
+  const setDraft = useChatStore((state) => state.setDraft)
+  const returningDays = getReturningDays([streak.data?.lastActiveDate], today)
   const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const openConversation = () => setConversationOpen(true)
   const createSentence = t('todayAstra.createSentence')
@@ -54,7 +44,7 @@ export function TodayAstra({ habitsById, today, isTodaySelected, suppressed }: R
     id,
     label,
     onSelect: () => {
-      chat.setInput(label)
+      setDraft(label)
       openConversation()
     },
   })

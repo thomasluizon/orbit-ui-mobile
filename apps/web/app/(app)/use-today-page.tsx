@@ -25,6 +25,7 @@ export interface TodayView {
   showCompleted: boolean
   setShowCompleted: (value: boolean) => void
   setShowCreateModal: (value: boolean) => void
+  showCreateModal: boolean
   setListSurfaceOpen: (value: boolean) => void
   listSurfaceOpen: boolean
 }
@@ -89,6 +90,7 @@ export function useTodayPage(): TodayView {
     showCompleted,
     setShowCompleted,
     setShowCreateModal,
+    showCreateModal,
     setListSurfaceOpen,
     listSurfaceOpen,
   }

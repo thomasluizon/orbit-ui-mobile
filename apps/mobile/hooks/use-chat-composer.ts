@@ -37,7 +37,6 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  formatAccountMidnight,
   getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
@@ -129,6 +128,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent);
   const setIsTyping = useChatStore((s) => s.setIsTyping);
   const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId);
+  const input = useChatStore((s) => s.draft);
+  const setInput = useChatStore((s) => s.setDraft);
+  const draftHydrated = useChatStore((s) => s.draftHydrated);
+  const hydrateDraft = useChatStore((s) => s.hydrateDraft);
 
   const {
     isRecording,
@@ -143,7 +146,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const pendingVoiceCommit = useRef(false);
 
-  const [input, setInput] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [selectedImage, setSelectedImage] =
@@ -153,7 +155,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
-  const accountTimeZone = profile?.timeZone ?? null;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
   const isSending = isTyping || streamingMessageId !== null;
   const showSuggestions = messages.length === 0 && !isTyping;
@@ -166,20 +167,21 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   useEffect(() => {
     let active = true;
     void AsyncStorage.getItem(CHAT_DRAFT_STORAGE_KEY).then((storedDraft) => {
-      if (active && storedDraft) setInput(storedDraft);
+      if (active) hydrateDraft(storedDraft);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [hydrateDraft]);
 
   useEffect(() => {
+    if (!draftHydrated) return;
     if (input.trim()) {
       void AsyncStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input);
     } else {
       void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
     }
-  }, [input]);
+  }, [draftHydrated, input]);
 
   useEffect(() => {
     if (isRecording) {
@@ -188,7 +190,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       pendingVoiceCommit.current = false;
       setInput((current) => current ? `${current} ${transcript.trim()}` : transcript.trim());
     }
-  }, [isRecording, transcript]);
+  }, [isRecording, setInput, transcript]);
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60);
@@ -631,6 +633,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       offlineTitle,
       performSend,
       selectedImage,
+      setInput,
     ],
   );
 
@@ -696,12 +699,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     if (isTranscribing) return { ...common, state: "transcribing", onVoice: toggleRecording, voiceWords };
 
     if (atMessageLimit) {
-      const limitReason = accountTimeZone
-        ? t("shell.composer.limit.reasonWithTime", {
-            allowance: aiMessagesLimit,
-            resetsAt: formatAccountMidnight(i18n.language, accountTimeZone),
-          })
-        : t("shell.composer.limit.reasonAtMidnight", { allowance: aiMessagesLimit });
+      const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
       return speechSupported
         ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: "atLimit", limitReason };
@@ -716,17 +714,16 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     atMessageLimit,
     canRetryLastSend,
     composerSuggestions,
-    i18n.language,
     input,
     isOnline,
     isRecording,
     isSending,
     isTranscribing,
     openFilePicker,
-    accountTimeZone,
     removeImage,
     retryLastSend,
     selectedImage,
+    setInput,
     sendMessage,
     speechSupported,
     t,

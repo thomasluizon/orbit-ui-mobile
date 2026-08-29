@@ -108,10 +108,6 @@ const DEFAULT_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   minute: '2-digit',
 }
 
-const MIDNIGHT_SEARCH_START = Date.UTC(2020, 0, 15)
-const QUARTER_HOUR_MS = 15 * 60 * 1000
-const QUARTER_HOURS_PER_DAY = 24 * 4
-
 function formatIntlDateValue(
   value: Date | null,
   fallback: string,
@@ -225,29 +221,6 @@ export function formatLocaleTime(
     options,
     DEFAULT_TIME_OPTIONS,
   )
-}
-
-export function formatAccountMidnight(locale: string, timeZone: string): string {
-  const midnightClock = getDateTimeFormat('en-GB-u-nu-latn', {
-    timeZone,
-    hourCycle: 'h23',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const displayClock = getDateTimeFormat(getIntlLocale(locale), {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-
-  for (let index = 0; index < QUARTER_HOURS_PER_DAY; index += 1) {
-    const candidate = new Date(MIDNIGHT_SEARCH_START + index * QUARTER_HOUR_MS)
-    if (midnightClock.format(candidate) === '00:00') {
-      return displayClock.format(candidate)
-    }
-  }
-
-  throw new RangeError(`Could not format midnight for timezone ${timeZone}`)
 }
 
 export function formatDeviceDate(

@@ -222,8 +222,7 @@
         "remove": "Remove {name}"
       },
       "limit": {
-        "reasonWithTime": "Today's allowance of {allowance} messages is used. It resets at {resetsAt}.",
-        "reasonAtMidnight": "Today's allowance of {allowance} messages is used. It resets at midnight."
+        "reason": "Today's allowance of {allowance} messages is used."
       }
     }
   },

@@ -105,7 +105,7 @@ export default function TodayScreen() {
 
   useShellComposerSlot(
     isSelectMode,
-    () => (
+    (
       <View style={styles.selectionTray}>
         <SelectionTray
           count={selection.selectedCount}
@@ -126,7 +126,6 @@ export default function TodayScreen() {
         />
       </View>
     ),
-    `${Array.from(selectedHabitIds).sort().join(',')}:${selection.allSelected ? 'all' : 'some'}`,
   )
 
   const handleHabitLogged = useCallback((habitId: string) => {
@@ -168,10 +167,9 @@ export default function TodayScreen() {
         </View>
       ) : null}
       <TodayAstra
-        habitsById={habitsById}
         today={date.today}
         isTodaySelected={date.dateStr === date.today}
-        suppressed={isSelectMode || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+        suppressed={isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
       />
     </>
   )

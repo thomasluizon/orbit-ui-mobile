@@ -140,7 +140,6 @@ export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   capitalizeFirstLetter,
   detectDefaultTimeFormat,
-  formatAccountMidnight,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,

@@ -38,7 +38,6 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  formatAccountMidnight,
   getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from '@orbit/shared/utils'
@@ -120,6 +119,10 @@ export function useChatComposer() {
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent)
   const setIsTyping = useChatStore((s) => s.setIsTyping)
   const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId)
+  const input = useChatStore((s) => s.draft)
+  const setInput = useChatStore((s) => s.setDraft)
+  const draftHydrated = useChatStore((s) => s.draftHydrated)
+  const hydrateDraft = useChatStore((s) => s.hydrateDraft)
 
   const {
     isRecording,
@@ -134,11 +137,6 @@ export function useChatComposer() {
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const pendingVoiceCommit = useRef(false)
 
-  const [input, setInput] = useState<string>(() => {
-    if (!('localStorage' in globalThis)) return ''
-    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `'localStorage' in globalThis` SSR check above (the repo's canonical guard, #490); never reads on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
-  })
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
@@ -170,7 +168,6 @@ export function useChatComposer() {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
-  const accountTimeZone = profile?.timeZone ?? null
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
   const canSend = hasComposerContent(input) && !isSending && !atMessageLimit && isOnline
@@ -338,13 +335,20 @@ export function useChatComposer() {
   }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, setStreamingMessageId, shouldRouteToUpgrade, updateMessage])
 
   useEffect(() => {
+    if (!draftHydrated) {
+      hydrateDraft(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY))
+    }
+  }, [draftHydrated, hydrateDraft])
+
+  useEffect(() => {
+    if (!draftHydrated) return
     const trimmedDraft = input.trim()
     if (!trimmedDraft) {
       globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
       return
     }
     globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input)
-  }, [input])
+  }, [draftHydrated, input])
 
   useEffect(() => {
     if (isRecording) {
@@ -353,7 +357,7 @@ export function useChatComposer() {
       pendingVoiceCommit.current = false
       setInput((current) => (current ? `${current} ${transcript.trim()}` : transcript.trim()))
     }
-  }, [isRecording, transcript])
+  }, [isRecording, setInput, transcript])
 
   useEffect(() => {
     if (!speechError) return
@@ -535,6 +539,7 @@ export function useChatComposer() {
       input,
       performSend,
       selectedImage,
+      setInput,
     ],
   )
 
@@ -596,12 +601,7 @@ export function useChatComposer() {
     if (isTranscribing) return { ...common, state: 'transcribing', onVoice: toggleRecording, voiceWords }
 
     if (atMessageLimit) {
-      const limitReason = accountTimeZone
-        ? t('shell.composer.limit.reasonWithTime', {
-            allowance: aiMessagesLimit,
-            resetsAt: formatAccountMidnight(locale, accountTimeZone),
-          })
-        : t('shell.composer.limit.reasonAtMidnight', { allowance: aiMessagesLimit })
+      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
       return speechSupported
         ? { ...common, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: 'atLimit', limitReason }
@@ -622,12 +622,11 @@ export function useChatComposer() {
     isRecording,
     isSending,
     isTranscribing,
-    locale,
     openFilePicker,
-    accountTimeZone,
     removeImage,
     retryLastSend,
     selectedImage,
+    setInput,
     sendMessage,
     speechSupported,
     t,

@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -11,6 +11,7 @@ import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
 
 const TestRenderer = require('react-test-renderer')
+const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -98,6 +99,7 @@ async function renderComposer(
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<Harness />)
+    mountedTrees.push(tree)
     await Promise.resolve()
   })
 
@@ -197,7 +199,11 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
+    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true })
+  })
+
+  afterEach(() => {
+    for (const tree of mountedTrees.splice(0)) tree.unmount()
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -614,9 +620,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.starterChips.length).toBeGreaterThan(0)
   })
 
-  it('states the reset at account-timezone midnight when the device timezone differs', async () => {
-    const previousTimeZone = process.env.TZ
-    process.env.TZ = 'Asia/Tokyo'
+  it('states only the allowance at the message limit', async () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
@@ -624,34 +628,25 @@ describe('mobile useChatComposer', () => {
       timeZone: 'America/New_York',
     })
 
-    try {
-      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo')
-      const composer = await renderComposer()
-      expect(composer.current.composerProps.limitReason).toBe(
-        'shell.composer.limit.reasonWithTime:{"allowance":20,"resetsAt":"12:00 AM"}',
-      )
-    } finally {
-      if (previousTimeZone === undefined) {
-        delete process.env.TZ
-      } else {
-        process.env.TZ = previousTimeZone
-      }
-    }
-  })
-
-  it('states only midnight when the account timezone is absent', async () => {
-    mocks.state.profile = createMockProfile({
-      hasProAccess: false,
-      aiMessagesUsed: 20,
-      aiMessagesLimit: 20,
-      timeZone: null,
-    })
-
     const composer = await renderComposer()
     expect(composer.current.composerProps.limitReason).toBe(
-      'shell.composer.limit.reasonAtMidnight:{"allowance":20}',
+      'shell.composer.limit.reason:{"allowance":20}',
     )
     expect(composer.current.composerProps.limitReason).not.toContain('resetsAt')
+    expect(composer.current.composerProps.limitReason).not.toContain('midnight')
+  })
+
+  it('shares a selected Today draft with a newly mounted conversation composer', async () => {
+    const todayComposer = await renderComposer()
+
+    await TestRenderer.act(() => {
+      todayComposer.current.setInput('Help me create a morning walk habit')
+    })
+    const conversationComposer = await renderComposer()
+
+    expect(conversationComposer.current.composerProps.value).toBe(
+      'Help me create a morning walk habit',
+    )
   })
 
   it('ignores an empty send with nothing typed or attached', async () => {
