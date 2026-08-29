@@ -16,26 +16,13 @@ describe('StatusDot', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
-  it('plays the completion sweep on an interactive transition into done', () => {
+  it('keeps completion static when an interactive dot becomes done', () => {
     const { container, rerender } = render(
       <StatusDot state="empty" onToggle={() => {}} ariaLabel="run" />,
     )
     expect(container.querySelector('svg')).toBeNull()
 
     rerender(<StatusDot state="done" onToggle={() => {}} ariaLabel="run" />)
-    expect(container.querySelector('svg')).not.toBeNull()
-  })
-
-  it('does not sweep for a dot that mounts already done', () => {
-    const { container } = render(
-      <StatusDot state="done" onToggle={() => {}} ariaLabel="run" />,
-    )
-    expect(container.querySelector('svg')).toBeNull()
-  })
-
-  it('does not sweep a read-only dot (no onToggle)', () => {
-    const { container, rerender } = render(<StatusDot state="empty" ariaLabel="run" />)
-    rerender(<StatusDot state="done" ariaLabel="run" />)
     expect(container.querySelector('svg')).toBeNull()
   })
 

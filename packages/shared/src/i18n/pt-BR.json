@@ -205,7 +205,6 @@
     "skipHabit": "Pular um hábito",
     "createHabit": "Criar hábito",
     "groups": {
-      "create": "Criar",
       "actions": "Ações",
       "navigate": "Navegar",
       "search": "Hábitos"

@@ -81,8 +81,11 @@ import { CommandPalette } from '@/components/command/command-palette'
 
 const NavIcon = () => <svg data-testid="nav-icon" />
 const navItems = [
-  { id: 'calendar', label: 'Calendar', icon: NavIcon, onSelect: () => mockPush('/calendar') },
-]
+  { id: 'hoje', label: 'Today', icon: NavIcon, onSelect: () => mockPush('/') },
+  { id: 'calendario', label: 'Calendar', icon: NavIcon, onSelect: () => mockPush('/calendar') },
+  { id: 'progresso', label: 'Progress', icon: NavIcon, onSelect: () => mockPush('/progress') },
+  { id: 'perfil', label: 'Profile', icon: NavIcon, onSelect: () => mockPush('/profile') },
+] as const
 
 function renderPalette() {
   return render(
@@ -107,7 +110,9 @@ beforeEach(() => {
 describe('CommandPalette', () => {
   it('renders the search input when the palette is open', () => {
     renderPalette()
-    expect(screen.getByPlaceholderText('command.placeholder')).toBeInTheDocument()
+    expect(
+      screen.getByRole('combobox', { name: 'command.title' }),
+    ).toHaveAttribute('placeholder', 'command.placeholder')
   })
 
   it('names the dialog after the palette title instead of the input placeholder', () => {
@@ -128,6 +133,33 @@ describe('CommandPalette', () => {
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
+  it('renders habits, actions, and destinations in that order', () => {
+    renderPalette()
+    const groups = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-command-group]'),
+    )
+
+    expect(groups.map((group) => group.dataset.commandGroup)).toEqual([
+      'habits',
+      'actions',
+      'destinations',
+    ])
+  })
+
+  it('offers exactly the four shell destinations', () => {
+    renderPalette()
+    const destinationGroup = document.querySelector<HTMLElement>(
+      '[data-command-group="destinations"]',
+    )
+
+    expect(destinationGroup).not.toBeNull()
+    expect(
+      Array.from(destinationGroup?.querySelectorAll('[cmdk-item]') ?? []).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['Today', 'Calendar', 'Progress', 'Profile'])
+  })
+
   it('jumps to a searched habit via router.push', () => {
     renderPalette()
     fireEvent.click(screen.getByText('Run'))
@@ -139,6 +171,18 @@ describe('CommandPalette', () => {
     renderPalette()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('backs out of a command page before Escape closes the overlay', () => {
+    renderPalette()
+    fireEvent.click(screen.getByText('command.logHabit'))
+
+    fireEvent.keyDown(screen.getByPlaceholderText('command.placeholder'), {
+      key: 'Escape',
+    })
+
+    expect(screen.getByText('command.createHabit')).toBeInTheDocument()
+    expect(mockSetPaletteOpen).not.toHaveBeenCalled()
   })
 
   it('shows the key-hint footer with the back hint only on a sub-page', () => {

@@ -1,16 +1,15 @@
 'use client'
 
-import { useCallback, useRef, type ComponentType } from 'react'
-import { createPortal } from 'react-dom'
 import {
-  AnimatePresence,
-  domAnimation,
-  LazyMotion,
-  m,
-  useReducedMotion,
-} from 'motion/react'
+  useCallback,
+  useMemo,
+  useRef,
+  type ComponentType,
+  type RefObject,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import type { ShellDestinationId } from '@orbit/shared/utils'
 import type { IconProps } from '@/components/ui/icons'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
@@ -18,7 +17,7 @@ import { useShellStore } from '@/stores/shell-store'
 import { CommandMenu } from './command-menu'
 
 export interface CommandNavigationItem {
-  id: string
+  id: ShellDestinationId
   label: string
   icon: ComponentType<IconProps>
   onSelect: () => void
@@ -40,10 +39,17 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
-  const prefersReducedMotion = useReducedMotion()
-  const motionPreset = resolveMotionPreset('dialog', Boolean(prefersReducedMotion))
   const panelRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        return panelRef.current?.querySelector<HTMLInputElement>(
+          'input[cmdk-input]',
+        ) ?? null
+      },
+    }),
+    [],
+  )
 
   const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
 
@@ -51,59 +57,30 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
 
   if (!mounted) return null
 
-  const overlay = (
-    <LazyMotion features={domAnimation}>
-      <AnimatePresence>
-        {paletteOpen ? (
-          <div className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-[12vh]">
-            <m.button
-              type="button"
-              aria-label={t('common.close')}
-              tabIndex={-1}
-              className="absolute inset-0 cursor-default bg-black/55"
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: 1,
-                transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
-              }}
-              exit={{
-                opacity: 0,
-                transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
-              }}
-              onClick={close}
-            />
-            <m.div
-              ref={panelRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={t('command.title')}
-              className="relative w-full max-w-[600px] overflow-hidden rounded-[var(--radius-xl)] bg-[var(--bg-sheet)] shadow-[inset_0_0_0_1px_var(--hairline),var(--shadow-3)]"
-              initial={{ opacity: 0, y: motionPreset.shift, scale: motionPreset.scaleFrom }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: motionPreset.scaleTo,
-                transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
-              }}
-              exit={{
-                opacity: 0,
-                y: motionPreset.shift * 0.35,
-                scale: 0.985,
-                transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
-              }}
-            >
-              <CommandMenu
-                navItems={navItems}
-                onCreateHabit={onCreateHabit}
-                onClose={close}
-                inputRef={inputRef}
-              />
-            </m.div>
-          </div>
-        ) : null}
-      </AnimatePresence>
-    </LazyMotion>
-  )
+  const overlay = paletteOpen ? (
+    <div className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-24">
+      <button
+        type="button"
+        aria-label={t('common.close')}
+        tabIndex={-1}
+        className="absolute inset-0 cursor-default bg-[var(--scrim)]"
+        onClick={close}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('command.title')}
+        className="relative w-full max-w-[560px] overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)]"
+      >
+        <CommandMenu
+          navItems={navItems}
+          onCreateHabit={onCreateHabit}
+          onClose={close}
+        />
+      </div>
+    </div>
+  ) : null
 
   // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return createPortal(overlay, document.body)
