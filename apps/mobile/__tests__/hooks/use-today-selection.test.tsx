@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     confirmBulkLog: vi.fn(),
     confirmBulkSkip: vi.fn(),
   },
+  useBulkActions: vi.fn(),
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -29,7 +30,10 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 
 vi.mock('@/hooks/use-bulk-actions', () => ({
-  useBulkActions: () => mocks.bulkActions,
+  useBulkActions: (options: unknown) => {
+    mocks.useBulkActions(options)
+    return mocks.bulkActions
+  },
 }))
 
 function asMockBackHandler(handler: unknown): { emitBackPress: () => boolean } {
@@ -52,10 +56,10 @@ function renderSelection(options: RenderOptions = {}) {
   const ref: { current: SelectionApi | null } = { current: null }
   const habitListRef = { current: null } as React.RefObject<HabitListHandle | null>
 
-  function Harness({ selectedDateStr }: { selectedDateStr: string }) {
+  function Harness({ selectedDateStr, today }: { selectedDateStr: string; today: string }) {
     ref.current = useTodaySelection({
       selectedDateStr,
-      today: options.today ?? '2026-04-08',
+      today,
       habitListRef,
       habitListAllLoadedIds: options.habitListAllLoadedIds ?? new Set<string>(),
       visibleHabitIds: options.visibleHabitIds ?? new Set<string>(),
@@ -66,9 +70,13 @@ function renderSelection(options: RenderOptions = {}) {
 
   let tree!: { update: (node: React.ReactElement) => void; unmount: () => void }
   const initialSelectedDateStr = options.selectedDateStr ?? '2026-04-01'
+  const initialToday = options.today ?? '2026-04-08'
   TestRenderer.act(() => {
     tree = TestRenderer.create(
-      React.createElement(Harness, { selectedDateStr: initialSelectedDateStr }),
+      React.createElement(Harness, {
+        selectedDateStr: initialSelectedDateStr,
+        today: initialToday,
+      }),
     )
   })
 
@@ -76,9 +84,9 @@ function renderSelection(options: RenderOptions = {}) {
   mountedTrees.push(tree)
   return {
     api: ref as { current: SelectionApi },
-    rerender: (selectedDateStr = initialSelectedDateStr) =>
+    rerender: (selectedDateStr = initialSelectedDateStr, today = initialToday) =>
       TestRenderer.act(() => {
-        tree.update(React.createElement(Harness, { selectedDateStr }))
+        tree.update(React.createElement(Harness, { selectedDateStr, today }))
       }),
   }
 }
@@ -101,6 +109,8 @@ describe('mobile useTodaySelection', () => {
     Object.values(mocks.bulkActions).forEach((value) => {
       if (typeof value === 'function' && 'mockReset' in value) value.mockReset()
     })
+    mocks.bulkActions.showBulkDeleteConfirm = false
+    mocks.useBulkActions.mockReset()
   })
 
   it('derives selected count and all-selected against the loaded ids', () => {
@@ -201,7 +211,33 @@ describe('mobile useTodaySelection', () => {
     expect(mocks.store.clearSelection).not.toHaveBeenCalled()
   })
 
-  it('clears a loggable-day selection when the viewed date changes', () => {
+  it('clears a pinned selection when today advances past its loggable window', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    const view = renderSelection({ selectedDateStr: '2026-04-01', today: '2026-04-08' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender('2026-04-01', '2026-04-09')
+
+    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+    expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ readOnly: true }),
+    )
+  })
+
+  it('closes an open bulk delete confirmation when today makes the pinned date read only', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    mocks.bulkActions.showBulkDeleteConfirm = true
+    const view = renderSelection({ selectedDateStr: '2026-04-01', today: '2026-04-08' })
+
+    view.rerender('2026-04-01', '2026-04-09')
+
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+  })
+
+  it('clears a loggable-day selection when navigation makes the viewed date read only', () => {
     mocks.store.isSelectMode = true
     mocks.store.selectedHabitIds = new Set(['a'])
     const view = renderSelection({ selectedDateStr: '2026-04-01' })
@@ -211,6 +247,23 @@ describe('mobile useTodaySelection', () => {
 
     expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+  })
+
+  it('leaves selection and bulk actions unchanged on a loggable day', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    const view = renderSelection({ selectedDateStr: '2026-04-02', today: '2026-04-08' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender()
+    view.api.current.handleOpenBulkLog()
+
+    expect(mocks.store.clearSelection).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.confirmBulkLog).toHaveBeenCalledTimes(1)
+    expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ readOnly: false }),
+    )
   })
 
   it('clears the selection on a hardware back press while in select mode', () => {
