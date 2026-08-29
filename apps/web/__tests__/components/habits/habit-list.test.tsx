@@ -1266,6 +1266,82 @@ describe('HabitList', () => {
     ]))
   })
 
+  it('does not settle a shared grandparent from a sibling that rejects after a delay', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const parentA = createMockHabit({
+      id: 'parent-a',
+      parentId: grandparent.id,
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const parentB = createMockHabit({
+      id: 'parent-b',
+      parentId: grandparent.id,
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const leafA = createMockHabit({
+      id: 'leaf-a',
+      parentId: parentA.id,
+      scheduledDates: [YESTERDAY],
+    })
+    const leafB = createMockHabit({
+      id: 'leaf-b',
+      parentId: parentB.id,
+      scheduledDates: [YESTERDAY],
+    })
+    for (const habit of [grandparent, parentA, parentB, leafA, leafB]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(grandparent.id, [parentA.id, parentB.id])
+    mockHabitsData.childrenByParent.set(parentA.id, [leafA.id])
+    mockHabitsData.childrenByParent.set(parentB.id, [leafB.id])
+    mockHabitsData.topLevelHabits = [grandparent]
+
+    let rejectParentBMutation: ((reason?: unknown) => void) | undefined
+    const pendingParentBMutation = new Promise<void>((_resolve, reject) => {
+      rejectParentBMutation = reject
+    })
+    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => (
+      habitId === parentB.id ? pendingParentBMutation : Promise.resolve()
+    ))
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(
+      <HabitList
+        ref={ref}
+        filters={defaultFilters}
+        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+      />,
+    )
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([
+        { habitId: leafA.id, mode: 'log' },
+        { habitId: leafB.id, mode: 'log' },
+      ])
+      await Promise.resolve()
+      rejectParentBMutation?.(new Error('rejected'))
+      await Promise.allSettled([pendingParentBMutation])
+      await Promise.resolve()
+    })
+
+    const hierarchyMutations = logHabitMutateAsync.mock.calls
+      .map(([input]) => input)
+      .filter(({ habitId }) => [parentA.id, parentB.id, grandparent.id].includes(habitId))
+    expect(hierarchyMutations).toEqual([
+      { habitId: parentA.id, date: YESTERDAY },
+      { habitId: parentB.id, date: YESTERDAY },
+    ])
+  })
+
   it('stops a deferred settlement chain when the viewed date changes', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',

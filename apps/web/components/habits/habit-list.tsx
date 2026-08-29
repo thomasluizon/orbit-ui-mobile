@@ -685,8 +685,6 @@ export function HabitList({
     if (promptedParentIdsRef.current.has(parent.id)) return
 
     promptedParentIdsRef.current.add(parent.id)
-    operation.resolvedModes.set(parent.id, mode)
-    recordHabitResolution(parent.id, mode)
     void settleCompletedParent(parent.id, mode, operation, true)
   }
 
@@ -703,16 +701,16 @@ export function HabitList({
       } else {
         await logHabit.mutateAsync({ habitId: parentId, date: operation.date })
       }
-      if (promptDataRef.current?.selectedDateStr !== operation.date) return
-      if (automatic) settleParentAutomatically(parentId, operation)
-      else checkAndSettleParent(parentId, operation.resolvedModes, operation.data)
     } catch {
       promptedParentIdsRef.current.delete(parentId)
-      resolvedModesRef.current.delete(parentId)
-      operation.resolvedModes.delete(parentId)
-      skippedChildIdsRef.current.delete(parentId)
       clearRecentlyCompleted(parentId)
+      return
     }
+    if (promptDataRef.current?.selectedDateStr !== operation.date) return
+    operation.resolvedModes.set(parentId, mode)
+    recordHabitResolution(parentId, mode)
+    if (automatic) settleParentAutomatically(parentId, operation)
+    else checkAndSettleParent(parentId, operation.resolvedModes, operation.data)
   }
 
   function checkAndPromptParentLog(childHabitId: string) {
@@ -901,8 +899,6 @@ export function HabitList({
       promptedParentIdsRef.current.delete(parentId)
       return
     }
-    resolvedModes.set(parentId, mode)
-    recordHabitResolution(parentId, mode)
     void settleCompletedParent(parentId, mode, {
       data: settlementData,
       date: parentPrompt.date,

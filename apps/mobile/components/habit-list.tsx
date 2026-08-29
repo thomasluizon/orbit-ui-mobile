@@ -781,8 +781,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         if (promptedParentIdsRef.current.has(parentHabit.id)) return
 
         promptedParentIdsRef.current.add(parentHabit.id)
-        operation.resolvedModes.set(parentHabit.id, mode)
-        recordHabitResolution(parentHabit.id, mode)
         markRecentlyCompleted(parentHabit.id)
         void (async () => {
           try {
@@ -799,15 +797,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               })
               void showInterstitialIfDue()
             }
-            if (promptDataRef.current?.selectedDateStr !== operation.date) return
-            settleParentForChild(parentHabit.id, operation)
           } catch {
             promptedParentIdsRef.current.delete(parentHabit.id)
-            resolvedModesRef.current.delete(parentHabit.id)
-            operation.resolvedModes.delete(parentHabit.id)
-            skippedChildIdsRef.current.delete(parentHabit.id)
             clearRecentlyCompleted(parentHabit.id)
+            return
           }
+          if (promptDataRef.current?.selectedDateStr !== operation.date) return
+          operation.resolvedModes.set(parentHabit.id, mode)
+          recordHabitResolution(parentHabit.id, mode)
+          settleParentForChild(parentHabit.id, operation)
         })()
       },
       [
@@ -872,8 +870,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
       const { parentId, mode, date } = settlement
       if (!settlementData) return
-      resolvedModes.set(parentId, mode)
-      recordHabitResolution(parentId, mode)
       markRecentlyCompleted(parentId)
       try {
         if (mode === 'skip') {
@@ -886,15 +882,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           })
           void showInterstitialIfDue()
         }
-        if (promptDataRef.current?.selectedDateStr !== date) return
-        checkAndSettleParent(parentId, resolvedModes, settlementData)
       } catch {
         promptedParentIdsRef.current.delete(parentId)
-        resolvedModesRef.current.delete(parentId)
-        resolvedModes.delete(parentId)
-        skippedChildIdsRef.current.delete(parentId)
         clearRecentlyCompleted(parentId)
+        return
       }
+      if (promptDataRef.current?.selectedDateStr !== date) return
+      resolvedModes.set(parentId, mode)
+      recordHabitResolution(parentId, mode)
+      checkAndSettleParent(parentId, resolvedModes, settlementData)
     }, [
       checkAndSettleParent,
       clearRecentlyCompleted,
