@@ -236,7 +236,9 @@ export function useLogHabit() {
 
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error, { habitId }) => {
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeHistory: true })
+    },
   })
 }
 

@@ -786,7 +786,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it('reconciles a completion without refetching response-backed or AI summary families', () => {
+  it('refreshes mounted detail data after an explicit-date completion', () => {
     seedHabitState([makeHabit({ id: 'habit-1' })])
     const mutation = useLogHabit() as unknown as MutationConfig<
       LogHabitResponse,
@@ -799,9 +799,20 @@ describe('mobile habit hooks', () => {
       currentStreak: 1,
     }
 
-    mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
+    mutation.onSettled?.(
+      response,
+      null,
+      { habitId: 'habit-1', date: '2025-01-15' },
+      undefined,
+    )
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.logs('habit-1'),
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.metrics('habit-1'),
+    })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })

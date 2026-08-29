@@ -343,7 +343,9 @@ describe('useLogHabit', () => {
       currentStreak: 1,
     })
 
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
@@ -356,6 +358,8 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', {
       date: '2025-01-15',
     })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
   })
 
   it('optimistically completes before query cancellation resolves', async () => {

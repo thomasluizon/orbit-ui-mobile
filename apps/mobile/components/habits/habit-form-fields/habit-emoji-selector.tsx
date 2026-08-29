@@ -15,6 +15,7 @@ interface HabitEmojiSelectorProps {
   tokens: AppTokens;
   styles: ReturnType<typeof createStyles>;
   onSelect: (emoji: string) => void;
+  wellSize?: number;
 }
 
 export function HabitEmojiSelector({
@@ -22,6 +23,7 @@ export function HabitEmojiSelector({
   tokens,
   styles,
   onSelect,
+  wellSize = 56,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -58,6 +60,7 @@ export function HabitEmojiSelector({
       <Pressable
         style={({ pressed }) => [
           styles.emojiWell,
+          { width: wellSize, height: wellSize, borderRadius: 12 },
           pressed
             ? {
                 backgroundColor: tokens.bgElevPressed,
@@ -70,7 +73,7 @@ export function HabitEmojiSelector({
         accessibilityLabel={t("habits.form.emojiOpenPicker")}
       >
         {selectedEmoji ? (
-          <Text style={styles.emojiWellText}>{selectedEmoji}</Text>
+          <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
         ) : (
           <Plus size={22} color={tokens.fg3} strokeWidth={1.8} />
         )}

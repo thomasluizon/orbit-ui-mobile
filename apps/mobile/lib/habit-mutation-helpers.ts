@@ -638,6 +638,7 @@ function runBackgroundInvalidations(tasks: Promise<unknown>[]) {
 
 interface HabitInvalidationOptions {
   habitId?: string
+  includeHistory?: boolean
   includeGoals?: boolean
   includeGamification?: boolean
   includeProfile?: boolean
@@ -668,6 +669,13 @@ export function invalidateHabitMutationQueries(
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) }),
       queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(options.habitId) }),
+    )
+  }
+
+  if (options?.habitId && options.includeHistory) {
+    invalidations.push(
+      queryClient.invalidateQueries({ queryKey: habitKeys.logs(options.habitId) }),
+      queryClient.invalidateQueries({ queryKey: habitKeys.metrics(options.habitId) }),
     )
   }
 

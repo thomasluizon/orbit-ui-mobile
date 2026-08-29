@@ -7,9 +7,10 @@ interface FlowShellProps {
   nav: false
   children: ReactNode
   action?: ReactNode
+  header?: ReactNode
 }
 
-export function FlowShell({ children, action }: Readonly<FlowShellProps>) {
+export function FlowShell({ children, action, header }: Readonly<FlowShellProps>) {
   const { surfaces } = useAppTheme()
 
   return (
@@ -18,6 +19,7 @@ export function FlowShell({ children, action }: Readonly<FlowShellProps>) {
       edges={['top', 'bottom']}
       testID="flow-shell"
     >
+      {header}
       <ScrollView
         style={styles.scroller}
         contentContainerStyle={styles.content}

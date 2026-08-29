@@ -10,11 +10,12 @@ interface FlowShellProps {
   nav?: false
   action?: ReactNode
   children: ReactNode
+  header?: ReactNode
   mode?: 'card' | 'full'
   notice?: ReactNode
 }
 
-export function FlowShell({ action, children, mode = 'card', notice }: Readonly<FlowShellProps>) {
+export function FlowShell({ action, children, header, mode = 'card', notice }: Readonly<FlowShellProps>) {
   const wide = useIsWideDesktop()
   if (mode === 'full') {
     return (
@@ -56,14 +57,14 @@ export function FlowShell({ action, children, mode = 'card', notice }: Readonly<
 
   if (wide) {
     return (
-      <ShellWide nav={false} action={pinnedAction} notice={notice}>
+      <ShellWide nav={false} action={pinnedAction} header={header} notice={notice}>
         {content}
       </ShellWide>
     )
   }
 
   return (
-    <Shell412 nav={false} action={pinnedAction} notice={notice}>
+    <Shell412 nav={false} action={pinnedAction} header={header} notice={notice}>
       {content}
     </Shell412>
   )

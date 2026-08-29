@@ -187,9 +187,11 @@ export function useLogHabit() {
       }
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, { habitId }) => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.logs(habitId) })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.metrics(habitId) })
       /**
        * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`.
        * `useSummary` sets `refetchOnWindowFocus: false` and a 5 minute `staleTime`, so marking the
