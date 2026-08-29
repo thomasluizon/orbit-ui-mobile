@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import {
-  ShellScrollerProvider,
   useShellScroller,
+  useShellScrollerRegistration,
 } from '@/components/shell/shell-scroller-context'
 
 const mocks = vi.hoisted(() => ({ wide: false }))
@@ -24,7 +24,17 @@ import { FlowShell } from '@/components/shell/flow-shell'
 
 function ScrollerConsumer() {
   const scroller = useShellScroller()
-  return <output>{scroller?.dataset.flowMode ?? 'none'}</output>
+  return <output>{scroller?.dataset.testid ?? 'none'}</output>
+}
+
+function RegisteredFullFlow() {
+  const registerScroller = useShellScrollerRegistration()
+  return (
+    <>
+      <div ref={registerScroller} data-testid="full-flow-scroller" />
+      <ScrollerConsumer />
+    </>
+  )
 }
 
 describe('FlowShell', () => {
@@ -60,15 +70,15 @@ describe('FlowShell', () => {
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
   })
 
-  it('registers the full flow element as the shell scroll owner', () => {
+  it('provides registration to the full flow without claiming scroll ownership', () => {
     render(
-      <ShellScrollerProvider>
-        <FlowShell mode="full">
-          <ScrollerConsumer />
-        </FlowShell>
-      </ShellScrollerProvider>,
+      <FlowShell mode="full">
+        <RegisteredFullFlow />
+      </FlowShell>,
     )
 
-    expect(screen.getByText('full')).toBeInTheDocument()
+    expect(screen.getByText('full-flow-scroller')).toBeInTheDocument()
+    expect(screen.getByText('full-flow-scroller').closest('[data-flow-mode="full"]'))
+      .not.toHaveAttribute('data-shell-scroller')
   })
 })

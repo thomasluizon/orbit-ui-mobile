@@ -50,11 +50,19 @@ function renderTourProvider() {
 
 function renderChatTourProvider() {
   return render(
-    <ShellScrollerProvider>
-      <FlowShell mode="full">
-        <TourProvider />
-      </FlowShell>
-    </ShellScrollerProvider>,
+    <FlowShell mode="full">
+      <ChatTourHarness />
+    </FlowShell>,
+  )
+}
+
+function ChatTourHarness() {
+  const registerScroller = useShellScrollerRegistration()
+  return (
+    <>
+      <div ref={registerScroller} data-testid="chat-message-scroller" />
+      <TourProvider />
+    </>
   )
 }
 
@@ -203,7 +211,7 @@ describe('TourProvider session lifecycle', () => {
     target.remove()
   })
 
-  it('remeasures chat targets from the full flow scroll owner', async () => {
+  it('remeasures chat targets only from the registered message pane', async () => {
     mockPathname = '/chat'
     renderChatTourProvider()
 
@@ -226,6 +234,13 @@ describe('TourProvider session lifecycle', () => {
       document.querySelector<HTMLElement>('[data-flow-mode="full"]')?.dispatchEvent(
         new Event('scroll'),
       )
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    expect(useTourStore.getState().targetRect).toBeNull()
+
+    await act(async () => {
+      screen.getByTestId('chat-message-scroller').dispatchEvent(new Event('scroll'))
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     })
 
