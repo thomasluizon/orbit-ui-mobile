@@ -727,7 +727,9 @@ export function HabitList({
   async function handleDirectLog(habitId: string) {
     markRecentlyCompleted(habitId)
     try {
-      await logHabit.mutateAsync({ habitId })
+      await logHabit.mutateAsync(
+        selectedDate ? { habitId, date: selectedDateStr } : { habitId },
+      )
       handleLogged(habitId, false)
     } catch {
       clearRecentlyCompleted(habitId)

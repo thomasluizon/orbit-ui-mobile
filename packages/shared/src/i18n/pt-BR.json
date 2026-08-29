@@ -294,11 +294,6 @@
     "sessionExpiringPrefix": "A sessão expira em",
     "sessionExpired": "Sua sessão expirou. Entre de novo.",
     "refresh": "Atualizar",
-    "todayBoundary": {
-      "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
-      "readOnly": "Somente leitura. Você pode registrar até 7 dias atrás.",
-      "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
-    },
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
     "legalPrefix": "Ao entrar, você confirma ter pelo menos 13 anos e concorda com os",
@@ -324,6 +319,11 @@
     }
   },
   "habits": {
+    "todayBoundary": {
+      "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
+      "readOnly": "Somente leitura. Você pode registrar até 7 dias atrás.",
+      "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
+    },
     "emptyState": "Nenhum hábito ainda",
     "count": "nenhum hábito | um hábito | {n} hábitos",
     "overdue": "Atrasado",

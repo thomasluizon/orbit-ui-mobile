@@ -79,7 +79,6 @@ export default function TodayScreen() {
     closeControlsMenu,
   })
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
-
   const handleHabitLogged = useCallback((habitId: string) => {
     habitListRef.current?.markRecentlyCompleted(habitId)
     habitListRef.current?.checkAndPromptParentLog(habitId)
@@ -121,7 +120,6 @@ export default function TodayScreen() {
         listHeader={listHeader}
         onCreatePress={() => setShowCreateModal(true)}
         onSeeUpcoming={date.goToNextDay}
-        onLogHabit={(habit) => handleHabitLogged(habit.id)}
         onDetailHabit={setDetailHabit}
         onEditHabit={(habit, onSaved) => {
           setEditHabit(habit)

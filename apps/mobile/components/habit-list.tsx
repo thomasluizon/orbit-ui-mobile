@@ -117,7 +117,6 @@ interface HabitListProps {
   listHeader?: ReactElement | null
   onCreatePress: () => void
   onSeeUpcoming?: () => void
-  onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
   onEditHabit?: (
     habit: NormalizedHabit,
@@ -170,7 +169,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       listHeader = null,
       onCreatePress,
       onSeeUpcoming,
-      onLogHabit,
       onDetailHabit,
       onEditHabit,
       onScrollBeginDrag,
@@ -725,7 +723,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted(habitId)
 
         try {
-          await logMutation.mutateAsync({ habitId })
+          await logMutation.mutateAsync(
+            selectedDate ? { habitId, date: selectedDateStr } : { habitId },
+          )
           handleLogged(habitId, false)
         } catch {
           clearRecentlyCompleted(habitId)
@@ -736,6 +736,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         handleLogged,
         logMutation,
         markRecentlyCompleted,
+        selectedDate,
+        selectedDateStr,
       ],
     )
 
@@ -1028,10 +1030,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             isSelected={selectedIds.has(habit.id)}
             actions={{
               onLog: () => {
-                if (onLogHabit) {
-                  onLogHabit(habit)
-                  return
-                }
                 void handleDirectLog(habit.id)
               },
               onUnlog: () => logMutation.mutate({ habitId: habit.id }),
@@ -1106,7 +1104,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         getChildrenProgress,
         isSelectMode,
         selectedIds,
-        onLogHabit,
         logMutation,
         skipHabit,
         toggleExpand,

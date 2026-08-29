@@ -417,6 +417,7 @@ describe('HabitList', () => {
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
+    const selectedDate = new Date('2026-04-08T00:00:00')
 
     let tree: any
 
@@ -425,6 +426,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
+          selectedDate={selectedDate}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -439,7 +441,10 @@ describe('HabitList', () => {
       await habitCard?.props.actions.onLog()
     })
 
-    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-04-08',
+    })
   })
 
   it('keeps the row visible while a direct log request is pending', async () => {

@@ -593,12 +593,18 @@ describe('HabitList', () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set('h-1', habit)
     mockHabitsData.topLevelHabits = [habit]
+    const selectedDate = new Date('2026-04-08T00:00:00')
 
-    renderWithProviders(<HabitList filters={defaultFilters} />)
+    renderWithProviders(
+      <HabitList filters={defaultFilters} selectedDate={selectedDate} />,
+    )
 
     fireEvent.click(screen.getByTestId('log-h-1'))
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'h-1',
+      date: '2026-04-08',
+    })
   })
 
   it('passes an immediate completion trigger to the card while logging is pending', async () => {
