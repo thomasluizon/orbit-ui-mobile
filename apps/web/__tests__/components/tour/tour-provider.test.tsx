@@ -8,6 +8,7 @@ import {
   ShellScrollerProvider,
   useShellScrollerRegistration,
 } from '@/components/shell/shell-scroller-context'
+import { FlowShell } from '@/components/shell/flow-shell'
 
 const mockRouterPush = vi.fn()
 let mockPathname = '/'
@@ -43,6 +44,16 @@ function renderTourProvider() {
   return render(
     <ShellScrollerProvider>
       <TourHarness />
+    </ShellScrollerProvider>,
+  )
+}
+
+function renderChatTourProvider() {
+  return render(
+    <ShellScrollerProvider>
+      <FlowShell mode="full">
+        <TourProvider />
+      </FlowShell>
     </ShellScrollerProvider>,
   )
 }
@@ -176,6 +187,7 @@ describe('TourProvider session lifecycle', () => {
 
     const target = document.createElement('div')
     target.setAttribute('data-tour', step!.targetId)
+    target.scrollIntoView = vi.fn()
     document.body.appendChild(target)
 
     act(() => {
@@ -184,6 +196,36 @@ describe('TourProvider session lifecycle', () => {
 
     await act(async () => {
       screen.getByTestId('tour-shell-scroller').dispatchEvent(new Event('scroll'))
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    expect(useTourStore.getState().targetRect).not.toBeNull()
+    target.remove()
+  })
+
+  it('remeasures chat targets from the full flow scroll owner', async () => {
+    mockPathname = '/chat'
+    renderChatTourProvider()
+
+    act(() => {
+      useTourStore.getState().startSectionReplay('chat')
+    })
+    const step = useTourStore.getState().getCurrentStep()
+    expect(step?.id).toBe('chat-area')
+
+    const target = document.createElement('div')
+    target.setAttribute('data-tour', step!.targetId)
+    target.scrollIntoView = vi.fn()
+    document.body.appendChild(target)
+
+    act(() => {
+      useTourStore.getState().setTargetRect(null)
+    })
+
+    await act(async () => {
+      document.querySelector<HTMLElement>('[data-flow-mode="full"]')?.dispatchEvent(
+        new Event('scroll'),
+      )
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     })
 
