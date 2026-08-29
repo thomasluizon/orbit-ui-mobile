@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { captureBuildEnabled } from '@/lib/capture-mode'
 
 export default function TabLayout() {
   const { surfaces } = useAppTheme()
@@ -10,7 +9,7 @@ export default function TabLayout() {
       backBehavior="history"
       screenOptions={{
         headerShown: false,
-        animation: captureBuildEnabled ? 'none' : 'fade',
+        animation: 'none',
         sceneStyle: { backgroundColor: surfaces.screen.backgroundColor },
         tabBarStyle: {
           backgroundColor: surfaces.screen.backgroundColor,
