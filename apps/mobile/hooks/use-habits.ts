@@ -155,13 +155,13 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      if (isQueuedResult(response)) {
-        return
-      }
-
       useReviewReminderStore
         .getState()
         .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+
+      if (isQueuedResult(response)) {
+        return
+      }
 
       const loggedHabit = findHabitInList(
         queryClient
@@ -940,9 +940,6 @@ export function useBulkLogHabits() {
               queuedMutationId: mutationId,
             }),
           })
-          if (isQueuedResult(response)) {
-            continue
-          }
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
         } catch (error: unknown) {
           const failedIds = chunk.map((item) => item.habitId)
