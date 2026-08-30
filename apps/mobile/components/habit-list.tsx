@@ -840,7 +840,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 void showInterstitialIfDue()
               }
             } catch {
-              promptedParentIdsRef.current.delete(parentHabit.id)
+              if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
+                promptedParentIdsRef.current.delete(parentHabit.id)
+              }
               clearRecentlyCompleted(parentHabit.id)
               return
             }
@@ -940,7 +942,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             void showInterstitialIfDue()
           }
         } catch {
-          promptedParentIdsRef.current.delete(parentId)
+          if (confirmedResolutionsRef.current === confirmedResolutions) {
+            promptedParentIdsRef.current.delete(parentId)
+          }
           clearRecentlyCompleted(parentId)
           return
         }

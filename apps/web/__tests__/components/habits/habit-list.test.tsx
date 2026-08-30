@@ -1566,6 +1566,130 @@ describe('HabitList', () => {
     ])
   })
 
+  it('keeps the current parent guard when an earlier date settlement rejects', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const leaf = createMockHabit({
+      id: 'leaf',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    for (const habit of [parent, leaf]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [leaf.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    let rejectEarlierParent: ((reason?: unknown) => void) | undefined
+    let resolveCurrentParent: (() => void) | undefined
+    const earlierParentMutation = new Promise<void>((_resolve, reject) => {
+      rejectEarlierParent = reject
+    })
+    const currentParentMutation = new Promise<void>((resolve) => {
+      resolveCurrentParent = resolve
+    })
+    logHabitMutateAsync.mockImplementation((input: { habitId: string; date: string }) => {
+      if (input.habitId !== parent.id) return Promise.resolve()
+      return input.date === YESTERDAY ? earlierParentMutation : currentParentMutation
+    })
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList
+        ref={ref}
+        filters={defaultFilters}
+        selectedDate={new Date(`${date}T12:00:00Z`)}
+      />
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      await Promise.resolve()
+    })
+    rerenderWithProviders(renderList(TODAY))
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      await Promise.resolve()
+      rejectEarlierParent?.(new Error('rejected'))
+      await Promise.allSettled([earlierParentMutation])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync.mock.calls
+      .map(([input]) => input)
+      .filter(({ habitId }) => habitId === parent.id))
+      .toEqual([
+        { habitId: parent.id, date: YESTERDAY },
+        { habitId: parent.id, date: TODAY },
+      ])
+
+    await act(async () => {
+      resolveCurrentParent?.()
+      await currentParentMutation
+      await Promise.resolve()
+    })
+  })
+
+  it('clears the current parent guard after its settlement rejects', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const leaf = createMockHabit({
+      id: 'leaf',
+      parentId: parent.id,
+      scheduledDates: [TODAY],
+    })
+    for (const habit of [parent, leaf]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [leaf.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    let rejectParent: ((reason?: unknown) => void) | undefined
+    const rejectedParentMutation = new Promise<void>((_resolve, reject) => {
+      rejectParent = reject
+    })
+    logHabitMutateAsync
+      .mockImplementationOnce(() => rejectedParentMutation)
+      .mockResolvedValue(undefined)
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(
+      <HabitList
+        ref={ref}
+        filters={defaultFilters}
+        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+      />,
+    )
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      await Promise.resolve()
+      rejectParent?.(new Error('rejected'))
+      await Promise.allSettled([rejectedParentMutation])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync.mock.calls
+      .map(([input]) => input)
+      .filter(({ habitId }) => habitId === parent.id))
+      .toEqual([
+        { habitId: parent.id, date: TODAY },
+        { habitId: parent.id, date: TODAY },
+      ])
+  })
+
   it('does not reuse a confirmed resolution after the viewed date changes', async () => {
     const parent = createMockHabit({
       id: 'parent',

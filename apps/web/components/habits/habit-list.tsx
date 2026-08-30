@@ -746,7 +746,9 @@ export function HabitList({
           await logHabit.mutateAsync({ habitId: parentId, date: operation.date })
         }
       } catch {
-        promptedParentIdsRef.current.delete(parentId)
+        if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
+          promptedParentIdsRef.current.delete(parentId)
+        }
         clearRecentlyCompleted(parentId)
         return
       }
