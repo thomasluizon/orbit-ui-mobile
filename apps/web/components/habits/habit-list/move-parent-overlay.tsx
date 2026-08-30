@@ -6,7 +6,7 @@ import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGlyph } from '@/components/ui/select-check'
+import { RadioRow } from '@/components/ui/radio-row'
 
 export interface MoveParentOption {
   id: string | null
@@ -57,120 +57,24 @@ function MoveTargetRow({
   currentLabel: string
   onSelect: (optionId: string | null) => void
 }>) {
-  const isRoot = option.id === null
-
-  let ringClass: string
-  if (selected) {
-    ringClass = 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
-  } else if (isRoot) {
-    ringClass = 'bg-transparent'
-  } else {
-    ringClass = 'bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)]'
-  }
-
-  const hoverClass = selected ? '' : ' hover:bg-[color-mix(in_srgb,var(--fg-1)_8%,transparent)]'
-  const stateClass = option.disabled
-    ? 'opacity-50 cursor-not-allowed'
-    : `cursor-pointer active:scale-[0.98]${hoverClass}`
+  const availability = option.disabled
+    ? { disabled: true as const, reason: option.reason ?? currentLabel }
+    : { disabled: false as const }
 
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={option.disabled}
-      onClick={() => onSelect(option.id)}
-      className={`w-full appearance-none text-left transition-[transform,box-shadow,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${ringClass} ${stateClass}`}
-      style={{
-        border: '1px solid transparent',
-        borderStyle: !selected && isRoot ? 'dashed' : 'solid',
-        borderColor: !selected && isRoot ? 'var(--hairline-strong)' : 'transparent',
-        borderRadius: 14,
-        padding: '8px 12px',
-      }}
-    >
-      <div className="flex items-center" style={{ gap: 10 }}>
-        {Array.from({ length: option.depth }, (_, index) => (
-          <span
-            key={index}
-            aria-hidden="true"
-            className="self-stretch shrink-0"
-            style={{ width: 20 }}
-          />
-        ))}
-        <span
-          className="grid shrink-0 place-items-center"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 10,
-            background: isRoot ? 'transparent' : 'var(--bg-well)',
-            boxShadow: isRoot ? 'inset 0 0 0 1px var(--hairline)' : undefined,
-          }}
-        >
-          {isRoot ? (
-            <Home size={18} strokeWidth={1.8} color="var(--fg-2)" />
-          ) : (
-            <span style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>
-          )}
-        </span>
-        <span
-          className="flex-1 truncate"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {option.label}
-        </span>
-        {option.childCount > 0 && (
-          <span
-            className="shrink-0"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              fontVariantNumeric: 'tabular-nums',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {option.childCount}
-          </span>
-        )}
-        {isCurrentParent && (
-          <span
-            className="shrink-0 uppercase"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              // react-doctor-disable-next-line no-tiny-text -- intentional uppercase "current parent" tag pill (badge meta scale per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {currentLabel}
-          </span>
-        )}
-        {selected && <RadioGlyph selected size={22} />}
-      </div>
-      {option.reason && (
-        <p
-          style={{
-            margin: '4px 0 0',
-            paddingLeft: option.depth * 20,
-            fontFamily: 'var(--font-sans)',
-            // react-doctor-disable-next-line no-tiny-text -- intentional secondary suggestion-reason caption (meta scale per DESIGN.md), de-emphasized below the option label https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-            fontSize: 11,
-            lineHeight: 1.4,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {option.reason}
-        </p>
-      )}
-    </button>
+    <RadioRow
+      label={option.label}
+      description={undefined}
+      selected={selected}
+      {...availability}
+      depth={option.depth}
+      meta={option.childCount > 0 ? String(option.childCount) : undefined}
+      tag={isCurrentParent ? currentLabel : undefined}
+      leading={option.id === null
+        ? <Home size={18} strokeWidth={1.8} color="var(--fg-2)" />
+        : <span style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
+      onSelect={() => onSelect(option.id)}
+    />
   )
 }
 

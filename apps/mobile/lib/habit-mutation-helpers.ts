@@ -6,7 +6,7 @@ import {
   profileKeys,
   tagKeys,
 } from '@orbit/shared/query'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { findHabitInList, formatAPIDate, optimisticPatchHabit } from '@orbit/shared/utils'
 import type {
   CreateHabitRequest,
   CreateSubHabitRequest,
@@ -39,6 +39,29 @@ export function restoreHabitLists(
     if (data) {
       queryClient.setQueryData(key, data)
     }
+  }
+}
+
+export function restoreHabitCompletionForIds(
+  queryClient: QueryClient,
+  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
+  habitIds: ReadonlySet<string>,
+): void {
+  for (const [key, snapshot] of snapshots) {
+    if (!snapshot) continue
+    queryClient.setQueryData<HabitScheduleItem[]>(key, (current) => {
+      if (!current) return current
+      let restored = current
+      for (const habitId of habitIds) {
+        const previousHabit = findHabitInList(snapshot, habitId)
+        if (previousHabit) {
+          restored = optimisticPatchHabit(restored, habitId, {
+            isCompleted: previousHabit.isCompleted,
+          })
+        }
+      }
+      return restored
+    })
   }
 }
 

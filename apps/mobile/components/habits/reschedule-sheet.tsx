@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { CalendarClock, Sparkles } from '@/components/ui/icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -11,6 +10,8 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -20,6 +21,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { RescheduleProposal } from './reschedule-proposal'
 
 interface RescheduleSheetProps {
   open: boolean
@@ -112,21 +114,14 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     }
     if (!suggestion) return null
     return (
-      <View style={styles.suggestionBlock}>
-        <View style={styles.scheduleCard}>
-          <CalendarClock size={22} color={tokens.primarySoft} strokeWidth={1.9} />
-          <View style={styles.scheduleTextWrap}>
-            <Text style={styles.scheduleLabel}>{t('habits.reschedule.proposedScheduleLabel')}</Text>
-            <Text style={styles.scheduleValue}>
-              {dateLabel}
-              {timeLabel ? ` · ${timeLabel}` : ''}
-            </Text>
-            {scheduleLabel ? <Text style={styles.scheduleSub}>{scheduleLabel}</Text> : null}
-          </View>
-        </View>
-        <Text style={styles.rationale}>{suggestion.rationale}</Text>
-        <Text style={styles.disclaimer}>{t('aiDisclosure.notMedicalAdvice')}</Text>
-      </View>
+      <RescheduleProposal
+        proposedLabel={t('habits.reschedule.proposedScheduleLabel')}
+        dateLabel={dateLabel}
+        timeLabel={timeLabel}
+        scheduleLabel={scheduleLabel}
+        rationale={suggestion.rationale}
+        disclosure={t('aiDisclosure.notMedicalAdvice')}
+      />
     )
   }
 
@@ -193,9 +188,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
-          <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
+          <AstraGlyph size={20} color={tokens.fg3} />
           <Text style={styles.eyebrow}>Astra</Text>
-          <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
+          <Badge variant="outline">{t('aiDisclosure.isAiLabel')}</Badge>
         </View>
         {renderBody()}
       </View>

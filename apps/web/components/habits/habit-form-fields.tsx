@@ -675,13 +675,11 @@ export function HabitFormFields({
             />
           )}
 
-          {hasProAccess && (
-            <GoalLinkingField
-              selectedGoalIds={selectedGoalIds}
-              atGoalLimit={atGoalLimit}
-              onToggleGoal={onToggleGoal}
-            />
-          )}
+          <GoalLinkingField
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={onToggleGoal}
+          />
 
           {!isGeneral && (
             <div className="space-y-2" role="radiogroup" aria-label={t('habits.form.habitType')}>

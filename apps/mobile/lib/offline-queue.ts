@@ -166,7 +166,12 @@ const MERGE_INTO_CREATE_TYPES = new Set<string>([
   'updateTag',
 ])
 
-const DROP_CREATE_TYPES = new Set<string>(['deleteHabit', 'deleteGoal', 'deleteTag'])
+const DROP_CREATE_TYPES = new Set<string>([
+  'deleteHabit',
+  'bulkCascadeDeleteHabits',
+  'deleteGoal',
+  'deleteTag',
+])
 
 const LAST_WRITE_WINS_TYPES = new Set<string>([
   'setLanguage',

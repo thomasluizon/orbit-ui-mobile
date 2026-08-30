@@ -1226,6 +1226,7 @@ describe('sync schemas', () => {
       const types = [
         'createHabit', 'updateHabit', 'deleteHabit', 'logHabit', 'skipHabit',
         'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent',
+        'bulkCascadeDeleteHabits',
         'createGoal', 'updateGoal', 'deleteGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals',
         'createTag', 'updateTag', 'deleteTag', 'assignTags',
         'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification',

@@ -5,10 +5,12 @@ import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { zLayers } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
 
 export function Shell412(props: Readonly<Shell412Props>) {
+  const registeredComposer = useShellComposerHost()
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const pinnedSlot = navigationEnabled ? (props.composer ?? registeredComposer.content) : props.action
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const hasBottomChrome = navigationEnabled || props.notice !== undefined || pinnedSlot !== undefined
   const insets = useSafeAreaInsets()
@@ -19,6 +21,7 @@ export function Shell412(props: Readonly<Shell412Props>) {
   )
 
   return (
+    <ShellComposerSlotProvider value={registeredComposer.value}>
     <View
       testID="shell-412"
       className="flex-1 overflow-hidden"
@@ -83,6 +86,7 @@ export function Shell412(props: Readonly<Shell412Props>) {
         </View>
       ) : null}
     </View>
+    </ShellComposerSlotProvider>
   )
 }
 

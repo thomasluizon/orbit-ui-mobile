@@ -47,7 +47,7 @@
   },
   "app/(tabs)/index.tsx": {
     "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "app/(tabs)/profile/_components/delete-account-modal.tsx": {
@@ -509,12 +509,6 @@
     }
   },
   "components/habits/reschedule-sheet.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
     "local/spacing-scale": {
       "count": 12
     }

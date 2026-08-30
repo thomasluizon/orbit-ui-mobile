@@ -1,6 +1,15 @@
 'use client'
 
-import { useCallback, useMemo, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
@@ -24,7 +33,40 @@ import { ShellWide } from './shell-wide'
 interface DestinationShellProps {
   children: ReactNode
   notice?: ReactNode
+  composer?: ReactNode
   onCreate: () => void
+}
+
+type ComposerRenderer = () => ReactNode
+
+interface ShellComposerSlotContextValue {
+  register: (renderer: ComposerRenderer) => () => void
+}
+
+const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
+
+function useShellComposerHost() {
+  const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
+  const register = useCallback((nextRenderer: ComposerRenderer) => {
+    setRenderer(() => nextRenderer)
+    return () => setRenderer(null)
+  }, [])
+  const value = useMemo(() => ({ register }), [register])
+  return { value, content: renderer?.() }
+}
+
+export function useShellComposerSlot(
+  enabled: boolean,
+  renderer: ComposerRenderer,
+  refreshKey: string,
+) {
+  const host = useContext(ShellComposerSlotContext)
+  const registerRenderer = useEffectEvent(() => host?.register(renderer))
+
+  useEffect(() => {
+    if (!enabled) return
+    return registerRenderer()
+  }, [enabled, host, refreshKey])
 }
 
 const ROUTES: Record<BottomTab, string> = {
@@ -41,6 +83,28 @@ function hasPrimaryNavigation(pathname: string): boolean {
 export function DestinationShell({
   children,
   notice,
+  composer,
+  onCreate,
+}: Readonly<DestinationShellProps>) {
+  const registeredComposer = useShellComposerHost()
+
+  return (
+    <ShellComposerSlotContext.Provider value={registeredComposer.value}>
+      <DestinationShellContent
+        notice={notice}
+        composer={composer ?? registeredComposer.content}
+        onCreate={onCreate}
+      >
+        {children}
+      </DestinationShellContent>
+    </ShellComposerSlotContext.Provider>
+  )
+}
+
+function DestinationShellContent({
+  children,
+  notice,
+  composer,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const t = useTranslations()
@@ -149,6 +213,7 @@ export function DestinationShell({
           paletteLabel={t('command.title')}
           paletteHint="Ctrl K"
           notice={notice}
+          composer={composer}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -176,6 +241,7 @@ export function DestinationShell({
           ) : undefined
         }
         notice={notice}
+        composer={composer}
       >
         {children}
       </Shell412>

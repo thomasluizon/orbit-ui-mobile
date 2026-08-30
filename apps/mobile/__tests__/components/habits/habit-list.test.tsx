@@ -391,8 +391,10 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
       selectedHabitIds,
       selectedDateStr: TODAY,
       readOnly: false,
+      habitsById: new Map(),
       habitListRef,
       onSuccess: vi.fn(),
+      onPartialFailure: vi.fn(),
     })
 
     return (

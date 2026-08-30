@@ -16,6 +16,9 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 
 const mocks = vi.hoisted(() => ({
   logHabitMutateAsync: vi.fn(),
+  focusCallback: null as null | (() => void | (() => void)),
+  clearSelection: vi.fn(),
+  composerEnabled: [] as boolean[],
   date: {
     today: '2026-04-08',
     selectedDate: new Date('2026-04-08T00:00:00'),
@@ -26,6 +29,12 @@ const mocks = vi.hoisted(() => ({
     goToPreviousDay: vi.fn(),
     goToToday: vi.fn(),
     goToNextDay: vi.fn(),
+  },
+}))
+
+vi.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    mocks.focusCallback = callback
   },
 }))
 
@@ -121,11 +130,11 @@ vi.mock('@/components/habit-list', () => ({
   }),
 }))
 
-vi.mock('@/components/habits/bulk-action-bar-v2', () => ({
-  BulkActionBarV2: () => null,
+vi.mock('@/components/habits/selection-tray', () => ({
+  SelectionTray: () => null,
 }))
 
-vi.mock('@/components/today/today-shell', () => ({
+vi.mock('@/components/today/today-date-control', () => ({
   TodayDateControl: () => null,
 }))
 
@@ -158,11 +167,17 @@ vi.mock('@/app/(tabs)/use-today-selection', () => ({
     handleOpenBulkLog: vi.fn(),
     handleOpenBulkSkip: vi.fn(),
     handleOpenBulkDelete: vi.fn(),
-    clearSelection: vi.fn(),
+    clearSelection: mocks.clearSelection,
     showBulkDeleteConfirm: false,
     setShowBulkDeleteConfirm: vi.fn(),
     confirmBulkDelete: vi.fn(),
   }),
+}))
+
+vi.mock('@/components/shell/shell-composer-slot', () => ({
+  useShellComposerSlot: (enabled: boolean) => {
+    mocks.composerEnabled.push(enabled)
+  },
 }))
 
 function flattenText(node: unknown): string {
@@ -181,6 +196,8 @@ function flattenText(node: unknown): string {
 describe('Hoje date boundaries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.focusCallback = null
+    mocks.composerEnabled.length = 0
     asyncStorageState.values.clear()
     useUIStore.setState({
       isSelectMode: false,
@@ -196,6 +213,33 @@ describe('Hoje date boundaries', () => {
   it('keeps seven days back loggable and marks the next day read only', () => {
     expect(getTodayBoundary('2026-04-01', '2026-04-08')).toBe('last-loggable')
     expect(getTodayBoundary('2026-03-31', '2026-04-08')).toBe('read-only')
+  })
+
+  it('registers the selection tray only while Today is focused', async () => {
+    useUIStore.setState({
+      isSelectMode: true,
+      selectedHabitIds: new Set(['habit-pending']),
+    })
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    expect(mocks.composerEnabled.at(-1)).toBe(false)
+    let blur: void | (() => void)
+    await TestRenderer.act(async () => {
+      blur = mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+    expect(mocks.composerEnabled.at(-1)).toBe(true)
+
+    await TestRenderer.act(async () => {
+      blur?.()
+      await Promise.resolve()
+    })
+    expect(mocks.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.composerEnabled.at(-1)).toBe(false)
   })
 
   it('marks future days without blocking navigation', () => {

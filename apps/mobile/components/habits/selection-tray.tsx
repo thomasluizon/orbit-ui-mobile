@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
-import { createTokensV2, shadowsV2 } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface BulkActionBarV2Props {
+interface SelectionTrayProps {
   count: number
   allSelected: boolean
   onSelectAll: () => void
@@ -23,11 +23,10 @@ interface BulkActionBarV2Props {
 }
 
 /**
- * Floating bulk action toolbar on an elevated solid sheet surface, shown when
- * select mode is active. Pinned to the bottom by the parent screen; this
- * primitive lays out the count caption and the action buttons.
+ * Bulk actions on a solid sheet surface, rendered in the shell composer slot
+ * while select mode is active.
  */
-export function BulkActionBarV2({
+export function SelectionTray({
   count,
   allSelected,
   onSelectAll,
@@ -43,7 +42,7 @@ export function BulkActionBarV2({
   skipLabel,
   deleteLabel,
   closeLabel,
-}: Readonly<BulkActionBarV2Props>) {
+}: Readonly<SelectionTrayProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const disabled = count === 0
@@ -56,7 +55,6 @@ export function BulkActionBarV2({
           backgroundColor: tokens.bgSheet,
           borderColor: tokens.hairline,
         },
-        shadowsV2.shadow2,
       ]}
     >
       <View style={styles.captionRow}>
@@ -120,7 +118,7 @@ export function BulkActionBarV2({
         >
           <FastForward
             size={20}
-            color={tokens.statusSkip}
+            color={tokens.fg3}
             strokeWidth={1.8}
           />
         </Pressable>
