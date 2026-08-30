@@ -842,8 +842,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             } catch {
               if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
                 promptedParentIdsRef.current.delete(parentHabit.id)
+                clearRecentlyCompleted(parentHabit.id)
               }
-              clearRecentlyCompleted(parentHabit.id)
               return
             }
 
@@ -944,8 +944,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         } catch {
           if (confirmedResolutionsRef.current === confirmedResolutions) {
             promptedParentIdsRef.current.delete(parentId)
+            clearRecentlyCompleted(parentId)
           }
-          clearRecentlyCompleted(parentId)
           return
         }
 

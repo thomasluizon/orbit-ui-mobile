@@ -274,9 +274,9 @@ vi.mock('@/stores/ui-store', () => ({
     }),
 }))
 
-vi.mock('@/lib/habit-selection-state', () => ({
-  getHabitListExtraData: () => 'extra',
-}))
+vi.mock('@/lib/habit-selection-state', async (importOriginal) => (
+  importOriginal<typeof import('@/lib/habit-selection-state')>()
+))
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
@@ -3218,6 +3218,7 @@ describe('HabitList', () => {
   })
 
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
+    vi.useFakeTimers()
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -3272,8 +3273,17 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
+    })
+    const currentOperationTimerCount = vi.getTimerCount()
+    await TestRenderer.act(async () => {
       rejectEarlierParent?.(new Error('rejected'))
       await Promise.allSettled([earlierParentMutation])
+    })
+
+    expect(tree.root.findByType('DraggableFlatList').props.extraData).toBe('0||leaf,parent')
+    expect(vi.getTimerCount()).toBe(currentOperationTimerCount)
+
+    await TestRenderer.act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
     })
@@ -3291,9 +3301,12 @@ describe('HabitList', () => {
       await currentParentMutation
       await Promise.resolve()
     })
+    TestRenderer.act(() => tree.unmount())
+    vi.useRealTimers()
   })
 
   it('clears the current parent guard after its settlement rejects', async () => {
+    vi.useFakeTimers()
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -3315,8 +3328,9 @@ describe('HabitList', () => {
       .mockImplementationOnce(() => rejectedParentMutation)
       .mockResolvedValue(undefined)
     const ref = React.createRef<HabitListHandle>()
+    let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      TestRenderer.create(
+      tree = TestRenderer.create(
         <HabitList
           ref={ref}
           view="today"
@@ -3331,8 +3345,17 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
+    })
+    const activeOperationTimerCount = vi.getTimerCount()
+    await TestRenderer.act(async () => {
       rejectParent?.(new Error('rejected'))
       await Promise.allSettled([rejectedParentMutation])
+    })
+
+    expect(tree.root.findByType('DraggableFlatList').props.extraData).toBe('0||leaf')
+    expect(vi.getTimerCount()).toBe(activeOperationTimerCount - 1)
+
+    await TestRenderer.act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
     })
@@ -3344,6 +3367,9 @@ describe('HabitList', () => {
         { habitId: parent.id, date: TODAY, intent: 'log' },
         { habitId: parent.id, date: TODAY, intent: 'log' },
       ])
+    expect(tree.root.findByType('DraggableFlatList').props.extraData).toBe('0||leaf,parent')
+    TestRenderer.act(() => tree.unmount())
+    vi.useRealTimers()
   })
 
   it('does not reuse a confirmed resolution after the viewed date changes', async () => {

@@ -1567,6 +1567,7 @@ describe('HabitList', () => {
   })
 
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
+    vi.useFakeTimers()
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -1607,18 +1608,27 @@ describe('HabitList', () => {
         selectedDate={new Date(`${date}T12:00:00Z`)}
       />
     )
-    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+    const renderResult = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
     })
-    rerenderWithProviders(renderList(TODAY))
+    renderResult.rerenderWithProviders(renderList(TODAY))
     await act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
+    })
+    const currentOperationTimerCount = vi.getTimerCount()
+    await act(async () => {
       rejectEarlierParent?.(new Error('rejected'))
       await Promise.allSettled([earlierParentMutation])
+    })
+
+    expect(screen.getByTestId(`habit-card-${parent.id}`)).toHaveAttribute('data-state', 'done')
+    expect(vi.getTimerCount()).toBe(currentOperationTimerCount)
+
+    await act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
     })
@@ -1636,9 +1646,12 @@ describe('HabitList', () => {
       await currentParentMutation
       await Promise.resolve()
     })
+    renderResult.unmount()
+    vi.useRealTimers()
   })
 
   it('clears the current parent guard after its settlement rejects', async () => {
+    vi.useFakeTimers()
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -1664,7 +1677,7 @@ describe('HabitList', () => {
       .mockImplementationOnce(() => rejectedParentMutation)
       .mockResolvedValue(undefined)
     const ref = React.createRef<HabitListHandle>()
-    renderWithProviders(
+    const renderResult = renderWithProviders(
       <HabitList
         ref={ref}
         filters={defaultFilters}
@@ -1675,8 +1688,17 @@ describe('HabitList', () => {
     await act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
+    })
+    const activeOperationTimerCount = vi.getTimerCount()
+    await act(async () => {
       rejectParent?.(new Error('rejected'))
       await Promise.allSettled([rejectedParentMutation])
+    })
+
+    expect(screen.getByTestId(`habit-card-${parent.id}`)).toHaveAttribute('data-state', 'empty')
+    expect(vi.getTimerCount()).toBe(activeOperationTimerCount - 1)
+
+    await act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
       await Promise.resolve()
     })
@@ -1688,6 +1710,9 @@ describe('HabitList', () => {
         { habitId: parent.id, date: TODAY },
         { habitId: parent.id, date: TODAY },
       ])
+    expect(screen.getByTestId(`habit-card-${parent.id}`)).toHaveAttribute('data-state', 'done')
+    renderResult.unmount()
+    vi.useRealTimers()
   })
 
   it('does not reuse a confirmed resolution after the viewed date changes', async () => {

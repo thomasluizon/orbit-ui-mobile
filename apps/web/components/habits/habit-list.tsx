@@ -748,8 +748,8 @@ export function HabitList({
       } catch {
         if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
           promptedParentIdsRef.current.delete(parentId)
+          clearRecentlyCompleted(parentId)
         }
-        clearRecentlyCompleted(parentId)
         return
       }
 
