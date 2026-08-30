@@ -6,10 +6,12 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import {
   goalKeys,
   habitKeys,
-  registerLiveSuggestionQuery,
-  resetLiveSuggestionQueries,
   tagKeys,
 } from '@orbit/shared/query'
+import {
+  registerLiveSuggestionQuery,
+  resetLiveSuggestionQueries,
+} from '@orbit/shared/query/live-suggestion-query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { CalendarMonthResponse, HabitScheduleItem } from '@orbit/shared/types/habit'

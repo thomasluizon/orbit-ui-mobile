@@ -2,7 +2,8 @@
 
 import { useMemo, useSyncExternalStore } from 'react'
 import { hashKey } from '@tanstack/react-query'
-import { habitKeys, useRegisterLiveSuggestionQuery } from '@orbit/shared/query'
+import { habitKeys } from '@orbit/shared/query'
+import { useRegisterLiveSuggestionQuery } from '@orbit/shared/query/live-suggestion-query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {

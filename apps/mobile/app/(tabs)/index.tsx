@@ -8,7 +8,7 @@ import {
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
-import { useRegisterLiveSuggestionQuery } from '@orbit/shared/query'
+import { useRegisterLiveSuggestionQuery } from '@orbit/shared/query/live-suggestion-query'
 import { plural } from '@/lib/plural'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'

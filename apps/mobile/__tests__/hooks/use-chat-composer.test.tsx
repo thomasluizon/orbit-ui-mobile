@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { habitKeys } from '@orbit/shared/query'
 import {
-  habitKeys,
   registerLiveSuggestionQuery,
   resetLiveSuggestionQueries,
-} from '@orbit/shared/query'
+} from '@orbit/shared/query/live-suggestion-query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { CalendarMonthResponse, HabitScheduleItem } from '@orbit/shared/types/habit'

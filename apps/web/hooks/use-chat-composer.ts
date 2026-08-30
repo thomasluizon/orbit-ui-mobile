@@ -17,8 +17,8 @@ import {
   habitKeys,
   profileKeys,
   tagKeys,
-  useLiveSuggestionQueryKey,
 } from '@orbit/shared/query'
+import { useLiveSuggestionQueryKey } from '@orbit/shared/query/live-suggestion-query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'

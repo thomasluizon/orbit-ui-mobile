@@ -20,12 +20,3 @@ export {
   QUERY_STALE_TIMES,
   NOTIFICATIONS_REFETCH_INTERVAL,
 } from './options'
-
-export {
-  getLiveSuggestionQueryKey,
-  registerLiveSuggestionQuery,
-  resetLiveSuggestionQueries,
-  useLiveSuggestionQueryKey,
-  useRegisterLiveSuggestionQuery,
-  type LiveSuggestionQueryKind,
-} from './live-suggestion-query'

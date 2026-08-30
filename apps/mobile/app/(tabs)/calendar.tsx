@@ -43,7 +43,7 @@ import {
   buildCalendarMonthModel,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { useRegisterLiveSuggestionQuery } from "@orbit/shared/query";
+import { useRegisterLiveSuggestionQuery } from "@orbit/shared/query/live-suggestion-query";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";

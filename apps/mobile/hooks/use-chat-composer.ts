@@ -26,8 +26,8 @@ import {
   habitKeys,
   profileKeys,
   tagKeys,
-  useLiveSuggestionQueryKey,
 } from "@orbit/shared/query";
+import { useLiveSuggestionQueryKey } from "@orbit/shared/query/live-suggestion-query";
 import type {
   AgentExecuteOperationResponse,
   ChatMessage,

@@ -19,6 +19,7 @@
     "./theme": "./src/theme/index.ts",
     "./api": "./src/api/index.ts",
     "./query": "./src/query/index.ts",
+    "./query/live-suggestion-query": "./src/query/live-suggestion-query.ts",
     "./validation": "./src/validation/index.ts"
   },
   "scripts": {
