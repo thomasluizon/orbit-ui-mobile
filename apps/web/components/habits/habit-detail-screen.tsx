@@ -151,7 +151,16 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
         </div>
       </div>
       <MonthGrid weekdayLabels={weekdayLabels} label={t('calendarLabel', { month: monthLabel })} gap={4}>
-        {days.map((day) => <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={day.loggedAt ? t('loggedAt', { time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }) }) : undefined} words={words} />)}
+        {days.map((day) => {
+          const dateLabel = formatLocaleDate(day.date, locale, { dateStyle: 'full' })
+          const label = day.loggedAt
+            ? t('loggedAt', {
+                date: dateLabel,
+                time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }),
+              })
+            : dateLabel
+          return <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={label} words={words} />
+        })}
       </MonthGrid>
       {!monthLoaded ? <p className="mt-4 text-sm text-[var(--fg-3)]">{t('olderHistoryUnavailable')}</p> : null}
     </Surface>

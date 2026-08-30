@@ -32,7 +32,12 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, string>) => key === 'habits.detail.loggedAt'
+      ? `${values?.date}, logged at ${values?.time}`
+      : key,
+    i18n: { language: 'en' },
+  }),
 }))
 vi.mock('expo-router', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: vi.fn() }),
@@ -109,7 +114,7 @@ vi.mock('@/components/ui/stat-tile', () => ({
   StatTile: ({ label, value }: { label: string; value: string }) => React.createElement('StatTile', { testID: `stat-${label}`, value }),
 }))
 vi.mock('@/components/dates/day-cell', () => ({
-  DayCell: ({ day, outcome, outsideMonth }: { day: number; outcome: string; outsideMonth: boolean }) => React.createElement('DayCell', { testID: `history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`, outcome }),
+  DayCell: ({ day, outcome, outsideMonth, label }: { day: number; outcome: string; outsideMonth: boolean; label: string }) => React.createElement('DayCell', { testID: `history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`, outcome, accessibilityLabel: label }),
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
 vi.mock('@/components/dates/month-grid', () => ({
@@ -329,6 +334,23 @@ describe('HabitDetailScreen', () => {
       date: '2026-08-28',
       intent: 'unlog',
     })
+  })
+
+  it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    const loggedLabel = tree!.root.findByProps({ testID: 'history-day-26-inside' }).props.accessibilityLabel
+    const unloggedLabel = tree!.root.findByProps({ testID: 'history-day-28-inside' }).props.accessibilityLabel
+    const loggedTime = new Date('2026-08-26T12:00:00Z').toLocaleTimeString('en', {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+    expect(loggedLabel).toContain('Wednesday, August 26, 2026')
+    expect(loggedLabel).toContain(loggedTime)
+    expect(unloggedLabel).toBe('Friday, August 28, 2026')
   })
 
   it.each(['2026-08-29', '2026-08-28'])(

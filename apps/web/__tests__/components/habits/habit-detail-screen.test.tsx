@@ -32,7 +32,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) => key === 'loggedAt'
+    ? `${values?.date}, logged at ${values?.time}`
+    : key,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -106,7 +108,7 @@ vi.mock('@/components/ui/stat-tile', () => ({
   StatTile: ({ label, value }: { label: string; value: string }) => <output data-testid={`stat-${label}`}>{value}</output>,
 }))
 vi.mock('@/components/dates/day-cell', () => ({
-  DayCell: ({ day, outcome, outsideMonth }: { day: number; outcome: string; outsideMonth: boolean }) => <span data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>,
+  DayCell: ({ day, outcome, outsideMonth, label }: { day: number; outcome: string; outsideMonth: boolean; label: string }) => <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>,
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
 vi.mock('@/components/dates/month-grid', () => ({
@@ -310,6 +312,20 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-state', 'done')
     fireEvent.click(screen.getByTestId('child-child-1'))
     expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date: '2026-08-28' })
+  })
+
+  it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    const loggedCell = screen.getByTestId('history-day-26-inside')
+    const unloggedCell = screen.getByTestId('history-day-28-inside')
+    const loggedTime = new Date('2026-08-26T12:00:00Z').toLocaleTimeString('en', {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+    expect(loggedCell).toHaveAccessibleName(/Wednesday, August 26, 2026/)
+    expect(loggedCell.getAttribute('aria-label')).toContain(loggedTime)
+    expect(unloggedCell).toHaveAccessibleName('Friday, August 28, 2026')
   })
 
   it.each(['2026-08-29', '2026-08-28'])(

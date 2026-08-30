@@ -637,7 +637,7 @@
       "circularReference": "A habit cannot be moved into itself"
     },
     "detail": {
-      "loggedAt": "Logged at {time}",
+      "loggedAt": "{date}, logged at {time}",
       "day": "day",
       "days": "days",
       "endsOn": "Ends on",

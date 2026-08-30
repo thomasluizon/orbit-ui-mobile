@@ -637,7 +637,7 @@
       "circularReference": "Um hábito não pode ser movido para dentro dele mesmo"
     },
     "detail": {
-      "loggedAt": "Registrado às {time}",
+      "loggedAt": "{date}, registrado às {time}",
       "day": "dia",
       "days": "dias",
       "endsOn": "Termina em",

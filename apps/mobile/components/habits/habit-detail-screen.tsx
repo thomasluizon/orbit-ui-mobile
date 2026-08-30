@@ -123,7 +123,16 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   return (
     <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}>
       <View style={styles.sectionHeader}><View><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{label}</Text></View><View style={styles.historyActions}><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => setMonth((value) => addMonths(value, -1))}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => setMonth((value) => addMonths(value, 1))}><ChevronRight size={20} color={tokens.fg1} /></PillButton></View></View>
-      <MonthGrid weekdayLabels={weekdayLabels} gap={4} label={t('habits.detail.calendarLabel', { month: label })}>{days.map((day) => <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={day.loggedAt ? t('habits.detail.loggedAt', { time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }) }) : undefined} words={words} />)}</MonthGrid>
+      <MonthGrid weekdayLabels={weekdayLabels} gap={4} label={t('habits.detail.calendarLabel', { month: label })}>{days.map((day) => {
+        const dateLabel = formatLocaleDate(day.date, locale, { dateStyle: 'full' })
+        const cellLabel = day.loggedAt
+          ? t('habits.detail.loggedAt', {
+              date: dateLabel,
+              time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }),
+            })
+          : dateLabel
+        return <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={cellLabel} words={words} />
+      })}</MonthGrid>
       {!loaded ? <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.olderHistoryUnavailable')}</Text> : null}
     </Surface>
   )
