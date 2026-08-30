@@ -11,7 +11,7 @@ import {
 } from 'date-fns'
 import type { HabitDayValue } from '../contracts/dates'
 import type { HabitLog } from '../types/calendar'
-import type { HabitDetail, HabitMetrics, NormalizedHabit, UpdateHabitRequest } from '../types/habit'
+import type { CreateSubHabitRequest, HabitDetail, HabitDetailChild, HabitMetrics, NormalizedHabit, UpdateHabitRequest } from '../types/habit'
 import { canLogHabitOnDate } from './habit-card-helpers'
 import { formatAPIDate, parseAPIDate } from './dates'
 import { getTodayBoundary } from './today-date'
@@ -326,6 +326,51 @@ export function getHabitStartDate(createdAtUtc: string): Date {
 
 export function parseHabitHistoryDate(dateStr: string): Date {
   return parseAPIDate(dateStr)
+}
+
+export function appendHabitDetailChild(
+  detail: HabitDetail,
+  childId: string,
+  request: CreateSubHabitRequest,
+): HabitDetail {
+  const position = detail.children.reduce(
+    (highest, child) => Math.max(highest, child.position ?? -1),
+    -1,
+  ) + 1
+  const child: HabitDetailChild = {
+    id: childId,
+    title: request.title,
+    description: request.description ?? null,
+    emoji: request.emoji ?? null,
+    frequencyUnit: request.frequencyUnit ?? null,
+    frequencyQuantity: request.frequencyQuantity ?? null,
+    isBadHabit: request.isBadHabit ?? false,
+    isCompleted: false,
+    isGeneral: detail.isGeneral,
+    isFlexible: request.isFlexible ?? false,
+    days: request.days ?? [],
+    dueDate: request.dueDate || detail.dueDate,
+    dueTime: request.dueTime ?? null,
+    dueEndTime: request.dueEndTime ?? null,
+    endDate: request.endDate ?? null,
+    position,
+    checklistItems: request.checklistItems ?? [],
+    children: [],
+  }
+  return { ...detail, children: [...detail.children, child] }
+}
+
+function removeDetailChild(
+  children: readonly HabitDetailChild[],
+  habitId: string,
+): HabitDetailChild[] {
+  return children.flatMap((child) => child.id === habitId
+    ? []
+    : [{ ...child, children: removeDetailChild(child.children, habitId) }])
+}
+
+export function removeHabitDetailChild(detail: HabitDetail, habitId: string): HabitDetail {
+  return { ...detail, children: removeDetailChild(detail.children, habitId) }
 }
 
 export function buildHabitDetailUpdateRequest(

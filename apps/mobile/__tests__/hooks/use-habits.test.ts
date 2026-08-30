@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import type { ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 
 import {
@@ -314,6 +314,15 @@ function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleCh
     isLoggedInRange: overrides.isLoggedInRange ?? false,
     instances: overrides.instances ?? [{ date: '2025-01-15', status: 'Pending', logId: null }],
     searchMatches: overrides.searchMatches ?? null,
+  }
+}
+
+function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
+  const habit = makeHabit()
+  return {
+    ...habit,
+    children: [],
+    ...overrides,
   }
 }
 
@@ -725,6 +734,10 @@ describe('mobile habit hooks', () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false }),
     ], 1)
+    mocks.queryClient.setQueryData(
+      habitKeys.detail('offline-parent-1'),
+      makeDetail({ id: 'offline-parent-1', title: 'Parent' }),
+    )
 
     const mutation = useCreateSubHabit() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
@@ -760,6 +773,10 @@ describe('mobile habit hooks', () => {
       dueDate: '2025-01-01',
       instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('offline-parent-1')) as HabitDetail)
+        .children[0],
+    ).toMatchObject({ id: 'offline-habit-child-1', title: 'Warmup' })
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
       mutation: expect.objectContaining({
         type: 'createSubHabit',
@@ -1266,6 +1283,34 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(getCount()).toBe(2)
+  })
+
+  it('removes a queued child from the mounted detail tree and restores it on failure', async () => {
+    seedHabitState([
+      makeHabit({ id: 'parent-1', children: [makeChild({ id: 'child-1' })] }),
+    ], 2)
+    const originalDetail = makeDetail({
+      id: 'parent-1',
+      children: [makeChild({ id: 'child-1' })],
+    })
+    mocks.queryClient.setQueryData(habitKeys.detail('parent-1'), originalDetail)
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      unknown,
+      string,
+      HabitSnapshotContext & {
+        previousDetails: readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+      }
+    >
+
+    const context = await mutation.onMutate?.('child-1')
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('parent-1')) as HabitDetail).children,
+    ).toEqual([])
+
+    mutation.onError?.(new Error('Delete failed'), 'child-1', context)
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('parent-1')) as HabitDetail).children,
+    ).toHaveLength(1)
   })
 
   it('inserts an optimistic duplicate with an incremented count and rolls back on failure', async () => {

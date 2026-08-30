@@ -11,10 +11,12 @@ import {
 import { API } from '@orbit/shared/api'
 import {
   applyLinkedGoalUpdates,
+  appendHabitDetailChild,
   buildOptimisticSkipPatch,
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
+  removeHabitDetailChild,
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
@@ -93,6 +95,7 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 type OfflineBulkMutationOutcome<TResponse> = TResponse & {
   ambiguousIds: string[]
   offlineFailureIds: string[]
@@ -179,7 +182,7 @@ export function useLogHabit() {
       return { previousLists }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -431,7 +434,7 @@ export function useUpdateHabit() {
       return { previousLists }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
@@ -485,7 +488,7 @@ export function useDeleteHabit() {
     void | QueuedMarker,
     Error,
     string,
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; previousDetails: HabitDetailSnapshots }
   >({
     mutationFn: (habitId) =>
       performQueuedApiMutation<void>({
@@ -499,18 +502,31 @@ export function useDeleteHabit() {
       }),
 
     onMutate: async (habitId) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.details() }),
+      ])
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetails = queryClient.getQueriesData<HabitDetail>({
+        queryKey: habitKeys.details(),
+      })
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, [habitId]))
+      queryClient.setQueriesData<HabitDetail>(
+        { queryKey: habitKeys.details() },
+        (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
+      )
       adjustHabitCount(queryClient, -1)
 
-      return { previousLists }
+      return { previousLists, previousDetails }
     },
 
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
+      for (const [queryKey, detail] of context.previousDetails) {
+        if (detail) queryClient.setQueryData(queryKey, detail)
+      }
       adjustHabitCount(queryClient, 1)
     },
 
@@ -518,11 +534,15 @@ export function useDeleteHabit() {
       showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
     },
 
-    onSettled: (data, error) =>
+    onSettled: (data, error) => {
+      if (!isQueuedResult(data)) {
+        void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
+      }
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
         includeCount: true,
-      }),
+      })
+    },
   })
 }
 
@@ -684,7 +704,7 @@ export function useCreateSubHabit() {
     void | QueuedMarker,
     Error,
     CreateSubHabitMutationInput,
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
     mutationFn: async ({ parentId, data, __offlineTempId }) => {
       const tempId = __offlineTempId ?? createTempEntityId('habit')
@@ -703,10 +723,14 @@ export function useCreateSubHabit() {
     },
 
     onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(input.parentId) }),
+      ])
 
       const { parentId, data } = input
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(parentId))
       const tempId = createTempEntityId('habit')
       input.__offlineTempId = tempId
       const optimisticChild = buildOptimisticSubHabit(queryClient, parentId, tempId, data)
@@ -717,17 +741,24 @@ export function useCreateSubHabit() {
           optimisticChild,
         ),
       )
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(parentId), (detail) =>
+        detail ? appendHabitDetailChild(detail, tempId, data) : detail,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetail }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, variables, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+      if (context?.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(variables.parentId), context.previousDetail)
+      }
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error, { parentId }) =>
+      finalizeHabitMutation(queryClient, data, error, { habitId: parentId }),
   })
 }
 

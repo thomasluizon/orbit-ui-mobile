@@ -3,6 +3,7 @@ export { createClientId } from './client-id'
 export { parseAPIDate, formatAPIDate } from './dates'
 export {
   buildHabitHistoryMonth,
+  appendHabitDetailChild,
   buildHabitDetailChildDateModel,
   buildHabitDetailUpdateRequest,
   buildHabitStripModel,
@@ -15,6 +16,7 @@ export {
   isHabitCompletedOnDate,
   isHabitSlipping,
   parseHabitHistoryDate,
+  removeHabitDetailChild,
   shouldResetHabitChecklist,
   shouldShowHabitMetrics,
   type HabitHistoryDay,

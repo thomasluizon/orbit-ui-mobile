@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HabitLog } from '../types/calendar'
 import type { HabitMetrics } from '../types/habit'
 import {
+  appendHabitDetailChild,
   buildHabitDetailUpdateRequest,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
@@ -11,6 +12,7 @@ import {
   isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
   isHabitSlipping,
+  removeHabitDetailChild,
   shouldResetHabitChecklist,
   shouldShowHabitMetrics,
 } from '../utils/habit-detail-flow'
@@ -36,6 +38,32 @@ const log = (date: string, createdAtUtc = `${date}T12:00:00Z`): HabitLog => ({
 })
 
 describe('habit detail flow model', () => {
+  it('appends and removes children in a mounted detail tree', () => {
+    const parent = { ...createMockHabit({ id: 'parent-1', isGeneral: true }), children: [] }
+    const withChild = appendHabitDetailChild(parent, 'offline-child-1', {
+      title: 'Warmup',
+      dueDate: '',
+      checklistItems: [{ text: 'Shoes', isChecked: false }],
+    })
+
+    expect(withChild.children[0]).toMatchObject({
+      id: 'offline-child-1',
+      title: 'Warmup',
+      dueDate: parent.dueDate,
+      isGeneral: true,
+      position: 0,
+    })
+    expect(removeHabitDetailChild(withChild, 'offline-child-1').children).toEqual([])
+  })
+
+  it('removes a nested child without dropping its ancestors', () => {
+    const nested = { ...createMockHabit({ id: 'nested-1' }), children: [] }
+    const child = { ...createMockHabit({ id: 'child-1' }), children: [nested] }
+    const parent = { ...createMockHabit({ id: 'parent-1' }), children: [child] }
+
+    expect(removeHabitDetailChild(parent, 'nested-1').children[0]?.children).toEqual([])
+  })
+
   it('omits unowned fields from inline updates and includes explicit values', () => {
     const habit = createMockHabit({
       slipAlertEnabled: true,

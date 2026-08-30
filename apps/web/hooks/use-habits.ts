@@ -8,9 +8,11 @@ import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
+  appendHabitDetailChild,
   buildOptimisticSkipPatch,
   findHabitInList,
   normalizeHabits,
+  removeHabitDetailChild,
 } from '@orbit/shared/utils'
 import {
   optimisticPatchHabit,
@@ -64,6 +66,13 @@ import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+
+let optimisticSubHabitSequence = 0
+
+function createOptimisticSubHabitId(): string {
+  optimisticSubHabitSequence += 1
+  return `optimistic-sub-habit-${optimisticSubHabitSequence}`
+}
 
 function restoreRejectedBulkItems(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -371,12 +380,31 @@ export function useDeleteHabit() {
   return useMutation({
     mutationFn: (habitId: string) => deleteHabitAction(habitId),
 
+    onMutate: async (habitId) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.details() })
+      const previousDetails = queryClient.getQueriesData<HabitDetail>({
+        queryKey: habitKeys.details(),
+      })
+      queryClient.setQueriesData<HabitDetail>(
+        { queryKey: habitKeys.details() },
+        (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
+      )
+      return { previousDetails }
+    },
+
+    onError: (_error, _habitId, context) => {
+      for (const [queryKey, detail] of context?.previousDetails ?? []) {
+        if (detail) queryClient.setQueryData(queryKey, detail)
+      }
+    },
+
     onSuccess: (_data, habitId) => {
       showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
     },
 
     onSettled: () => {
       invalidateHabitDeleteQueries(queryClient)
+      void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }
@@ -504,10 +532,27 @@ export function useCreateSubHabit() {
       data: CreateSubHabitRequest
     }) => createSubHabitAction(parentId, data),
 
-    onSettled: () => {
+    onMutate: async ({ parentId, data }) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId) })
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(parentId))
+      const optimisticChildId = createOptimisticSubHabitId()
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(parentId), (detail) =>
+        detail ? appendHabitDetailChild(detail, optimisticChildId, data) : detail,
+      )
+      return { previousDetail }
+    },
+
+    onError: (_error, { parentId }, context) => {
+      if (context?.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(parentId), context.previousDetail)
+      }
+    },
+
+    onSettled: (_result, _error, { parentId }) => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.detail(parentId) })
     },
   })
 }
