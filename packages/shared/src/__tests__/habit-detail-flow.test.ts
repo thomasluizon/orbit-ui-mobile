@@ -286,6 +286,68 @@ describe('habit detail flow model', () => {
     expect(april.find((day) => day.dateStr === '2026-04-30')?.outcome).toBe('not-scheduled')
   })
 
+  it('does not infer monthly history from a due date that has advanced', () => {
+    const movedMonthly = {
+      ...recurring,
+      createdAtUtc: '2026-01-01T12:00:00Z',
+      days: [],
+      dueDate: '2026-02-28',
+      frequencyUnit: 'Month',
+    }
+    const january = buildHabitHistoryMonth(
+      movedMonthly,
+      [log('2026-01-31')],
+      new Date(2026, 0, 1),
+      new Date(2026, 2, 1),
+      1,
+    )
+
+    expect(january.find((day) => day.dateStr === '2026-01-31')?.outcome).toBe('full')
+    expect(january.find((day) => day.dateStr === '2026-01-28')?.outcome).toBe('not-scheduled')
+    expect(january.filter((day) => day.outcome === 'none')).toHaveLength(0)
+  })
+
+  it('does not invent a common-year occurrence from an advanced leap-day due date', () => {
+    const movedYearly = {
+      ...recurring,
+      createdAtUtc: '2024-01-01T12:00:00Z',
+      days: [],
+      dueDate: '2025-02-28',
+      frequencyUnit: 'Year',
+    }
+    const february = buildHabitHistoryMonth(
+      movedYearly,
+      [log('2024-02-29')],
+      new Date(2024, 1, 1),
+      new Date(2024, 11, 31),
+      1,
+    )
+
+    expect(february.find((day) => day.dateStr === '2024-02-29')?.outcome).toBe('full')
+    expect(february.find((day) => day.dateStr === '2024-02-28')?.outcome).toBe('not-scheduled')
+    expect(february.filter((day) => day.outcome === 'none')).toHaveLength(0)
+  })
+
+  it('keeps reconstructing a monthly habit whose due date has not advanced', () => {
+    const pendingMonthly = {
+      ...recurring,
+      createdAtUtc: '2026-01-01T12:00:00Z',
+      days: [],
+      dueDate: '2026-01-31',
+      frequencyUnit: 'Month',
+    }
+    const february = buildHabitHistoryMonth(
+      pendingMonthly,
+      [],
+      new Date(2026, 1, 1),
+      new Date(2026, 1, 28),
+      1,
+    )
+
+    expect(february.find((day) => day.dateStr === '2026-02-28')?.outcome).toBe('none')
+    expect(february.find((day) => day.dateStr === '2026-02-27')?.outcome).toBe('not-scheduled')
+  })
+
   it('bounds loaded history to the API window and navigation to start and current months', () => {
     expect(isHabitHistoryMonthLoaded(new Date(2025, 6, 1), today)).toBe(false)
     expect(isHabitHistoryMonthLoaded(new Date(2025, 7, 1), today)).toBe(true)

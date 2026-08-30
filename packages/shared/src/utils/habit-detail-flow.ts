@@ -118,6 +118,16 @@ function isFlexibleTargetMet(
   return windowLogs.filter((log) => log.value > 0).length >= adjustedTarget
 }
 
+function hasMovedDueDateEvidence(
+  source: HabitScheduleSource,
+  logs: readonly HabitLog[],
+): boolean {
+  if (source.isFlexible || (source.frequencyUnit !== 'Month' && source.frequencyUnit !== 'Year')) {
+    return false
+  }
+  return logs.some((log) => log.value > 0 && log.date < source.dueDate)
+}
+
 function isScheduled(
   source: HabitScheduleSource,
   date: Date,
@@ -135,6 +145,7 @@ function isScheduled(
     if (dateStr < source.dueDate) return false
     return !isFlexibleTargetMet(source, logs, date, weekStartsOn)
   }
+  if (dateStr < source.dueDate && hasMovedDueDateEvidence(source, logs)) return false
 
   return matchesFrequency(source, date, parseAPIDate(source.dueDate))
 }
