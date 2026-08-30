@@ -14,7 +14,18 @@ const mocks = vi.hoisted(() => ({
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
   update: vi.fn(),
+  checklist: vi.fn(),
+  deleteHabit: vi.fn(),
+  showError: vi.fn(),
   hasProAccess: true,
+  suggestion: null as null | {
+    frequencyUnit: 'Day'
+    frequencyQuantity: number
+    dueDate: string
+    dueTime: null
+    days: string[]
+    rationale: string
+  },
 }))
 
 vi.mock('react-i18next', () => ({
@@ -30,10 +41,13 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabits: () => ({ data: { habitsById: mocks.scopedHabits } }),
 }))
 vi.mock('@/hooks/use-habits', () => ({
-  useLogHabit: () => ({ mutate: mocks.log }),
-  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: vi.fn(), isPending: false }),
-  useUpdateChecklist: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
-  useDeleteHabit: () => ({ mutate: vi.fn() }),
+  useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
+  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: false }),
+  useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }),
+  useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: mocks.showError }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -47,7 +61,7 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
-  useRescheduleSuggestion: () => ({ suggestion: null, error: null }),
+  useRescheduleSuggestion: () => ({ suggestion: mocks.suggestion, error: null }),
 }))
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
@@ -60,7 +74,11 @@ vi.mock('@/components/shell/flow-shell', () => ({
 }))
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
-vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, title, onConfirm }: { open: boolean; title: string; onConfirm: () => void }) => open
+    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, onConfirm })
+    : null,
+}))
 vi.mock('@/components/ui/error-state', () => ({ ErrorState: () => null }))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children) }))
 vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => null }))
@@ -77,10 +95,10 @@ vi.mock('@/components/ui/icons', () => ({
   Trash2: () => null,
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, trailing }: { title: string; trailing?: React.ReactNode }) => React.createElement('ListRow', { title }, trailing),
+  ListRow: ({ title, trailing, onClick }: { title: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children }: { children?: React.ReactNode }) => React.createElement('PillButton', null, children),
+  PillButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('PillButton', { onClick }, children),
 }))
 vi.mock('@/components/ui/stat-tile', () => ({
   StatTile: ({ label, value }: { label: string; value: string }) => React.createElement('StatTile', { testID: `stat-${label}`, value }),
@@ -94,7 +112,9 @@ vi.mock('@/components/dates/month-grid', () => ({
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
-vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => null }))
+vi.mock('@/components/habits/habit-checklist', () => ({
+  HabitChecklist: ({ onToggle }: { onToggle: (index: number) => void }) => React.createElement('HabitChecklist', { testID: 'habit-checklist', onToggle }),
+}))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-form-fields/styles', () => ({ createStyles: () => ({}) }))
 vi.mock('@/components/habits/habit-log-button', () => ({
@@ -203,7 +223,11 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabits = new Map()
     mocks.log.mockReset()
     mocks.update.mockReset()
+    mocks.checklist.mockReset()
+    mocks.deleteHabit.mockReset()
+    mocks.showError.mockReset()
     mocks.hasProAccess = true
+    mocks.suggestion = null
   })
 
   afterEach(() => {
@@ -324,5 +348,106 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update).toHaveBeenCalledOnce()
     expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ slipAlertEnabled: true })
     expect(mocks.update.mock.calls[0]![0].data).not.toHaveProperty('goalIds')
+  })
+
+  it('keeps the title editor open and reports an update failure', async () => {
+    mocks.update.mockRejectedValueOnce(new Error('update failed'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+    })
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onChangeText('Read daily')
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onSubmitEditing()
+      await Promise.resolve()
+    })
+
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.updateError')
+    expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBe('Read daily')
+  })
+
+  it('contains and reports a log failure', async () => {
+    mocks.log.mockRejectedValueOnce(new Error('log failed'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'header-log' }).props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError')
+  })
+
+  it('contains and reports a checklist failure', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockRejectedValueOnce(new Error('checklist failed'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.checklistError')
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+  })
+
+  it('keeps delete confirmation open and reports a delete failure', async () => {
+    mocks.deleteHabit.mockRejectedValueOnce(new Error('delete failed'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ title: 'habits.detail.delete' }).props.onClick()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.deleteConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.deleteError')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.deleteConfirmTitle' })).toBeDefined()
+  })
+
+  it('contains and reports a reschedule failure', async () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
+    mocks.suggestion = {
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      dueDate: '2026-08-30',
+      dueTime: null,
+      days: [],
+      rationale: 'Try tomorrow',
+    }
+    mocks.update.mockRejectedValueOnce(new Error('reschedule failed'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    const accept = tree!.root.findAllByType('PillButton')
+      .find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')
+
+    await TestRenderer.act(async () => {
+      accept!.props.onClick()
+      await Promise.resolve()
+    })
+
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.rescheduleWriteError')
+    expect(accept).toBeDefined()
   })
 })

@@ -48,6 +48,7 @@ import { HabitRow } from './habit-row'
 import { useHabitDetail, useHabitLogs, useHabitMetrics, useHabits } from '@/hooks/use-habit-queries'
 import { useDeleteHabit, useLogHabit, useUpdateChecklist, useUpdateHabit } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
@@ -87,25 +88,28 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
   completed: boolean
   logged: boolean
   summary: string
-  onRename: (title: string) => void
+  onRename: (title: string) => Promise<boolean>
   onEmoji: (emoji: string) => void
   onLog: () => void
 }>) {
   const t = useTranslations('habits.detail')
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(habit.title)
-  const save = () => {
+  const save = async () => {
     const next = title.trim()
-    if (next && next !== habit.title) onRename(next)
-    else setTitle(habit.title)
-    setEditing(false)
+    if (!next || next === habit.title) {
+      setTitle(habit.title)
+      setEditing(false)
+      return
+    }
+    if (await onRename(next)) setEditing(false)
   }
   return (
     <header className="flex items-start gap-4 px-4 pb-6 pt-2 sm:px-0">
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
       <div className="min-w-0 flex-1 pt-1">
         {editing ? (
-          <input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={save} onKeyDown={(event) => { if (event.key === 'Enter') save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" />
+          <input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" />
         ) : (
           <button type="button" onClick={() => setEditing(true)} className="block max-w-full border-0 bg-transparent p-0 text-left">
             <h1 className="truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">{habit.title}</h1>
@@ -165,11 +169,19 @@ function MetricsSection({ visible, loading, metrics }: Readonly<{ visible: boole
 function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasProAccess: boolean; locale: string }>) {
   const t = useTranslations('habits.detail')
   const router = useRouter()
+  const { showError } = useAppToast()
   const updateHabit = useUpdateHabit()
   const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && hasProAccess })
   if (!slipping) return null
   if (!hasProAccess) return <ListRow title={t('slipping')} description={t('rescheduleFree')} value={t('proGate')} onClick={() => router.push('/upgrade')} />
-  const accept = async () => { if (query.suggestion) await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, query.suggestion) }) }
+  const accept = async () => {
+    if (!query.suggestion) return
+    try {
+      await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, query.suggestion) })
+    } catch {
+      showError(t('rescheduleWriteError'))
+    }
+  }
   return (
     <Proposed proposed scope="block" label={t('proposed')}>
       <div className="flex flex-col gap-4 p-4">
@@ -202,6 +214,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const updateHabit = useUpdateHabit()
   const updateChecklist = useUpdateChecklist()
   const deleteHabit = useDeleteHabit()
+  const { showError } = useAppToast()
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -223,14 +236,48 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     else if (fromToday) router.back()
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])
-  const patchHabit = (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => { if (habit) updateHabit.mutate({ habitId: habit.id, data: buildHabitDetailUpdateRequest(habit, patch) }) }
+  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string): Promise<boolean> => {
+    try {
+      await write()
+      return true
+    } catch {
+      showError(errorMessage)
+      return false
+    }
+  }, [showError])
+  const patchHabit = (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => habit
+    ? runWrite(
+        () => updateHabit.mutateAsync({ habitId: habit.id, data: buildHabitDetailUpdateRequest(habit, patch) }),
+        t('habits.detail.updateError'),
+      )
+    : Promise.resolve(false)
+  const writeLog = (targetHabitId: string) => runWrite(
+    () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr }),
+    t('habits.detail.logError'),
+  )
+  const updateItems = (items: ChecklistItem[]) => runWrite(
+    () => updateChecklist.mutateAsync({ habitId, items }),
+    t('habits.detail.checklistError'),
+  )
   const toggleChecklist = async (index: number) => {
     if (!habit) return
     const items = habit.checklistItems.map((item, itemIndex) => itemIndex === index ? { ...item, isChecked: !item.isChecked } : item)
-    await updateChecklist.mutateAsync({ habitId, items })
-    if (items.length > 0 && items.every((item) => item.isChecked) && !logged) setConfirm('log')
+    if (await updateItems(items) && items.length > 0 && items.every((item) => item.isChecked) && !logged) setConfirm('log')
   }
-  const updateItems = (items: ChecklistItem[]) => updateChecklist.mutate({ habitId, items })
+  const confirmLog = async () => {
+    if (await writeLog(habitId)) setConfirm(null)
+  }
+  const confirmDelete = async () => {
+    if (!await runWrite(() => deleteHabit.mutateAsync(habitId), t('habits.detail.deleteError'))) return
+    setConfirm(null)
+    router.push(`/?date=${dateStr}`)
+  }
+  const confirmChildDelete = async () => {
+    if (!childToDelete) return
+    if (!await runWrite(() => deleteHabit.mutateAsync(childToDelete), t('habits.detail.deleteError'))) return
+    setConfirm(null)
+    setChildToDelete(null)
+  }
   const askAstra = () => {
     const seedKey = habit?.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault'
     localStorage.setItem('orbit-chat-draft', t(seedKey, { title: habit?.title ?? '' }))
@@ -252,7 +299,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 
   return (
     <FlowShell nav={false} mode="detail" header={<AppBar back title={t('habits.detail.screenTitle')} onBack={goBack} />}>
-      <HabitHeader habit={habit} completed={completed} logged={logged} summary={summary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => patchHabit({ emoji })} onLog={() => logHabit.mutate({ habitId, date: dateStr })} />
+      <HabitHeader habit={habit} completed={completed} logged={logged} summary={summary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId) }} />
       <div className="grid gap-6 min-[900px]:grid-cols-2">
         <div className="flex flex-col gap-6">
           {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div></Surface> : null}
@@ -261,23 +308,23 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
           <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? locale} weekStartsOn={profile?.weekStartDay ?? 0} />
         </div>
         <div className="flex flex-col gap-6">
-          <Surface><div className="mb-4 flex items-center justify-between"><div><SectionTitle>{t('habits.detail.checklist')}</SectionTitle>{shouldResetHabitChecklist(habit) ? <p className="mt-1 text-sm text-[var(--fg-3)]">{t('habits.detail.resetRule')}</p> : null}</div></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={updateItems} onReset={() => updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false })))} onClear={() => setConfirm('clear')} /></Surface>
-          <Surface><div className="mb-3"><SectionTitle>{t('habits.detail.inside')}</SectionTitle></div><div className="flex flex-col gap-2">{children.map(({ habit: child, completed, canLog, readOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={completed ? 'done' : 'empty'} canLog={canLog} readOnly={readOnly} actions={{ onLog: () => logHabit.mutate({ habitId: child.id, date: dateStr }), onUnlog: () => logHabit.mutate({ habitId: child.id, date: dateStr }), onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} description={hasProAccess ? undefined : t('habits.detail.addSubHabitFree')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
+          <Surface><div className="mb-4 flex items-center justify-between"><div><SectionTitle>{t('habits.detail.checklist')}</SectionTitle>{shouldResetHabitChecklist(habit) ? <p className="mt-1 text-sm text-[var(--fg-3)]">{t('habits.detail.resetRule')}</p> : null}</div></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /></Surface>
+          <Surface><div className="mb-3"><SectionTitle>{t('habits.detail.inside')}</SectionTitle></div><div className="flex flex-col gap-2">{children.map(({ habit: child, completed, canLog, readOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={completed ? 'done' : 'empty'} canLog={canLog} readOnly={readOnly} actions={{ onLog: () => { void writeLog(child.id) }, onUnlog: () => { void writeLog(child.id) }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} description={hasProAccess ? undefined : t('habits.detail.addSubHabitFree')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
           <Surface><div className="mb-3"><SectionTitle>{t('habits.detail.linkedGoals')}</SectionTitle></div>{habit.linkedGoals?.length ? habit.linkedGoals.map((goal) => <ListRow key={goal.id} icon={<Calendar size={24} />} title={goal.title} onClick={() => router.push(`/goals/${goal.id}`)} />) : <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.noLinkedGoals')}</p>}</Surface>
           <Surface><ListRow icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} description={atAstraLimit ? t('habits.detail.askAstraLimit') : t(habit.checklistItems.length ? 'habits.detail.askAstraSubHabits' : 'habits.detail.askAstraDefault')} onClick={askAstra} /></Surface>
         </div>
       </div>
       <div className="mt-6 flex flex-col gap-4">
-        <Surface><button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="flex items-center gap-3 text-lg font-medium text-[var(--fg-1)]"><ListTree size={24} />{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className={detailsOpen ? 'rotate-180' : ''} /></button>{detailsOpen ? <div className="mt-4 flex flex-col gap-1"><ListRow title={t('habits.detail.schedule')} value={summary} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.description')} description={habit.description ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.reminders')} value={habit.reminderEnabled ? String(habit.reminderTimes.length + habit.scheduledReminders.length) : t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.endDate')} value={habit.endDate ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.slipAlert')} description={!hasProAccess ? t('habits.detail.slipAlertFree') : undefined} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => patchHabit({ slipAlertEnabled })} /> : undefined} onClick={!hasProAccess ? () => router.push('/upgrade') : undefined} /></div> : null}</Surface>
+        <Surface><button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="flex items-center gap-3 text-lg font-medium text-[var(--fg-1)]"><ListTree size={24} />{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className={detailsOpen ? 'rotate-180' : ''} /></button>{detailsOpen ? <div className="mt-4 flex flex-col gap-1"><ListRow title={t('habits.detail.schedule')} value={summary} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.description')} description={habit.description ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.reminders')} value={habit.reminderEnabled ? String(habit.reminderTimes.length + habit.scheduledReminders.length) : t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.endDate')} value={habit.endDate ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.slipAlert')} description={!hasProAccess ? t('habits.detail.slipAlertFree') : undefined} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void patchHabit({ slipAlertEnabled }) }} /> : undefined} onClick={!hasProAccess ? () => router.push('/upgrade') : undefined} /></div> : null}</Surface>
         <ListRow icon={<Calendar size={24} />} title={t('habits.detail.startedOn')} description={t('habits.detail.startDateNote')} value={formatLocaleDate(new Date(habit.createdAtUtc), profile?.language ?? locale, { dateStyle: 'medium' })} readOnly />
         <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
       </div>
       <EditHabitModal open={editOpen} onOpenChange={setEditOpen} habit={habit} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
-      <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { updateItems([]); setConfirm(null) }} />
-      <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { logHabit.mutate({ habitId, date: dateStr }); setConfirm(null) }} />
-      <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { deleteHabit.mutate(habitId, { onSuccess: () => router.push(`/?date=${dateStr}`) }); setConfirm(null) }} />
-      <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { if (childToDelete) deleteHabit.mutate(childToDelete); setConfirm(null); setChildToDelete(null) }} />
+      <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
+      <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
+      <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
+      <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
     </FlowShell>
   )
 }
