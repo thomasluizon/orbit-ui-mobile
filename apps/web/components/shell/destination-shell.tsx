@@ -56,9 +56,19 @@ export function DestinationShell({
   const destination = resolveShellDestination(pathname)
   const primaryDestination = isPrimaryShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
-  const [conversationPathname, setConversationPathname] = useState<string | null>(null)
-  const conversationOpen = primaryDestination && conversationPathname === pathname
-  const openConversation = useCallback(() => setConversationPathname(pathname), [pathname])
+  const [conversationOwnership, setConversationOwnership] = useState({
+    observedPathname: pathname,
+    ownerPathname: null as string | null,
+  })
+  if (conversationOwnership.observedPathname !== pathname) {
+    setConversationOwnership({ observedPathname: pathname, ownerPathname: null })
+  }
+  const conversationOpen =
+    primaryDestination && conversationOwnership.ownerPathname === pathname
+  const openConversation = useCallback(
+    () => setConversationOwnership({ observedPathname: pathname, ownerPathname: pathname }),
+    [pathname],
+  )
   const composer = useChatComposer({
     destination: primaryDestination ? destination ?? undefined : undefined,
     onOpenConversation: openConversation,
@@ -139,7 +149,12 @@ export function DestinationShell({
     ? {
         composer: <ShellComposer composer={composer} />,
         conversation: (
-          <ChatPageContent composer={composer} onClose={() => setConversationPathname(null)} />
+          <ChatPageContent
+            composer={composer}
+            onClose={() => {
+              setConversationOwnership({ observedPathname: pathname, ownerPathname: null })
+            }}
+          />
         ),
         conversationLabel: t('chat.title'),
         conversationOpen,

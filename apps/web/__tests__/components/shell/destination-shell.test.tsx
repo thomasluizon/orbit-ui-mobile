@@ -274,6 +274,22 @@ describe('DestinationShell', () => {
     expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
   })
 
+  it('keeps a dismissed destination conversation closed after navigating back', () => {
+    const { rerender } = render(
+      <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
+    expect(screen.getByRole('button', { name: 'conversation-close' })).toBeInTheDocument()
+
+    mocks.pathname = '/calendar'
+    rerender(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
+    mocks.pathname = '/'
+    rerender(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
+  })
+
   it('opens the attachment picker from the conversation', () => {
     mocks.showAttachmentControls = true
     const pickerClick = vi.spyOn(HTMLInputElement.prototype, 'click')

@@ -311,6 +311,28 @@ describe('mobile DestinationShell', () => {
     expect(hosts(tree, 'ChatScreenContent')).toHaveLength(0)
   })
 
+  it('keeps a destination conversation closed after navigating away and back', async () => {
+    const tree = await renderShell('/')
+
+    await TestRenderer.act(() => hostCallback(tree, 'ShellComposer', 'onOpenConversation')())
+    await TestRenderer.act(() => {
+      tree.update(
+        <DestinationShell pathname="/calendar" tabBar={React.createElement('TabBar')}>
+          {React.createElement('Screen')}
+        </DestinationShell>,
+      )
+    })
+    await TestRenderer.act(() => {
+      tree.update(
+        <DestinationShell pathname="/" tabBar={React.createElement('TabBar')}>
+          {React.createElement('Screen')}
+        </DestinationShell>,
+      )
+    })
+
+    expect(hosts(tree, 'ChatScreenContent')).toHaveLength(0)
+  })
+
   it('shows a failed shell send and retry inside the opened conversation', async () => {
     mocks.showSendControl = true
     const tree = await renderShell('/')
