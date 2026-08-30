@@ -96,6 +96,153 @@ describe('deriveLiveChatSuggestions', () => {
       ]),
     )
   })
+
+  it('describes empty, completed, and multi-habit Today states accurately', () => {
+    const empty = deriveLiveChatSuggestions({
+      destination: 'hoje',
+      profile: createMockProfile({ currentStreak: 0, hasGoogleConnection: false }),
+    })
+    expect(empty.map((suggestion) => suggestion.key)).toEqual([
+      'shell.composer.live.today.firstHabit',
+      'shell.composer.live.today.planRoutine',
+      'shell.composer.live.profile.explainCalendar',
+    ])
+
+    const completedLinked: HabitScheduleItem = {
+      ...habit,
+      isCompleted: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Move more' }],
+    }
+    const completed = deriveLiveChatSuggestions({
+      destination: 'hoje',
+      habits: [completedLinked],
+      profile: createMockProfile({ hasGoogleConnection: true }),
+    })
+    expect(completed.map((suggestion) => suggestion.key)).toEqual([
+      'shell.composer.live.today.reviewCompleted',
+      'shell.composer.live.today.reviewGoal',
+      'shell.composer.live.profile.reviewCalendar',
+    ])
+
+    const multi = deriveLiveChatSuggestions({
+      destination: 'hoje',
+      habits: [
+        { ...habit, id: 'habit-a', title: 'Read', isOverdue: false },
+        { ...habit, id: 'habit-b', title: 'Stretch', isOverdue: false },
+      ],
+      profile,
+    })
+    expect(multi[0]).toMatchObject({
+      key: 'shell.composer.live.today.start',
+      values: { habit: 'Read' },
+    })
+    expect(multi[2]).toMatchObject({
+      key: 'shell.composer.live.today.remaining',
+      values: { count: 2 },
+    })
+  })
+
+  it('describes empty, upcoming, and completed Calendar ranges accurately', () => {
+    const empty = deriveLiveChatSuggestions({
+      destination: 'calendario',
+      profile: createMockProfile({ hasGoogleConnection: false }),
+    })
+    expect(empty.map((suggestion) => suggestion.key)).toEqual([
+      'shell.composer.live.calendar.planEmpty',
+      'shell.composer.live.profile.explainCalendar',
+      'shell.composer.live.calendar.firstSchedule',
+    ])
+
+    const upcomingHabit: HabitScheduleItem = {
+      ...habit,
+      title: 'Future walk',
+      scheduledDates: ['2099-01-01'],
+    }
+    const upcoming = deriveLiveChatSuggestions({
+      destination: 'calendario',
+      calendar: { habits: [upcomingHabit], logs: {} },
+      profile,
+    })
+    expect(upcoming.map((suggestion) => suggestion.key)).toEqual([
+      'shell.composer.live.calendar.reviewMonth',
+      'shell.composer.live.calendar.planAround',
+      'shell.composer.live.calendar.oneScheduled',
+    ])
+    expect(upcoming[1].values).toEqual({ habit: 'Future walk' })
+
+    const secondHabit: HabitScheduleItem = {
+      ...habit,
+      id: 'habit-second',
+      title: 'Evening walk',
+      scheduledDates: ['2025-01-02'],
+    }
+    const completed = deriveLiveChatSuggestions({
+      destination: 'calendario',
+      calendar: {
+        habits: [habit, secondHabit],
+        logs: {
+          [habit.id]: [{ id: 'log-1', date: '2025-01-01', value: 1, createdAtUtc: '2025-01-01T12:00:00Z' }],
+          [secondHabit.id]: [{ id: 'log-2', date: '2025-01-02', value: 1, createdAtUtc: '2025-01-02T12:00:00Z' }],
+        },
+      },
+      profile,
+    })
+    expect(completed[1]).toMatchObject({
+      key: 'shell.composer.live.calendar.reviewTiming',
+      values: { habit: 'Morning walk' },
+    })
+    expect(completed[2]).toMatchObject({
+      key: 'shell.composer.live.calendar.scheduled',
+      values: { count: 2 },
+    })
+  })
+
+  it('uses linked goals and the active goal count in Progress suggestions', () => {
+    const linkedGoals = [
+      createMockGoal({
+        id: 'goal-a',
+        title: 'Goal A',
+        linkedHabits: [{ id: 'habit-a', title: 'Habit A' }],
+      }),
+      createMockGoal({
+        id: 'goal-b',
+        title: 'Goal B',
+        linkedHabits: [{ id: 'habit-b', title: 'Habit B' }],
+      }),
+    ]
+    const suggestions = deriveLiveChatSuggestions({
+      destination: 'progresso',
+      goals: linkedGoals,
+      profile: createMockProfile({ currentStreak: 0 }),
+    })
+
+    expect(suggestions[0]).toMatchObject({
+      key: 'shell.composer.live.progress.advanceGoal',
+      values: { goal: 'Goal A' },
+    })
+    expect(suggestions[1].key).toBe('shell.composer.live.progress.restartStreak')
+    expect(suggestions[2]).toMatchObject({
+      key: 'shell.composer.live.progress.reviewGoals',
+      values: { count: 2 },
+    })
+  })
+
+  it('reflects enabled Profile controls in all three suggestions', () => {
+    const suggestions = deriveLiveChatSuggestions({
+      destination: 'perfil',
+      profile: createMockProfile({
+        proactiveAstraEnabled: true,
+        hasGoogleConnection: true,
+        aiSummaryEnabled: true,
+      }),
+    })
+
+    expect(suggestions.map((suggestion) => suggestion.key)).toEqual([
+      'shell.composer.live.profile.pauseProactive',
+      'shell.composer.live.profile.reviewCalendar',
+      'shell.composer.live.profile.pauseSummary',
+    ])
+  })
 })
 
 describe('buildAgentExecutionMessage', () => {
