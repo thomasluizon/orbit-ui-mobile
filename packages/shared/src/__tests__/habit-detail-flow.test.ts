@@ -453,6 +453,26 @@ describe('habit detail flow model', () => {
     expect(january.filter((day) => day.outcome === 'none')).toHaveLength(0)
   })
 
+  it('does not infer monthly history from an advanced due date without logs', () => {
+    const movedMonthly = {
+      ...recurring,
+      createdAtUtc: '2026-01-01T12:00:00Z',
+      days: [],
+      dueDate: '2026-02-28',
+      frequencyUnit: 'Month',
+    }
+    const january = buildHabitHistoryMonth(
+      movedMonthly,
+      [],
+      new Date(2026, 0, 1),
+      new Date(2026, 2, 1),
+      1,
+    )
+
+    expect(january.find((day) => day.dateStr === '2026-01-28')?.outcome).toBe('not-scheduled')
+    expect(january.filter((day) => day.outcome === 'none')).toHaveLength(0)
+  })
+
   it('does not invent a common-year occurrence from an advanced leap-day due date', () => {
     const movedYearly = {
       ...recurring,
@@ -470,6 +490,26 @@ describe('habit detail flow model', () => {
     )
 
     expect(february.find((day) => day.dateStr === '2024-02-29')?.outcome).toBe('full')
+    expect(february.find((day) => day.dateStr === '2024-02-28')?.outcome).toBe('not-scheduled')
+    expect(february.filter((day) => day.outcome === 'none')).toHaveLength(0)
+  })
+
+  it('does not infer yearly history from an advanced due date without logs', () => {
+    const movedYearly = {
+      ...recurring,
+      createdAtUtc: '2024-01-01T12:00:00Z',
+      days: [],
+      dueDate: '2025-02-28',
+      frequencyUnit: 'Year',
+    }
+    const february = buildHabitHistoryMonth(
+      movedYearly,
+      [],
+      new Date(2024, 1, 1),
+      new Date(2024, 11, 31),
+      1,
+    )
+
     expect(february.find((day) => day.dateStr === '2024-02-28')?.outcome).toBe('not-scheduled')
     expect(february.filter((day) => day.outcome === 'none')).toHaveLength(0)
   })
