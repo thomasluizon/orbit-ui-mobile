@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   draft: '',
   nextControllerId: 0,
   liveControllers: new Set<number>(),
+  statefulScreenMounts: 0,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -158,6 +159,16 @@ function ChatRouteComposer() {
   })
 }
 
+function StatefulScreen() {
+  const [value, setValue] = React.useState('initial state')
+
+  React.useEffect(() => {
+    mocks.statefulScreenMounts += 1
+  }, [])
+
+  return React.createElement('StatefulScreen', { value, setValue })
+}
+
 function hostCallback(tree: ReactTestRenderer, type: string, name: string) {
   const props = hosts(tree, type)[0]?.props
   const callback = props?.[name]
@@ -179,6 +190,7 @@ describe('mobile DestinationShell', () => {
     mocks.draft = ''
     mocks.nextControllerId = 0
     mocks.liveControllers.clear()
+    mocks.statefulScreenMounts = 0
   })
 
   it.each(['/', '/calendar', '/progress', '/profile'])('mounts the composer at %s', async (pathname) => {
@@ -248,6 +260,44 @@ describe('mobile DestinationShell', () => {
 
     expect(mocks.liveControllers.size).toBe(1)
     expect(hosts(tree, 'ShellComposer')[0]?.props.value).toBe('keep this draft')
+  })
+
+  it('keeps stateful route content mounted while navigation chrome toggles', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <DestinationShell pathname="/" tabBar={React.createElement('TabBar')}>
+          <StatefulScreen />
+        </DestinationShell>,
+      )
+    })
+
+    await TestRenderer.act(() => {
+      hosts(tree, 'StatefulScreen')[0]?.props.setValue('retained state')
+    })
+    await TestRenderer.act(() => {
+      tree.update(
+        <DestinationShell nav={false} pathname="/chat">
+          <StatefulScreen />
+        </DestinationShell>,
+      )
+    })
+
+    expect(mocks.liveControllers.size).toBe(0)
+    expect(mocks.statefulScreenMounts).toBe(1)
+    expect(hosts(tree, 'StatefulScreen')[0]?.props.value).toBe('retained state')
+
+    await TestRenderer.act(() => {
+      tree.update(
+        <DestinationShell pathname="/" tabBar={React.createElement('TabBar')}>
+          <StatefulScreen />
+        </DestinationShell>,
+      )
+    })
+
+    expect(mocks.liveControllers.size).toBe(1)
+    expect(mocks.statefulScreenMounts).toBe(1)
+    expect(hosts(tree, 'StatefulScreen')[0]?.props.value).toBe('retained state')
   })
 
   it('opens the conversation from the Astra trigger and closes it through the sheet host', async () => {

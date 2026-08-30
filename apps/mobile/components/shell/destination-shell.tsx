@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isPrimaryShellDestination, resolveShellDestination } from '@orbit/shared/utils'
 import { ChatScreenContent } from '@/app/chat'
@@ -26,22 +26,10 @@ type DestinationShellProps = {
 )
 
 export function DestinationShell(props: Readonly<DestinationShellProps>) {
-  if (props.nav === false) {
-    return (
-      <Shell412 nav={false} notice={props.notice}>
-        {props.children}
-      </Shell412>
-    )
-  }
-
-  return <DestinationShellWithNavigation {...props} />
-}
-
-function DestinationShellWithNavigation(
-  props: Readonly<Extract<DestinationShellProps, { nav?: true }>>,
-) {
   const { t } = useTranslation()
-  const primaryDestination = isPrimaryShellDestination(props.pathname)
+  const navigationEnabled = props.nav !== false
+  const primaryDestination = navigationEnabled && isPrimaryShellDestination(props.pathname)
+  const [composer, setComposer] = useState<ReturnType<typeof useChatComposer> | null>(null)
   const [conversationPathname, setConversationPathname] = useState<string | null>(null)
   const conversationOpen = conversationPathname !== null
   const conversationOnCurrentDestination =
@@ -52,23 +40,19 @@ function DestinationShellWithNavigation(
     closeSheet(() => setConversationPathname(null))
   }, [closeSheet])
   const openConversation = useCallback(
-    () => setConversationPathname(props.pathname),
-    [props.pathname],
+    (pathname: string) => setConversationPathname(pathname),
+    [],
   )
-  const { isOnline } = useOffline()
-  const composer = useChatComposer({
-    isOnline,
-    destination: primaryDestination
-      ? resolveShellDestination(props.pathname) ?? undefined
-      : undefined,
-    onOpenConversation: openConversation,
-  })
+  const updateComposer = useCallback(
+    (nextComposer: ReturnType<typeof useChatComposer>) => setComposer(nextComposer),
+    [],
+  )
 
   useEffect(() => {
     if (conversationOpen && !conversationOnCurrentDestination) closeConversation()
   }, [closeConversation, conversationOnCurrentDestination, conversationOpen])
 
-  const conversation = conversationOpen ? (
+  const conversation = conversationOpen && composer ? (
     <Sheet
       ref={sheetRef}
       open
@@ -86,15 +70,26 @@ function DestinationShellWithNavigation(
       }
     : {}
 
+  if (!navigationEnabled) {
+    return (
+      <Shell412 nav={false} notice={props.notice} {...conversationSlots}>
+        {props.children}
+      </Shell412>
+    )
+  }
+
   return (
     <Shell412
       tabBar={props.tabBar}
       fab={props.fab}
       notice={props.notice}
       composer={
-        primaryDestination ? (
-          <ShellComposer composer={composer} />
-        ) : undefined
+        <DestinationShellController
+          pathname={props.pathname}
+          primaryDestination={primaryDestination}
+          onComposerChange={updateComposer}
+          onOpenConversation={openConversation}
+        />
       }
       {...conversationSlots}
     >
@@ -102,3 +97,32 @@ function DestinationShellWithNavigation(
     </Shell412>
   )
 }
+
+const DestinationShellController = memo(function DestinationShellController({
+  pathname,
+  primaryDestination,
+  onComposerChange,
+  onOpenConversation,
+}: Readonly<{
+  pathname: string
+  primaryDestination: boolean
+  onComposerChange: (composer: ReturnType<typeof useChatComposer>) => void
+  onOpenConversation: (pathname: string) => void
+}>) {
+  const { isOnline } = useOffline()
+  const openConversation = useCallback(
+    () => onOpenConversation(pathname),
+    [onOpenConversation, pathname],
+  )
+  const composer = useChatComposer({
+    isOnline,
+    destination: primaryDestination
+      ? resolveShellDestination(pathname) ?? undefined
+      : undefined,
+    onOpenConversation: openConversation,
+  })
+
+  useLayoutEffect(() => onComposerChange(composer), [composer, onComposerChange])
+
+  return primaryDestination ? <ShellComposer composer={composer} /> : null
+})
