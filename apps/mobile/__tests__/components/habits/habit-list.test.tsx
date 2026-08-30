@@ -3280,7 +3280,8 @@ describe('HabitList', () => {
       await Promise.allSettled([earlierParentMutation])
     })
 
-    expect(tree.root.findByType('DraggableFlatList').props.extraData).toBe('0||leaf,parent')
+    expect(tree!.root.findAll((node) => String(node.type) === 'DraggableFlatList')[0]?.props.extraData)
+      .toBe('0||leaf,parent')
     expect(vi.getTimerCount()).toBe(currentOperationTimerCount)
 
     await TestRenderer.act(async () => {
@@ -3301,7 +3302,6 @@ describe('HabitList', () => {
       await currentParentMutation
       await Promise.resolve()
     })
-    TestRenderer.act(() => tree.unmount())
     vi.useRealTimers()
   })
 
@@ -3352,7 +3352,8 @@ describe('HabitList', () => {
       await Promise.allSettled([rejectedParentMutation])
     })
 
-    expect(tree.root.findByType('DraggableFlatList').props.extraData).toBe('0||leaf')
+    expect(tree!.root.findAll((node) => String(node.type) === 'DraggableFlatList')[0]?.props.extraData)
+      .toBe('0||leaf')
     expect(vi.getTimerCount()).toBe(activeOperationTimerCount - 1)
 
     await TestRenderer.act(async () => {
@@ -3367,8 +3368,8 @@ describe('HabitList', () => {
         { habitId: parent.id, date: TODAY, intent: 'log' },
         { habitId: parent.id, date: TODAY, intent: 'log' },
       ])
-    expect(tree.root.findByType('DraggableFlatList').props.extraData).toBe('0||leaf,parent')
-    TestRenderer.act(() => tree.unmount())
+    expect(tree!.root.findAll((node) => String(node.type) === 'DraggableFlatList')[0]?.props.extraData)
+      .toBe('0||leaf,parent')
     vi.useRealTimers()
   })
 
