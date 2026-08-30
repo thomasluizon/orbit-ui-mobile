@@ -26,6 +26,7 @@ interface HabitScheduleSource {
   endDate: string | null
   frequencyQuantity: number | null
   frequencyUnit: string | null
+  isBadHabit: boolean
   isGeneral: boolean
   isFlexible: boolean
 }
@@ -103,6 +104,26 @@ function activeLogDates(logs: readonly HabitLog[]): Set<string> {
   return new Set(logs.filter((log) => log.value > 0).map((log) => log.date))
 }
 
+function scheduledDayOutcome(
+  habit: HabitScheduleSource,
+  logged: boolean,
+  scheduled: boolean,
+): HabitDayValue {
+  if (!scheduled) return habit.isBadHabit ? 'not-scheduled' : logged ? 'done' : 'not-scheduled'
+  if (habit.isBadHabit) return logged ? 'missed' : 'done'
+  return logged ? 'done' : 'missed'
+}
+
+export function isHabitCompletedOnDate(
+  habit: HabitScheduleSource,
+  logs: readonly HabitLog[],
+  dateStr: string,
+): boolean {
+  const logged = activeLogDates(logs).has(dateStr)
+  if (!habit.isBadHabit) return logged
+  return isScheduled(habit, parseAPIDate(dateStr)) && !logged
+}
+
 export function buildHabitDetailChildDateModel(
   detailChild: NormalizedHabit,
   scopedChild: NormalizedHabit | undefined,
@@ -149,21 +170,22 @@ export function buildHabitStripModel(
     const date = addDays(today, -offset)
     const dateStr = formatAPIDate(date)
     labels.push(date.toLocaleDateString(locale, { day: 'numeric', month: 'short' }))
-    if (loggedDates.has(dateStr)) days.push('done')
-    else days.push(isScheduled(habit, date) ? 'missed' : 'not-scheduled')
+    days.push(scheduledDayOutcome(habit, loggedDates.has(dateStr), isScheduled(habit, date)))
   }
 
   return { days, labels }
 }
 
 export function isHabitSlipping(
+  habit: Pick<HabitScheduleSource, 'isBadHabit'>,
   metrics: HabitMetrics | null,
   logs: readonly HabitLog[],
   today: Date,
 ): boolean {
   if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= 50) return false
   const cutoff = formatAPIDate(addDays(today, -2))
-  return !logs.some((log) => log.value > 0 && log.date >= cutoff)
+  const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
+  return habit.isBadHabit ? recentlyLogged : !recentlyLogged
 }
 
 export function shouldShowHabitMetrics(habit: Pick<HabitDetail, 'frequencyUnit' | 'isGeneral'>): boolean {
@@ -212,11 +234,12 @@ export function buildHabitHistoryMonth(
     const loggedAt = loggedByDate.get(dateStr) ?? null
     const future = dateStr > todayStr
     const scheduled = isScheduled(habit, date)
+    const stripOutcome = scheduledDayOutcome(habit, loggedAt !== null, scheduled)
     const outcome = future
       ? 'future' as const
-      : loggedAt
+      : stripOutcome === 'done'
         ? 'full' as const
-        : scheduled
+        : stripOutcome === 'missed'
           ? 'none' as const
           : 'not-scheduled' as const
 

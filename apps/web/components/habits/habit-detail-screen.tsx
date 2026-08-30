@@ -16,6 +16,7 @@ import {
   formatAPIDate,
   formatLocaleDate,
   isHabitHistoryMonthLoaded,
+  isHabitCompletedOnDate,
   isHabitSlipping,
   normalizeHabitDetailForDrill,
   shouldResetHabitChecklist,
@@ -81,8 +82,9 @@ function buildNormalizedHabit(detail: NonNullable<ReturnType<typeof useHabitDeta
   }
 }
 
-function HabitHeader({ habit, logged, summary, onRename, onEmoji, onLog }: Readonly<{
+function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onLog }: Readonly<{
   habit: NormalizedHabit
+  completed: boolean
   logged: boolean
   summary: string
   onRename: (title: string) => void
@@ -112,7 +114,7 @@ function HabitHeader({ habit, logged, summary, onRename, onEmoji, onLog }: Reado
         <p className="mt-1 text-sm text-[var(--fg-3)]">{summary}</p>
         {habit.tags.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div> : null}
       </div>
-      <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} logged={logged} progress={logged ? 1 : 0} onPress={onLog} />
+      <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} />
     </header>
   )
 }
@@ -209,9 +211,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const habit = useMemo(() => detailQuery.data ? buildNormalizedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [detailQuery.data, habitsQuery.data, habitId, dateStr])
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
+  const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
   const strip = habit ? buildHabitStripModel(habit, logs, today, locale) : null
-  const slipping = habit ? isHabitSlipping(metricsQuery.data ?? null, logs, today) : false
+  const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasProAccess = profile?.hasProAccess ?? false
   const atAstraLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit
 
@@ -249,7 +252,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 
   return (
     <FlowShell nav={false} mode="detail" header={<AppBar back title={t('habits.detail.screenTitle')} onBack={goBack} />}>
-      <HabitHeader habit={habit} logged={logged} summary={summary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => patchHabit({ emoji })} onLog={() => logHabit.mutate({ habitId, date: dateStr })} />
+      <HabitHeader habit={habit} completed={completed} logged={logged} summary={summary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => patchHabit({ emoji })} onLog={() => logHabit.mutate({ habitId, date: dateStr })} />
       <div className="grid gap-6 min-[900px]:grid-cols-2">
         <div className="flex flex-col gap-6">
           {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div></Surface> : null}

@@ -12,6 +12,7 @@ export {
   getHabitStartDate,
   habitHistoryCutoff,
   isHabitHistoryMonthLoaded,
+  isHabitCompletedOnDate,
   isHabitSlipping,
   parseHabitHistoryDate,
   shouldResetHabitChecklist,

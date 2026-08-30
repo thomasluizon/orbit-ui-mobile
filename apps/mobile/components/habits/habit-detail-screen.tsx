@@ -16,6 +16,7 @@ import {
   formatAPIDate,
   formatLocaleDate,
   isHabitHistoryMonthLoaded,
+  isHabitCompletedOnDate,
   isHabitSlipping,
   normalizeHabitDetailForDrill,
   parseAPIDate,
@@ -83,7 +84,7 @@ function Metrics({ visible, loading, metrics, tokens }: Readonly<{ visible: bool
   return <View style={styles.tileGrid}><StatTile label={t('habits.detail.currentStreak')} value={String(metrics.currentStreak)} /><StatTile label={t('habits.detail.longestStreak')} value={String(metrics.longestStreak)} /><StatTile label={t('habits.detail.monthlyRate')} value={`${Math.round(metrics.monthlyCompletionRate)}%`} /><StatTile label={t('habits.detail.totalCompletions')} value={String(metrics.totalCompletions)} /></View>
 }
 
-function Header({ habit, summary, logged, tokens, onPatch, onLog }: Readonly<{ habit: NormalizedHabit; summary: string; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => void; onLog: () => void }>) {
+function Header({ habit, summary, completed, logged, tokens, onPatch, onLog }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => void; onLog: () => void }>) {
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(habit.title)
@@ -97,7 +98,7 @@ function Header({ habit, summary, logged, tokens, onPatch, onLog }: Readonly<{ h
         <Text style={[styles.muted, { color: tokens.fg3 }]}>{summary}</Text>
         {habit.tags.length > 0 ? <View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name.toUpperCase()}</Text></View>)}</View> : null}
       </View>
-      <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} logged={logged} progress={logged ? 1 : 0} onPress={onLog} />
+      <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} />
     </View>
   )
 }
@@ -178,9 +179,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const habit = useMemo(() => detailQuery.data ? normalizeHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [dateStr, detailQuery.data, habitId, habitsQuery.data])
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
+  const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
   const strip = habit ? buildHabitStripModel(habit, logs, today, profile?.language ?? i18n.language) : null
-  const slipping = habit ? isHabitSlipping(metricsQuery.data ?? null, logs, today) : false
+  const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasPro = profile?.hasProAccess ?? false
   const atLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit
   const back = useCallback(() => {
@@ -217,7 +219,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     ))
   return (
     <FlowShell nav={false} header={appBar}>
-      <Header habit={habit} summary={summary} logged={logged} tokens={tokens} onPatch={patch} onLog={() => logHabit.mutate({ habitId, date: dateStr, intent: logged ? 'unlog' : 'log' })} />
+      <Header habit={habit} summary={summary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => logHabit.mutate({ habitId, date: dateStr, intent: logged ? 'unlog' : 'log' })} />
       <View style={wide ? styles.columns : styles.stack}>
       <View style={styles.column}>
       {strip ? <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.lastThirtyDays')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{strip.days.filter((value) => value === 'done').length}/30</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false}><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></ScrollView></Surface> : null}

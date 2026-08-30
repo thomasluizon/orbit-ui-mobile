@@ -7,6 +7,7 @@ import {
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
   isHabitSlipping,
   shouldResetHabitChecklist,
@@ -21,6 +22,7 @@ const recurring = {
   endDate: null,
   frequencyQuantity: 1,
   frequencyUnit: 'Week',
+  isBadHabit: false,
   isGeneral: false,
   isFlexible: false,
 }
@@ -49,8 +51,50 @@ describe('habit detail flow model', () => {
       totalCompletions: 12,
       lastCompletedDate: '2026-08-20',
     }
-    expect(isHabitSlipping(metrics, [log('2026-08-20')], today)).toBe(true)
-    expect(isHabitSlipping(metrics, [log('2026-08-27')], today)).toBe(false)
+    expect(isHabitSlipping(recurring, metrics, [log('2026-08-20')], today)).toBe(true)
+    expect(isHabitSlipping(recurring, metrics, [log('2026-08-27')], today)).toBe(false)
+  })
+
+  it('treats clean bad-habit dates as resistance and positive logs as slips', () => {
+    const badHabit = {
+      ...recurring,
+      createdAtUtc: '2026-07-30T12:00:00Z',
+      days: [],
+      frequencyUnit: 'Day',
+      isBadHabit: true,
+    }
+    const slip = log('2026-08-28')
+    const withSlip = buildHabitStripModel(badHabit, [slip], today, 'en')
+    const slipHistory = buildHabitHistoryMonth(badHabit, [slip], today, today, 1)
+
+    expect(withSlip.days.at(-1)).toBe('missed')
+    expect(withSlip.days.filter((outcome) => outcome === 'done')).toHaveLength(29)
+    expect(Math.round((29 / 30) * 10_000) / 100).toBe(96.67)
+    expect(slipHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('none')
+    expect(isHabitCompletedOnDate(badHabit, [slip], '2026-08-28')).toBe(false)
+
+    const clean = buildHabitStripModel(badHabit, [], today, 'en')
+    const cleanHistory = buildHabitHistoryMonth(badHabit, [], today, today, 1)
+    expect(clean.days.at(-1)).toBe('done')
+    expect(clean.days.filter((outcome) => outcome === 'done')).toHaveLength(30)
+    expect((30 / 30) * 100).toBe(100)
+    expect(cleanHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('full')
+    expect(isHabitCompletedOnDate(badHabit, [], '2026-08-28')).toBe(true)
+  })
+
+  it('uses recent bad-habit logs as the slipping signal', () => {
+    const metrics: HabitMetrics = {
+      currentStreak: 0,
+      longestStreak: 12,
+      weeklyCompletionRate: 0,
+      monthlyCompletionRate: 41,
+      totalCompletions: 12,
+      lastCompletedDate: '2026-08-20',
+    }
+    const badHabit = { ...recurring, isBadHabit: true }
+
+    expect(isHabitSlipping(badHabit, metrics, [log('2026-08-27')], today)).toBe(true)
+    expect(isHabitSlipping(badHabit, metrics, [log('2026-08-20')], today)).toBe(false)
   })
 
   it('draws month outcomes from real logs and marks future and outside days', () => {

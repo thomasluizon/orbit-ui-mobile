@@ -6,12 +6,13 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HabitLogButtonProps {
   label: string
+  completed?: boolean
   logged: boolean
   onPress: () => void
   progress?: number
 }
 
-export function HabitLogButton({ label, logged, onPress, progress }: Readonly<HabitLogButtonProps>) {
+export function HabitLogButton({ label, logged, completed = logged, onPress, progress }: Readonly<HabitLogButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -22,8 +23,8 @@ export function HabitLogButton({ label, logged, onPress, progress }: Readonly<Ha
       style={({ pressed }) => [styles.button, pressed ? { backgroundColor: tokens.bgElevPressed, transform: [{ scale: 0.96 }] } : null]}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {progress === undefined || logged ? (
-          <StatusRing status={logged ? 'done' : 'empty'} size={30} label="" />
+        {progress === undefined || completed ? (
+          <StatusRing status={completed ? 'done' : 'empty'} size={30} label="" />
         ) : (
           <ProgressRing value={progress} size={30} label="" />
         )}
