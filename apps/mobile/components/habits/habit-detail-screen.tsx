@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
@@ -200,6 +200,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
+  const pendingToggleKeysRef = useRef(new Set<string>())
   const habit = useMemo(() => detailQuery.data ? normalizeHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [dateStr, detailQuery.data, habitId, habitsQuery.data])
   const relationshipFieldsLoaded = habitsQuery.data?.topLevelHabits.some((item) => item.id === habitId) ?? false
   const logs = logsQuery.data ?? []
@@ -230,10 +231,21 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
         t('habits.detail.updateError'),
       )
     : Promise.resolve(false)
-  const writeLog = (targetHabitId: string, intent: 'log' | 'unlog') => runWrite(
-    () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
-    t('habits.detail.logError'),
-  )
+  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
+    const toggleKey = `${targetHabitId}:${dateStr}`
+    const pendingToggleKeys = pendingToggleKeysRef.current
+    if (pendingToggleKeys.has(toggleKey)) return false
+
+    pendingToggleKeys.add(toggleKey)
+    try {
+      return await runWrite(
+        () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
+        t('habits.detail.logError'),
+      )
+    } finally {
+      pendingToggleKeys.delete(toggleKey)
+    }
+  }
   const setItems = (items: ChecklistItem[]) => runWrite(
     () => updateChecklist.mutateAsync({ habitId, items }),
     t('habits.detail.checklistError'),

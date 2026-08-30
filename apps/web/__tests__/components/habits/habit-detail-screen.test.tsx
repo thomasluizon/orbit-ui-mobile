@@ -275,7 +275,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('reconciles an explicit-date log and unlog across the mounted detail', () => {
+  it('reconciles an explicit-date log and unlog across the mounted detail', async () => {
     mocks.log.mockImplementation(({ date }: { habitId: string; date: string }) => {
       const existing = mocks.logs.some((entry) => entry.date === date)
       mocks.logs = existing
@@ -290,16 +290,35 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('2')
 
     fireEvent.click(screen.getByRole('button', { name: 'log' }))
+    await act(async () => Promise.resolve())
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByRole('button', { name: 'unlog' })).toHaveAttribute('data-logged', 'true')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('full')
     expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('3')
 
     fireEvent.click(screen.getByRole('button', { name: 'unlog' }))
+    await act(async () => Promise.resolve())
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-logged', 'false')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('none')
     expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('2')
+  })
+
+  it('guards a repeated detail toggle while the accepted write is unfinalized', async () => {
+    let releaseWrite: (() => void) | undefined
+    mocks.log.mockReturnValue(new Promise<void>((resolve) => {
+      releaseWrite = resolve
+    }))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'log' }))
+    fireEvent.click(screen.getByRole('button', { name: 'log' }))
+
+    expect(mocks.log).toHaveBeenCalledOnce()
+    await act(async () => {
+      releaseWrite?.()
+      await Promise.resolve()
+    })
   })
 
   it('uses the selected date for recurring child completion and mutations', () => {

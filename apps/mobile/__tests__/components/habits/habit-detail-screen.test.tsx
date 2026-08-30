@@ -4,6 +4,9 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { flushQueuedMutations } from '@/lib/offline-mutations'
+import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -53,6 +56,104 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: false }),
   useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }),
   useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
+}))
+
+interface OfflineQueueRow {
+  id: string
+  timestamp: number
+  type: string
+  endpoint: string
+  method: string
+  payload: string
+  retries: number
+  max_retries: number
+  meta: string | null
+}
+
+const offlineMocks = vi.hoisted(() => {
+  const rows = new Map<string, OfflineQueueRow>()
+  const serverLoggedHabits = new Set<string>()
+  let online = false
+
+  const apiClient = vi.fn((endpoint: string) => {
+    const habitId = endpoint.match(/^\/api\/habits\/([^/]+)\/log$/)?.[1]
+    if (habitId) {
+      if (serverLoggedHabits.has(habitId)) serverLoggedHabits.delete(habitId)
+      else serverLoggedHabits.add(habitId)
+    }
+    return Promise.resolve(null)
+  })
+
+  return {
+    rows,
+    serverLoggedHabits,
+    apiClient,
+    isOnline: () => online,
+    setOnline: (value: boolean) => {
+      online = value
+    },
+  }
+})
+
+vi.mock('expo-sqlite', () => ({
+  openDatabaseSync: () => ({
+    execSync: vi.fn(),
+    getAllSync: <T,>(sql: string) => {
+      if (sql.startsWith('PRAGMA table_info')) return [{ name: 'meta' }] as T[]
+      if (sql.startsWith('SELECT * FROM mutation_queue')) {
+        return Array.from(offlineMocks.rows.values())
+          .sort((first, second) => first.timestamp - second.timestamp) as T[]
+      }
+      return [] as T[]
+    },
+    runSync: (sql: string, params: unknown[] = []) => {
+      if (sql.startsWith('INSERT OR REPLACE INTO mutation_queue')) {
+        const [id, timestamp, type, endpoint, method, payload, retries, maxRetries, meta] = params
+        offlineMocks.rows.set(String(id), {
+          id: String(id),
+          timestamp: Number(timestamp),
+          type: String(type),
+          endpoint: String(endpoint),
+          method: String(method),
+          payload: String(payload),
+          retries: Number(retries),
+          max_retries: Number(maxRetries),
+          meta: typeof meta === 'string' ? meta : null,
+        })
+        return
+      }
+      if (sql === 'DELETE FROM mutation_queue') {
+        offlineMocks.rows.clear()
+        return
+      }
+      if (sql.startsWith('DELETE FROM mutation_queue WHERE id = ?')) {
+        offlineMocks.rows.delete(String(params[0]))
+      }
+    },
+    getFirstSync: <T,>(sql: string) => (
+      sql.startsWith('SELECT COUNT(*) as cnt')
+        ? { cnt: offlineMocks.rows.size } as T
+        : null as T
+    ),
+    withTransactionSync: (task: () => void) => task(),
+  }),
+}))
+
+vi.mock('@/lib/api-client', () => ({ apiClient: offlineMocks.apiClient }))
+vi.mock('@/lib/offline-runtime', () => ({
+  getCurrentConnectivity: () => Promise.resolve(offlineMocks.isOnline()),
+}))
+vi.mock('@/lib/query-client', () => ({
+  persistQueryCache: () => Promise.resolve(),
+  queryClient: { invalidateQueries: () => Promise.resolve() },
+}))
+vi.mock('@/lib/offline-state', () => ({
+  clearOfflineEntity: () => Promise.resolve(),
+  getResolvedEntityId: (_entityType: string, id: string) => Promise.resolve(id),
+  markOfflineTombstone: () => Promise.resolve(),
+  resolveOfflineEntity: () => Promise.resolve(),
+  setOfflineEntityStatus: () => Promise.resolve(),
+  upsertOfflineEntity: () => Promise.resolve(),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
@@ -219,6 +320,9 @@ describe('HabitDetailScreen', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
+    clearOfflineQueue()
+    offlineMocks.serverLoggedHabits.clear()
+    offlineMocks.setOnline(false)
     mocks.detail = makeDetail()
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
@@ -280,7 +384,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('reconciles an explicit-date log and unlog across the mounted detail', () => {
+  it('reconciles an explicit-date log and unlog across the mounted detail', async () => {
     mocks.log.mockImplementation(({ date }: { habitId: string; date: string }) => {
       const existing = mocks.logs.some((entry) => entry.date === date)
       mocks.logs = existing
@@ -297,21 +401,96 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ testID: 'history-day-28-inside' }).props.outcome).toBe('none')
     expect(tree!.root.findByProps({ testID: 'stat-habits.detail.totalCompletions' }).props.value).toBe('2')
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree!.root.findByProps({ testID: 'header-log' }).props.onPress()
+      await Promise.resolve()
       tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
     expect(tree!.root.findByProps({ testID: 'header-log' }).props.logged).toBe(true)
     expect(tree!.root.findByProps({ testID: 'history-day-28-inside' }).props.outcome).toBe('full')
     expect(tree!.root.findByProps({ testID: 'stat-habits.detail.totalCompletions' }).props.value).toBe('3')
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree!.root.findByProps({ testID: 'header-log' }).props.onPress()
+      await Promise.resolve()
       tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
     expect(tree!.root.findByProps({ testID: 'header-log' }).props.logged).toBe(false)
     expect(tree!.root.findByProps({ testID: 'history-day-28-inside' }).props.outcome).toBe('none')
     expect(tree!.root.findByProps({ testID: 'stat-habits.detail.totalCompletions' }).props.value).toBe('2')
+  })
+
+  it('keeps a repeated offline detail toggle aligned with retained acknowledgement and replay', async () => {
+    let releaseAcceptedWrite: (() => void) | undefined
+    const acceptedWriteSettled = new Promise<void>((resolve) => {
+      releaseAcceptedWrite = resolve
+    })
+    mocks.log.mockImplementation(async ({ habitId, date, intent }: {
+      habitId: string
+      date: string
+      intent: 'log' | 'unlog'
+    }) => {
+      const response = await performQueuedApiMutation({
+        type: 'logHabit',
+        scope: 'habits',
+        endpoint: `/api/habits/${habitId}/log`,
+        method: 'POST',
+        payload: { date },
+        entityType: 'habit',
+        targetEntityId: habitId,
+        dedupeKey: `habit-toggle:${habitId}:${date}`,
+      })
+      mocks.logs = intent === 'log'
+        ? [...mocks.logs, { id: 'optimistic', date, value: 1, createdAtUtc: `${date}T12:00:00Z` }]
+        : mocks.logs.filter((entry) => entry.date !== date)
+      await acceptedWriteSettled
+      return response
+    })
+
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    await vi.waitFor(() => expect(mocks.log).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(mocks.logs.some((entry) => entry.date === '2026-08-28')).toBe(true))
+    TestRenderer.act(() => {
+      tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.logged).toBe(true)
+
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    await Promise.resolve()
+    TestRenderer.act(() => {
+      tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    expect(mocks.log).toHaveBeenCalledOnce()
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.logged).toBe(true)
+    expect(getQueuedMutations()).toHaveLength(1)
+
+    const retained = await performQueuedApiMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: { date: '2026-08-28' },
+      entityType: 'habit',
+      targetEntityId: 'habit-1',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-28',
+    })
+    expect(retained).toMatchObject({ retained: true })
+    expect(getQueuedMutations()).toHaveLength(1)
+
+    releaseAcceptedWrite?.()
+    await Promise.resolve()
+    offlineMocks.setOnline(true)
+    await flushQueuedMutations()
+
+    expect(offlineMocks.serverLoggedHabits).toEqual(new Set(['habit-1']))
+    expect(getQueuedMutations()).toEqual([])
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.logged).toBe(true)
   })
 
   it('uses the selected date for recurring child completion and mutations', () => {

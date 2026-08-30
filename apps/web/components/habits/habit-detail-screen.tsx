@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -229,6 +229,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
+  const pendingToggleKeysRef = useRef(new Set<string>())
 
   const habit = useMemo(() => detailQuery.data ? buildNormalizedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [detailQuery.data, habitsQuery.data, habitId, dateStr])
   const relationshipFieldsLoaded = habitsQuery.data?.topLevelHabits.some((item) => item.id === habitId) ?? false
@@ -261,10 +262,21 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
         t('habits.detail.updateError'),
       )
     : Promise.resolve(false)
-  const writeLog = (targetHabitId: string) => runWrite(
-    () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr }),
-    t('habits.detail.logError'),
-  )
+  const writeLog = async (targetHabitId: string) => {
+    const toggleKey = `${targetHabitId}:${dateStr}`
+    const pendingToggleKeys = pendingToggleKeysRef.current
+    if (pendingToggleKeys.has(toggleKey)) return false
+
+    pendingToggleKeys.add(toggleKey)
+    try {
+      return await runWrite(
+        () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr }),
+        t('habits.detail.logError'),
+      )
+    } finally {
+      pendingToggleKeys.delete(toggleKey)
+    }
+  }
   const updateItems = (items: ChecklistItem[]) => runWrite(
     () => updateChecklist.mutateAsync({ habitId, items }),
     t('habits.detail.checklistError'),
