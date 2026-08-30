@@ -89,6 +89,12 @@ vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }))
 
+vi.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    React.useEffect(callback, [callback])
+  },
+}))
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
@@ -152,14 +158,23 @@ vi.mock('@/components/habit-list', () => ({
   }),
 }))
 
-vi.mock('@/components/habits/bulk-action-bar-v2', () => ({
-  BulkActionBarV2: (props: ComponentProps) => {
+vi.mock('@/components/habits/selection-tray', () => ({
+  SelectionTray: (props: ComponentProps) => {
     mocks.bulkBarProps = props
     return null
   },
 }))
 
-vi.mock('@/components/today/today-shell', () => ({
+vi.mock('@/components/shell/shell-composer-slot', () => ({
+  useShellComposerSlot: (enabled: boolean, render: () => React.ReactElement) => {
+    if (!enabled) return
+    const slot = render() as React.ReactElement<ComponentProps>
+    const tray = slot.props.children as React.ReactElement<ComponentProps>
+    mocks.bulkBarProps = tray.props
+  },
+}))
+
+vi.mock('@/components/today/today-date-control', () => ({
   TodayDateControl: () => null,
 }))
 
@@ -201,10 +216,11 @@ const mountedTrees: RenderedTree[] = []
 function successfulExecution(options: unknown) {
   const mutation = options as {
     type: string
-    payload: { habitIds?: string[]; items?: { habitId: string }[] }
+    payload: { habitIds?: string[]; items?: { habitId: string }[] } | null
   }
-  const habitIds = mutation.payload.habitIds
-    ?? mutation.payload.items?.map((item) => item.habitId)
+  if (mutation.type === 'bulkCascadeDeleteHabits') return Promise.resolve(undefined)
+  const habitIds = mutation.payload?.habitIds
+    ?? mutation.payload?.items?.map((item) => item.habitId)
     ?? []
   return Promise.resolve({
     results: habitIds.map((habitId, index) => ({
@@ -279,8 +295,7 @@ describe('Hoje production bulk action path', () => {
     })
     expect(mocks.showToast.mock.calls.every(([toast]) => toast.onAction === undefined)).toBe(true)
     expect(mocks.clearSelection).toHaveBeenCalledTimes(2)
-    expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(1, [])
-    expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(2, [])
+    expect(mocks.settleBulkHabitResolutions).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).toHaveBeenCalled()
     expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({
       type: 'bulkLogHabits',

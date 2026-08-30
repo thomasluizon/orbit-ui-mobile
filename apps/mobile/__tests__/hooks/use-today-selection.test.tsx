@@ -63,6 +63,7 @@ function renderSelection(options: RenderOptions = {}) {
       habitListRef,
       habitListAllLoadedIds: options.habitListAllLoadedIds ?? new Set<string>(),
       visibleHabitIds: options.visibleHabitIds ?? new Set<string>(),
+      habitsById: new Map(),
       closeControlsMenu: options.closeControlsMenu ?? vi.fn(),
     })
     return null

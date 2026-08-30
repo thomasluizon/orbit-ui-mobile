@@ -5,9 +5,9 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { SelectionTray } from '@/components/habits/selection-tray'
 
-function renderBar(overrides: Partial<Parameters<typeof BulkActionBarV2>[0]> = {}) {
+function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {}) {
   const props = {
     selectedCount: 2,
     allSelected: false,
@@ -19,11 +19,11 @@ function renderBar(overrides: Partial<Parameters<typeof BulkActionBarV2>[0]> = {
     onCancel: vi.fn(),
     ...overrides,
   }
-  render(<BulkActionBarV2 {...props} />)
+  render(<SelectionTray {...props} />)
   return props
 }
 
-describe('BulkActionBarV2', () => {
+describe('SelectionTray', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
   })

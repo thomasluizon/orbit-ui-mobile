@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/',
@@ -132,7 +132,10 @@ vi.mock('@/components/shell/shell-412', () => ({
     conversationOpen?: boolean
   }) => (
     <div data-testid="compact-shell">
-      {children}{notice}{composer}{tabBar}{fab}{conversationOpen ? conversation : null}
+      {children}{notice}
+      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
+      {tabBar}{fab}
+      {conversationOpen ? conversation : null}
     </div>
   ),
 }))
@@ -157,7 +160,11 @@ vi.mock('@/components/shell/shell-wide', () => ({
     conversationOpen?: boolean
   }) => (
     <div data-testid="wide-shell">
-      {children}{notice}{conversationOpen ? null : composer}{conversationOpen ? conversation : null}
+      {children}{notice}
+      {composer && !conversationOpen ? (
+        <div data-shell-pinned-slot="">{composer}</div>
+      ) : null}
+      {conversationOpen ? conversation : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       ))}
@@ -166,7 +173,13 @@ vi.mock('@/components/shell/shell-wide', () => ({
   ),
 }))
 
-import { DestinationShell } from '@/components/shell/destination-shell'
+import {
+  DestinationShell,
+  useShellComposerSlot,
+} from '@/components/shell/destination-shell'
+import { SelectionTray } from '@/components/habits/selection-tray'
+import { TodayOverlays } from '@/app/(app)/today-page-view'
+import type { TodayView } from '@/app/(app)/use-today-page'
 import {
   getCurrentRouteTransitionIntent,
   getRouteScenarioForIntent,
@@ -200,6 +213,166 @@ describe('DestinationShell', () => {
     expect(mocks.push).toHaveBeenCalledWith('/progress')
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('passes the selection tray target through the destination composer slot', () => {
+    render(
+      <DestinationShell onCreate={() => {}} composer={<div data-testid="selection-composer" />}>
+        <h1>Today</h1>
+      </DestinationShell>,
+    )
+
+    expect(screen.getByTestId('selection-composer')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['compact', false],
+    ['wide', true],
+  ])(
+    'mounts the tray directly in the %s shell slot and removes it with Today',
+    async (_layout, wide) => {
+      mocks.wide = wide
+
+      function TodaySelection() {
+        const [active, setActive] = useState(false)
+        useShellComposerSlot(
+          active,
+          () => (
+            <SelectionTray
+              selectedCount={1}
+              allSelected={false}
+              onSelectAll={() => {}}
+              onDeselectAll={() => {}}
+              onBulkLog={() => {}}
+              onBulkSkip={() => {}}
+              onBulkDelete={() => {}}
+              onCancel={() => {}}
+            />
+          ),
+          active ? 'selected:h-1' : 'empty',
+        )
+        return <button type="button" onClick={() => setActive(true)}>Select habit</button>
+      }
+
+      function App({ todayOwnsDestination }: Readonly<{ todayOwnsDestination: boolean }>) {
+        return (
+          <DestinationShell onCreate={() => {}}>
+            {todayOwnsDestination ? <TodaySelection /> : <h1>Calendar</h1>}
+          </DestinationShell>
+        )
+      }
+
+      const { rerender } = render(<App todayOwnsDestination />)
+
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Select habit' }))
+
+      const tray = await screen.findByTestId('bulk-action-bar')
+      expect(tray.parentElement).toHaveAttribute('data-shell-pinned-slot')
+      expect(tray.parentElement).not.toBe(document.body)
+
+      rerender(<App todayOwnsDestination={false} />)
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+      })
+      const pinnedSlot = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')
+      if (!pinnedSlot) throw new Error('Expected the Astra composer to reclaim the pinned slot')
+      expect(within(pinnedSlot).getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
+    },
+  )
+
+  it('gives the Today selection tray the pinned slot until selection mode ends', async () => {
+    function TodaySelection() {
+      const [active, setActive] = useState(false)
+      useShellComposerSlot(
+        active,
+        () => (
+          <SelectionTray
+            selectedCount={1}
+            allSelected={false}
+            onSelectAll={() => {}}
+            onDeselectAll={() => {}}
+            onBulkLog={() => {}}
+            onBulkSkip={() => {}}
+            onBulkDelete={() => {}}
+            onCancel={() => {}}
+          />
+        ),
+        active ? 'selected:h-1' : 'empty',
+      )
+      return (
+        <button type="button" onClick={() => setActive((current) => !current)}>
+          Toggle selection
+        </button>
+      )
+    }
+
+    render(
+      <DestinationShell onCreate={() => {}}>
+        <TodaySelection />
+      </DestinationShell>,
+    )
+
+    const pinnedSlot = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')
+    if (!pinnedSlot) throw new Error('Expected a pinned shell slot')
+    expect(within(pinnedSlot).getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle selection' }))
+
+    await waitFor(() => {
+      expect(within(pinnedSlot).getByTestId('bulk-action-bar')).toBeInTheDocument()
+      expect(within(pinnedSlot).queryByRole('button', { name: 'shell-open' }))
+        .not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle selection' }))
+
+    await waitFor(() => {
+      expect(within(pinnedSlot).getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
+      expect(within(pinnedSlot).queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    })
+  })
+
+  it('clears the tray while the exiting Today subtree remains mounted', async () => {
+    const view = {
+      isSelectMode: true,
+      selectedHabitIds: new Set(['h-1']),
+      selection: {
+        allSelected: false,
+        confirmBulkDelete: vi.fn(),
+        confirmBulkLog: vi.fn(),
+        confirmBulkSkip: vi.fn(),
+        deselectAll: vi.fn(),
+        selectAll: vi.fn(),
+        setShowBulkDeleteConfirm: vi.fn(),
+        showBulkDeleteConfirm: false,
+      },
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    function App() {
+      return (
+        <DestinationShell onCreate={() => {}}>
+          <div data-testid="retained-today">
+            <TodayOverlays view={view} />
+          </div>
+          {mocks.pathname === '/calendar' ? <h1>Calendar</h1> : <h1>Today</h1>}
+        </DestinationShell>
+      )
+    }
+
+    const { rerender } = render(<App />)
+
+    expect(await screen.findByTestId('bulk-action-bar')).toBeInTheDocument()
+
+    mocks.pathname = '/calendar'
+    rerender(<App />)
+
+    expect(screen.getByTestId('retained-today')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    })
   })
 
   it('removes the compact FAB away from Hoje', () => {

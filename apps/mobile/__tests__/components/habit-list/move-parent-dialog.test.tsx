@@ -115,13 +115,15 @@ function findOptionRows(tree: RenderedTree): RenderedNode[] {
       node.props.accessibilityRole === 'radio' &&
       typeof node.props.accessibilityState === 'object' &&
       node.props.accessibilityState !== null &&
-      'selected' in (node.props.accessibilityState as Record<string, unknown>),
+      'checked' in (node.props.accessibilityState as Record<string, unknown>),
   )
 }
 
 function findSearchInputs(tree: RenderedTree): RenderedNode[] {
   return tree.root.findAll(
-    (node) => node.props.placeholder === 'habits.moveParent.searchPlaceholder',
+    (node) =>
+      node.props.placeholder === 'habits.moveParent.searchPlaceholder' &&
+      typeof node.props.onChangeText === 'function',
   )
 }
 

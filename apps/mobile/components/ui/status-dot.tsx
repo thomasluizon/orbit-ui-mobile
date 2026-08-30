@@ -37,7 +37,7 @@ export function StatusDot({
   const colorMap: Record<StatusDotState, string> = {
     done: tokens.statusDone,
     empty: tokens.statusEmpty,
-    skip: tokens.statusSkip,
+    skip: tokens.fg3,
     overdue: tokens.statusOverdue,
     bad: tokens.statusBad,
     frozen: tokens.statusFrozen,

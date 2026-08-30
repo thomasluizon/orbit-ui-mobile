@@ -1,6 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
+import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
@@ -22,6 +23,25 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
 }
 
 describe('Shell412 mobile', () => {
+  it('accepts a destination-owned selection tray in the composer slot', async () => {
+    function Screen() {
+      useShellComposerSlot(true, () => React.createElement('SelectionTray'), 'selected:h-1')
+      return React.createElement('Screen')
+    }
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Shell412 tabBar={React.createElement('TabBar')}>
+          <Screen />
+        </Shell412>,
+      )
+      await Promise.resolve()
+    })
+
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
+    expect(tree.root.findAll((node) => String(node.type) === 'SelectionTray')).toHaveLength(1)
+  })
+
   it('owns the notice, composer, tab bar, FAB, and Android safe-area bottom', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

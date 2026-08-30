@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { SelectionTray } from '@/components/habits/selection-tray'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -21,13 +21,13 @@ function flattenRenderedText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(flattenRenderedText).join('')
   if (typeof node === 'object' && 'children' in node) {
-    return flattenRenderedText((node as { children: unknown }).children)
+    return flattenRenderedText(node.children)
   }
   return ''
 }
 
-function renderBar(
-  overrides: Partial<Parameters<typeof BulkActionBarV2>[0]> = {},
+async function renderBar(
+  overrides: Partial<Parameters<typeof SelectionTray>[0]> = {},
 ) {
   const props = {
     count: 2,
@@ -48,9 +48,9 @@ function renderBar(
     ...overrides,
   }
   let tree: RenderedTree | undefined
-  TestRenderer.act(() => {
+  await TestRenderer.act(() => {
     tree = TestRenderer.create(
-      <BulkActionBarV2 {...props} />,
+      <SelectionTray {...props} />,
     ) as unknown as RenderedTree
   })
   if (!tree) throw new Error('Expected bulk action bar to render')
@@ -65,17 +65,17 @@ function findButtonByLabel(tree: RenderedTree, label: string): RenderedNode {
   return matches[0]!
 }
 
-describe('BulkActionBarV2', () => {
-  it('renders the tabular count beside the digit-free suffix', () => {
-    const { tree } = renderBar({ count: 7, countSuffixLabel: 'selected' })
+describe('SelectionTray', () => {
+  it('renders the tabular count beside the digit-free suffix', async () => {
+    const { tree } = await renderBar({ count: 7, countSuffixLabel: 'selected' })
 
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('7')
     expect(text).toContain('selected')
   })
 
-  it('disables log, skip, and delete at zero selection but keeps close active', () => {
-    const { tree } = renderBar({ count: 0 })
+  it('disables log, skip, and delete at zero selection but keeps close active', async () => {
+    const { tree } = await renderBar({ count: 0 })
 
     for (const label of ['Log selected', 'Skip selected', 'Delete selected']) {
       const button = findButtonByLabel(tree, label)
@@ -87,10 +87,10 @@ describe('BulkActionBarV2', () => {
     expect(findButtonByLabel(tree, 'Cancel').props.disabled).toBeFalsy()
   })
 
-  it('fires the action handlers when pressed with a selection', () => {
-    const { tree, props } = renderBar({ count: 3 })
+  it('fires the action handlers when pressed with a selection', async () => {
+    const { tree, props } = await renderBar({ count: 3 })
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       ;(findButtonByLabel(tree, 'Log selected').props.onPress as () => void)()
       ;(findButtonByLabel(tree, 'Skip selected').props.onPress as () => void)()
       ;(findButtonByLabel(tree, 'Delete selected').props.onPress as () => void)()
@@ -103,8 +103,8 @@ describe('BulkActionBarV2', () => {
     expect(props.onClose).toHaveBeenCalled()
   })
 
-  it('shows a select-all text control that selects everything', () => {
-    const { tree, props } = renderBar({ allSelected: false })
+  it('shows a select-all text control that selects everything', async () => {
+    const { tree, props } = await renderBar({ allSelected: false })
 
     expect(flattenRenderedText(tree.toJSON())).toContain('Select all')
 
@@ -116,14 +116,14 @@ describe('BulkActionBarV2', () => {
     )[0]
     if (!selectAllButton) throw new Error('Expected the select-all control')
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       ;(selectAllButton.props.onPress as () => void)()
     })
     expect(props.onSelectAll).toHaveBeenCalled()
   })
 
-  it('swaps to a deselect-all text control when everything is selected', () => {
-    const { tree, props } = renderBar({ allSelected: true })
+  it('swaps to a deselect-all text control when everything is selected', async () => {
+    const { tree, props } = await renderBar({ allSelected: true })
 
     expect(flattenRenderedText(tree.toJSON())).toContain('Deselect all')
 
@@ -135,7 +135,7 @@ describe('BulkActionBarV2', () => {
     )[0]
     if (!deselectAllButton) throw new Error('Expected the deselect-all control')
 
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       ;(deselectAllButton.props.onPress as () => void)()
     })
     expect(props.onDeselectAll).toHaveBeenCalled()

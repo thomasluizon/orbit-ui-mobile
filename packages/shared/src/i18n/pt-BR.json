@@ -278,8 +278,10 @@
     "skipHabit": "Pular um hábito",
     "createHabit": "Criar hábito",
     "groups": {
+      "create": "Criar",
       "actions": "Ações",
       "destinations": "Destinos",
+      "navigate": "Navegar",
       "search": "Hábitos"
     },
     "hints": {
@@ -510,7 +512,7 @@
     "checklistClearTitle": "Limpar checklist?",
     "checklistClearMessage": "Isso remove todos os itens do checklist deste hábito.",
     "bulkDeleteTitle": "Excluir hábitos",
-    "bulkDeleteMessage": "Quer mesmo excluir {count} hábito? Não dá para desfazer. | Quer mesmo excluir {count} hábitos? Não dá para desfazer.",
+    "bulkDeleteMessage": "Isso exclui {count} hábito e seus sub-hábitos. Não dá para desfazer. | Isso exclui {count} hábitos e seus sub-hábitos. Não dá para desfazer.",
     "bulkDeleteConfirm": "Excluir",
     "bulkLogTitle": "Registrar hábitos",
     "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Os que já estão feitos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.",
@@ -522,6 +524,8 @@
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
       "delete": "Excluir selecionados",
+      "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
+      "retryFailed": "Tentar só as falhas",
       "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão.",
       "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
     },

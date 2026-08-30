@@ -454,6 +454,10 @@ export const bulkDeleteResponseSchema = z.object({
 
 export type BulkDeleteResponse = z.infer<typeof bulkDeleteResponseSchema>
 
+export type BulkMutationOutcome<TResponse> = TResponse & {
+  ambiguousIds: string[]
+}
+
 export const habitsFilterSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),

@@ -93,7 +93,6 @@ const mocks = vi.hoisted(() => {
       mutation: { type: string }
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string, retained: boolean) => unknown
-      allowAutomaticReplay?: boolean
     }) => Promise.resolve(
       queuedResultFactory?.('mutation-1', false) ?? queuedResult ?? {
         queued: true as const,
@@ -1319,7 +1318,7 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(1)
   })
 
-  it('optimistically deletes many habits and invalidates goals plus the count online', async () => {
+  it('optimistically deletes many habits while leaving the count to the server', async () => {
     seedHabitState(
       [
         makeHabit({ id: 'habit-1' }),
@@ -1332,12 +1331,12 @@ describe('mobile habit hooks', () => {
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
       unknown,
       string[],
-      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+      { previousLists: HabitSnapshotContext['previousLists'] }
     >
 
     const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-3'])
-    expect(getCount()).toBe(1)
+    expect(getCount()).toBe(3)
 
     mocks.runQueuedMutation.mockResolvedValueOnce({ results: [] })
     const result = await mutation.mutationFn(['habit-1', 'habit-2'])
@@ -1350,7 +1349,7 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
-  it('marks every non-idempotent bulk habit mutation as non-replayable', async () => {
+  it('feeds every non-idempotent bulk mutation through a blocked mutation type', async () => {
     const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
       unknown,
       string[],
@@ -1371,13 +1370,10 @@ describe('mobile habit hooks', () => {
     await bulkLog.mutationFn([{ habitId: 'habit-1' }])
     await bulkSkip.mutationFn([{ habitId: 'habit-1' }])
 
-    expect(mocks.runQueuedMutation.mock.calls.map(([options]) => ({
-      type: options.mutation.type,
-      allowAutomaticReplay: options.allowAutomaticReplay,
-    }))).toEqual([
-      { type: 'bulkDeleteHabits', allowAutomaticReplay: false },
-      { type: 'bulkLogHabits', allowAutomaticReplay: false },
-      { type: 'bulkSkipHabits', allowAutomaticReplay: false },
+    expect(mocks.runQueuedMutation.mock.calls.map(([options]) => options.mutation.type)).toEqual([
+      'bulkCascadeDeleteHabits',
+      'bulkLogHabits',
+      'bulkSkipHabits',
     ])
   })
 
@@ -1390,11 +1386,13 @@ describe('mobile habit hooks', () => {
     const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
       { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
       string[],
-      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+      { previousLists: HabitSnapshotContext['previousLists'] }
     >
     const deleteVariables = ['habit-1', 'habit-2']
     const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
-    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    mocks.runQueuedMutation
+      .mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+      .mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
     const deleteResult = await bulkDelete.mutationFn(deleteVariables)
     bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
 
@@ -1452,10 +1450,12 @@ describe('mobile habit hooks', () => {
     const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
       { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
       string[],
-      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+      { previousLists: HabitSnapshotContext['previousLists'] }
     >
     const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
-    mocks.runQueuedMutation.mockRejectedValueOnce(new TypeError('Network request failed'))
+    mocks.runQueuedMutation
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
     const deleteResult = await bulkDelete.mutationFn(deleteVariables)
     bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
     bulkDelete.onSettled?.(deleteResult, null, deleteVariables, deleteContext)

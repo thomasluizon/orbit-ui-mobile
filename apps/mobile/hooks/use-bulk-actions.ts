@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { HabitResolutionMode } from '@orbit/shared/utils'
+import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { HabitListHandle } from '@/components/habit-list'
@@ -9,21 +10,32 @@ interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
   readOnly: boolean
+  habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
+  onPartialFailure: (failedIds: string[]) => void
 }
 
+interface BulkResultItem { status: string; habitId: string }
+
 interface BulkActionOutcome {
+  results: readonly BulkResultItem[]
   ambiguousIds?: readonly string[]
   offlineFailureIds?: readonly string[]
+}
+
+function failedHabitIds(results: readonly BulkResultItem[]): string[] {
+  return results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : [])
 }
 
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
   readOnly,
+  habitsById,
   habitListRef,
   onSuccess,
+  onPartialFailure,
 }: UseBulkActionsOptions) {
   const { t } = useTranslation()
   const { showToast } = useAppToast()
@@ -33,64 +45,88 @@ export function useBulkActions({
 
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
-  const reportBulkFailure = useCallback((outcome: BulkActionOutcome): boolean => {
+  const finish = useCallback((
+    outcome: BulkActionOutcome,
+    retry: (ids: string[]) => void,
+  ) => {
+    const offlineFailureIds = outcome.offlineFailureIds ?? []
+    const failedIds = Array.from(new Set([
+      ...failedHabitIds(outcome.results),
+      ...offlineFailureIds,
+    ]))
     if (outcome.ambiguousIds?.length) {
       showToast({
         kind: 'neutral',
         message: t('habits.bulkBar.connectionRefreshed'),
       })
     }
-    if (!outcome.offlineFailureIds?.length) return false
+    if (failedIds.length === 0) return onSuccess()
+    onPartialFailure(failedIds)
+    if (offlineFailureIds.length > 0) {
+      showToast({
+        kind: 'neutral',
+        message: t('habits.bulkBar.offlineFailure'),
+      })
+      return
+    }
     showToast({
       kind: 'neutral',
-      message: t('habits.bulkBar.offlineFailure'),
+      message: t('habits.bulkBar.partialFailure', { count: failedIds.length }),
+      actionLabel: t('habits.bulkBar.retryFailed'),
+      onAction: () => retry(failedIds),
     })
-    return true
-  }, [showToast, t])
+  }, [onPartialFailure, onSuccess, showToast, t])
 
   const applyBulkMutationSuccesses = useCallback(
     (results: readonly { status: string; habitId: string }[], mode: HabitResolutionMode) => {
       const resolutions = results.flatMap((item) =>
         item.status === 'Success' ? [{ habitId: item.habitId, mode }] : [],
       )
+      if (resolutions.length === 0) return
       habitListRef.current?.settleBulkHabitResolutions(resolutions)
     },
     [habitListRef],
   )
 
-  const confirmBulkDelete = useCallback(async () => {
+  async function executeDelete(ids: string[]) {
     if (readOnly) return
-    const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
-    const result = await bulkDelete.mutateAsync(ids)
-    if (reportBulkFailure(result)) return
-    onSuccess()
-    setShowBulkDeleteConfirm(false)
-  }, [bulkDelete, onSuccess, readOnly, reportBulkFailure, selectedHabitIds])
+    const result: BulkActionOutcome = await bulkDelete.mutateAsync(ids)
+    finish(result, (failedIds) => void executeDelete(failedIds))
+    if (!result.offlineFailureIds?.length) {
+      setShowBulkDeleteConfirm(false)
+    }
+  }
 
-  const confirmBulkLog = useCallback(async () => {
+  async function executeLog(ids: string[]) {
     if (readOnly) return
-    const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     const result = await bulkLog.mutateAsync(
       ids.map((habitId) => ({ habitId, date: selectedDateStr })),
     )
-    if (reportBulkFailure(result)) return
     applyBulkMutationSuccesses(result.results, 'log')
-    onSuccess()
-  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, readOnly, reportBulkFailure, selectedDateStr, selectedHabitIds])
+    finish(result, (failedIds) => void executeLog(failedIds))
+  }
 
-  const confirmBulkSkip = useCallback(async () => {
+  async function executeSkip(ids: string[]) {
     if (readOnly) return
-    const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     const result = await bulkSkip.mutateAsync(
       ids.map((habitId) => ({ habitId, date: selectedDateStr })),
     )
-    if (reportBulkFailure(result)) return
     applyBulkMutationSuccesses(result.results, 'skip')
-    onSuccess()
-  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, readOnly, reportBulkFailure, selectedDateStr, selectedHabitIds])
+    finish(result, (failedIds) => void executeSkip(failedIds))
+  }
+
+  const confirmBulkDelete = () => executeDelete(
+    Array.from(selectedHabitIds).filter(
+      (habitId) => !hasAncestorInSet(habitId, habitsById, selectedHabitIds),
+    ),
+  )
+
+  const confirmBulkLog = () => executeLog(Array.from(selectedHabitIds))
+
+  const confirmBulkSkip = () => executeSkip(Array.from(selectedHabitIds))
 
   return {
     showBulkDeleteConfirm,

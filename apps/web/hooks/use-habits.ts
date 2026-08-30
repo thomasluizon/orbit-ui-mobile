@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
+  buildUnresolvedBulkFailures,
   buildOptimisticSkipPatch,
   findHabitInList,
   normalizeHabits,
@@ -38,6 +39,10 @@ import type {
   BulkCreateRequest,
   BulkLogItemRequest,
   BulkSkipItemRequest,
+  BulkDeleteResponse,
+  BulkMutationOutcome,
+  BulkLogResult,
+  BulkSkipResult,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -55,7 +60,6 @@ import {
   createSubHabit as createSubHabitAction,
   moveHabitParent as moveHabitParentAction,
   bulkCreateHabits as bulkCreateHabitsAction,
-  bulkDeleteHabits as bulkDeleteHabitsAction,
   bulkLogHabits as bulkLogHabitsAction,
   bulkSkipHabits as bulkSkipHabitsAction,
 } from '@/app/actions/habits'
@@ -549,7 +553,29 @@ export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (habitIds: string[]) => bulkDeleteHabitsAction(habitIds),
+    mutationFn: async (habitIds: string[]): Promise<BulkMutationOutcome<BulkDeleteResponse>> => {
+      const results: BulkDeleteResponse['results'] = []
+      const ambiguousIds: string[] = []
+      for (let index = 0; index < habitIds.length; index += 4) {
+        const chunk = habitIds.slice(index, index + 4)
+        const outcomes = await Promise.allSettled(chunk.map((habitId) => deleteHabitAction(habitId)))
+        outcomes.forEach((outcome, itemIndex) => {
+          const habitId = chunk[itemIndex]
+          if (!habitId) return
+          if (outcome.status === 'rejected') {
+            ambiguousIds.push(habitId)
+            return
+          }
+          results.push({
+            index: index + itemIndex,
+            status: 'Success',
+            habitId,
+            error: null,
+          })
+        })
+      }
+      return { results, ambiguousIds }
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -565,7 +591,30 @@ export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
+    mutationFn: async (items: BulkLogItemRequest[]): Promise<BulkLogResult> => {
+      const results: BulkLogResult['results'] = []
+      for (let index = 0; index < items.length; index += 100) {
+        try {
+          const response = await bulkLogHabitsAction(items.slice(index, index + 100))
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error) {
+          results.push(...buildUnresolvedBulkFailures(
+            items.slice(index),
+            index,
+            error,
+            (item, failureIndex, message) => ({
+              index: failureIndex,
+              status: 'Failed' as const,
+              habitId: item.habitId,
+              logId: null,
+              error: message,
+            }),
+          ))
+          break
+        }
+      }
+      return { results }
+    },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -602,7 +651,20 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (items: BulkSkipItemRequest[]) => bulkSkipHabitsAction(items),
+    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkMutationOutcome<BulkSkipResult>> => {
+      const results: BulkSkipResult['results'] = []
+      const ambiguousIds: string[] = []
+      for (let index = 0; index < items.length; index += 100) {
+        const chunk = items.slice(index, index + 100)
+        try {
+          const response = await bulkSkipHabitsAction(chunk)
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch {
+          ambiguousIds.push(...chunk.map((item) => item.habitId))
+        }
+      }
+      return { results, ambiguousIds }
+    },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })

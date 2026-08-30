@@ -73,6 +73,7 @@ describe('mutation response schema registry', () => {
   it('returns undefined for a mutation type without a registered schema (opt-in)', () => {
     expect(getMutationResponseSchema('updateHabit')).toBeUndefined()
     expect(getMutationResponseSchema('deleteHabit')).toBeUndefined()
+    expect(getMutationResponseSchema('bulkCascadeDeleteHabits')).toBeUndefined()
     expect(getMutationResponseSchema('reorderHabits')).toBeUndefined()
   })
 

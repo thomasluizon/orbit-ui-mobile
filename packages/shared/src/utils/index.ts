@@ -365,6 +365,7 @@ export type {
 } from './gamification-selectors'
 export {
   buildCalendarDayMap,
+  buildUnresolvedBulkFailures,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,

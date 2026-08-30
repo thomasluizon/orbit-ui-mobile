@@ -269,7 +269,6 @@
   --color-primary-pressed: var(--primary-pressed);
   --color-status-done: var(--status-done);
   --color-status-empty: var(--status-empty);
-  --color-status-skip: var(--status-skip);
   --color-status-overdue: var(--status-overdue);
   --color-status-bad: var(--status-bad);
   --color-status-frozen: var(--status-frozen);
@@ -477,7 +476,6 @@
 
   --status-done:    var(--fg-1);
   --status-empty:   rgba(248, 250, 252, 0.22);
-  --status-skip:    var(--fg-3);
   --status-overdue: #fe9a00;
   --status-bad:     #fb2c36;
   --status-frozen:  #00d3f3;
@@ -523,7 +521,6 @@
 
   --status-done:    var(--fg-1);
   --status-empty:   rgba(2, 6, 24, 0.18);
-  --status-skip:    var(--fg-3);
   --status-overdue: #e17100;
   --status-bad:     #e7000b;
   --status-frozen:  #0092b8;
