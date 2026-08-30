@@ -20,6 +20,8 @@ export interface TodayView {
   habitListRef: React.RefObject<HabitListHandle | null>
   habitListAllCollapsed: boolean
   setHabitListAllCollapsed: (value: boolean) => void
+  showCompleted: boolean
+  setShowCompleted: (value: boolean) => void
   isSelectMode: boolean
   selectedHabitIds: Set<string>
   toggleSelectMode: () => void
@@ -43,6 +45,7 @@ export function useTodayPage(
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const habitListRef = useRef<HabitListHandle>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
 
   useOverlayEscape({ open: isSelectMode, onDismiss: toggleSelectMode })
 
@@ -68,6 +71,8 @@ export function useTodayPage(
     habitListRef,
     habitListAllCollapsed,
     setHabitListAllCollapsed,
+    showCompleted,
+    setShowCompleted,
     isSelectMode,
     selectedHabitIds,
     toggleSelectMode,

@@ -780,7 +780,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Every top-level habit lives on its own tonal panel:** `--bg-card` plus an inset `--hairline-ghost` ring, radius 20. Single-row for a simple habit, multi-row for a family on ONE panel.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row.
 - The panel is the quietest step so the `--bg-well` emoji squares inside it read as the lighter elevation.
-- **Two levels inline, then drill in.** An accent chevron opens in focus; a grey caret expands in place; a grey chevron is a collapsed family. Drilling shows a breadcrumb to climb back.
+- **Two levels inline, then drill in.** One fg-3 chevron column expands a top-level parent in place and opens the drill anywhere else. The drill head carries a round back button, the parent's name and a mono done count; deeper than one level, a home row returns to all habits.
 - **Sub-habit rows:** indent, smaller well, dimmer text. **Zero connector or tree lines.**
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**

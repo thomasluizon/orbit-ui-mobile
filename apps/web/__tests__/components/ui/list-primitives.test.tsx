@@ -28,6 +28,9 @@ describe('list primitives on web', () => {
     expect(screen.getByText('Profile and security')).toBeInTheDocument()
     expect(screen.getByText('Ready')).toBeInTheDocument()
     expect(screen.getByText('Synced')).toBeInTheDocument()
+    expect(screen.getByText('Synced').closest('button')).toBe(
+      screen.getByRole('button', { name: /Account/ }),
+    )
     expect(container.querySelector('[data-icon="home"]')).toBeInTheDocument()
 
     rerender(

@@ -63,6 +63,7 @@ describe('list primitives on mobile', () => {
     expect(controls).toHaveLength(2)
     const [bodyControl, actionControl] = controls
     if (!bodyControl || !actionControl) throw new Error('ListRow controls did not render')
+    expect(bodyControl.findAllByType(Text).map((node) => node.props.children)).toContain('Synced')
     press(bodyControl)
     press(actionControl)
     resolvePressedStyle(bodyControl)

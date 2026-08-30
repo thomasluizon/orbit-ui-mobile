@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "__tests__/components/habits/habit-row-context-menu.test.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "__tests__/components/milestone-share/milestone-share-prompt.test.tsx": {
     "local/react19-api": {
       "count": 1

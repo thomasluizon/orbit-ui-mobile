@@ -112,6 +112,7 @@
     "skipToContent": "Skip to main content",
     "goHome": "Go home",
     "cancel": "Cancel",
+    "notNow": "Not now",
     "goBack": "Go back",
     "later": "Maybe later",
     "delete": "Delete",
@@ -366,6 +367,11 @@
     "sessionExpiringPrefix": "Session expires in",
     "sessionExpired": "Your session has expired. Please log in again.",
     "refresh": "Refresh",
+    "todayBoundary": {
+      "lastLoggable": "This is the oldest day you can log.",
+      "readOnly": "Read only. You can log up to 7 days back.",
+      "future": "This day has not arrived yet. You can log what has no set time."
+    },
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
     "legalPrefix": "By signing in you confirm you are at least 13 years old and agree to the",
@@ -479,6 +485,7 @@
     },
     "backToHabits": "Back to all habits",
     "completed": "completed",
+    "drillProgress": "{done} of {total} done",
     "skipConfirmTitle": "Skip Habit",
     "skipConfirmMessage": "This will advance the due date to the next scheduled occurrence without logging it as completed.",
     "skipConfirmMessageFlexible": "This will reduce the required completions for this period by 1.",

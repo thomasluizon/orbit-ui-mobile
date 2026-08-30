@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native'
 import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
-import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, MoreVertical } from '@/components/ui/icons'
 import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -18,6 +18,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { useResolvedMotionPreset } from '@/lib/motion'
+import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -226,6 +227,16 @@ interface TodayDateControlProps {
   previousLabel: string
   todayLabel: string
   nextLabel: string
+  moreLabel: string
+  selectLabel: string
+  collapseLabel: string
+  refreshLabel: string
+  completedLabel: string
+  isFetching: boolean
+  onToggleSelect: () => void
+  onToggleCollapse: () => void
+  onRefresh: () => void
+  onToggleCompleted: () => void
   onGoToPreviousDay: () => void
   onGoToToday: () => void
   onGoToNextDay: () => void
@@ -239,12 +250,23 @@ export function TodayDateControl({
   previousLabel,
   todayLabel,
   nextLabel,
+  moreLabel,
+  selectLabel,
+  collapseLabel,
+  refreshLabel,
+  completedLabel,
+  isFetching,
+  onToggleSelect,
+  onToggleCollapse,
+  onRefresh,
+  onToggleCompleted,
   onGoToPreviousDay,
   onGoToToday,
   onGoToNextDay,
 }: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const menu = useAnchoredMenu()
 
   return (
     <View style={styles.dateControlRow}>
@@ -279,6 +301,35 @@ export function TodayDateControl({
       >
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
+      <MenuAnchorHost anchorRef={menu.anchorRef}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={moreLabel}
+          accessibilityState={{ expanded: menu.visible }}
+          onPress={menu.toggle}
+          style={styles.iconButton}
+        >
+          <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
+        </Pressable>
+      </MenuAnchorHost>
+      <Menu
+        open={menu.visible}
+        anchorRef={menu.anchorRef}
+        title={moreLabel}
+        items={[
+          { id: 'select', label: selectLabel },
+          { id: 'collapse', label: collapseLabel },
+          { id: 'refresh', label: refreshLabel, disabled: isFetching },
+          { id: 'completed', label: completedLabel },
+        ]}
+        onClose={menu.close}
+        onSelect={(id) => {
+          if (id === 'select') onToggleSelect()
+          else if (id === 'collapse') onToggleCollapse()
+          else if (id === 'refresh') onRefresh()
+          else if (id === 'completed') onToggleCompleted()
+        }}
+      />
     </View>
   )
 }
@@ -348,6 +399,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   dateControlIconButton: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  iconButton: {
     alignItems: 'center',
     height: 44,
     justifyContent: 'center',

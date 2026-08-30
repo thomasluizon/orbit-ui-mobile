@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '../types/habit'
+import { hasHabitScheduleOnDate } from './habits'
 
 export interface HabitDateBucket {
   key: string
@@ -84,6 +85,41 @@ export interface ParentPromptProgressOptions {
   isListView: boolean
   skippedIds: ReadonlySet<string>
   resolvedModes?: ReadonlyMap<string, HabitResolutionMode>
+}
+
+export type ParentSettlementDecision = 'log' | 'skip' | null
+
+export function computeParentSettlementDecision(
+  parent: NormalizedHabit | null,
+  children: ParentPromptProgress,
+  promptDate: string,
+): ParentSettlementDecision {
+  if (
+    !parent ||
+    (!parent.isGeneral &&
+      !parent.isOverdue &&
+      !hasHabitScheduleOnDate(parent, promptDate))
+  ) {
+    return null
+  }
+
+  const isSkippedInRange =
+    parent.flexibleTarget != null &&
+    parent.flexibleCompleted != null &&
+    parent.flexibleCompleted >= parent.flexibleTarget &&
+    !parent.isLoggedInRange
+
+  if (
+    parent.isCompleted ||
+    parent.isLoggedInRange ||
+    isSkippedInRange ||
+    children.total === 0 ||
+    children.done < children.total
+  ) {
+    return null
+  }
+
+  return children.loggedDone > 0 ? 'log' : 'skip'
 }
 
 /**
