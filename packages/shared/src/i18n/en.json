@@ -260,8 +260,8 @@
           "reviewGoals": "Review my {count} active goals"
         },
         "profile": {
-          "pauseProactive": "Pause proactive Astra",
-          "enableProactive": "Enable proactive Astra",
+          "pauseProactive": "Where can I pause proactive Astra?",
+          "enableProactive": "Where can I enable proactive Astra?",
           "reviewCalendar": "Review my calendar sync",
           "explainCalendar": "Explain calendar sync",
           "pauseSummary": "Pause weekly summaries",

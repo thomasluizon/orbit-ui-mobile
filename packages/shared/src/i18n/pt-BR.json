@@ -260,8 +260,8 @@
           "reviewGoals": "Revisar meus {count} objetivos ativos"
         },
         "profile": {
-          "pauseProactive": "Pausar Astra proativa",
-          "enableProactive": "Ativar Astra proativa",
+          "pauseProactive": "Onde posso pausar a Astra proativa?",
+          "enableProactive": "Onde posso ativar a Astra proativa?",
           "reviewCalendar": "Revisar minha sincronização",
           "explainCalendar": "Explicar sincronização de calendário",
           "pauseSummary": "Pausar resumos semanais",
