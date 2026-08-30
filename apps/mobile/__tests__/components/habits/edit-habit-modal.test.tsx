@@ -224,13 +224,29 @@ describe('EditHabitModal (mobile)', () => {
     })
   })
 
-  it('preserves unloaded tags, goals, and slip alerts when an unrelated field is saved', async () => {
+  it('preserves relationships that load after an editor session starts when an unrelated field is saved', async () => {
     mockBuildUpdateHabitRequest.mockReturnValueOnce({
       title: 'Exercise daily',
       goalIds: [],
       slipAlertEnabled: false,
     })
     const tree = await renderModal(false)
+    await TestRenderer.act(() => {
+      tree.update(
+        <EditHabitModal
+          open
+          onClose={vi.fn()}
+          habit={createMockHabit({
+            id: 'h-1',
+            title: 'Exercise',
+            tags: [{ id: 'tag-1', name: 'Health', color: '#123456' }],
+            linkedGoals: [{ id: 'goal-1', title: 'Feel better' }],
+            slipAlertEnabled: true,
+          })}
+          relationshipFieldsLoaded
+        />,
+      )
+    })
 
     await TestRenderer.act(async () => {
       await findSaveButton(tree)?.props.onClick()

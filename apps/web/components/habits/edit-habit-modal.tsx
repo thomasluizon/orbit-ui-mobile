@@ -91,6 +91,7 @@ export function EditHabitModal({
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
+  const relationshipFieldsHydratedRef = useRef(false)
 
   const watchedTitle = coalesceFormText(formHelpers.form.watch('title'))
 
@@ -146,7 +147,8 @@ export function EditHabitModal({
 
     const habitChanged = sessionHabitId !== previousSession.habitId
     previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
-    if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
+    if (!open || !habit) return
+    if (!habitChanged && formHelpers.form.formState.isDirty) return
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
     formHelpers.form.reset(prefill.formValues)
@@ -161,8 +163,9 @@ export function EditHabitModal({
       JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
     )
     setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    relationshipFieldsHydratedRef.current = relationshipFieldsLoaded
     applyHabitFormMode(prefill.mode, formHelpers)
-  }, [formHelpers, habit, habitDetail, open, sessionDetailId, sessionHabitId, tags])
+  }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
@@ -192,12 +195,12 @@ export function EditHabitModal({
       const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
       const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
 
-      if (!relationshipFieldsLoaded && !goalIdsChanged) delete request.goalIds
-      if (!relationshipFieldsLoaded && !slipAlertChanged) delete request.slipAlertEnabled
+      if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
+      if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-        if (relationshipFieldsLoaded || tagIdsChanged) {
+        if (relationshipFieldsHydratedRef.current || tagIdsChanged) {
           await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
         }
         closeSheet(() => onOpenChange(false))
@@ -206,7 +209,7 @@ export function EditHabitModal({
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [assignTags, closeSheet, formHelpers, habit, initialGoalIds, initialTagIds, onOpenChange, onSaved, originalEndDate, relationshipFieldsLoaded, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
+    [assignTags, closeSheet, formHelpers, habit, initialGoalIds, initialTagIds, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   const handleSuggest = useCallback(async () => {

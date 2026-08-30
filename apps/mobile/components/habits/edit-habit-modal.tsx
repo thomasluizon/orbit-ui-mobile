@@ -95,6 +95,7 @@ export function EditHabitModal({
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
+  const relationshipFieldsHydratedRef = useRef(false)
   const previousSessionRef = useRef<{
     habitId: string | null
     detailId: string | null
@@ -164,7 +165,8 @@ export function EditHabitModal({
 
     const habitChanged = sessionHabitId !== previousSession.habitId
     previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
-    if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
+    if (!open || !habit) return
+    if (!habitChanged && formHelpers.form.formState.isDirty) return
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
     formHelpers.form.reset(prefill.formValues)
@@ -175,8 +177,9 @@ export function EditHabitModal({
     setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
     setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
     setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    relationshipFieldsHydratedRef.current = relationshipFieldsLoaded
     applyHabitFormMode(prefill.mode, formHelpers)
-  }, [formHelpers, habit, habitDetail, open, sessionDetailId, sessionHabitId, tags])
+  }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return
@@ -204,12 +207,12 @@ export function EditHabitModal({
     const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
     const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
 
-    if (!relationshipFieldsLoaded && !goalIdsChanged) delete request.goalIds
-    if (!relationshipFieldsLoaded && !slipAlertChanged) delete request.slipAlertEnabled
+    if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
+    if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      if (relationshipFieldsLoaded || tagIdsChanged) {
+      if (relationshipFieldsHydratedRef.current || tagIdsChanged) {
         await assignTags.mutateAsync({
           habitId: habit.id,
           tagIds: tags.selectedTagIds,
@@ -233,7 +236,6 @@ export function EditHabitModal({
     initialGoalIds,
     initialTagIds,
     originalEndDate,
-    relationshipFieldsLoaded,
     selectedGoalIds,
     reminderTimes,
     tags,

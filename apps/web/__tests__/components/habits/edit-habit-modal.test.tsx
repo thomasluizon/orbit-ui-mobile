@@ -267,19 +267,34 @@ describe('EditHabitModal', () => {
     })
   })
 
-  it('preserves unloaded tags, goals, and slip alerts when an unrelated field is saved', async () => {
+  it('preserves relationships that load after an editor session starts when an unrelated field is saved', async () => {
     mockBuildUpdateHabitRequest.mockReturnValueOnce({
       title: 'Exercise daily',
       goalIds: [],
       slipAlertEnabled: false,
     })
-    renderWithProviders(
+    const onOpenChange = vi.fn()
+    const { rerender } = renderWithProviders(
       <EditHabitModal
         open
-        onOpenChange={vi.fn()}
+        onOpenChange={onOpenChange}
         habit={createMockHabit({ tags: [], linkedGoals: [], slipAlertEnabled: false })}
         relationshipFieldsLoaded={false}
       />,
+    )
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <EditHabitModal
+          open
+          onOpenChange={onOpenChange}
+          habit={createMockHabit({
+            tags: [{ id: 'tag-1', name: 'Health', color: '#123456' }],
+            linkedGoals: [{ id: 'goal-1', title: 'Feel better' }],
+            slipAlertEnabled: true,
+          })}
+          relationshipFieldsLoaded
+        />
+      </QueryClientProvider>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
