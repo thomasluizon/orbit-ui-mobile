@@ -5859,6 +5859,7 @@
           "habits.detail.time",
           "habits.detail.todayWord",
           "habits.detail.totalCompletions",
+          "habits.detail.unavailableWord",
           "habits.detail.unlog",
           "habits.editHabit",
           "habits.form.activeDays",
@@ -13787,6 +13788,7 @@
           "habits.detail.time",
           "habits.detail.todayWord",
           "habits.detail.totalCompletions",
+          "habits.detail.unavailableWord",
           "habits.editHabit",
           "habits.form.activeDays",
           "habits.form.addEndDate",
@@ -18392,6 +18394,7 @@
         "apps/web/__tests__/components/ui/freeze-bank.test.tsx",
         "apps/web/__tests__/components/ui/status-ring.test.tsx",
         "packages/shared/src/__tests__/block-frame-contract.test.ts",
+        "packages/shared/src/__tests__/date-surfaces.test.ts",
         "packages/shared/src/__tests__/primitive-contracts.test.ts"
       ],
       "packages/shared/src/hooks": [
@@ -18712,6 +18715,7 @@
         "packages/shared/src/__tests__/checklist-templates.test.ts",
         "packages/shared/src/__tests__/client-id.test.ts",
         "packages/shared/src/__tests__/config.test.ts",
+        "packages/shared/src/__tests__/date-surfaces.test.ts",
         "packages/shared/src/__tests__/drill-navigation.test.ts",
         "packages/shared/src/__tests__/error-utils-extended.test.ts",
         "packages/shared/src/__tests__/fresh-start.test.ts",

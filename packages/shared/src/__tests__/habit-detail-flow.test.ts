@@ -262,6 +262,71 @@ describe('habit detail flow model', () => {
     expect(bounded.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('not-scheduled')
   })
 
+  it.each([
+    {
+      frequencyUnit: 'Month',
+      logs: [log('2026-08-01'), log('2026-08-15')],
+    },
+    {
+      frequencyUnit: 'Year',
+      logs: [log('2026-01-15'), log('2026-07-15')],
+    },
+  ])('keeps unlogged dates neutral in a satisfied flexible $frequencyUnit window', ({ frequencyUnit, logs }) => {
+    const flexible = {
+      ...recurring,
+      days: [],
+      dueDate: '2026-01-01',
+      flexibleTarget: null,
+      frequencyQuantity: 2,
+      frequencyUnit,
+      isFlexible: true,
+    }
+    const history = buildHabitHistoryMonth(flexible, logs, today, today, 1)
+
+    expect(history.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('not-scheduled')
+  })
+
+  it('keeps flexible day targets isolated to their own date', () => {
+    const flexibleDaily = {
+      ...recurring,
+      days: [],
+      dueDate: '2026-08-01',
+      flexibleTarget: 2,
+      frequencyQuantity: 2,
+      frequencyUnit: 'Day',
+      isFlexible: true,
+    }
+    const sameDayLogs = [log('2026-08-27', '2026-08-27T08:00:00Z'), {
+      ...log('2026-08-27', '2026-08-27T18:00:00Z'),
+      id: '2026-08-27-evening',
+    }]
+    const history = buildHabitHistoryMonth(flexibleDaily, sameDayLogs, today, today, 1)
+
+    expect(history.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('full')
+    expect(history.find((day) => day.dateStr === '2026-08-26')?.outcome).toBe('none')
+  })
+
+  it('reduces a flexible period target for skip logs', () => {
+    const flexibleWeekly = {
+      ...recurring,
+      days: [],
+      dueDate: '2026-08-24',
+      flexibleTarget: 2,
+      frequencyQuantity: 2,
+      isFlexible: true,
+    }
+    const skipped = { ...log('2026-08-25'), value: 0 }
+    const history = buildHabitHistoryMonth(
+      flexibleWeekly,
+      [log('2026-08-24'), skipped],
+      today,
+      today,
+      1,
+    )
+
+    expect(history.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('not-scheduled')
+  })
+
   it('clamps monthly anchors and respects creation and end boundaries', () => {
     const monthly = {
       ...recurring,
