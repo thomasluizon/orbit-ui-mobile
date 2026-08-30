@@ -36,6 +36,7 @@ interface EditHabitModalProps {
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
+  relationshipFieldsLoaded?: boolean
   /**
    * The General setting this habit must match, given its position in the tree: its
    * parent's General value when it is a sub-habit, or its existing sub-habits'
@@ -65,6 +66,7 @@ export function EditHabitModal({
   onOpenChange,
   habit,
   onSaved,
+  relationshipFieldsLoaded = true,
   lockedGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
@@ -186,17 +188,25 @@ export function EditHabitModal({
         selectedGoalIds,
         habit.scheduledReminders.length > 0,
       )
+      const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
+      const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
+      const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
+
+      if (!relationshipFieldsLoaded && !goalIdsChanged) delete request.goalIds
+      if (!relationshipFieldsLoaded && !slipAlertChanged) delete request.slipAlertEnabled
 
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-        await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
+        if (relationshipFieldsLoaded || tagIdsChanged) {
+          await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
+        }
         closeSheet(() => onOpenChange(false))
         await onSaved?.()
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [assignTags, closeSheet, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
+    [assignTags, closeSheet, formHelpers, habit, initialGoalIds, initialTagIds, onOpenChange, onSaved, originalEndDate, relationshipFieldsLoaded, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   const handleSuggest = useCallback(async () => {

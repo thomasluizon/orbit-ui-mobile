@@ -38,6 +38,7 @@ interface EditHabitModalProps {
   onClose: () => void
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
+  relationshipFieldsLoaded?: boolean
   /** The habit's parent's `isGeneral`, when it has a parent, from the caller's loaded habit map. */
   parentIsGeneral?: boolean | null
 }
@@ -70,6 +71,7 @@ export function EditHabitModal({
   onClose,
   habit,
   onSaved,
+  relationshipFieldsLoaded = true,
   parentIsGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const { t, i18n } = useTranslation()
@@ -198,13 +200,21 @@ export function EditHabitModal({
       selectedGoalIds,
       habit.scheduledReminders.length > 0,
     )
+    const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
+    const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
+    const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
+
+    if (!relationshipFieldsLoaded && !goalIdsChanged) delete request.goalIds
+    if (!relationshipFieldsLoaded && !slipAlertChanged) delete request.slipAlertEnabled
 
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      await assignTags.mutateAsync({
-        habitId: habit.id,
-        tagIds: tags.selectedTagIds,
-      })
+      if (relationshipFieldsLoaded || tagIdsChanged) {
+        await assignTags.mutateAsync({
+          habitId: habit.id,
+          tagIds: tags.selectedTagIds,
+        })
+      }
       closeSheet(onClose)
       await onSaved?.()
     } catch (error: unknown) {
@@ -220,7 +230,10 @@ export function EditHabitModal({
   }, [
     habit,
     formHelpers,
+    initialGoalIds,
+    initialTagIds,
     originalEndDate,
+    relationshipFieldsLoaded,
     selectedGoalIds,
     reminderTimes,
     tags,

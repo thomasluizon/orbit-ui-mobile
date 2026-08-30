@@ -222,6 +222,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
 
   const habit = useMemo(() => detailQuery.data ? buildNormalizedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [detailQuery.data, habitsQuery.data, habitId, dateStr])
+  const relationshipFieldsLoaded = habitsQuery.data?.topLevelHabits.some((item) => item.id === habitId) ?? false
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
@@ -319,7 +320,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
         <ListRow icon={<Calendar size={24} />} title={t('habits.detail.startedOn')} description={t('habits.detail.startDateNote')} value={formatLocaleDate(new Date(habit.createdAtUtc), profile?.language ?? locale, { dateStyle: 'medium' })} readOnly />
         <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
       </div>
-      <EditHabitModal open={editOpen} onOpenChange={setEditOpen} habit={habit} />
+      <EditHabitModal open={editOpen} onOpenChange={setEditOpen} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />

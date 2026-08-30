@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: false, isError: false, refetch: vi.fn() }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: () => ({ data: { habitsById: mocks.scopedHabits } }),
+  useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
@@ -111,7 +111,9 @@ vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children }: { children: React.ReactNode }) => React.createElement('MonthGrid', null, children),
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
-vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
+vi.mock('@/components/habits/edit-habit-modal', () => ({
+  EditHabitModal: (props: { open: boolean; relationshipFieldsLoaded: boolean }) => React.createElement('EditHabitModal', props),
+}))
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ onToggle }: { onToggle: (index: number) => void }) => React.createElement('HabitChecklist', { testID: 'habit-checklist', onToggle }),
 }))
@@ -332,6 +334,21 @@ describe('HabitDetailScreen', () => {
     expect(request.title).toBe('Read daily')
     expect(request).not.toHaveProperty('slipAlertEnabled')
     expect(request).not.toHaveProperty('goalIds')
+  })
+
+  it('opens the full editor without treating an off-schedule relationship snapshot as loaded', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
+
+    const editor = tree!.root.findByType('EditHabitModal')
+    expect(editor.props.open).toBe(true)
+    expect(editor.props.relationshipFieldsLoaded).toBe(false)
   })
 
   it('sends slip alert state only from the explicit switch action', () => {

@@ -40,7 +40,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: false, isError: false, refetch: vi.fn() }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: () => ({ data: { habitsById: mocks.scopedHabits } }),
+  useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -108,7 +108,11 @@ vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
-vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
+vi.mock('@/components/habits/edit-habit-modal', () => ({
+  EditHabitModal: ({ open, relationshipFieldsLoaded }: { open: boolean; relationshipFieldsLoaded: boolean }) => (
+    <div data-testid="edit-habit-modal" data-open={open} data-relationship-fields-loaded={relationshipFieldsLoaded} />
+  ),
+}))
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ onToggle }: { onToggle: (index: number) => void }) => <button type="button" onClick={() => onToggle(0)}>toggle-checklist</button>,
 }))
@@ -304,6 +308,19 @@ describe('HabitDetailScreen', () => {
     expect(request.title).toBe('Read daily')
     expect(request).not.toHaveProperty('slipAlertEnabled')
     expect(request).not.toHaveProperty('goalIds')
+  })
+
+  it('opens the full editor without treating an off-schedule relationship snapshot as loaded', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
+
+    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute(
+      'data-relationship-fields-loaded',
+      'false',
+    )
   })
 
   it('sends slip alert state only from the explicit switch action', () => {

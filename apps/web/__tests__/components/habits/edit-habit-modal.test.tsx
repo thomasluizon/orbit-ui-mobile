@@ -19,7 +19,8 @@ const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
-const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ goalIds: args[4] })))
+const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]): Record<string, unknown> => ({ goalIds: args[4] })))
+const mockAssignTagsMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -57,7 +58,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       getValues: mockFormGetValues,
       watch: mockFormWatch,
       register: mockFormRegister,
-      formState: { isValid: true },
+      formState: { isValid: true, dirtyFields: {} },
     },
     isOneTime: false,
     isGeneral: false,
@@ -96,7 +97,7 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 
 vi.mock('@/hooks/use-tags', () => ({
   useAssignTags: () => ({
-    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    mutateAsync: mockAssignTagsMutateAsync,
     isPending: false,
   }),
 }))
@@ -264,6 +265,28 @@ describe('EditHabitModal', () => {
         data: { goalIds: ['goal-1'] },
       })
     })
+  })
+
+  it('preserves unloaded tags, goals, and slip alerts when an unrelated field is saved', async () => {
+    mockBuildUpdateHabitRequest.mockReturnValueOnce({
+      title: 'Exercise daily',
+      goalIds: [],
+      slipAlertEnabled: false,
+    })
+    renderWithProviders(
+      <EditHabitModal
+        open
+        onOpenChange={vi.fn()}
+        habit={createMockHabit({ tags: [], linkedGoals: [], slipAlertEnabled: false })}
+        relationshipFieldsLoaded={false}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalledOnce())
+    expect(mockUpdateMutateAsync.mock.calls[0]![0].data).toEqual({ title: 'Exercise daily' })
+    expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
   })
 
   it('renders the form fields component', () => {
