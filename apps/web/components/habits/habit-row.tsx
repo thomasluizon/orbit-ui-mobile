@@ -1,17 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { Menu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { SelectCheck } from '@/components/ui/select-check'
 import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
-import { buildHabitRowContextMenuItems } from './habit-row-context-menu-items'
-import type { MouseEvent as ReactMouseEvent } from 'react'
 
 export type { HabitRowMetaToken }
 
@@ -69,6 +65,7 @@ interface HabitRowProps {
   showLinkedGoalDot?: boolean
   /** Optional data attribute (`data-tour`) used by the feature tour. */
   tourTargetId?: string
+  hasProAccess?: boolean
   actions?: HabitRowActions
 }
 
@@ -157,6 +154,7 @@ export function HabitRow({
   expanded = false,
   childProgress,
   tourTargetId,
+  hasProAccess = true,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
@@ -166,11 +164,6 @@ export function HabitRow({
     onLog,
     onUnlog,
     onToggleExpand,
-    onEdit,
-    onDuplicate,
-    onSkip,
-    onDelete,
-    onAddSubHabit,
     onEnterSelectMode,
     onDrillInto,
   } = actions
@@ -185,23 +178,6 @@ export function HabitRow({
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12
 
-  const contextMenuItems = buildHabitRowContextMenuItems({
-    selectMode,
-    isDone,
-    canLog,
-    onLog,
-    onSkip,
-    onDetail,
-    onEdit,
-    onDuplicate,
-    onAddSubHabit,
-    onDelete,
-    t,
-  })
-
-  const [contextOpen, setContextOpen] = useState(false)
-  const rowRef = useRef<HTMLDivElement>(null)
-
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
   function handleRowClick() {
@@ -215,23 +191,13 @@ export function HabitRow({
     else onLog?.()
   }
 
-  function handleRowContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
-    if (readOnly) return
-    const target = event.target
-    if (!(target instanceof Node) || !event.currentTarget.contains(target)) return
-    if (contextMenuItems.length === 0) return
-    event.preventDefault()
-    setContextOpen(true)
-  }
-
   function getTitleColor(): string {
     if (isDone) return 'var(--fg-3)'
     return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
   }
 
-  const row = (
+  return (
     <div
-      ref={rowRef}
       data-tour={tourTargetId}
       data-testid="habit-row"
       data-habit-title={habit.title}
@@ -239,7 +205,6 @@ export function HabitRow({
       data-status={state}
       aria-disabled={readOnly || undefined}
       tabIndex={-1}
-      onContextMenuCapture={handleRowContextMenu}
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
         minHeight: isChild ? 52 : 68,
@@ -297,26 +262,10 @@ export function HabitRow({
         canSelect={canSelect}
         canDrillInto={canDrillInto}
         actions={actions}
+        hasProAccess={hasProAccess}
         onToggleStatus={handleToggleStatus}
         readOnly={readOnly}
       />
     </div>
-  )
-
-  return (
-    <>
-      {row}
-      <Menu
-        open={contextOpen}
-        presentation="anchored"
-        anchorRef={rowRef}
-        title={t('habits.actions.more')}
-        items={contextMenuItems.map(({ onRun: _onRun, ...item }) => item)}
-        onClose={() => setContextOpen(false)}
-        onSelect={(id) => {
-          if (!readOnly) contextMenuItems.find((item) => item.id === id)?.onRun()
-        }}
-      />
-    </>
   )
 }

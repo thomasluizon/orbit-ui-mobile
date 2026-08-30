@@ -14,9 +14,21 @@ const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   children?: React.ReactNode
 }>
 
-vi.mock('@/components/ui/icons', () => ({
+vi.mock('@/components/ui/icons', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
   ChevronLeft: () => null,
   ChevronRight: () => null,
+  MoreVertical: () => null,
+}))
+
+vi.mock('@/components/ui/menu', () => ({
+  Menu: ({ open, items, onSelect }: any) => open ? (
+    <div role="menu">
+      {items.map((item: any) => (
+        <button key={item.id} role="menuitem" onClick={() => onSelect(item.id)}>{item.label}</button>
+      ))}
+    </div>
+  ) : null,
 }))
 
 vi.mock('motion/react', () => ({
@@ -54,6 +66,16 @@ const baseProps = {
   previousLabel: 'Previous day',
   todayLabel: 'Today',
   nextLabel: 'Next day',
+  moreLabel: 'More actions',
+  selectLabel: 'Select',
+  collapseLabel: 'Collapse all',
+  refreshLabel: 'Refresh',
+  completedLabel: 'Show completed',
+  isFetching: false,
+  onToggleSelect: vi.fn(),
+  onToggleCollapse: vi.fn(),
+  onRefresh: vi.fn(),
+  onToggleCompleted: vi.fn(),
 }
 
 describe('Hoje date control', () => {
@@ -77,11 +99,18 @@ describe('Hoje date control', () => {
 
   it('renders the resolved read-only boundary notice', () => {
     const view = {
+      data: { isFetching: false, refetch: vi.fn() },
+      habitListAllCollapsed: false,
+      habitListRef: { current: null },
+      isSelectMode: false,
       nav: {
         dateStr: '2026-03-31',
         today: '2026-04-08',
         dateNav: { ...baseProps, isTodaySelected: false },
       },
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
     render(
@@ -116,6 +145,8 @@ describe('Hoje date control', () => {
       selection: { handleToggleSelection: vi.fn() },
       setHabitListAllCollapsed: vi.fn(),
       setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
       toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
@@ -144,6 +175,8 @@ describe('Hoje date control', () => {
       selection: { handleToggleSelection: vi.fn() },
       setHabitListAllCollapsed: vi.fn(),
       setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
       toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
@@ -168,6 +201,8 @@ describe('Hoje date control', () => {
       selection: { handleToggleSelection: vi.fn() },
       setHabitListAllCollapsed: vi.fn(),
       setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
       toggleSelectMode: vi.fn(),
     } as unknown as TodayView
 
@@ -175,5 +210,15 @@ describe('Hoje date control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'See upcoming' }))
 
     expect(goToNextDay).toHaveBeenCalledOnce()
+  })
+
+  it('opens the four list actions from the date row', () => {
+    render(<TodayDateControl {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+
+    expect(screen.getByRole('menuitem', { name: 'Select' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Collapse all' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Refresh' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Show completed' })).toBeInTheDocument()
   })
 })

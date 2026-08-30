@@ -53,13 +53,15 @@ const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
 function buildMenuItems(
   actions: HabitRowActions,
   isSelectMode: boolean,
+  readOnly: boolean,
+  hasProAccess: boolean,
   t: (key: string) => string,
 ): MenuItem[] {
   const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit') })
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit'), badge: hasProAccess ? undefined : 'Pro' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
-  if (actions.onSkip) items.push({ id: 'skip', label: t('habits.actions.skip') })
-  if (actions.onReschedule) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
+  if (actions.onSkip && !readOnly) items.push({ id: 'skip', label: t('habits.actions.skip') })
+  if (actions.onReschedule && !readOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit') })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate') })
   if (actions.onEnterSelectMode && !isSelectMode) {
@@ -103,6 +105,7 @@ interface HabitRowProps {
   style?: StyleProp<ViewStyle>
   panelStart?: boolean
   panelEnd?: boolean
+  hasProAccess?: boolean
 }
 
 function HabitRowStructuralColumn({
@@ -211,6 +214,7 @@ export function HabitRow({
   style,
   panelStart = true,
   panelEnd = true,
+  hasProAccess = true,
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -261,8 +265,8 @@ export function HabitRow({
   } = useAnchoredMenu()
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, t),
-    [actions, isSelectMode, t],
+    () => buildMenuItems(actions, isSelectMode, readOnly, hasProAccess, t),
+    [actions, hasProAccess, isSelectMode, readOnly, t],
   )
 
   const openMenu = useCallback(() => {
