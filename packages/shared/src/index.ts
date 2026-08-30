@@ -2,6 +2,7 @@ export * from './types/index'
 export {
   parseAPIDate,
   formatAPIDate,
+  resolveHabitDetailRouteDate,
   getTimezoneList,
   isValidEmail,
   AUTH_BACKEND_ERROR_MAP,
