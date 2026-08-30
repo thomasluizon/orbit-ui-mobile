@@ -45,6 +45,21 @@ function getServerSnapshot() {
   return false
 }
 
+function restoreConversationOpener(openerControl: string): void {
+  const controls = document.querySelectorAll<HTMLElement>('[data-conversation-control]')
+  for (const control of controls) {
+    if (control.dataset.conversationControl === openerControl) {
+      control.focus()
+      return
+    }
+  }
+
+  const stableComposerControl = document.querySelector<HTMLElement>(
+    '[data-conversation-control="astra"], [data-conversation-control="input"]',
+  )
+  stableComposerControl?.focus()
+}
+
 function SidebarItem({
   item,
   active,
@@ -220,13 +235,7 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
 
     const openerControl = openerControlRef.current
     if (openerControl) {
-      const controls = document.querySelectorAll<HTMLElement>('[data-conversation-control]')
-      for (const control of controls) {
-        if (control.dataset.conversationControl === openerControl) {
-          control.focus()
-          break
-        }
-      }
+      restoreConversationOpener(openerControl)
       openerControlRef.current = null
     }
 

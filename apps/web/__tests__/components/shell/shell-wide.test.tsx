@@ -136,6 +136,44 @@ describe('ShellWide', () => {
     expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
   })
 
+  it('restores focus to Astra when the live suggestion opener is gone', () => {
+    media.matches = true
+    const composer = (suggestionId: string) => (
+      <div>
+        <button type="button" data-conversation-control="astra">Open Astra</button>
+        <button
+          type="button"
+          data-conversation-control={`suggestion:${suggestionId}`}
+        >
+          {suggestionId}
+        </button>
+      </div>
+    )
+    const shellProps = {
+      items,
+      activeId: 'hoje',
+      navLabel: 'Main navigation',
+      conversation: <button type="button">Close conversation</button>,
+      conversationLabel: 'Astra conversation',
+    }
+    const { container, rerender } = render(
+      <ShellWide {...shellProps} composer={composer('Streak at risk')} conversationOpen={false} />,
+    )
+
+    screen.getByRole('button', { name: 'Streak at risk' }).focus()
+    rerender(
+      <ShellWide {...shellProps} composer={composer('All done')} conversationOpen />,
+    )
+    expect(container.querySelector('[data-shell-conversation="panel"]')).toHaveFocus()
+
+    rerender(
+      <ShellWide {...shellProps} composer={composer('All done')} conversationOpen={false} />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
+    expect(document.body).not.toHaveFocus()
+  })
+
   it('omits navigation and uses the action slot in flow mode', () => {
     const { container } = render(
       <ShellWide nav={false} action={<button type="button">Continue</button>}>
