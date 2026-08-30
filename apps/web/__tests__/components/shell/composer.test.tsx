@@ -158,7 +158,8 @@ describe('Composer', () => {
 
   it('renders only the limit reason above disabled controls without an accent send', () => {
     const { container } = render(<Composer {...props({ state: 'atLimit', limitReason: 'limit sentinel' })} />)
-    expect(screen.getByText('limit sentinel')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('limit sentinel')
+    expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite')
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
     expect(screen.getByRole('button', { name: words.send })).toBeDisabled()

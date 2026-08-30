@@ -233,7 +233,10 @@ describe('Composer (mobile)', () => {
 
   it('renders only the limit reason above disabled neutral controls', async () => {
     const tree = await renderComposer(props({ state: 'atLimit', limitReason: 'limit sentinel' }))
-    expect(textValues(tree.root)).toContain('limit sentinel')
+    const limitReason = tree.root.findAllByType('Text').find(
+      (node: { props: { children: unknown } }) => node.props.children === 'limit sentinel',
+    )
+    expect(limitReason?.props.accessibilityLiveRegion).toBe('polite')
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
     expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
     expect(tree.root.findByProps({ testID: 'composer-send-neutral' })).toBeDefined()
@@ -317,8 +320,14 @@ describe('Composer (mobile)', () => {
       { id: 'image-id', kind: 'image' as const, name: 'walk.png' },
     ]
     const tree = await renderComposer(props({ onAttach: vi.fn(), attachWords, attachments, onAttachRemove }))
+    expect(tree.root.findByProps({ testID: 'composer-attachment-tray' }).props.accessible).not.toBe(true)
     expect(textValues(tree.root)).toEqual(expect.arrayContaining(['notes.txt', 'walk.png']))
-    expect(byLabel(tree.root, attachWords.remove('notes.txt'))).toHaveLength(1)
+    const removeFile = byLabel(tree.root, attachWords.remove('notes.txt'))
+    const removeImage = byLabel(tree.root, attachWords.remove('walk.png'))
+    expect(removeFile).toHaveLength(1)
+    expect(removeImage).toHaveLength(1)
+    expect(removeFile[0].props.accessible).toBe(true)
+    expect(removeImage[0].props.accessible).toBe(true)
     pressControl(byLabel(tree.root, attachWords.remove('walk.png'))[0])
     expect(onAttachRemove).toHaveBeenCalledOnce()
     expect(onAttachRemove).toHaveBeenCalledWith('image-id')

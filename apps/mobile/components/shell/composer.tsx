@@ -34,7 +34,7 @@ function AttachmentTray({
   tokens: AppTokensV2
 }>) {
   return (
-    <View accessible accessibilityLabel={words.trayLabel} style={styles.tray}>
+    <View testID="composer-attachment-tray" style={styles.tray}>
       {attachments.map((attachment) => (
         <View
           key={attachment.id}
@@ -46,6 +46,7 @@ function AttachmentTray({
             {attachment.name}
           </Text>
           <Pressable
+            accessible
             accessibilityRole="button"
             accessibilityLabel={words.remove(attachment.name)}
             onPress={() => onRemove(attachment.id)}
@@ -127,7 +128,12 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
   if (props.state === 'atLimit') {
     return (
       <View style={styles.limitStatus}>
-        <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[styles.limitReason, { color: tokens.fg2 }]}
+        >
+          {props.limitReason}
+        </Text>
         {props.limitRecovery}
       </View>
     )
