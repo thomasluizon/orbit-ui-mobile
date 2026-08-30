@@ -16,6 +16,8 @@ const mockSetFlexible = vi.fn()
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
+const mockUpdateMutateAsync = vi.hoisted(() => vi.fn())
+const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ goalIds: args[4] })))
 
 let mockHabitDetailResult: {
   data: unknown
@@ -33,7 +35,7 @@ vi.mock('react-hook-form', () => ({
 
 vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({
-    mutateAsync: vi.fn().mockResolvedValue({}),
+    mutateAsync: mockUpdateMutateAsync,
     isPending: false,
   }),
   useHabitDetail: () => mockHabitDetailResult,
@@ -110,12 +112,14 @@ vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
     onPress,
+    onClick,
     disabled,
   }: {
     children?: React.ReactNode
     onPress?: () => void
+    onClick?: () => void
     disabled?: boolean
-  }) => React.createElement('PillButton', { onPress, disabled }, children),
+  }) => React.createElement('PillButton', { onPress, onClick, disabled }, children),
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
@@ -123,7 +127,7 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildUpdateHabitRequest: vi.fn(() => ({})),
+  buildUpdateHabitRequest: mockBuildUpdateHabitRequest,
 }))
 
 function findSaveButton(tree: {
@@ -158,7 +162,25 @@ describe('EditHabitModal (mobile)', () => {
     vi.clearAllMocks()
     mockHabitDetailResult = { data: null, isPending: false, error: null }
     mockValidateAll.mockReturnValue(null)
-    mockGetValues.mockImplementation((..._args: unknown[]): unknown => ({}))
+    mockGetValues.mockImplementation((..._args: unknown[]): unknown => ({
+      title: 'Exercise',
+      description: '',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: [],
+      isBadHabit: false,
+      isGeneral: false,
+      isFlexible: false,
+      dueDate: '2025-01-01',
+      dueTime: '',
+      dueEndTime: '',
+      endDate: '',
+      reminderEnabled: false,
+      scheduledReminders: [],
+      slipAlertEnabled: false,
+      checklistItems: [],
+    }))
+    mockUpdateMutateAsync.mockResolvedValue({})
     useWatchMock.mockImplementation(({ name }: { name: string }) =>
       name === 'title' ? 'Exercise' : undefined,
     )
@@ -183,6 +205,22 @@ describe('EditHabitModal (mobile)', () => {
     const wrapper = findFieldsWrapper(tree)
     expect(wrapper.props.pointerEvents).toBe('auto')
     expect(findSaveButton(tree)?.props.disabled).toBe(false)
+  })
+
+  it('sends the goal list from the explicit goal action', async () => {
+    const tree = await renderModal()
+
+    await TestRenderer.act(() => {
+      findFormFields(tree).props.onToggleGoal('goal-1')
+    })
+    await TestRenderer.act(async () => {
+      await findSaveButton(tree)?.props.onClick()
+    })
+
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+      habitId: 'h-1',
+      data: { goalIds: ['goal-1'] },
+    })
   })
 
   it('resets the form from the habit when it opens', async () => {

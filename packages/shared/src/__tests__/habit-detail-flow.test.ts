@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HabitLog } from '../types/calendar'
 import type { HabitMetrics } from '../types/habit'
 import {
+  buildHabitDetailUpdateRequest,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
   buildHabitStripModel,
@@ -35,6 +36,22 @@ const log = (date: string, createdAtUtc = `${date}T12:00:00Z`): HabitLog => ({
 })
 
 describe('habit detail flow model', () => {
+  it('omits unowned fields from inline updates and includes explicit values', () => {
+    const habit = createMockHabit({
+      slipAlertEnabled: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Read more' }],
+    })
+
+    const rename = buildHabitDetailUpdateRequest(habit, { title: 'Read daily' })
+    expect(rename).not.toHaveProperty('slipAlertEnabled')
+    expect(rename).not.toHaveProperty('goalIds')
+
+    expect(buildHabitDetailUpdateRequest(habit, { slipAlertEnabled: false }))
+      .toMatchObject({ slipAlertEnabled: false })
+    expect(buildHabitDetailUpdateRequest(habit, { goalIds: [] }))
+      .toMatchObject({ goalIds: [] })
+  })
+
   it('builds a 30 day habit strip without a frozen state', () => {
     const model = buildHabitStripModel(recurring, [log('2026-08-28')], today, 'en')
     expect(model.days).toHaveLength(30)

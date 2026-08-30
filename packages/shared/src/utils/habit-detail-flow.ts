@@ -330,9 +330,9 @@ export function parseHabitHistoryDate(dateStr: string): Date {
 
 export function buildHabitDetailUpdateRequest(
   habit: NormalizedHabit,
-  patch: Partial<Pick<UpdateHabitRequest, 'title' | 'emoji' | 'checklistItems'>>,
+  patch: Partial<Pick<UpdateHabitRequest, 'title' | 'emoji' | 'checklistItems' | 'slipAlertEnabled' | 'goalIds'>>,
 ): UpdateHabitRequest {
-  return {
+  const request: UpdateHabitRequest = {
     title: patch.title ?? habit.title,
     description: habit.description ?? undefined,
     emoji: patch.emoji === undefined ? habit.emoji : patch.emoji,
@@ -348,9 +348,10 @@ export function buildHabitDetailUpdateRequest(
     reminderEnabled: habit.reminderEnabled,
     reminderTimes: habit.reminderTimes,
     scheduledReminders: habit.scheduledReminders,
-    slipAlertEnabled: habit.slipAlertEnabled,
     checklistItems: patch.checklistItems ?? habit.checklistItems,
-    goalIds: habit.linkedGoals?.map((goal) => goal.id),
     endDate: habit.endDate || null,
   }
+  if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
+  if (patch.goalIds !== undefined) request.goalIds = patch.goalIds
+  return request
 }

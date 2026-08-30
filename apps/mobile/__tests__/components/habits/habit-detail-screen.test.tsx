@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   detail: null as HabitDetail | null,
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
+  update: vi.fn(),
+  hasProAccess: true,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -29,7 +31,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log }),
-  useUpdateHabit: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: vi.fn(), isPending: false }),
   useUpdateChecklist: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
   useDeleteHabit: () => ({ mutate: vi.fn() }),
 }))
@@ -38,7 +40,7 @@ vi.mock('@/hooks/use-profile', () => ({
     profile: {
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
-      hasProAccess: true,
+      hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
     },
@@ -62,7 +64,9 @@ vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
 vi.mock('@/components/ui/error-state', () => ({ ErrorState: () => null }))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children) }))
 vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => null }))
-vi.mock('@/components/ui/switch', () => ({ Switch: () => null }))
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) => React.createElement('Switch', { testID: 'slip-alert-switch', checked, onChange }),
+}))
 vi.mock('@/components/ui/icons', () => ({
   Calendar: () => null,
   ChevronDown: () => null,
@@ -73,7 +77,7 @@ vi.mock('@/components/ui/icons', () => ({
   Trash2: () => null,
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title }: { title: string }) => React.createElement('ListRow', { title }),
+  ListRow: ({ title, trailing }: { title: string; trailing?: React.ReactNode }) => React.createElement('ListRow', { title }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children }: { children?: React.ReactNode }) => React.createElement('PillButton', null, children),
@@ -198,6 +202,8 @@ describe('HabitDetailScreen', () => {
     }
     mocks.scopedHabits = new Map()
     mocks.log.mockReset()
+    mocks.update.mockReset()
+    mocks.hasProAccess = true
   })
 
   afterEach(() => {
@@ -278,4 +284,45 @@ describe('HabitDetailScreen', () => {
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
+
+  it('renames an unscoped habit without sending Pro or goal state', () => {
+    mocks.hasProAccess = false
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+    })
+    const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
+    TestRenderer.act(() => {
+      input.props.onChangeText('Read daily')
+    })
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onSubmitEditing()
+    })
+
+    expect(mocks.update).toHaveBeenCalledOnce()
+    const request = mocks.update.mock.calls[0]![0].data
+    expect(request.title).toBe('Read daily')
+    expect(request).not.toHaveProperty('slipAlertEnabled')
+    expect(request).not.toHaveProperty('goalIds')
+  })
+
+  it('sends slip alert state only from the explicit switch action', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    const slipAlert = tree!.root.findByProps({ testID: 'slip-alert-switch' })
+    TestRenderer.act(() => slipAlert.props.onChange(true))
+
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ slipAlertEnabled: true })
+    expect(mocks.update.mock.calls[0]![0].data).not.toHaveProperty('goalIds')
+  })
 })

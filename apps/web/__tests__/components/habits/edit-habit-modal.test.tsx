@@ -19,6 +19,7 @@ const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
+const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ goalIds: args[4] })))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -125,7 +126,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildUpdateHabitRequest: vi.fn(() => ({})),
+  buildUpdateHabitRequest: mockBuildUpdateHabitRequest,
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -135,13 +136,16 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     children,
     onSuggestSetup,
     lockedGeneral,
+    onToggleGoal,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
     lockedGeneral?: boolean | null
+    onToggleGoal?: (goalId: string) => void
   }) => (
     <div data-testid="habit-form-fields">
       <span data-testid="habit-form-fields-locked-general">{String(lockedGeneral)}</span>
+      {onToggleGoal && <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-1')}>goal</button>}
       {onSuggestSetup && (
         <button
           type="button"
@@ -243,6 +247,22 @@ describe('EditHabitModal', () => {
 
     await waitFor(() => {
       expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('sends the goal list from the explicit goal action', async () => {
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+
+    fireEvent.click(screen.getByTestId('goal-trigger'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => {
+      expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+        habitId: 'h-1',
+        data: { goalIds: ['goal-1'] },
+      })
     })
   })
 

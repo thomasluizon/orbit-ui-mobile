@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   detail: null as HabitDetail | null,
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
+  update: vi.fn(),
+  hasProAccess: true,
 }))
 
 vi.mock('next-intl', () => ({
@@ -32,7 +34,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
 
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log }),
-  useUpdateHabit: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: vi.fn(), isPending: false }),
   useUpdateChecklist: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
   useDeleteHabit: () => ({ mutate: vi.fn() }),
 }))
@@ -42,7 +44,7 @@ vi.mock('@/hooks/use-profile', () => ({
     profile: {
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
-      hasProAccess: true,
+      hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
     },
@@ -63,9 +65,13 @@ vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
 vi.mock('@/components/ui/error-state', () => ({ ErrorState: () => null }))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => null }))
-vi.mock('@/components/ui/switch', () => ({ Switch: () => null }))
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => (
+    <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={() => onChange(!checked)} />
+  ),
+}))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title }: { title: string }) => <div>{title}</div>,
+  ListRow: ({ title, trailing }: { title: string; trailing?: React.ReactNode }) => <div>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
@@ -194,6 +200,8 @@ describe('HabitDetailScreen', () => {
     }
     mocks.scopedHabits = new Map()
     mocks.log.mockReset()
+    mocks.update.mockReset()
+    mocks.hasProAccess = true
   })
 
   afterEach(() => {
@@ -254,4 +262,31 @@ describe('HabitDetailScreen', () => {
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date })
     },
   )
+
+  it('renames an unscoped habit without sending Pro or goal state', () => {
+    mocks.hasProAccess = false
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Read' }))
+    const input = screen.getByRole('textbox', { name: 'rename' })
+    fireEvent.change(input, { target: { value: 'Read daily' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(mocks.update).toHaveBeenCalledOnce()
+    const request = mocks.update.mock.calls[0]![0].data
+    expect(request.title).toBe('Read daily')
+    expect(request).not.toHaveProperty('slipAlertEnabled')
+    expect(request).not.toHaveProperty('goalIds')
+  })
+
+  it('sends slip alert state only from the explicit switch action', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.detail.slipAlert' }))
+
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ slipAlertEnabled: true })
+    expect(mocks.update.mock.calls[0]![0].data).not.toHaveProperty('goalIds')
+  })
 })
