@@ -213,7 +213,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
-  const strip = habit ? buildHabitStripModel(habit, logs, today, locale) : null
+  const strip = habit ? buildHabitStripModel(habit, logs, today, locale, profile?.weekStartDay ?? 0) : null
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasProAccess = profile?.hasProAccess ?? false
   const atAstraLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit

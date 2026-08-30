@@ -181,7 +181,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
-  const strip = habit ? buildHabitStripModel(habit, logs, today, profile?.language ?? i18n.language) : null
+  const strip = habit ? buildHabitStripModel(habit, logs, today, profile?.language ?? i18n.language, profile?.weekStartDay ?? 0) : null
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasPro = profile?.hasProAccess ?? false
   const atLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit

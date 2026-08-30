@@ -26,6 +26,7 @@ interface HabitScheduleSource {
   endDate: string | null
   frequencyQuantity: number | null
   frequencyUnit: string | null
+  flexibleTarget?: number | null
   isBadHabit: boolean
   isGeneral: boolean
   isFlexible: boolean
@@ -87,7 +88,42 @@ function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date)
   return false
 }
 
-function isScheduled(source: HabitScheduleSource, date: Date): boolean {
+function flexibleWindowKey(
+  source: HabitScheduleSource,
+  date: Date,
+  weekStartsOn: 0 | 1,
+): string {
+  if (source.frequencyUnit === 'Week') {
+    return formatAPIDate(startOfWeek(date, { weekStartsOn }))
+  }
+  if (source.frequencyUnit === 'Month') {
+    return `${date.getFullYear()}-${date.getMonth()}`
+  }
+  if (source.frequencyUnit === 'Year') return String(date.getFullYear())
+  return formatAPIDate(date)
+}
+
+function isFlexibleTargetMet(
+  source: HabitScheduleSource,
+  logs: readonly HabitLog[],
+  date: Date,
+  weekStartsOn: 0 | 1,
+): boolean {
+  const windowKey = flexibleWindowKey(source, date, weekStartsOn)
+  const windowLogs = logs.filter(
+    (log) => flexibleWindowKey(source, parseAPIDate(log.date), weekStartsOn) === windowKey,
+  )
+  const target = source.flexibleTarget ?? source.frequencyQuantity ?? 1
+  const adjustedTarget = Math.max(0, target - windowLogs.filter((log) => log.value === 0).length)
+  return windowLogs.filter((log) => log.value > 0).length >= adjustedTarget
+}
+
+function isScheduled(
+  source: HabitScheduleSource,
+  date: Date,
+  logs: readonly HabitLog[] = [],
+  weekStartsOn: 0 | 1 = 0,
+): boolean {
   const dateStr = formatAPIDate(date)
   if (source.endDate && dateStr > source.endDate) return false
   if (source.isGeneral) return false
@@ -95,7 +131,10 @@ function isScheduled(source: HabitScheduleSource, date: Date): boolean {
 
   const createdDate = new Date(source.createdAtUtc)
   if (dateStr < formatAPIDate(createdDate)) return false
-  if (source.isFlexible) return true
+  if (source.isFlexible) {
+    if (dateStr < source.dueDate) return false
+    return !isFlexibleTargetMet(source, logs, date, weekStartsOn)
+  }
 
   return matchesFrequency(source, date, parseAPIDate(source.dueDate))
 }
@@ -161,6 +200,7 @@ export function buildHabitStripModel(
   logs: readonly HabitLog[],
   today: Date,
   locale: string,
+  weekStartsOn: 0 | 1 = 0,
 ): HabitStripModel {
   const loggedDates = activeLogDates(logs)
   const days: HabitDayValue[] = []
@@ -170,7 +210,11 @@ export function buildHabitStripModel(
     const date = addDays(today, -offset)
     const dateStr = formatAPIDate(date)
     labels.push(date.toLocaleDateString(locale, { day: 'numeric', month: 'short' }))
-    days.push(scheduledDayOutcome(habit, loggedDates.has(dateStr), isScheduled(habit, date)))
+    days.push(scheduledDayOutcome(
+      habit,
+      loggedDates.has(dateStr),
+      isScheduled(habit, date, logs, weekStartsOn),
+    ))
   }
 
   return { days, labels }
@@ -233,7 +277,7 @@ export function buildHabitHistoryMonth(
     const dateStr = formatAPIDate(date)
     const loggedAt = loggedByDate.get(dateStr) ?? null
     const future = dateStr > todayStr
-    const scheduled = isScheduled(habit, date)
+    const scheduled = isScheduled(habit, date, logs, weekStartsOn)
     const stripOutcome = scheduledDayOutcome(habit, loggedAt !== null, scheduled)
     const outcome = future
       ? 'future' as const

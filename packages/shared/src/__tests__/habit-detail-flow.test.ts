@@ -226,18 +226,23 @@ describe('habit detail flow model', () => {
     expect(oneTime.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('none')
     expect(oneTime.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('not-scheduled')
 
-    const flexible = buildHabitHistoryMonth(
-      {
-        ...recurring,
-        days: ['Monday'],
-        isFlexible: true,
-      },
-      [],
-      today,
-      today,
-      1,
-    )
-    expect(flexible.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('none')
+    const flexibleHabit = {
+      ...recurring,
+      days: [],
+      dueDate: '2026-08-24',
+      frequencyQuantity: 3,
+      flexibleTarget: 3,
+      isFlexible: true,
+    }
+    const satisfiedLogs = [log('2026-08-24'), log('2026-08-25'), log('2026-08-26')]
+    const flexible = buildHabitHistoryMonth(flexibleHabit, satisfiedLogs, today, today, 1)
+    const flexibleStrip = buildHabitStripModel(flexibleHabit, satisfiedLogs, today, 'en', 1)
+    expect(flexible.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('not-scheduled')
+    expect(flexibleStrip.days.at(-2)).toBe('not-scheduled')
+
+    const unmetLogs = satisfiedLogs.slice(0, 2)
+    const unmet = buildHabitHistoryMonth(flexibleHabit, unmetLogs, today, today, 1)
+    expect(unmet.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('none')
 
     const bounded = buildHabitHistoryMonth(
       {
