@@ -170,6 +170,20 @@ describe('deriveLiveChatSuggestions', () => {
     ])
     expect(upcoming[1].values).toEqual({ habit: 'Future walk' })
 
+    const recurringHabit: HabitScheduleItem = {
+      ...habit,
+      scheduledDates: ['2025-01-01', '2025-01-02', '2025-01-03'],
+    }
+    const recurring = deriveLiveChatSuggestions({
+      destination: 'calendario',
+      calendar: { habits: [recurringHabit], logs: {} },
+      profile,
+    })
+    expect(recurring[2]).toEqual({
+      id: 'calendar-one-entry',
+      key: 'shell.composer.live.calendar.oneScheduled',
+    })
+
     const secondHabit: HabitScheduleItem = {
       ...habit,
       id: 'habit-second',

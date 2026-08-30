@@ -109,6 +109,7 @@ function deriveCalendarSuggestions(state: LiveChatSuggestionState): LiveChatSugg
   const entries = state.calendar
     ? Array.from(buildCalendarDayMap(state.calendar).values()).flat()
     : []
+  const scheduledHabitCount = new Set(entries.map((entry) => entry.habitId)).size
   const missed = entries.find((entry) => entry.status === 'missed')
   const upcoming = entries.find((entry) => entry.status === 'upcoming')
   const completed = entries.find((entry) => entry.status === 'completed')
@@ -133,11 +134,11 @@ function deriveCalendarSuggestions(state: LiveChatSuggestionState): LiveChatSugg
         ? suggestion('calendar-sync', 'shell.composer.live.profile.reviewCalendar')
         : suggestion('calendar-sync', 'shell.composer.live.profile.explainCalendar')
 
-  const schedule = entries.length === 1
+  const schedule = scheduledHabitCount === 1
     ? suggestion('calendar-one-entry', 'shell.composer.live.calendar.oneScheduled')
-    : entries.length > 1
+    : scheduledHabitCount > 1
       ? suggestion('calendar-entries', 'shell.composer.live.calendar.scheduled', {
-          count: entries.length,
+          count: scheduledHabitCount,
         })
       : suggestion('calendar-first-entry', 'shell.composer.live.calendar.firstSchedule')
 
