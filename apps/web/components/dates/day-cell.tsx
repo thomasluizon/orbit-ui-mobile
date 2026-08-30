@@ -6,7 +6,7 @@ import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared
 
 function ringStyle(outcome: DayOutcome): CSSProperties {
   if (outcome === 'full') return { background: 'var(--fg-1)' }
-  if (outcome === 'not-scheduled') return { background: 'var(--bg-well)' }
+  if (outcome === 'not-scheduled' || outcome === 'unavailable') return { background: 'var(--bg-well)' }
   if (outcome === 'future') return { boxShadow: 'inset 0 0 0 1px var(--hairline-strong)' }
   if (outcome === 'none') return { boxShadow: 'inset 0 0 0 2px var(--fg-4)' }
   return {}

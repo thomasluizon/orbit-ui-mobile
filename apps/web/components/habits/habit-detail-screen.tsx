@@ -136,7 +136,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
     const base = new Date(2025, 0, 5 + sundayIndex)
     return base.toLocaleDateString(locale, { weekday: 'narrow' })
   })
-  const words = { none: t('missedWord'), partial: t('missedWord'), full: t('doneWord'), notScheduled: t('notScheduledWord'), future: t('futureWord'), of: t('ofWord'), today: t('todayWord'), selected: t('selectedWord'), readOnly: t('readOnlyWord') }
+  const words = { none: t('missedWord'), partial: t('missedWord'), full: t('doneWord'), notScheduled: t('notScheduledWord'), unavailable: t('unavailableWord'), future: t('futureWord'), of: t('ofWord'), today: t('todayWord'), selected: t('selectedWord'), readOnly: t('readOnlyWord') }
   return (
     <Surface>
       <div className="mb-4 flex items-center justify-between gap-4">
@@ -147,7 +147,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
         </div>
       </div>
       <MonthGrid weekdayLabels={weekdayLabels} label={t('calendarLabel', { month: monthLabel })} gap={4}>
-        {days.map((day) => <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={monthLoaded ? day.outcome : 'none'} label={day.loggedAt ? t('loggedAt', { time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }) }) : undefined} words={words} />)}
+        {days.map((day) => <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={day.loggedAt ? t('loggedAt', { time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }) }) : undefined} words={words} />)}
       </MonthGrid>
       {!monthLoaded ? <p className="mt-4 text-sm text-[var(--fg-3)]">{t('olderHistoryUnavailable')}</p> : null}
     </Surface>

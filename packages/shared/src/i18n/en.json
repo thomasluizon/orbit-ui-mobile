@@ -707,6 +707,7 @@
       "missedWord": "not done",
       "todayWord": "today",
       "notScheduledWord": "not scheduled",
+      "unavailableWord": "unavailable",
       "futureWord": "future",
       "selectedWord": "selected",
       "readOnlyWord": "read only",

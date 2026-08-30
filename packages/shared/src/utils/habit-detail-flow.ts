@@ -43,7 +43,7 @@ export interface HabitHistoryDay {
   day: number
   outsideMonth: boolean
   today: boolean
-  outcome: 'none' | 'full' | 'not-scheduled' | 'future'
+  outcome: 'none' | 'full' | 'not-scheduled' | 'future' | 'unavailable'
   loggedAt: string | null
 }
 
@@ -266,6 +266,7 @@ export function buildHabitHistoryMonth(
   const monthStart = startOfMonth(month)
   const gridStart = startOfWeek(monthStart, { weekStartsOn })
   const todayStr = formatAPIDate(today)
+  const cutoffStr = formatAPIDate(habitHistoryCutoff(today))
   const loggedByDate = new Map(
     logs
       .filter((log) => log.value > 0)
@@ -279,13 +280,15 @@ export function buildHabitHistoryMonth(
     const future = dateStr > todayStr
     const scheduled = isScheduled(habit, date, logs, weekStartsOn)
     const stripOutcome = scheduledDayOutcome(habit, loggedAt !== null, scheduled)
-    const outcome = future
-      ? 'future' as const
-      : stripOutcome === 'done'
-        ? 'full' as const
-        : stripOutcome === 'missed'
-          ? 'none' as const
-          : 'not-scheduled' as const
+    const outcome = dateStr < cutoffStr
+      ? 'unavailable' as const
+      : future
+        ? 'future' as const
+        : stripOutcome === 'done'
+          ? 'full' as const
+          : stripOutcome === 'missed'
+            ? 'none' as const
+            : 'not-scheduled' as const
 
     return {
       date,

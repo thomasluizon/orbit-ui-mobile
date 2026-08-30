@@ -184,7 +184,7 @@ describe('habit detail flow model', () => {
       everyOtherYear,
       [],
       new Date(2024, 1, 1),
-      new Date(2026, 2, 1),
+      new Date(2024, 2, 1),
       1,
     )
     expect(leapYear.find((day) => day.dateStr === '2024-02-29')?.outcome).toBe('none')
@@ -193,7 +193,7 @@ describe('habit detail flow model', () => {
       everyOtherYear,
       [],
       new Date(2025, 1, 1),
-      new Date(2026, 2, 1),
+      new Date(2025, 2, 1),
       1,
     )
     expect(skippedYear.find((day) => day.dateStr === '2025-02-28')?.outcome).toBe('not-scheduled')
@@ -288,6 +288,7 @@ describe('habit detail flow model', () => {
 
   it('bounds loaded history to the API window and navigation to start and current months', () => {
     expect(isHabitHistoryMonthLoaded(new Date(2025, 6, 1), today)).toBe(false)
+    expect(isHabitHistoryMonthLoaded(new Date(2025, 7, 1), today)).toBe(true)
     expect(isHabitHistoryMonthLoaded(new Date(2026, 7, 1), today)).toBe(true)
     expect(canNavigateHabitHistoryBack(new Date(2026, 7, 1), '2026-07-03T12:00:00Z')).toBe(true)
     expect(canNavigateHabitHistoryBack(new Date(2026, 6, 1), '2026-07-03T12:00:00Z')).toBe(false)
@@ -334,6 +335,26 @@ describe('habit detail flow model', () => {
     expect(unscoped.completed).toBe(false)
     expect(unscoped.habit.isCompleted).toBe(false)
     expect(unscoped.canLog).toBe(false)
+  })
+
+  it('marks only pre-cutoff days unavailable in the overlapping month', () => {
+    const daily = {
+      ...recurring,
+      createdAtUtc: '2025-01-01T12:00:00Z',
+      days: [],
+      frequencyUnit: 'Day',
+    }
+    const overlap = buildHabitHistoryMonth(
+      daily,
+      [log('2025-08-29')],
+      new Date(2025, 7, 1),
+      today,
+      1,
+    )
+
+    expect(overlap.find((day) => day.dateStr === '2025-08-27')?.outcome).toBe('unavailable')
+    expect(overlap.find((day) => day.dateStr === '2025-08-28')?.outcome).toBe('none')
+    expect(overlap.find((day) => day.dateStr === '2025-08-29')?.outcome).toBe('full')
   })
 
   it('distinguishes recurring child instances from range completion', () => {

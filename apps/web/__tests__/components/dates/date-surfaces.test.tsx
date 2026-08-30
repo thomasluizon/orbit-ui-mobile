@@ -11,6 +11,7 @@ const cellWords: DayCellWords = {
   partial: 'partial',
   full: 'full',
   notScheduled: 'not scheduled',
+  unavailable: 'not loaded',
   future: 'upcoming',
   of: 'of',
   today: 'today',
@@ -74,6 +75,12 @@ describe('DayCell', () => {
     const cell = screen.getByRole('img', { name: 'March 13, upcoming, selected, read only' })
     expect(cell).toHaveAttribute('data-selected')
     expect(cell.parentElement).toBe(container)
+
+    rerender(<DayCell day={13} label="March 13" words={cellWords} outcome="unavailable" />)
+    expect(screen.getByRole('img', { name: 'March 13, not loaded, read only' })).toHaveAttribute(
+      'data-outcome',
+      'unavailable',
+    )
 
     rerender(<DayCell day={14} label="March 14" words={cellWords} scheduled={0} />)
     expect(screen.getByRole('img', { name: 'March 14, not scheduled, read only' })).toHaveAttribute(
