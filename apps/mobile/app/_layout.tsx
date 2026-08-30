@@ -41,7 +41,11 @@ import {
   getReviewMomentLevelKey,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
-import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import {
+  formatAPIDate,
+  isShareableAchievement,
+  resolveShellDestination,
+} from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
   useReviewReminderStore,
@@ -481,12 +485,10 @@ function AppBottomTabBar({ pathname }: Readonly<{ pathname: string }>) {
   const router = useRouter()
   const setActiveView = useUIStore((s) => s.setActiveView)
 
-  const active: BottomTabId = useMemo(() => {
-    if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendario'
-    if (pathname === '/progress' || pathname.startsWith('/progress/')) return 'progresso'
-    if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'perfil'
-    return 'hoje'
-  }, [pathname])
+  const active: BottomTabId | null = useMemo(
+    () => resolveShellDestination(pathname),
+    [pathname],
+  )
 
   const handleTab = (id: BottomTabId) => {
     if (id === 'hoje') {

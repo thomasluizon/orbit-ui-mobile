@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   getTodayBoundary,
@@ -14,7 +15,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { TodayDateControl } from '@/components/today/today-shell'
+import { TodayDateControl } from '@/components/today/today-date-control'
 import { TodayModals } from '@/components/today/today-modals'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -47,10 +48,10 @@ export default function TodayScreen() {
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [todayFocused, setTodayFocused] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
-  const showCompleted = useUIStore((state) => state.showCompleted)
-  const setShowCompleted = useUIStore((state) => state.setShowCompleted)
+  const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
@@ -76,13 +77,26 @@ export default function TodayScreen() {
   const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
-    habitsById,
+    selectedDateStr: date.dateStr,
+    today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
     visibleHabitIds,
+    habitsById,
     closeControlsMenu,
   })
+  const clearSelection = selection.clearSelection
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
+
+  useFocusEffect(
+    useCallback(() => {
+      setTodayFocused(true)
+      return () => {
+        clearSelection()
+        setTodayFocused(false)
+      }
+    }, [clearSelection]),
+  )
 
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen ||
@@ -104,7 +118,7 @@ export default function TodayScreen() {
   ])
 
   useShellComposerSlot(
-    isSelectMode,
+    isSelectMode && todayFocused,
     (
       <View style={styles.selectionTray}>
         <SelectionTray
@@ -115,7 +129,7 @@ export default function TodayScreen() {
           onLog={selection.handleOpenBulkLog}
           onSkip={selection.handleOpenBulkSkip}
           onDelete={selection.handleOpenBulkDelete}
-          onClose={selection.clearSelection}
+          onClose={clearSelection}
           countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
           selectAllLabel={t('common.selectAll')}
           deselectAllLabel={t('common.deselectAll')}
@@ -185,8 +199,7 @@ export default function TodayScreen() {
         selectedHabitIds={selectedHabitIds}
         listHeader={listHeader}
         onCreatePress={() => setShowCreateModal(true)}
-        onSeeUpcoming={date.goToNextDay}
-        onLogHabit={(habit) => handleHabitLogged(habit.id)}
+        onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
         onDetailHabit={setDetailHabit}
         onEditHabit={(habit, onSaved) => {
           setEditHabit(habit)
@@ -202,6 +215,7 @@ export default function TodayScreen() {
         onCloseCreateModal={() => setShowCreateModal(false)}
         createInitialDate={date.dateStr}
         detailHabit={detailHabit}
+        selectedDate={date.dateStr}
         onCloseDetail={() => setDetailHabit(null)}
         onHabitLogged={handleHabitLogged}
         editHabit={editHabit}

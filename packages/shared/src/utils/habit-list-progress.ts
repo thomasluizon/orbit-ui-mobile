@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '../types/habit'
+import { hasHabitScheduleOnDate } from './habits'
 
 export interface HabitDateBucket {
   key: string
@@ -69,6 +70,13 @@ export interface ParentPromptProgress {
   loggedDone: number
 }
 
+export type HabitResolutionMode = 'log' | 'skip'
+
+export interface HabitResolution {
+  habitId: string
+  mode: HabitResolutionMode
+}
+
 export interface ParentPromptProgressOptions {
   parentId: string
   getChildren: (parentId: string) => NormalizedHabit[]
@@ -76,14 +84,49 @@ export interface ParentPromptProgressOptions {
   isDueOnSelectedDate: (habit: NormalizedHabit) => boolean
   isListView: boolean
   skippedIds: ReadonlySet<string>
-  assumeCompletedId?: string
+  resolvedModes?: ReadonlyMap<string, HabitResolutionMode>
+}
+
+export type ParentSettlementDecision = 'log' | 'skip' | null
+
+export function computeParentSettlementDecision(
+  parent: NormalizedHabit | null,
+  children: ParentPromptProgress,
+  promptDate: string,
+): ParentSettlementDecision {
+  if (
+    !parent ||
+    (!parent.isGeneral &&
+      !parent.isOverdue &&
+      !hasHabitScheduleOnDate(parent, promptDate))
+  ) {
+    return null
+  }
+
+  const isSkippedInRange =
+    parent.flexibleTarget != null &&
+    parent.flexibleCompleted != null &&
+    parent.flexibleCompleted >= parent.flexibleTarget &&
+    !parent.isLoggedInRange
+
+  if (
+    parent.isCompleted ||
+    parent.isLoggedInRange ||
+    isSkippedInRange ||
+    children.total === 0 ||
+    children.done < children.total
+  ) {
+    return null
+  }
+
+  return children.loggedDone > 0 ? 'log' : 'skip'
 }
 
 /**
  * Aggregates a parent habit's sub-habit resolution for the auto-resolve-parent
  * prompt. A sub-habit counts toward `total` when it is due today, overdue,
  * already logged, or was just skipped; it counts toward `done` when logged,
- * completed, skipped, or matching `assumeCompletedId`. `loggedDone` tracks how
+ * completed, skipped, or present in `resolvedModes`. `loggedDone` tracks how
  * many of the done sub-habits were resolved by logging rather than skipping, so
  * the caller can offer to LOG the parent (any logged) or SKIP it (all skipped).
  *
@@ -102,7 +145,7 @@ export function computeParentPromptProgress(
     isDueOnSelectedDate,
     isListView,
     skippedIds,
-    assumeCompletedId,
+    resolvedModes,
   } = options
 
   function computeChild(child: NormalizedHabit): ParentPromptProgress {
@@ -116,8 +159,11 @@ export function computeParentPromptProgress(
       child.flexibleCompleted != null &&
       child.flexibleCompleted >= child.flexibleTarget &&
       !child.isLoggedInRange
-    const isAssumedCompleted = child.id === assumeCompletedId && !skippedIds.has(child.id)
-    const isSkipped = !isAssumedCompleted && (skippedIds.has(child.id) || isServerKnownSkip)
+    const resolvedMode = resolvedModes?.get(child.id)
+    const isAssumedCompleted = resolvedMode === 'log'
+    const isSkipped =
+      resolvedMode === 'skip' ||
+      (resolvedMode == null && (skippedIds.has(child.id) || isServerKnownSkip))
     const isResolved =
       child.isCompleted ||
       child.isLoggedInRange ||

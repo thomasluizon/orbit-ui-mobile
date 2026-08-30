@@ -16,6 +16,10 @@ function formatShortDate(date: Date, localePattern: 'en' | 'pt'): string {
 }
 
 export function parseISO(value: string): Date {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (dateOnly) {
+    return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+  }
   return new Date(value)
 }
 
@@ -49,7 +53,14 @@ export function differenceInDays(left: Date | number | string, right: Date | num
 }
 
 export function differenceInCalendarDays(left: Date | number | string, right: Date | number | string): number {
-  return differenceInDays(left, right)
+  const leftStart = startOfDay(left)
+  const rightStart = startOfDay(right)
+  return Math.round((leftStart.getTime() - rightStart.getTime()) / 86400000)
+}
+
+export function startOfDay(dateInput: Date | number | string): Date {
+  const date = toDate(dateInput)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
 export function isSameDay(left: Date | number | string, right: Date | number | string): boolean {

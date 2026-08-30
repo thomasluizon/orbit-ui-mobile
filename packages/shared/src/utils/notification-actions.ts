@@ -32,6 +32,16 @@ export function isViewableNotificationUrl(
     !url.startsWith('/u/')
 }
 
+const ABSORBED_PROGRESS_ROUTES = ['/streak', '/achievements', '/retrospective'] as const
+
+export function resolveNotificationUrl(url: string): string {
+  const pathname = url.split(/[?#]/, 1)[0] ?? url
+  const isAbsorbedRoute = ABSORBED_PROGRESS_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  )
+  return isAbsorbedRoute ? '/progress' : url
+}
+
 export function getNotificationDetailActionVisibility(
   notification: Pick<NotificationItem, 'isRead' | 'url'>,
 ): { canView: boolean; canMarkAsRead: boolean } {

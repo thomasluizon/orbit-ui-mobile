@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
+  buildUnresolvedBulkFailures,
   buildOptimisticSkipPatch,
   findHabitInList,
   normalizeHabits,
@@ -23,6 +24,7 @@ import {
   restoreHabitLists,
   snapshotHabitLists,
   updateHabitLists,
+  type HabitListSnapshots,
 } from '@/lib/habit-mutation-helpers'
 import type {
   HabitScheduleItem,
@@ -38,6 +40,7 @@ import type {
   BulkLogItemRequest,
   BulkSkipItemRequest,
   BulkDeleteResponse,
+  BulkMutationOutcome,
   BulkLogResult,
   BulkSkipResult,
 } from '@orbit/shared/types/habit'
@@ -57,7 +60,6 @@ import {
   createSubHabit as createSubHabitAction,
   moveHabitParent as moveHabitParentAction,
   bulkCreateHabits as bulkCreateHabitsAction,
-  bulkDeleteHabits as bulkDeleteHabitsAction,
   bulkLogHabits as bulkLogHabitsAction,
   bulkSkipHabits as bulkSkipHabitsAction,
 } from '@/app/actions/habits'
@@ -66,6 +68,33 @@ import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+
+function restoreRejectedBulkItems(
+  queryClient: ReturnType<typeof useQueryClient>,
+  previousLists: HabitListSnapshots,
+  results: readonly { habitId: string; status: 'Success' | 'Failed' }[],
+): void {
+  const rejectedHabitIds = results.flatMap((item) =>
+    item.status !== 'Success' ? [item.habitId] : [],
+  )
+
+  for (const [queryKey, previousItems] of previousLists) {
+    if (!previousItems) continue
+
+    queryClient.setQueryData<HabitScheduleItem[]>(queryKey, (currentItems) => {
+      if (!currentItems) return currentItems
+
+      return rejectedHabitIds.reduce((nextItems, habitId) => {
+        const previousHabit = findHabitInList(previousItems, habitId)
+        return previousHabit
+          ? optimisticPatchHabit(nextItems, habitId, {
+              isCompleted: previousHabit.isCompleted,
+            })
+          : nextItems
+      }, currentItems)
+    })
+  }
+}
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -524,13 +553,28 @@ export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (habitIds: string[]): Promise<BulkDeleteResponse> => {
+    mutationFn: async (habitIds: string[]): Promise<BulkMutationOutcome<BulkDeleteResponse>> => {
       const results: BulkDeleteResponse['results'] = []
-      for (let index = 0; index < habitIds.length; index += 100) {
-        const response = await bulkDeleteHabitsAction(habitIds.slice(index, index + 100))
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+      const ambiguousIds: string[] = []
+      for (let index = 0; index < habitIds.length; index += 4) {
+        const chunk = habitIds.slice(index, index + 4)
+        const outcomes = await Promise.allSettled(chunk.map((habitId) => deleteHabitAction(habitId)))
+        outcomes.forEach((outcome, itemIndex) => {
+          const habitId = chunk[itemIndex]
+          if (!habitId) return
+          if (outcome.status === 'rejected') {
+            ambiguousIds.push(habitId)
+            return
+          }
+          results.push({
+            index: index + itemIndex,
+            status: 'Success',
+            habitId,
+            error: null,
+          })
+        })
       }
-      return { results }
+      return { results, ambiguousIds }
     },
 
     onSettled: () => {
@@ -550,10 +594,47 @@ export function useBulkLogHabits() {
     mutationFn: async (items: BulkLogItemRequest[]): Promise<BulkLogResult> => {
       const results: BulkLogResult['results'] = []
       for (let index = 0; index < items.length; index += 100) {
-        const response = await bulkLogHabitsAction(items.slice(index, index + 100))
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        try {
+          const response = await bulkLogHabitsAction(items.slice(index, index + 100))
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error) {
+          results.push(...buildUnresolvedBulkFailures(
+            items.slice(index),
+            index,
+            error,
+            (item, failureIndex, message) => ({
+              index: failureIndex,
+              status: 'Failed' as const,
+              habitId: item.habitId,
+              logId: null,
+              error: message,
+            }),
+          ))
+          break
+        }
       }
       return { results }
+    },
+
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const completedIds = items.map((item) => item.habitId)
+      updateHabitLists(queryClient, (currentItems) =>
+        completedIds.reduce(
+          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+          currentItems,
+        ),
+      )
+      return { previousLists }
+    },
+
+    onError: (_error, _items, context) => {
+      if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
+    },
+
+    onSuccess: (result, _items, context) => {
+      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
     },
 
     onSettled: () => {
@@ -570,13 +651,40 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkSkipResult> => {
+    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkMutationOutcome<BulkSkipResult>> => {
       const results: BulkSkipResult['results'] = []
+      const ambiguousIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
-        const response = await bulkSkipHabitsAction(items.slice(index, index + 100))
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        const chunk = items.slice(index, index + 100)
+        try {
+          const response = await bulkSkipHabitsAction(chunk)
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch {
+          ambiguousIds.push(...chunk.map((item) => item.habitId))
+        }
       }
-      return { results }
+      return { results, ambiguousIds }
+    },
+
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const completedIds = items.map((item) => item.habitId)
+      updateHabitLists(queryClient, (currentItems) =>
+        completedIds.reduce(
+          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+          currentItems,
+        ),
+      )
+      return { previousLists }
+    },
+
+    onError: (_error, _items, context) => {
+      if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
+    },
+
+    onSuccess: (result, _items, context) => {
+      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
     },
 
     onSettled: () => {

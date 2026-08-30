@@ -71,7 +71,7 @@ describe('StreakBadge (mobile)', () => {
     TestRenderer.act(() => {
       button?.props.onPress?.({ stopPropagation: () => {} })
     })
-    expect(pushMock).toHaveBeenCalledWith('/streak')
+    expect(pushMock).toHaveBeenCalledWith('/progress')
   })
 
   it('renders the badge as a button with an accessible label', () => {
@@ -87,7 +87,7 @@ describe('StreakBadge (mobile)', () => {
     TestRenderer.act(() => {
       button?.props.onPress?.({ stopPropagation: () => {} })
     })
-    expect(pushMock).toHaveBeenCalledWith('/streak')
+    expect(pushMock).toHaveBeenCalledWith('/progress')
   })
 
   it('stops propagation so the header go-to-today does not fire', () => {

@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
@@ -17,6 +18,7 @@ export function UsageCard({
   tokens: Tokens
 }>) {
   return (
+    <View style={{ gap: 12 }}>
     <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
       <Text style={[styles.cardLabel, { color: tokens.fg3 }]}>
         {t('upgrade.billing.usage.title')}
@@ -42,6 +44,13 @@ export function UsageCard({
         label={t('upgrade.billing.usage.aiMessages')}
 
       />
+    </View>
+    {usageUrgent ? (
+      <CapacityNotice
+        message={t('upgrade.billing.usage.nearLimit')}
+        body={t('upgrade.billing.usage.nearLimitBody')}
+      />
+    ) : null}
     </View>
   )
 }

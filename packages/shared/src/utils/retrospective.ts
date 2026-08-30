@@ -1,9 +1,10 @@
-import { z } from 'zod'
 import { API } from '../api/endpoints'
 import {
   retrospectiveHabitStatSchema,
   retrospectiveMetricsSchema,
+  retrospectiveResponseSchema,
 } from '../types/gamification'
+import type { z } from 'zod'
 
 export const RETROSPECTIVE_PERIODS = [
   'week',
@@ -19,19 +20,7 @@ export type RetrospectiveHabitStat = z.infer<typeof retrospectiveHabitStatSchema
 
 export type RetrospectiveMetrics = z.infer<typeof retrospectiveMetricsSchema>
 
-export interface RetrospectiveNarrative {
-  highlights: string
-  missed: string
-  trends: string
-  suggestion: string
-}
-
-export interface RetrospectiveResponse {
-  period: RetrospectivePeriod
-  metrics: RetrospectiveMetrics
-  narrative: RetrospectiveNarrative
-  fromCache: boolean
-}
+export type RetrospectiveResponse = z.infer<typeof retrospectiveResponseSchema>
 
 export const RETROSPECTIVE_CACHE_PREFIX = 'orbit_retrospective_cache_'
 

@@ -166,7 +166,12 @@ const MERGE_INTO_CREATE_TYPES = new Set<string>([
   'updateTag',
 ])
 
-const DROP_CREATE_TYPES = new Set<string>(['deleteHabit', 'deleteGoal', 'deleteTag'])
+const DROP_CREATE_TYPES = new Set<string>([
+  'deleteHabit',
+  'bulkCascadeDeleteHabits',
+  'deleteGoal',
+  'deleteTag',
+])
 
 const LAST_WRITE_WINS_TYPES = new Set<string>([
   'setLanguage',
@@ -183,6 +188,20 @@ const LAST_WRITE_WINS_TYPES = new Set<string>([
   'markAllNotificationsRead',
   'deleteAllNotifications',
 ])
+
+const FIRST_WRITE_WINS_TYPES = new Set<string>(['logHabit'])
+
+export function findUnfinalizedFirstWrite(
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): PersistedQueuedMutation | null {
+  if (!mutation.dedupeKey || !FIRST_WRITE_WINS_TYPES.has(mutation.type)) return null
+
+  return getAll().find(
+    (queuedMutation) =>
+      queuedMutation.type === mutation.type &&
+      queuedMutation.dedupeKey === mutation.dedupeKey,
+  ) ?? null
+}
 
 function mergePayload(existing: unknown, incoming: unknown): unknown {
   if (
@@ -267,7 +286,7 @@ export function enqueue(
     retries?: number
     maxRetries?: number
   },
-): void {
+): string {
   const normalized: QueuedMutation = {
     ...mutation,
     retries: mutation.retries ?? 0,
@@ -276,8 +295,13 @@ export function enqueue(
     dependsOn: mutation.dependsOn ?? [],
   }
 
+  const existingMutation = findUnfinalizedFirstWrite(normalized)
+
+  if (existingMutation) return existingMutation.id
+
   const compacted = compactQueuedMutations(getAll(), normalized)
   replaceAll(compacted)
+  return normalized.id
 }
 
 export function dequeue(): PersistedQueuedMutation | null {

@@ -1276,16 +1276,12 @@ describe('useBulkDeleteHabits', () => {
     mockFetch.mockReset()
   })
 
-  it('calls bulkDeleteHabits action', async () => {
+  it('deletes each selected root through the single-habit action', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/app/actions/habits')
-    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
-    mockedBulkDelete.mockResolvedValue({
-      results: [
-        { index: 0, status: 'Success' as const, habitId: 'h-1', error: null },
-        { index: 1, status: 'Success' as const, habitId: 'h-2', error: null },
-      ],
-    })
+    const { deleteHabit } = await import('@/app/actions/habits')
+    const mockedDeleteHabit = vi.mocked(deleteHabit)
+    mockedDeleteHabit.mockReset()
+    mockedDeleteHabit.mockResolvedValue(undefined)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
@@ -1294,26 +1290,33 @@ describe('useBulkDeleteHabits', () => {
       await result.current.mutateAsync(['h-1', 'h-2'])
     })
 
-    expect(mockedBulkDelete).toHaveBeenCalledWith(['h-1', 'h-2'])
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(1, 'h-1')
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(2, 'h-2')
   })
 
-  it('chunks more than 100 rows and merges globally indexed results', async () => {
+  it('limits parallel deletes to four and preserves global result indices', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/app/actions/habits')
-    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
-    mockedBulkDelete.mockReset()
-    mockedBulkDelete.mockImplementation(async (ids) => ({
-      results: ids.map((habitId, index) => ({ index, status: 'Success' as const, habitId, error: null })),
-    }))
-    const ids = Array.from({ length: 201 }, (_, index) => `h-${index}`)
+    const { deleteHabit } = await import('@/app/actions/habits')
+    const mockedDeleteHabit = vi.mocked(deleteHabit)
+    let activeDeletes = 0
+    let maximumActiveDeletes = 0
+    mockedDeleteHabit.mockReset()
+    mockedDeleteHabit.mockImplementation(async () => {
+      activeDeletes += 1
+      maximumActiveDeletes = Math.max(maximumActiveDeletes, activeDeletes)
+      await Promise.resolve()
+      activeDeletes -= 1
+    })
+    const ids = Array.from({ length: 9 }, (_, index) => `h-${index}`)
     const wrapper = createWrapper()
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
 
-    let response: Awaited<ReturnType<typeof bulkDeleteHabits>> | undefined
+    let response: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined
     await act(async () => { response = await result.current.mutateAsync(ids) })
 
-    expect(mockedBulkDelete.mock.calls.map(([chunk]) => chunk.length)).toEqual([100, 100, 1])
-    expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 201 }, (_, index) => index))
+    expect(maximumActiveDeletes).toBe(4)
+    expect(mockedDeleteHabit.mock.calls.map(([habitId]) => habitId)).toEqual(ids)
+    expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 9 }, (_, index) => index))
   })
 })
 
@@ -1343,6 +1346,69 @@ describe('useBulkLogHabits', () => {
 
     expect(mockedBulkLog).toHaveBeenCalledWith(items)
   })
+
+  it('optimistically completes every dated item in the viewed list', async () => {
+    const { useBulkLogHabits } = await import('@/hooks/use-habits')
+    const { bulkLogHabits } = await import('@/app/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', isCompleted: false }),
+      makeScheduleItem({ id: 'h-2', isCompleted: false }),
+    ])
+    const { result } = renderHook(() => useBulkLogHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'h-1', date: '2026-04-01' },
+        { habitId: 'h-2', date: '2026-04-01' },
+      ])
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({})))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'h-1', isCompleted: true }),
+        expect.objectContaining({ id: 'h-2', isCompleted: true }),
+      ]))
+  })
+
+  it('restores only the rejected sibling after a mixed bulk log result', async () => {
+    const { bulkLogHabits } = await import('@/app/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({
+      results: [
+        { index: 0, status: 'Success', habitId: 'child-accepted', logId: 'log-1', error: null },
+        { index: 1, status: 'Failed', habitId: 'child-rejected', logId: null, error: 'Rejected' },
+      ],
+    })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeScheduleChild({ id: 'child-accepted', isCompleted: false }),
+          makeScheduleChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ])
+    const { result } = renderHook(() => useBulkLogHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'child-accepted' },
+        { habitId: 'child-rejected' },
+      ])
+    })
+
+    const children = queryClient
+      .getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+  })
 })
 
 describe('useBulkSkipHabits', () => {
@@ -1370,5 +1436,68 @@ describe('useBulkSkipHabits', () => {
     })
 
     expect(mockedBulkSkip).toHaveBeenCalledWith(items)
+  })
+
+  it('optimistically completes every dated item in the viewed list', async () => {
+    const { useBulkSkipHabits } = await import('@/hooks/use-habits')
+    const { bulkSkipHabits } = await import('@/app/actions/habits')
+    vi.mocked(bulkSkipHabits).mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', isCompleted: false }),
+      makeScheduleItem({ id: 'h-2', isCompleted: false }),
+    ])
+    const { result } = renderHook(() => useBulkSkipHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'h-1', date: '2026-04-01' },
+        { habitId: 'h-2', date: '2026-04-01' },
+      ])
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({})))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'h-1', isCompleted: true }),
+        expect.objectContaining({ id: 'h-2', isCompleted: true }),
+      ]))
+  })
+
+  it('restores only the rejected sibling after a mixed bulk skip result', async () => {
+    const { bulkSkipHabits } = await import('@/app/actions/habits')
+    vi.mocked(bulkSkipHabits).mockResolvedValue({
+      results: [
+        { index: 0, status: 'Success', habitId: 'child-accepted', error: null },
+        { index: 1, status: 'Failed', habitId: 'child-rejected', error: 'Rejected' },
+      ],
+    })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeScheduleChild({ id: 'child-accepted', isCompleted: false }),
+          makeScheduleChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ])
+    const { result } = renderHook(() => useBulkSkipHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'child-accepted' },
+        { habitId: 'child-rejected' },
+      ])
+    })
+
+    const children = queryClient
+      .getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
   })
 })

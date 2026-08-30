@@ -4,7 +4,6 @@ import {
   type QueuedMutationBuildOptions,
 } from './offline-mutations'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
-import type { ZodType } from 'zod'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 
@@ -19,7 +18,7 @@ export async function performQueuedApiMutation<
 }: QueuedMutationBuildOptions & {
   execute?: (mutation: QueuedMutation) => Promise<TResult>
   queuedResult?: TResult
-  queuedResultFactory?: (mutationId: string) => TQueuedResult
+  queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
 }): Promise<TResult | TQueuedResult> {
   return runQueuedMutation({
     mutation,
@@ -35,9 +34,9 @@ export async function performQueuedApiMutation<
                 ? undefined
                 : JSON.stringify(resolvedMutation.payload),
           },
-          getMutationResponseSchema(resolvedMutation.type) as ZodType<TResult> | undefined,
+          getMutationResponseSchema<TResult>(resolvedMutation.type),
         )),
-    queuedResult: queuedResult as TResult,
+    queuedResult,
     queuedResultFactory,
   })
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import TodayPage from '@/app/(app)/page'
+import { TodayPageClient } from '@/app/(app)/today-page-client'
 
 const mocks = vi.hoisted(() => ({
   view: {
@@ -40,11 +40,11 @@ describe('web Today Astra owned surfaces', () => {
   })
 
   it('stands down while the create surface is open', () => {
-    const page = render(<TodayPage />)
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
     expect(screen.getByTestId('today-astra')).toHaveAttribute('data-suppressed', 'false')
 
     mocks.view.showCreateModal = true
-    page.rerender(<TodayPage />)
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(screen.getByTestId('today-astra')).toHaveAttribute('data-suppressed', 'true')
   })

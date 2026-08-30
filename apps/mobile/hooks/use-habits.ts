@@ -41,6 +41,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import {
   createTempEntityId,
   isQueuedResult,
+  OfflineMutationPreflightError,
   type QueuedMarker,
 } from '@/lib/offline-mutations'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -49,6 +50,7 @@ import {
   optimisticInsertSubHabit,
   optimisticPatchHabit,
   optimisticRemoveHabits,
+  restoreDeletedHabits,
   optimisticReorderHabits,
   optimisticToggleCompletion,
   optimisticUpdateChecklist,
@@ -61,6 +63,7 @@ import {
   buildOptimisticSubHabit,
   finalizeHabitMutation,
   optimisticMoveHabitParent,
+  restoreHabitCompletionForIds,
   restoreHabitLists,
   snapshotHabitLists,
   updateHabitLists,
@@ -81,12 +84,21 @@ import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
+type LogHabitMutationInput = {
+  habitId: string
+  date?: string
+  intent: 'log' | 'unlog'
+}
 type CreateSubHabitMutationInput = {
   parentId: string
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+type OfflineBulkMutationOutcome<TResponse> = TResponse & {
+  ambiguousIds: string[]
+  offlineFailureIds: string[]
+}
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -113,11 +125,12 @@ export function useLogHabit() {
   return useMutation<
     LogHabitResponse | QueuedMarker,
     Error,
-    { habitId: string; date?: string },
+    LogHabitMutationInput,
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: ({ habitId, date }) =>
-      performQueuedApiMutation<LogHabitResponse>({
+    mutationFn: ({ habitId, date }) => {
+      const occurrenceDate = date ?? formatAPIDate(new Date())
+      return performQueuedApiMutation<LogHabitResponse>({
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
@@ -125,7 +138,9 @@ export function useLogHabit() {
         payload: date ? { date } : undefined,
         entityType: 'habit',
         targetEntityId: habitId,
-      }),
+        dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+      })
+    },
 
     onMutate: ({ habitId, date }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -135,10 +150,6 @@ export function useLogHabit() {
       if (!date) {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
-
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(date ?? formatAPIDate(new Date()))
 
       return { previousLists }
     },
@@ -154,7 +165,15 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      if (isQueuedResult(response)) {
+      const queuedResult = isQueuedResult(response)
+
+      if (variables.intent === 'log' && (!queuedResult || response.retained !== true)) {
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+      }
+
+      if (queuedResult) {
         showInfo(t('todayAstra.offlineLog'))
         return
       }
@@ -822,35 +841,48 @@ export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkDeleteResponse,
+    OfflineBulkMutationOutcome<BulkDeleteResponse>,
     Error,
     string[],
-    { previousLists: HabitListSnapshots; deletedCount: number }
+    { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (habitIds) => {
       const results: BulkDeleteResponse['results'] = []
-      for (let index = 0; index < habitIds.length; index += 100) {
-        const chunk = habitIds.slice(index, index + 100)
-        const response = await performQueuedApiMutation<BulkDeleteResponse, BulkDeleteResponse & QueuedMarker>({
-          type: 'bulkDeleteHabits',
-          scope: 'habits',
-          endpoint: API.habits.bulk,
-          method: 'DELETE',
-          payload: { habitIds: chunk },
-          queuedResultFactory: (mutationId) => ({
-            results: chunk.map((habitId, itemIndex) => ({
-              index: itemIndex,
-              status: 'Success' as const,
-              habitId,
-              error: null,
-            })),
-            queued: true as const,
-            queuedMutationId: mutationId,
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
+      for (let index = 0; index < habitIds.length; index += 4) {
+        const chunk = habitIds.slice(index, index + 4)
+        const outcomes = await Promise.allSettled(chunk.map((habitId) =>
+          performQueuedApiMutation<void>({
+            type: 'bulkCascadeDeleteHabits',
+            scope: 'habits',
+            endpoint: API.habits.delete(habitId),
+            method: 'DELETE',
+            payload: null,
+            entityType: 'habit',
+            targetEntityId: habitId,
           }),
+        ))
+        outcomes.forEach((outcome, itemIndex) => {
+          const habitId = chunk[itemIndex]
+          if (!habitId) return
+          if (outcome.status === 'rejected') {
+            if (outcome.reason instanceof OfflineMutationPreflightError) {
+              offlineFailureIds.push(habitId)
+            } else {
+              ambiguousIds.push(habitId)
+            }
+            return
+          }
+          results.push({
+            index: index + itemIndex,
+            status: 'Success',
+            habitId,
+            error: null,
+          })
         })
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
       }
-      return { results }
+      return { results, ambiguousIds, offlineFailureIds }
     },
 
     onMutate: async (habitIds) => {
@@ -858,15 +890,27 @@ export function useBulkDeleteHabits() {
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, habitIds))
-      adjustHabitCount(queryClient, -habitIds.length)
 
-      return { previousLists, deletedCount: habitIds.length }
+      return { previousLists }
     },
 
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, context.deletedCount)
+    },
+
+    onSuccess: (data, _vars, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      if (failedIds.size === 0) return
+      for (const [key, snapshot] of context.previousLists) {
+        if (!snapshot) continue
+        queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
+          current ? restoreDeletedHabits(current, snapshot, failedIds) : current,
+        )
+      }
     },
 
     onSettled: (data, error) =>
@@ -881,54 +925,57 @@ export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkLogResult,
+    OfflineBulkMutationOutcome<BulkLogResult>,
     Error,
     BulkLogItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (items) => {
       const results: BulkLogResult['results'] = []
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
-        const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
-          type: 'bulkLogHabits',
-          scope: 'habits',
-          endpoint: API.habits.bulkLog,
-          method: 'POST',
-          payload: { items: chunk },
-          queuedResultFactory: (mutationId) => ({
-            results: chunk.map((item, itemIndex) => ({
-              index: itemIndex,
-              status: 'Success' as const,
-              habitId: item.habitId,
-              logId: null,
-              error: null,
-            })),
-            queued: true as const,
-            queuedMutationId: mutationId,
-          }),
-        })
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        try {
+          const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
+            type: 'bulkLogHabits',
+            scope: 'habits',
+            endpoint: API.habits.bulkLog,
+            method: 'POST',
+            payload: { items: chunk },
+            queuedResultFactory: (mutationId) => ({
+              results: chunk.map((item, itemIndex) => ({
+                index: itemIndex,
+                status: 'Success' as const,
+                habitId: item.habitId,
+                logId: null,
+                error: null,
+              })),
+              queued: true as const,
+              queuedMutationId: mutationId,
+            }),
+          })
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error: unknown) {
+          const failedIds = chunk.map((item) => item.habitId)
+          if (error instanceof OfflineMutationPreflightError) {
+            offlineFailureIds.push(...failedIds)
+          } else {
+            ambiguousIds.push(...failedIds)
+          }
+        }
       }
-      return { results }
+      return { results, ambiguousIds, offlineFailureIds }
     },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      for (const item of items) {
-        useReviewReminderStore
-          .getState()
-          .trackCompletion(item.date ?? formatAPIDate(new Date()))
-      }
-      const immediateIds: string[] = []
-      for (const item of items) {
-        if (!item.date) immediateIds.push(item.habitId)
-      }
+      const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
-        immediateIds.reduce(
+        completedIds.reduce(
           (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
           currentItems,
         ),
@@ -940,6 +987,23 @@ export function useBulkLogHabits() {
     onError: (_err, _vars, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
+      }
+    },
+
+    onSuccess: (data, variables, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
+
+      for (const result of data.results) {
+        if (result.status !== 'Success') continue
+        const item = variables[result.index]
+        if (!item) continue
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(item.date ?? formatAPIDate(new Date()))
       }
     },
 
@@ -955,48 +1019,56 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkSkipResult,
+    OfflineBulkMutationOutcome<BulkSkipResult>,
     Error,
     BulkSkipItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (items) => {
       const results: BulkSkipResult['results'] = []
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
-        const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
-          type: 'bulkSkipHabits',
-          scope: 'habits',
-          endpoint: API.habits.bulkSkip,
-          method: 'POST',
-          payload: { items: chunk },
-          queuedResultFactory: (mutationId) => ({
-            results: chunk.map((item, itemIndex) => ({
-              index: itemIndex,
-              status: 'Success' as const,
-              habitId: item.habitId,
-              error: null,
-            })),
-            queued: true as const,
-            queuedMutationId: mutationId,
-          }),
-        })
-        results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        try {
+          const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
+            type: 'bulkSkipHabits',
+            scope: 'habits',
+            endpoint: API.habits.bulkSkip,
+            method: 'POST',
+            payload: { items: chunk },
+            queuedResultFactory: (mutationId) => ({
+              results: chunk.map((item, itemIndex) => ({
+                index: itemIndex,
+                status: 'Success' as const,
+                habitId: item.habitId,
+                error: null,
+              })),
+              queued: true as const,
+              queuedMutationId: mutationId,
+            }),
+          })
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error: unknown) {
+          const failedIds = chunk.map((item) => item.habitId)
+          if (error instanceof OfflineMutationPreflightError) {
+            offlineFailureIds.push(...failedIds)
+          } else {
+            ambiguousIds.push(...failedIds)
+          }
+        }
       }
-      return { results }
+      return { results, ambiguousIds, offlineFailureIds }
     },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const immediateIds: string[] = []
-      for (const item of items) {
-        if (!item.date) immediateIds.push(item.habitId)
-      }
+      const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
-        immediateIds.reduce(
+        completedIds.reduce(
           (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
           currentItems,
         ),
@@ -1009,6 +1081,14 @@ export function useBulkSkipHabits() {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+    },
+
+    onSuccess: (data, _vars, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
     },
 
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),

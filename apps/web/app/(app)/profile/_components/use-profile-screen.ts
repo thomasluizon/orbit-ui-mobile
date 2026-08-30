@@ -19,8 +19,6 @@ import { useDataExport } from './use-data-export'
 
 const NAV_TOUR_MAP: Record<string, string> = {
   preferences: 'tour-profile-preferences',
-  retrospective: 'tour-profile-retrospective',
-  achievements: 'tour-profile-achievements',
 }
 
 export function useProfileScreen() {
@@ -37,14 +35,9 @@ export function useProfileScreen() {
   const canViewGamification = profile?.canViewGamification ?? false
   const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
   const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
-  const achievementsLocked = gamificationProfile?.achievementsLocked ?? false
-  const achievementsTileValue = achievementsLocked
-    ? gamificationProfile?.achievementsTotal ?? 0
-    : gamificationProfile?.achievementsEarned ?? 0
   const streak = profile?.currentStreak ?? 0
-  const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
+  const statsLoading = isLoading
   const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
-  const achievementsNavItem = PROFILE_NAV_ITEMS.find((item) => item.id === 'achievements')
 
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
@@ -68,11 +61,7 @@ export function useProfileScreen() {
   }
 
   function handleStreakClick() {
-    router.push('/streak')
-  }
-
-  function handleAchievementsClick() {
-    if (achievementsNavItem) handleNavClick(achievementsNavItem)
+    router.push('/progress')
   }
 
   const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
@@ -95,9 +84,6 @@ export function useProfileScreen() {
     trialExpired,
     gamificationProfile,
     nextRewardCarrot,
-    achievementsLocked,
-    achievementsTileValue,
-    achievementsNavItem,
     statsLoading,
     accountNavItems,
     navTourMap: NAV_TOUR_MAP,
@@ -120,6 +106,5 @@ export function useProfileScreen() {
     setShowReferral,
     handleNavClick,
     handleStreakClick,
-    handleAchievementsClick,
   }
 }

@@ -11,7 +11,7 @@ import type { TourStep } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
-import { useProfile } from '@/hooks/use-profile'
+import { useShellScroller } from '@/components/shell/shell-scroller-context'
 
 const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 350
@@ -24,8 +24,7 @@ export function TourProvider() {
   const router = useRouter()
   const pathname = usePathname()
   const { inject, restore } = useTourMockData()
-  const { profile } = useProfile()
-  const hasProAccess = profile?.hasProAccess ?? false
+  const shellScroller = useShellScroller()
 
   const store = useTourStore()
   const {
@@ -34,7 +33,6 @@ export function TourProvider() {
     setTargetRect,
     setNavigating,
     nextStep,
-    setHiddenSections,
   } = store
 
   const resolveStepRoute = useCallback((step: TourStep) => step.route, [])
@@ -45,11 +43,6 @@ export function TourProvider() {
   const observerRef = useRef<MutationObserver | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const managedTimeoutsRef = useRef(new Set<ReturnType<typeof setTimeout>>())
-
-  useEffect(() => {
-    setHiddenSections(hasProAccess ? [] : ['goals'])
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [hasProAccess, setHiddenSections])
 
   const clearManagedTimeouts = useCallback(() => {
     managedTimeoutsRef.current.forEach((handle) => clearTimeout(handle))
@@ -111,9 +104,6 @@ export function TourProvider() {
   const executePreAction = useCallback(
     (preAction: string) => {
       switch (preAction) {
-        case 'switchToGoalsTab':
-          useUIStore.getState().setActiveView(hasProAccess ? 'goals' : 'today')
-          break
         case 'switchToTodayTab':
           useUIStore.getState().setActiveView('today')
           break
@@ -122,8 +112,7 @@ export function TourProvider() {
           break
       }
     },
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [hasProAccess],
+    [],
   )
 
   const findAndMeasureTarget = useCallback(
@@ -232,7 +221,7 @@ export function TourProvider() {
   }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout, resolveStepRoute])
 
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive || !shellScroller) return
 
     let rafId: number
 
@@ -255,15 +244,15 @@ export function TourProvider() {
       rafId = requestAnimationFrame(update)
     }
 
-    window.addEventListener('scroll', handleEvent, { passive: true })
+    shellScroller.addEventListener('scroll', handleEvent, { passive: true })
     window.addEventListener('resize', handleEvent, { passive: true })
 
     return () => {
-      window.removeEventListener('scroll', handleEvent)
+      shellScroller.removeEventListener('scroll', handleEvent)
       window.removeEventListener('resize', handleEvent)
       cancelAnimationFrame(rafId)
     }
-  }, [isActive, getCurrentStep, setTargetRect])
+  }, [isActive, getCurrentStep, setTargetRect, shellScroller])
 
   useEffect(() => {
     return () => {

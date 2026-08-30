@@ -136,6 +136,22 @@ describe('useHabits (query hook)', () => {
     expect(children[0]!.id).toBe('child-1')
   })
 
+  it('renders server-provided habits without waiting for a client request', () => {
+    const initialHabit = makeScheduleItem({ title: 'Already available' })
+
+    const { result } = renderHook(
+      () => useHabits(
+        { dateFrom: '2025-01-01', dateTo: '2025-01-01' },
+        [initialHabit],
+      ),
+      { wrapper: createWrapper() },
+    )
+
+    expect(result.current.isSuccess).toBe(true)
+    expect(result.current.data?.habitsById.get(initialHabit.id)?.title).toBe('Already available')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('returns empty array for getChildren when no data', async () => {
     mockFetch.mockResolvedValue({
       ok: true,

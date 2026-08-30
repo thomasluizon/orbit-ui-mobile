@@ -1,10 +1,13 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGamificationProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
 import type { StreakInfo } from '@orbit/shared/types/gamification'
+import { streakInfoSchema } from '@orbit/shared/types/gamification'
 
 import {
   useGamificationProfile,
+  useRepairStreak,
   useStreakFreeze,
   useStreakInfo,
 } from '@/hooks/use-gamification'
@@ -51,11 +54,13 @@ const mocks = vi.hoisted(() => {
       }
     }),
     useQueryClient: vi.fn(() => queryClient),
+    useMutation: vi.fn((options: unknown) => options),
     apiClient: vi.fn(),
   }
 })
 
 vi.mock('@tanstack/react-query', () => ({
+  useMutation: mocks.useMutation,
   useQuery: mocks.useQuery,
   useQueryClient: mocks.useQueryClient,
 }))
@@ -114,6 +119,7 @@ describe('mobile useGamificationProfile', () => {
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.useQuery.mockClear()
     mocks.useQueryClient.mockClear()
+    mocks.useMutation.mockClear()
     mocks.apiClient.mockClear()
   })
 
@@ -214,5 +220,29 @@ describe('mobile useStreakInfo and streak freeze', () => {
     expect(hook.value.freezesAvailable).toBe(2)
     expect(hook.value.currentStreak).toBe(7)
     expect(hook.value.canFreeze).toBe(true)
+  })
+})
+
+describe('mobile useRepairStreak', () => {
+  beforeEach(() => {
+    mocks.apiClient.mockReset()
+    mocks.useMutation.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+  })
+
+  it('posts the confirmed empty repair body and validates the streak response', async () => {
+    mocks.apiClient.mockResolvedValue(mocks.state.streakInfo)
+    await renderHookValue(() => useRepairStreak())
+    const options = mocks.useMutation.mock.calls[0]![0] as {
+      mutationFn: () => Promise<StreakInfo>
+    }
+
+    await options.mutationFn()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.gamification.repairStreak,
+      { method: 'POST', body: '{}' },
+      streakInfoSchema,
+    )
   })
 })

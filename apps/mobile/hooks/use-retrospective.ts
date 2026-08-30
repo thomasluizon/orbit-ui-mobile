@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import { i18n } from '@/lib/i18n'
 import {
   extractBackendErrorCode,
@@ -15,6 +18,20 @@ import { apiClient } from '@/lib/api-client'
 export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
+
+export function useProgressRetrospective(enabled: boolean) {
+  return useQuery({
+    queryKey: habitKeys.retrospective('month'),
+    queryFn: () =>
+      apiClient(
+        buildRetrospectiveRequestUrl('month', i18n.language),
+        undefined,
+        retrospectiveResponseSchema,
+      ),
+    staleTime: QUERY_STALE_TIMES.gamification,
+    enabled,
+  })
+}
 
 export function useRetrospective() {
   const { t } = useTranslation()

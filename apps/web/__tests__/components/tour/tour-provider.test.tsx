@@ -1,9 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { useEffect } from 'react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
+import {
+  ShellScrollerProvider,
+  useShellScroller,
+  useShellScrollerRegistration,
+} from '@/components/shell/shell-scroller-context'
+import { FlowShell } from '@/components/shell/flow-shell'
+
+const mockChatComposer = vi.hoisted(() => ({
+  chatContainerRef: { current: null as HTMLDivElement | null },
+  messages: [],
+  isTyping: false,
+  isSending: false,
+  streamingMessageId: null,
+  hasProAccess: true,
+  atMessageLimit: false,
+  showSuggestions: false,
+  sendMessage: vi.fn(),
+  handleBreakdownConfirmed: vi.fn(),
+  confirmAndExecutePendingOperation: vi.fn(),
+  prepareStepUpForBubble: vi.fn(),
+  verifyStepUpForBubble: vi.fn(),
+}))
 
 const mockRouterPush = vi.fn()
 let mockPathname = '/'
@@ -16,6 +39,25 @@ vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
 }))
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
+vi.mock('@/hooks/use-chat-composer', () => ({
+  useChatComposer: () => mockChatComposer,
+}))
+
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
+vi.mock('@/hooks/use-habits', () => ({
+  useHabitDetail: () => ({ data: undefined }),
+}))
+
+vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
+vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),
 }))
@@ -25,6 +67,52 @@ vi.mock('@/hooks/use-tour-mock-data', () => ({
 }))
 
 import { TourProvider } from '@/components/tour/tour-provider'
+import ChatPage from '@/app/(chat)/chat/page'
+
+let observedShellScroller: HTMLElement | null = null
+
+function TourHarness() {
+  const registerScroller = useShellScrollerRegistration()
+  return (
+    <div ref={registerScroller} data-testid="tour-shell-scroller">
+      <TourProvider />
+    </div>
+  )
+}
+
+function renderTourProvider() {
+  return render(
+    <ShellScrollerProvider>
+      <TourHarness />
+    </ShellScrollerProvider>,
+  )
+}
+
+function renderChatTourProvider() {
+  return render(
+    <FlowShell mode="full">
+      <ChatTourHarness />
+    </FlowShell>,
+  )
+}
+
+function ChatTourHarness() {
+  return (
+    <>
+      <ChatPage />
+      <ShellScrollerProbe />
+      <TourProvider />
+    </>
+  )
+}
+
+function ShellScrollerProbe() {
+  const shellScroller = useShellScroller()
+  useEffect(() => {
+    observedShellScroller = shellScroller
+  }, [shellScroller])
+  return null
+}
 
 function stubMatchMedia(matches: boolean) {
   Object.defineProperty(window, 'matchMedia', {
@@ -43,23 +131,6 @@ function stubMatchMedia(matches: boolean) {
   })
 }
 
-function advanceToRetrospectiveStep() {
-  act(() => {
-    useTourStore.getState().startSectionReplay('profile')
-  })
-  act(() => {
-    useTourStore.getState().nextStep()
-  })
-  act(() => {
-    useTourStore.getState().nextStep()
-  })
-  mockRouterPush.mockClear()
-  act(() => {
-    useTourStore.getState().nextStep()
-  })
-  expect(useTourStore.getState().getCurrentStep()?.id).toBe('profile-retrospective')
-}
-
 describe('TourProvider step routing', () => {
   beforeEach(() => {
     useTourStore.getState().endTour()
@@ -69,29 +140,12 @@ describe('TourProvider step routing', () => {
     mockProfile = createMockProfile({ hasProAccess: true })
   })
 
-  it('routes the profile-retrospective step to /profile at the desktop breakpoint', () => {
-    stubMatchMedia(true)
-    render(<TourProvider />)
-
-    advanceToRetrospectiveStep()
-
-    expect(mockRouterPush).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledWith('/profile')
-  })
-
-  it('keeps the profile-retrospective step on /profile at phone widths', () => {
-    stubMatchMedia(false)
-    render(<TourProvider />)
-
-    advanceToRetrospectiveStep()
-
-    expect(mockRouterPush).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledWith('/profile')
-  })
-
-  it('keeps other profile steps on /profile at the desktop breakpoint', () => {
-    stubMatchMedia(true)
-    render(<TourProvider />)
+  it.each([
+    ['desktop', true],
+    ['phone', false],
+  ])('routes the profile section to /profile at the %s breakpoint', (_name, matches) => {
+    stubMatchMedia(matches)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('profile')
@@ -112,11 +166,13 @@ describe('TourProvider session lifecycle', () => {
     mockPathname = '/'
     mockProfile = createMockProfile({ hasProAccess: true })
     useUIStore.setState({ searchQuery: '' })
+    observedShellScroller = null
+    mockChatComposer.chatContainerRef.current = null
     stubMatchMedia(false)
   })
 
   it('injects tour mock data on activation and restores it when the tour ends', () => {
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('habits')
@@ -131,7 +187,7 @@ describe('TourProvider session lifecycle', () => {
 
   it('restores an active search after the tour ends', () => {
     useUIStore.setState({ searchQuery: 'focus' })
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('habits')
@@ -145,7 +201,7 @@ describe('TourProvider session lifecycle', () => {
   })
 
   it('remeasures the spotlight target on scroll while the tour is active', async () => {
-    render(<TourProvider />)
+    renderTourProvider()
 
     act(() => {
       useTourStore.getState().startSectionReplay('habits')
@@ -155,6 +211,7 @@ describe('TourProvider session lifecycle', () => {
 
     const target = document.createElement('div')
     target.setAttribute('data-tour', step!.targetId)
+    target.scrollIntoView = vi.fn()
     document.body.appendChild(target)
 
     act(() => {
@@ -162,11 +219,47 @@ describe('TourProvider session lifecycle', () => {
     })
 
     await act(async () => {
-      window.dispatchEvent(new Event('scroll'))
+      screen.getByTestId('tour-shell-scroller').dispatchEvent(new Event('scroll'))
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     })
 
     expect(useTourStore.getState().targetRect).not.toBeNull()
     target.remove()
+  })
+
+  it('remeasures chat targets only from the registered message pane', async () => {
+    mockPathname = '/chat'
+    renderChatTourProvider()
+
+    const chatMessagePane = screen.getByRole('log', { name: 'chat.title' })
+    expect(chatMessagePane).toHaveAttribute('data-tour', 'tour-chat-area')
+    expect(observedShellScroller).toBe(chatMessagePane)
+    chatMessagePane.scrollIntoView = vi.fn()
+
+    act(() => {
+      useTourStore.getState().startSectionReplay('chat')
+    })
+    const step = useTourStore.getState().getCurrentStep()
+    expect(step?.id).toBe('chat-area')
+
+    act(() => {
+      useTourStore.getState().setTargetRect(null)
+    })
+
+    await act(async () => {
+      document.querySelector<HTMLElement>('[data-flow-mode="full"]')?.dispatchEvent(
+        new Event('scroll'),
+      )
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    expect(useTourStore.getState().targetRect).toBeNull()
+
+    await act(async () => {
+      chatMessagePane.dispatchEvent(new Event('scroll'))
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    expect(useTourStore.getState().targetRect).not.toBeNull()
   })
 })

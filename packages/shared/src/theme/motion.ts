@@ -46,11 +46,11 @@ export const motionDurations = {
   micro: 120,
   fast: 160,
   base: 220,
-  slow: 320,
+  slow: 280,
   route: 280,
-  overlay: 260,
+  overlay: 220,
   toast: 220,
-  theme: 260,
+  theme: 220,
   celebration: 560,
   creationGlow: 1200,
   completePop: 500,
@@ -71,9 +71,9 @@ export const motionLayerTiming = {
 
 export const orbitalMotion = {
   press: {
-    scale: 0.985,
-    translateY: -1,
-    duration: 100,
+    scale: 0.96,
+    translateY: 0,
+    duration: 150,
   },
   elevatedPress: {
     scale: 0.98,
@@ -156,17 +156,17 @@ export interface MotionPreset {
 export const motionPresets: Record<MotionScenario, MotionPreset> = {
   'tab-switch': {
     scenario: 'tab-switch',
-    enterDuration: motionDurations.fast,
-    exitDuration: motionDurations.micro,
+    enterDuration: motionDurations.instant,
+    exitDuration: motionDurations.instant,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
-    shift: motionLayerTiming.tabShift,
-    scaleFrom: 0.995,
+    shift: 0,
+    scaleFrom: 1,
     scaleTo: 1,
     spring: 'soft',
     reducedMotion: {
-      enterDuration: 90,
-      exitDuration: 70,
+      enterDuration: motionDurations.instant,
+      exitDuration: motionDurations.instant,
       enterEasing: motionEasings.linear,
       exitEasing: motionEasings.linear,
       shift: 0,

@@ -123,9 +123,11 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <Shell412
-          tabBar={React.createElement('TabBar')}
+          header={React.createElement('View', { testID: 'header-content' })}
+          tabBar={React.createElement('View', { testID: 'tab-bar-content' })}
           conversation={React.createElement('Conversation')}
           conversationLabel="Astra conversation"
+          sheets={React.createElement('View', { testID: 'sheets-content' })}
         >
           {React.createElement('Screen')}
         </Shell412>,
@@ -136,8 +138,13 @@ describe('Shell412 mobile', () => {
       accessibilityLabel: 'Astra conversation',
       accessibilityViewIsModal: true,
     })
-    expect(findByTestId(tree, 'shell-scroller')[0]?.props.importantForAccessibility).toBe(
+    const background = findByTestId(tree, 'shell-background')[0]
+    expect(background?.props.importantForAccessibility).toBe(
       'no-hide-descendants',
     )
+    expect(background?.findAll((node) => node.props.testID === 'header-content')).toHaveLength(1)
+    expect(background?.findAll((node) => node.props.testID === 'tab-bar-content')).toHaveLength(1)
+    expect(background?.findAll((node) => node.props.testID === 'sheets-content')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-scroller')[0]?.props.importantForAccessibility).toBeUndefined()
   })
 })

@@ -14,6 +14,7 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
+import { useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { Composer } from '@/components/shell/composer'
 import { ErrorState } from '@/components/ui/error-state'
 import { useUIStore } from '@/stores/ui-store'
@@ -47,6 +48,11 @@ export default function ChatPage() {
     handleFileSelect,
     composerProps,
   } = useChatComposer()
+  const registerShellScroller = useShellScrollerRegistration()
+  const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
+    chatContainerRef.current = element
+    registerShellScroller?.(element)
+  }, [chatContainerRef, registerShellScroller])
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
 
@@ -119,7 +125,7 @@ export default function ChatPage() {
 
       <div
         data-tour="tour-chat-area"
-        ref={chatContainerRef}
+        ref={registerChatContainer}
         className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
         style={{ paddingTop: 8 }}
         role="log"

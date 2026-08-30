@@ -135,7 +135,8 @@ describe('ProfilePage', () => {
 
     expect(screen.getByText('tour.replay.title')).toBeInTheDocument()
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
-    expect(screen.getByText('profile.retrospectiveHint')).toBeInTheDocument()
+    expect(screen.queryByText('profile.retrospectiveTitle')).not.toBeInTheDocument()
+    expect(screen.queryByText('gamification.profileCard.title')).not.toBeInTheDocument()
 
     const retiredLabels = [
       ['so', 'cial.profileNav.title'].join(''),

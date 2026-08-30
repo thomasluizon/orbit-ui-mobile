@@ -16,6 +16,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     removeItem: vi.fn(() => Promise.resolve()),
   },
 }))
+vi.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    React.useEffect(callback, [callback])
+  },
+}))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
@@ -50,7 +55,7 @@ vi.mock('@/components/habit-list', () => ({
 }))
 vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
 vi.mock('@/components/ui/capacity-notice', () => ({ CapacityNotice: () => null }))
-vi.mock('@/components/today/today-shell', () => ({ TodayDateControl: () => null }))
+vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => null }))
 vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
 vi.mock('@/components/today/today-astra', () => ({
   TodayAstra: (props: { suppressed: boolean }) =>
@@ -103,7 +108,6 @@ describe('mobile Today Astra owned surfaces', () => {
       showCreateModal: false,
       isSelectMode: false,
       selectedHabitIds: new Set(),
-      showCompleted: false,
     })
   })
 

@@ -45,6 +45,14 @@ export {
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
+export {
+  resolveShellDestination,
+  SHELL_DESTINATION_ROUTES,
+} from './shell-destinations'
+export type {
+  ShellDestinationId,
+  ShellDestinationRoute,
+} from './shell-destinations'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
@@ -184,6 +192,14 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
+export { resolveSubscriptionScreen } from './subscription-screen'
+export type {
+  ResolveSubscriptionScreenInput,
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenModel,
+  SubscriptionScreenState,
+} from './subscription-screen'
 export {
   APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
@@ -253,12 +269,16 @@ export {
 export type { HabitPickerOption } from './habit-picker'
 export {
   buildHabitDateBuckets,
+  computeParentSettlementDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'
 export type {
   HabitDateBucket,
+  HabitResolution,
+  HabitResolutionMode,
   ParentPromptProgress,
   ParentPromptProgressOptions,
+  ParentSettlementDecision,
 } from './habit-list-progress'
 export {
   buildGoalTitle,
@@ -282,6 +302,7 @@ export {
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from './notification-actions'
@@ -345,6 +366,7 @@ export type {
 } from './gamification-selectors'
 export {
   buildCalendarDayMap,
+  buildUnresolvedBulkFailures,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
@@ -500,6 +522,18 @@ export type {
   SupportProfileFields,
   SupportRequestBody,
 } from './support'
+export {
+  achievementGlyphKey,
+  buildGoalMovePositions,
+  buildProtectedDayLabels,
+  filterProgressGoals,
+  getAvailableStreakRepairDate,
+  getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
+  PROGRESS_GOAL_FILTERS,
+  visibleProgressAchievements,
+} from './progress'
+export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
 export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
