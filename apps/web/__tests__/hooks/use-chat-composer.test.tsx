@@ -445,6 +445,38 @@ describe('web useChatComposer streaming send', () => {
     expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe('log water later')
   })
 
+  it('keeps a newer draft edit when an in-flight retry fails', async () => {
+    const retryStream = controlledSseResponse()
+    mocks.fetch
+      .mockResolvedValueOnce(sseResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(retryStream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('log water'))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    act(() => {
+      retryPromise = result.current.retryLastSend()
+    })
+    act(() => result.current.setInput('log water and vitamins'))
+
+    await act(async () => {
+      retryStream.enqueue(frame('{"type":"error","status":500,"error":"boom again"}'))
+      retryStream.close()
+      await retryPromise
+    })
+
+    expect(result.current.composerProps.value).toBe('log water and vitamins')
+    expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe(
+      'log water and vitamins',
+    )
+  })
+
   it('maps a pre-stream http failure through the same classification', async () => {
     mocks.fetch.mockResolvedValue(
       Response.json({ error: 'limit reached' }, { status: 403 }),

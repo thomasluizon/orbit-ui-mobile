@@ -304,7 +304,9 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     draftMessageId: string | null,
   ) => {
     setIsTyping(false)
-    if (attempted.restoreDraftOnFailure) setInput(attempted.content)
+    if (attempted.restoreDraftOnFailure) {
+      setInput((currentDraft) => currentDraft || attempted.content)
+    }
     const resolvedError = failureInput.error.trim() || t('chat.sendError')
     const failure = classifySendFailure({
       status: failureInput.status,

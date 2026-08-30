@@ -575,6 +575,37 @@ describe('mobile useChatComposer', () => {
     expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water later')
   })
 
+  it('keeps a newer draft edit when an in-flight retry fails', async () => {
+    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
+    const retryStream = controlledSseStreamResponse()
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(retryStream.response)
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    TestRenderer.act(() => {
+      retryPromise = composer.current.retryLastSend()
+    })
+    TestRenderer.act(() => composer.current.setInput('log water and vitamins'))
+
+    await TestRenderer.act(async () => {
+      retryStream.enqueue(frame('{"type":"error","status":500,"error":"boom again"}'))
+      retryStream.close()
+      await retryPromise
+    })
+
+    expect(composer.current.composerProps.value).toBe('log water and vitamins')
+    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water and vitamins')
+  })
+
   it('restores a rejected controlled draft for editing', async () => {
     mocks.openChatStream.mockResolvedValue(
       httpErrorResponse(400, { error: 'invalid request' }),
