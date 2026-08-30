@@ -8,6 +8,7 @@ import {
   useMemo,
   useReducer,
   useSyncExternalStore,
+  type SetStateAction,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
@@ -151,11 +152,24 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const pendingVoiceCommit = useRef(false)
 
-  const [input, setInput] = useState<string>(() => {
+  const [input, setInputState] = useState<string>(() => {
     if (!('localStorage' in globalThis)) return ''
     // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `'localStorage' in globalThis` SSR check above (the repo's canonical guard, #490); never reads on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
   })
+  const inputRef = useRef(input)
+  const setInput = useCallback((nextInput: SetStateAction<string>) => {
+    if (typeof nextInput === 'function') {
+      setInputState((current) => {
+        const resolvedInput = nextInput(current)
+        inputRef.current = resolvedInput
+        return resolvedInput
+      })
+      return
+    }
+    inputRef.current = nextInput
+    setInputState(nextInput)
+  }, [])
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
@@ -325,7 +339,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       })
     }
     scrollToBottom()
-  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
+  }, [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
     setIsTyping(false)
@@ -404,7 +418,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       pendingVoiceCommit.current = false
       setInput((current) => (current ? `${current} ${transcript.trim()}` : transcript.trim()))
     }
-  }, [isRecording, transcript])
+  }, [isRecording, setInput, transcript])
 
   useEffect(() => {
     if (!speechError) return
@@ -472,7 +486,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
           attempted,
           draftMessageId,
         )
-        return
+        return false
       }
 
       const outcome = await consumeChatSseStream(
@@ -491,7 +505,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
 
       if (outcome.kind === 'final') {
         await applyFinalResponse(outcome.response, draftMessageId)
-        return
+        return true
       }
       if (outcome.kind === 'error') {
         handleFailedSend(
@@ -499,13 +513,14 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
           attempted,
           draftMessageId,
         )
-        return
+        return false
       }
       handleFailedSend(
         { status: null, error: t('chat.sendError'), code: null },
         attempted,
         draftMessageId,
       )
+      return false
     } catch (error: unknown) {
       handleFailedSend(
         {
@@ -516,6 +531,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
         attempted,
         draftMessageId,
       )
+      return false
     } finally {
       clearTimeout(idleTimer)
       if (useChatStore.getState().streamingMessageId === draftMessageId) {
@@ -555,7 +571,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       setIsTyping(true)
       scrollToBottom()
 
-      await runStreamingSend(attempted)
+      return runStreamingSend(attempted)
     },
     [addMessage, onOpenConversation, runStreamingSend, scrollToBottom, setIsTyping],
   )
@@ -591,6 +607,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       isOnline,
       performSend,
       selectedImage,
+      setInput,
       atMessageLimit,
     ],
   )
@@ -603,8 +620,17 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       sendState.streamingMessageId !== null ||
       !isOnline
     ) return
-    await performSend(lastFailedSend, true)
-  }, [isOnline, lastFailedSend, performSend])
+    const attempted = lastFailedSend
+    const succeeded = await performSend(attempted, true)
+    if (
+      succeeded &&
+      attempted.restoreDraftOnFailure &&
+      inputRef.current === attempted.content
+    ) {
+      setInput('')
+      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+    }
+  }, [isOnline, lastFailedSend, performSend, setInput])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
 
@@ -711,6 +737,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     retryLastSend,
     selectedImage,
     sendMessage,
+    setInput,
     speechSupported,
     t,
     toggleRecording,

@@ -1,9 +1,11 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { COMPOSER_MESSAGE_MAX_LENGTH } from '@orbit/shared/contracts/composer'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { habitKeys } from '@orbit/shared/query'
 import {
   registerLiveSuggestionQuery,
@@ -221,6 +223,10 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.getQueriesData.mockReset()
     resetLiveSuggestionQueries()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -491,6 +497,82 @@ describe('mobile useChatComposer', () => {
     expect(messages.at(-1)).toMatchObject({ role: 'ai', content: 'Recovered' })
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.sendError).toBeNull()
+  })
+
+  it('clears a restored controlled draft and its storage after a successful retry', async () => {
+    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
+    const removeDraft = vi.spyOn(AsyncStorage, 'removeItem')
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(composer.current.composerProps.value).toBe('log water')
+    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water')
+    removeDraft.mockClear()
+
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    expect(composer.current.composerProps.value).toBe('')
+    expect(removeDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY)
+  })
+
+  it('keeps an edited restored draft after a successful retry', async () => {
+    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
+    const removeDraft = vi.spyOn(AsyncStorage, 'removeItem')
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    TestRenderer.act(() => composer.current.setInput('log water and vitamins'))
+    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water and vitamins')
+    removeDraft.mockClear()
+
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    expect(composer.current.composerProps.value).toBe('log water and vitamins')
+    expect(removeDraft).not.toHaveBeenCalled()
+  })
+
+  it('keeps a controlled draft restored and editable when its retry fails', async () => {
+    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
+    const removeDraft = vi.spyOn(AsyncStorage, 'removeItem')
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(
+      frame('{"type":"error","status":500,"error":"boom"}'),
+    ))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    removeDraft.mockClear()
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    expect(composer.current.composerProps.value).toBe('log water')
+    expect(removeDraft).not.toHaveBeenCalled()
+    TestRenderer.act(() => composer.current.setInput('log water later'))
+    expect(composer.current.composerProps.value).toBe('log water later')
+    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water later')
   })
 
   it('restores a rejected controlled draft for editing', async () => {

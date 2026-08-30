@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type SetStateAction,
+} from "react";
 import { FlatList } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
@@ -162,7 +170,20 @@ export function useChatComposer({
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const pendingVoiceCommit = useRef(false);
 
-  const [input, setInput] = useState("");
+  const [input, setInputState] = useState("");
+  const inputRef = useRef(input);
+  const setInput = useCallback((nextInput: SetStateAction<string>) => {
+    if (typeof nextInput === "function") {
+      setInputState((current) => {
+        const resolvedInput = nextInput(current);
+        inputRef.current = resolvedInput;
+        return resolvedInput;
+      });
+      return;
+    }
+    inputRef.current = nextInput;
+    setInputState(nextInput);
+  }, []);
   const [sendError, setSendError] = useState<string | null>(null);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [selectedImage, setSelectedImage] =
@@ -226,7 +247,7 @@ export function useChatComposer({
     return () => {
       active = false;
     };
-  }, []);
+  }, [setInput]);
 
   useEffect(() => {
     if (input.trim()) {
@@ -243,7 +264,7 @@ export function useChatComposer({
       pendingVoiceCommit.current = false;
       setInput((current) => current ? `${current} ${transcript.trim()}` : transcript.trim());
     }
-  }, [isRecording, transcript]);
+  }, [isRecording, setInput, transcript]);
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60);
@@ -409,7 +430,7 @@ export function useChatComposer({
       }
       scrollToBottom();
     },
-    [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
+    [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
   );
 
   const applyFinalResponse = useCallback(
@@ -564,7 +585,7 @@ export function useChatComposer({
             attempted,
             draftMessageId,
           );
-          return;
+          return false;
         }
 
         const outcome = await consumeChatSseStream(
@@ -583,7 +604,7 @@ export function useChatComposer({
 
         if (outcome.kind === "final") {
           await applyFinalResponse(outcome.response, draftMessageId);
-          return;
+          return true;
         }
         if (outcome.kind === "error") {
           handleFailedSend(
@@ -591,13 +612,14 @@ export function useChatComposer({
             attempted,
             draftMessageId,
           );
-          return;
+          return false;
         }
         handleFailedSend(
           { status: null, error: t("chat.sendError"), code: null },
           attempted,
           draftMessageId,
         );
+        return false;
       } catch (err: unknown) {
         handleFailedSend(
           {
@@ -608,6 +630,7 @@ export function useChatComposer({
           attempted,
           draftMessageId,
         );
+        return false;
       } finally {
         clearTimeout(idleTimer);
         if (useChatStore.getState().streamingMessageId === draftMessageId) {
@@ -650,7 +673,7 @@ export function useChatComposer({
       setIsTyping(true);
       scrollToBottom();
 
-      await runStreamingSend(attempted);
+      return runStreamingSend(attempted);
     },
     [addMessage, onOpenConversation, runStreamingSend, scrollToBottom, setIsTyping],
   );
@@ -686,6 +709,7 @@ export function useChatComposer({
       isOnline,
       performSend,
       selectedImage,
+      setInput,
       atMessageLimit,
     ],
   );
@@ -698,8 +722,17 @@ export function useChatComposer({
       sendState.streamingMessageId !== null ||
       !isOnline
     ) return;
-    await performSend(lastFailedSend, true);
-  }, [isOnline, lastFailedSend, performSend]);
+    const attempted = lastFailedSend;
+    const succeeded = await performSend(attempted, true);
+    if (
+      succeeded &&
+      attempted.restoreDraftOnFailure &&
+      inputRef.current === attempted.content
+    ) {
+      setInput("");
+      void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
+    }
+  }, [isOnline, lastFailedSend, performSend, setInput]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
 
@@ -811,6 +844,7 @@ export function useChatComposer({
     retryLastSend,
     selectedImage,
     sendMessage,
+    setInput,
     speechSupported,
     t,
     toggleRecording,

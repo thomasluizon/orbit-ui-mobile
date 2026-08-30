@@ -23826,6 +23826,7 @@
         "packages/shared/src/__tests__/primitive-contracts.test.ts"
       ],
       "packages/shared/src/hooks": [
+        "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/mobile/__tests__/hooks/use-tag-selection.test.tsx",
         "apps/web/__tests__/app/chat-page-desktop-handoff.test.tsx",
         "apps/web/__tests__/components/onboarding/onboarding-actions-context.test.tsx",
