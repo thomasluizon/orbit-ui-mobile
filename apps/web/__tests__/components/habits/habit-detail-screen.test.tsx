@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   checklist: vi.fn(),
   deleteHabit: vi.fn(),
   showError: vi.fn(),
+  routerBack: vi.fn(),
+  routerPush: vi.fn(),
+  history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
   suggestion: null as null | {
     frequencyUnit: 'Day'
@@ -33,7 +36,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-habit-queries', () => ({
@@ -73,7 +76,9 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('@/components/ui/app-bar', () => ({
+  AppBar: ({ onBack }: { onBack: () => void }) => <button type="button" aria-label="screen-back" onClick={onBack} />,
+}))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
@@ -231,12 +236,41 @@ describe('HabitDetailScreen', () => {
     mocks.checklist.mockReset()
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
+    mocks.routerBack.mockReset()
+    mocks.routerPush.mockReset()
+    mocks.history = []
     mocks.hasProAccess = true
     mocks.suggestion = null
   })
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('pops child then parent history back to Today without duplicating the parent', () => {
+    mocks.history = [
+      { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
+      { path: '/habits/parent-1?date=2026-08-28&from=today', selectedDate: '2026-08-28' },
+      { path: '/habits/child-1?date=2026-08-28&parent=parent-1&from=today', selectedDate: '2026-08-28' },
+    ]
+    mocks.routerBack.mockImplementation(() => { mocks.history.pop() })
+    const view = render(
+      <HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="parent-1" fromToday />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    expect(mocks.history.map((entry) => entry.path)).toEqual([
+      '/?date=2026-08-28',
+      '/habits/parent-1?date=2026-08-28&from=today',
+    ])
+
+    view.rerender(<HabitDetailScreen habitId="parent-1" date="2026-08-28" fromToday />)
+    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+
+    expect(mocks.history).toEqual([
+      { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
+    ])
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('reconciles an explicit-date log and unlog across the mounted detail', () => {

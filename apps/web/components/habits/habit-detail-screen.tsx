@@ -233,7 +233,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const atAstraLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit
 
   const goBack = useCallback(() => {
-    if (parentId) router.push(`/habits/${parentId}?date=${dateStr}${fromToday ? '&from=today' : ''}`)
+    if (parentId) router.back()
     else if (fromToday) router.back()
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])

@@ -202,7 +202,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const hasPro = profile?.hasProAccess ?? false
   const atLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit
   const back = useCallback(() => {
-    if (parentId) router.push({ pathname: '/habits/[id]', params: { id: parentId, date: dateStr, ...(fromToday ? { from: 'today' } : {}) } })
+    if (parentId) router.back()
     else if (fromToday) router.back()
     else router.replace({ pathname: '/(tabs)', params: { date: dateStr } })
   }, [dateStr, fromToday, parentId, router])
