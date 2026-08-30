@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { usePathname } from 'next/navigation'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
@@ -86,10 +87,11 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
 
 export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
+  const pathname = usePathname()
   const count = view.selectedHabitIds.size
 
   useShellComposerSlot(
-    view.isSelectMode,
+    pathname === '/' && view.isSelectMode,
     () => (
       <SelectionTray
         selectedCount={count}

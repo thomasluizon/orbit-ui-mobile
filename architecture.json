@@ -17328,6 +17328,7 @@
         "apps/web/__tests__/components/profile/fresh-start-modal.test.tsx",
         "apps/web/__tests__/components/profile/profile-nav-sections.test.tsx",
         "apps/web/__tests__/components/profile/subscription-card.test.tsx",
+        "apps/web/__tests__/components/shell/destination-shell.test.tsx",
         "apps/web/__tests__/components/tour/tour-provider.test.tsx",
         "apps/web/__tests__/components/ui/push-prompt.test.tsx",
         "apps/web/__tests__/components/wrapped/wrapped-cover.test.tsx",

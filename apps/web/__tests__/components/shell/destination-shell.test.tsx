@@ -82,6 +82,8 @@ import {
   useShellComposerSlot,
 } from '@/components/shell/destination-shell'
 import { SelectionTray } from '@/components/habits/selection-tray'
+import { TodayOverlays } from '@/app/(app)/today-page-view'
+import type { TodayView } from '@/app/(app)/use-today-page'
 import {
   getCurrentRouteTransitionIntent,
   getRouteScenarioForIntent,
@@ -178,6 +180,47 @@ describe('DestinationShell', () => {
       expect(document.querySelector('[data-shell-pinned-slot]')).not.toBeInTheDocument()
     },
   )
+
+  it('clears the tray while the exiting Today subtree remains mounted', async () => {
+    const view = {
+      isSelectMode: true,
+      selectedHabitIds: new Set(['h-1']),
+      selection: {
+        allSelected: false,
+        confirmBulkDelete: vi.fn(),
+        confirmBulkLog: vi.fn(),
+        confirmBulkSkip: vi.fn(),
+        deselectAll: vi.fn(),
+        selectAll: vi.fn(),
+        setShowBulkDeleteConfirm: vi.fn(),
+        showBulkDeleteConfirm: false,
+      },
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    function App() {
+      return (
+        <DestinationShell onCreate={() => {}}>
+          <div data-testid="retained-today">
+            <TodayOverlays view={view} />
+          </div>
+          {mocks.pathname === '/calendar' ? <h1>Calendar</h1> : <h1>Today</h1>}
+        </DestinationShell>
+      )
+    }
+
+    const { rerender } = render(<App />)
+
+    expect(await screen.findByTestId('bulk-action-bar')).toBeInTheDocument()
+
+    mocks.pathname = '/calendar'
+    rerender(<App />)
+
+    expect(screen.getByTestId('retained-today')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    })
+  })
 
   it('removes the compact FAB away from Hoje', () => {
     mocks.pathname = '/calendar'
