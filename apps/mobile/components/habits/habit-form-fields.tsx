@@ -41,6 +41,7 @@ interface HabitFormFieldsProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
+  onSlipAlertEnabledChange?: (nextEnabled: boolean) => void;
   /**
    * Surfaces the scheduled-reminder editor even under a due time when the habit already holds
    * scheduled reminders (legacy Astra mixed data), so they stay visible and are not silently wiped.
@@ -71,6 +72,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  onSlipAlertEnabledChange,
   hasScheduledReminders = false,
   onFlushBufferedInputsReady,
   defaultExpanded = false,
@@ -292,6 +294,7 @@ export function HabitFormFields({
             reminderTimes={reminderTimes}
             onReminderTimesChange={onReminderTimesChange}
             onToggleReminder={handleReminderEnabledChange}
+            onSlipAlertEnabledChange={onSlipAlertEnabledChange}
             hasScheduledReminders={hasScheduledReminders}
             onValidationError={showError}
             selectedGoalIds={selectedGoalIds}

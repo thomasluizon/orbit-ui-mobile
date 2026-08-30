@@ -79,6 +79,7 @@ interface HabitFormFieldsProps {
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
+  onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
   /**
    * Surfaces the scheduled-reminder editor even under a due time when the habit already holds
    * scheduled reminders (legacy Astra mixed data), so they stay visible and are not silently wiped.
@@ -112,6 +113,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  onSlipAlertEnabledChange,
   hasScheduledReminders = false,
   defaultExpanded = false,
   lockedGeneral = null,
@@ -182,6 +184,15 @@ export function HabitFormFields({
 
     setValue('reminderEnabled', nextEnabled, { shouldDirty: true })
   }, [onReminderEnabledChange, setValue])
+
+  const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
+    if (onSlipAlertEnabledChange) {
+      onSlipAlertEnabledChange(nextEnabled)
+      return
+    }
+
+    setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
+  }, [onSlipAlertEnabledChange, setValue])
 
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
   useExpandAdvancedSignal(expandAdvancedSignal, () => setShowAdvanced(true))
@@ -728,7 +739,7 @@ export function HabitFormFields({
             <SlipAlertSection
               hasProAccess={hasProAccess}
               slipAlertEnabled={watchedSlipAlertEnabled}
-              onToggle={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
+              onToggle={() => handleSlipAlertEnabledChange(!watchedSlipAlertEnabled)}
               t={t}
             />
           )}

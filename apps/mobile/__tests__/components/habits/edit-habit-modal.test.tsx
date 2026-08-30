@@ -8,6 +8,7 @@ const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
 const mockFormReset = vi.fn()
+const mockFormResetField = vi.fn()
 const mockValidateAll = vi.fn()
 const mockSuggestMutateAsync = vi.fn()
 const mockSetValue = vi.fn()
@@ -76,6 +77,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     form: {
       control: {},
       reset: mockFormReset,
+      resetField: mockFormResetField,
       getValues: mockGetValues,
       setValue: mockSetValue,
       formState: { isDirty: false, dirtyFields: {} },
@@ -224,13 +226,35 @@ describe('EditHabitModal (mobile)', () => {
     })
   })
 
-  it('preserves relationships that load after an editor session starts when an unrelated field is saved', async () => {
+  it('omits relationship writes when an unrelated field is saved before authority loads', async () => {
     mockBuildUpdateHabitRequest.mockReturnValueOnce({
       title: 'Exercise daily',
       goalIds: [],
       slipAlertEnabled: false,
     })
     const tree = await renderModal(false)
+
+    await TestRenderer.act(async () => {
+      await findSaveButton(tree)?.props.onClick()
+    })
+
+    expect(mockUpdateMutateAsync.mock.calls[0]![0].data).toEqual({ title: 'Exercise daily' })
+    expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('hydrates pristine goals before adding and submitting another goal', async () => {
+    const initialHabit = createMockHabit({ id: 'h-1', title: 'Exercise', linkedGoals: [] })
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <EditHabitModal
+          open
+          onClose={vi.fn()}
+          habit={initialHabit}
+          relationshipFieldsLoaded={false}
+        />,
+      )
+    })
     await TestRenderer.act(() => {
       tree.update(
         <EditHabitModal
@@ -239,21 +263,25 @@ describe('EditHabitModal (mobile)', () => {
           habit={createMockHabit({
             id: 'h-1',
             title: 'Exercise',
-            tags: [{ id: 'tag-1', name: 'Health', color: '#123456' }],
             linkedGoals: [{ id: 'goal-1', title: 'Feel better' }],
-            slipAlertEnabled: true,
           })}
           relationshipFieldsLoaded
         />,
       )
     })
+    await TestRenderer.act(() => {
+      findFormFields(tree).props.onToggleGoal('goal-2')
+    })
 
+    expect(findFormFields(tree).props.selectedGoalIds).toEqual(['goal-1', 'goal-2'])
     await TestRenderer.act(async () => {
       await findSaveButton(tree)?.props.onClick()
     })
 
-    expect(mockUpdateMutateAsync.mock.calls[0]![0].data).toEqual({ title: 'Exercise daily' })
-    expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+      habitId: 'h-1',
+      data: { goalIds: ['goal-1', 'goal-2'] },
+    })
   })
 
   it('resets the form from the habit when it opens', async () => {
