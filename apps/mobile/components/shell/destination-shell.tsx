@@ -26,9 +26,22 @@ type DestinationShellProps = {
 )
 
 export function DestinationShell(props: Readonly<DestinationShellProps>) {
+  if (props.nav === false) {
+    return (
+      <Shell412 nav={false} notice={props.notice}>
+        {props.children}
+      </Shell412>
+    )
+  }
+
+  return <DestinationShellWithNavigation {...props} />
+}
+
+function DestinationShellWithNavigation(
+  props: Readonly<Extract<DestinationShellProps, { nav?: true }>>,
+) {
   const { t } = useTranslation()
-  const navigationEnabled = props.nav !== false
-  const primaryDestination = navigationEnabled && isPrimaryShellDestination(props.pathname)
+  const primaryDestination = isPrimaryShellDestination(props.pathname)
   const [conversationPathname, setConversationPathname] = useState<string | null>(null)
   const conversationOpen = conversationPathname !== null
   const conversationOnCurrentDestination =
@@ -72,18 +85,6 @@ export function DestinationShell(props: Readonly<DestinationShellProps>) {
         conversationOpen: true,
       }
     : {}
-
-  if (!navigationEnabled) {
-    return (
-      <Shell412
-        nav={false}
-        notice={props.notice}
-        {...conversationSlots}
-      >
-        {props.children}
-      </Shell412>
-    )
-  }
 
   return (
     <Shell412
