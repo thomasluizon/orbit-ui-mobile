@@ -273,7 +273,7 @@ describe('mobile DestinationShell', () => {
     })
 
     await TestRenderer.act(() => {
-      hosts(tree, 'StatefulScreen')[0]?.props.setValue('retained state')
+      hostStringCallback(tree, 'StatefulScreen', 'setValue')('retained state')
     })
     await TestRenderer.act(() => {
       tree.update(
