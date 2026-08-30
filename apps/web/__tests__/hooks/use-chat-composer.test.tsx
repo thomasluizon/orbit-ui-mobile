@@ -1,11 +1,18 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import { goalKeys, habitKeys, tagKeys } from '@orbit/shared/query'
+import {
+  goalKeys,
+  habitKeys,
+  registerLiveSuggestionQuery,
+  resetLiveSuggestionQueries,
+  tagKeys,
+} from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { CalendarMonthResponse, HabitScheduleItem } from '@orbit/shared/types/habit'
 
 const mocks = vi.hoisted(() => ({
   state: {
@@ -69,6 +76,14 @@ import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
 import { Composer } from '@/components/shell/composer'
 
+function suggestionHabit(title: string): HabitScheduleItem {
+  return {
+    ...createMockHabit({ title, linkedGoals: [] }),
+    children: [],
+    linkedGoals: [],
+  }
+}
+
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
     aiMessage: 'Hi there',
@@ -131,6 +146,9 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.getQueryData.mockReset()
+    mocks.queryClient.getQueriesData.mockReset()
+    resetLiveSuggestionQueries()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
@@ -553,6 +571,60 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it('keeps Today suggestions on its exact filtered query when another list is cached', () => {
+    const todayKey = habitKeys.list({ dateFrom: '2026-08-29', dateTo: '2026-08-29' })
+    const commandKey = habitKeys.list({})
+    const cachedQueries = new Map<string, HabitScheduleItem[]>([
+      [JSON.stringify(todayKey), [suggestionHabit('Today habit')]],
+      [JSON.stringify(commandKey), [suggestionHabit('Command habit')]],
+    ])
+    mocks.state.profile = createMockProfile()
+    mocks.queryClient.getQueryData.mockImplementation(
+      (key: readonly unknown[]) => cachedQueries.get(JSON.stringify(key)),
+    )
+    registerLiveSuggestionQuery('habits', todayKey)
+
+    const { result, rerender } = renderHook(() => useChatComposer({ destination: 'hoje' }))
+    expect(result.current.composerProps.suggestions[0].label).toContain('Today habit')
+
+    cachedQueries.set(JSON.stringify(commandKey), [suggestionHabit('Later command habit')])
+    rerender()
+
+    expect(result.current.composerProps.suggestions[0].label).toContain('Today habit')
+    expect(result.current.composerProps.suggestions[0].label).not.toContain('command habit')
+  })
+
+  it('switches Calendar suggestions to the exact query for the visible view', () => {
+    const monthKey = habitKeys.calendar('2026-08-01', '2026-08-31')
+    const weekKey = habitKeys.calendar('2026-08-24', '2026-08-30')
+    const month: CalendarMonthResponse = {
+      habits: [suggestionHabit('Month habit')],
+      logs: {},
+    }
+    const week: CalendarMonthResponse = {
+      habits: [suggestionHabit('Week habit')],
+      logs: {},
+    }
+    const cachedQueries = new Map<string, CalendarMonthResponse>([
+      [JSON.stringify(monthKey), month],
+      [JSON.stringify(weekKey), week],
+    ])
+    mocks.state.profile = createMockProfile()
+    mocks.queryClient.getQueryData.mockImplementation(
+      (key: readonly unknown[]) => cachedQueries.get(JSON.stringify(key)),
+    )
+    registerLiveSuggestionQuery('calendar', weekKey)
+    const { result } = renderHook(() => useChatComposer({ destination: 'calendario' }))
+    expect(result.current.composerProps.suggestions[0].label).toContain('Week habit')
+
+    act(() => {
+      registerLiveSuggestionQuery('calendar', monthKey)
+    })
+
+    expect(result.current.composerProps.suggestions[0].label).toContain('Month habit')
+    expect(result.current.composerProps.suggestions[0].label).not.toContain('Week habit')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

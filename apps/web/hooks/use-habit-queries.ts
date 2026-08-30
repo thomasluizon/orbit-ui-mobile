@@ -45,8 +45,9 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
 }
 
 export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[]) {
+  const queryKey = habitKeys.list(filters)
   const query = useQuery({
-    queryKey: habitKeys.list(filters as Record<string, unknown>),
+    queryKey,
     queryFn: async (): Promise<HabitScheduleItem[]> => {
       const requestFilters = withDefaultPageSize(filters)
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
@@ -89,6 +90,7 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
   return {
     ...query,
     getChildren,
+    queryKey,
   }
 }
 

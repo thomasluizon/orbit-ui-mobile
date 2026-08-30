@@ -8,6 +8,7 @@ import {
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { useRegisterLiveSuggestionQuery } from '@orbit/shared/query'
 import { plural } from '@/lib/plural'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
@@ -67,6 +68,7 @@ export default function TodayScreen() {
     includeGeneral: showGeneralOnToday || undefined,
   }), [date.dateStr, date.today, showGeneralOnToday])
   const habitsQuery = useHabits(filters)
+  useRegisterLiveSuggestionQuery('habits', habitsQuery.queryKey)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])

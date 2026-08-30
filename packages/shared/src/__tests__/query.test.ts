@@ -13,6 +13,11 @@ import {
   calendarKeys,
 } from '../query/keys'
 import { QUERY_STALE_TIMES } from '../query/options'
+import {
+  getLiveSuggestionQueryKey,
+  registerLiveSuggestionQuery,
+  resetLiveSuggestionQueries,
+} from '../query/live-suggestion-query'
 
 
 describe('habitKeys', () => {
@@ -85,6 +90,31 @@ describe('habitKeys', () => {
 
   it('retrospective appends period', () => {
     expect(habitKeys.retrospective('week')).toEqual(['habits', 'retrospective', 'week'])
+  })
+})
+
+describe('live suggestion query ownership', () => {
+  it('keeps the newer visible query when an older registration unmounts', () => {
+    resetLiveSuggestionQueries()
+    const unregisterMonth = registerLiveSuggestionQuery(
+      'calendar',
+      habitKeys.calendar('2026-08-01', '2026-08-31'),
+    )
+    const weekKey = habitKeys.calendar('2026-08-24', '2026-08-30')
+    registerLiveSuggestionQuery('calendar', weekKey)
+
+    unregisterMonth()
+
+    expect(getLiveSuggestionQueryKey('calendar')).toEqual(weekKey)
+  })
+
+  it('clears the query when its owning surface unmounts', () => {
+    resetLiveSuggestionQueries()
+    const unregister = registerLiveSuggestionQuery('habits', habitKeys.list({}))
+
+    unregister()
+
+    expect(getLiveSuggestionQueryKey('habits')).toBeNull()
   })
 })
 

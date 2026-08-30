@@ -12,7 +12,13 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import {
+  goalKeys,
+  habitKeys,
+  profileKeys,
+  tagKeys,
+  useLiveSuggestionQueryKey,
+} from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -68,16 +74,6 @@ interface StreamSendFailure {
 interface UseChatComposerOptions {
   destination?: ChatSuggestionDestination
   onOpenConversation?: () => void
-}
-
-function lastQueryData<T>(
-  entries: [readonly unknown[], T | undefined][],
-): T | undefined {
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const value = entries[index]?.[1]
-    if (value !== undefined) return value
-  }
-  return undefined
 }
 
 function isAbortError(error: unknown): boolean {
@@ -187,6 +183,8 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     readServerNetworkStatus,
   )
   const [suggestionCacheRevision, refreshSuggestions] = useReducer((value) => value + 1, 0)
+  const habitsSuggestionQueryKey = useLiveSuggestionQueryKey('habits')
+  const calendarSuggestionQueryKey = useLiveSuggestionQueryKey('calendar')
 
   useEffect(
     () => queryClient.getQueryCache().subscribe(() => refreshSuggestions()),
@@ -210,14 +208,12 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     void suggestionCacheRevision
     if (!destination || !profile) return null
 
-    const habits = lastQueryData(
-      queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() }),
-    )
-    const calendar = lastQueryData(
-      queryClient.getQueriesData<CalendarMonthResponse>({
-        queryKey: habitKeys.calendarPrefix(),
-      }),
-    )
+    const habits = habitsSuggestionQueryKey
+      ? queryClient.getQueryData<HabitScheduleItem[]>(habitsSuggestionQueryKey)
+      : undefined
+    const calendar = calendarSuggestionQueryKey
+      ? queryClient.getQueryData<CalendarMonthResponse>(calendarSuggestionQueryKey)
+      : undefined
     const goals = queryClient.getQueryData<Goal[]>(goalKeys.list({}))
 
     if (destination === 'hoje' && habits === undefined) return null
@@ -225,7 +221,14 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     if (destination === 'progresso' && goals === undefined) return null
 
     return { destination, habits, calendar, goals, profile }
-  }, [destination, profile, queryClient, suggestionCacheRevision])
+  }, [
+    calendarSuggestionQueryKey,
+    destination,
+    habitsSuggestionQueryKey,
+    profile,
+    queryClient,
+    suggestionCacheRevision,
+  ])
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)

@@ -11,8 +11,9 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
+  const queryKey = habitKeys.calendar(rangeStart, rangeEnd)
   const query = useQuery({
-    queryKey: habitKeys.calendar(rangeStart, rangeEnd),
+    queryKey,
     queryFn: () =>
       apiClient<CalendarMonthResponse>(
         `${API.habits.calendarMonth}?dateFrom=${rangeStart}&dateTo=${rangeEnd}`,
@@ -32,6 +33,7 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
     isFetching: query.isFetching,
     error: query.error?.message ?? null,
     refresh: () => query.refetch(),
+    queryKey,
   }
 }
 

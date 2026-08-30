@@ -21,7 +21,13 @@ import {
   type ComposerProps,
   type ComposerSuggestions,
 } from "@orbit/shared/contracts/composer";
-import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
+import {
+  goalKeys,
+  habitKeys,
+  profileKeys,
+  tagKeys,
+  useLiveSuggestionQueryKey,
+} from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
   ChatMessage,
@@ -117,16 +123,6 @@ interface UseChatComposerOptions {
   onOpenConversation?: () => void;
 }
 
-function lastQueryData<T>(
-  entries: [readonly unknown[], T | undefined][],
-): T | undefined {
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const value = entries[index]?.[1];
-    if (value !== undefined) return value;
-  }
-  return undefined;
-}
-
 /**
  * Mobile chat-composer hook. Wraps the framework-agnostic
  * `@orbit/shared/hooks` core with React Native state and direct `apiClient`
@@ -175,6 +171,8 @@ export function useChatComposer({
     (value) => value + 1,
     0,
   );
+  const habitsSuggestionQueryKey = useLiveSuggestionQueryKey("habits");
+  const calendarSuggestionQueryKey = useLiveSuggestionQueryKey("calendar");
 
   useEffect(
     () => queryClient.getQueryCache().subscribe(() => refreshSuggestions()),
@@ -197,14 +195,12 @@ export function useChatComposer({
     void suggestionCacheRevision;
     if (!destination || !profile) return null;
 
-    const habits = lastQueryData(
-      queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() }),
-    );
-    const calendar = lastQueryData(
-      queryClient.getQueriesData<CalendarMonthResponse>({
-        queryKey: habitKeys.calendarPrefix(),
-      }),
-    );
+    const habits = habitsSuggestionQueryKey
+      ? queryClient.getQueryData<HabitScheduleItem[]>(habitsSuggestionQueryKey)
+      : undefined;
+    const calendar = calendarSuggestionQueryKey
+      ? queryClient.getQueryData<CalendarMonthResponse>(calendarSuggestionQueryKey)
+      : undefined;
     const goals = queryClient.getQueryData<Goal[]>(goalKeys.list({}));
 
     if (destination === "hoje" && habits === undefined) return null;
@@ -212,7 +208,14 @@ export function useChatComposer({
     if (destination === "progresso" && goals === undefined) return null;
 
     return { destination, habits, calendar, goals, profile };
-  }, [destination, profile, queryClient, suggestionCacheRevision]);
+  }, [
+    calendarSuggestionQueryKey,
+    destination,
+    habitsSuggestionQueryKey,
+    profile,
+    queryClient,
+    suggestionCacheRevision,
+  ]);
 
   useEffect(() => {
     let active = true;

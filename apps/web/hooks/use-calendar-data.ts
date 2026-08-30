@@ -30,8 +30,9 @@ async function fetchCalendarMonth(
 }
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
+  const queryKey = habitKeys.calendar(rangeStart, rangeEnd)
   const query = useQuery({
-    queryKey: habitKeys.calendar(rangeStart, rangeEnd),
+    queryKey,
     queryFn: () => fetchCalendarMonth(rangeStart, rangeEnd),
     staleTime: QUERY_STALE_TIMES.habits,
     enabled,
@@ -48,6 +49,7 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
     isFetching: query.isFetching,
     error: query.error?.message ?? null,
     refresh: () => query.refetch(),
+    queryKey,
   }
 }
 
