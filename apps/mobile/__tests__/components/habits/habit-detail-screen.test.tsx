@@ -421,10 +421,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('keeps a repeated offline detail toggle aligned with retained acknowledgement and replay', async () => {
-    let releaseAcceptedWrite: (() => void) | undefined
-    const acceptedWriteSettled = new Promise<void>((resolve) => {
-      releaseAcceptedWrite = resolve
-    })
     mocks.log.mockImplementation(async ({ habitId, date, intent }: {
       habitId: string
       date: string
@@ -443,7 +439,6 @@ describe('HabitDetailScreen', () => {
       mocks.logs = intent === 'log'
         ? [...mocks.logs, { id: 'optimistic', date, value: 1, createdAtUtc: `${date}T12:00:00Z` }]
         : mocks.logs.filter((entry) => entry.date !== date)
-      await acceptedWriteSettled
       return response
     })
 
@@ -483,8 +478,6 @@ describe('HabitDetailScreen', () => {
     expect(retained).toMatchObject({ retained: true })
     expect(getQueuedMutations()).toHaveLength(1)
 
-    releaseAcceptedWrite?.()
-    await Promise.resolve()
     offlineMocks.setOnline(true)
     await flushQueuedMutations()
 

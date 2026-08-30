@@ -48,6 +48,8 @@ import { HabitLogButton } from './habit-log-button'
 import { HabitRow } from './habit-row'
 import { useHabitDetail, useHabitLogs, useHabitMetrics, useHabits } from '@/hooks/use-habit-queries'
 import { useDeleteHabit, useLogHabit, useUpdateChecklist, useUpdateHabit } from '@/hooks/use-habits'
+import { isQueuedResult } from '@/lib/offline-mutations'
+import { waitForFirstWriteFinalization } from '@/lib/offline-queue'
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
@@ -232,16 +234,23 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       )
     : Promise.resolve(false)
   const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
-    const toggleKey = `${targetHabitId}:${dateStr}`
+    const toggleKey = `habit-toggle:${targetHabitId}:${dateStr}`
     const pendingToggleKeys = pendingToggleKeysRef.current
     if (pendingToggleKeys.has(toggleKey)) return false
 
     pendingToggleKeys.add(toggleKey)
     try {
-      return await runWrite(
-        () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
-        t('habits.detail.logError'),
-      )
+      const response = await logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent })
+      if (isQueuedResult(response)) {
+        await waitForFirstWriteFinalization({
+          type: 'logHabit',
+          dedupeKey: toggleKey,
+        })
+      }
+      return true
+    } catch {
+      showError(t('habits.detail.logError'))
+      return false
     } finally {
       pendingToggleKeys.delete(toggleKey)
     }
