@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
@@ -8,7 +9,6 @@ import {
 } from '@orbit/shared/utils'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
-import { useIsClient } from '@/hooks/use-is-client'
 import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
 import { useProfile } from '@/hooks/use-profile'
 import { useUIStore } from '@/stores/ui-store'
@@ -23,7 +23,7 @@ interface TodayAstraProps {
 
 export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
-  const isClient = useIsClient()
+  const [composerTarget, setComposerTarget] = useState<HTMLElement | null>(null)
   const { profile, isPending: profilePending, isError: profileError } = useProfile()
   const chat = useChatComposer()
   const { notifications } = useNotifications()
@@ -31,6 +31,18 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const setDraft = useChatStore((state) => state.setDraft)
   const proactive = selectNewestUnreadProactiveCheckin(notifications)
+
+  useEffect(() => {
+    const target = document.getElementById('today-composer-slot')
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setComposerTarget(target)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const openConversation = () => setConversationOpen(true)
   const createSentence = t('todayAstra.createSentence')
   const makeSuggestion = (id: string, label: string) => ({
@@ -66,7 +78,6 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
       : null
     : null
 
-  const composerTarget = isClient ? document.getElementById('today-composer-slot') : null
   return (
     <>
       {line ? (

@@ -22,7 +22,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { id: 'profile' }, isPending: false, isError: false }),
 }))
@@ -75,9 +74,30 @@ describe('web Today Astra', () => {
     mocks.markRead.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
+    document.getElementById('today-composer-slot')?.remove()
+  })
+
+  function appendComposerSlot() {
     const slot = document.createElement('div')
     slot.id = 'today-composer-slot'
     document.body.append(slot)
+    return slot
+  }
+
+  it('renders the composer into its slot after the target resolves', async () => {
+    const slot = appendComposerSlot()
+
+    renderTodayAstra()
+
+    expect(slot).toContainElement(await screen.findByTestId('today-composer'))
+  })
+
+  it('renders no composer or stray portal when the slot is absent', async () => {
+    expect(() => renderTodayAstra()).not.toThrow()
+    await act(async () => Promise.resolve())
+
+    expect(screen.queryByTestId('today-composer')).not.toBeInTheDocument()
+    expect(mocks.composerProps).toBeNull()
   })
 
   it('renders a proactive check-in and opens its conversation', () => {
@@ -99,7 +119,9 @@ describe('web Today Astra', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('hands a selected chip to the conversation with 50 habits', () => {
+  it('hands a selected chip to the conversation with 50 habits', async () => {
+    appendComposerSlot()
+
     render(
       <>
         {Array.from({ length: 50 }, (_, index) => <div key={index} data-testid="habit" />)}
@@ -108,6 +130,7 @@ describe('web Today Astra', () => {
       </>,
     )
 
+    await screen.findByTestId('today-composer')
     expect(mocks.composerProps?.suggestions).toHaveLength(4)
     const selectedSuggestion = mocks.composerProps?.suggestions[0]
     if (!selectedSuggestion) throw new Error('Today suggestion was not registered')
