@@ -372,6 +372,42 @@ describe('habit detail flow model', () => {
     expect(history.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('not-scheduled')
   })
 
+  it('subtracts a flexible window skip once from the invariant target', () => {
+    const flexibleWeekly = {
+      ...recurring,
+      days: [],
+      dueDate: '2026-08-24',
+      flexibleTarget: 1,
+      frequencyQuantity: 2,
+      isFlexible: true,
+    }
+    const skipped = { ...log('2026-08-25'), value: 0 }
+    const history = buildHabitHistoryMonth(flexibleWeekly, [skipped], today, today, 1)
+
+    expect(history.find((day) => day.dateStr === '2026-08-27')?.outcome).toBe('none')
+  })
+
+  it('does not reuse a selected window target in an unrelated flexible window', () => {
+    const flexibleWeekly = {
+      ...recurring,
+      days: [],
+      dueDate: '2026-08-17',
+      flexibleTarget: 1,
+      frequencyQuantity: 2,
+      isFlexible: true,
+    }
+    const selectedWindowSkip = { ...log('2026-08-25'), value: 0 }
+    const history = buildHabitHistoryMonth(
+      flexibleWeekly,
+      [log('2026-08-17'), selectedWindowSkip],
+      today,
+      today,
+      1,
+    )
+
+    expect(history.find((day) => day.dateStr === '2026-08-20')?.outcome).toBe('none')
+  })
+
   it('clamps monthly anchors and respects creation and end boundaries', () => {
     const monthly = {
       ...recurring,

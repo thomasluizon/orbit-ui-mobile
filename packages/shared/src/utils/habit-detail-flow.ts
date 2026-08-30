@@ -113,7 +113,7 @@ function isFlexibleTargetMet(
   const windowLogs = logs.filter(
     (log) => flexibleWindowKey(source, parseAPIDate(log.date), weekStartsOn) === windowKey,
   )
-  const target = source.flexibleTarget ?? source.frequencyQuantity ?? 1
+  const target = source.frequencyQuantity ?? 1
   const adjustedTarget = Math.max(0, target - windowLogs.filter((log) => log.value === 0).length)
   return windowLogs.filter((log) => log.value > 0).length >= adjustedTarget
 }
