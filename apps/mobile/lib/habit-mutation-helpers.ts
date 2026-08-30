@@ -52,6 +52,28 @@ export function updateHabitLists(
   )
 }
 
+function listQueryIncludesDate(queryKey: readonly unknown[], date: string): boolean {
+  const filters = queryKey[queryKey.length - 1]
+  if (typeof filters !== 'object' || filters === null) return false
+
+  const { dateFrom, dateTo } = filters as Record<string, unknown>
+  if (typeof dateFrom !== 'string' && typeof dateTo !== 'string') return false
+
+  return (typeof dateFrom !== 'string' || dateFrom <= date)
+    && (typeof dateTo !== 'string' || date <= dateTo)
+}
+
+export function updateHabitListsForDate(
+  queryClient: QueryClient,
+  date: string,
+  updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
+): void {
+  for (const [queryKey, items] of snapshotHabitLists(queryClient)) {
+    if (!items || !listQueryIncludesDate(queryKey, date)) continue
+    queryClient.setQueryData(queryKey, updater(items))
+  }
+}
+
 export function adjustHabitCount(queryClient: QueryClient, delta: number): void {
   queryClient.setQueryData<number>(habitKeys.count(), (old) => {
     if (old === undefined) return old

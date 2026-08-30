@@ -10,9 +10,9 @@ import type {
   HabitScheduleChild,
   HabitScheduleItem,
 } from '@orbit/shared/types/habit'
-import { withChildren } from '@orbit/shared/utils'
+import { findHabitInList, optimisticPatchHabit, withChildren } from '@orbit/shared/utils'
 
-export { optimisticPatchHabit } from '@orbit/shared/utils'
+export { optimisticPatchHabit }
 
 /** Toggle isCompleted on a single habit item, resetting checklist if needed */
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
@@ -61,6 +61,49 @@ export function optimisticToggleCompletion(
       item.children.map((child) => toggleChildCompletion(child, habitId)),
     )
   })
+}
+
+/** Set completion for one dated occurrence in a cached habit tree. */
+export function optimisticSetDatedCompletion(
+  items: HabitScheduleItem[],
+  habitId: string,
+  date: string,
+  completed: boolean,
+  logId: string,
+): HabitScheduleItem[] {
+  const habit = findHabitInList(items, habitId)
+  if (!habit) return items
+
+  return optimisticPatchHabit(
+    items,
+    habitId,
+    buildDatedCompletionPatch(habit, date, completed, logId),
+  )
+}
+
+function buildDatedCompletionPatch(
+  habit: HabitScheduleItem | HabitScheduleChild,
+  date: string,
+  completed: boolean,
+  logId: string,
+): Partial<HabitScheduleItem> {
+  const occurrence = {
+    date,
+    status: completed ? 'Completed' as const : 'Pending' as const,
+    logId: completed ? logId : null,
+  }
+  const occurrenceIndex = habit.instances.findIndex((instance) => instance.date === date)
+  const instances = occurrenceIndex >= 0
+    ? habit.instances.map((instance, index) => index === occurrenceIndex ? occurrence : instance)
+    : completed
+      ? [...habit.instances, occurrence]
+      : habit.instances
+
+  return {
+    isCompleted: completed,
+    isLoggedInRange: instances.some((instance) => instance.status === 'Completed'),
+    instances,
+  }
 }
 
 function updateChecklistInChild(

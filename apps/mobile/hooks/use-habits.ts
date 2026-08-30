@@ -40,6 +40,7 @@ import type {
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
+import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
   createTempEntityId,
   isQueuedResult,
@@ -53,6 +54,7 @@ import {
   optimisticPatchHabit,
   optimisticRemoveHabits,
   optimisticReorderHabits,
+  optimisticSetDatedCompletion,
   optimisticToggleCompletion,
   optimisticUpdateChecklist,
 } from '@/lib/habit-optimistic-helpers'
@@ -67,6 +69,7 @@ import {
   restoreHabitLists,
   snapshotHabitLists,
   updateHabitLists,
+  updateHabitListsForDate,
 } from '@/lib/habit-mutation-helpers'
 import {
   getMilestoneShareStreakKey,
@@ -96,6 +99,10 @@ type CreateSubHabitMutationInput = {
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+type LogHabitSnapshot = {
+  previousLists: HabitListSnapshots
+  previousLogs: HabitLog[] | undefined
+}
 type OfflineBulkMutationOutcome<TResponse> = TResponse & {
   ambiguousIds: string[]
   offlineFailureIds: string[]
@@ -154,7 +161,7 @@ export function useLogHabit() {
     LogHabitResponse | QueuedMarker,
     Error,
     LogHabitMutationInput,
-    { previousLists: HabitListSnapshots }
+    LogHabitSnapshot
   >({
     mutationFn: ({ habitId, date }) => {
       const occurrenceDate = date ?? formatAPIDate(new Date())
@@ -170,25 +177,57 @@ export function useLogHabit() {
       })
     },
 
-    onMutate: ({ habitId, date }) => {
+    onMutate: ({ habitId, date, intent }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (date) void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousLogs = date
+        ? queryClient.getQueryData<HabitLog[]>(habitKeys.logs(habitId))
+        : undefined
 
-      if (!date) {
+      if (date) {
+        const completed = intent === 'log'
+        const optimisticLogId = `optimistic-log:${habitId}:${date}`
+
+        queryClient.setQueryData<HabitLog[]>(habitKeys.logs(habitId), (old) => {
+          const logs = old ?? []
+          if (!completed) {
+            return logs.filter((log) => log.date !== date || log.value <= 0)
+          }
+          if (logs.some((log) => log.date === date && log.value > 0)) return logs
+          return [...logs, {
+            id: optimisticLogId,
+            date,
+            value: 1,
+            createdAtUtc: new Date().toISOString(),
+          }]
+        })
+        updateHabitListsForDate(queryClient, date, (items) =>
+          optimisticSetDatedCompletion(
+            items,
+            habitId,
+            date,
+            completed,
+            optimisticLogId,
+          ))
+      } else {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists }
+      return { previousLists, previousLogs }
     },
 
-    onError: (_err, _variables, context) => {
+    onError: (_err, variables, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
             queryClient.setQueryData(key, data)
           }
         }
+      }
+      if (context && variables.date) {
+        queryClient.setQueryData(habitKeys.logs(variables.habitId), context.previousLogs)
       }
     },
 
