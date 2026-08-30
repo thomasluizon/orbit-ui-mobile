@@ -35,6 +35,7 @@ interface SelectCheckProps {
   size?: number
   onClick?: () => void
   ariaLabel?: string
+  disabled?: boolean
 }
 
 export function SelectCheck({
@@ -42,11 +43,13 @@ export function SelectCheck({
   size = 24,
   onClick,
   ariaLabel,
+  disabled = false,
 }: Readonly<SelectCheckProps>) {
   const t = useTranslations('common')
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
+    if (disabled) return
     onClick?.()
   }
 
@@ -54,9 +57,10 @@ export function SelectCheck({
     <button
       type="button"
       onClick={handleClick}
+      disabled={disabled}
       aria-label={ariaLabel ?? t('select')}
       aria-pressed={selected}
-      className="touch-target appearance-none border-0 bg-transparent cursor-pointer p-0 shrink-0 inline-flex items-center justify-center"
+      className={`touch-target appearance-none border-0 bg-transparent p-0 shrink-0 inline-flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       style={{ width: size, height: size }}
     >
       <RadioGlyph selected={selected} size={size} />

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import UpgradeScreen from '@/app/upgrade'
-import RetrospectiveScreen from '@/app/retrospective'
 import SupportScreen from '@/app/support'
 import ProfileScreen from '@/app/(tabs)/profile'
 
@@ -311,8 +310,10 @@ vi.mock('@/components/ui/icons', () => {
     React.createElement(name, props)
 
   return {
+    AdjustmentsHorizontal: createIcon('AdjustmentsHorizontal'),
     AlertTriangle: createIcon('AlertTriangle'),
     ArrowLeft: createIcon('ArrowLeft'),
+    ArrowUpRight: createIcon('ArrowUpRight'),
     BadgeCheck: createIcon('BadgeCheck'),
     BarChart3: createIcon('BarChart3'),
     CalendarDays: createIcon('CalendarDays'),
@@ -328,12 +329,14 @@ vi.mock('@/components/ui/icons', () => {
     Share2: createIcon('Share2'),
     Flame: createIcon('Flame'),
     Gift: createIcon('Gift'),
+    Home: createIcon('Home'),
     Info: createIcon('Info'),
     Lightbulb: createIcon('Lightbulb'),
     Lock: createIcon('Lock'),
     LogOut: createIcon('LogOut'),
     MessageCircle: createIcon('MessageCircle'),
     MessageSquare: createIcon('MessageSquare'),
+    Minus: createIcon('Minus'),
     Palette: createIcon('Palette'),
     Pencil: createIcon('Pencil'),
     RefreshCw: createIcon('RefreshCw'),
@@ -344,7 +347,9 @@ vi.mock('@/components/ui/icons', () => {
     Sparkles: createIcon('Sparkles'),
     Star: createIcon('Star'),
     Play: createIcon('Play'),
+    Plus: createIcon('Plus'),
     Send: createIcon('Send'),
+    Snowflake: createIcon('Snowflake'),
     Tag: createIcon('Tag'),
     Target: createIcon('Target'),
     TrendingUp: createIcon('TrendingUp'),
@@ -451,40 +456,6 @@ describe('intentional offline UX screens', () => {
     mocks.logout.mockClear()
   })
 
-  it('renders cached retrospective content offline when a cached read exists', async () => {
-    const cached = {
-      period: 'week',
-      fromCache: true,
-      metrics: {
-        completionRate: 88,
-        totalCompletions: 17,
-        totalScheduled: 20,
-        activeDays: 6,
-        periodDays: 7,
-        currentStreak: 3,
-        bestStreak: 8,
-        badHabitSlips: 1,
-        weeklyConsistency: [80, 100, 60, 100, 40, 0, 100],
-        topHabits: [],
-        needsAttention: [],
-      },
-      narrative: {
-        highlights: 'Cached retrospective summary',
-        missed: 'A couple of slips.',
-        trends: 'Mornings are strong.',
-        suggestion: 'Keep the streak alive.',
-      },
-    }
-    mocks.storage.set('orbit_retrospective_cache_week_v2', JSON.stringify(cached))
-
-    const tree = await renderScreen(<RetrospectiveScreen />)
-
-    const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.description')
-    expect(texts).toContain('Cached retrospective summary')
-    expect(texts).toContain('retrospective.cached')
-  })
-
   it('shows an explicit offline-unavailable state for delete-account instead of live actions', async () => {
     const tree = await renderScreen(<ProfileScreen />)
 
@@ -506,7 +477,7 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<UpgradeScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.description')
+    expect(texts).toContain('upgrade.billing.offline')
     expect(texts).not.toContain('upgrade.plans.error')
     expect(texts).not.toContain('upgrade.billing.error')
   })

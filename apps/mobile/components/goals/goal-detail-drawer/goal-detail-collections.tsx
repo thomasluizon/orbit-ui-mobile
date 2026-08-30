@@ -26,18 +26,18 @@ export function GoalDetailCollections({
 }: Readonly<GoalDetailCollectionsProps>) {
   const { t } = useTranslation()
 
-  const linkedHabitsSection =
-    linkedHabits.length > 0 ? (
-      <View>
-        <SectionLabel top={8} bottom={0}>
-          {t('goals.linkedHabits')}
-        </SectionLabel>
-        <GoalLinkedHabitsSection
-          title={t('goals.linkedHabits')}
-          linkedHabits={linkedHabits}
-        />
-      </View>
-    ) : null
+  const linkedHabitsSection = (
+    <View>
+      <SectionLabel top={8} bottom={0}>
+        {t('goals.linkedHabits')}
+      </SectionLabel>
+      <GoalLinkedHabitsSection
+        title={t('goals.linkedHabits')}
+        emptyLabel={t('goals.noLinkedHabits')}
+        linkedHabits={linkedHabits}
+      />
+    </View>
+  )
 
   const progressHistorySection =
     entries.length > 0 ? (
@@ -55,7 +55,7 @@ export function GoalDetailCollections({
               unit,
             })
           }
-          showAllLabel={t('goals.detail.showAllHistory')}
+          showAllLabel={t('goals.detail.showAllHistory', { count: entries.length })}
           showLessLabel={t('goals.detail.showLessHistory')}
         />
       </View>

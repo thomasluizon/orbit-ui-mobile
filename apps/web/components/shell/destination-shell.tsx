@@ -1,18 +1,10 @@
 'use client'
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
+import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
@@ -22,6 +14,10 @@ import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
+import {
+  resetRouteTransitionIntent,
+  setRouteTransitionIntent,
+} from '@/lib/motion/route-intent'
 import { Shell412 } from './shell-412'
 import { ShellWide } from './shell-wide'
 
@@ -32,50 +28,11 @@ interface DestinationShellProps {
   onCreate: () => void
 }
 
-type ComposerRenderer = () => ReactNode
-
-interface ShellComposerSlotContextValue {
-  register: (renderer: ComposerRenderer) => () => void
-}
-
-const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
-
-function useShellComposerHost() {
-  const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
-  const register = useCallback((nextRenderer: ComposerRenderer) => {
-    setRenderer(() => nextRenderer)
-    return () => setRenderer(null)
-  }, [])
-  const value = useMemo(() => ({ register }), [register])
-  return { value, content: renderer?.() }
-}
-
-export function useShellComposerSlot(
-  enabled: boolean,
-  renderer: ComposerRenderer,
-  refreshKey: string,
-) {
-  const host = useContext(ShellComposerSlotContext)
-  const registerRenderer = useEffectEvent(() => host?.register(renderer))
-
-  useEffect(() => {
-    if (!enabled) return
-    return registerRenderer()
-  }, [enabled, host, refreshKey])
-}
-
 const ROUTES: Record<BottomTab, string> = {
   hoje: '/',
   calendario: '/calendar',
   progresso: '/progress',
   perfil: '/profile',
-}
-
-function resolveDestination(pathname: string): BottomTab {
-  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendario'
-  if (pathname === '/progress' || pathname.startsWith('/progress/')) return 'progresso'
-  if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'perfil'
-  return 'hoje'
 }
 
 function hasPrimaryNavigation(pathname: string): boolean {
@@ -88,27 +45,6 @@ export function DestinationShell({
   composer,
   onCreate,
 }: Readonly<DestinationShellProps>) {
-  const registeredComposer = useShellComposerHost()
-
-  return (
-    <ShellComposerSlotContext.Provider value={registeredComposer.value}>
-      <DestinationShellContent
-        notice={notice}
-        composer={composer ?? registeredComposer.content}
-        onCreate={onCreate}
-      >
-        {children}
-      </DestinationShellContent>
-    </ShellComposerSlotContext.Provider>
-  )
-}
-
-function DestinationShellContent({
-  children,
-  notice,
-  composer,
-  onCreate,
-}: Readonly<DestinationShellProps>) {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
@@ -116,10 +52,10 @@ function DestinationShellContent({
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
-  const destination = resolveDestination(pathname)
+  const destination = resolveShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
 
-  useKeyboardShortcuts()
+  useKeyboardShortcuts(navigationEnabled)
 
   const labels = useMemo<Record<BottomTab, string>>(
     () => ({
@@ -133,9 +69,15 @@ function DestinationShellContent({
 
   const navigate = useCallback(
     (id: BottomTab) => {
-      router.push(ROUTES[id])
+      const route = ROUTES[id]
+      if (route === pathname) {
+        resetRouteTransitionIntent()
+        return
+      }
+      setRouteTransitionIntent('tab')
+      router.push(route)
     },
-    [router],
+    [pathname, router],
   )
 
   const wideItems = useMemo<ShellWideItem[]>(
@@ -185,12 +127,7 @@ function DestinationShellContent({
         {children}
       </Shell412>
     )
-    return (
-      <>
-        {flow}
-        {palette}
-      </>
-    )
+    return flow
   }
 
   if (wide) {

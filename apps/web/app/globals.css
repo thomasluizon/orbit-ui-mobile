@@ -286,7 +286,7 @@
      transforms in drag-enabled contexts. Matches `.stagger-enter > *` below. */
   --animate-slide-up: slide-up-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   --animate-scale-in: scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-gentle-pulse: gentle-pulse 2s ease-in-out infinite;
+  --animate-gentle-pulse: gentle-pulse 1s var(--ease-standard) infinite;
 
   /* Stacking (DESIGN.md): the semantic z-index scale, mirrored from
      @orbit/shared/theme zLayers. Overlays stack on a named tier via the
@@ -343,9 +343,15 @@
   --orbit-list-stagger: 40ms;
 
   /* Motion tokens */
+  --dur-1: 160ms;
+  --dur-2: 220ms;
+  --dur-3: 280ms;
   --dur-fast: 160ms;
-  --dur-base: 220ms;
-  --dur-slow: 280ms;
+  --dur-base: var(--dur-2);
+  --dur-slow: var(--dur-3);
+  --dur-hover-control: 240ms;
+  --dur-hover: 380ms;
+  --dur-enter: 220ms;
   --duration-fast: 160ms;
   --duration-normal: 220ms;
   --duration-slow: 280ms;
@@ -746,12 +752,6 @@ button {
   50% { opacity: 0.5; }
 }
 
-/* Progress bar fill */
-@keyframes progress-fill {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(var(--progress, 1)); }
-}
-
 /* Retrospective weekly-consistency bars: rise from the baseline */
 @keyframes bar-rise {
   from { transform: scaleY(0); }
@@ -838,19 +838,14 @@ button {
   content: "";
   position: absolute;
   inset: 0;
-  width: 200%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--primary) 50%,
-    transparent 100%
-  );
-  animation: loading-slide 1.5s ease-in-out infinite;
+  width: 33.333%;
+  background: var(--primary);
+  animation: loading-slide 1.5s linear infinite;
 }
 
 @keyframes loading-slide {
-  0% { transform: translateX(-50%); }
-  100% { transform: translateX(50%); }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -978,12 +973,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .animate-tag-pop {
   animation: tag-pop 160ms var(--ease-out);
-}
-
-/* Status dot completion sweep (Today log): primary wedge fills as it sweeps */
-@keyframes status-sweep {
-  from { stroke-dashoffset: var(--sweep-c); }
-  to { stroke-dashoffset: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1171,7 +1160,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-right: calc(-1 * var(--overlay-px));
 }
 
-/* Kit interactive card: translucent card that lifts on hover */
+/* Kit interactive card: translucent card with state-only hover feedback */
 .card-int {
   border-radius: 18px;
   background: var(--bg-card);
@@ -1185,10 +1174,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .card-int:hover {
   background: var(--bg-elev);
   box-shadow: inset 0 0 0 1px var(--hairline-strong), var(--shadow-1);
-  transform: translateY(-1px);
 }
 .card-int:active {
-  transform: translateY(0) scale(0.99);
+  transform: scale(0.96);
   box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 

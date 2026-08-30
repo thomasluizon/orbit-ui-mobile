@@ -18,7 +18,7 @@ export function ProgressBar({ value = 0, max = 100, label }: Readonly<ProgressBa
       data-complete={complete || undefined}
     >
       <div
-        className="h-full w-full origin-left rounded-full transition-transform duration-[var(--dur-base)] ease-[var(--ease-standard)] motion-reduce:transition-none"
+        className="h-full w-full origin-left rounded-full transition-transform duration-[var(--dur-base)] ease-linear motion-reduce:transition-none"
         style={{ background: complete ? 'var(--fg-3)' : 'var(--primary)', transform: `scaleX(${ratio})` }}
       />
     </div>

@@ -28,9 +28,10 @@ export function GoalDetailCollections({
 
   return (
     <>
-      {isStreak && linkedHabits.length > 0 && (
+      {isStreak && (
         <GoalLinkedHabitsSection
           title={t('goals.linkedHabits')}
+          emptyLabel={t('goals.noLinkedHabits')}
           linkedHabits={linkedHabits}
         />
       )}
@@ -46,13 +47,14 @@ export function GoalDetailCollections({
             unit,
           })
         }
-        showAllLabel={t('goals.detail.showAllHistory')}
+        showAllLabel={t('goals.detail.showAllHistory', { count: entries.length })}
         showLessLabel={t('goals.detail.showLessHistory')}
       />
 
       {!isStreak && (
         <GoalLinkedHabitsSection
           title={t('goals.linkedHabits')}
+          emptyLabel={t('goals.noLinkedHabits')}
           linkedHabits={linkedHabits}
         />
       )}

@@ -13,14 +13,6 @@ import { useUIStore } from "@/stores/ui-store";
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedTree = import("react-test-renderer").ReactTestRenderer;
 
-vi.mock("@/components/today/today-shell", () => ({
-  TodayDateNavigation: () => null,
-}));
-
-vi.mock("@/components/habits/today-ai-summary", () => ({
-  TodayAISummary: () => null,
-}));
-
 vi.mock("expo-router", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push: vi.fn() }),
@@ -40,12 +32,15 @@ vi.mock("@/components/ui/icons", () => {
     AdjustmentsHorizontal: Icon,
     AlertTriangle: Icon,
     ArrowLeft: Icon,
+    ArrowUpRight: Icon,
     Check: Icon,
     CheckCircle2: Icon,
     ChevronLeft: Icon,
     ChevronRight: Icon,
     ChevronsDownUp: Icon,
     ChevronsUpDown: Icon,
+    CreditCard: Icon,
+    Download: Icon,
     Eye: Icon,
     Filter: Icon,
     Home: Icon,
@@ -102,9 +97,6 @@ describe("mobile ui store", () => {
       showCreateModal: false,
       showCreateGoalModal: false,
       searchQuery: "",
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: false,
     });
   });
 
@@ -118,26 +110,17 @@ describe("mobile ui store", () => {
       setFilters,
       setSearchQuery,
       setActiveView,
-      setSelectedFrequency,
-      setSelectedTagIds,
-      setShowCompleted,
     } = useUIStore.getState();
 
     setFilters({ dateFrom: "2026-04-06" });
     setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
-    setActiveView("goals");
-    setSelectedFrequency("Week");
-    setSelectedTagIds(["tag-1"]);
-    setShowCompleted(true);
+    setActiveView("all");
 
     expect(useUIStore.getState()).toMatchObject({
       activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
-      activeView: "goals",
-      selectedFrequency: "Week",
-      selectedTagIds: ["tag-1"],
-      showCompleted: true,
+      activeView: "all",
     });
   });
 
@@ -214,7 +197,7 @@ describe("mobile ui store", () => {
     expect(useUIStore.getState().lastCreatedHabitId).toBeNull();
   });
 
-  it("rehydrates durable today context without restoring search", async () => {
+  it("rehydrates an existing payload without restoring retired Today controls", async () => {
     asyncStorageState.data.set(
       "orbit-ui-store",
       JSON.stringify({
@@ -226,7 +209,7 @@ describe("mobile ui store", () => {
           selectedTagIds: ["tag-2"],
           showCompleted: true,
         },
-        version: 2,
+        version: 4,
       }),
     );
 
@@ -236,13 +219,36 @@ describe("mobile ui store", () => {
       activeFilters: {},
       activeView: "general",
       searchQuery: "",
-      selectedFrequency: "Month",
-      selectedTagIds: ["tag-2"],
-      showCompleted: true,
     });
+    expect(useUIStore.getState()).not.toHaveProperty("selectedFrequency");
+    expect(useUIStore.getState()).not.toHaveProperty("selectedTagIds");
+    expect(useUIStore.getState()).not.toHaveProperty("showCompleted");
     expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain(
       "searchQuery",
     );
+    expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain(
+      "showCompleted",
+    );
+  });
+
+  it("migrates the retired goals view from the previous persistence version", async () => {
+    asyncStorageState.data.set(
+      "orbit-ui-store",
+      JSON.stringify({
+        state: {
+          activeFilters: {},
+          activeView: "goals",
+          selectedFrequency: null,
+          selectedTagIds: [],
+          showCompleted: false,
+        },
+        version: 3,
+      }),
+    );
+
+    await useUIStore.persist.rehydrate();
+
+    expect(useUIStore.getState().activeView).toBe("today");
   });
 
   it("drops legacy day-selection keys when rehydrating an old snapshot", async () => {
@@ -275,10 +281,6 @@ describe("mobile ui store", () => {
       activeFilters: {},
       activeView: "today",
       searchQuery: "",
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: true,
-      setupChecklistDismissed: false,
     });
   });
 
@@ -318,20 +320,17 @@ describe("mobile ui store", () => {
   it("returns cloned persisted ui state snapshots", () => {
     useUIStore.setState({
       activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
-      selectedTagIds: ["focus"],
     });
 
     const snapshot = getPersistedUIState(useUIStore.getState());
 
     useUIStore.setState({
       activeFilters: { dateFrom: "2026-04-07" },
-      selectedTagIds: ["health"],
     });
 
     expect(snapshot.activeFilters).toEqual({
       dateFrom: "2026-04-06",
       includeOverdue: true,
     });
-    expect(snapshot.selectedTagIds).toEqual(["focus"]);
   });
 });

@@ -81,7 +81,7 @@ export function useGamificationProfile(enabled = true) {
   }, [profile?.level])
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
 
   return {
@@ -125,6 +125,22 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   }
 }
 
+export function useRepairStreak() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiClient<StreakInfo>(
+        API.gamification.repairStreak,
+        { method: 'POST', body: '{}' },
+        streakInfoSchema,
+      ),
+    onSuccess: (streakInfo) => {
+      queryClient.setQueryData(gamificationKeys.streak(), streakInfo)
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
+    },
+  })
+}
+
 /**
  * Reports a whitelisted client gamification event (a shared card or a viewed Wrapped) to the backend,
  * which idempotently grants the mapped achievement. On success it celebrates each granted achievement
@@ -151,7 +167,7 @@ export function useReportEvent() {
           xpReward: achievement.xpReward,
         })
       }
-      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })
 }

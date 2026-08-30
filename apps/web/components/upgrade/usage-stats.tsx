@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { cardLabelStyle, cardSurface, metaTextStyle } from './styles'
 
 export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
@@ -9,6 +10,7 @@ export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
   t: ReturnType<typeof useTranslations>
 }>) {
   return (
+    <div className="flex flex-col gap-3">
     <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>
       <div style={cardLabelStyle}>{t('upgrade.billing.usage.title')}</div>
       <div className="flex items-baseline justify-between" style={{ marginTop: 8, marginBottom: 10 }}>
@@ -32,6 +34,13 @@ export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
         label={t('upgrade.billing.usage.aiMessages')}
 
       />
+    </div>
+    {usageUrgent ? (
+      <CapacityNotice
+        message={t('upgrade.billing.usage.nearLimit')}
+        body={t('upgrade.billing.usage.nearLimitBody')}
+      />
+    ) : null}
     </div>
   )
 }

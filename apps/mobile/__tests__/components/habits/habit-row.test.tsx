@@ -80,17 +80,51 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
-  it('makes a read-only row dim and untappable', () => {
+  it('makes every read-only descendant disabled and guards its actions', () => {
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    const onToggleExpand = vi.fn()
+    const onEdit = vi.fn()
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(
-        <HabitRow habit={createMockHabit({ title: 'Meditate' })} readOnly />,
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          readOnly
+          hasChildren
+          childrenDone={0}
+          childrenTotal={1}
+          actions={{ onDetail, onLog, onToggleExpand, onEdit }}
+        />,
       )
     })
 
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    expect(row.props.pointerEvents).toBe('none')
+    expect(row.props.pointerEvents).toBeUndefined()
     expect(row.props.accessibilityState).toEqual({ disabled: true })
+
+    const controls = [
+      renderer!.root.findByProps({ accessibilityLabel: 'common.expand' }),
+      renderer!.root.findByProps({ accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' }),
+      renderer!.root.findByProps({ accessibilityLabel: 'habits.actions.more' }),
+    ]
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body?.props.disabled).toBe(true)
+    for (const control of controls) {
+      expect(control.props.disabled).toBe(true)
+      TestRenderer.act(() => control.props.onPress?.())
+    }
+    TestRenderer.act(() => {
+      body?.props.onPress?.()
+      body?.props.onLongPress?.()
+    })
+
+    expect(onDetail).not.toHaveBeenCalled()
+    expect(onLog).not.toHaveBeenCalled()
+    expect(onToggleExpand).not.toHaveBeenCalled()
+    expect(onEdit).not.toHaveBeenCalled()
   })
 
   it('uses a 500 ms still hold for selection', () => {

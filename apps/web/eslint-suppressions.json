@@ -24,35 +24,6 @@
       "count": 2
     }
   },
-  "app/(app)/achievements/_components/achievement-category-section.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/achievements/_components/achievement-xp-card.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/(app)/achievements/_components/achievements-locked-state.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/achievements/page.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(app)/advanced/page.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -189,11 +160,8 @@
     }
   },
   "app/(app)/profile/_components/profile-stat-tiles.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 8
+      "count": 6
     }
   },
   "app/(app)/profile/_components/profile-subscription-section.tsx": {
@@ -204,63 +172,6 @@
   "app/(app)/profile/_components/subscription-card.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    }
-  },
-  "app/(app)/retrospective/_components/locked-block.tsx": {
-    "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/retrospective/_components/retrospective-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 9
-    }
-  },
-  "app/(app)/retrospective/_components/retrospective-empty-state.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/retrospective/_components/retrospective-no-data-state.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/retrospective/_components/retrospective-view.tsx": {
-    "local/spacing-scale": {
-      "count": 9
-    }
-  },
-  "app/(app)/streak/_components/streak-frozen-banner.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/(app)/streak/_components/streak-hero.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/streak/_components/streak-sections.tsx": {
-    "local/no-decorative-glow": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 20
-    }
-  },
-  "app/(app)/streak/page.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "app/(app)/support/_components/support-field.tsx": {
@@ -279,11 +190,8 @@
     }
   },
   "app/(app)/upgrade/page.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "app/(app)/wrapped/_components/wrapped-cover.tsx": {
@@ -558,22 +466,6 @@
       "count": 3
     }
   },
-  "components/command/command-menu.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/require-focus-replacement": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 7
-    }
-  },
-  "components/command/command-row.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/gamification/achievement-toast.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -606,11 +498,6 @@
       "count": 1
     },
     "local/no-decorative-glow": {
-      "count": 1
-    }
-  },
-  "components/gamification/streak-badge.tsx": {
-    "local/spacing-scale": {
       "count": 1
     }
   },
@@ -729,17 +616,6 @@
   "components/goals/goal-status-badge.tsx": {
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/goals/goals-view.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/habits/checklist-templates.tsx": {
@@ -1114,7 +990,7 @@
   },
   "components/ui/app-bar.tsx": {
     "local/icon-size-grid": {
-      "count": 3
+      "count": 2
     },
     "local/spacing-scale": {
       "count": 3
@@ -1125,11 +1001,6 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/ui/back-to-top.tsx": {
-    "local/no-scroll-listener-motion": {
       "count": 1
     }
   },
@@ -1243,34 +1114,12 @@
       "count": 2
     }
   },
-  "components/upgrade/billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 26
-    }
-  },
   "components/upgrade/plan-comparison-cards.tsx": {
     "local/icon-size-grid": {
       "count": 3
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/upgrade/play-billing-dashboard.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/upgrade/pricing-section.tsx": {

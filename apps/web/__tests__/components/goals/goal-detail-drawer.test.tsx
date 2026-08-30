@@ -106,6 +106,13 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
   })
 
+  it('keeps the linked habits section visible at count zero', () => {
+    render(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByText('goals.linkedHabits')).toBeInTheDocument()
+    expect(screen.getByText('goals.noLinkedHabits')).toBeInTheDocument()
+  })
+
   it.each([
     { name: 'renders progress section', text: 'goals.progress' },
     { name: 'renders progress info text', text: 'goals.progressOf' },

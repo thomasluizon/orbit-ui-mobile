@@ -21,9 +21,16 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
-import { rgbaFromHex } from '@/components/gamification/streak-sections-styles'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
+
+function rgbaFromHex(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '')
+  const red = Number.parseInt(normalized.slice(0, 2), 16)
+  const green = Number.parseInt(normalized.slice(2, 4), 16)
+  const blue = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
 
 export interface StreakFreezeCelebrationHandle {
   show: () => void

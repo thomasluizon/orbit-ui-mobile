@@ -30,7 +30,6 @@ import type {
   BulkCreateRequest,
   BulkCreateResponse,
   BulkDeleteResponse,
-  BulkMutationOutcome,
   BulkLogItemRequest,
   BulkLogResult,
   BulkSkipItemRequest,
@@ -64,8 +63,8 @@ import {
   buildOptimisticSubHabit,
   finalizeHabitMutation,
   optimisticMoveHabitParent,
-  restoreHabitLists,
   restoreHabitCompletionForIds,
+  restoreHabitLists,
   snapshotHabitLists,
   updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
@@ -85,13 +84,19 @@ import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
+type LogHabitMutationInput = {
+  habitId: string
+  date?: string
+  intent: 'log' | 'unlog'
+}
 type CreateSubHabitMutationInput = {
   parentId: string
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
-type OfflineBulkMutationOutcome<TResponse> = BulkMutationOutcome<TResponse> & {
+type OfflineBulkMutationOutcome<TResponse> = TResponse & {
+  ambiguousIds: string[]
   offlineFailureIds: string[]
 }
 
@@ -118,11 +123,12 @@ export function useLogHabit() {
   return useMutation<
     LogHabitResponse | QueuedMarker,
     Error,
-    { habitId: string; date?: string },
+    LogHabitMutationInput,
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: ({ habitId, date }) =>
-      performQueuedApiMutation<LogHabitResponse>({
+    mutationFn: ({ habitId, date }) => {
+      const occurrenceDate = date ?? formatAPIDate(new Date())
+      return performQueuedApiMutation<LogHabitResponse>({
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
@@ -130,7 +136,9 @@ export function useLogHabit() {
         payload: date ? { date } : undefined,
         entityType: 'habit',
         targetEntityId: habitId,
-      }),
+        dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+      })
+    },
 
     onMutate: ({ habitId, date }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -155,11 +163,15 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+      const queuedResult = isQueuedResult(response)
 
-      if (isQueuedResult(response)) {
+      if (variables.intent === 'log' && (!queuedResult || response.retained !== true)) {
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(variables.date ?? formatAPIDate(new Date()))
+      }
+
+      if (queuedResult) {
         return
       }
 
@@ -957,13 +969,10 @@ export function useBulkLogHabits() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const immediateIds: string[] = []
-      for (const item of items) {
-        if (!item.date) immediateIds.push(item.habitId)
-      }
+      const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
-        immediateIds.reduce(
+        completedIds.reduce(
           (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
           currentItems,
         ),
@@ -1053,13 +1062,10 @@ export function useBulkSkipHabits() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const immediateIds: string[] = []
-      for (const item of items) {
-        if (!item.date) immediateIds.push(item.habitId)
-      }
+      const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
-        immediateIds.reduce(
+        completedIds.reduce(
           (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
           currentItems,
         ),

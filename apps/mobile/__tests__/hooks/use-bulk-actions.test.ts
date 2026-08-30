@@ -10,6 +10,21 @@ const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
 const showToast = vi.fn()
+const VIEWED_DATE = '2026-04-01'
+
+vi.mock('react-i18next', async () => {
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  const translate = (key: string) => {
+    let value: unknown = messages
+    for (const segment of key.split('.')) {
+      if (typeof value !== 'object' || value === null || !(segment in value)) return key
+      value = (value as Record<string, unknown>)[segment]
+    }
+    return typeof value === 'string' ? value : key
+  }
+
+  return { useTranslation: () => ({ t: translate }) }
+})
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => bulkDelete,
@@ -25,24 +40,32 @@ type BulkActions = ReturnType<typeof useBulkActions>
 
 function renderBulkActions(
   selectedHabitIds: Set<string>,
+  readOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
 ) {
   const onSuccess = vi.fn()
   const onPartialFailure = vi.fn()
-  const markRecentlyCompleted = vi.fn()
-  const checkAndPromptParentLog = vi.fn()
+  const settleBulkHabitResolutions = vi.fn()
   const habitListRef = {
-    current: { markRecentlyCompleted, checkAndPromptParentLog },
+    current: { settleBulkHabitResolutions },
   } as unknown as React.RefObject<HabitListHandle | null>
   const captured: { current: BulkActions | null } = { current: null }
   function Probe() {
-    captured.current = useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess, onPartialFailure })
+    captured.current = useBulkActions({
+      selectedHabitIds,
+      selectedDateStr: VIEWED_DATE,
+      readOnly,
+      habitsById,
+      habitListRef,
+      onSuccess,
+      onPartialFailure,
+    })
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(React.createElement(Probe))
   })
-  return { captured, onSuccess, onPartialFailure, markRecentlyCompleted, checkAndPromptParentLog }
+  return { captured, onSuccess, onPartialFailure, settleBulkHabitResolutions }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -78,36 +101,51 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
-  it('does not report success when the delete request rejects', async () => {
-    bulkDelete.mutateAsync.mockRejectedValueOnce(new Error('offline'))
-    const { captured, onSuccess } = renderBulkActions(new Set(['h-1']))
-
-    await TestRenderer.act(async () => {
-      await expect(captured.current!.confirmBulkDelete()).rejects.toThrow('offline')
-    })
-
-    expect(onSuccess).not.toHaveBeenCalled()
-  })
-
-  it('keeps an offline-refused delete selected and reports that nothing changed', async () => {
+  it('keeps the confirmation and selection when an offline delete is refused', async () => {
     bulkDelete.mutateAsync.mockResolvedValueOnce({
       results: [],
-      ambiguousIds: [],
       offlineFailureIds: ['h-1'],
     })
-    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1']))
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(new Set(['h-1']))
 
+    TestRenderer.act(() => {
+      captured.current!.setShowBulkDeleteConfirm(true)
+    })
     await TestRenderer.act(async () => {
       await captured.current!.confirmBulkDelete()
     })
 
-    expect(onPartialFailure).toHaveBeenCalledWith(['h-1'])
     expect(onSuccess).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledTimes(1)
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(captured.current!.showBulkDeleteConfirm).toBe(true)
     expect(showToast).toHaveBeenCalledWith({
       kind: 'neutral',
-      message: 'habits.bulkBar.offlineFailure',
+      message: 'Nothing changed because your device is offline.',
     })
+  })
+
+  it('closes after an ambiguous delete and refreshes without offering a retry', async () => {
+    bulkDelete.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      ambiguousIds: ['h-1'],
+      offlineFailureIds: [],
+    })
+    const { captured, onSuccess } = renderBulkActions(new Set(['h-1']))
+
+    TestRenderer.act(() => {
+      captured.current!.setShowBulkDeleteConfirm(true)
+    })
+    await TestRenderer.act(async () => {
+      await captured.current!.confirmBulkDelete()
+    })
+
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(captured.current!.showBulkDeleteConfirm).toBe(false)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'The connection dropped. The list was refreshed.',
+    })
+    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
   })
 })
 
@@ -124,118 +162,8 @@ describe('useBulkActions reversibility boundary', () => {
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
   })
 
-  it('keeps failed rows selected and retries only those rows', async () => {
-    bulkSkip.mutateAsync
-      .mockResolvedValueOnce({ results: [
-        { habitId: 'h-1', status: 'Success' },
-        { habitId: 'h-2', status: 'Failed' },
-      ] })
-      .mockResolvedValueOnce(bulkSuccess(['h-2']))
-    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
-
-    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
-
-    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
-    expect(onSuccess).not.toHaveBeenCalled()
-    const retry = showToast.mock.calls[0]?.[0]?.onAction as (() => void) | undefined
-    expect(retry).toBeTypeOf('function')
-    await TestRenderer.act(async () => { retry?.(); await Promise.resolve() })
-    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2' }])
-  })
-
-  it('refreshes after an ambiguous skip without offering a retry', async () => {
-    bulkSkip.mutateAsync.mockResolvedValueOnce({
-      results: [{ habitId: 'h-1', status: 'Success' }],
-      ambiguousIds: ['h-2'],
-    })
-    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
-
-    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
-
-    expect(showToast).toHaveBeenCalledWith({
-      kind: 'neutral',
-      message: 'habits.bulkBar.connectionRefreshed',
-    })
-    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
-    expect(onPartialFailure).not.toHaveBeenCalled()
-    expect(onSuccess).toHaveBeenCalledTimes(1)
-    expect(bulkSkip.mutateAsync).toHaveBeenCalledTimes(1)
-  })
-
-  it('refreshes after an ambiguous bulk log without offering a retry', async () => {
-    bulkLog.mutateAsync.mockResolvedValueOnce({
-      results: [],
-      ambiguousIds: ['h-1', 'h-2'],
-      offlineFailureIds: [],
-    })
-    const { captured, onSuccess, onPartialFailure, markRecentlyCompleted } = renderBulkActions(
-      new Set(['h-1', 'h-2']),
-    )
-
-    await TestRenderer.act(async () => { await captured.current!.confirmBulkLog() })
-
-    expect(showToast).toHaveBeenCalledWith({
-      kind: 'neutral',
-      message: 'habits.bulkBar.connectionRefreshed',
-    })
-    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
-    expect(markRecentlyCompleted).not.toHaveBeenCalled()
-    expect(onPartialFailure).not.toHaveBeenCalled()
-    expect(onSuccess).toHaveBeenCalledTimes(1)
-    expect(bulkLog.mutateAsync).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps an offline-refused skip selected without reporting success or refresh', async () => {
-    bulkSkip.mutateAsync.mockResolvedValueOnce({
-      results: [],
-      ambiguousIds: [],
-      offlineFailureIds: ['h-1', 'h-2'],
-    })
-    const { captured, onSuccess, onPartialFailure, markRecentlyCompleted } = renderBulkActions(
-      new Set(['h-1', 'h-2']),
-    )
-
-    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
-
-    expect(onPartialFailure).toHaveBeenCalledWith(['h-1', 'h-2'])
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(markRecentlyCompleted).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledTimes(1)
-    expect(showToast).toHaveBeenCalledWith({
-      kind: 'neutral',
-      message: 'habits.bulkBar.offlineFailure',
-    })
-    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({
-      message: 'habits.bulkBar.connectionRefreshed',
-    }))
-  })
-
-  it('keeps offline-refused bulk logs selected and reports that nothing changed', async () => {
-    bulkLog.mutateAsync.mockResolvedValueOnce({
-      results: [],
-      ambiguousIds: [],
-      offlineFailureIds: ['h-1', 'h-2'],
-    })
-    const { captured, onSuccess, onPartialFailure, markRecentlyCompleted } = renderBulkActions(
-      new Set(['h-1', 'h-2']),
-    )
-
-    await TestRenderer.act(async () => { await captured.current!.confirmBulkLog() })
-
-    expect(onPartialFailure).toHaveBeenCalledWith(['h-1', 'h-2'])
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(markRecentlyCompleted).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledTimes(1)
-    expect(showToast).toHaveBeenCalledWith({
-      kind: 'neutral',
-      message: 'habits.bulkBar.offlineFailure',
-    })
-    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
-    expect(bulkLog.mutateAsync).toHaveBeenCalledTimes(1)
-  })
-
-  it('skips the selection on one press, with no confirmation state to clear', async () => {
-    const { captured, onSuccess, markRecentlyCompleted } = renderBulkActions(
+  it('skips the selection on the viewed historical date with no confirmation state to clear', async () => {
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1', 'h-2']),
     )
 
@@ -245,13 +173,21 @@ describe('useBulkActions reversibility boundary', () => {
       await captured.current!.confirmBulkSkip()
     })
 
-    expect(bulkSkip.mutateAsync).toHaveBeenCalledWith([{ habitId: 'h-1' }, { habitId: 'h-2' }])
-    expect(markRecentlyCompleted).toHaveBeenCalledTimes(2)
+    expect(bulkSkip.mutateAsync).toHaveBeenCalledWith([
+      { habitId: 'h-1', date: VIEWED_DATE },
+      { habitId: 'h-2', date: VIEWED_DATE },
+    ])
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
+      { habitId: 'h-1', mode: 'skip' },
+      { habitId: 'h-2', mode: 'skip' },
+    ])
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
-  it('logs the selection on one press, with no confirmation state to clear', async () => {
-    const { captured, onSuccess } = renderBulkActions(new Set(['h-1', 'h-2']))
+  it('logs the selection on the viewed historical date with no confirmation state to clear', async () => {
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1', 'h-2']),
+    )
 
     expect(Object.keys(captured.current!)).not.toContain('showBulkLogConfirm')
 
@@ -259,20 +195,73 @@ describe('useBulkActions reversibility boundary', () => {
       await captured.current!.confirmBulkLog()
     })
 
-    expect(bulkLog.mutateAsync).toHaveBeenCalledWith([{ habitId: 'h-1' }, { habitId: 'h-2' }])
+    expect(bulkLog.mutateAsync).toHaveBeenCalledWith([
+      { habitId: 'h-1', date: VIEWED_DATE },
+      { habitId: 'h-2', date: VIEWED_DATE },
+    ])
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
+      { habitId: 'h-1', mode: 'log' },
+      { habitId: 'h-2', mode: 'log' },
+    ])
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
-  it('settles every top-level parent once a bulk skip lands', async () => {
-    const { captured, checkAndPromptParentLog } = renderBulkActions(new Set(['h-1', 'h-2']))
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('keeps the selection and reports an offline bulk %s refusal', async (
+    _mode,
+    mutation,
+    action,
+  ) => {
+    mutation.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      offlineFailureIds: ['h-1', 'h-2'],
+    })
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1', 'h-2']),
+    )
 
     await TestRenderer.act(async () => {
-      await captured.current!.confirmBulkSkip()
+      await captured.current![action]()
     })
 
-    expect(checkAndPromptParentLog).toHaveBeenCalledTimes(2)
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith('h-1')
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith('h-2')
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'Nothing changed because your device is offline.',
+    })
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('refreshes after an ambiguous bulk %s without settling or offering a retry', async (
+    _mode,
+    mutation,
+    action,
+  ) => {
+    mutation.mutateAsync.mockResolvedValueOnce({
+      results: [],
+      ambiguousIds: ['h-1', 'h-2'],
+      offlineFailureIds: [],
+    })
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1', 'h-2']),
+    )
+
+    await TestRenderer.act(async () => {
+      await captured.current![action]()
+    })
+
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith({
+      kind: 'neutral',
+      message: 'The connection dropped. The list was refreshed.',
+    })
+    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {
@@ -293,14 +282,41 @@ describe('useBulkActions reversibility boundary', () => {
     expect(captured.current!.showBulkDeleteConfirm).toBe(false)
   })
 
-  it('deletes only selected roots so each request covers its server-side subtree', async () => {
-    bulkDelete.mutateAsync.mockResolvedValueOnce(bulkSuccess(['parent']))
+  it('retries only failed rows and keeps them selected', async () => {
+    bulkSkip.mutateAsync
+      .mockResolvedValueOnce({
+        results: [
+          { habitId: 'h-1', status: 'Success' },
+          { habitId: 'h-2', status: 'Failed' },
+        ],
+      })
+      .mockResolvedValueOnce(bulkSuccess(['h-2']))
+    const { captured, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+
+    await TestRenderer.act(async () => {
+      await captured.current!.confirmBulkSkip()
+    })
+
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
+    const retry = showToast.mock.calls[0]?.[0]?.onAction as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    await TestRenderer.act(async () => {
+      retry?.()
+      await Promise.resolve()
+    })
+    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([
+      { habitId: 'h-2', date: VIEWED_DATE },
+    ])
+  })
+
+  it('deletes only selected roots so one request covers each server-side subtree', async () => {
     const habitsById = new Map<string, NormalizedHabit>([
       ['parent', { id: 'parent', parentId: null } as NormalizedHabit],
-      ['hidden-child', { id: 'hidden-child', parentId: 'parent' } as NormalizedHabit],
+      ['child', { id: 'child', parentId: 'parent' } as NormalizedHabit],
     ])
     const { captured } = renderBulkActions(
-      new Set(['parent', 'hidden-child']),
+      new Set(['parent', 'child']),
+      false,
       habitsById,
     )
 
@@ -309,5 +325,24 @@ describe('useBulkActions reversibility boundary', () => {
     })
 
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
+  })
+
+  it('refuses log, skip, and delete mutations on a read-only date', async () => {
+    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['h-1']),
+      true,
+    )
+
+    await TestRenderer.act(async () => {
+      await captured.current!.confirmBulkLog()
+      await captured.current!.confirmBulkSkip()
+      await captured.current!.confirmBulkDelete()
+    })
+
+    expect(bulkLog.mutateAsync).not.toHaveBeenCalled()
+    expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
+    expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(onSuccess).not.toHaveBeenCalled()
   })
 })

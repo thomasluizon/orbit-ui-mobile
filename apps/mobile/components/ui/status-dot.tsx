@@ -1,15 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated drives an SVG strokeDashoffset completion sweep (the native driver cannot animate SVG props); Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { AccessibilityInfo, Animated, Pressable, View } from 'react-native'
-import Svg, { Circle } from 'react-native-svg'
-import { createTokensV2, easings } from '@/lib/theme'
-import { toAnimatedEasing } from '@/lib/motion'
+import { Pressable, View } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle)
-
-const SWEEP_MS = 420
 
 export type StatusDotState =
   | 'done'
@@ -31,9 +23,7 @@ interface StatusDotProps {
   disabled?: boolean
 }
 
-/** v8 8px desaturated status dot. Hollow ring for `empty`, filled otherwise.
- *  On an interactive transition into `done`, a `primary` arc sweeps once around
- *  the dot and the fill settles in (the Today completion signature). */
+/** v8 8px desaturated status dot. Completion remains a neutral, static cue. */
 export function StatusDot({
   state,
   size = 8,
@@ -44,8 +34,6 @@ export function StatusDot({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
-  const interactive = !!onToggle && !disabled
-
   const colorMap: Record<StatusDotState, string> = {
     done: tokens.statusDone,
     empty: tokens.statusEmpty,
@@ -56,83 +44,7 @@ export function StatusDot({
   }
   const color = colorMap[state]
 
-  const sweep = useMemo(() => new Animated.Value(0), [])
-
-  const [prevState, setPrevState] = useState(state)
-  const [playing, setPlaying] = useState(false)
-  // react-doctor-disable-next-line rerender-state-only-in-handlers -- reduceMotion is read during render (it gates the completion-sweep via `playing` on the next state transition), so it is behavioral state, not display-only https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const [reduceMotion, setReduceMotion] = useState(false)
-  if (state !== prevState) {
-    setPrevState(state)
-    setPlaying(prevState !== 'done' && state === 'done' && interactive && !reduceMotion)
-  }
-
-  useEffect(() => {
-    let active = true
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (active) setReduceMotion(enabled)
-    })
-    const subscription = AccessibilityInfo.addEventListener(
-      'reduceMotionChanged',
-      setReduceMotion,
-    )
-    return () => {
-      active = false
-      subscription.remove()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!playing) return
-    sweep.setValue(0)
-    Animated.timing(sweep, {
-      toValue: 1,
-      duration: SWEEP_MS,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: false,
-    }).start()
-    const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
-    return () => clearTimeout(id)
-  }, [playing, sweep])
-
-  const trackStroke = 1.5
-  const trackR = (size - trackStroke) / 2
-  const pieR = size / 4
-  const pieStroke = size / 2
-  const c = 2 * Math.PI * pieR
-  const dashOffset = sweep.interpolate({
-    inputRange: [0, 1],
-    outputRange: [c, 0],
-  })
-
-  const dot = playing ? (
-    <View style={{ width: size, height: size }}>
-      <Svg
-        width={size}
-        height={size}
-        style={{ transform: [{ rotate: '-90deg' }] }}
-      >
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={trackR}
-          fill="none"
-          stroke={tokens.statusEmpty}
-          strokeWidth={trackStroke}
-        />
-        <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={pieR}
-          fill="none"
-          stroke={tokens.primary}
-          strokeWidth={pieStroke}
-          strokeDasharray={c}
-          strokeDashoffset={dashOffset}
-        />
-      </Svg>
-    </View>
-  ) : (
+  const dot = (
     <View
       style={{
         width: size,

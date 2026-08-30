@@ -216,6 +216,7 @@
     "groups": {
       "create": "Criar",
       "actions": "Ações",
+      "destinations": "Destinos",
       "navigate": "Navegar",
       "search": "Hábitos"
     },
@@ -334,6 +335,11 @@
     }
   },
   "habits": {
+    "todayBoundary": {
+      "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
+      "readOnly": "Somente leitura. Você pode registrar até 7 dias atrás.",
+      "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
+    },
     "emptyState": "Nenhum hábito ainda",
     "count": "nenhum hábito | um hábito | {n} hábitos",
     "overdue": "Atrasado",
@@ -444,14 +450,20 @@
     "bulkDeleteTitle": "Excluir hábitos",
     "bulkDeleteMessage": "Isso exclui {count} hábito e seus sub-hábitos. Não dá para desfazer. | Isso exclui {count} hábitos e seus sub-hábitos. Não dá para desfazer.",
     "bulkDeleteConfirm": "Excluir",
+    "bulkLogTitle": "Registrar hábitos",
+    "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Os que já estão feitos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.",
+    "bulkLogConfirm": "Registrar",
+    "bulkSkipTitle": "Pular hábitos",
+    "bulkSkipMessage": "Pular ou adiar {count} hábito selecionado? Os recorrentes vão para a próxima data; as tarefas únicas, para amanhã. | Pular ou adiar {count} hábitos selecionados? Os recorrentes vão para a próxima data; as tarefas únicas, para amanhã.",
+    "bulkSkipConfirm": "Pular",
     "bulkBar": {
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
       "delete": "Excluir selecionados",
       "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
       "retryFailed": "Tentar só as falhas",
-      "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
-      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão."
+      "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão.",
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
     },
     "skipHabit": "Pular",
     "frequency": {
@@ -1806,7 +1818,7 @@
     }
   },
   "upgrade": {
-    "title": "Upgrade para o Pro",
+    "title": "Assinatura",
     "alreadyPro": "Você está no plano Pro",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -1911,6 +1923,7 @@
     },
     "convert": {
       "promise": "Tudo o que o Orbit faz, em um plano só.",
+      "trialEyebrow": "Teste Pro",
       "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
       "trialLastDay": "Teste Pro · último dia",
       "trialHeading": "Mantenha seus recursos Pro",
@@ -1964,14 +1977,19 @@
     "billing": {
       "plan": {
         "title": "Plano atual",
+        "pro": "Orbit Pro",
         "monthly": "Pro Mensal",
         "yearly": "Pro Anual",
         "lifetime": "Pro Vitalício",
-        "lifetimeHint": "Seu acesso Pro nunca expira",
+        "lifetimeHint": "Seu acesso Pro nunca expira. Não há renovação.",
         "renewsOn": "Renova em {date}",
         "canceledBadge": "Cancela no fim do período",
         "canceledHint": "Acesso até {date}",
-        "pastDue": "Pagamento em atraso"
+        "pastDue": "Pagamento em atraso",
+        "trialBadge": "Teste",
+        "trialHint": "Seu teste termina em {date}",
+        "monthlyPrice": "Preço mensal do plano: {price}",
+        "yearlyPrice": "Preço anual do plano: {price}"
       },
       "payment": {
         "title": "Método de pagamento",
@@ -1980,9 +1998,11 @@
         "change": "Alterar"
       },
       "usage": {
-        "title": "Este mês",
-        "aiMessages": "Mensagens de IA",
-        "aiMessagesOf": "{used} de {limit}"
+        "title": "Mensagens da Astra",
+        "aiMessages": "Hoje",
+        "aiMessagesOf": "{used} de {limit}",
+        "nearLimit": "Você está perto do limite da Astra de hoje",
+        "nearLimitBody": "Seu limite será renovado automaticamente amanhã."
       },
       "invoices": {
         "title": "Histórico de faturas",
@@ -1998,11 +2018,26 @@
       "actions": {
         "manage": "Gerenciar assinatura",
         "manageHint": "Trocar de plano, atualizar o pagamento ou cancelar",
+        "providerNote": "A Stripe cuida das alterações de cobrança. O Orbit não armazena os dados do cartão e nunca pede sua senha aqui.",
         "managePlay": "Gerenciar no Google Play",
-        "managePlayHint": "Sua assinatura é cobrada pelo Google Play. Gerencie ou cancele por lá."
+        "managePlayHint": "O Google Play cuida desta assinatura. Você pode alterá-la ou cancelá-la por lá.",
+        "opening": "Abrindo configurações de cobrança"
       },
       "error": "Não foi possível carregar os detalhes de cobrança",
-      "retry": "Tentar de novo"
+      "retry": "Tentar de novo",
+      "portalFailed": "As configurações de cobrança não abriram. Confira sua conexão e tente de novo.",
+      "portalReturned": "Detalhes da assinatura atualizados",
+      "offline": "Você está sem conexão. Reconecte para gerenciar a cobrança.",
+      "lapsed": {
+        "title": "Sua assinatura Pro terminou",
+        "canceled": "Sua assinatura foi cancelada em {date}.",
+        "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
+        "expired": "Sua assinatura expirou em {date}.",
+        "fallback": "Sua assinatura terminou.",
+        "features": "O limite diário maior da Astra e a sincronização do calendário não estão mais ativos.",
+        "yearlyFeature": "A retrospectiva anual não está mais ativa.",
+        "action": "Assinar de novo"
+      }
     },
     "playError": {
       "unavailable": "A cobrança do Google Play não está disponível neste aparelho.",
@@ -2130,7 +2165,8 @@
     "status": {
       "active": "Ativa",
       "completed": "Concluída",
-      "abandoned": "Abandonada"
+      "abandoned": "Abandonada",
+      "achieved": "Alcançada"
     },
     "detail": {
       "markCompleted": "Marcar como concluída",
@@ -2140,7 +2176,7 @@
       "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
       "edit": "Editar meta",
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
-      "showAllHistory": "Ver tudo",
+      "showAllHistory": "Ver tudo ({count})",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
@@ -2168,6 +2204,7 @@
       "progress": "Não foi possível atualizar o progresso"
     },
     "linkedHabits": "Hábitos Vinculados",
+    "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
       "title": "Análise da Meta",
       "onTrack": "No Caminho",
@@ -2180,6 +2217,104 @@
       "habitAdherence": "Desempenho dos Hábitos Vinculados",
       "noData": "Sem dados",
       "perDay": "dia"
+    }
+  },
+  "progressScreen": {
+    "title": "Progresso",
+    "loading": "Carregando seu progresso",
+    "error": "Não foi possível carregar seu progresso.",
+    "retry": "Tentar novamente",
+    "empty": "Seu progresso começa com o próximo hábito que você praticar.",
+    "startHabit": "Ir para hábitos",
+    "sections": {
+      "streak": "Sequência",
+      "goals": "Metas",
+      "window": "Últimos 30 dias",
+      "achievements": "Conquistas"
+    },
+    "streak": {
+      "current": "{count, plural, one {# dia} other {# dias}}",
+      "currentLabel": "Sequência atual",
+      "stripWindow": "Atividade nos últimos {count, plural, one {# dia} other {# dias}}",
+      "frozenToday": "Hoje está protegido por um congelamento.",
+      "longest": "Maior sequência",
+      "active": "Ativo",
+      "frozen": "Protegido",
+      "missed": "Perdido",
+      "today": "Hoje",
+      "legend": "Legenda dos dias da sequência",
+      "showFreeze": "Mostrar detalhes dos congelamentos",
+      "hideFreeze": "Ocultar detalhes dos congelamentos",
+      "banked": "Guardados",
+      "used": "Usados neste mês",
+      "next": "Próximo congelamento",
+      "nextProgress": "Progresso até o próximo congelamento",
+      "nextIn": "Próximo congelamento em {count, plural, one {# dia} other {# dias}}",
+      "capacity": "Banco cheio com 3 congelamentos",
+      "protectedDays": "Dias protegidos",
+      "protectedEmpty": "Nenhum dia protegido nesta janela",
+      "protected": "Protegido",
+      "protectedToday": "Hoje protegido",
+      "lockedTitle": "Proteção por congelamento",
+      "lockedBody": "O Orbit Pro mantém um banco de congelamentos para dias perdidos.",
+      "lockedAction": "Ver o Orbit Pro",
+      "repairTitle": "Ontem ainda está aberto",
+      "repairBody": "Um dia está aberto e há {count, plural, one {# congelamento disponível} other {# congelamentos disponíveis}}.",
+      "repairAction": "Usar 1 congelamento",
+      "repairEmpty": "Não há congelamento guardado. O próximo chega em {count, plural, one {# dia} other {# dias}}.",
+      "repairError": "Não foi possível reparar a sequência. Tente novamente."
+    },
+    "goals": {
+      "views": "Visualizações das metas",
+      "all": "Todas",
+      "active": "Ativas",
+      "completed": "Concluídas",
+      "abandoned": "Abandonadas",
+      "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
+      "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
+      "clearFilter": "Mostrar todas as metas",
+      "progress": "{current} de {target} {unit}",
+      "dueToday": "Prazo hoje",
+      "daysLeft": "{count, plural, one {Falta # dia} other {Faltam # dias}}",
+      "daysOverdue": "{count, plural, one {Atrasada em # dia} other {Atrasada em # dias}}",
+      "finishReason": "O alvo foi alcançado. Finalizar registra a meta como concluída.",
+      "finish": "Finalizar meta",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "reorderHint": "Use Alt e as setas para reordenar"
+    },
+    "window": {
+      "completionRate": "Taxa de conclusão",
+      "activeDays": "Dias ativos de {days}",
+      "topHabit": "Melhor hábito",
+      "topHabitEmpty": "Ainda não há melhor hábito",
+      "totalCompletions": "Total de conclusões",
+      "lockedTitle": "Números de trinta dias",
+      "lockedBody": "O Orbit Pro mostra seus números dos últimos trinta dias.",
+      "lockedAction": "Ver o Orbit Pro"
+    },
+    "achievements": {
+      "empty": "Ainda não há conquistas disponíveis.",
+      "xp": "{current} / {next} XP",
+      "next": "Próximo: nível {level}, {title}. Faltam {xp} XP.",
+      "earned": "Conquistada em {date}",
+      "progress": "{current} de {target}",
+      "level": "Nível {level} · {title}",
+      "levelTitles": {
+        "starter": "Iniciante",
+        "explorer": "Explorador",
+        "orbiter": "Orbitador",
+        "navigator": "Navegador",
+        "pilot": "Piloto",
+        "captain": "Capitão",
+        "commander": "Comandante",
+        "admiral": "Almirante",
+        "elite": "Elite",
+        "legend": "Lenda"
+      },
+      "lockedTitle": "Conquistas",
+      "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
+      "lockedAction": "Ver o Orbit Pro"
     }
   },
   "gamification": {

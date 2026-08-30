@@ -25,6 +25,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   formatHabitDetailSummary,
+  formatAPIDate,
   formatLocaleDate,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
@@ -33,6 +34,7 @@ interface HabitDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
+  selectedDate?: string
   onLogged?: (habitId: string) => void
 }
 
@@ -40,6 +42,7 @@ export function HabitDetailDrawer({
   open,
   onOpenChange,
   habit,
+  selectedDate,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
@@ -47,6 +50,7 @@ export function HabitDetailDrawer({
   const { displayTime } = useTimeFormat()
   const { showError } = useAppToast()
   const habitId = habit?.id ?? ''
+  const viewedDate = selectedDate ?? formatAPIDate(new Date())
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
     open && habitId ? habitId : null,
@@ -97,7 +101,7 @@ export function HabitDetailDrawer({
     if (!habit) return
     setShowChecklistLogPrompt(false)
     try {
-      await logHabit.mutateAsync({ habitId: habit.id })
+      await logHabit.mutateAsync({ habitId: habit.id, date: viewedDate })
       onLogged?.(habit.id)
     } catch (error: unknown) {
       showError(
@@ -109,7 +113,7 @@ export function HabitDetailDrawer({
         ),
       )
     }
-  }, [habit, logHabit, onLogged, showError, t])
+  }, [habit, logHabit, onLogged, showError, t, viewedDate])
 
   const handleChecklistReset = useCallback(() => {
     if (!habit) return

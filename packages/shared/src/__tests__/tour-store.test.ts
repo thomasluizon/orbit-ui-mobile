@@ -85,10 +85,10 @@ describe('createTourStoreState', () => {
   })
 
   it('startSectionReplay sets replay section', () => {
-    getState().startSectionReplay('goals')
+    getState().startSectionReplay('chat')
     const s = getState()
     expect(s.isActive).toBe(true)
-    expect(s.replaySection).toBe('goals')
+    expect(s.replaySection).toBe('chat')
   })
 
   it('nextStep advances index', () => {
@@ -171,15 +171,15 @@ describe('createTourStoreState', () => {
   })
 
   it('filters hidden sections out of the active steps', () => {
-    getState().setHiddenSections(['goals'])
+    getState().setHiddenSections(['chat'])
     getState().startFullTour()
 
-    expect(getState().getActiveSteps().every((step) => step.section !== 'goals')).toBe(true)
+    expect(getState().getActiveSteps().every((step) => step.section !== 'chat')).toBe(true)
   })
 
   it('prevents replaying a hidden section', () => {
-    getState().setHiddenSections(['goals'])
-    getState().startSectionReplay('goals')
+    getState().setHiddenSections(['chat'])
+    getState().startSectionReplay('chat')
 
     expect(getState().isActive).toBe(false)
     expect(getState().replaySection).toBeNull()

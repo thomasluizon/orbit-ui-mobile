@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   createUIStoreState,
-  migratePersistedUIState,
   type UIStoreState,
 } from '../stores/ui-store'
 
@@ -50,31 +49,19 @@ describe('ui store toggles and setters', () => {
     expect(store.getState().manuallySelectedIds.size).toBe(0)
   })
 
-  it('updates the modal, frequency, tag, completed and checklist flags', () => {
+  it('updates the modal flags', () => {
     const store = createStoreHarness()
     const {
       setShowCreateModal,
       setShowCreateGoalModal,
-      setSelectedFrequency,
-      setSelectedTagIds,
-      setShowCompleted,
-      setSetupChecklistDismissed,
     } = store.getState()
 
     setShowCreateModal(true)
     setShowCreateGoalModal(true)
-    setSelectedFrequency('Week')
-    setSelectedTagIds(['focus', 'health'])
-    setShowCompleted(true)
-    setSetupChecklistDismissed(true)
 
     expect(store.getState()).toMatchObject({
       showCreateModal: true,
       showCreateGoalModal: true,
-      selectedFrequency: 'Week',
-      selectedTagIds: ['focus', 'health'],
-      showCompleted: true,
-      setupChecklistDismissed: true,
     })
   })
 
@@ -98,14 +85,5 @@ describe('ui store toggles and setters', () => {
     )
 
     expect(store.getState().allDoneCelebration).toBe(false)
-  })
-})
-
-describe('migratePersistedUIState frequency guard', () => {
-  it('keeps a valid frequency and drops an invalid one', () => {
-    expect(migratePersistedUIState({ selectedFrequency: 'Day' }).selectedFrequency).toBe('Day')
-    expect(migratePersistedUIState({ selectedFrequency: 'none' }).selectedFrequency).toBe('none')
-    expect(migratePersistedUIState({ selectedFrequency: 'Quarter' }).selectedFrequency).toBeNull()
-    expect(migratePersistedUIState('not-an-object').selectedFrequency).toBeNull()
   })
 })

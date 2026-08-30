@@ -5,7 +5,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   CheckCircle,
-  Target,
   MessageCircle,
   CalendarDays,
   User,
@@ -22,13 +21,11 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { useProfile } from '@/hooks/use-profile'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
 const SECTION_ICON_MAP = {
   'check-circle': CheckCircle,
-  target: Target,
   'message-circle': MessageCircle,
   'calendar-days': CalendarDays,
   user: User,
@@ -50,12 +47,10 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const queryClient = useQueryClient()
   const { startFullTour, startSectionReplay } = useTourStore()
-  const { profile } = useProfile()
   const [sectionCompletion, setSectionCompletion] = useState<
     Record<TourSection, boolean>
   >({
     habits: false,
-    goals: false,
     chat: false,
     calendar: false,
     profile: false,
@@ -63,9 +58,6 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
     'coach-astra': false,
     'coach-calendar': false,
   })
-  const availableSections = TOUR_SECTIONS.filter((section) =>
-    profile?.hasProAccess ? true : section !== 'goals',
-  )
 
   useEffect(() => {
     if (visible) {
@@ -121,7 +113,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
         </PillButton>
 
         <View style={styles.sectionList}>
-          {availableSections.map((section, index) => {
+          {TOUR_SECTIONS.map((section, index) => {
             const iconKey = TOUR_SECTION_ICONS[section]
             const Icon =
               SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]

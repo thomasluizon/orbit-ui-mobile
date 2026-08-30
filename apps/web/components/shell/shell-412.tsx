@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
+import { useShellScrollerRegistration } from './shell-scroller-context'
+import { useModalFocusTrap } from './use-modal-focus-trap'
 
 function isConversationOpen(props: Shell412Props): boolean {
   return props.conversation !== undefined && props.conversationOpen !== false
@@ -11,14 +13,8 @@ export function Shell412(props: Readonly<Shell412Props>) {
   const navigationEnabled = props.nav !== false
   const conversationOpen = isConversationOpen(props)
   const conversationRef = useRef<HTMLDivElement>(null)
-  const returnFocusRef = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    if (!conversationOpen) return
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    conversationRef.current?.focus()
-    return () => returnFocusRef.current?.focus()
-  }, [conversationOpen])
+  const registerScroller = useShellScrollerRegistration()
+  useModalFocusTrap(conversationOpen, conversationRef)
 
   const pinnedSlot = navigationEnabled ? props.composer : props.action
   const hasBottomChrome = navigationEnabled || props.notice !== undefined || pinnedSlot !== undefined
@@ -26,40 +22,55 @@ export function Shell412(props: Readonly<Shell412Props>) {
   return (
     <div
       data-shell="412"
-      className="relative flex h-dvh min-h-dvh flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
+      className="relative h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
     >
-      {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
-      <main
-        data-shell-scroller=""
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+      <div
+        data-shell-background=""
         inert={conversationOpen || undefined}
+        aria-hidden={conversationOpen || undefined}
+        className="flex h-full min-h-0 flex-col"
       >
-        {props.children}
-      </main>
-
-      {hasBottomChrome ? (
-        <div
-          data-shell-bottom=""
-          className="z-sticky relative shrink-0 bg-[var(--bg)] shadow-[inset_0_1px_0_var(--hairline)]"
+        {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
+        <main
+          ref={registerScroller}
+          data-shell-scroller=""
+          className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
         >
-          {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
-          <div className="relative">
-            {pinnedSlot !== undefined ? (
-              <div data-shell-pinned-slot="">{pinnedSlot}</div>
-            ) : null}
-            {navigationEnabled ? <div data-shell-tab-bar="">{props.tabBar}</div> : null}
-            {props.fab !== undefined ? (
-              <div
-                data-shell-fab=""
-                className="absolute right-4"
-                style={{ bottom: 'calc(100% + 16px)' }}
-              >
-                {props.fab}
-              </div>
-            ) : null}
+          <span
+            aria-hidden="true"
+            data-shell-scroll-origin=""
+            className="pointer-events-none absolute left-0 top-0 h-px w-px"
+          />
+          {props.children}
+        </main>
+
+        {hasBottomChrome ? (
+          <div
+            data-shell-bottom=""
+            className="z-sticky relative shrink-0 bg-[var(--bg)] shadow-[inset_0_1px_0_var(--hairline)]"
+            style={{ paddingBottom: 'var(--safe-bottom)' }}
+          >
+            {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
+            <div className="relative">
+              {pinnedSlot !== undefined ? (
+                <div data-shell-pinned-slot="">{pinnedSlot}</div>
+              ) : null}
+              {navigationEnabled ? <div data-shell-tab-bar="">{props.tabBar}</div> : null}
+              {props.fab !== undefined ? (
+                <div
+                  data-shell-fab=""
+                  className="absolute right-4"
+                  style={{ bottom: 'calc(100% + 16px)' }}
+                >
+                  {props.fab}
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+
+        {props.sheets}
+      </div>
 
       {conversationOpen ? (
         <div
@@ -74,8 +85,6 @@ export function Shell412(props: Readonly<Shell412Props>) {
           {props.conversation}
         </div>
       ) : null}
-
-      {props.sheets}
     </div>
   )
 }

@@ -229,11 +229,11 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 
 ---
 
-## Insights & Analytics
+## Progress
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
-| Insights dashboard | Completion trends, goal velocity, progress charts over custom ranges | Pro | **Web-only** (`/insights`) — no mobile screen (genuine platform gap) | Paywalled for non-Pro |
+| Progress destination | Fourth primary destination at `/progress`; currently an empty shell reserved for the granted progress surface | Free | Both | — |
 
 ---
 
@@ -265,7 +265,6 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Week start day | Monday or Sunday across all calendars | Free | Both | — |
 | Support | Contact form from Profile | Free | Both | — |
 | Delete account | The in-app deletion modal sends a 6-digit code to the account email and opens `/step-up`; resend unlocks after 60 seconds, the code expires after 10 minutes, and exhausted attempts lock verification for 15 minutes. Success schedules deletion and remains on `/step-up` with the deletion date and sign-out action. | Free | Both; web also has a public `/delete-account` compliance page | - |
-| Explore | Discovery surface | Free | Web-only route; mobile folds it into Profile | — |
 
 ---
 

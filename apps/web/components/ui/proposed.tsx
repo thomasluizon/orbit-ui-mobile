@@ -5,7 +5,7 @@ import {
 import { tintProposedChildren, type ProposedTintAdapter } from '@orbit/shared/utils'
 import { cloneElement, Fragment, type CSSProperties } from 'react'
 
-const proposedColor = 'var(--fg-3)'
+const proposedColorClass = 'text-[var(--fg-3)]'
 const tailwindThemeColorKeys = new Set([
   'bg',
   'bg-card',
@@ -109,8 +109,9 @@ export function hasExplicitTextColorClass(className: unknown): boolean {
   if (typeof className !== 'string') return false
 
   return className.split(/\s+/).some((classToken) => {
-    const utility = classToken.split(':').at(-1)?.replace(/^!/, '')
-    if (utility == null || !utility.startsWith('text-')) return false
+    if (classToken.includes(':')) return false
+    const utility = classToken.replace(/^!/, '')
+    if (!utility.startsWith('text-')) return false
     const [value] = utility.slice('text-'.length).split('/')
     if (value == null) return false
     if (/^\[(?:var\(--[^)]+\)|#[\da-f]{3,8}|rgba?\(.+\))\]$/i.test(value)) return true
@@ -120,7 +121,7 @@ export function hasExplicitTextColorClass(className: unknown): boolean {
 
 const tintAdapter: ProposedTintAdapter = {
   wrapText(child) {
-    return <span style={{ color: proposedColor }}>{child}</span>
+    return <span className={proposedColorClass}>{child}</span>
   },
   visitElement(child) {
     if (child.type === Fragment) return { kind: 'recurse' }
@@ -130,9 +131,12 @@ const tintAdapter: ProposedTintAdapter = {
       return { kind: 'keep' }
     }
     if (!textBearingElements.has(child.type)) return { kind: 'recurse' }
+    const className = child.props.className as string | undefined
     return {
       kind: 'replace',
-      child: cloneElement(child, { style: { ...style, color: proposedColor } }),
+      child: cloneElement(child, {
+        className: className ? `${className} ${proposedColorClass}` : proposedColorClass,
+      }),
     }
   },
 }
