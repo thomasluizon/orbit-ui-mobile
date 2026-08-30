@@ -2,6 +2,7 @@
 
 import type { ClipboardEventHandler } from 'react'
 import {
+  COMPOSER_MESSAGE_MAX_LENGTH,
   hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
@@ -147,6 +148,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 
         <textarea
           rows={1}
+          maxLength={COMPOSER_MESSAGE_MAX_LENGTH}
           data-composer-input
           data-conversation-control="input"
           data-tour="tour-chat-input"

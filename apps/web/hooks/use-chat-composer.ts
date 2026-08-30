@@ -63,6 +63,7 @@ interface AttemptedSend {
   content: string
   image: File | null
   preview: string | null
+  restoreDraftOnFailure: boolean
 }
 
 interface StreamSendFailure {
@@ -289,6 +290,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     draftMessageId: string | null,
   ) => {
     setIsTyping(false)
+    if (attempted.restoreDraftOnFailure) setInput(attempted.content)
     const resolvedError = failureInput.error.trim() || t('chat.sendError')
     const failure = classifySendFailure({
       status: failureInput.status,
@@ -574,6 +576,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
         content: typedContent,
         image: selectedImage,
         preview: imagePreview,
+        restoreDraftOnFailure: content === undefined,
       }
 
       setInput('')

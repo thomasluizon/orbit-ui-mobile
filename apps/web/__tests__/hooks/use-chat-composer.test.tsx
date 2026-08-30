@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { COMPOSER_MESSAGE_MAX_LENGTH } from '@orbit/shared/contracts/composer'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import {
@@ -388,6 +389,37 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.sendError).toBe('chat.limitReachedError')
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it('sends a controlled draft at the message limit and rejects one over it', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+
+    act(() => result.current.setInput('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH + 1)))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+  })
+
+  it('restores a rejected controlled draft for editing', async () => {
+    mocks.fetch.mockResolvedValue(Response.json({ error: 'invalid request' }, { status: 400 }))
+    const { result } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('draft to repair'))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    expect(result.current.composerProps.value).toBe('draft to repair')
+    act(() => result.current.composerProps.onChangeValue('repaired draft'))
+    expect(result.current.composerProps.value).toBe('repaired draft')
   })
 
   it('submits a pasted image with nonblank text through the rendered composer', async () => {

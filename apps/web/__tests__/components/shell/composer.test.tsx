@@ -1,5 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
+import {
+  COMPOSER_MESSAGE_MAX_LENGTH,
+  type ComposerProps,
+  type ComposerSuggestions,
+} from '@orbit/shared/contracts/composer'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 
@@ -89,6 +93,23 @@ describe('Composer', () => {
     const onSend = vi.fn()
     render(<Composer {...props({ value: 'oi', onSend })} />)
     fireEvent.click(screen.getByRole('button', { name: words.send }))
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it('sends at the message limit and blocks content over it', () => {
+    const onSend = vi.fn()
+    const atLimit = 'a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)
+    const { rerender } = render(<Composer {...props({ value: atLimit, onSend })} />)
+    const input = screen.getByRole('textbox', { name: words.placeholder })
+    const send = screen.getByRole('button', { name: words.send })
+
+    expect(input).toHaveAttribute('maxlength', String(COMPOSER_MESSAGE_MAX_LENGTH))
+    fireEvent.click(send)
+    expect(onSend).toHaveBeenCalledOnce()
+
+    rerender(<Composer {...props({ value: `${atLimit}a`, onSend })} />)
+    expect(send).toBeDisabled()
+    fireEvent.click(send)
     expect(onSend).toHaveBeenCalledOnce()
   })
 

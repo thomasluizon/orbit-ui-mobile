@@ -36,9 +36,11 @@ export type ComposerAttachment = {
   name: string
 }
 
+export const COMPOSER_MESSAGE_MAX_LENGTH = 4000
+
 export function hasComposerContent(value: string): boolean {
-  // WHY: ChatController.cs:180 rejects blank messages, including images; https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Api/Controllers/ChatController.cs#L180
-  return value.trim().length > 0
+  // WHY: ChatController.cs:180 rejects blank messages and messages over AppConstants.MaxChatMessageLength; https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Api/Controllers/ChatController.cs#L180
+  return value.trim().length > 0 && value.length <= COMPOSER_MESSAGE_MAX_LENGTH
 }
 
 export type ComposerSuggestion = {

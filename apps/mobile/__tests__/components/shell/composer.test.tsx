@@ -1,5 +1,9 @@
 import React from 'react'
-import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
+import {
+  COMPOSER_MESSAGE_MAX_LENGTH,
+  type ComposerProps,
+  type ComposerSuggestions,
+} from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 
@@ -163,6 +167,23 @@ describe('Composer (mobile)', () => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value: 'oi', onSend }))
     pressControl(byLabel(tree.root, words.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it('sends at the message limit and blocks content over it', async () => {
+    const onSend = vi.fn()
+    const atLimit = 'a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)
+    const tree = await renderComposer(props({ value: atLimit, onSend }))
+    const input = byLabel(tree.root, words.placeholder)[0]
+
+    expect(input.props.maxLength).toBe(COMPOSER_MESSAGE_MAX_LENGTH)
+    pressControl(byLabel(tree.root, words.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+
+    TestRenderer.act(() => tree.update(<Composer {...props({ value: `${atLimit}a`, onSend })} />))
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.disabled).toBe(true)
+    TestRenderer.act(() => send.props.onPress())
     expect(onSend).toHaveBeenCalledOnce()
   })
 

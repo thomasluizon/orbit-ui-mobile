@@ -1,4 +1,5 @@
 import {
+  COMPOSER_MESSAGE_MAX_LENGTH,
   hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
@@ -178,6 +179,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
           accessibilityLabel={props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}
           editable={!inputDisabled}
+          maxLength={COMPOSER_MESSAGE_MAX_LENGTH}
           multiline
           placeholder={props.words.placeholder}
           placeholderTextColor={tokens.fg3}

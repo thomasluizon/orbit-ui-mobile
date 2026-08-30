@@ -4,7 +4,7 @@ import {
   resolveChatImageMimeType,
   stripChatDirectives,
 } from '../chat'
-import { hasComposerContent } from '../contracts/composer'
+import { COMPOSER_MESSAGE_MAX_LENGTH, hasComposerContent } from '../contracts/composer'
 
 describe('hasComposerContent', () => {
   it.each(['', ' ', '\t\n'])('rejects blank composer content %j', (content) => {
@@ -13,6 +13,11 @@ describe('hasComposerContent', () => {
 
   it('accepts visible composer content surrounded by whitespace', () => {
     expect(hasComposerContent('  log my walk  ')).toBe(true)
+  })
+
+  it('accepts content at the message limit and rejects content over it', () => {
+    expect(hasComposerContent('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH))).toBe(true)
+    expect(hasComposerContent('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH + 1))).toBe(false)
   })
 })
 

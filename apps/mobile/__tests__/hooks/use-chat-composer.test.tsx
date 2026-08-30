@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { COMPOSER_MESSAGE_MAX_LENGTH } from '@orbit/shared/contracts/composer'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
 import {
@@ -247,6 +248,23 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.canRetryLastSend).toBe(false)
   })
 
+  it('sends a controlled draft at the message limit and rejects one over it', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+
+    TestRenderer.act(() => composer.current.setInput('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH + 1)))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+  })
+
   it('rejects an overlapping send before a second request starts', async () => {
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValue(stream.response)
@@ -473,6 +491,22 @@ describe('mobile useChatComposer', () => {
     expect(messages.at(-1)).toMatchObject({ role: 'ai', content: 'Recovered' })
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.sendError).toBeNull()
+  })
+
+  it('restores a rejected controlled draft for editing', async () => {
+    mocks.openChatStream.mockResolvedValue(
+      httpErrorResponse(400, { error: 'invalid request' }),
+    )
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('draft to repair'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    expect(composer.current.composerProps.value).toBe('draft to repair')
+    TestRenderer.act(() => composer.current.composerProps.onChangeValue('repaired draft'))
+    expect(composer.current.composerProps.value).toBe('repaired draft')
   })
 
   it('confirms then executes a pending operation through the API', async () => {
