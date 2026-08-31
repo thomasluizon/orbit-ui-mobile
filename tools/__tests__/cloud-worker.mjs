@@ -1,6 +1,7 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { Worker } from "node:worker_threads"
 
 import { T, root, stage, toolPath } from "./_harness.mjs"
 
@@ -265,6 +266,82 @@ export const cases = async () => {
       reconciled.terminal === recoveryState.terminal &&
       reconciled.materialized === recoveryState.materialized,
     JSON.stringify(reconciled),
+  )
+
+  const writerDirectory = join(root, "cloud-worker", "interleaved-receipt-writers")
+  mkdirSync(writerDirectory, { recursive: true })
+  const interleavedMirror = join(writerDirectory, "task_e_a3.json")
+  const writerScript = stage(
+    "cloud-worker/interleaved-receipt-writer.mjs",
+    `import { parentPort, workerData } from "node:worker_threads"
+const cloud = await import(${JSON.stringify(pathToFileURL(toolPath("lib/cloud-worker.mjs")).href)})
+const signal = new Int32Array(workerData.signal)
+const receipt = {
+  ...workerData.receipt,
+  get interleave() {
+    parentPort.postMessage("inside persistence")
+    while (Atomics.load(signal, 0) === 0) Atomics.wait(signal, 0, 0)
+    return "released"
+  },
+}
+cloud.persistReconciledReceipt(receipt, workerData.mirrorPath)
+`,
+  )
+  const firstSignal = new SharedArrayBuffer(4)
+  const secondSignal = new SharedArrayBuffer(4)
+  const startWriter = (receiptValue, signal) => {
+    const worker = new Worker(writerScript, {
+      workerData: { mirrorPath: interleavedMirror, receipt: receiptValue, signal },
+    })
+    return {
+      inside: new Promise((resolveMessage, rejectMessage) => {
+        worker.once("message", resolveMessage)
+        worker.once("error", rejectMessage)
+      }),
+      exited: new Promise((resolveExit, rejectExit) => {
+        worker.once("error", rejectExit)
+        worker.once("exit", resolveExit)
+      }),
+    }
+  }
+  const releaseWriter = (signal) => {
+    const view = new Int32Array(signal)
+    Atomics.store(view, 0, 1)
+    Atomics.notify(view, 0)
+  }
+  const firstWriter = startWriter({
+    taskId: "task_e_a3",
+    terminal: { at: "2026-08-31T17:59:00.000Z", observedAt: "2026-08-31T18:01:00.000Z", status: "ready" },
+  }, firstSignal)
+  await firstWriter.inside
+  const secondWriter = startWriter({
+    taskId: "task_e_a3",
+    firstReadyObservedAt: "2026-08-31T17:59:00.000Z",
+    materialized: { at: "2026-08-31T18:02:00.000Z", status: "M  landed.txt\n", stagedStat: "1 file changed\n" },
+  }, secondSignal)
+  const secondEnteredUnlockedPersistence = await Promise.race([
+    secondWriter.inside.then(() => true),
+    new Promise((resolveTimeout) => setTimeout(() => resolveTimeout(false), 500)),
+  ])
+  if (secondEnteredUnlockedPersistence) {
+    releaseWriter(secondSignal)
+    await secondWriter.exited
+    releaseWriter(firstSignal)
+    await firstWriter.exited
+  } else {
+    releaseWriter(firstSignal)
+    await firstWriter.exited
+    await secondWriter.inside
+    releaseWriter(secondSignal)
+    await secondWriter.exited
+  }
+  const interleavedReceipt = JSON.parse(readFileSync(interleavedMirror, "utf8"))
+  T(
+    "cloud-worker.mjs: overlapping receipt writers preserve both publications",
+    interleavedReceipt.terminal?.observedAt === "2026-08-31T18:01:00.000Z" &&
+      interleavedReceipt.firstReadyObservedAt === "2026-08-31T17:59:00.000Z" &&
+      interleavedReceipt.materialized?.at === "2026-08-31T18:02:00.000Z",
+    JSON.stringify(interleavedReceipt),
   )
 
   const badShim = stage("cloud-worker/bad-codex.cmd", "@echo off\r\nexit /b 0\r\n")

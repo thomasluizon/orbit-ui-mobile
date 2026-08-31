@@ -10,7 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs"
-import { delimiter, dirname, extname, join, resolve } from "node:path"
+import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { runBounded } from "./bounded-process.mjs"
 
@@ -21,6 +21,7 @@ const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const TASK_ID = /^task_e_[0-9a-f]+$/
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
 const OBSERVED_STATUSES = new Set(["pending", "ready"])
+const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 
@@ -287,11 +288,24 @@ export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
 }
 
 export const persistReconciledReceipt = (receipt, mirrorPath, replicaPaths = []) => {
-  const latestReceipt = existsSync(mirrorPath)
-    ? reconcileReceiptCopies(receipt, readJsonFile(mirrorPath, "mirrored cloud receipt"))
-    : receipt
-  persistReceipt(latestReceipt, mirrorPath, replicaPaths)
-  return latestReceipt
+  const resolvedMirrorPath = resolve(mirrorPath)
+  const stateRoot = dirname(dirname(resolvedMirrorPath))
+  // This innermost lock prevents cross operation receipt updates from being lost. Never widen it across a wait or external call.
+  const releaseReceiptLock = acquireCloudLock(
+    stateRoot,
+    `receipt-${basename(resolvedMirrorPath)}.lock`,
+    "cloud receipt persistence",
+    { waitForOwner: true },
+  )
+  try {
+    const latestReceipt = existsSync(resolvedMirrorPath)
+      ? reconcileReceiptCopies(receipt, readJsonFile(resolvedMirrorPath, "mirrored cloud receipt"))
+      : receipt
+    persistReceipt(latestReceipt, resolvedMirrorPath, replicaPaths)
+    return latestReceipt
+  } finally {
+    releaseReceiptLock()
+  }
 }
 
 const deadlinePassed = (receipt, now) => {
@@ -375,7 +389,7 @@ const processIsAlive = (pid) => {
   }
 }
 
-const acquireCloudLock = (stateRoot, lockName, operation) => {
+const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
   const lockDirectory = join(stateRoot, lockName)
   const ownerPath = join(lockDirectory, "owner.json")
   mkdirSync(stateRoot, { recursive: true })
@@ -401,6 +415,10 @@ const acquireCloudLock = (stateRoot, lockName, operation) => {
       owner = null
     }
     if (processIsAlive(owner?.pid)) {
+      if (options.waitForOwner) {
+        Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, 10)
+        continue
+      }
       throw new Error(`${operation} is already running in process ${owner.pid}`)
     }
     const staleDirectory = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.stale`)
