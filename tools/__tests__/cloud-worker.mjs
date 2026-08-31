@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { Worker } from "node:worker_threads"
 
-import { T, root, stage, toolPath } from "./_harness.mjs"
+import { T, realOrchestratorConfig, root, stage, toolPath } from "./_harness.mjs"
 
 const task = (id, status, filesChanged, updatedAt = "2026-08-31T17:09:28.437758900Z") => ({
   id,
@@ -284,14 +284,15 @@ const receipt = {
     return "released"
   },
 }
-cloud.persistReconciledReceipt(receipt, workerData.mirrorPath)
+cloud.persistReconciledReceipt(receipt, workerData.mirrorPath, [], { lockTimeoutMs: workerData.lockTimeoutMs })
 `,
   )
+  const receiptLockTimeoutMs = realOrchestratorConfig().timeouts.receiptLockSeconds * 1000
   const firstSignal = new SharedArrayBuffer(4)
   const secondSignal = new SharedArrayBuffer(4)
   const startWriter = (receiptValue, signal) => {
     const worker = new Worker(writerScript, {
-      workerData: { mirrorPath: interleavedMirror, receipt: receiptValue, signal },
+      workerData: { mirrorPath: interleavedMirror, receipt: receiptValue, signal, lockTimeoutMs: receiptLockTimeoutMs },
     })
     return {
       inside: new Promise((resolveMessage, rejectMessage) => {
@@ -342,6 +343,59 @@ cloud.persistReconciledReceipt(receipt, workerData.mirrorPath)
       interleavedReceipt.firstReadyObservedAt === "2026-08-31T17:59:00.000Z" &&
       interleavedReceipt.materialized?.at === "2026-08-31T18:02:00.000Z",
     JSON.stringify(interleavedReceipt),
+  )
+
+  const liveOwnerDirectory = join(root, "cloud-worker", "live-receipt-lock-owner")
+  const liveOwnerMirror = join(liveOwnerDirectory, "receipts", "task_e_a4.json")
+  const liveOwnerLock = join(liveOwnerDirectory, "receipt-task_e_a4.json.lock")
+  mkdirSync(liveOwnerLock, { recursive: true })
+  writeFileSync(
+    join(liveOwnerLock, "owner.json"),
+    `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }, null, 2)}\n`,
+  )
+  const blockedWriterScript = stage(
+    "cloud-worker/blocked-receipt-writer.mjs",
+    `import { parentPort, workerData } from "node:worker_threads"
+const cloud = await import(${JSON.stringify(pathToFileURL(toolPath("lib/cloud-worker.mjs")).href)})
+const startedAt = performance.now()
+try {
+  cloud.persistReconciledReceipt({ taskId: "task_e_a4" }, workerData.mirrorPath, [], {
+    lockTimeoutMs: workerData.lockTimeoutMs,
+  })
+  parentPort.postMessage({ outcome: "acquired" })
+} catch (error) {
+  parentPort.postMessage({
+    outcome: "failed",
+    name: error.name,
+    code: error.code,
+    timeoutMs: error.timeoutMs,
+    ownerPid: error.ownerPid,
+    elapsedMs: performance.now() - startedAt,
+  })
+}
+`,
+  )
+  const blockedWriter = new Worker(blockedWriterScript, {
+    workerData: { mirrorPath: liveOwnerMirror, lockTimeoutMs: receiptLockTimeoutMs },
+  })
+  const blockedResult = await Promise.race([
+    new Promise((resolveMessage, rejectMessage) => {
+      blockedWriter.once("message", resolveMessage)
+      blockedWriter.once("error", rejectMessage)
+    }),
+    new Promise((resolveTimeout) => setTimeout(() => resolveTimeout(null), receiptLockTimeoutMs + 1000)),
+  ])
+  if (blockedResult === null) await blockedWriter.terminate()
+  T(
+    "cloud-worker.mjs: a receipt lock naming a live owner fails within its configured bound",
+    blockedResult?.outcome === "failed" &&
+      blockedResult.name === "ReceiptLockTimeoutError" &&
+      blockedResult.code === "RECEIPT_LOCK_TIMEOUT" &&
+      blockedResult.timeoutMs === receiptLockTimeoutMs &&
+      blockedResult.ownerPid === process.pid &&
+      blockedResult.elapsedMs >= receiptLockTimeoutMs &&
+      blockedResult.elapsedMs < receiptLockTimeoutMs + 500,
+    JSON.stringify(blockedResult),
   )
 
   const badShim = stage("cloud-worker/bad-codex.cmd", "@echo off\r\nexit /b 0\r\n")

@@ -85,6 +85,16 @@ export class CodexTimeoutError extends Error {
   }
 }
 
+export class ReceiptLockTimeoutError extends Error {
+  constructor(operation, timeoutMs, ownerPid) {
+    super(`${operation} lock timed out after ${timeoutMs}ms waiting for live process ${ownerPid}`)
+    this.name = "ReceiptLockTimeoutError"
+    this.code = "RECEIPT_LOCK_TIMEOUT"
+    this.timeoutMs = timeoutMs
+    this.ownerPid = ownerPid
+  }
+}
+
 export const runCodex = async (command, args, options = {}) => {
   if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
     throw new Error("runCodex requires a positive timeoutMs")
@@ -287,7 +297,7 @@ export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
   return reconciled
 }
 
-export const persistReconciledReceipt = (receipt, mirrorPath, replicaPaths = []) => {
+export const persistReconciledReceipt = (receipt, mirrorPath, replicaPaths = [], options = {}) => {
   const resolvedMirrorPath = resolve(mirrorPath)
   const stateRoot = dirname(dirname(resolvedMirrorPath))
   // This innermost lock prevents cross operation receipt updates from being lost. Never widen it across a wait or external call.
@@ -295,7 +305,7 @@ export const persistReconciledReceipt = (receipt, mirrorPath, replicaPaths = [])
     stateRoot,
     `receipt-${basename(resolvedMirrorPath)}.lock`,
     "cloud receipt persistence",
-    { waitForOwner: true },
+    { waitForOwner: true, timeoutMs: options.lockTimeoutMs },
   )
   try {
     const latestReceipt = existsSync(resolvedMirrorPath)
@@ -392,6 +402,10 @@ const processIsAlive = (pid) => {
 const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
   const lockDirectory = join(stateRoot, lockName)
   const ownerPath = join(lockDirectory, "owner.json")
+  if (options.waitForOwner && (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)) {
+    throw new Error(`${operation} requires a positive lock timeout`)
+  }
+  const waitDeadline = options.waitForOwner ? performance.now() + options.timeoutMs : null
   mkdirSync(stateRoot, { recursive: true })
   const publishOwner = () => {
     const candidate = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.candidate`)
@@ -416,7 +430,9 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     }
     if (processIsAlive(owner?.pid)) {
       if (options.waitForOwner) {
-        Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, 10)
+        const remainingMs = waitDeadline - performance.now()
+        if (remainingMs <= 0) throw new ReceiptLockTimeoutError(operation, options.timeoutMs, owner.pid)
+        Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
         continue
       }
       throw new Error(`${operation} is already running in process ${owner.pid}`)

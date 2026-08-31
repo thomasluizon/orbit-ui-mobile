@@ -7,6 +7,7 @@ import { resolve } from "node:path"
 
 import {
   CodexTimeoutError,
+  ReceiptLockTimeoutError,
   acquireMaterializationLock,
   assertSameGitRepository,
   cloudStateRoot,
@@ -33,7 +34,8 @@ It never commits, pushes, opens a pull request, or merges.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
             3 task is not terminal, 4 ready task produced no committed diff, 5 task is abandoned,
-            6 a Codex cloud command timed out, 7 cloud apply produced an invalid Git landing
+            6 a Codex cloud command timed out, 7 cloud apply produced an invalid Git landing,
+            8 receipt lock acquisition timed out
 
   --help, -h          print this usage and exit 0
   --allow-abandoned   permit a late terminal result to proceed, while keeping the base SHA check`
@@ -97,6 +99,15 @@ try {
   fail(2, error.message)
 }
 const mirrorPath = mirrorPathFor(stateRoot, receipt.taskId)
+const receiptLockOptions = { lockTimeoutMs: config.timeouts.receiptLockSeconds * 1000 }
+const persistConfiguredReceipt = (value) => {
+  try {
+    return persistReconciledReceipt(value, mirrorPath, [receiptPath], receiptLockOptions)
+  } catch (error) {
+    if (error instanceof ReceiptLockTimeoutError) fail(8, error.message, "RECEIPT_LOCK_TIMEOUT")
+    fail(2, error.message)
+  }
+}
 let releaseLock
 try {
   releaseLock = acquireMaterializationLock(stateRoot)
@@ -118,11 +129,7 @@ if (existsSync(mirrorPath) && resolve(mirrorPath) !== receiptPath) {
   }
   receipt = reconcileReceiptCopies(receipt, mirrored)
 }
-try {
-  receipt = persistReconciledReceipt(receipt, mirrorPath, [receiptPath])
-} catch (error) {
-  fail(2, error.message)
-}
+receipt = persistConfiguredReceipt(receipt)
 if (receipt.materialized) {
   fail(2, `task ${receipt.taskId} was already materialized at ${receipt.materialized.at}; cloud apply was not run`)
 }
@@ -155,10 +162,10 @@ try {
   const task = tasks.find((candidate) => candidate.id === receipt.taskId)
   try {
     receipt = refreshReceipt(receipt, task)
-    receipt = persistReconciledReceipt(receipt, mirrorPath, [receiptPath])
   } catch (error) {
     fail(2, error.message)
   }
+  receipt = persistConfiguredReceipt(receipt)
 
   if (receipt.abandoned && !allowAbandoned) {
     fail(5, `task ${receipt.taskId} was abandoned at ${receipt.abandoned.at}; late results are quarantined`, "ABANDONED")
@@ -227,7 +234,7 @@ try {
     )
   }
   receipt.materialized = { at: new Date().toISOString(), status: status.stdout, stagedStat: stagedStat.stdout }
-  receipt = persistReconciledReceipt(receipt, mirrorPath, [receiptPath])
+  receipt = persistConfiguredReceipt(receipt)
   console.log(JSON.stringify({
     outcome: "MATERIALIZED",
     taskId: receipt.taskId,

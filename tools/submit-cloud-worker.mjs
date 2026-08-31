@@ -9,6 +9,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { dashFindings } from "./check-dashes.mjs"
 import {
   CodexTimeoutError,
+  ReceiptLockTimeoutError,
   acquireSubmissionLock,
   assertSameGitRepository,
   cloudOrder,
@@ -44,7 +45,7 @@ receipt. Any orphaned cloud task is abandoned rather than adopted, and its diff 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error,
             3 cloud capacity is full or recovery safety blocks clearing,
-            4 a Codex cloud command timed out
+            4 a Codex cloud command timed out, 5 receipt lock acquisition timed out
 
   --clear-unknown <file>      remove an unknown reservation once no possible live orphan remains
   --help, -h                  print this usage and exit 0`
@@ -219,6 +220,7 @@ if (config.cloud.environmentId !== environmentId) {
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
 const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
+const receiptLockOptions = { lockTimeoutMs: config.timeouts.receiptLockSeconds * 1000 }
 const repositoryKey = config.cloud.repositoryKey
 
 let stateRoot
@@ -271,7 +273,7 @@ if (existingReceipts.length > 0) {
         ? reservationPathFor(stateRoot, receipt.reservationId)
         : mirrorPathFor(stateRoot, receipt.taskId)
       if (receipt.kind !== "submission-reservation") {
-        return persistReconciledReceipt(receipt, stablePath)
+        return persistReconciledReceipt(receipt, stablePath, [], receiptLockOptions)
       }
       persistReceipt(receipt, stablePath)
       return receipt
@@ -306,6 +308,7 @@ if (existingReceipts.length > 0) {
     }
   } catch (error) {
     if (error instanceof CodexTimeoutError) fail(4, error.message)
+    if (error instanceof ReceiptLockTimeoutError) fail(5, error.message)
     fail(1, error.message)
   }
 }
