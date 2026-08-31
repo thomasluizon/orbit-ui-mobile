@@ -118,7 +118,7 @@ process.once("exit", releaseLock)
 try {
   let tasks
   try {
-    tasks = listCloudTasks(codexCommand, receipt.environmentId, { cwd: worktree })
+    tasks = listCloudTasks(codexCommand, receipt.environmentId, { cwd: stateRoot })
   } catch (error) {
     fail(1, error.message)
   }

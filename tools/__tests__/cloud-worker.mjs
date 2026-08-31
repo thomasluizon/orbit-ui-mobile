@@ -28,6 +28,8 @@ import { appendFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
+if (process.env.ORBIT_FAKE_CODEX_CWD_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_CWD_LOG, process.cwd() + "\\n")
+if (process.env.ORBIT_FAKE_CODEX_WRITES_ERROR_LOG) writeFileSync("error.log", "Codex CLI diagnostic\\n")
 if (args[0] === "cloud" && args[1] === "exec") process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
 else if (args[0] === "cloud" && args[1] === "list") process.stdout.write(process.env.ORBIT_FAKE_LIST || '{"tasks":[],"cursor":null}')
 else if (args[0] === "cloud" && args[1] === "apply") {

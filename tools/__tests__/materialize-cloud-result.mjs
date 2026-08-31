@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
+  REPO_ROOT,
   T,
   realOrchestratorConfig,
   run,
@@ -18,6 +19,9 @@ const fixture = (label, overrides = {}) => {
   const config = cloudConfig(codex.command, { real: realOrchestratorConfig() })
   const staged = stageWithConfig(`materialize-cloud-${label}`, TOOL, config)
   const repo = stageRepo(`materialize-cloud-${label}`)
+  writeFileSync(join(repo.path, ".gitignore"), readFileSync(join(REPO_ROOT, ".gitignore"), "utf8"))
+  repo.git(["add", ".gitignore"])
+  repo.git(["commit", "-q", "-m", "fixture ignore rules"])
   const head = repo.git(["rev-parse", "HEAD"]).stdout.trim()
   const id = overrides.taskId ?? `task_e_${label.replace(/[^a-f0-9]/g, "a")}1`
   const receipt = {
@@ -36,9 +40,9 @@ const fixture = (label, overrides = {}) => {
   return { ...staged, repo, head, receipt, receiptPath, log, config }
 }
 
-const invoke = (entry, tasks, extra = []) => run(TOOL, ["--receipt", entry.receiptPath, ...extra], {
+const invoke = (entry, tasks, extra = [], env = {}) => run(TOOL, ["--receipt", entry.receiptPath, ...extra], {
   path: entry.path,
-  env: { ORBIT_FAKE_CODEX_LOG: entry.log, ORBIT_FAKE_LIST: taskPage(tasks) },
+  env: { ORBIT_FAKE_CODEX_LOG: entry.log, ORBIT_FAKE_LIST: taskPage(tasks), ...env },
 })
 
 export const cases = () => {
@@ -49,6 +53,26 @@ export const cases = () => {
     `${TOOL}: refuses a dirty worktree before calling cloud apply or list`,
     dirtyResult.status === 2 && /worktree is dirty/.test(dirtyResult.stderr) && readFileSync(dirty.log, "utf8") === "",
     `exit ${dirtyResult.status}: ${dirtyResult.stderr}`,
+  )
+
+  const instrumented = fixture("instrumented", { taskId: "task_e_a12" })
+  const codexCwdLog = stage("materialize-cloud/instrumented-cwd.log", "")
+  writeFileSync(join(instrumented.repo.path, "error.log"), "Codex CLI diagnostic\n")
+  const cleanWithCodexLog = instrumented.repo.git(["status", "--porcelain"]).stdout
+  const instrumentedResult = invoke(instrumented, [task(instrumented.receipt.taskId, "ready", 1)], [], {
+    ORBIT_FAKE_CODEX_CWD_LOG: codexCwdLog,
+    ORBIT_FAKE_CODEX_WRITES_ERROR_LOG: "1",
+  })
+  const codexWorkingDirectories = readFileSync(codexCwdLog, "utf8").trim().split(/\r?\n/)
+  T(
+    `${TOOL}: Codex diagnostics stay ignored while list runs outside and apply runs inside the worktree`,
+    cleanWithCodexLog === "" &&
+      instrumentedResult.status === 0 &&
+      codexWorkingDirectories.length === 2 &&
+      codexWorkingDirectories[0] !== instrumented.repo.path &&
+      codexWorkingDirectories[1] === instrumented.repo.path,
+    `exit ${instrumentedResult.status}: ${instrumentedResult.stdout || instrumentedResult.stderr}\n` +
+      `initial status ${JSON.stringify(cleanWithCodexLog)}, Codex cwd ${JSON.stringify(codexWorkingDirectories)}`,
   )
 
   const wrongBase = fixture("wrong-base", { taskId: "task_e_b1", baseSha: "0".repeat(40) })
