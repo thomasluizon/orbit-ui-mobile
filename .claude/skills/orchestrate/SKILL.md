@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a milestone, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, and clears the Pullfrog review. --sleep works the whole queue unattended. A machine never merges unasked.
-argument-hint: <ORB-N | #N | ticket references | milestone> [--sleep] [--parallel] [--auto]
+argument-hint: <ORB-N | #N | ticket references | milestone> [--sleep] [--parallel] [--cloud] [--auto]
 effort: high
 ---
 
@@ -31,6 +31,7 @@ Flags, all combinable:
 |---|---|
 | `--sleep` | do not stop after each pull request; work the whole queue and report at the end |
 | `--parallel` | run up to `caps.parallelTickets` tickets at once, one worktree each |
+| `--cloud` | run UI implementations in Codex Cloud, then materialize and deliver them locally |
 | `--auto` | take the scope from the board rather than from an argument |
 
 **Without `--sleep` the run stops after every pull request** and waits for Thomas to type
@@ -64,8 +65,8 @@ run it always was.
                      stackParent set -> branch from ITS branch, not from main
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
                      written to the scratchpad, never inside a repo
- 5  Spawn worker     headless · stdin=NUL · cwd=worktree · log to scratchpad · background
- 6  Stall detection  hard 45 min · no-progress 10 min · kill process tree
+ 5  Spawn worker     local: supervised headless worker · cloud: submit one receipt-backed task
+ 6  Watchdog         local: two clocks and process-tree kill · cloud: one wall clock, abandon locally
  7  VERIFY OUT OF BAND
                      git status --porcelain            -> empty
                      git rev-list --count <base>..HEAD -> >= 1
@@ -119,6 +120,8 @@ node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
+node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
+node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
@@ -128,10 +131,10 @@ node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --ticke
 node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
-The launcher is the ONLY sanctioned way to start a model session. A raw `claude` or `codex` from an
-orchestrating session is refused by `.claude/hooks/orchestrator-guardrails.mjs`, which exempts a
-process carrying the launcher's marker, a cwd inside a linked worktree, and `--version`-style
-queries. Only the launcher sets that marker.
+The local launcher and cloud submitter are the only sanctioned ways to start a model session. A raw
+`claude`, `codex exec`, or `codex cloud exec` from an orchestrating session is refused by
+`.claude/hooks/orchestrator-guardrails.mjs`. Read-only `codex cloud list|status|diff` calls are
+allowed. Raw `codex cloud apply` stays refused; materialization goes through the named tool above.
 
 ## Step 0. Preflight
 
@@ -498,7 +501,44 @@ The file carries, in order:
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
 
+With `--cloud`, the order must end with this finishing contract. The submitter appends it when it is
+absent, and hashes both the order file and the submitted form in the receipt:
+
+- Edit and test the change in the container.
+- Then `git add` the named paths and `git commit`. Without a commit there is no diff and the work is lost.
+- Never `--no-verify`. If a pre-commit hook rejects the commit, report the exact hook output and stop, leaving the changes in place. Never edit a hook or a gate baseline to get past it.
+- Never push, never create a branch, never open a pull request. Delivery happens outside the container.
+
 ## Steps 5 and 6. Spawn the worker
+
+### Cloud execution
+
+`--cloud` is available only for the UI repository environment recorded in
+`.claude/orchestrator.json`. Submit each implementation with `submit-cloud-worker.mjs`. The receipt
+records the exact pushed branch SHA that the container starts from, the order hashes, target
+worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
+under the shared Git directory is the recovery source after a crashed session.
+
+Cloud has one wall-clock ceiling and no no-progress clock. `updated_at` changes only with state and
+`summary` stays zero until a commit exists, so neither is a heartbeat. On each scheduler pass, read
+the stable receipts and `codex cloud list --env <id> --json`, then derive in-flight as receipts that
+are neither terminal nor abandoned. Never maintain a counter. Once a pending receipt passes its
+deadline, write `abandoned` with the time and last observed status. This frees its slot by
+definition. Requeue the ticket through the local path by default.
+
+An abandoned task may finish late. Record that terminal observation but keep the result
+quarantined. `materialize-cloud-result.mjs` refuses it unless `--allow-abandoned` is explicit, and
+the exact base SHA check still applies. Cloud implementations use `caps.cloudParallelTasks`; local
+materialization is serial across the fleet; GitHub-calling readiness work stays capped at 3.
+
+When a receipt reaches `ready`, run `materialize-cloud-result.mjs` in the local control plane. It
+requires a clean worktree whose HEAD is byte-for-byte the receipt base SHA. A ready task with
+`summary.files_changed == 0` is a distinct failure requiring inspection of the task page, because
+it means the container produced no commit. A successful apply leaves staged changes and never moves
+HEAD. Continue through the existing local test, signed commit, push, pull request, and readiness
+flow. The cloud tool never performs any of those delivery actions.
+
+### Local execution
 
 ```bash
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
@@ -1005,19 +1045,22 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **8**, one worktree
+**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **2**, one worktree
 each. Each worktree is a full install, build and test run plus its own model session, so the cap is a
 resource decision, not a preference.
 
-Raised from 3 to 8 on 2026-08-25, deliberately and after measuring, to clear the redesign wave where
-sixteen tickets carry no open blocker at once. The measurement on this machine: **8 cores, 34 GB RAM
-with 16 GB free, 745 GB free disk**. Disk and memory carry eight comfortably; **the cores do not**, so
-eight concurrent tickets get about one core each and every individual ticket runs slower than it would
-at three. The throughput still wins while the ready queue is deep.
+Two is the attended cap set by D81. Eight is permitted only for an unattended `--sleep` run, when
+nobody needs the machine. Raise `caps.parallelTickets` for that run and restore it to 2 afterward.
+The measured machine has 8 cores, 34 GB RAM with 16 GB free, and 745 GB free disk. Disk and memory
+carry eight local workers, but the cores do not, so the throughput trade only makes sense while the
+machine is unattended.
 
-**Dial it back to 3 or 4 when the wave is cleared**, or sooner if workers start coming back
-`KILLED_HARD_CEILING`, or if the elapsed time per DELIVERED ticket climbs well past what three
-concurrent tickets cost. Those are the signals CPU starvation actually produces here.
+Drop below the active cap if workers return `KILLED_HARD_CEILING`, or if elapsed delivery time rises
+well beyond a smaller fan-out. Those are the signals CPU starvation produces here.
+
+`--cloud` has separate caps. Cloud implementations run 4 to 8 at a time according to
+`caps.cloudParallelTasks`, local materialization is serial, and the GitHub readiness cap stays at 3.
+Cloud removes local CPU pressure, not the shared GitHub GraphQL budget.
 
 **It will NOT show up as `KILLED_NO_PROGRESS`.** `launch-worker.mjs` counts process-tree CPU above
 1.5% of one core as progress, so a starved worker is still burning CPU and keeps resetting the stall

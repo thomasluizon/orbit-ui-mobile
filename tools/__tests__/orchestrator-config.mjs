@@ -203,6 +203,33 @@ export const cases = async () => {
     "a zero review fixer bound was accepted",
   )
   T(
+    `${NAME}: a cloud cap outside the measured 4 through 8 range is refused`,
+    /caps\.cloudParallelTasks must be an integer from 4 through 8/.test(
+      readAndFail("cloud-cap-too-high", { ...real, caps: { ...real.caps, cloudParallelTasks: 9 } }) ?? "",
+    ),
+    "a cloud cap above 8 was accepted",
+  )
+  T(
+    `${NAME}: the cloud wall clock and environment are required`,
+    /timeouts\.cloudCeilingMinutes must be a positive number/.test(
+      readAndFail("no-cloud-ceiling", { ...real, timeouts: { ...real.timeouts, cloudCeilingMinutes: undefined } }) ?? "",
+    ) &&
+      /cloud\.environmentId must be a non-empty string/.test(
+        readAndFail("no-cloud-environment", { ...real, cloud: { environmentId: "" } }) ?? "",
+      ),
+    "a cloud configuration field was optional",
+  )
+  T(
+    `${NAME}: the shipped cloud configuration carries the measured environment and split caps`,
+    real.cloud.environmentId === "6a95b419b608819199eb78d9eabc9579" &&
+      real.timeouts.cloudCeilingMinutes === 45 &&
+      real.caps.cloudParallelTasks >= 4 &&
+      real.caps.cloudParallelTasks <= 8 &&
+      real.caps.parallelTickets === 2 &&
+      real.caps.workerLogMegabytes === 512,
+    JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),
+  )
+  T(
     `${NAME}: an unreadable file is refused as unreadable, not as invalid JSON`,
     /could not be read: /.test(thrown(() => readOrchestratorConfig(pathToFileURL(join(root, "orchestrator-config", "absent.json")))) ?? ""),
     "a missing config did not report itself as missing",

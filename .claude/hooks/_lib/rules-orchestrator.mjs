@@ -26,6 +26,9 @@ const ENGINE_BINARIES = new Set(["claude", "codex"])
  * ordinary preflight. `codex --version` was refused by the previous revision, which keyed on the
  * binary alone. */
 const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "whoami", "--list", "login", "logout"])
+/** These cloud subcommands only inspect tasks that already exist. Match the binary and the first
+ * two arguments so a prompt containing one of these words grants nothing. */
+const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -160,9 +163,11 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
   for (const segment of segmentsOf(command)) {
-    if (!ENGINE_BINARIES.has(invokedBinary(segment))) continue
+    const binary = invokedBinary(segment)
+    if (!ENGINE_BINARIES.has(binary)) continue
     const words = withoutLeadingAssignments(segment).trim().split(/\s+/).slice(1)
     if (words.some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))) continue
+    if (binary === "codex" && words[0]?.toLowerCase() === "cloud" && CLOUD_READ_SUBCOMMANDS.has(words[1]?.toLowerCase())) continue
     return blocked(
       command,
       "An orchestrating session may not start a model session outside the launcher. Every worker\n" +
@@ -170,7 +175,10 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
         "work order, supervises the two clocks and records the worker PID. None of that happens\n" +
         "for a raw `codex` or `claude` invocation, so its worker is unsupervised.\n" +
         "The refusal is scoped to the CALLER, not the flag: the launcher itself, any command run\n" +
-        "from inside a launcher-created worktree, and version or help queries are permitted.",
+        "from inside a launcher-created worktree, version or help queries, and the read-only\n" +
+        "`codex cloud list|status|diff` subcommands are permitted. Submit cloud work through\n" +
+        "`node tools/submit-cloud-worker.mjs`, and land its diff only through\n" +
+        "`node tools/materialize-cloud-result.mjs` inside the ticket worktree.",
     )
   }
   return null
