@@ -118,17 +118,38 @@ export const cases = () => {
     `exit ${expiredResult.status}: ${expiredResult.stdout || expiredResult.stderr}\n${JSON.stringify(expiredReceipt)}`,
   )
 
-  const firstSeenLate = fixture("first-seen-late", {
+  const firstSeenOnTime = fixture("first-seen-on-time", {
     taskId: "task_e_f2",
     deadline: "2026-08-31T17:01:00.000Z",
   })
-  const firstSeenLateResult = invoke(firstSeenLate, [task(firstSeenLate.receipt.taskId, "ready", 1)])
+  const firstSeenOnTimeResult = invoke(
+    firstSeenOnTime,
+    [task(firstSeenOnTime.receipt.taskId, "ready", 1, "2026-08-31T17:00:00.000Z")],
+  )
+  const firstSeenOnTimeReceipt = JSON.parse(readFileSync(firstSeenOnTime.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a ready task completed before its deadline materializes when first observed later`,
+    firstSeenOnTimeResult.status === 0 &&
+      /"outcome":"MATERIALIZED"/.test(firstSeenOnTimeResult.stdout) &&
+      firstSeenOnTimeReceipt.abandoned === undefined &&
+      firstSeenOnTimeReceipt.terminal?.at === "2026-08-31T17:00:00.000Z",
+    `exit ${firstSeenOnTimeResult.status}: ${firstSeenOnTimeResult.stdout || firstSeenOnTimeResult.stderr}\n${JSON.stringify(firstSeenOnTimeReceipt)}`,
+  )
+
+  const firstSeenLate = fixture("first-seen-late", {
+    taskId: "task_e_f3",
+    deadline: "2026-08-31T17:01:00.000Z",
+  })
+  const firstSeenLateResult = invoke(
+    firstSeenLate,
+    [task(firstSeenLate.receipt.taskId, "ready", 1, "2026-08-31T17:02:00.000Z")],
+  )
   const firstSeenLateReceipt = JSON.parse(readFileSync(firstSeenLate.receiptPath, "utf8"))
   T(
-    `${TOOL}: a ready task first observed after its deadline is quarantined without apply`,
+    `${TOOL}: a ready task completed after its deadline is quarantined without apply`,
     firstSeenLateResult.status === 5 &&
       firstSeenLateReceipt.abandoned?.lastObservedStatus === "ready" &&
-      firstSeenLateReceipt.lateTerminal?.status === "ready" &&
+      firstSeenLateReceipt.lateTerminal?.at === "2026-08-31T17:02:00.000Z" &&
       !readFileSync(firstSeenLate.log, "utf8").includes('"apply"'),
     `exit ${firstSeenLateResult.status}: ${firstSeenLateResult.stdout || firstSeenLateResult.stderr}\n${JSON.stringify(firstSeenLateReceipt)}`,
   )

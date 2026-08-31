@@ -523,7 +523,9 @@ Cloud has one wall-clock ceiling and no no-progress clock. `updated_at` changes 
 `summary` stays zero until a commit exists, so neither is a heartbeat. On each scheduler pass, read
 the stable receipts and `codex cloud list --env <id> --json`, then derive in-flight as receipts that
 are neither terminal nor abandoned. Never maintain a counter. Once a pending receipt passes its
-deadline, write `abandoned` with the time and last observed status. This frees its slot by
+deadline, write `abandoned` with the time and last observed status. A ready task is late only when
+its `updated_at` is after the deadline, regardless of when the harness observes it. A successfully
+materialized receipt is never abandoned by a later refresh. Abandonment frees its slot by
 definition. Requeue the ticket through the local path by default.
 
 An abandoned task may finish late. Record that terminal observation but keep the result

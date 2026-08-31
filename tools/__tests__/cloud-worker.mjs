@@ -4,12 +4,12 @@ import { pathToFileURL } from "node:url"
 
 import { T, root, stage, toolPath } from "./_harness.mjs"
 
-const task = (id, status, filesChanged) => ({
+const task = (id, status, filesChanged, updatedAt = "2026-08-31T17:09:28.437758900Z") => ({
   id,
   url: `https://chatgpt.com/codex/tasks/${id}`,
   title: "measured task",
   status,
-  updated_at: "2026-08-31T17:09:28.437758900Z",
+  updated_at: updatedAt,
   environment_id: null,
   environment_label: "thomasluizon/orbit-ui-mobile",
   summary: { files_changed: filesChanged, lines_added: filesChanged, lines_removed: 0 },
@@ -94,6 +94,23 @@ export const cases = async () => {
     JSON.stringify(parsed),
   )
 
+  for (const [label, updatedAt] of [["missing", undefined], ["unparseable", "not-a-timestamp"]]) {
+    const invalidTask = task("task_e_a2", "pending", 0)
+    if (updatedAt === undefined) delete invalidTask.updated_at
+    else invalidTask.updated_at = updatedAt
+    let validationMessage = ""
+    try {
+      cloud.parseTaskList(taskPage([invalidTask]))
+    } catch (error) {
+      validationMessage = error.message
+    }
+    T(
+      `cloud-worker.mjs: ${label} updated_at fails closed`,
+      /no parseable ISO updated_at timestamp/.test(validationMessage),
+      validationMessage,
+    )
+  }
+
   const codex = fakeCodex("list-page-size")
   const invocationLog = stage("cloud-worker/list-page-size.jsonl", "")
   await cloud.listCloudTasks(codex.command, "env-measured", {
@@ -123,19 +140,53 @@ export const cases = async () => {
     abandoned.abandoned?.lastObservedStatus === "pending" && abandoned.terminal === undefined,
     JSON.stringify(abandoned),
   )
-  const late = cloud.refreshReceipt(abandoned, task("task_e_a1", "ready", 2), new Date("2026-08-31T18:05:00.000Z"))
+  const late = cloud.refreshReceipt(
+    abandoned,
+    task("task_e_a1", "ready", 2, "2026-08-31T18:04:00.000Z"),
+    new Date("2026-08-31T18:05:00.000Z"),
+  )
   T(
     "cloud-worker.mjs: a late ready result remains abandoned and is recorded for quarantine",
     late.abandoned !== undefined && late.lateTerminal?.status === "ready" && late.lateTerminal.summary.files_changed === 2,
     JSON.stringify(late),
   )
-  const firstSeenLate = cloud.refreshReceipt(receipt, task("task_e_a1", "ready", 2), new Date("2026-08-31T18:05:00.000Z"))
+  const firstSeenOnTime = cloud.refreshReceipt(
+    receipt,
+    task("task_e_a1", "ready", 2, "2026-08-31T17:59:00.000Z"),
+    new Date("2026-08-31T18:05:00.000Z"),
+  )
   T(
-    "cloud-worker.mjs: a ready task first observed after its deadline is quarantined",
+    "cloud-worker.mjs: a ready task completed before its deadline is not abandoned when first observed later",
+    firstSeenOnTime.abandoned === undefined &&
+      firstSeenOnTime.terminal?.at === "2026-08-31T17:59:00.000Z" &&
+      firstSeenOnTime.terminal?.observedAt === "2026-08-31T18:05:00.000Z" &&
+      firstSeenOnTime.lastObserved?.updatedAt === "2026-08-31T17:59:00.000Z",
+    JSON.stringify(firstSeenOnTime),
+  )
+  const firstSeenLate = cloud.refreshReceipt(
+    receipt,
+    task("task_e_a1", "ready", 2, "2026-08-31T18:01:00.000Z"),
+    new Date("2026-08-31T18:05:00.000Z"),
+  )
+  T(
+    "cloud-worker.mjs: a task completed after its deadline is abandoned and quarantined",
     firstSeenLate.abandoned?.lastObservedStatus === "ready" &&
-      firstSeenLate.terminal?.status === "ready" &&
-      firstSeenLate.lateTerminal?.status === "ready",
+      firstSeenLate.terminal?.at === "2026-08-31T18:01:00.000Z" &&
+      firstSeenLate.lateTerminal?.at === "2026-08-31T18:01:00.000Z",
     JSON.stringify(firstSeenLate),
+  )
+  const materialized = cloud.refreshReceipt(
+    {
+      ...receipt,
+      materialized: { at: "2026-08-31T17:45:00.000Z", status: "M  landed.txt\n", stagedStat: "1 file changed\n" },
+    },
+    task("task_e_a1", "pending", 0),
+    new Date("2026-08-31T18:05:00.000Z"),
+  )
+  T(
+    "cloud-worker.mjs: a successfully materialized receipt is never abandoned by a later refresh",
+    materialized.abandoned === undefined && materialized.materialized?.at === "2026-08-31T17:45:00.000Z",
+    JSON.stringify(materialized),
   )
   const fleet = cloud.refreshReceipts(
     [receipt, { ...receipt, taskId: "task_e_b2", deadline: "2026-08-31T17:00:00.000Z" }],

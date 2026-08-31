@@ -18,6 +18,7 @@ const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 const CLOUD_LIST_PAGE_SIZE = 20
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const TASK_ID = /^task_e_[0-9a-f]+$/
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
 const OBSERVED_STATUSES = new Set(["pending", "ready"])
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
@@ -128,6 +129,13 @@ const validateTask = (task) => {
     throw new Error(`codex cloud list task ${task.id} carries no string status`)
   }
   if (
+    typeof task.updated_at !== "string" ||
+    !ISO_TIMESTAMP.test(task.updated_at) ||
+    !Number.isFinite(Date.parse(task.updated_at))
+  ) {
+    throw new Error(`codex cloud list task ${task.id} carries no parseable ISO updated_at timestamp`)
+  }
+  if (
     task.summary === null ||
     typeof task.summary !== "object" ||
     Array.isArray(task.summary) ||
@@ -233,6 +241,13 @@ const deadlinePassed = (receipt, now) => {
   return now.getTime() > deadline
 }
 
+const reachedTerminalByDeadline = (receipt, task) => {
+  const deadline = Date.parse(receipt.deadline)
+  if (!Number.isFinite(deadline)) throw new Error(`receipt ${receipt.taskId} carries an invalid deadline`)
+  const terminalAt = task?.status === "ready" ? task.updated_at : receipt.terminal?.at
+  return typeof terminalAt === "string" && Date.parse(terminalAt) <= deadline
+}
+
 export const refreshReceipt = (receipt, task, now = new Date()) => {
   const observedAt = now.toISOString()
   const updated = { ...receipt }
@@ -240,18 +255,25 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
     if (!OBSERVED_STATUSES.has(task.status)) {
       throw new Error(`task ${task.id} returned unmeasured status ${JSON.stringify(task.status)}`)
     }
-    updated.lastObserved = { at: observedAt, status: task.status, summary: task.summary }
+    updated.lastObserved = { at: observedAt, updatedAt: task.updated_at, status: task.status, summary: task.summary }
+    if (task.status === "ready") {
+      updated.terminal = { at: task.updated_at, observedAt, status: task.status, summary: task.summary }
+    }
   }
-  if (!updated.abandoned && deadlinePassed(updated, now)) {
+  if (
+    !updated.abandoned &&
+    !updated.materialized &&
+    deadlinePassed(updated, now) &&
+    !reachedTerminalByDeadline(updated, task)
+  ) {
     updated.abandoned = {
       at: observedAt,
       lastObservedStatus: task?.status ?? updated.lastObserved?.status ?? "not_listed",
     }
   }
   if (task?.status === "ready") {
-    updated.terminal = { at: observedAt, status: task.status, summary: task.summary }
     if (updated.abandoned) {
-      updated.lateTerminal = { at: observedAt, status: task.status, summary: task.summary }
+      updated.lateTerminal = { at: task.updated_at, observedAt, status: task.status, summary: task.summary }
     }
   }
   return updated
