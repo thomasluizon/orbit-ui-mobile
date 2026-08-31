@@ -121,6 +121,8 @@ node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
+node tools/submit-cloud-worker.mjs --reconcile-unknown <reservation-file> --task-url <url>
+node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file>
 node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>]
@@ -519,14 +521,21 @@ records the exact pushed branch SHA that the container starts from, the order ha
 worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
 under the shared Git directory is the recovery source after a crashed session.
 
-Cloud has one wall-clock ceiling and no no-progress clock. `updated_at` changes only with state and
-`summary` stays zero until a commit exists, so neither is a heartbeat. On each scheduler pass, read
-the stable receipts and `codex cloud list --env <id> --json`, then derive in-flight as receipts that
-are neither terminal nor abandoned. Never maintain a counter. Once a pending receipt passes its
-deadline, write `abandoned` with the time and last observed status. A ready task is late only when
-its `updated_at` is after the deadline, regardless of when the harness observes it. A successfully
-materialized receipt is never abandoned by a later refresh. Abandonment frees its slot by
-definition. Requeue the ticket through the local path by default.
+Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
+remote outcome unknown, so that reservation continues to consume capacity and blocks the same
+ticket. Inspect `codex cloud list`, then use `--reconcile-unknown` with the identified task URL or
+use `--clear-unknown` only after establishing that no task was created.
+
+Cloud has one wall-clock ceiling and no no-progress clock. Across one observed run, `updated_at` did
+not move while the task was running and moved at the transition. The CLI reference does not define
+the field or its mutation rules, so the harness records and validates it only as diagnostic data.
+On each scheduler pass, read the stable receipts and `codex cloud list --env <id> --json`, then
+derive in-flight as unknown submissions plus receipts that are neither terminal nor abandoned.
+Never maintain a counter. When this harness first observes `ready`, record that local observation
+time and keep it unchanged. The receipt is on time only when that first observation is at or before
+its deadline. Otherwise, once the deadline passes, write `abandoned` with the time and last observed
+status. A successfully materialized receipt is never abandoned by a later refresh. Abandonment frees
+its slot by definition. Requeue the ticket through the local path by default.
 
 An abandoned task may finish late. Record that terminal observation but keep the result
 quarantined. `materialize-cloud-result.mjs` refuses it unless `--allow-abandoned` is explicit, and

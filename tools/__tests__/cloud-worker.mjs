@@ -33,6 +33,8 @@ if (process.env.ORBIT_FAKE_CODEX_WRITES_ERROR_LOG) writeFileSync("error.log", "C
 if (process.env.ORBIT_FAKE_APPLY_UNTRACKED_PATH && args[1] === "apply") writeFileSync(process.env.ORBIT_FAKE_APPLY_UNTRACKED_PATH, "unexpected\\n")
 if (process.env.ORBIT_FAKE_HANG === args[1]) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 if (args[0] === "cloud" && args[1] === "exec") {
+  if (process.env.ORBIT_FAKE_ACCEPTANCE_LOG) writeFileSync(process.env.ORBIT_FAKE_ACCEPTANCE_LOG, process.env.ORBIT_FAKE_EXEC_URL || "accepted")
+  if (process.env.ORBIT_FAKE_HANG_AFTER_ACCEPTANCE === "exec") Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
   const delayMs = Number(process.env.ORBIT_FAKE_EXEC_DELAY_MS || 0)
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
   process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
@@ -143,7 +145,7 @@ export const cases = async () => {
   )
   const late = cloud.refreshReceipt(
     abandoned,
-    task("task_e_a1", "ready", 2, "2026-08-31T18:04:00.000Z"),
+    task("task_e_a1", "ready", 2, "2026-08-31T17:30:00.000Z"),
     new Date("2026-08-31T18:05:00.000Z"),
   )
   T(
@@ -151,29 +153,36 @@ export const cases = async () => {
     late.abandoned !== undefined && late.lateTerminal?.status === "ready" && late.lateTerminal.summary.files_changed === 2,
     JSON.stringify(late),
   )
-  const firstSeenOnTime = cloud.refreshReceipt(
+  const firstReadyObservation = cloud.refreshReceipt(
     receipt,
-    task("task_e_a1", "ready", 2, "2026-08-31T17:59:00.000Z"),
-    new Date("2026-08-31T18:05:00.000Z"),
+    task("task_e_a1", "ready", 2, "2026-08-31T18:30:00.000Z"),
+    new Date("2026-08-31T17:59:00.000Z"),
+  )
+  const observedOnTime = cloud.refreshReceipt(
+    firstReadyObservation,
+    task("task_e_a1", "ready", 2, "2026-08-31T19:30:00.000Z"),
+    new Date("2026-08-31T19:00:00.000Z"),
   )
   T(
-    "cloud-worker.mjs: a ready task completed before its deadline is not abandoned when first observed later",
-    firstSeenOnTime.abandoned === undefined &&
-      firstSeenOnTime.terminal?.at === "2026-08-31T17:59:00.000Z" &&
-      firstSeenOnTime.terminal?.observedAt === "2026-08-31T18:05:00.000Z" &&
-      firstSeenOnTime.lastObserved?.updatedAt === "2026-08-31T17:59:00.000Z",
-    JSON.stringify(firstSeenOnTime),
+    "cloud-worker.mjs: a first ready observation before the deadline remains on time after later refreshes",
+    observedOnTime.abandoned === undefined &&
+      observedOnTime.firstReadyObservedAt === "2026-08-31T17:59:00.000Z" &&
+      observedOnTime.terminal?.at === "2026-08-31T17:59:00.000Z" &&
+      observedOnTime.terminal?.observedAt === "2026-08-31T19:00:00.000Z" &&
+      observedOnTime.lastObserved?.updatedAt === "2026-08-31T19:30:00.000Z",
+    JSON.stringify(observedOnTime),
   )
   const firstSeenLate = cloud.refreshReceipt(
     receipt,
-    task("task_e_a1", "ready", 2, "2026-08-31T18:01:00.000Z"),
+    task("task_e_a1", "ready", 2, "2026-08-31T17:30:00.000Z"),
     new Date("2026-08-31T18:05:00.000Z"),
   )
   T(
-    "cloud-worker.mjs: a task completed after its deadline is abandoned and quarantined",
+    "cloud-worker.mjs: a first ready observation after the deadline is abandoned and quarantined",
     firstSeenLate.abandoned?.lastObservedStatus === "ready" &&
-      firstSeenLate.terminal?.at === "2026-08-31T18:01:00.000Z" &&
-      firstSeenLate.lateTerminal?.at === "2026-08-31T18:01:00.000Z",
+      firstSeenLate.firstReadyObservedAt === "2026-08-31T18:05:00.000Z" &&
+      firstSeenLate.terminal?.updatedAt === "2026-08-31T17:30:00.000Z" &&
+      firstSeenLate.lateTerminal?.at === "2026-08-31T18:05:00.000Z",
     JSON.stringify(firstSeenLate),
   )
   const materialized = cloud.refreshReceipt(
@@ -198,6 +207,23 @@ export const cases = async () => {
     "cloud-worker.mjs: in-flight is derived from non-terminal, non-abandoned receipts",
     fleet.inFlight.map((entry) => entry.taskId).join(",") === "task_e_a1",
     JSON.stringify(fleet),
+  )
+  const reservation = cloud.refreshReceipts(
+    [{
+      kind: "submission-reservation",
+      reservationId: "00000000-0000-0000-0000-000000000001",
+      submissionState: "submitting",
+      ticket: "#398",
+    }],
+    [],
+    new Date("2026-08-31T19:00:00.000Z"),
+  )
+  T(
+    "cloud-worker.mjs: an interrupted submission becomes durable uncertainty and remains in flight",
+    reservation.inFlight.length === 1 &&
+      reservation.receipts[0].submissionState === "unknown" &&
+      reservation.receipts[0].unknownAt === "2026-08-31T19:00:00.000Z",
+    JSON.stringify(reservation),
   )
 
   const badShim = stage("cloud-worker/bad-codex.cmd", "@echo off\r\nexit /b 0\r\n")

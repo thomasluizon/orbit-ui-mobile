@@ -230,6 +230,13 @@ export const mirrorPathFor = (stateRoot, taskId) => {
   return join(stateRoot, "receipts", `${taskId}.json`)
 }
 
+export const reservationPathFor = (stateRoot, reservationId) => {
+  if (typeof reservationId !== "string" || !/^[0-9a-f-]{36}$/.test(reservationId)) {
+    throw new Error(`invalid cloud submission reservation id: ${reservationId}`)
+  }
+  return join(stateRoot, "receipts", `reservation-${reservationId}.json`)
+}
+
 export const persistReceipt = (receipt, paths) => {
   const unique = new Set(paths.map((path) => resolve(path)))
   for (const path of unique) writeJsonAtomic(path, receipt)
@@ -241,30 +248,44 @@ const deadlinePassed = (receipt, now) => {
   return now.getTime() > deadline
 }
 
-const reachedTerminalByDeadline = (receipt, task) => {
+const observedReadyByDeadline = (receipt) => {
   const deadline = Date.parse(receipt.deadline)
   if (!Number.isFinite(deadline)) throw new Error(`receipt ${receipt.taskId} carries an invalid deadline`)
-  const terminalAt = task?.status === "ready" ? task.updated_at : receipt.terminal?.at
-  return typeof terminalAt === "string" && Date.parse(terminalAt) <= deadline
+  return typeof receipt.firstReadyObservedAt === "string" && Date.parse(receipt.firstReadyObservedAt) <= deadline
 }
 
 export const refreshReceipt = (receipt, task, now = new Date()) => {
   const observedAt = now.toISOString()
   const updated = { ...receipt }
+  if (updated.kind === "submission-reservation") {
+    if (updated.submissionState === "submitting") {
+      updated.submissionState = "unknown"
+      updated.unknownAt = observedAt
+      updated.unknownReason = "submission ended without a confirmed task URL"
+    }
+    return updated
+  }
   if (task) {
     if (!OBSERVED_STATUSES.has(task.status)) {
       throw new Error(`task ${task.id} returned unmeasured status ${JSON.stringify(task.status)}`)
     }
     updated.lastObserved = { at: observedAt, updatedAt: task.updated_at, status: task.status, summary: task.summary }
     if (task.status === "ready") {
-      updated.terminal = { at: task.updated_at, observedAt, status: task.status, summary: task.summary }
+      updated.firstReadyObservedAt ??= observedAt
+      updated.terminal = {
+        at: updated.firstReadyObservedAt,
+        observedAt,
+        updatedAt: task.updated_at,
+        status: task.status,
+        summary: task.summary,
+      }
     }
   }
   if (
     !updated.abandoned &&
     !updated.materialized &&
     deadlinePassed(updated, now) &&
-    !reachedTerminalByDeadline(updated, task)
+    !observedReadyByDeadline(updated)
   ) {
     updated.abandoned = {
       at: observedAt,
@@ -273,7 +294,13 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
   }
   if (task?.status === "ready") {
     if (updated.abandoned) {
-      updated.lateTerminal = { at: task.updated_at, observedAt, status: task.status, summary: task.summary }
+      updated.lateTerminal = {
+        at: updated.firstReadyObservedAt,
+        observedAt,
+        updatedAt: task.updated_at,
+        status: task.status,
+        summary: task.summary,
+      }
     }
   }
   return updated

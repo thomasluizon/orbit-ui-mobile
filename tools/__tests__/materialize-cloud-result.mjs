@@ -37,6 +37,7 @@ const fixture = (label, overrides = {}) => {
     submittedAt: "2026-08-31T17:00:00.000Z",
     deadline: overrides.deadline ?? new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     ...(overrides.abandoned ? { abandoned: overrides.abandoned } : {}),
+    ...(overrides.firstReadyObservedAt ? { firstReadyObservedAt: overrides.firstReadyObservedAt } : {}),
   }
   const receiptPath = stage(`materialize-cloud/${label}.json`, `${JSON.stringify(receipt, null, 2)}\n`)
   const log = stage(`materialize-cloud/${label}-codex.jsonl`, "")
@@ -149,14 +150,15 @@ export const cases = () => {
   const firstSeenOnTime = fixture("first-seen-on-time", {
     taskId: "task_e_f2",
     deadline: "2026-08-31T17:01:00.000Z",
+    firstReadyObservedAt: "2026-08-31T17:00:00.000Z",
   })
   const firstSeenOnTimeResult = invoke(
     firstSeenOnTime,
-    [task(firstSeenOnTime.receipt.taskId, "ready", 1, "2026-08-31T17:00:00.000Z")],
+    [task(firstSeenOnTime.receipt.taskId, "ready", 1, "2026-08-31T19:00:00.000Z")],
   )
   const firstSeenOnTimeReceipt = JSON.parse(readFileSync(firstSeenOnTime.receiptPath, "utf8"))
   T(
-    `${TOOL}: a ready task completed before its deadline materializes when first observed later`,
+    `${TOOL}: a recorded on-time ready observation remains eligible when refreshed later`,
     firstSeenOnTimeResult.status === 0 &&
       /"outcome":"MATERIALIZED"/.test(firstSeenOnTimeResult.stdout) &&
       firstSeenOnTimeReceipt.abandoned === undefined &&
@@ -166,18 +168,18 @@ export const cases = () => {
 
   const firstSeenLate = fixture("first-seen-late", {
     taskId: "task_e_f3",
-    deadline: "2026-08-31T17:01:00.000Z",
+    deadline: "2020-08-31T17:01:00.000Z",
   })
   const firstSeenLateResult = invoke(
     firstSeenLate,
-    [task(firstSeenLate.receipt.taskId, "ready", 1, "2026-08-31T17:02:00.000Z")],
+    [task(firstSeenLate.receipt.taskId, "ready", 1, "2020-08-31T17:00:00.000Z")],
   )
   const firstSeenLateReceipt = JSON.parse(readFileSync(firstSeenLate.receiptPath, "utf8"))
   T(
-    `${TOOL}: a ready task completed after its deadline is quarantined without apply`,
+    `${TOOL}: a first ready observation after the deadline is quarantined without apply`,
     firstSeenLateResult.status === 5 &&
       firstSeenLateReceipt.abandoned?.lastObservedStatus === "ready" &&
-      firstSeenLateReceipt.lateTerminal?.at === "2026-08-31T17:02:00.000Z" &&
+      Date.parse(firstSeenLateReceipt.lateTerminal?.at) > Date.parse(firstSeenLate.receipt.deadline) &&
       !readFileSync(firstSeenLate.log, "utf8").includes('"apply"'),
     `exit ${firstSeenLateResult.status}: ${firstSeenLateResult.stdout || firstSeenLateResult.stderr}\n${JSON.stringify(firstSeenLateReceipt)}`,
   )
