@@ -151,7 +151,7 @@ if (reconcileArgument || clearArgument || taskUrlArgument) {
   delete receipt.unknownAt
   delete receipt.unknownReason
   try {
-    persistReceipt(receipt, [receiptPath, mirrorPath])
+    persistReceipt(receipt, mirrorPath, [receiptPath])
     unlinkSync(reservationFile)
   } catch (error) {
     fail(1, `unknown cloud submission could not be reconciled: ${error.message}`)
@@ -257,7 +257,7 @@ if (existingReceipts.length > 0) {
       const stablePath = receipt.kind === "submission-reservation"
         ? reservationPathFor(stateRoot, receipt.reservationId)
         : mirrorPathFor(stateRoot, receipt.taskId)
-      persistReceipt(receipt, [stablePath])
+      persistReceipt(receipt, stablePath)
     }
     const blockedTicket = refreshed.receipts.find((receipt) =>
       receipt.kind === "submission-reservation" && receipt.ticket === ticket,
@@ -303,7 +303,7 @@ const reservation = {
   mirrorPath: reservationPath,
 }
 try {
-  persistReceipt(reservation, [reservationPath])
+  persistReceipt(reservation, reservationPath)
 } catch (error) {
   fail(1, `cloud submission reservation could not be persisted: ${error.message}`)
 }
@@ -315,7 +315,7 @@ const retainUnknownReservation = (reason) => {
   reservation.unknownAt = new Date().toISOString()
   reservation.unknownReason = reason
   try {
-    persistReceipt(reservation, [reservationPath])
+    persistReceipt(reservation, reservationPath)
   } catch (error) {
     fail(1, `cloud submission became uncertain and its reservation could not be updated: ${error.message}`)
   }
@@ -353,7 +353,7 @@ const receipt = {
 }
 delete receipt.reservationId
 try {
-  persistReceipt(receipt, [receiptPath, mirrorPath])
+  persistReceipt(receipt, mirrorPath, [receiptPath])
   unlinkSync(reservationPath)
 } catch (error) {
   fail(1, `cloud task ${task.taskId} was submitted but its receipt could not be persisted: ${error.message}`)

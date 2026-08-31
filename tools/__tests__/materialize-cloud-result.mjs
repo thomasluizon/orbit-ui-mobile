@@ -37,6 +37,8 @@ const fixture = (label, overrides = {}) => {
     submittedAt: "2026-08-31T17:00:00.000Z",
     deadline: overrides.deadline ?? new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     ...(overrides.abandoned ? { abandoned: overrides.abandoned } : {}),
+    ...(overrides.terminal ? { terminal: overrides.terminal } : {}),
+    ...(overrides.materialized ? { materialized: overrides.materialized } : {}),
     ...(overrides.firstReadyObservedAt ? { firstReadyObservedAt: overrides.firstReadyObservedAt } : {}),
   }
   const receiptPath = stage(`materialize-cloud/${label}.json`, `${JSON.stringify(receipt, null, 2)}\n`)
@@ -125,6 +127,57 @@ export const cases = () => {
     `${TOOL}: refuses an abandoned task and records a late terminal result`,
     abandonedResult.status === 5 && /"outcome":"ABANDONED"/.test(abandonedResult.stdout) && abandonedReceipt.lateTerminal?.status === "ready",
     `exit ${abandonedResult.status}: ${abandonedResult.stdout || abandonedResult.stderr}\n${JSON.stringify(abandonedReceipt)}`,
+  )
+
+  const staleMirror = fixture("stale-mirror", {
+    taskId: "task_e_ab2",
+    abandoned: { at: "2026-08-31T18:00:00.000Z", lastObservedStatus: "pending" },
+    terminal: { at: "2026-08-31T17:59:00.000Z", observedAt: "2026-08-31T18:01:00.000Z", status: "ready" },
+    firstReadyObservedAt: "2026-08-31T17:59:00.000Z",
+  })
+  const staleMirrorDirectory = join(staleMirror.repo.path, ".git", "orbit-cloud", "receipts")
+  const staleMirrorPath = join(staleMirrorDirectory, `${staleMirror.receipt.taskId}.json`)
+  mkdirSync(staleMirrorDirectory, { recursive: true })
+  writeFileSync(staleMirrorPath, `${JSON.stringify({
+    ...staleMirror.receipt,
+    abandoned: undefined,
+    terminal: undefined,
+  }, null, 2)}\n`)
+  const staleMirrorResult = invoke(staleMirror, [task(staleMirror.receipt.taskId, "ready", 2)])
+  const healedScratch = JSON.parse(readFileSync(staleMirror.receiptPath, "utf8"))
+  const healedMirror = JSON.parse(readFileSync(staleMirrorPath, "utf8"))
+  T(
+    `${TOOL}: a stale mirror cannot replace newer abandoned and terminal scratch state`,
+    staleMirrorResult.status === 5 &&
+      healedScratch.abandoned?.at === staleMirror.receipt.abandoned.at &&
+      healedMirror.abandoned?.at === staleMirror.receipt.abandoned.at &&
+      healedScratch.terminal?.at === staleMirror.receipt.terminal.at &&
+      healedMirror.terminal?.at === staleMirror.receipt.terminal.at,
+    `exit ${staleMirrorResult.status}: ${staleMirrorResult.stdout || staleMirrorResult.stderr}\n` +
+      `scratch ${JSON.stringify(healedScratch)}\nmirror ${JSON.stringify(healedMirror)}`,
+  )
+
+  const alreadyMaterialized = fixture("already-materialized", {
+    taskId: "task_e_ab3",
+    materialized: { at: "2026-08-31T18:02:00.000Z", status: "M  landed.txt\n", stagedStat: "1 file changed\n" },
+  })
+  const materializedMirrorDirectory = join(alreadyMaterialized.repo.path, ".git", "orbit-cloud", "receipts")
+  const materializedMirrorPath = join(materializedMirrorDirectory, `${alreadyMaterialized.receipt.taskId}.json`)
+  mkdirSync(materializedMirrorDirectory, { recursive: true })
+  writeFileSync(materializedMirrorPath, `${JSON.stringify({
+    ...alreadyMaterialized.receipt,
+    materialized: undefined,
+  }, null, 2)}\n`)
+  const alreadyMaterializedResult = invoke(alreadyMaterialized, [task(alreadyMaterialized.receipt.taskId, "ready", 1)])
+  const healedMaterializedMirror = JSON.parse(readFileSync(materializedMirrorPath, "utf8"))
+  T(
+    `${TOOL}: recovered materialized state heals the mirror and prevents a second apply`,
+    alreadyMaterializedResult.status === 2 &&
+      /already materialized/.test(alreadyMaterializedResult.stderr) &&
+      healedMaterializedMirror.materialized?.at === alreadyMaterialized.receipt.materialized.at &&
+      readFileSync(alreadyMaterialized.log, "utf8") === "",
+    `exit ${alreadyMaterializedResult.status}: ${alreadyMaterializedResult.stdout || alreadyMaterializedResult.stderr}\n` +
+      `mirror ${JSON.stringify(healedMaterializedMirror)}`,
   )
 
   const empty = fixture("empty", { taskId: "task_e_e1" })

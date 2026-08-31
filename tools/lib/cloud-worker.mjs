@@ -237,9 +237,33 @@ export const reservationPathFor = (stateRoot, reservationId) => {
   return join(stateRoot, "receipts", `reservation-${reservationId}.json`)
 }
 
-export const persistReceipt = (receipt, paths) => {
-  const unique = new Set(paths.map((path) => resolve(path)))
-  for (const path of unique) writeJsonAtomic(path, receipt)
+export const persistReceipt = (receipt, mirrorPath, replicaPaths = []) => {
+  const resolvedMirrorPath = resolve(mirrorPath)
+  const uniqueReplicas = new Set(replicaPaths.map((path) => resolve(path)))
+  uniqueReplicas.delete(resolvedMirrorPath)
+  writeJsonAtomic(resolvedMirrorPath, receipt)
+  for (const path of uniqueReplicas) writeJsonAtomic(path, receipt)
+}
+
+const timestampOf = (record) => Date.parse(record?.observedAt ?? record?.at ?? "")
+
+const newestRecord = (scratchRecord, mirroredRecord) => {
+  if (scratchRecord === undefined) return mirroredRecord
+  if (mirroredRecord === undefined) return scratchRecord
+  return timestampOf(scratchRecord) >= timestampOf(mirroredRecord) ? scratchRecord : mirroredRecord
+}
+
+export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
+  const reconciled = { ...scratchReceipt, ...mirroredReceipt }
+  for (const field of ["lastObserved", "terminal", "abandoned", "lateTerminal", "materialized"]) {
+    const record = newestRecord(scratchReceipt[field], mirroredReceipt[field])
+    if (record !== undefined) reconciled[field] = record
+  }
+  const firstReadyObservations = [scratchReceipt.firstReadyObservedAt, mirroredReceipt.firstReadyObservedAt]
+    .filter((value) => typeof value === "string")
+    .sort()
+  if (firstReadyObservations.length > 0) reconciled.firstReadyObservedAt = firstReadyObservations[0]
+  return reconciled
 }
 
 const deadlinePassed = (receipt, now) => {

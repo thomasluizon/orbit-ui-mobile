@@ -13,6 +13,7 @@ import {
   mirrorPathFor,
   persistReceipt,
   readJsonFile,
+  reconcileReceiptCopies,
   refreshReceipt,
   runCodex,
 } from "./lib/cloud-worker.mjs"
@@ -76,6 +77,14 @@ try {
   fail(2, error.message)
 }
 const mirrorPath = mirrorPathFor(stateRoot, receipt.taskId)
+let releaseLock
+try {
+  releaseLock = acquireMaterializationLock(stateRoot)
+} catch (error) {
+  fail(2, error.message)
+}
+process.once("exit", releaseLock)
+
 if (existsSync(mirrorPath) && resolve(mirrorPath) !== receiptPath) {
   let mirrored
   try {
@@ -87,7 +96,15 @@ if (existsSync(mirrorPath) && resolve(mirrorPath) !== receiptPath) {
   if (mismatched.length > 0) {
     fail(2, `mirrored cloud receipt changed immutable field(s): ${mismatched.join(", ")}`)
   }
-  receipt = mirrored
+  receipt = reconcileReceiptCopies(receipt, mirrored)
+}
+try {
+  persistReceipt(receipt, mirrorPath, [receiptPath])
+} catch (error) {
+  fail(2, error.message)
+}
+if (receipt.materialized) {
+  fail(2, `task ${receipt.taskId} was already materialized at ${receipt.materialized.at}; cloud apply was not run`)
 }
 
 const git = (args) => spawnSync("git", ["-C", worktree, ...args], { encoding: "utf8", windowsHide: true })
@@ -113,14 +130,6 @@ const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
 const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
 
-let releaseLock
-try {
-  releaseLock = acquireMaterializationLock(stateRoot)
-} catch (error) {
-  fail(2, error.message)
-}
-process.once("exit", releaseLock)
-
 try {
   let tasks
   try {
@@ -132,7 +141,7 @@ try {
   const task = tasks.find((candidate) => candidate.id === receipt.taskId)
   try {
     receipt = refreshReceipt(receipt, task)
-    persistReceipt(receipt, [receiptPath, mirrorPath])
+    persistReceipt(receipt, mirrorPath, [receiptPath])
   } catch (error) {
     fail(2, error.message)
   }
@@ -204,7 +213,7 @@ try {
     )
   }
   receipt.materialized = { at: new Date().toISOString(), status: status.stdout, stagedStat: stagedStat.stdout }
-  persistReceipt(receipt, [receiptPath, mirrorPath])
+  persistReceipt(receipt, mirrorPath, [receiptPath])
   console.log(JSON.stringify({
     outcome: "MATERIALIZED",
     taskId: receipt.taskId,

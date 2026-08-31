@@ -226,6 +226,42 @@ export const cases = async () => {
     JSON.stringify(reservation),
   )
 
+  const interruptedMirror = stage("cloud-worker/interrupted-mirror.json", "{}\n")
+  const blockedReplicaParent = stage("cloud-worker/blocked-replica", "not a directory\n")
+  const recoveryState = {
+    taskId: "task_e_a1",
+    abandoned: { at: "2026-08-31T18:00:00.000Z", lastObservedStatus: "pending" },
+    terminal: { at: "2026-08-31T17:59:00.000Z", observedAt: "2026-08-31T18:01:00.000Z", status: "ready" },
+    materialized: { at: "2026-08-31T18:02:00.000Z", status: "M  landed.txt\n", stagedStat: "1 file changed\n" },
+  }
+  let replicaFailure = ""
+  try {
+    cloud.persistReceipt(recoveryState, interruptedMirror, [join(blockedReplicaParent, "receipt.json")])
+  } catch (error) {
+    replicaFailure = error.message
+  }
+  const recovered = JSON.parse(readFileSync(interruptedMirror, "utf8"))
+  T(
+    "cloud-worker.mjs: an interruption before the replica write leaves every recovery marker in the mirror",
+    replicaFailure.length > 0 &&
+      recovered.abandoned?.at === recoveryState.abandoned.at &&
+      recovered.terminal?.observedAt === recoveryState.terminal.observedAt &&
+      recovered.materialized?.at === recoveryState.materialized.at,
+    `${replicaFailure}\n${JSON.stringify(recovered)}`,
+  )
+
+  const reconciled = cloud.reconcileReceiptCopies(
+    recoveryState,
+    { taskId: recoveryState.taskId },
+  )
+  T(
+    "cloud-worker.mjs: a stale mirror cannot erase newer scratch recovery markers",
+    reconciled.abandoned === recoveryState.abandoned &&
+      reconciled.terminal === recoveryState.terminal &&
+      reconciled.materialized === recoveryState.materialized,
+    JSON.stringify(reconciled),
+  )
+
   const badShim = stage("cloud-worker/bad-codex.cmd", "@echo off\r\nexit /b 0\r\n")
   let message = ""
   try {
