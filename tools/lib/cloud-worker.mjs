@@ -11,6 +11,8 @@ import {
 import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path"
 
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
+// The Codex CLI documents 20 as the maximum cloud list page size.
+const CLOUD_LIST_PAGE_SIZE = 20
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const TASK_ID = /^task_e_[0-9a-f]+$/
 const OBSERVED_STATUSES = new Set(["pending", "ready"])
@@ -147,7 +149,7 @@ export const listCloudTasks = (command, environmentId, options = {}) => {
   const cursors = new Set()
   let cursor = null
   do {
-    const args = ["cloud", "list", "--env", environmentId, "--json", "--limit", "100"]
+    const args = ["cloud", "list", "--env", environmentId, "--json", "--limit", String(CLOUD_LIST_PAGE_SIZE)]
     if (cursor !== null) args.push("--cursor", cursor)
     const result = runCodex(command, args, options)
     if (result.error || result.status !== 0) {

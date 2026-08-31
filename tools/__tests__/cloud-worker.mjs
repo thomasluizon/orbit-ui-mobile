@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -79,6 +79,24 @@ export const cases = async () => {
     "cloud-worker.mjs: pretty-printed list JSON is parsed as one document",
     parsed.tasks.length === 1 && parsed.tasks[0].environment_id === null && parsed.cursor === null,
     JSON.stringify(parsed),
+  )
+
+  const codex = fakeCodex("list-page-size")
+  const invocationLog = stage("cloud-worker/list-page-size.jsonl", "")
+  cloud.listCloudTasks(codex.command, "env-measured", {
+    env: {
+      ...process.env,
+      ORBIT_FAKE_CODEX_LOG: invocationLog,
+      ORBIT_FAKE_LIST: taskPage([]),
+    },
+  })
+  const listArguments = JSON.parse(readFileSync(invocationLog, "utf8").trim())
+  const limitIndex = listArguments.indexOf("--limit")
+  const limit = Number(listArguments[limitIndex + 1])
+  T(
+    "cloud-worker.mjs: cloud list requests a CLI-supported positive page size",
+    limitIndex !== -1 && Number.isInteger(limit) && limit > 0 && limit <= 20,
+    JSON.stringify(listArguments),
   )
 
   const receipt = {
