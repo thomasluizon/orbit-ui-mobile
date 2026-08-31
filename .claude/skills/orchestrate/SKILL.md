@@ -523,9 +523,11 @@ under the shared Git directory is the recovery source after a crashed session.
 
 Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
 remote outcome unknown, so that reservation continues to consume capacity and blocks the same
-ticket. Inspect `codex cloud list`, then use `--clear-unknown` to remove the reservation. If a cloud
-task was created, abandon it rather than adopting it. It may run to completion, but its diff is
-never applied.
+ticket. Use `--clear-unknown` only once the environment contains no non terminal task that lacks an
+existing receipt. The command lists the environment and refuses to clear while any such possible
+orphan remains, so wait for it to finish or identify it in `codex cloud list` before trying again.
+If a cloud task was created, abandon it rather than adopting it. It may run to completion, but its
+diff is never applied.
 
 Cloud has one wall-clock ceiling and no no-progress clock. Across one observed run, `updated_at` did
 not move while the task was running and moved at the transition. The CLI reference does not define

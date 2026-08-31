@@ -37,15 +37,16 @@ cloud checkout is pinned to that commit while the receipt keeps the branch as co
 It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
-URL, that unknown attempt consumes capacity and blocks the same ticket. Inspect codex cloud list,
-then remove the reservation with --clear-unknown. Any orphaned cloud task is abandoned rather than
-adopted, and its diff is never applied.
+URL, that unknown attempt consumes capacity and blocks the same ticket. --clear-unknown lists the
+environment and refuses to remove the reservation while any non terminal task lacks an existing
+receipt. Any orphaned cloud task is abandoned rather than adopted, and its diff is never applied.
 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
-            2 usage, configuration, order, or worktree error, 3 cloud capacity is full,
+            2 usage, configuration, order, or worktree error,
+            3 cloud capacity is full or recovery safety blocks clearing,
             4 a Codex cloud command timed out
 
-  --clear-unknown <file>      remove an unknown reservation after inspecting cloud tasks
+  --clear-unknown <file>      remove an unknown reservation once no possible live orphan remains
   --help, -h                  print this usage and exit 0`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -116,6 +117,53 @@ if (clearArgument) {
   process.once("exit", releaseReservationLock)
   if (!existsSync(reservationFile)) {
     fail(2, `cloud submission reservation disappeared while acquiring its lock: ${reservationFile}; no receipt was changed`)
+  }
+
+  let config
+  try {
+    config = readOrchestratorConfig()
+  } catch (error) {
+    fail(2, error.message)
+  }
+  const codexCommand = config.workers.codex?.command
+  if (typeof codexCommand !== "string" || codexCommand.length === 0) {
+    fail(2, ".claude/orchestrator.json declares no codex command")
+  }
+  const receiptsDirectory = join(reservationStateRoot, "receipts")
+  let accountedTaskIds
+  try {
+    const receipts = readdirSync(receiptsDirectory)
+      .filter((entry) => entry.endsWith(".json"))
+      .map((entry) => readJsonFile(join(receiptsDirectory, entry), "cloud receipt"))
+      .filter((receipt) => receipt.environmentId === reservation.environmentId)
+    accountedTaskIds = new Set(
+      receipts
+        .map((receipt) => receipt.taskId)
+        .filter((taskId) => typeof taskId === "string"),
+    )
+  } catch (error) {
+    fail(2, error.message)
+  }
+
+  try {
+    const tasks = await listCloudTasks(codexCommand, reservation.environmentId, {
+      timeoutMs: config.timeouts.cloudCommandMinutes * 60 * 1000,
+    })
+    const possibleOrphans = tasks.filter((task) =>
+      task.status !== "ready" && !accountedTaskIds.has(task.id),
+    )
+    if (possibleOrphans.length > 0) {
+      const taskLabel = possibleOrphans.length === 1 ? "task" : "tasks"
+      fail(
+        3,
+        `refusing to clear unknown submission reservation: saw ${possibleOrphans.length} ` +
+        `unaccounted non terminal ${taskLabel}; wait for them to finish or identify them in ` +
+        `codex cloud list before clearing`,
+      )
+    }
+  } catch (error) {
+    if (error instanceof CodexTimeoutError) fail(4, error.message)
+    fail(1, error.message)
   }
 
   unlinkSync(reservationFile)

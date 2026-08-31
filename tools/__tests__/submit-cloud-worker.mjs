@@ -323,27 +323,120 @@ export const cases = async () => {
     `exit ${blockedRetry.status}: ${blockedRetry.stderr}\n${JSON.stringify(retryInvocations)}`,
   )
 
-  const clearUnknown = fixture("clear-unknown")
-  clearUnknown.config.timeouts.cloudCommandMinutes = 0.005
-  writeFileSync(clearUnknown.configPath, `${JSON.stringify(clearUnknown.config, null, 2)}\n`)
-  const clearTimeout = run(TOOL, argvOf(clearUnknown), {
-    path: clearUnknown.path,
+  const liveOrphan = fixture("live-orphan")
+  liveOrphan.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(liveOrphan.configPath, `${JSON.stringify(liveOrphan.config, null, 2)}\n`)
+  const liveOrphanTaskId = "task_e_a401"
+  const liveOrphanDirectory = join(liveOrphan.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(liveOrphanDirectory, { recursive: true })
+  for (const suffix of ["a1", "b2", "c3"]) {
+    writeFileSync(join(liveOrphanDirectory, `task_e_${suffix}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId: `task_e_${suffix}`,
+      environmentId: liveOrphan.config.cloud.environmentId,
+      repositoryKey: liveOrphan.config.cloud.repositoryKey,
+      ticket: "#400",
+      deadline: future,
+      worktree: liveOrphan.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+  }
+  const liveOrphanTimeout = run(TOOL, argvOf(liveOrphan), {
+    path: liveOrphan.path,
     env: {
-      ORBIT_FAKE_CODEX_LOG: clearUnknown.log,
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
       ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
-      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a401",
+      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${liveOrphanTaskId}`,
     },
   })
-  const clearDirectory = join(clearUnknown.repo.path, ".git", "orbit-cloud", "receipts")
-  const clearPath = join(clearDirectory, readdirSync(clearDirectory)[0])
-  const cleared = run(TOOL, ["--clear-unknown", clearPath], { path: clearUnknown.path })
+  const liveOrphanPath = readdirSync(liveOrphanDirectory)
+    .map((entry) => join(liveOrphanDirectory, entry))
+    .find((path) => JSON.parse(readFileSync(path, "utf8")).kind === "submission-reservation")
+  const refusedClear = run(TOOL, ["--clear-unknown", liveOrphanPath], {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+    },
+  })
+  const blockedSameTicket = run(TOOL, argvOf(liveOrphan), {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+    },
+  })
+  const otherTicketArguments = argvOf(liveOrphan)
+  otherTicketArguments[otherTicketArguments.indexOf("--issue") + 1] = "#399"
+  const blockedCapacity = run(TOOL, otherTicketArguments, {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+    },
+  })
   T(
-    `${TOOL}: an operator can explicitly clear an unknown reservation after inspection`,
-    clearTimeout.status === 4 &&
-      cleared.status === 0 &&
-      /UNKNOWN_SUBMISSION_CLEARED/.test(cleared.stdout) &&
-      !existsSync(clearPath),
-    `timeout ${clearTimeout.status}; clear ${cleared.status}: ${cleared.stdout || cleared.stderr}`,
+    `${TOOL}: a running accepted orphan refuses clearing and keeps capacity and ticket protections`,
+    liveOrphanTimeout.status === 4 &&
+      refusedClear.status === 3 &&
+      /saw 1 unaccounted non terminal task/.test(refusedClear.stderr) &&
+      /wait for them to finish or identify them in codex cloud list before clearing/.test(refusedClear.stderr) &&
+      existsSync(liveOrphanPath) &&
+      blockedSameTicket.status === 3 &&
+      /unknown submission reservation/.test(blockedSameTicket.stderr) &&
+      blockedCapacity.status === 3 &&
+      /4\/4 tasks are in flight/.test(blockedCapacity.stderr),
+    `timeout ${liveOrphanTimeout.status}; clear ${refusedClear.status}: ${refusedClear.stderr}\n` +
+      `same ticket ${blockedSameTicket.status}: ${blockedSameTicket.stderr}\n` +
+      `capacity ${blockedCapacity.status}: ${blockedCapacity.stderr}`,
+  )
+
+  const terminalClear = run(TOOL, ["--clear-unknown", liveOrphanPath], {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "ready", 1)]),
+    },
+  })
+  T(
+    `${TOOL}: the same accepted orphan can be cleared after it becomes terminal`,
+    terminalClear.status === 0 &&
+      /UNKNOWN_SUBMISSION_CLEARED/.test(terminalClear.stdout) &&
+      !existsSync(liveOrphanPath),
+    `exit ${terminalClear.status}: ${terminalClear.stdout || terminalClear.stderr}`,
+  )
+
+  const noOrphan = fixture("clear-without-orphan")
+  noOrphan.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(noOrphan.configPath, `${JSON.stringify(noOrphan.config, null, 2)}\n`)
+  const noOrphanTimeout = run(TOOL, argvOf(noOrphan), {
+    path: noOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: noOrphan.log,
+      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a402",
+    },
+  })
+  const noOrphanDirectory = join(noOrphan.repo.path, ".git", "orbit-cloud", "receipts")
+  const noOrphanPath = join(noOrphanDirectory, readdirSync(noOrphanDirectory)[0])
+  const clearedWithoutOrphan = run(TOOL, ["--clear-unknown", noOrphanPath], {
+    path: noOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: noOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([]),
+    },
+  })
+  T(
+    `${TOOL}: an unknown reservation can be cleared when the environment has no unaccounted tasks`,
+    noOrphanTimeout.status === 4 &&
+      clearedWithoutOrphan.status === 0 &&
+      /UNKNOWN_SUBMISSION_CLEARED/.test(clearedWithoutOrphan.stdout) &&
+      !existsSync(noOrphanPath),
+    `timeout ${noOrphanTimeout.status}; clear ${clearedWithoutOrphan.status}: ` +
+      `${clearedWithoutOrphan.stdout || clearedWithoutOrphan.stderr}`,
   )
 
   const listTimeout = fixture("list-timeout")
