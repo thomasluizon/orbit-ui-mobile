@@ -286,6 +286,14 @@ export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
   return reconciled
 }
 
+export const persistReconciledReceipt = (receipt, mirrorPath, replicaPaths = []) => {
+  const latestReceipt = existsSync(mirrorPath)
+    ? reconcileReceiptCopies(receipt, readJsonFile(mirrorPath, "mirrored cloud receipt"))
+    : receipt
+  persistReceipt(latestReceipt, mirrorPath, replicaPaths)
+  return latestReceipt
+}
+
 const deadlinePassed = (receipt, now) => {
   const deadline = Date.parse(receipt.deadline)
   if (!Number.isFinite(deadline)) throw new Error(`receipt ${receipt.taskId} carries an invalid deadline`)

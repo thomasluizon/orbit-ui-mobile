@@ -64,6 +64,15 @@ export const cases = async () => {
     exec?.at(-1).startsWith("Implement the measured cloud path.") && exec.at(-1).endsWith("Delivery happens outside the container.\n"),
     JSON.stringify(exec),
   )
+  const branchIndex = exec?.indexOf("--branch") ?? -1
+  T(
+    `${TOOL}: cloud execution is pinned to the resolved remote commit while the receipt keeps branch context`,
+    branchIndex !== -1 &&
+      exec[branchIndex + 1] === receipt.baseSha &&
+      receipt.branch === "main" &&
+      receipt.baseSha === entry.repo.git(["rev-parse", "refs/remotes/origin/main"]).stdout.trim(),
+    `${JSON.stringify(exec)}\n${JSON.stringify(receipt)}`,
+  )
   T(
     `${TOOL}: receipt captures the pushed base, two order hashes, deadline, worktree, and stable mirror`,
     /^[0-9a-f]{40}$/.test(receipt.baseSha) &&
@@ -98,6 +107,25 @@ export const cases = async () => {
       /does not belong to configured cloud repository ui/.test(wrongRepositoryResult.stderr) &&
       readFileSync(wrongRepository.log, "utf8") === "",
     `exit ${wrongRepositoryResult.status}: ${wrongRepositoryResult.stderr}`,
+  )
+
+  const missingBranch = fixture("missing-branch")
+  const missingBranchArguments = argvOf(missingBranch)
+  missingBranchArguments[missingBranchArguments.indexOf("--branch") + 1] = "missing-remote-branch"
+  const missingBranchResult = run(TOOL, missingBranchArguments, {
+    path: missingBranch.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: missingBranch.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_bad2",
+    },
+  })
+  T(
+    `${TOOL}: refuses submission when the named remote branch cannot be resolved to a commit`,
+    missingBranchResult.status === 1 &&
+      /git ls-remote could not resolve origin\/missing-remote-branch/.test(missingBranchResult.stderr) &&
+      readFileSync(missingBranch.log, "utf8") === "" &&
+      !existsSync(join(missingBranch.repo.path, ".git", "orbit-cloud")),
+    `exit ${missingBranchResult.status}: ${missingBranchResult.stderr}`,
   )
 
   for (const [label, dash] of [["en", String.fromCharCode(0x2013)], ["em", String.fromCharCode(0x2014)]]) {
@@ -181,6 +209,48 @@ export const cases = async () => {
       `exit ${retryResult.status}: ${retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
     )
   }
+
+  const interleaved = fixture("interleaved-materialization")
+  const interleavedReceipts = join(interleaved.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(interleavedReceipts, { recursive: true })
+  const interleavedTaskId = "task_e_a399"
+  const interleavedMirror = join(interleavedReceipts, `${interleavedTaskId}.json`)
+  const staleRefreshSnapshot = {
+    kind: "task-receipt",
+    submissionState: "confirmed",
+    taskId: interleavedTaskId,
+    environmentId: interleaved.config.cloud.environmentId,
+    repositoryKey: interleaved.config.cloud.repositoryKey,
+    ticket: "#399",
+    deadline: future,
+    worktree: interleaved.repo.path,
+    baseSha: "0".repeat(40),
+  }
+  const materializationPublication = {
+    ...staleRefreshSnapshot,
+    firstReadyObservedAt: "2020-08-31T18:01:00.000Z",
+    materialized: { at: "2026-08-31T18:02:00.000Z", status: "M  landed.txt\n", stagedStat: "1 file changed\n" },
+  }
+  writeFileSync(interleavedMirror, JSON.stringify(staleRefreshSnapshot))
+  const interleavedResult = run(TOOL, argvOf(interleaved), {
+    path: interleaved.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: interleaved.log,
+      ORBIT_FAKE_LIST: taskPage([task(interleavedTaskId, "ready", 1)]),
+      ORBIT_FAKE_LIST_PUBLICATION_PATH: interleavedMirror,
+      ORBIT_FAKE_LIST_PUBLICATION_JSON: JSON.stringify(materializationPublication),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a400",
+    },
+  })
+  const reconciledInterleavedReceipt = JSON.parse(readFileSync(interleavedMirror, "utf8"))
+  T(
+    `${TOOL}: a stale refresh cannot erase materialization state published while cloud list runs`,
+    interleavedResult.status === 0 &&
+      reconciledInterleavedReceipt.firstReadyObservedAt === materializationPublication.firstReadyObservedAt &&
+      reconciledInterleavedReceipt.materialized?.at === materializationPublication.materialized.at,
+    `exit ${interleavedResult.status}: ${interleavedResult.stdout || interleavedResult.stderr}\n` +
+      JSON.stringify(reconciledInterleavedReceipt),
+  )
 
   const execTimeout = fixture("exec-timeout")
   execTimeout.config.timeouts.cloudCommandMinutes = 0.005

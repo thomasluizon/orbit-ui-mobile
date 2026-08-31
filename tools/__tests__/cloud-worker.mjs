@@ -39,7 +39,12 @@ if (args[0] === "cloud" && args[1] === "exec") {
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
   process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
 }
-else if (args[0] === "cloud" && args[1] === "list") process.stdout.write(process.env.ORBIT_FAKE_LIST || '{"tasks":[],"cursor":null}')
+else if (args[0] === "cloud" && args[1] === "list") {
+  if (process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH) {
+    writeFileSync(process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH, process.env.ORBIT_FAKE_LIST_PUBLICATION_JSON)
+  }
+  process.stdout.write(process.env.ORBIT_FAKE_LIST || '{"tasks":[],"cursor":null}')
+}
 else if (args[0] === "cloud" && args[1] === "apply") {
   if (process.env.ORBIT_FAKE_APPLY_MODE === "noop") process.exit(0)
   if (process.env.ORBIT_FAKE_APPLY_MODE === "move-head") {

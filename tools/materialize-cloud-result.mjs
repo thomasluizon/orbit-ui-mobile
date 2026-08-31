@@ -12,7 +12,7 @@ import {
   cloudStateRoot,
   listCloudTasks,
   mirrorPathFor,
-  persistReceipt,
+  persistReconciledReceipt,
   readJsonFile,
   reconcileReceiptCopies,
   refreshReceipt,
@@ -119,7 +119,7 @@ if (existsSync(mirrorPath) && resolve(mirrorPath) !== receiptPath) {
   receipt = reconcileReceiptCopies(receipt, mirrored)
 }
 try {
-  persistReceipt(receipt, mirrorPath, [receiptPath])
+  receipt = persistReconciledReceipt(receipt, mirrorPath, [receiptPath])
 } catch (error) {
   fail(2, error.message)
 }
@@ -155,7 +155,7 @@ try {
   const task = tasks.find((candidate) => candidate.id === receipt.taskId)
   try {
     receipt = refreshReceipt(receipt, task)
-    persistReceipt(receipt, mirrorPath, [receiptPath])
+    receipt = persistReconciledReceipt(receipt, mirrorPath, [receiptPath])
   } catch (error) {
     fail(2, error.message)
   }
@@ -227,7 +227,7 @@ try {
     )
   }
   receipt.materialized = { at: new Date().toISOString(), status: status.stdout, stagedStat: stagedStat.stdout }
-  persistReceipt(receipt, mirrorPath, [receiptPath])
+  receipt = persistReconciledReceipt(receipt, mirrorPath, [receiptPath])
   console.log(JSON.stringify({
     outcome: "MATERIALIZED",
     taskId: receipt.taskId,

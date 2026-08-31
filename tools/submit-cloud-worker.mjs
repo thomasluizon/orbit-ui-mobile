@@ -17,6 +17,7 @@ import {
   mirrorPathFor,
   parseTaskUrl,
   persistReceipt,
+  persistReconciledReceipt,
   readJsonFile,
   refreshReceipts,
   reservationPathFor,
@@ -32,7 +33,8 @@ const USAGE = `usage: submit-cloud-worker.mjs --issue <ORB-N|#N|N> --env <enviro
 Submits one task with the order as one shell-free argument, then writes a receipt beside the order
 and mirrors it under the repository's shared Git directory. It checks the stable receipts once to
 derive the current in-flight set and enforce caps.cloudParallelTasks. The worktree must belong to
-the repository bound to the cloud environment, and an unresolved receipt blocks the same ticket.
+the repository bound to the cloud environment. The named remote branch is resolved first, and the
+cloud checkout is pinned to that commit while the receipt keeps the branch as context. An unresolved receipt blocks the same ticket.
 It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
@@ -286,13 +288,17 @@ if (existingReceipts.length > 0) {
   try {
     const tasks = await listCloudTasks(codexCommand, environmentId, { timeoutMs: codexTimeoutMs })
     const refreshed = refreshReceipts(existingReceipts, tasks)
-    for (const receipt of refreshed.receipts) {
+    const reconciledReceipts = refreshed.receipts.map((receipt) => {
       const stablePath = receipt.kind === "submission-reservation"
         ? reservationPathFor(stateRoot, receipt.reservationId)
         : mirrorPathFor(stateRoot, receipt.taskId)
+      if (receipt.kind !== "submission-reservation") {
+        return persistReconciledReceipt(receipt, stablePath)
+      }
       persistReceipt(receipt, stablePath)
-    }
-    const blockedTicket = refreshed.receipts.find((receipt) =>
+      return receipt
+    })
+    const blockedTicket = reconciledReceipts.find((receipt) =>
       receipt.ticket === ticket && !receipt.abandoned && !receipt.materialized,
     )
     if (blockedTicket) {
@@ -311,10 +317,13 @@ if (existingReceipts.length > 0) {
         `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
       )
     }
-    if (refreshed.inFlight.length >= config.caps.cloudParallelTasks) {
+    const inFlight = reconciledReceipts.filter((receipt) =>
+      !receipt.abandoned && receipt.terminal?.status !== "ready",
+    )
+    if (inFlight.length >= config.caps.cloudParallelTasks) {
       fail(
         3,
-        `cloud capacity is full: ${refreshed.inFlight.length}/${config.caps.cloudParallelTasks} tasks are in flight`,
+        `cloud capacity is full: ${inFlight.length}/${config.caps.cloudParallelTasks} tasks are in flight`,
       )
     }
   } catch (error) {
@@ -350,7 +359,7 @@ try {
 } catch (error) {
   fail(1, `cloud submission reservation could not be persisted: ${error.message}`)
 }
-const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", branch, submittedOrder], {
+const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", baseSha, submittedOrder], {
   timeoutMs: codexTimeoutMs,
 })
 const retainUnknownReservation = (reason) => {
