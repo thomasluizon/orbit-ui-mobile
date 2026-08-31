@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -60,22 +60,50 @@ export const cases = () => {
 
   const instrumented = fixture("instrumented", { taskId: "task_e_a12" })
   const codexCwdLog = stage("materialize-cloud/instrumented-cwd.log", "")
-  writeFileSync(join(instrumented.repo.path, "error.log"), "Codex CLI diagnostic\n")
-  const cleanWithCodexLog = instrumented.repo.git(["status", "--porcelain"]).stdout
+  const codexDiagnosticPath = join(instrumented.repo.path, "error.log")
   const instrumentedResult = invoke(instrumented, [task(instrumented.receipt.taskId, "ready", 1)], [], {
     ORBIT_FAKE_CODEX_CWD_LOG: codexCwdLog,
     ORBIT_FAKE_CODEX_WRITES_ERROR_LOG: "1",
   })
   const codexWorkingDirectories = readFileSync(codexCwdLog, "utf8").trim().split(/\r?\n/)
   T(
-    `${TOOL}: Codex diagnostics stay ignored while list runs outside and apply runs inside the worktree`,
-    cleanWithCodexLog === "" &&
-      instrumentedResult.status === 0 &&
+    `${TOOL}: removes a Codex diagnostic created by apply after running in the worktree`,
+    instrumentedResult.status === 0 &&
+      !existsSync(codexDiagnosticPath) &&
       codexWorkingDirectories.length === 2 &&
       codexWorkingDirectories[0] !== instrumented.repo.path &&
       codexWorkingDirectories[1] === instrumented.repo.path,
     `exit ${instrumentedResult.status}: ${instrumentedResult.stdout || instrumentedResult.stderr}\n` +
-      `initial status ${JSON.stringify(cleanWithCodexLog)}, Codex cwd ${JSON.stringify(codexWorkingDirectories)}`,
+      `diagnostic exists ${existsSync(codexDiagnosticPath)}, Codex cwd ${JSON.stringify(codexWorkingDirectories)}`,
+  )
+
+  const existingDiagnostic = fixture("existing-diagnostic", { taskId: "task_e_a17" })
+  const existingDiagnosticPath = join(existingDiagnostic.repo.path, "error.log")
+  const existingDiagnosticContents = "diagnostic that predates materialization\n"
+  writeFileSync(existingDiagnosticPath, existingDiagnosticContents)
+  const existingDiagnosticResult = invoke(existingDiagnostic, [task(existingDiagnostic.receipt.taskId, "ready", 1)])
+  T(
+    `${TOOL}: preserves a Codex diagnostic that existed before apply`,
+    existingDiagnosticResult.status === 0 &&
+      existsSync(existingDiagnosticPath) &&
+      readFileSync(existingDiagnosticPath, "utf8") === existingDiagnosticContents,
+    `exit ${existingDiagnosticResult.status}: ${existingDiagnosticResult.stdout || existingDiagnosticResult.stderr}\n` +
+      `diagnostic ${JSON.stringify(readFileSync(existingDiagnosticPath, "utf8"))}`,
+  )
+
+  const unexpectedUntracked = fixture("unexpected-untracked", { taskId: "task_e_a18" })
+  const unexpectedUntrackedResult = invoke(
+    unexpectedUntracked,
+    [task(unexpectedUntracked.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_APPLY_UNTRACKED_PATH: "unexpected.tmp" },
+  )
+  T(
+    `${TOOL}: still rejects an unrelated untracked file left by apply`,
+    unexpectedUntrackedResult.status === 7 &&
+      /"outcome":"APPLY_INVALID_SHAPE"/.test(unexpectedUntrackedResult.stdout) &&
+      /\?\? unexpected\.tmp/.test(unexpectedUntrackedResult.stdout),
+    `exit ${unexpectedUntrackedResult.status}: ${unexpectedUntrackedResult.stdout || unexpectedUntrackedResult.stderr}`,
   )
 
   const wrongBase = fixture("wrong-base", { taskId: "task_e_b1", baseSha: "0".repeat(40) })

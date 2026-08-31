@@ -2,7 +2,7 @@
 /** Validate and apply one terminal cloud task into the exact worktree captured at submission. */
 
 import { spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, unlinkSync } from "node:fs"
 import { resolve } from "node:path"
 
 import {
@@ -17,6 +17,9 @@ import {
   runCodex,
 } from "./lib/cloud-worker.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+
+// The Codex CLI writes this diagnostic file into its working directory.
+const CODEX_DIAGNOSTIC_FILENAME = "error.log"
 
 const USAGE = `usage: materialize-cloud-result.mjs --receipt <file> [--allow-abandoned]
 
@@ -148,10 +151,19 @@ try {
   }
 
   assertLocalPreconditions()
+  const codexDiagnosticPath = resolve(worktree, CODEX_DIAGNOSTIC_FILENAME)
+  const codexDiagnosticExisted = existsSync(codexDiagnosticPath)
   const applied = await runCodex(codexCommand, ["cloud", "apply", receipt.taskId], {
     cwd: worktree,
     timeoutMs: codexTimeoutMs,
   })
+  if (!codexDiagnosticExisted && existsSync(codexDiagnosticPath)) {
+    try {
+      unlinkSync(codexDiagnosticPath)
+    } catch (error) {
+      fail(1, `could not remove Codex diagnostic ${codexDiagnosticPath}: ${error.message}`, "CLEANUP_FAILED")
+    }
+  }
   if (applied.timedOut) {
     fail(6, `codex cloud apply timed out after ${codexTimeoutMs}ms`, "APPLY_TIMEOUT")
   }

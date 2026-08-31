@@ -30,6 +30,7 @@ const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
 if (process.env.ORBIT_FAKE_CODEX_CWD_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_CWD_LOG, process.cwd() + "\\n")
 if (process.env.ORBIT_FAKE_CODEX_WRITES_ERROR_LOG) writeFileSync("error.log", "Codex CLI diagnostic\\n")
+if (process.env.ORBIT_FAKE_APPLY_UNTRACKED_PATH && args[1] === "apply") writeFileSync(process.env.ORBIT_FAKE_APPLY_UNTRACKED_PATH, "unexpected\\n")
 if (process.env.ORBIT_FAKE_HANG === args[1]) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 if (args[0] === "cloud" && args[1] === "exec") {
   const delayMs = Number(process.env.ORBIT_FAKE_EXEC_DELAY_MS || 0)
