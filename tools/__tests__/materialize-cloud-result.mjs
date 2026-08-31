@@ -16,7 +16,10 @@ const TOOL = "materialize-cloud-result.mjs"
 
 const fixture = (label, overrides = {}) => {
   const codex = fakeCodex(`materialize-${label}`)
-  const config = cloudConfig(codex.command, { real: realOrchestratorConfig() })
+  const config = cloudConfig(codex.command, {
+    real: realOrchestratorConfig(),
+    cloudCommandMinutes: overrides.cloudCommandMinutes,
+  })
   const staged = stageWithConfig(`materialize-cloud-${label}`, TOOL, config)
   const repo = stageRepo(`materialize-cloud-${label}`)
   writeFileSync(join(repo.path, ".gitignore"), readFileSync(join(REPO_ROOT, ".gitignore"), "utf8"))
@@ -115,6 +118,21 @@ export const cases = () => {
     `exit ${expiredResult.status}: ${expiredResult.stdout || expiredResult.stderr}\n${JSON.stringify(expiredReceipt)}`,
   )
 
+  const firstSeenLate = fixture("first-seen-late", {
+    taskId: "task_e_f2",
+    deadline: "2026-08-31T17:01:00.000Z",
+  })
+  const firstSeenLateResult = invoke(firstSeenLate, [task(firstSeenLate.receipt.taskId, "ready", 1)])
+  const firstSeenLateReceipt = JSON.parse(readFileSync(firstSeenLate.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a ready task first observed after its deadline is quarantined without apply`,
+    firstSeenLateResult.status === 5 &&
+      firstSeenLateReceipt.abandoned?.lastObservedStatus === "ready" &&
+      firstSeenLateReceipt.lateTerminal?.status === "ready" &&
+      !readFileSync(firstSeenLate.log, "utf8").includes('"apply"'),
+    `exit ${firstSeenLateResult.status}: ${firstSeenLateResult.stdout || firstSeenLateResult.stderr}\n${JSON.stringify(firstSeenLateReceipt)}`,
+  )
+
   const landed = fixture("landed", { taskId: "task_e_a11" })
   const landedResult = invoke(landed, [task(landed.receipt.taskId, "ready", 1)])
   const landedHead = landed.repo.git(["rev-parse", "HEAD"]).stdout.trim()
@@ -127,6 +145,64 @@ export const cases = () => {
       landedHead === landed.head &&
       staged === "cloud-landed.txt",
     `exit ${landedResult.status}: ${landedResult.stdout || landedResult.stderr}\nhead ${landedHead}, staged ${staged}`,
+  )
+
+  const noOp = fixture("no-op", { taskId: "task_e_a13" })
+  const noOpResult = invoke(noOp, [task(noOp.receipt.taskId, "ready", 1)], [], { ORBIT_FAKE_APPLY_MODE: "noop" })
+  const noOpReceipt = JSON.parse(readFileSync(noOp.receiptPath, "utf8"))
+  T(
+    `${TOOL}: an apply that stages nothing cannot record materialization`,
+    noOpResult.status === 7 &&
+      /"outcome":"APPLY_NO_CHANGES"/.test(noOpResult.stdout) &&
+      noOpReceipt.materialized === undefined,
+    `exit ${noOpResult.status}: ${noOpResult.stdout || noOpResult.stderr}\n${JSON.stringify(noOpReceipt)}`,
+  )
+
+  const movedHead = fixture("moved-head", { taskId: "task_e_a14" })
+  const movedHeadResult = invoke(
+    movedHead,
+    [task(movedHead.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_APPLY_MODE: "move-head" },
+  )
+  const movedHeadReceipt = JSON.parse(readFileSync(movedHead.receiptPath, "utf8"))
+  const movedHeadValue = movedHead.repo.git(["rev-parse", "HEAD"]).stdout.trim()
+  T(
+    `${TOOL}: an apply that moves HEAD cannot record materialization`,
+    movedHeadResult.status === 7 &&
+      /"outcome":"APPLY_MOVED_HEAD"/.test(movedHeadResult.stdout) &&
+      movedHeadValue !== movedHead.head &&
+      movedHeadReceipt.materialized === undefined,
+    `exit ${movedHeadResult.status}: ${movedHeadResult.stdout || movedHeadResult.stderr}\n${JSON.stringify(movedHeadReceipt)}`,
+  )
+
+  const listTimeout = fixture("list-timeout", { taskId: "task_e_a15", cloudCommandMinutes: 0.005 })
+  const listTimeoutResult = invoke(
+    listTimeout,
+    [task(listTimeout.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_HANG: "list" },
+  )
+  T(
+    `${TOOL}: a polling timeout is a distinct recoverable failure`,
+    listTimeoutResult.status === 6 && /codex cloud list timed out/.test(listTimeoutResult.stderr),
+    `exit ${listTimeoutResult.status}: ${listTimeoutResult.stdout || listTimeoutResult.stderr}`,
+  )
+
+  const applyTimeout = fixture("apply-timeout", { taskId: "task_e_a16", cloudCommandMinutes: 0.005 })
+  const applyTimeoutResult = invoke(
+    applyTimeout,
+    [task(applyTimeout.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_HANG: "apply" },
+  )
+  const applyTimeoutReceipt = JSON.parse(readFileSync(applyTimeout.receiptPath, "utf8"))
+  T(
+    `${TOOL}: an apply timeout is distinct and never records materialization`,
+    applyTimeoutResult.status === 6 &&
+      /"outcome":"APPLY_TIMEOUT"/.test(applyTimeoutResult.stdout) &&
+      applyTimeoutReceipt.materialized === undefined,
+    `exit ${applyTimeoutResult.status}: ${applyTimeoutResult.stdout || applyTimeoutResult.stderr}`,
   )
 
   const locked = fixture("locked", { taskId: "task_e_c1" })

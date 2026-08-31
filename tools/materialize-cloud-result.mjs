@@ -6,6 +6,7 @@ import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 
 import {
+  CodexTimeoutError,
   acquireMaterializationLock,
   cloudStateRoot,
   listCloudTasks,
@@ -25,7 +26,8 @@ quarantined unless --allow-abandoned is explicit. Materialization is serial acro
 It never commits, pushes, opens a pull request, or merges.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
-            3 task is not terminal, 4 ready task produced no committed diff, 5 task is abandoned
+            3 task is not terminal, 4 ready task produced no committed diff, 5 task is abandoned,
+            6 a Codex cloud command timed out, 7 cloud apply produced an invalid Git landing
 
   --help, -h          print this usage and exit 0
   --allow-abandoned   permit a late terminal result to proceed, while keeping the base SHA check`
@@ -106,6 +108,7 @@ try {
 }
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
+const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
 
 let releaseLock
 try {
@@ -118,8 +121,9 @@ process.once("exit", releaseLock)
 try {
   let tasks
   try {
-    tasks = listCloudTasks(codexCommand, receipt.environmentId, { cwd: stateRoot })
+    tasks = await listCloudTasks(codexCommand, receipt.environmentId, { cwd: stateRoot, timeoutMs: codexTimeoutMs })
   } catch (error) {
+    if (error instanceof CodexTimeoutError) fail(6, error.message)
     fail(1, error.message)
   }
   const task = tasks.find((candidate) => candidate.id === receipt.taskId)
@@ -144,14 +148,48 @@ try {
   }
 
   assertLocalPreconditions()
-  const applied = runCodex(codexCommand, ["cloud", "apply", receipt.taskId], { cwd: worktree })
+  const applied = await runCodex(codexCommand, ["cloud", "apply", receipt.taskId], {
+    cwd: worktree,
+    timeoutMs: codexTimeoutMs,
+  })
+  if (applied.timedOut) {
+    fail(6, `codex cloud apply timed out after ${codexTimeoutMs}ms`, "APPLY_TIMEOUT")
+  }
   if (applied.error || applied.status !== 0) {
     fail(1, `codex cloud apply failed with exit ${applied.status ?? "spawn"}: ${(applied.stderr || applied.stdout || applied.error?.message || "unknown error").trim()}`, "APPLY_FAILED")
   }
+  const head = git(["rev-parse", "HEAD"])
   const status = git(["status", "--porcelain"])
   const stagedStat = git(["diff", "--cached", "--stat"])
-  if (status.error || status.status !== 0 || stagedStat.error || stagedStat.status !== 0) {
+  const stagedDiff = git(["diff", "--cached", "--quiet", "--exit-code"])
+  if (
+    head.error || head.status !== 0 ||
+    status.error || status.status !== 0 ||
+    stagedStat.error || stagedStat.status !== 0 ||
+    stagedDiff.error || ![0, 1].includes(stagedDiff.status)
+  ) {
     fail(1, "cloud apply exited successfully, but the landed Git state could not be read", "REPORT_FAILED")
+  }
+  if (head.stdout.trim() !== receipt.baseSha) {
+    fail(
+      7,
+      `cloud apply moved HEAD from receipt base SHA ${receipt.baseSha} to ${head.stdout.trim()}`,
+      "APPLY_MOVED_HEAD",
+    )
+  }
+  if (stagedDiff.status === 0 || stagedStat.stdout.trim().length === 0) {
+    fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
+  }
+  const unexpectedStatus = status.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((line) => !/^[MADRCT] /.test(line))
+  if (unexpectedStatus.length > 0) {
+    fail(
+      7,
+      `cloud apply left changes outside the expected staged-only shape:\n${unexpectedStatus.join("\n")}`,
+      "APPLY_INVALID_SHAPE",
+    )
   }
   receipt.materialized = { at: new Date().toISOString(), status: status.stdout, stagedStat: stagedStat.stdout }
   persistReceipt(receipt, [receiptPath, mirrorPath])

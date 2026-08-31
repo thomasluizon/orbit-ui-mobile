@@ -8,6 +8,8 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 
 import { dashFindings } from "./check-dashes.mjs"
 import {
+  CodexTimeoutError,
+  acquireSubmissionLock,
   cloudOrder,
   cloudStateRoot,
   listCloudTasks,
@@ -29,7 +31,8 @@ derive the current in-flight set and enforce caps.cloudParallelTasks. It never w
 applies a diff, commits, pushes, or opens a pull request.
 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
-            2 usage, configuration, order, or worktree error, 3 cloud capacity is full
+            2 usage, configuration, order, or worktree error, 3 cloud capacity is full,
+            4 a Codex cloud command timed out
 
   --help, -h  print this usage and exit 0`
 
@@ -98,6 +101,7 @@ if (config.cloud.environmentId !== environmentId) {
 }
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
+const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
 
 let stateRoot
 try {
@@ -105,6 +109,26 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
+
+const remote = spawnSync("git", ["-C", worktree, "ls-remote", "--exit-code", "origin", `refs/heads/${branch}`], {
+  encoding: "utf8",
+  windowsHide: true,
+})
+if (remote.error || remote.status !== 0) {
+  fail(1, `git ls-remote could not resolve origin/${branch}: ${(remote.stderr || remote.error?.message || "unknown error").trim()}`)
+}
+const remoteLines = remote.stdout.trim().split(/\r?\n/).filter(Boolean)
+const remoteMatch = remoteLines.length === 1 ? /^([0-9a-f]{40})\s+refs\/heads\/(.+)$/.exec(remoteLines[0]) : null
+if (!remoteMatch || remoteMatch[2] !== branch) fail(1, `git ls-remote returned an unexpected response for origin/${branch}`)
+const baseSha = remoteMatch[1]
+
+let releaseLock
+try {
+  releaseLock = acquireSubmissionLock(stateRoot)
+} catch (error) {
+  fail(2, error.message)
+}
+process.once("exit", releaseLock)
 
 const receiptsDirectory = join(stateRoot, "receipts")
 let existingReceipts = []
@@ -121,7 +145,7 @@ if (existsSync(receiptsDirectory)) {
 
 if (existingReceipts.length > 0) {
   try {
-    const tasks = listCloudTasks(codexCommand, environmentId)
+    const tasks = await listCloudTasks(codexCommand, environmentId, { timeoutMs: codexTimeoutMs })
     const refreshed = refreshReceipts(existingReceipts, tasks)
     for (const receipt of refreshed.receipts) {
       persistReceipt(receipt, [mirrorPathFor(stateRoot, receipt.taskId)])
@@ -133,25 +157,17 @@ if (existingReceipts.length > 0) {
       )
     }
   } catch (error) {
+    if (error instanceof CodexTimeoutError) fail(4, error.message)
     fail(1, error.message)
   }
 }
 
-const remote = spawnSync("git", ["-C", worktree, "ls-remote", "--exit-code", "origin", `refs/heads/${branch}`], {
-  encoding: "utf8",
-  windowsHide: true,
-})
-if (remote.error || remote.status !== 0) {
-  fail(1, `git ls-remote could not resolve origin/${branch}: ${(remote.stderr || remote.error?.message || "unknown error").trim()}`)
-}
-const remoteLines = remote.stdout.trim().split(/\r?\n/).filter(Boolean)
-const remoteMatch = remoteLines.length === 1 ? /^([0-9a-f]{40})\s+refs\/heads\/(.+)$/.exec(remoteLines[0]) : null
-if (!remoteMatch || remoteMatch[2] !== branch) fail(1, `git ls-remote returned an unexpected response for origin/${branch}`)
-const baseSha = remoteMatch[1]
-
 const submittedOrder = cloudOrder(orderText)
 const submittedAt = new Date()
-const result = runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", branch, submittedOrder])
+const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", branch, submittedOrder], {
+  timeoutMs: codexTimeoutMs,
+})
+if (result.timedOut) fail(4, `codex cloud exec timed out after ${codexTimeoutMs}ms`)
 if (result.error || result.status !== 0) {
   fail(1, `codex cloud exec failed with exit ${result.status ?? "spawn"}: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
 }
@@ -186,4 +202,5 @@ try {
 } catch (error) {
   fail(1, `cloud task ${task.taskId} was submitted but its receipt could not be persisted: ${error.message}`)
 }
+releaseLock()
 console.log(JSON.stringify(receipt))

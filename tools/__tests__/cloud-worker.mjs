@@ -30,9 +30,19 @@ const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
 if (process.env.ORBIT_FAKE_CODEX_CWD_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_CWD_LOG, process.cwd() + "\\n")
 if (process.env.ORBIT_FAKE_CODEX_WRITES_ERROR_LOG) writeFileSync("error.log", "Codex CLI diagnostic\\n")
-if (args[0] === "cloud" && args[1] === "exec") process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
+if (process.env.ORBIT_FAKE_HANG === args[1]) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+if (args[0] === "cloud" && args[1] === "exec") {
+  const delayMs = Number(process.env.ORBIT_FAKE_EXEC_DELAY_MS || 0)
+  if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
+  process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
+}
 else if (args[0] === "cloud" && args[1] === "list") process.stdout.write(process.env.ORBIT_FAKE_LIST || '{"tasks":[],"cursor":null}')
 else if (args[0] === "cloud" && args[1] === "apply") {
+  if (process.env.ORBIT_FAKE_APPLY_MODE === "noop") process.exit(0)
+  if (process.env.ORBIT_FAKE_APPLY_MODE === "move-head") {
+    const committed = spawnSync("git", ["commit", "--allow-empty", "-q", "-m", "fake apply moved head"], { encoding: "utf8" })
+    process.exit(committed.status || 0)
+  }
   const path = process.env.ORBIT_FAKE_APPLY_PATH || "cloud-landed.txt"
   writeFileSync(path, "landed from cloud\\n")
   const added = spawnSync("git", ["add", "--", path], { encoding: "utf8" })
@@ -55,6 +65,7 @@ export const cloudConfig = (command, overrides = {}) => {
   real.cloud = { environmentId: "env-measured" }
   real.caps.cloudParallelTasks = overrides.cloudParallelTasks ?? 4
   real.timeouts.cloudCeilingMinutes = overrides.cloudCeilingMinutes ?? 45
+  real.timeouts.cloudCommandMinutes = overrides.cloudCommandMinutes ?? 10
   return real
 }
 
@@ -85,7 +96,8 @@ export const cases = async () => {
 
   const codex = fakeCodex("list-page-size")
   const invocationLog = stage("cloud-worker/list-page-size.jsonl", "")
-  cloud.listCloudTasks(codex.command, "env-measured", {
+  await cloud.listCloudTasks(codex.command, "env-measured", {
+    timeoutMs: 5000,
     env: {
       ...process.env,
       ORBIT_FAKE_CODEX_LOG: invocationLog,
@@ -117,6 +129,14 @@ export const cases = async () => {
     late.abandoned !== undefined && late.lateTerminal?.status === "ready" && late.lateTerminal.summary.files_changed === 2,
     JSON.stringify(late),
   )
+  const firstSeenLate = cloud.refreshReceipt(receipt, task("task_e_a1", "ready", 2), new Date("2026-08-31T18:05:00.000Z"))
+  T(
+    "cloud-worker.mjs: a ready task first observed after its deadline is quarantined",
+    firstSeenLate.abandoned?.lastObservedStatus === "ready" &&
+      firstSeenLate.terminal?.status === "ready" &&
+      firstSeenLate.lateTerminal?.status === "ready",
+    JSON.stringify(firstSeenLate),
+  )
   const fleet = cloud.refreshReceipts(
     [receipt, { ...receipt, taskId: "task_e_b2", deadline: "2026-08-31T17:00:00.000Z" }],
     [task("task_e_a1", "pending", 0), task("task_e_b2", "pending", 0)],
@@ -139,5 +159,16 @@ export const cases = async () => {
     "cloud-worker.mjs: an unrecognised Windows shim shape fails closed",
     /no "%dp0%\.\.\.js" script line was found/.test(message),
     message,
+  )
+
+  const hanging = fakeCodex("bounded-list")
+  const timed = await cloud.runCodex(hanging.command, ["cloud", "list"], {
+    timeoutMs: 250,
+    env: { ...process.env, ORBIT_FAKE_HANG: "list" },
+  })
+  T(
+    "cloud-worker.mjs: a stalled Codex child returns a distinct timeout result",
+    timed.timedOut && timed.status !== 0,
+    JSON.stringify(timed),
   )
 }

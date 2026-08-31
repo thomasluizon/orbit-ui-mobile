@@ -214,6 +214,9 @@ export const cases = async () => {
     /timeouts\.cloudCeilingMinutes must be a positive number/.test(
       readAndFail("no-cloud-ceiling", { ...real, timeouts: { ...real.timeouts, cloudCeilingMinutes: undefined } }) ?? "",
     ) &&
+      /timeouts\.cloudCommandMinutes must be a positive number/.test(
+        readAndFail("no-cloud-command-bound", { ...real, timeouts: { ...real.timeouts, cloudCommandMinutes: undefined } }) ?? "",
+      ) &&
       /cloud\.environmentId must be a non-empty string/.test(
         readAndFail("no-cloud-environment", { ...real, cloud: { environmentId: "" } }) ?? "",
       ),
@@ -223,6 +226,7 @@ export const cases = async () => {
     `${NAME}: the shipped cloud configuration carries the measured environment and split caps`,
     real.cloud.environmentId === "6a95b419b608819199eb78d9eabc9579" &&
       real.timeouts.cloudCeilingMinutes === 45 &&
+      real.timeouts.cloudCommandMinutes === 10 &&
       real.caps.cloudParallelTasks >= 4 &&
       real.caps.cloudParallelTasks <= 8 &&
       real.caps.parallelTickets === 2 &&

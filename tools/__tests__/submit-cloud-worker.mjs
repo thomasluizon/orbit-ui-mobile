@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -34,7 +35,20 @@ const argvOf = (entry) => [
   "--worktree", entry.repo.path,
 ]
 
-export const cases = () => {
+const runConcurrent = (entry, env) => new Promise((resolveResult) => {
+  const child = spawn(process.execPath, [entry.path, ...argvOf(entry)], {
+    cwd: entry.repo.path,
+    env: { ...process.env, ...env },
+    windowsHide: true,
+  })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => { stdout += chunk.toString() })
+  child.stderr.on("data", (chunk) => { stderr += chunk.toString() })
+  child.once("close", (status) => resolveResult({ status, stdout, stderr }))
+})
+
+export const cases = async () => {
   const entry = fixture("success")
   const env = {
     ORBIT_FAKE_CODEX_LOG: entry.log,
@@ -107,5 +121,96 @@ export const cases = () => {
     `${TOOL}: derives the fleet from receipts and refuses a fifth live task without exec`,
     capacity.status === 3 && /4\/4 tasks are in flight/.test(capacity.stderr) && !capacityInvocations.some((args) => args[1] === "exec"),
     `exit ${capacity.status}: ${capacity.stderr}\n${JSON.stringify(capacityInvocations)}`,
+  )
+
+  const execTimeout = fixture("exec-timeout")
+  execTimeout.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(execTimeout.configPath, `${JSON.stringify(execTimeout.config, null, 2)}\n`)
+  const execTimeoutResult = run(TOOL, argvOf(execTimeout), {
+    path: execTimeout.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: execTimeout.log,
+      ORBIT_FAKE_HANG: "exec",
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
+    },
+  })
+  T(
+    `${TOOL}: a submission timeout is a distinct recoverable failure`,
+    execTimeoutResult.status === 4 && /codex cloud exec timed out/.test(execTimeoutResult.stderr),
+    `exit ${execTimeoutResult.status}: ${execTimeoutResult.stdout || execTimeoutResult.stderr}`,
+  )
+
+  const listTimeout = fixture("list-timeout")
+  listTimeout.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(listTimeout.configPath, `${JSON.stringify(listTimeout.config, null, 2)}\n`)
+  const listTimeoutReceipts = join(listTimeout.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(listTimeoutReceipts, { recursive: true })
+  writeFileSync(join(listTimeoutReceipts, "task_e_a1.json"), JSON.stringify({
+    taskId: "task_e_a1",
+    environmentId: listTimeout.config.cloud.environmentId,
+    deadline: future,
+    worktree: listTimeout.repo.path,
+    baseSha: "0".repeat(40),
+  }))
+  const listTimeoutResult = run(TOOL, argvOf(listTimeout), {
+    path: listTimeout.path,
+    env: { ORBIT_FAKE_CODEX_LOG: listTimeout.log, ORBIT_FAKE_HANG: "list" },
+  })
+  T(
+    `${TOOL}: a capacity refresh timeout is a distinct recoverable failure`,
+    listTimeoutResult.status === 4 && /codex cloud list timed out/.test(listTimeoutResult.stderr),
+    `exit ${listTimeoutResult.status}: ${listTimeoutResult.stdout || listTimeoutResult.stderr}`,
+  )
+
+  const concurrent = fixture("concurrent")
+  const concurrentReceipts = join(concurrent.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(concurrentReceipts, { recursive: true })
+  const concurrentTasks = []
+  for (const suffix of ["a1", "b2", "c3"]) {
+    const id = `task_e_${suffix}`
+    writeFileSync(join(concurrentReceipts, `${id}.json`), JSON.stringify({
+      taskId: id,
+      environmentId: concurrent.config.cloud.environmentId,
+      deadline: future,
+      worktree: concurrent.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+    concurrentTasks.push(task(id, "pending", 0))
+  }
+  const concurrentEnv = {
+    ORBIT_FAKE_CODEX_LOG: concurrent.log,
+    ORBIT_FAKE_LIST: taskPage(concurrentTasks),
+    ORBIT_FAKE_EXEC_DELAY_MS: "1000",
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_d4",
+  }
+  const concurrentResults = await Promise.all([
+    runConcurrent(concurrent, concurrentEnv),
+    runConcurrent(concurrent, concurrentEnv),
+  ])
+  const concurrentInvocations = readFileSync(concurrent.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const concurrentExecs = concurrentInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec")
+  T(
+    `${TOOL}: concurrent submitters cannot collectively exceed the fleet cap`,
+    concurrentResults.some((result) => result.status === 0) &&
+      concurrentResults.every((result) => [0, 2, 3].includes(result.status)) &&
+      concurrentExecs.length === 1,
+    `${JSON.stringify(concurrentResults)}\n${JSON.stringify(concurrentInvocations)}`,
+  )
+
+  const staleOwner = fixture("stale-owner")
+  const staleLock = join(staleOwner.repo.path, ".git", "orbit-cloud", "submit.lock")
+  mkdirSync(staleLock, { recursive: true })
+  writeFileSync(join(staleLock, "owner.json"), JSON.stringify({ pid: 2147483647 }))
+  const staleOwnerResult = run(TOOL, argvOf(staleOwner), {
+    path: staleOwner.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: staleOwner.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a400",
+    },
+  })
+  T(
+    `${TOOL}: a crashed submitter cannot leave a permanent fleet reservation`,
+    staleOwnerResult.status === 0 && !existsSync(staleLock),
+    `exit ${staleOwnerResult.status}: ${staleOwnerResult.stdout || staleOwnerResult.stderr}`,
   )
 }

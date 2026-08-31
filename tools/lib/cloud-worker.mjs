@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import {
   existsSync,
   mkdirSync,
@@ -9,6 +10,8 @@ import {
   writeFileSync,
 } from "node:fs"
 import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path"
+
+import { runBounded } from "./bounded-process.mjs"
 
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 // The Codex CLI documents 20 as the maximum cloud list page size.
@@ -72,21 +75,30 @@ export const resolveCodexCommand = (command, options = {}) => {
   return { executable: process.execPath, argsPrefix: [script] }
 }
 
-export const runCodex = (command, args, options = {}) => {
+export class CodexTimeoutError extends Error {
+  constructor(operation, timeoutMs) {
+    super(`${operation} timed out after ${timeoutMs}ms`)
+    this.name = "CodexTimeoutError"
+  }
+}
+
+export const runCodex = async (command, args, options = {}) => {
+  if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
+    throw new Error("runCodex requires a positive timeoutMs")
+  }
   const invocation = resolveCodexCommand(command, options.resolution)
-  const result = spawnSync(invocation.executable, [...invocation.argsPrefix, ...args], {
+  const result = await runBounded(invocation.executable, [...invocation.argsPrefix, ...args], {
     cwd: options.cwd,
-    encoding: "utf8",
     env: options.env ?? process.env,
     maxBuffer: MAX_OUTPUT_BYTES,
-    shell: false,
-    windowsHide: true,
+    timeoutMs: options.timeoutMs,
   })
   return {
     status: result.status,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-    error: result.error ?? null,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    timedOut: result.timedOut,
+    error: result.error ?? (result.overflowed ? new Error(`codex output exceeded ${MAX_OUTPUT_BYTES} bytes`) : null),
   }
 }
 
@@ -143,7 +155,7 @@ export const parseTaskList = (stdout) => {
   return { tasks: page.tasks.map(validateTask), cursor: page.cursor }
 }
 
-export const listCloudTasks = (command, environmentId, options = {}) => {
+export const listCloudTasks = async (command, environmentId, options = {}) => {
   const tasks = []
   const taskIds = new Set()
   const cursors = new Set()
@@ -151,7 +163,8 @@ export const listCloudTasks = (command, environmentId, options = {}) => {
   do {
     const args = ["cloud", "list", "--env", environmentId, "--json", "--limit", String(CLOUD_LIST_PAGE_SIZE)]
     if (cursor !== null) args.push("--cursor", cursor)
-    const result = runCodex(command, args, options)
+    const result = await runCodex(command, args, options)
+    if (result.timedOut) throw new CodexTimeoutError("codex cloud list", options.timeoutMs)
     if (result.error || result.status !== 0) {
       const detail = (result.stderr || result.stdout || result.error?.message || "unknown error").trim()
       throw new Error(`codex cloud list failed with exit ${result.status ?? "spawn"}: ${detail}`)
@@ -228,18 +241,17 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
       throw new Error(`task ${task.id} returned unmeasured status ${JSON.stringify(task.status)}`)
     }
     updated.lastObserved = { at: observedAt, status: task.status, summary: task.summary }
-    if (task.status === "ready") {
-      updated.terminal = { at: observedAt, status: task.status, summary: task.summary }
-      if (updated.abandoned) {
-        updated.lateTerminal = { at: observedAt, status: task.status, summary: task.summary }
-      }
-      return updated
-    }
   }
   if (!updated.abandoned && deadlinePassed(updated, now)) {
     updated.abandoned = {
       at: observedAt,
       lastObservedStatus: task?.status ?? updated.lastObserved?.status ?? "not_listed",
+    }
+  }
+  if (task?.status === "ready") {
+    updated.terminal = { at: observedAt, status: task.status, summary: task.summary }
+    if (updated.abandoned) {
+      updated.lateTerminal = { at: observedAt, status: task.status, summary: task.summary }
     }
   }
   return updated
@@ -262,26 +274,53 @@ const processIsAlive = (pid) => {
   }
 }
 
-export const acquireMaterializationLock = (stateRoot) => {
-  const lockDirectory = join(stateRoot, "materialize.lock")
+const acquireCloudLock = (stateRoot, lockName, operation) => {
+  const lockDirectory = join(stateRoot, lockName)
   const ownerPath = join(lockDirectory, "owner.json")
   mkdirSync(stateRoot, { recursive: true })
-  try {
-    mkdirSync(lockDirectory, { recursive: false })
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error
+  const publishOwner = () => {
+    const candidate = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.candidate`)
+    mkdirSync(candidate, { recursive: false })
+    writeJsonAtomic(join(candidate, "owner.json"), { pid: process.pid, acquiredAt: new Date().toISOString() })
+    try {
+      renameSync(candidate, lockDirectory)
+      return true
+    } catch (error) {
+      rmSync(candidate, { recursive: true, force: true })
+      if (existsSync(lockDirectory)) return false
+      throw error
+    }
+  }
+
+  while (!publishOwner()) {
     let owner = null
     try {
-      owner = readJsonFile(ownerPath, "materialization lock")
+      owner = readJsonFile(ownerPath, `${operation} lock`)
     } catch {
       owner = null
     }
     if (processIsAlive(owner?.pid)) {
-      throw new Error(`cloud materialization is already running in process ${owner.pid}`)
+      throw new Error(`${operation} is already running in process ${owner.pid}`)
     }
-    rmSync(lockDirectory, { recursive: true, force: true })
-    mkdirSync(lockDirectory, { recursive: false })
+    const staleDirectory = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.stale`)
+    try {
+      renameSync(lockDirectory, staleDirectory)
+    } catch (error) {
+      if (!existsSync(lockDirectory)) continue
+      throw error
+    }
+    rmSync(staleDirectory, { recursive: true, force: true })
   }
-  writeJsonAtomic(ownerPath, { pid: process.pid, acquiredAt: new Date().toISOString() })
-  return () => rmSync(lockDirectory, { recursive: true, force: true })
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    rmSync(lockDirectory, { recursive: true, force: true })
+  }
 }
+
+export const acquireMaterializationLock = (stateRoot) =>
+  acquireCloudLock(stateRoot, "materialize.lock", "cloud materialization")
+
+export const acquireSubmissionLock = (stateRoot) =>
+  acquireCloudLock(stateRoot, "submit.lock", "cloud submission")

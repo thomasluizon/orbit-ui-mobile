@@ -20,6 +20,7 @@
   "timeouts": {
     "hardCeilingMinutes": 45,
     "cloudCeilingMinutes": 45,
+    "cloudCommandMinutes": 10,
     "noProgressMinutes": 10,
     "measurementNoProgressMinutes": 25,
     "pollSeconds": 60
