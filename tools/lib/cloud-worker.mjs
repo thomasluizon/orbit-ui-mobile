@@ -10,7 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs"
-import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path"
+import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { runBounded } from "./bounded-process.mjs"
 
@@ -222,9 +222,9 @@ export const gitRepositoryIdentity = (worktree) => {
   if (result.error || result.status !== 0) throw new Error(`${worktree} is not a git worktree`)
   const commonDirectory = result.stdout.trim()
   if (!commonDirectory) throw new Error(`git returned no common directory for ${worktree}`)
-  const absolute = isAbsolute(commonDirectory) ? commonDirectory : resolve(worktree, commonDirectory)
+  const absoluteCommonDirectory = resolve(worktree, commonDirectory)
   try {
-    return realpathSync.native(absolute)
+    return realpathSync.native(absoluteCommonDirectory)
   } catch (error) {
     throw new Error(`could not resolve Git identity for ${worktree}: ${error.message}`)
   }

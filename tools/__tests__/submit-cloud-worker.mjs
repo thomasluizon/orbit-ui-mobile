@@ -109,6 +109,32 @@ export const cases = async () => {
     `exit ${wrongRepositoryResult.status}: ${wrongRepositoryResult.stderr}`,
   )
 
+  const linkedWorktree = fixture("linked-worktree")
+  const linkedWorktreePath = join(linkedWorktree.repo.path, "..", "submit-cloud-linked-worktree-checkout")
+  const linkedWorktreeAdded = linkedWorktree.repo.git(["worktree", "add", "-q", "--detach", linkedWorktreePath])
+  const linkedWorktreeResult = run(TOOL, [
+    ...argvOf(linkedWorktree).slice(0, -1),
+    linkedWorktreePath,
+  ], {
+    path: linkedWorktree.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: linkedWorktree.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
+    },
+  })
+  const linkedWorktreeReceipt = linkedWorktreeResult.status === 0
+    ? JSON.parse(linkedWorktreeResult.stdout)
+    : null
+  T(
+    `${TOOL}: accepts a linked worktree belonging to the configured main checkout`,
+    linkedWorktreeAdded.status === 0 &&
+      linkedWorktreeResult.status === 0 &&
+      linkedWorktreeReceipt?.worktree === linkedWorktreePath &&
+      linkedWorktreeReceipt?.mirrorPath.startsWith(join(linkedWorktree.repo.path, ".git", "orbit-cloud")),
+    `worktree add ${linkedWorktreeAdded.status}: ${linkedWorktreeAdded.stderr}\n` +
+      `submit ${linkedWorktreeResult.status}: ${linkedWorktreeResult.stderr}`,
+  )
+
   const missingBranch = fixture("missing-branch")
   const missingBranchArguments = argvOf(missingBranch)
   missingBranchArguments[missingBranchArguments.indexOf("--branch") + 1] = "missing-remote-branch"
@@ -292,88 +318,9 @@ export const cases = async () => {
   T(
     `${TOOL}: an unknown attempt blocks resubmission of the same ticket before a second remote write`,
     blockedRetry.status === 3 &&
-      /reconcile or clear it before resubmitting/.test(blockedRetry.stderr) &&
+      /clear it after inspecting cloud tasks before resubmitting/.test(blockedRetry.stderr) &&
       retryInvocations.filter((args) => args[1] === "exec").length === 1,
     `exit ${blockedRetry.status}: ${blockedRetry.stderr}\n${JSON.stringify(retryInvocations)}`,
-  )
-  const reconciled = run(TOOL, [
-    "--reconcile-unknown",
-    unknownPath,
-    "--task-url",
-    "https://chatgpt.com/codex/tasks/task_e_a399",
-  ], { path: execTimeout.path })
-  const reconciledReceipt = JSON.parse(reconciled.stdout)
-  T(
-    `${TOOL}: an operator can reconcile an unknown reservation to the accepted task receipt`,
-    reconciled.status === 0 &&
-      !existsSync(unknownPath) &&
-      reconciledReceipt.taskId === "task_e_a399" &&
-      reconciledReceipt.submissionState === "confirmed" &&
-      existsSync(reconciledReceipt.receiptPath) &&
-      existsSync(reconciledReceipt.mirrorPath),
-    `exit ${reconciled.status}: ${reconciled.stdout || reconciled.stderr}`,
-  )
-  const reconciledMirrorBeforeRetry = readFileSync(reconciledReceipt.mirrorPath, "utf8")
-  const reconciledReceiptBeforeRetry = readFileSync(reconciledReceipt.receiptPath, "utf8")
-  const repeatedReconciliation = run(TOOL, [
-    "--reconcile-unknown",
-    unknownPath,
-    "--task-url",
-    "https://chatgpt.com/codex/tasks/task_e_a399",
-  ], { path: execTimeout.path })
-  T(
-    `${TOOL}: repeating a completed reconciliation is refused without changing its receipt`,
-    repeatedReconciliation.status === 2 &&
-      /cloud submission reservation not found/.test(repeatedReconciliation.stderr) &&
-      !existsSync(unknownPath) &&
-      readFileSync(reconciledReceipt.mirrorPath, "utf8") === reconciledMirrorBeforeRetry &&
-      readFileSync(reconciledReceipt.receiptPath, "utf8") === reconciledReceiptBeforeRetry,
-    `exit ${repeatedReconciliation.status}: ${repeatedReconciliation.stdout || repeatedReconciliation.stderr}`,
-  )
-
-  const conflictingReconciliation = fixture("reconcile-conflict")
-  conflictingReconciliation.config.timeouts.cloudCommandMinutes = 0.005
-  writeFileSync(
-    conflictingReconciliation.configPath,
-    `${JSON.stringify(conflictingReconciliation.config, null, 2)}\n`,
-  )
-  const conflictingTimeout = run(TOOL, argvOf(conflictingReconciliation), {
-    path: conflictingReconciliation.path,
-    env: {
-      ORBIT_FAKE_CODEX_LOG: conflictingReconciliation.log,
-      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
-      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_b402",
-    },
-  })
-  const conflictingDirectory = join(conflictingReconciliation.repo.path, ".git", "orbit-cloud", "receipts")
-  const conflictingReservationPath = join(conflictingDirectory, readdirSync(conflictingDirectory)[0])
-  const conflictingMirrorPath = join(conflictingDirectory, "task_e_c402.json")
-  writeFileSync(conflictingMirrorPath, `${JSON.stringify({
-    kind: "task-receipt",
-    submissionState: "confirmed",
-    taskId: "task_e_c402",
-    environmentId: "another-environment",
-    ticket: "#397",
-    worktree: "C:\\another-worktree",
-  }, null, 2)}\n`)
-  const conflictingReservationBefore = readFileSync(conflictingReservationPath, "utf8")
-  const conflictingMirrorBefore = readFileSync(conflictingMirrorPath, "utf8")
-  const refusedReconciliation = run(TOOL, [
-    "--reconcile-unknown",
-    conflictingReservationPath,
-    "--task-url",
-    "https://chatgpt.com/codex/tasks/task_e_c402",
-  ], { path: conflictingReconciliation.path })
-  T(
-    `${TOOL}: reconciliation refuses a task owned by another receipt without changing either record`,
-    conflictingTimeout.status === 4 &&
-      refusedReconciliation.status === 2 &&
-      /task task_e_c402 already has a receipt/.test(refusedReconciliation.stderr) &&
-      /ticket, worktree, environmentId/.test(refusedReconciliation.stderr) &&
-      /Check that .*task_e_c402.* before retrying/.test(refusedReconciliation.stderr) &&
-      readFileSync(conflictingReservationPath, "utf8") === conflictingReservationBefore &&
-      readFileSync(conflictingMirrorPath, "utf8") === conflictingMirrorBefore,
-    `timeout ${conflictingTimeout.status}; reconcile ${refusedReconciliation.status}: ${refusedReconciliation.stderr}`,
   )
 
   const clearUnknown = fixture("clear-unknown")

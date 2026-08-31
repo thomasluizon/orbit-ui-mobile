@@ -121,7 +121,6 @@ node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
-node tools/submit-cloud-worker.mjs --reconcile-unknown <reservation-file> --task-url <url>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file>
 node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
@@ -524,8 +523,9 @@ under the shared Git directory is the recovery source after a crashed session.
 
 Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
 remote outcome unknown, so that reservation continues to consume capacity and blocks the same
-ticket. Inspect `codex cloud list`, then use `--reconcile-unknown` with the identified task URL or
-use `--clear-unknown` only after establishing that no task was created.
+ticket. Inspect `codex cloud list`, then use `--clear-unknown` to remove the reservation. If a cloud
+task was created, abandon it rather than adopting it. It may run to completion, but its diff is
+never applied.
 
 Cloud has one wall-clock ceiling and no no-progress clock. Across one observed run, `updated_at` did
 not move while the task was running and moved at the transition. The CLI reference does not define

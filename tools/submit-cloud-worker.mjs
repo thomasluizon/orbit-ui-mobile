@@ -27,7 +27,6 @@ import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: submit-cloud-worker.mjs --issue <ORB-N|#N|N> --env <environment-id> --branch <name> --order <file> --worktree <path>
-       submit-cloud-worker.mjs --reconcile-unknown <reservation-file> --task-url <url>
        submit-cloud-worker.mjs --clear-unknown <reservation-file>
 
 Submits one task with the order as one shell-free argument, then writes a receipt beside the order
@@ -39,15 +38,14 @@ It never waits for completion, applies a diff, commits, pushes, or opens a pull 
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
 URL, that unknown attempt consumes capacity and blocks the same ticket. Inspect codex cloud list,
-then associate its task URL with --reconcile-unknown or explicitly remove it with --clear-unknown.
+then remove the reservation with --clear-unknown. Any orphaned cloud task is abandoned rather than
+adopted, and its diff is never applied.
 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error, 3 cloud capacity is full,
             4 a Codex cloud command timed out
 
-  --reconcile-unknown <file>  replace an unknown reservation with a confirmed task receipt
-  --task-url <url>            task URL identified while reconciling an unknown reservation
-  --clear-unknown <file>      remove an unknown reservation after verifying it created no task
+  --clear-unknown <file>      remove an unknown reservation after inspecting cloud tasks
   --help, -h                  print this usage and exit 0`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -65,8 +63,6 @@ const valueFlags = new Set([
   "--branch",
   "--order",
   "--worktree",
-  "--reconcile-unknown",
-  "--task-url",
   "--clear-unknown",
 ])
 const knownFlags = new Set([...valueFlags, "--help", "-h"])
@@ -78,21 +74,14 @@ const argOf = (flag) => {
   return index === -1 ? null : argv[index + 1]
 }
 
-const reconcileArgument = argOf("--reconcile-unknown")
 const clearArgument = argOf("--clear-unknown")
-const taskUrlArgument = argOf("--task-url")
-if (reconcileArgument || clearArgument || taskUrlArgument) {
-  if (Boolean(reconcileArgument) === Boolean(clearArgument)) {
-    fail(2, `${USAGE}\n\nchoose exactly one of --reconcile-unknown or --clear-unknown`)
-  }
-  if (reconcileArgument && !taskUrlArgument) fail(2, `${USAGE}\n\n--reconcile-unknown requires --task-url`)
-  if (clearArgument && taskUrlArgument) fail(2, `${USAGE}\n\n--task-url is valid only with --reconcile-unknown`)
+if (clearArgument) {
   const submissionFlags = ["--issue", "--env", "--branch", "--order", "--worktree"]
   if (submissionFlags.some((flag) => argOf(flag))) {
-    fail(2, `${USAGE}\n\nunknown reservation actions cannot be combined with a new submission`)
+    fail(2, `${USAGE}\n\n--clear-unknown cannot be combined with a new submission`)
   }
 
-  const reservationFile = resolve(reconcileArgument ?? clearArgument)
+  const reservationFile = resolve(clearArgument)
   if (!existsSync(reservationFile) || !statSync(reservationFile).isFile()) {
     fail(2, `cloud submission reservation not found: ${reservationFile}`)
   }
@@ -129,68 +118,9 @@ if (reconcileArgument || clearArgument || taskUrlArgument) {
     fail(2, `cloud submission reservation disappeared while acquiring its lock: ${reservationFile}; no receipt was changed`)
   }
 
-  if (clearArgument) {
-    unlinkSync(reservationFile)
-    releaseReservationLock()
-    console.log(JSON.stringify({ outcome: "UNKNOWN_SUBMISSION_CLEARED", reservationId: reservation.reservationId }))
-    process.exit(0)
-  }
-
-  let task
-  try {
-    task = parseTaskUrl(taskUrlArgument)
-  } catch (error) {
-    fail(2, error.message)
-  }
-  const orderName = basename(reservation.orderFile, extname(reservation.orderFile))
-  const receiptPath = join(dirname(reservation.orderFile), `${orderName}-${task.taskId}.cloud-receipt.json`)
-  const mirrorPath = mirrorPathFor(reservationStateRoot, task.taskId)
-  const receipt = {
-    ...reservation,
-    kind: "task-receipt",
-    submissionState: "confirmed",
-    taskId: task.taskId,
-    taskUrl: task.taskUrl,
-    receiptPath,
-    mirrorPath,
-  }
-  delete receipt.reservationId
-  delete receipt.unknownAt
-  delete receipt.unknownReason
-  for (const destination of new Set([resolve(mirrorPath), resolve(receiptPath)])) {
-    if (!existsSync(destination)) continue
-    let existingReceipt
-    try {
-      existingReceipt = readJsonFile(destination, "existing cloud task receipt")
-    } catch (error) {
-      fail(2, `${error.message}; check that ${task.taskUrl} belongs to ${reservationFile} before retrying`)
-    }
-    const mismatchedOwnership = ["ticket", "worktree", "environmentId", "repositoryKey"]
-      .filter((field) => existingReceipt?.[field] !== receipt[field])
-    if (
-      existingReceipt?.kind !== "task-receipt" ||
-      existingReceipt?.taskId !== task.taskId ||
-      mismatchedOwnership.length > 0
-    ) {
-      const collidedFields = mismatchedOwnership.length > 0 ? mismatchedOwnership.join(", ") : "receipt identity"
-      fail(
-        2,
-        `task ${task.taskId} already has a receipt at ${destination}, but ownership conflicts on ${collidedFields}. ` +
-        `Existing owner: ticket ${JSON.stringify(existingReceipt?.ticket)}, worktree ${JSON.stringify(existingReceipt?.worktree)}, ` +
-        `environment ${JSON.stringify(existingReceipt?.environmentId)}. Reservation owner: ticket ${JSON.stringify(receipt.ticket)}, ` +
-        `worktree ${JSON.stringify(receipt.worktree)}, environment ${JSON.stringify(receipt.environmentId)}. ` +
-        `Check that ${task.taskUrl} is the task created for ${reservationFile} before retrying; neither file was changed.`,
-      )
-    }
-  }
-  try {
-    persistReceipt(receipt, mirrorPath, [receiptPath])
-    unlinkSync(reservationFile)
-  } catch (error) {
-    fail(1, `unknown cloud submission could not be reconciled: ${error.message}`)
-  }
+  unlinkSync(reservationFile)
   releaseReservationLock()
-  console.log(JSON.stringify(receipt))
+  console.log(JSON.stringify({ outcome: "UNKNOWN_SUBMISSION_CLEARED", reservationId: reservation.reservationId }))
   process.exit(0)
 }
 
@@ -308,7 +238,7 @@ if (existingReceipts.length > 0) {
           ? `task ${blockedTicket.taskId} is ready but not materialized`
           : `task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
       const nextAction = blockedTicket.kind === "submission-reservation"
-        ? "reconcile or clear it"
+        ? "clear it after inspecting cloud tasks"
         : blockedTicket.terminal?.status === "ready"
           ? "materialize it"
           : "wait for it to finish"
