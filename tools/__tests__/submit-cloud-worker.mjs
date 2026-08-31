@@ -19,9 +19,10 @@ const TOOL = "submit-cloud-worker.mjs"
 const fixture = (label) => {
   const codex = fakeCodex(`submit-${label}`)
   const config = cloudConfig(codex.command, { real: realOrchestratorConfig(), cloudCeilingMinutes: 45 })
+  const repo = stageRepo(`submit-cloud-${label}`)
+  config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
   const staged = stageWithConfig(`submit-cloud-${label}`, TOOL, config)
   cpSync(toolPath("check-dashes.mjs"), join(staged.base, "tools", "check-dashes.mjs"))
-  const repo = stageRepo(`submit-cloud-${label}`)
   const order = stage(`submit-cloud/${label}-order.md`, "Implement the measured cloud path.\n")
   const log = stage(`submit-cloud/${label}-codex.jsonl`, "")
   return { ...staged, repo, order, log, codex, config }
@@ -74,8 +75,29 @@ export const cases = async () => {
       existsSync(receipt.mirrorPath) &&
       receipt.kind === "task-receipt" &&
       receipt.submissionState === "confirmed" &&
+      receipt.repositoryKey === "ui" &&
       readdirSync(join(entry.repo.path, ".git", "orbit-cloud", "receipts")).length === 1,
     JSON.stringify(receipt),
+  )
+
+  const wrongRepository = fixture("wrong-repository")
+  const apiRepository = stageRepo("submit-cloud-wrong-repository-api")
+  const wrongRepositoryResult = run(TOOL, [
+    ...argvOf(wrongRepository).slice(0, -1),
+    apiRepository.path,
+  ], {
+    path: wrongRepository.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: wrongRepository.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_bad1",
+    },
+  })
+  T(
+    `${TOOL}: refuses another Orbit repository on the same branch before any cloud command`,
+    wrongRepositoryResult.status === 2 &&
+      /does not belong to configured cloud repository ui/.test(wrongRepositoryResult.stderr) &&
+      readFileSync(wrongRepository.log, "utf8") === "",
+    `exit ${wrongRepositoryResult.status}: ${wrongRepositoryResult.stderr}`,
   )
 
   for (const [label, dash] of [["en", String.fromCharCode(0x2013)], ["em", String.fromCharCode(0x2014)]]) {
@@ -125,6 +147,40 @@ export const cases = async () => {
     capacity.status === 3 && /4\/4 tasks are in flight/.test(capacity.stderr) && !capacityInvocations.some((args) => args[1] === "exec"),
     `exit ${capacity.status}: ${capacity.stderr}\n${JSON.stringify(capacityInvocations)}`,
   )
+
+  for (const [state, status] of [["pending", "pending"], ["ready but not materialized", "ready"]]) {
+    const retry = fixture(`retry-${status}`)
+    const retryReceipts = join(retry.repo.path, ".git", "orbit-cloud", "receipts")
+    mkdirSync(retryReceipts, { recursive: true })
+    const taskId = status === "pending" ? "task_e_398a" : "task_e_398b"
+    writeFileSync(join(retryReceipts, `${taskId}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: retry.config.cloud.environmentId,
+      repositoryKey: retry.config.cloud.repositoryKey,
+      ticket: "#398",
+      deadline: future,
+      worktree: retry.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+    const retryResult = run(TOOL, argvOf(retry), {
+      path: retry.path,
+      env: {
+        ORBIT_FAKE_CODEX_LOG: retry.log,
+        ORBIT_FAKE_LIST: taskPage([task(taskId, status, status === "ready" ? 1 : 0)]),
+        ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+      },
+    })
+    const cloudInvocations = readFileSync(retry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    T(
+      `${TOOL}: a confirmed ${state} receipt blocks a competing task for the same ticket`,
+      retryResult.status === 3 &&
+        retryResult.stderr.includes(`task ${taskId} is ${state}`) &&
+        !cloudInvocations.some((args) => args[0] === "cloud" && args[1] === "exec"),
+      `exit ${retryResult.status}: ${retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
+    )
+  }
 
   const execTimeout = fixture("exec-timeout")
   execTimeout.config.timeouts.cloudCommandMinutes = 0.005

@@ -8,6 +8,7 @@ import { resolve } from "node:path"
 import {
   CodexTimeoutError,
   acquireMaterializationLock,
+  assertSameGitRepository,
   cloudStateRoot,
   listCloudTasks,
   mirrorPathFor,
@@ -25,8 +26,9 @@ const CODEX_DIAGNOSTIC_FILENAME = "error.log"
 const USAGE = `usage: materialize-cloud-result.mjs --receipt <file> [--allow-abandoned]
 
 Reads terminal state through codex cloud list, then applies one non-empty ready task in the receipt's
-worktree. The worktree must be clean and still at the receipt's exact base SHA. Abandoned tasks are
-quarantined unless --allow-abandoned is explicit. Materialization is serial across the repository.
+worktree. The receipt and worktree must still match the repository bound to the cloud environment.
+The worktree must be clean and still at the receipt's exact base SHA. Abandoned tasks are quarantined
+unless --allow-abandoned is explicit. Materialization is serial across the repository.
 It never commits, pushes, opens a pull request, or merges.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
@@ -64,11 +66,29 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-for (const field of ["taskId", "environmentId", "baseSha", "worktree", "deadline"]) {
+for (const field of ["taskId", "environmentId", "repositoryKey", "baseSha", "worktree", "deadline"]) {
   if (typeof receipt[field] !== "string" || receipt[field].length === 0) fail(2, `cloud receipt carries no ${field}`)
 }
 if (!/^[0-9a-f]{40}$/.test(receipt.baseSha)) fail(2, "cloud receipt carries an invalid baseSha")
 const worktree = resolve(receipt.worktree)
+
+let config
+try {
+  config = readOrchestratorConfig()
+} catch (error) {
+  fail(2, error.message)
+}
+if (receipt.environmentId !== config.cloud.environmentId) {
+  fail(2, `cloud receipt environment ${receipt.environmentId} does not match configured environment ${config.cloud.environmentId}`)
+}
+if (receipt.repositoryKey !== config.cloud.repositoryKey) {
+  fail(2, `cloud receipt repository ${receipt.repositoryKey} does not match configured cloud repository ${config.cloud.repositoryKey}`)
+}
+try {
+  assertSameGitRepository(worktree, config.repos[receipt.repositoryKey], receipt.repositoryKey)
+} catch (error) {
+  fail(2, error.message)
+}
 
 let stateRoot
 try {
@@ -92,7 +112,7 @@ if (existsSync(mirrorPath) && resolve(mirrorPath) !== receiptPath) {
   } catch (error) {
     fail(2, error.message)
   }
-  const mismatched = ["taskId", "environmentId", "baseSha", "worktree"].filter((field) => mirrored[field] !== receipt[field])
+  const mismatched = ["taskId", "environmentId", "repositoryKey", "baseSha", "worktree"].filter((field) => mirrored[field] !== receipt[field])
   if (mismatched.length > 0) {
     fail(2, `mirrored cloud receipt changed immutable field(s): ${mismatched.join(", ")}`)
   }
@@ -120,12 +140,6 @@ const assertLocalPreconditions = () => {
 }
 assertLocalPreconditions()
 
-let config
-try {
-  config = readOrchestratorConfig()
-} catch (error) {
-  fail(2, error.message)
-}
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
 const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000

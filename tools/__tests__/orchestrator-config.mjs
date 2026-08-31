@@ -218,13 +218,24 @@ export const cases = async () => {
         readAndFail("no-cloud-command-bound", { ...real, timeouts: { ...real.timeouts, cloudCommandMinutes: undefined } }) ?? "",
       ) &&
       /cloud\.environmentId must be a non-empty string/.test(
-        readAndFail("no-cloud-environment", { ...real, cloud: { environmentId: "" } }) ?? "",
+        readAndFail("no-cloud-environment", { ...real, cloud: { ...real.cloud, environmentId: "" } }) ?? "",
       ),
     "a cloud configuration field was optional",
   )
   T(
+    `${NAME}: the cloud environment must name one configured repository`,
+    /cloud\.repositoryKey must be a non-empty string/.test(
+      readAndFail("no-cloud-repository", { ...real, cloud: { ...real.cloud, repositoryKey: "" } }) ?? "",
+    ) &&
+      /cloud\.repositoryKey must name a configured repository/.test(
+        readAndFail("unknown-cloud-repository", { ...real, cloud: { ...real.cloud, repositoryKey: "unknown" } }) ?? "",
+      ),
+    "a cloud environment without a configured repository was accepted",
+  )
+  T(
     `${NAME}: the shipped cloud configuration carries the measured environment and split caps`,
     real.cloud.environmentId === "6a95b419b608819199eb78d9eabc9579" &&
+      real.cloud.repositoryKey === "ui" &&
       real.timeouts.cloudCeilingMinutes === 45 &&
       real.timeouts.cloudCommandMinutes === 10 &&
       real.caps.cloudParallelTasks >= 4 &&

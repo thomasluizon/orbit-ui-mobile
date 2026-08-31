@@ -10,6 +10,7 @@ import { dashFindings } from "./check-dashes.mjs"
 import {
   CodexTimeoutError,
   acquireSubmissionLock,
+  assertSameGitRepository,
   cloudOrder,
   cloudStateRoot,
   listCloudTasks,
@@ -30,8 +31,9 @@ const USAGE = `usage: submit-cloud-worker.mjs --issue <ORB-N|#N|N> --env <enviro
 
 Submits one task with the order as one shell-free argument, then writes a receipt beside the order
 and mirrors it under the repository's shared Git directory. It checks the stable receipts once to
-derive the current in-flight set and enforce caps.cloudParallelTasks. It never waits for completion,
-applies a diff, commits, pushes, or opens a pull request.
+derive the current in-flight set and enforce caps.cloudParallelTasks. The worktree must belong to
+the repository bound to the cloud environment, and an unresolved receipt blocks the same ticket.
+It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
 URL, that unknown attempt consumes capacity and blocks the same ticket. Inspect codex cloud list,
@@ -161,7 +163,7 @@ if (reconcileArgument || clearArgument || taskUrlArgument) {
     } catch (error) {
       fail(2, `${error.message}; check that ${task.taskUrl} belongs to ${reservationFile} before retrying`)
     }
-    const mismatchedOwnership = ["ticket", "worktree", "environmentId"]
+    const mismatchedOwnership = ["ticket", "worktree", "environmentId", "repositoryKey"]
       .filter((field) => existingReceipt?.[field] !== receipt[field])
     if (
       existingReceipt?.kind !== "task-receipt" ||
@@ -237,9 +239,11 @@ if (config.cloud.environmentId !== environmentId) {
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
 const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
+const repositoryKey = config.cloud.repositoryKey
 
 let stateRoot
 try {
+  assertSameGitRepository(worktree, config.repos[repositoryKey], repositoryKey)
   stateRoot = cloudStateRoot(worktree)
 } catch (error) {
   fail(2, error.message)
@@ -289,13 +293,22 @@ if (existingReceipts.length > 0) {
       persistReceipt(receipt, stablePath)
     }
     const blockedTicket = refreshed.receipts.find((receipt) =>
-      receipt.kind === "submission-reservation" && receipt.ticket === ticket,
+      receipt.ticket === ticket && !receipt.abandoned && !receipt.materialized,
     )
     if (blockedTicket) {
+      const blockedState = blockedTicket.kind === "submission-reservation"
+        ? `unknown submission reservation at ${blockedTicket.mirrorPath}`
+        : blockedTicket.terminal?.status === "ready"
+          ? `task ${blockedTicket.taskId} is ready but not materialized`
+          : `task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
+      const nextAction = blockedTicket.kind === "submission-reservation"
+        ? "reconcile or clear it"
+        : blockedTicket.terminal?.status === "ready"
+          ? "materialize it"
+          : "wait for it to finish"
       fail(
         3,
-        `ticket ${ticket} has an unknown cloud submission at ${blockedTicket.mirrorPath}; ` +
-        "reconcile or clear it before resubmitting",
+        `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
       )
     }
     if (refreshed.inFlight.length >= config.caps.cloudParallelTasks) {
@@ -320,6 +333,7 @@ const reservation = {
   reservationId,
   submissionState: "submitting",
   environmentId,
+  repositoryKey,
   ticket,
   branch,
   baseSha,

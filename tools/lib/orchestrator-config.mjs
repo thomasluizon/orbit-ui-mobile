@@ -134,6 +134,11 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   }
   if (!isRecord(config.cloud)) throw new Error(".claude/orchestrator.json must declare a cloud object")
   nonEmptyString(config.cloud.environmentId, "cloud.environmentId")
+  const cloudRepositoryKey = nonEmptyString(config.cloud.repositoryKey, "cloud.repositoryKey")
+  if (!isRecord(config.repos) || typeof config.repos[cloudRepositoryKey] !== "string") {
+    throw new Error(`.claude/orchestrator.json cloud.repositoryKey must name a configured repository (${cloudRepositoryKey})`)
+  }
+  nonEmptyString(config.repos[cloudRepositoryKey], `repos.${cloudRepositoryKey}`)
   validateTickets(config.tickets)
   return config
 }

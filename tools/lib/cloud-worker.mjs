@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -213,7 +214,7 @@ export const writeJsonAtomic = (path, value) => {
   renameSync(temporary, path)
 }
 
-export const cloudStateRoot = (worktree) => {
+export const gitRepositoryIdentity = (worktree) => {
   const result = spawnSync("git", ["-C", worktree, "rev-parse", "--git-common-dir"], {
     encoding: "utf8",
     windowsHide: true,
@@ -222,8 +223,27 @@ export const cloudStateRoot = (worktree) => {
   const commonDirectory = result.stdout.trim()
   if (!commonDirectory) throw new Error(`git returned no common directory for ${worktree}`)
   const absolute = isAbsolute(commonDirectory) ? commonDirectory : resolve(worktree, commonDirectory)
-  return join(absolute, "orbit-cloud")
+  try {
+    return realpathSync.native(absolute)
+  } catch (error) {
+    throw new Error(`could not resolve Git identity for ${worktree}: ${error.message}`)
+  }
 }
+
+const comparableGitIdentity = (identity) => process.platform === "win32" ? identity.toLowerCase() : identity
+
+export const assertSameGitRepository = (worktree, configuredRepository, repositoryKey) => {
+  const worktreeIdentity = gitRepositoryIdentity(worktree)
+  const configuredIdentity = gitRepositoryIdentity(configuredRepository)
+  if (comparableGitIdentity(worktreeIdentity) !== comparableGitIdentity(configuredIdentity)) {
+    throw new Error(
+      `worktree ${worktree} does not belong to configured cloud repository ${repositoryKey} at ${configuredRepository}`,
+    )
+  }
+  return worktreeIdentity
+}
+
+export const cloudStateRoot = (worktree) => join(gitRepositoryIdentity(worktree), "orbit-cloud")
 
 export const mirrorPathFor = (stateRoot, taskId) => {
   if (!TASK_ID.test(taskId)) throw new Error(`invalid cloud task id: ${taskId}`)

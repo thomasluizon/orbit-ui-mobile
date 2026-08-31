@@ -515,8 +515,9 @@ absent, and hashes both the order file and the submitted form in the receipt:
 
 ### Cloud execution
 
-`--cloud` is available only for the UI repository environment recorded in
-`.claude/orchestrator.json`. Submit each implementation with `submit-cloud-worker.mjs`. The receipt
+`--cloud` is available only for the repository bound to the environment by `cloud.repositoryKey` in
+`.claude/orchestrator.json`. Submission and materialization both verify that local Git identity.
+Submit each implementation with `submit-cloud-worker.mjs`. The receipt
 records the exact pushed branch SHA that the container starts from, the order hashes, target
 worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
 under the shared Git directory is the recovery source after a crashed session.

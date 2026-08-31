@@ -32,7 +32,8 @@
     "workerLogMegabytes": 512
   },
   "cloud": {
-    "environmentId": "6a95b419b608819199eb78d9eabc9579"
+    "environmentId": "6a95b419b608819199eb78d9eabc9579",
+    "repositoryKey": "ui"
   },
   "tickets": {
     "repository": "thomasluizon/orbit-tickets",

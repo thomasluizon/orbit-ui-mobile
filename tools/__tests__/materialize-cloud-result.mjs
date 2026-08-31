@@ -20,8 +20,9 @@ const fixture = (label, overrides = {}) => {
     real: realOrchestratorConfig(),
     cloudCommandMinutes: overrides.cloudCommandMinutes,
   })
-  const staged = stageWithConfig(`materialize-cloud-${label}`, TOOL, config)
   const repo = stageRepo(`materialize-cloud-${label}`)
+  config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
+  const staged = stageWithConfig(`materialize-cloud-${label}`, TOOL, config)
   writeFileSync(join(repo.path, ".gitignore"), readFileSync(join(REPO_ROOT, ".gitignore"), "utf8"))
   repo.git(["add", ".gitignore"])
   repo.git(["commit", "-q", "-m", "fixture ignore rules"])
@@ -30,6 +31,7 @@ const fixture = (label, overrides = {}) => {
   const receipt = {
     taskId: id,
     environmentId: config.cloud.environmentId,
+    repositoryKey: config.cloud.repositoryKey,
     ticket: "#398",
     branch: "main",
     baseSha: overrides.baseSha ?? head,
@@ -52,6 +54,23 @@ const invoke = (entry, tasks, extra = [], env = {}) => run(TOOL, ["--receipt", e
 })
 
 export const cases = () => {
+  const wrongRepository = fixture("wrong-repository", { taskId: "task_e_bad2" })
+  const apiRepository = stageRepo("materialize-cloud-wrong-repository-api")
+  const apiHead = apiRepository.git(["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(wrongRepository.receiptPath, `${JSON.stringify({
+    ...wrongRepository.receipt,
+    baseSha: apiHead,
+    worktree: apiRepository.path,
+  }, null, 2)}\n`)
+  const wrongRepositoryResult = invoke(wrongRepository, [task(wrongRepository.receipt.taskId, "ready", 1)])
+  T(
+    `${TOOL}: revalidates receipt repository identity before any cloud command`,
+    wrongRepositoryResult.status === 2 &&
+      /does not belong to configured cloud repository ui/.test(wrongRepositoryResult.stderr) &&
+      readFileSync(wrongRepository.log, "utf8") === "",
+    `exit ${wrongRepositoryResult.status}: ${wrongRepositoryResult.stderr}`,
+  )
+
   const dirty = fixture("dirty", { taskId: "task_e_d1" })
   writeFileSync(join(dirty.repo.path, "dirty.txt"), "local change\n")
   const dirtyResult = invoke(dirty, [task(dirty.receipt.taskId, "ready", 1)])
