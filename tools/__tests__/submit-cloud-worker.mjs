@@ -187,6 +187,68 @@ export const cases = async () => {
       existsSync(reconciledReceipt.mirrorPath),
     `exit ${reconciled.status}: ${reconciled.stdout || reconciled.stderr}`,
   )
+  const reconciledMirrorBeforeRetry = readFileSync(reconciledReceipt.mirrorPath, "utf8")
+  const reconciledReceiptBeforeRetry = readFileSync(reconciledReceipt.receiptPath, "utf8")
+  const repeatedReconciliation = run(TOOL, [
+    "--reconcile-unknown",
+    unknownPath,
+    "--task-url",
+    "https://chatgpt.com/codex/tasks/task_e_a399",
+  ], { path: execTimeout.path })
+  T(
+    `${TOOL}: repeating a completed reconciliation is refused without changing its receipt`,
+    repeatedReconciliation.status === 2 &&
+      /cloud submission reservation not found/.test(repeatedReconciliation.stderr) &&
+      !existsSync(unknownPath) &&
+      readFileSync(reconciledReceipt.mirrorPath, "utf8") === reconciledMirrorBeforeRetry &&
+      readFileSync(reconciledReceipt.receiptPath, "utf8") === reconciledReceiptBeforeRetry,
+    `exit ${repeatedReconciliation.status}: ${repeatedReconciliation.stdout || repeatedReconciliation.stderr}`,
+  )
+
+  const conflictingReconciliation = fixture("reconcile-conflict")
+  conflictingReconciliation.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(
+    conflictingReconciliation.configPath,
+    `${JSON.stringify(conflictingReconciliation.config, null, 2)}\n`,
+  )
+  const conflictingTimeout = run(TOOL, argvOf(conflictingReconciliation), {
+    path: conflictingReconciliation.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: conflictingReconciliation.log,
+      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_b402",
+    },
+  })
+  const conflictingDirectory = join(conflictingReconciliation.repo.path, ".git", "orbit-cloud", "receipts")
+  const conflictingReservationPath = join(conflictingDirectory, readdirSync(conflictingDirectory)[0])
+  const conflictingMirrorPath = join(conflictingDirectory, "task_e_c402.json")
+  writeFileSync(conflictingMirrorPath, `${JSON.stringify({
+    kind: "task-receipt",
+    submissionState: "confirmed",
+    taskId: "task_e_c402",
+    environmentId: "another-environment",
+    ticket: "#397",
+    worktree: "C:\\another-worktree",
+  }, null, 2)}\n`)
+  const conflictingReservationBefore = readFileSync(conflictingReservationPath, "utf8")
+  const conflictingMirrorBefore = readFileSync(conflictingMirrorPath, "utf8")
+  const refusedReconciliation = run(TOOL, [
+    "--reconcile-unknown",
+    conflictingReservationPath,
+    "--task-url",
+    "https://chatgpt.com/codex/tasks/task_e_c402",
+  ], { path: conflictingReconciliation.path })
+  T(
+    `${TOOL}: reconciliation refuses a task owned by another receipt without changing either record`,
+    conflictingTimeout.status === 4 &&
+      refusedReconciliation.status === 2 &&
+      /task task_e_c402 already has a receipt/.test(refusedReconciliation.stderr) &&
+      /ticket, worktree, environmentId/.test(refusedReconciliation.stderr) &&
+      /Check that .*task_e_c402.* before retrying/.test(refusedReconciliation.stderr) &&
+      readFileSync(conflictingReservationPath, "utf8") === conflictingReservationBefore &&
+      readFileSync(conflictingMirrorPath, "utf8") === conflictingMirrorBefore,
+    `timeout ${conflictingTimeout.status}; reconcile ${refusedReconciliation.status}: ${refusedReconciliation.stderr}`,
+  )
 
   const clearUnknown = fixture("clear-unknown")
   clearUnknown.config.timeouts.cloudCommandMinutes = 0.005

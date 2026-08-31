@@ -121,6 +121,9 @@ if (reconcileArgument || clearArgument || taskUrlArgument) {
     fail(2, error.message)
   }
   process.once("exit", releaseReservationLock)
+  if (!existsSync(reservationFile)) {
+    fail(2, `cloud submission reservation disappeared while acquiring its lock: ${reservationFile}; no receipt was changed`)
+  }
 
   if (clearArgument) {
     unlinkSync(reservationFile)
@@ -150,6 +153,32 @@ if (reconcileArgument || clearArgument || taskUrlArgument) {
   delete receipt.reservationId
   delete receipt.unknownAt
   delete receipt.unknownReason
+  for (const destination of new Set([resolve(mirrorPath), resolve(receiptPath)])) {
+    if (!existsSync(destination)) continue
+    let existingReceipt
+    try {
+      existingReceipt = readJsonFile(destination, "existing cloud task receipt")
+    } catch (error) {
+      fail(2, `${error.message}; check that ${task.taskUrl} belongs to ${reservationFile} before retrying`)
+    }
+    const mismatchedOwnership = ["ticket", "worktree", "environmentId"]
+      .filter((field) => existingReceipt?.[field] !== receipt[field])
+    if (
+      existingReceipt?.kind !== "task-receipt" ||
+      existingReceipt?.taskId !== task.taskId ||
+      mismatchedOwnership.length > 0
+    ) {
+      const collidedFields = mismatchedOwnership.length > 0 ? mismatchedOwnership.join(", ") : "receipt identity"
+      fail(
+        2,
+        `task ${task.taskId} already has a receipt at ${destination}, but ownership conflicts on ${collidedFields}. ` +
+        `Existing owner: ticket ${JSON.stringify(existingReceipt?.ticket)}, worktree ${JSON.stringify(existingReceipt?.worktree)}, ` +
+        `environment ${JSON.stringify(existingReceipt?.environmentId)}. Reservation owner: ticket ${JSON.stringify(receipt.ticket)}, ` +
+        `worktree ${JSON.stringify(receipt.worktree)}, environment ${JSON.stringify(receipt.environmentId)}. ` +
+        `Check that ${task.taskUrl} is the task created for ${reservationFile} before retrying; neither file was changed.`,
+      )
+    }
+  }
   try {
     persistReceipt(receipt, mirrorPath, [receiptPath])
     unlinkSync(reservationFile)
