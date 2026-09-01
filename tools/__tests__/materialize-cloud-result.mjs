@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
@@ -86,6 +87,31 @@ export const cases = () => {
     `${TOOL}: refuses a dirty worktree before calling cloud apply or list`,
     dirtyResult.status === 2 && /worktree is dirty/.test(dirtyResult.stderr) && readFileSync(dirty.log, "utf8") === "",
     `exit ${dirtyResult.status}: ${dirtyResult.stderr}`,
+  )
+
+  const changedRecovery = fixture("changed-recovery", { taskId: "task_e_d2" })
+  const changedRecoveryFile = join(changedRecovery.repo.path, "changed.txt")
+  writeFileSync(changedRecoveryFile, "first landing\n")
+  changedRecovery.repo.git(["add", "changed.txt"])
+  const originalPatch = changedRecovery.repo.git(["diff", "--cached", "--binary"]).stdout
+  const changedRecoveryPath = recoveryPathOf(changedRecovery)
+  mkdirSync(dirname(changedRecoveryPath), { recursive: true })
+  writeFileSync(changedRecoveryPath, JSON.stringify({
+    taskId: changedRecovery.receipt.taskId,
+    baseSha: changedRecovery.receipt.baseSha,
+    worktree: changedRecovery.receipt.worktree,
+    attemptedAt: new Date().toISOString(),
+    stagedDiffSha256: createHash("sha256").update(originalPatch).digest("hex"),
+  }))
+  writeFileSync(changedRecoveryFile, "different landing\n")
+  changedRecovery.repo.git(["add", "changed.txt"])
+  const changedRecoveryResult = invoke(changedRecovery, [task(changedRecovery.receipt.taskId, "ready", 1)])
+  T(
+    `${TOOL}: recovery compares the marker hash with the exact staged patch`,
+    changedRecoveryResult.status === 7 &&
+      /"outcome":"RECOVERY_HASH_MISMATCH"/.test(changedRecoveryResult.stdout) &&
+      readFileSync(changedRecovery.log, "utf8") === "",
+    `exit ${changedRecoveryResult.status}: ${changedRecoveryResult.stdout || changedRecoveryResult.stderr}`,
   )
 
   const instrumented = fixture("instrumented", { taskId: "task_e_a12" })
@@ -307,6 +333,24 @@ export const cases = () => {
     `exit ${landedResult.status}: ${landedResult.stdout || landedResult.stderr}\nhead ${landedHead}, staged ${staged}`,
   )
 
+  const largeLanding = fixture("large-landing", { taskId: "task_e_a12f" })
+  const largeLandingResult = invoke(
+    largeLanding,
+    [task(largeLanding.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_APPLY_MODE: "large" },
+  )
+  const largeLandingReceipt = JSON.parse(readFileSync(largeLanding.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a staged landing larger than the default spawn buffer verifies and materializes`,
+    largeLandingResult.status === 0 &&
+      /"outcome":"MATERIALIZED"/.test(largeLandingResult.stdout) &&
+      largeLandingReceipt.materialized?.status.includes("cloud-landed.txt") &&
+      largeLanding.repo.git(["diff", "--cached", "--numstat"]).stdout.startsWith("1\t0\tcloud-landed.txt"),
+    `exit ${largeLandingResult.status}: ${largeLandingResult.stdout || largeLandingResult.stderr}\n` +
+      JSON.stringify(largeLandingReceipt),
+  )
+
   const noOp = fixture("no-op", { taskId: "task_e_a13" })
   const noOpResult = invoke(noOp, [task(noOp.receipt.taskId, "ready", 1)], [], { ORBIT_FAKE_APPLY_MODE: "noop" })
   const noOpReceipt = JSON.parse(readFileSync(noOp.receiptPath, "utf8"))
@@ -316,6 +360,29 @@ export const cases = () => {
       /"outcome":"APPLY_NO_CHANGES"/.test(noOpResult.stdout) &&
       noOpReceipt.materialized === undefined,
     `exit ${noOpResult.status}: ${noOpResult.stdout || noOpResult.stderr}\n${JSON.stringify(noOpReceipt)}`,
+  )
+
+  const partialFailure = fixture("partial-failure", { taskId: "task_e_a13f" })
+  const partialFailureResult = invoke(
+    partialFailure,
+    [task(partialFailure.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_APPLY_MODE: "partial-fail" },
+  )
+  const partialRecoveryPath = recoveryPathOf(partialFailure)
+  const partialRetryResult = invoke(partialFailure, [task(partialFailure.receipt.taskId, "ready", 1)])
+  const partialInvocations = readFileSync(partialFailure.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: a failed apply clears its marker and a staged partial diff is never recovered`,
+    partialFailureResult.status === 1 &&
+      /"outcome":"APPLY_FAILED"/.test(partialFailureResult.stdout) &&
+      !existsSync(partialRecoveryPath) &&
+      partialRetryResult.status === 2 &&
+      /worktree is dirty/.test(partialRetryResult.stderr) &&
+      partialInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
+    `failed ${partialFailureResult.status}: ${partialFailureResult.stdout || partialFailureResult.stderr}\n` +
+      `retry ${partialRetryResult.status}: ${partialRetryResult.stdout || partialRetryResult.stderr}\n` +
+      JSON.stringify(partialInvocations),
   )
 
   const movedHead = fixture("moved-head", { taskId: "task_e_a14" })
@@ -378,11 +445,11 @@ export const cases = () => {
   const recoveredApplyTimeoutReceipt = JSON.parse(readFileSync(applyTimeout.receiptPath, "utf8"))
   const applyTimeoutInvocations = readFileSync(applyTimeout.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(
-    `${TOOL}: the next invocation recovers a staged timeout landing without applying twice`,
-    recoveredApplyTimeoutResult.status === 0 &&
-      /"recovered":true/.test(recoveredApplyTimeoutResult.stdout) &&
-      recoveredApplyTimeoutReceipt.materialized?.status.includes("cloud-landed.txt") &&
-      !existsSync(applyTimeoutRecoveryPath) &&
+    `${TOOL}: a staged timeout landing is refused when its marker has no authenticating hash`,
+    recoveredApplyTimeoutResult.status === 7 &&
+      /"outcome":"RECOVERY_UNAUTHENTICATED"/.test(recoveredApplyTimeoutResult.stdout) &&
+      recoveredApplyTimeoutReceipt.materialized === undefined &&
+      existsSync(applyTimeoutRecoveryPath) &&
       applyTimeoutInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
     `exit ${recoveredApplyTimeoutResult.status}: ${recoveredApplyTimeoutResult.stdout || recoveredApplyTimeoutResult.stderr}\n` +
       `${JSON.stringify(applyTimeoutInvocations)}\n${JSON.stringify(recoveredApplyTimeoutReceipt)}`,
@@ -416,10 +483,10 @@ export const cases = () => {
   const recoveredMarkerFailureReceipt = JSON.parse(readFileSync(markerFailure.receiptPath, "utf8"))
   const markerFailureInvocations = readFileSync(markerFailure.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(
-    `${TOOL}: retry recovers after the post-apply marker update failure without applying twice`,
-    recoveredMarkerFailureResult.status === 0 &&
-      /"recovered":true/.test(recoveredMarkerFailureResult.stdout) &&
-      recoveredMarkerFailureReceipt.materialized?.status.includes("cloud-landed.txt") &&
+    `${TOOL}: a failed post-apply marker update cannot authenticate the landing on retry`,
+    recoveredMarkerFailureResult.status === 7 &&
+      /"outcome":"RECOVERY_UNAUTHENTICATED"/.test(recoveredMarkerFailureResult.stdout) &&
+      recoveredMarkerFailureReceipt.materialized === undefined &&
       markerFailureInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
     `exit ${recoveredMarkerFailureResult.status}: ${recoveredMarkerFailureResult.stdout || recoveredMarkerFailureResult.stderr}\n` +
       `${JSON.stringify(markerFailureInvocations)}\n${JSON.stringify(recoveredMarkerFailureReceipt)}`,

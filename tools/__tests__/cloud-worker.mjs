@@ -35,6 +35,8 @@ if (process.env.ORBIT_FAKE_CODEX_WRITES_ERROR_LOG) writeFileSync("error.log", "C
 if (process.env.ORBIT_FAKE_APPLY_UNTRACKED_PATH && args[1] === "apply") writeFileSync(process.env.ORBIT_FAKE_APPLY_UNTRACKED_PATH, "unexpected\\n")
 if (process.env.ORBIT_FAKE_HANG === args[1]) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 if (args[0] === "cloud" && args[1] === "exec") {
+  const query = readFileSync(0, "utf8")
+  if (process.env.ORBIT_FAKE_STDIN_LOG) writeFileSync(process.env.ORBIT_FAKE_STDIN_LOG, query)
   if (process.env.ORBIT_FAKE_ACCEPTANCE_LOG) writeFileSync(process.env.ORBIT_FAKE_ACCEPTANCE_LOG, process.env.ORBIT_FAKE_EXEC_URL || "accepted")
   if (process.env.ORBIT_FAKE_HANG_AFTER_ACCEPTANCE === "exec") Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
   const delayMs = Number(process.env.ORBIT_FAKE_EXEC_DELAY_MS || 0)
@@ -59,7 +61,10 @@ else if (args[0] === "cloud" && args[1] === "apply") {
     process.exit(committed.status || 0)
   }
   const path = process.env.ORBIT_FAKE_APPLY_PATH || "cloud-landed.txt"
-  writeFileSync(path, "landed from cloud\\n")
+  const contents = process.env.ORBIT_FAKE_APPLY_MODE === "large"
+    ? "x".repeat(2 * 1024 * 1024)
+    : "landed from cloud\\n"
+  writeFileSync(path, contents)
   const added = spawnSync("git", ["add", "--", path], { encoding: "utf8" })
   if (process.env.ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH) {
     mkdirSync(process.env.ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH, { recursive: true })
@@ -72,6 +77,7 @@ else if (args[0] === "cloud" && args[1] === "apply") {
     const recoveryPath = process.env.ORBIT_FAKE_RECOVERY_MARKER_WRITE_FAILURE_PATH
     chmodSync(process.platform === "win32" ? recoveryPath : dirname(recoveryPath), process.platform === "win32" ? 0o444 : 0o555)
   }
+  if (process.env.ORBIT_FAKE_APPLY_MODE === "partial-fail") process.exit(23)
   if (process.env.ORBIT_FAKE_HANG_AFTER_APPLY === "apply") Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
   process.exit(added.status || 0)
 } else process.exit(7)

@@ -527,7 +527,8 @@ node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <c
 The submitter verifies that the remote branch SHA exactly matches the worktree HEAD. The receipt
 records the exact pushed branch SHA that the container starts from, the order hashes, target
 worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
-under the shared Git directory is the recovery source after a crashed session.
+under the shared Git directory is the recovery source after a crashed session. The composed order
+is sent through stdin so its size is not constrained by the Windows command line limit.
 
 Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
 remote outcome unknown, so that reservation continues to consume capacity and blocks the same
@@ -535,8 +536,11 @@ ticket. Absence cannot be proven from `codex cloud list` because the CLI exposes
 visibility bound. `--clear-unknown` alone therefore refuses. Open the task list in the Codex UI and
 confirm no task exists for the reservation, then add `--assert-no-task-exists`. That flag is a human
 assertion, not a deduction from the listing, and the receipt records the assertion and its time. If
-a cloud task was created, abandon it rather than adopting it. It may run to completion, but its diff
-is never applied.
+a visible task exists, run `--abandon-known <reservation> --task-id <task_e_id>`. This binds the task
+only for terminal status tracking. It does not adopt the task and its diff is never applied. The
+reservation keeps consuming capacity and blocking its ticket until a scheduler pass observes that
+task in `ready`, `applied`, or `error`, then releases it. Never assert absence while the UI shows a
+task.
 
 Cloud has one wall-clock ceiling and no no-progress clock. Across one observed run, `updated_at` did
 not move while the task was running and moved at the transition. The CLI reference does not define
@@ -555,12 +559,13 @@ quarantined. `materialize-cloud-result.mjs` refuses it unless `--allow-abandoned
 the exact base SHA check still applies. Cloud implementations use `caps.cloudParallelTasks`; local
 materialization is serial across the fleet; GitHub-calling readiness work stays capped at 3.
 
-When a receipt reaches `ready`, run `materialize-cloud-result.mjs` in the local control plane. It
-requires a clean worktree whose HEAD is byte-for-byte the receipt base SHA. A ready task with
-`summary.files_changed == 0` is a distinct failure requiring inspection of the task page, because
-it means the container produced no commit. A successful apply leaves staged changes and never moves
-HEAD. Continue through the existing local test, signed commit, push, pull request, and readiness
-flow. The cloud tool never performs any of those delivery actions.
+When a task receipt reaches any terminal status, run `materialize-cloud-result.mjs` in the local
+control plane. For `error` and `applied`, it records the distinct unusable result and resolves the
+receipt without applying. For `ready`, it requires a clean worktree whose HEAD is byte-for-byte the
+receipt base SHA. A ready task with `summary.files_changed == 0` is a distinct failure requiring
+inspection of the task page, because it means the container produced no commit. A successful apply
+leaves staged changes and never moves HEAD. Continue through the existing local test, signed commit,
+push, pull request, and readiness flow. The cloud tool never performs any of those delivery actions.
 
 If materialization exits 9 with `APPLIED_RECEIPT_WRITE_FAILED`, cloud apply already succeeded and
 the diff is staged. Only the bounded receipt write lock timed out. Leave the worktree unchanged and

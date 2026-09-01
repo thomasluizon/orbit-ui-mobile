@@ -25,6 +25,7 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 // The Codex CLI writes this diagnostic file into its working directory.
 const CODEX_DIAGNOSTIC_FILENAME = "error.log"
+const MAX_GIT_REPORT_BYTES = 64 * 1024 * 1024
 
 const USAGE = `usage: materialize-cloud-result.mjs --receipt <file> [--allow-abandoned]
 
@@ -40,7 +41,7 @@ retry record materialization without running cloud apply again.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
             3 task cannot be materialized, 4 ready task produced no committed diff, 5 task is abandoned,
-            6 a Codex cloud command timed out, 7 cloud apply produced an invalid Git landing,
+            6 a Codex cloud command timed out, 7 cloud apply produced an invalid or unauthenticated Git landing,
             8 receipt lock acquisition timed out before apply,
             9 diff applied and staged but the receipt write lock timed out
 
@@ -78,6 +79,7 @@ try {
 for (const field of ["taskId", "environmentId", "repositoryKey", "baseSha", "worktree", "deadline"]) {
   if (typeof receipt[field] !== "string" || receipt[field].length === 0) fail(2, `cloud receipt carries no ${field}`)
 }
+if (receipt.kind === "submission-reservation") fail(2, "a cloud submission reservation can never be materialized")
 if (!/^[0-9a-f]{40}$/.test(receipt.baseSha)) fail(2, "cloud receipt carries an invalid baseSha")
 const worktree = resolve(receipt.worktree)
 
@@ -166,7 +168,11 @@ if (receipt.materialized) {
   fail(2, `task ${receipt.taskId} was already materialized at ${receipt.materialized.at}; cloud apply was not run`)
 }
 
-const git = (args) => spawnSync("git", ["-C", worktree, ...args], { encoding: "utf8", windowsHide: true })
+const git = (args) => spawnSync("git", ["-C", worktree, ...args], {
+  encoding: "utf8",
+  maxBuffer: MAX_GIT_REPORT_BYTES,
+  windowsHide: true,
+})
 const readLocalLanding = () => {
   const status = git(["status", "--porcelain"])
   if (status.error || status.status !== 0) fail(2, `could not read worktree status: ${(status.stderr || status.error?.message || "unknown error").trim()}`)
@@ -230,8 +236,15 @@ const assertCleanPreconditionsOrReadRecovery = () => {
   }
   assertExpectedLanding(landing)
   const stagedDiffSha256 = createHash("sha256").update(landing.stagedPatch.stdout).digest("hex")
-  if (recovery.stagedDiffSha256 && recovery.stagedDiffSha256 !== stagedDiffSha256) {
-    fail(2, "the staged diff no longer matches the cloud materialization recovery marker; leave the worktree unchanged for recovery")
+  if (!/^[0-9a-f]{64}$/.test(recovery.stagedDiffSha256 ?? "")) {
+    fail(
+      7,
+      "the cloud materialization recovery marker cannot authenticate the staged diff; it was not accepted",
+      "RECOVERY_UNAUTHENTICATED",
+    )
+  }
+  if (recovery.stagedDiffSha256 !== stagedDiffSha256) {
+    fail(7, "the staged diff does not match the cloud materialization recovery marker", "RECOVERY_HASH_MISMATCH")
   }
   return recovery
 }
@@ -262,8 +275,8 @@ try {
     const recoveredLanding = readLocalLanding()
     assertExpectedLanding(recoveredLanding)
     const stagedDiffSha256 = createHash("sha256").update(recoveredLanding.stagedPatch.stdout).digest("hex")
-    if (recovery.stagedDiffSha256 && recovery.stagedDiffSha256 !== stagedDiffSha256) {
-      fail(2, "the staged diff changed during cloud materialization recovery; receipt was not updated")
+    if (recovery.stagedDiffSha256 !== stagedDiffSha256) {
+      fail(7, "the staged diff changed during cloud materialization recovery", "RECOVERY_HASH_MISMATCH")
     }
     const recoveredAt = recovery.materializedAt ?? recovery.at ?? new Date().toISOString()
     receipt.materialized = {
@@ -332,6 +345,13 @@ try {
     fail(6, `codex cloud apply timed out after ${codexTimeoutMs}ms`, "APPLY_TIMEOUT")
   }
   if (applied.error || applied.status !== 0) {
+    try {
+      unlinkSync(recoveryPath)
+    } catch (error) {
+      if (existsSync(recoveryPath)) {
+        fail(1, `codex cloud apply failed and its recovery marker could not be cleared: ${error.message}`, "APPLY_FAILED_MARKER_RETAINED")
+      }
+    }
     fail(1, `codex cloud apply failed with exit ${applied.status ?? "spawn"}: ${(applied.stderr || applied.stdout || applied.error?.message || "unknown error").trim()}`, "APPLY_FAILED")
   }
   const landing = readLocalLanding()

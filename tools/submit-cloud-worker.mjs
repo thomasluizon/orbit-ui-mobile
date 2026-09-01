@@ -14,6 +14,7 @@ import {
   assertSameGitRepository,
   cloudOrder,
   cloudStateRoot,
+  isCloudTaskId,
   listCloudTasks,
   mirrorPathFor,
   parseTaskUrl,
@@ -23,16 +24,19 @@ import {
   receiptBlocksTicketAdmission,
   receiptConsumesFleetCapacity,
   refreshReceipts,
+  refreshReceipt,
   reservationPathFor,
   runCodex,
 } from "./lib/cloud-worker.mjs"
+import { runBounded } from "./lib/bounded-process.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: submit-cloud-worker.mjs --issue <ORB-N|#N|N> --env <environment-id> --branch <name> --order <file> --worktree <path>
        submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
+       submit-cloud-worker.mjs --abandon-known <reservation-file> --task-id <task_e_id>
 
-Submits one task with the order as one shell-free argument, then writes a receipt beside the order
+Submits one task with the order through stdin, then writes a receipt beside the order
 and mirrors it under the repository's shared Git directory. It checks the stable receipts once to
 derive the current in-flight set and enforce caps.cloudParallelTasks. The worktree must belong to
 the repository bound to the cloud environment. The named remote branch is resolved first, and the
@@ -45,6 +49,7 @@ URL, that unknown attempt consumes capacity and blocks the same ticket. Task abs
 proven from codex cloud list. --clear-unknown alone refuses and instructs the operator to inspect the
 Codex UI. --assert-no-task-exists records the operator's assertion and releases the reservation.
 Any orphaned cloud task is abandoned rather than adopted, and its diff is never applied.
+A known task remains a reservation until the scheduler observes a terminal status.
 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error,
@@ -53,6 +58,8 @@ exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
 
   --clear-unknown <file>      select an unknown reservation for explicit human release
   --assert-no-task-exists     assert that the Codex UI shows no task for that reservation
+  --abandon-known <file>      bind a visible task to a reservation for terminal-only tracking
+  --task-id <task_e_id>       the visible task that must finish before its reservation releases
   --help, -h                  print this usage and exit 0`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -71,6 +78,8 @@ const valueFlags = new Set([
   "--order",
   "--worktree",
   "--clear-unknown",
+  "--abandon-known",
+  "--task-id",
 ])
 const knownFlags = new Set([...valueFlags, "--assert-no-task-exists", "--help", "-h"])
 const argv = process.argv.slice(2)
@@ -82,10 +91,12 @@ const argOf = (flag) => {
 }
 
 const clearArgument = argOf("--clear-unknown")
+const abandonArgument = argOf("--abandon-known")
+if (clearArgument && abandonArgument) fail(2, `${USAGE}\n\n--clear-unknown and --abandon-known are mutually exclusive`)
 if (clearArgument) {
   const submissionFlags = ["--issue", "--env", "--branch", "--order", "--worktree"]
-  if (submissionFlags.some((flag) => argOf(flag))) {
-    fail(2, `${USAGE}\n\n--clear-unknown cannot be combined with a new submission`)
+  if (submissionFlags.some((flag) => argOf(flag)) || argOf("--task-id")) {
+    fail(2, `${USAGE}\n\n--clear-unknown cannot be combined with a new submission or --task-id`)
   }
   if (!argv.includes("--assert-no-task-exists")) {
     fail(
@@ -152,9 +163,97 @@ if (clearArgument) {
   process.exit(0)
 }
 
+if (abandonArgument) {
+  const submissionFlags = ["--issue", "--env", "--branch", "--order", "--worktree"]
+  if (submissionFlags.some((flag) => argOf(flag)) || argv.includes("--assert-no-task-exists")) {
+    fail(2, `${USAGE}\n\n--abandon-known cannot be combined with a new submission or --assert-no-task-exists`)
+  }
+  const taskId = argOf("--task-id")
+  if (!isCloudTaskId(taskId)) fail(2, `${USAGE}\n\n--task-id must be a Codex cloud task id`)
+  const reservationFile = resolve(abandonArgument)
+  if (!existsSync(reservationFile) || !statSync(reservationFile).isFile()) {
+    fail(2, `cloud submission reservation not found: ${reservationFile}`)
+  }
+  let reservation
+  try {
+    reservation = readJsonFile(reservationFile, "cloud submission reservation")
+  } catch (error) {
+    fail(2, error.message)
+  }
+  if (
+    reservation.kind !== "submission-reservation" ||
+    !["submitting", "unknown", "known-task-abandoned"].includes(reservation.submissionState)
+  ) {
+    fail(2, `${reservationFile} is not an unresolved cloud submission reservation`)
+  }
+  if (reservation.taskId && reservation.taskId !== taskId) {
+    fail(2, `reservation is already bound to task ${reservation.taskId}`)
+  }
+  let config
+  let reservationStateRoot
+  try {
+    config = readOrchestratorConfig()
+    if (reservation.environmentId !== config.cloud.environmentId) {
+      fail(2, `reservation environment ${reservation.environmentId} does not match configured environment ${config.cloud.environmentId}`)
+    }
+    if (reservation.repositoryKey !== config.cloud.repositoryKey) {
+      fail(2, `reservation repository ${reservation.repositoryKey} does not match configured repository ${config.cloud.repositoryKey}`)
+    }
+    assertSameGitRepository(reservation.worktree, config.repos[reservation.repositoryKey], reservation.repositoryKey)
+    reservationStateRoot = cloudStateRoot(reservation.worktree)
+    const expectedPath = reservationPathFor(reservationStateRoot, reservation.reservationId)
+    if (resolve(expectedPath) !== reservationFile) fail(2, `reservation must be managed through its stable path: ${expectedPath}`)
+  } catch (error) {
+    fail(2, error.message)
+  }
+  let releaseReservationLock
+  try {
+    releaseReservationLock = acquireSubmissionLock(reservationStateRoot)
+  } catch (error) {
+    fail(2, error.message)
+  }
+  process.once("exit", releaseReservationLock)
+  const codexCommand = config.workers.codex?.command
+  const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
+  let tasks
+  try {
+    tasks = await listCloudTasks(codexCommand, reservation.environmentId, {
+      cwd: reservationStateRoot,
+      timeoutMs: codexTimeoutMs,
+    })
+  } catch (error) {
+    if (error instanceof CodexTimeoutError) fail(4, error.message)
+    fail(1, error.message)
+  }
+  const task = tasks.find((candidate) => candidate.id === taskId)
+  if (!task) fail(3, `task ${taskId} was not returned by codex cloud list; the reservation was not changed`)
+  reservation.taskId = taskId
+  reservation.submissionState = "known-task-abandoned"
+  reservation.knownTaskAbandonment ??= {
+    at: new Date().toISOString(),
+    by: "human",
+    reason: "visible task belongs to an uncertain submission and must never be materialized",
+  }
+  reservation = refreshReceipt(reservation, task)
+  try {
+    persistReceipt(reservation, reservationFile)
+  } catch (error) {
+    fail(1, `known task abandonment could not be recorded: ${error.message}`)
+  }
+  releaseReservationLock()
+  console.log(JSON.stringify({
+    outcome: reservation.released ? "KNOWN_TASK_TERMINATED" : "KNOWN_TASK_ABANDONED",
+    reservationId: reservation.reservationId,
+    taskId,
+    status: task.status,
+  }))
+  process.exit(0)
+}
+
 if (argv.includes("--assert-no-task-exists")) {
   fail(2, `${USAGE}\n\n--assert-no-task-exists requires --clear-unknown <reservation-file>`)
 }
+if (argOf("--task-id")) fail(2, `${USAGE}\n\n--task-id requires --abandon-known <reservation-file>`)
 
 let ticket
 try {
@@ -214,10 +313,13 @@ try {
   fail(2, error.message)
 }
 
-const remote = spawnSync("git", ["-C", worktree, "ls-remote", "--exit-code", "origin", `refs/heads/${branch}`], {
-  encoding: "utf8",
-  windowsHide: true,
+const remoteTimeoutMs = config.timeouts.gitRemoteSeconds * 1000
+const remote = await runBounded("git", ["-C", worktree, "ls-remote", "--exit-code", "origin", `refs/heads/${branch}`], {
+  env: process.env,
+  maxBuffer: 1024 * 1024,
+  timeoutMs: remoteTimeoutMs,
 })
+if (remote.timedOut) fail(4, `git ls-remote timed out after ${remoteTimeoutMs}ms resolving origin/${branch}`)
 if (remote.error || remote.status !== 0) {
   fail(1, `git ls-remote could not resolve origin/${branch}: ${(remote.stderr || remote.error?.message || "unknown error").trim()}`)
 }
@@ -250,11 +352,38 @@ const receiptsDirectory = join(stateRoot, "receipts")
 let existingReceipts = []
 if (existsSync(receiptsDirectory)) {
   try {
-    existingReceipts = readdirSync(receiptsDirectory)
+    const receiptEntries = readdirSync(receiptsDirectory)
       .filter((entry) => entry.endsWith(".json"))
-      .map((entry) => readJsonFile(join(receiptsDirectory, entry), "cloud receipt"))
-      .filter((receipt) => receipt.environmentId === environmentId)
+      .map((entry) => ({ path: join(receiptsDirectory, entry), receipt: readJsonFile(join(receiptsDirectory, entry), "cloud receipt") }))
+      .filter((entry) => entry.receipt.environmentId === environmentId)
+    for (const entry of receiptEntries) {
+      if (entry.receipt.kind !== "submission-reservation" || entry.receipt.submissionState !== "confirmed") {
+        existingReceipts.push(entry.receipt)
+        continue
+      }
+      const confirmed = entry.receipt
+      const confirmedReceipt = { ...confirmed, kind: "task-receipt", transitionReservationId: confirmed.reservationId }
+      delete confirmedReceipt.reservationId
+      const finalized = persistReconciledReceipt(
+        confirmedReceipt,
+        mirrorPathFor(stateRoot, confirmed.taskId),
+        [confirmed.receiptPath],
+        receiptLockOptions,
+      )
+      unlinkSync(entry.path)
+      existingReceipts.push(finalized)
+    }
+    existingReceipts = existingReceipts.map((receipt) => (
+      receipt.kind === "submission-reservation"
+        ? receipt
+        : readJsonFile(mirrorPathFor(stateRoot, receipt.taskId), "cloud receipt")
+    ))
+    existingReceipts = [...new Map(existingReceipts.map((receipt) => [
+      receipt.kind === "submission-reservation" ? `reservation:${receipt.reservationId}` : `task:${receipt.taskId}`,
+      receipt,
+    ])).values()]
   } catch (error) {
+    if (error instanceof ReceiptLockTimeoutError) fail(5, error.message)
     fail(2, error.message)
   }
 }
@@ -278,10 +407,14 @@ if (existingReceipts.length > 0) {
     ))
     if (blockedTicket) {
       const blockedState = blockedTicket.kind === "submission-reservation"
-        ? `unknown submission reservation at ${blockedTicket.mirrorPath}`
+        ? blockedTicket.submissionState === "known-task-abandoned"
+          ? `known abandoned task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
+          : `unknown submission reservation at ${blockedTicket.mirrorPath}`
         : `task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
       const nextAction = blockedTicket.kind === "submission-reservation"
-        ? "release it only after confirming in the Codex UI that no task exists"
+        ? blockedTicket.submissionState === "known-task-abandoned"
+          ? "wait for its terminal status"
+          : "release it only after confirming in the Codex UI that no task exists"
         : blockedTicket.terminal
           ? "resolve that receipt before resubmitting"
           : "wait for it to finish"
@@ -331,7 +464,8 @@ try {
 } catch (error) {
   fail(1, `cloud submission reservation could not be persisted: ${error.message}`)
 }
-const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", baseSha, submittedOrder], {
+const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", baseSha], {
+  input: submittedOrder,
   timeoutMs: codexTimeoutMs,
 })
 const retainUnknownReservation = (reason) => {
@@ -374,10 +508,12 @@ const receipt = {
   taskUrl: task.taskUrl,
   receiptPath,
   mirrorPath,
+  transitionReservationId: reservation.reservationId,
 }
 delete receipt.reservationId
 try {
-  persistReceipt(receipt, mirrorPath, [receiptPath])
+  persistReceipt({ ...reservation, submissionState: "confirmed", taskId: task.taskId, taskUrl: task.taskUrl, receiptPath, mirrorPath }, reservationPath)
+  persistReconciledReceipt(receipt, mirrorPath, [receiptPath], receiptLockOptions)
   unlinkSync(reservationPath)
 } catch (error) {
   fail(1, `cloud task ${task.taskId} was submitted but its receipt could not be persisted: ${error.message}`)

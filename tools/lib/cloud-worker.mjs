@@ -26,6 +26,7 @@ const TERMINAL_TASK_STATUSES = new Set(["ready", "applied", "error"])
 const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
 
 export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
+export const isCloudTaskId = (value) => typeof value === "string" && TASK_ID.test(value)
 
 const receiptIsResolved = (receipt) => Boolean(
   receipt.abandoned || receipt.materialized || receipt.released || receipt.unusable,
@@ -120,6 +121,7 @@ export const runCodex = async (command, args, options = {}) => {
     cwd: options.cwd,
     env: options.env ?? process.env,
     maxBuffer: MAX_OUTPUT_BYTES,
+    input: options.input,
     timeoutMs: options.timeoutMs,
   })
   return {
@@ -357,6 +359,24 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
       updated.submissionState = "unknown"
       updated.unknownAt = observedAt
       updated.unknownReason = "submission ended without a confirmed task URL"
+    }
+    if (updated.submissionState === "known-task-abandoned" && task) {
+      updated.lastObserved = { at: observedAt, updatedAt: task.updated_at, status: task.status, summary: task.summary }
+      if (isTerminalTaskStatus(task.status)) {
+        updated.terminal = {
+          at: updated.terminal?.at ?? observedAt,
+          observedAt,
+          updatedAt: task.updated_at,
+          status: task.status,
+          summary: task.summary,
+        }
+        updated.submissionState = "released"
+        updated.released = {
+          at: observedAt,
+          by: "scheduler",
+          reason: `known abandoned task reached terminal status ${task.status}`,
+        }
+      }
     }
     return updated
   }

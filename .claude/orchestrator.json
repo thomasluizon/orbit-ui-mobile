@@ -21,6 +21,7 @@
     "hardCeilingMinutes": 45,
     "cloudCeilingMinutes": 45,
     "cloudCommandMinutes": 10,
+    "gitRemoteSeconds": 30,
     "receiptLockSeconds": 1,
     "noProgressMinutes": 10,
     "measurementNoProgressMinutes": 25,

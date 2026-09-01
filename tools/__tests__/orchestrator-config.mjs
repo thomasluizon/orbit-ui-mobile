@@ -217,6 +217,9 @@ export const cases = async () => {
       /timeouts\.cloudCommandMinutes must be a positive number/.test(
         readAndFail("no-cloud-command-bound", { ...real, timeouts: { ...real.timeouts, cloudCommandMinutes: undefined } }) ?? "",
       ) &&
+      /timeouts\.gitRemoteSeconds must be a positive number/.test(
+        readAndFail("no-git-remote-bound", { ...real, timeouts: { ...real.timeouts, gitRemoteSeconds: undefined } }) ?? "",
+      ) &&
       /timeouts\.receiptLockSeconds must be a positive number/.test(
         readAndFail("no-receipt-lock-bound", { ...real, timeouts: { ...real.timeouts, receiptLockSeconds: undefined } }) ?? "",
       ) &&
@@ -241,6 +244,7 @@ export const cases = async () => {
       real.cloud.repositoryKey === "ui" &&
       real.timeouts.cloudCeilingMinutes === 45 &&
       real.timeouts.cloudCommandMinutes === 10 &&
+      real.timeouts.gitRemoteSeconds === 30 &&
       real.timeouts.receiptLockSeconds === 1 &&
       real.caps.cloudParallelTasks >= 4 &&
       real.caps.cloudParallelTasks <= 8 &&

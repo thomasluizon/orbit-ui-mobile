@@ -4,6 +4,7 @@ import { join } from "node:path"
 
 import {
   T,
+  REPO_ROOT,
   check,
   realOrchestratorConfig,
   run,
@@ -51,19 +52,38 @@ const runConcurrent = (entry, env) => new Promise((resolveResult) => {
 })
 
 export const cases = async () => {
+  const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
+  T(
+    `${TOOL}: the scheduler contract resolves every terminal task status`,
+    schedulerContract.includes("When a task receipt reaches any terminal status") &&
+      schedulerContract.includes("For `error` and `applied`, it records the distinct unusable result"),
+    "the scheduler contract does not route all terminal task receipts through resolution",
+  )
+  T(
+    `${TOOL}: the scheduler contract gives visible tasks a non-adopting abandon path`,
+    normalizedSchedulerContract.includes("--abandon-known <reservation> --task-id <task_e_id>") &&
+      normalizedSchedulerContract.includes("reservation keeps consuming capacity and blocking its ticket") &&
+      normalizedSchedulerContract.includes("Never assert absence while the UI shows a task"),
+    "the visible task abandon action is missing or releases before terminal observation",
+  )
   const entry = fixture("success")
+  const stdinLog = stage("submit-cloud/success-stdin.txt", "")
   const env = {
     ORBIT_FAKE_CODEX_LOG: entry.log,
     ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a398",
+    ORBIT_FAKE_STDIN_LOG: stdinLog,
   }
   const submitted = check(TOOL, "submits one task and prints one receipt object", argvOf(entry), { status: 0, stdout: /"taskId":"task_e_a398"/ }, { path: entry.path, env })
   const receipt = JSON.parse(submitted.stdout)
   const invocations = readFileSync(entry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   const exec = invocations.find((args) => args[0] === "cloud" && args[1] === "exec")
   T(
-    `${TOOL}: the order is one argv element, keeps its text, and ends with the finishing contract`,
-    exec?.at(-1).startsWith("Implement the measured cloud path.") && exec.at(-1).endsWith("Delivery happens outside the container.\n"),
-    JSON.stringify(exec),
+    `${TOOL}: the order goes through stdin and ends with the finishing contract`,
+    exec?.at(-1) === receipt.baseSha &&
+      readFileSync(stdinLog, "utf8").startsWith("Implement the measured cloud path.") &&
+      readFileSync(stdinLog, "utf8").endsWith("Delivery happens outside the container.\n"),
+    `${JSON.stringify(exec)}\n${readFileSync(stdinLog, "utf8")}`,
   )
   const branchIndex = exec?.indexOf("--branch") ?? -1
   T(
@@ -88,6 +108,77 @@ export const cases = async () => {
       receipt.repositoryKey === "ui" &&
       readdirSync(join(entry.repo.path, ".git", "orbit-cloud", "receipts")).length === 1,
     JSON.stringify(receipt),
+  )
+
+  const largeOrder = fixture("large-order")
+  writeFileSync(largeOrder.order, `${"x".repeat(40_000)}\n`)
+  const largeOrderStdin = stage("submit-cloud/large-order-stdin.txt", "")
+  const largeOrderResult = run(TOOL, argvOf(largeOrder), {
+    path: largeOrder.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: largeOrder.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_aa398",
+      ORBIT_FAKE_STDIN_LOG: largeOrderStdin,
+    },
+  })
+  const largeOrderInvocations = readFileSync(largeOrder.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const largeOrderExec = largeOrderInvocations.find((args) => args[0] === "cloud" && args[1] === "exec")
+  T(
+    `${TOOL}: an order larger than the Windows argv limit is submitted intact through stdin`,
+    largeOrderResult.status === 0 &&
+      readFileSync(largeOrderStdin, "utf8").startsWith("x".repeat(40_000)) &&
+      readFileSync(largeOrderStdin, "utf8").endsWith("Delivery happens outside the container.\n") &&
+      largeOrderExec.every((argument) => argument.length < 1000),
+    `exit ${largeOrderResult.status}: ${largeOrderResult.stdout || largeOrderResult.stderr}\n${JSON.stringify(largeOrderExec)}`,
+  )
+
+  const interruptedTransition = fixture("interrupted-transition")
+  const transitionDirectory = join(interruptedTransition.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(transitionDirectory, { recursive: true })
+  const transitionReservationId = "00000000-0000-0000-0000-000000000398"
+  const transitionTaskId = "task_e_cc398"
+  const transitionReservationPath = join(transitionDirectory, `reservation-${transitionReservationId}.json`)
+  const transitionMirrorPath = join(transitionDirectory, `${transitionTaskId}.json`)
+  const transitionScratchPath = stage("submit-cloud/interrupted-transition-receipt.json", "")
+  const transitionBaseSha = interruptedTransition.repo.git(["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(transitionReservationPath, JSON.stringify({
+    kind: "submission-reservation",
+    reservationId: transitionReservationId,
+    submissionState: "confirmed",
+    taskId: transitionTaskId,
+    taskUrl: `https://chatgpt.com/codex/tasks/${transitionTaskId}`,
+    environmentId: interruptedTransition.config.cloud.environmentId,
+    repositoryKey: interruptedTransition.config.cloud.repositoryKey,
+    ticket: "#398",
+    branch: "main",
+    baseSha: transitionBaseSha,
+    orderFile: interruptedTransition.order,
+    worktree: interruptedTransition.repo.path,
+    submittedAt: new Date().toISOString(),
+    deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    receiptPath: transitionScratchPath,
+    mirrorPath: transitionMirrorPath,
+  }))
+  const transitionResult = run(TOOL, argvOf(interruptedTransition), {
+    path: interruptedTransition.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: interruptedTransition.log,
+      ORBIT_FAKE_LIST: taskPage([task(transitionTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_dead",
+    },
+  })
+  const transitionedMirror = JSON.parse(readFileSync(transitionMirrorPath, "utf8"))
+  const transitionedScratch = JSON.parse(readFileSync(transitionScratchPath, "utf8"))
+  T(
+    `${TOOL}: an interrupted reservation to receipt transition reconciles to one governing task receipt`,
+    transitionResult.status === 3 &&
+      !existsSync(transitionReservationPath) &&
+      readdirSync(transitionDirectory).filter((entry) => entry.endsWith(".json")).length === 1 &&
+      transitionedMirror.kind === "task-receipt" &&
+      transitionedMirror.transitionReservationId === transitionReservationId &&
+      transitionedScratch.taskId === transitionTaskId,
+    `exit ${transitionResult.status}: ${transitionResult.stdout || transitionResult.stderr}\n` +
+      `mirror ${JSON.stringify(transitionedMirror)}\nscratch ${JSON.stringify(transitionedScratch)}`,
   )
 
   const firstRun = fixture("first-run")
@@ -211,6 +302,30 @@ export const cases = async () => {
       readFileSync(missingBranch.log, "utf8") === "" &&
       !existsSync(join(missingBranch.repo.path, ".git", "orbit-cloud")),
     `exit ${missingBranchResult.status}: ${missingBranchResult.stderr}`,
+  )
+
+  const stalledRemote = fixture("stalled-remote")
+  stalledRemote.config.timeouts.gitRemoteSeconds = 0.25
+  writeFileSync(stalledRemote.configPath, `${JSON.stringify(stalledRemote.config, null, 2)}\n`)
+  stalledRemote.repo.git(["remote", "set-url", "origin", "ssh://example.invalid/orbit.git"])
+  const hangingSsh = stage(
+    "submit-cloud/stalled-remote-ssh.mjs",
+    "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)\n",
+  )
+  const stalledRemoteResult = run(TOOL, argvOf(stalledRemote), {
+    path: stalledRemote.path,
+    env: {
+      GIT_SSH_COMMAND: `\"${process.execPath.replaceAll("\\", "/")}\" \"${hangingSsh.replaceAll("\\", "/")}\"`,
+      ORBIT_FAKE_CODEX_LOG: stalledRemote.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_bad3",
+    },
+  })
+  T(
+    `${TOOL}: a stalled git ls-remote fails within its configured wall clock`,
+    stalledRemoteResult.status === 4 &&
+      /git ls-remote timed out after 250ms resolving origin\/main/.test(stalledRemoteResult.stderr) &&
+      readFileSync(stalledRemote.log, "utf8") === "",
+    `exit ${stalledRemoteResult.status}: ${stalledRemoteResult.stdout || stalledRemoteResult.stderr}`,
   )
 
   for (const [label, dash] of [["en", String.fromCharCode(0x2013)], ["em", String.fromCharCode(0x2014)]]) {
@@ -555,6 +670,80 @@ export const cases = async () => {
       invocationsAfterAssertion === invocationsBeforeAssertion,
     `exit ${assertedClear.status}: ${assertedClear.stdout || assertedClear.stderr}\n` +
       JSON.stringify(releasedReservation),
+  )
+
+  const knownOrphan = fixture("known-orphan")
+  const knownOrphanDirectory = join(knownOrphan.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(knownOrphanDirectory, { recursive: true })
+  const knownReservationId = "00000000-0000-0000-0000-000000000401"
+  const knownTaskId = "task_e_ab401"
+  const knownReservationPath = join(knownOrphanDirectory, `reservation-${knownReservationId}.json`)
+  writeFileSync(knownReservationPath, JSON.stringify({
+    kind: "submission-reservation",
+    reservationId: knownReservationId,
+    submissionState: "unknown",
+    environmentId: knownOrphan.config.cloud.environmentId,
+    repositoryKey: knownOrphan.config.cloud.repositoryKey,
+    ticket: "#398",
+    branch: "main",
+    baseSha: knownOrphan.repo.git(["rev-parse", "HEAD"]).stdout.trim(),
+    orderFile: knownOrphan.order,
+    worktree: knownOrphan.repo.path,
+    submittedAt: new Date().toISOString(),
+    deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    mirrorPath: knownReservationPath,
+  }))
+  const contradictoryClearResult = run(TOOL, [
+    "--clear-unknown",
+    knownReservationPath,
+    "--assert-no-task-exists",
+    "--task-id",
+    knownTaskId,
+  ], { path: knownOrphan.path })
+  const knownAbandonResult = run(TOOL, ["--abandon-known", knownReservationPath, "--task-id", knownTaskId], {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "pending", 0)]),
+    },
+  })
+  const pendingKnownReservation = JSON.parse(readFileSync(knownReservationPath, "utf8"))
+  const blockedKnownResult = run(TOOL, argvOf(knownOrphan), {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_ac401",
+    },
+  })
+  const releasedKnownResult = run(TOOL, argvOf(knownOrphan), {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "error", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_ac401",
+    },
+  })
+  const releasedKnownReservation = JSON.parse(readFileSync(knownReservationPath, "utf8"))
+  T(
+    `${TOOL}: a visible orphan is tracked without adoption and releases only after terminal observation`,
+    contradictoryClearResult.status === 2 &&
+      /cannot be combined.*--task-id/.test(contradictoryClearResult.stderr) &&
+      knownAbandonResult.status === 0 &&
+      /KNOWN_TASK_ABANDONED/.test(knownAbandonResult.stdout) &&
+      pendingKnownReservation.submissionState === "known-task-abandoned" &&
+      pendingKnownReservation.released === undefined &&
+      blockedKnownResult.status === 3 &&
+      /wait for its terminal status/.test(blockedKnownResult.stderr) &&
+      releasedKnownResult.status === 0 &&
+      releasedKnownReservation.submissionState === "released" &&
+      releasedKnownReservation.terminal?.status === "error" &&
+      releasedKnownReservation.released?.by === "scheduler",
+    `contradictory clear ${contradictoryClearResult.status}: ${contradictoryClearResult.stderr}\n` +
+      `abandon ${knownAbandonResult.status}: ${knownAbandonResult.stdout || knownAbandonResult.stderr}\n` +
+      `blocked ${blockedKnownResult.status}: ${blockedKnownResult.stdout || blockedKnownResult.stderr}\n` +
+      `released ${releasedKnownResult.status}: ${releasedKnownResult.stdout || releasedKnownResult.stderr}\n` +
+      JSON.stringify(releasedKnownReservation),
   )
 
   const listTimeout = fixture("list-timeout")
