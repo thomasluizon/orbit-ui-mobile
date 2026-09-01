@@ -14,12 +14,14 @@ import {
   assertSameGitRepository,
   cloudOrder,
   cloudStateRoot,
+  isTerminalTaskStatus,
   listCloudTasks,
   mirrorPathFor,
   parseTaskUrl,
   persistReceipt,
   persistReconciledReceipt,
   readJsonFile,
+  receiptIsInFlight,
   refreshReceipts,
   reservationPathFor,
   runCodex,
@@ -38,16 +40,17 @@ cloud checkout is pinned to that commit while the receipt keeps the branch as co
 It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
-URL, that unknown attempt consumes capacity and blocks the same ticket. --clear-unknown lists the
-environment and refuses to remove the reservation while any non terminal task lacks an existing
-receipt. Any orphaned cloud task is abandoned rather than adopted, and its diff is never applied.
+URL, that unknown attempt consumes capacity and blocks the same ticket. --clear-unknown requires two
+environment listings separated by timeouts.pollSeconds before absence is trusted, and refuses to
+remove the reservation while any non terminal task lacks an existing receipt. Any orphaned cloud
+task is abandoned rather than adopted, and its diff is never applied.
 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error,
             3 cloud capacity is full or recovery safety blocks clearing,
             4 a Codex cloud command timed out, 5 receipt lock acquisition timed out
 
-  --clear-unknown <file>      remove an unknown reservation once no possible live orphan remains
+  --clear-unknown <file>      remove a reservation after a bounded two-list visibility check
   --help, -h                  print this usage and exit 0`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -146,13 +149,13 @@ if (clearArgument) {
     fail(2, error.message)
   }
 
-  try {
+  const listPossibleOrphans = async () => {
     const tasks = await listCloudTasks(codexCommand, reservation.environmentId, {
       timeoutMs: config.timeouts.cloudCommandMinutes * 60 * 1000,
     })
-    const possibleOrphans = tasks.filter((task) =>
-      task.status !== "ready" && !accountedTaskIds.has(task.id),
-    )
+    return tasks.filter((task) => !isTerminalTaskStatus(task.status) && !accountedTaskIds.has(task.id))
+  }
+  const refusePossibleOrphans = (possibleOrphans) => {
     if (possibleOrphans.length > 0) {
       const taskLabel = possibleOrphans.length === 1 ? "task" : "tasks"
       fail(
@@ -162,6 +165,15 @@ if (clearArgument) {
         `codex cloud list before clearing`,
       )
     }
+  }
+  try {
+    refusePossibleOrphans(await listPossibleOrphans())
+    console.error(
+      `No possible live orphan was visible. Waiting ${config.timeouts.pollSeconds} seconds before ` +
+      `a second full listing because codex cloud list does not guarantee read after create visibility.`,
+    )
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, config.timeouts.pollSeconds * 1000))
+    refusePossibleOrphans(await listPossibleOrphans())
   } catch (error) {
     if (error instanceof CodexTimeoutError) fail(4, error.message)
     fail(1, error.message)
@@ -169,7 +181,12 @@ if (clearArgument) {
 
   unlinkSync(reservationFile)
   releaseReservationLock()
-  console.log(JSON.stringify({ outcome: "UNKNOWN_SUBMISSION_CLEARED", reservationId: reservation.reservationId }))
+  console.log(JSON.stringify({
+    outcome: "UNKNOWN_SUBMISSION_CLEARED",
+    reservationId: reservation.reservationId,
+    traversals: 2,
+    observationWindowSeconds: config.timeouts.pollSeconds,
+  }))
   process.exit(0)
 }
 
@@ -278,28 +295,20 @@ if (existingReceipts.length > 0) {
       persistReceipt(receipt, stablePath)
       return receipt
     })
-    const blockedTicket = reconciledReceipts.find((receipt) =>
-      receipt.ticket === ticket && !receipt.abandoned && !receipt.materialized,
-    )
+    const blockedTicket = reconciledReceipts.find((receipt) => receipt.ticket === ticket && receiptIsInFlight(receipt))
     if (blockedTicket) {
       const blockedState = blockedTicket.kind === "submission-reservation"
         ? `unknown submission reservation at ${blockedTicket.mirrorPath}`
-        : blockedTicket.terminal?.status === "ready"
-          ? `task ${blockedTicket.taskId} is ready but not materialized`
-          : `task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
+        : `task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
       const nextAction = blockedTicket.kind === "submission-reservation"
         ? "clear it after inspecting cloud tasks"
-        : blockedTicket.terminal?.status === "ready"
-          ? "materialize it"
-          : "wait for it to finish"
+        : "wait for it to finish"
       fail(
         3,
         `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
       )
     }
-    const inFlight = reconciledReceipts.filter((receipt) =>
-      !receipt.abandoned && receipt.terminal?.status !== "ready",
-    )
+    const inFlight = reconciledReceipts.filter(receiptIsInFlight)
     if (inFlight.length >= config.caps.cloudParallelTasks) {
       fail(
         3,

@@ -207,6 +207,26 @@ export const cases = () => {
     `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}`,
   )
 
+  for (const [status, outcome, message] of [
+    ["error", "CLOUD_TASK_ERROR", "failed; no diff will exist"],
+    ["applied", "CLOUD_TASK_APPLIED", "already applied elsewhere; it will not be applied again"],
+  ]) {
+    const terminal = fixture(`terminal-${status}`, { taskId: status === "error" ? "task_e_e2" : "task_e_a22" })
+    const terminalResult = invoke(terminal, [task(terminal.receipt.taskId, status, status === "applied" ? 1 : 0)])
+    const terminalInvocations = readFileSync(terminal.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    const terminalReceipt = JSON.parse(readFileSync(terminal.receiptPath, "utf8"))
+    T(
+      `${TOOL}: ${status} is a distinct terminal outcome and never runs cloud apply`,
+      terminalResult.status === 3 &&
+        terminalResult.stdout.includes(`"outcome":"${outcome}"`) &&
+        terminalResult.stdout.includes(message) &&
+        terminalReceipt.terminal?.status === status &&
+        !terminalInvocations.some((args) => args[0] === "cloud" && args[1] === "apply"),
+      `exit ${terminalResult.status}: ${terminalResult.stdout || terminalResult.stderr}\n` +
+        `${JSON.stringify(terminalInvocations)}\n${JSON.stringify(terminalReceipt)}`,
+    )
+  }
+
   const expired = fixture("expired", {
     taskId: "task_e_f1",
     deadline: "2026-08-31T17:01:00.000Z",

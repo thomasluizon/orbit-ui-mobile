@@ -20,8 +20,16 @@ const CLOUD_LIST_PAGE_SIZE = 20
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const TASK_ID = /^task_e_[0-9a-f]+$/
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
-const OBSERVED_STATUSES = new Set(["pending", "ready"])
+// Codex CLI 0.151.0 TaskStatus source: github.com/openai/codex/blob/rust-v0.151.0/codex-rs/cloud-tasks-client/src/api.rs
+const TASK_STATUSES = new Set(["pending", "ready", "applied", "error"])
+const TERMINAL_TASK_STATUSES = new Set(["ready", "applied", "error"])
 const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
+
+export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
+
+export const receiptIsInFlight = (receipt) => (
+  !receipt.abandoned && !receipt.materialized && receipt.terminal === undefined
+)
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 
@@ -139,6 +147,9 @@ const validateTask = (task) => {
   }
   if (typeof task.status !== "string") {
     throw new Error(`codex cloud list task ${task.id} carries no string status`)
+  }
+  if (!TASK_STATUSES.has(task.status)) {
+    throw new Error(`task ${task.id} returned unmeasured status ${JSON.stringify(task.status)}`)
   }
   if (
     typeof task.updated_at !== "string" ||
@@ -324,10 +335,10 @@ const deadlinePassed = (receipt, now) => {
   return now.getTime() > deadline
 }
 
-const observedReadyByDeadline = (receipt) => {
+const observedTerminalByDeadline = (receipt) => {
   const deadline = Date.parse(receipt.deadline)
   if (!Number.isFinite(deadline)) throw new Error(`receipt ${receipt.taskId} carries an invalid deadline`)
-  return typeof receipt.firstReadyObservedAt === "string" && Date.parse(receipt.firstReadyObservedAt) <= deadline
+  return typeof receipt.terminal?.at === "string" && Date.parse(receipt.terminal.at) <= deadline
 }
 
 export const refreshReceipt = (receipt, task, now = new Date()) => {
@@ -342,14 +353,12 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
     return updated
   }
   if (task) {
-    if (!OBSERVED_STATUSES.has(task.status)) {
-      throw new Error(`task ${task.id} returned unmeasured status ${JSON.stringify(task.status)}`)
-    }
     updated.lastObserved = { at: observedAt, updatedAt: task.updated_at, status: task.status, summary: task.summary }
-    if (task.status === "ready") {
-      updated.firstReadyObservedAt ??= observedAt
+    if (isTerminalTaskStatus(task.status)) {
+      if (task.status === "ready") updated.firstReadyObservedAt ??= observedAt
+      const firstTerminalObservedAt = updated.terminal?.at ?? updated.firstReadyObservedAt ?? observedAt
       updated.terminal = {
-        at: updated.firstReadyObservedAt,
+        at: firstTerminalObservedAt,
         observedAt,
         updatedAt: task.updated_at,
         status: task.status,
@@ -361,17 +370,17 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
     !updated.abandoned &&
     !updated.materialized &&
     deadlinePassed(updated, now) &&
-    !observedReadyByDeadline(updated)
+    !observedTerminalByDeadline(updated)
   ) {
     updated.abandoned = {
       at: observedAt,
       lastObservedStatus: task?.status ?? updated.lastObserved?.status ?? "not_listed",
     }
   }
-  if (task?.status === "ready") {
+  if (task && isTerminalTaskStatus(task.status)) {
     if (updated.abandoned) {
       updated.lateTerminal = {
-        at: updated.firstReadyObservedAt,
+        at: updated.terminal.at,
         observedAt,
         updatedAt: task.updated_at,
         status: task.status,
@@ -385,7 +394,7 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
 export const refreshReceipts = (receipts, tasks, now = new Date()) => {
   const taskById = new Map(tasks.map((task) => [task.id, task]))
   const updated = receipts.map((receipt) => refreshReceipt(receipt, taskById.get(receipt.taskId), now))
-  const inFlight = updated.filter((receipt) => !receipt.abandoned && receipt.terminal?.status !== "ready")
+  const inFlight = updated.filter(receiptIsInFlight)
   return { receipts: updated, inFlight }
 }
 

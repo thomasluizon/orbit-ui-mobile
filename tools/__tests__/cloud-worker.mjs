@@ -25,7 +25,7 @@ export const fakeCodex = (label) => {
   writeFileSync(
     script,
     `#!/usr/bin/env node
-import { appendFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
@@ -44,7 +44,12 @@ else if (args[0] === "cloud" && args[1] === "list") {
   if (process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH) {
     writeFileSync(process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH, process.env.ORBIT_FAKE_LIST_PUBLICATION_JSON)
   }
-  process.stdout.write(process.env.ORBIT_FAKE_LIST || '{"tasks":[],"cursor":null}')
+  if (process.env.ORBIT_FAKE_LIST_SEQUENCE) {
+    const sequence = JSON.parse(process.env.ORBIT_FAKE_LIST_SEQUENCE)
+    const index = Number(readFileSync(process.env.ORBIT_FAKE_LIST_INDEX_PATH, "utf8") || 0)
+    writeFileSync(process.env.ORBIT_FAKE_LIST_INDEX_PATH, String(index + 1))
+    process.stdout.write(sequence[Math.min(index, sequence.length - 1)])
+  } else process.stdout.write(process.env.ORBIT_FAKE_LIST || '{"tasks":[],"cursor":null}')
 }
 else if (args[0] === "cloud" && args[1] === "apply") {
   if (process.env.ORBIT_FAKE_APPLY_MODE === "noop") process.exit(0)
@@ -101,6 +106,18 @@ export const cases = async () => {
     "cloud-worker.mjs: pretty-printed list JSON is parsed as one document",
     parsed.tasks.length === 1 && parsed.tasks[0].environment_id === null && parsed.cursor === null,
     JSON.stringify(parsed),
+  )
+
+  let unknownStatusMessage = ""
+  try {
+    cloud.parseTaskList(taskPage([task("task_e_a9", "unknown", 0)]))
+  } catch (error) {
+    unknownStatusMessage = error.message
+  }
+  T(
+    "cloud-worker.mjs: a status outside the Codex TaskStatus type still fails loudly",
+    /returned unmeasured status "unknown"/.test(unknownStatusMessage),
+    unknownStatusMessage,
   )
 
   for (const [label, updatedAt] of [["missing", undefined], ["unparseable", "not-a-timestamp"]]) {
@@ -213,6 +230,21 @@ export const cases = async () => {
     "cloud-worker.mjs: in-flight is derived from non-terminal, non-abandoned receipts",
     fleet.inFlight.map((entry) => entry.taskId).join(",") === "task_e_a1",
     JSON.stringify(fleet),
+  )
+  const terminalFleet = cloud.refreshReceipts(
+    [
+      { ...receipt, taskId: "task_e_c4" },
+      { ...receipt, taskId: "task_e_d5" },
+    ],
+    [task("task_e_c4", "applied", 2), task("task_e_d5", "error", 0)],
+    new Date("2026-08-31T17:30:00.000Z"),
+  )
+  T(
+    "cloud-worker.mjs: applied and error both become terminal and release fleet capacity",
+    terminalFleet.receipts[0].terminal?.status === "applied" &&
+      terminalFleet.receipts[1].terminal?.status === "error" &&
+      terminalFleet.inFlight.length === 0,
+    JSON.stringify(terminalFleet),
   )
   const reservation = cloud.refreshReceipts(
     [{

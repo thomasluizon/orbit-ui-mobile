@@ -19,6 +19,7 @@ const TOOL = "submit-cloud-worker.mjs"
 const fixture = (label) => {
   const codex = fakeCodex(`submit-${label}`)
   const config = cloudConfig(codex.command, { real: realOrchestratorConfig(), cloudCeilingMinutes: 45 })
+  config.timeouts.pollSeconds = 0.01
   const repo = stageRepo(`submit-cloud-${label}`)
   config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
   const staged = stageWithConfig(`submit-cloud-${label}`, TOOL, config)
@@ -202,7 +203,9 @@ export const cases = async () => {
     `exit ${capacity.status}: ${capacity.stderr}\n${JSON.stringify(capacityInvocations)}`,
   )
 
-  for (const [state, status] of [["pending", "pending"], ["ready but not materialized", "ready"]]) {
+  {
+    const state = "pending"
+    const status = "pending"
     const retry = fixture(`retry-${status}`)
     const retryReceipts = join(retry.repo.path, ".git", "orbit-cloud", "receipts")
     mkdirSync(retryReceipts, { recursive: true })
@@ -233,6 +236,39 @@ export const cases = async () => {
         retryResult.stderr.includes(`task ${taskId} is ${state}`) &&
         !cloudInvocations.some((args) => args[0] === "cloud" && args[1] === "exec"),
       `exit ${retryResult.status}: ${retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
+    )
+  }
+
+  for (const status of ["ready", "applied", "error"]) {
+    const retry = fixture(`retry-${status}`)
+    const retryReceipts = join(retry.repo.path, ".git", "orbit-cloud", "receipts")
+    mkdirSync(retryReceipts, { recursive: true })
+    const taskId = status === "ready" ? "task_e_398b" : status === "applied" ? "task_e_398c" : "task_e_398d"
+    writeFileSync(join(retryReceipts, `${taskId}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: retry.config.cloud.environmentId,
+      repositoryKey: retry.config.cloud.repositoryKey,
+      ticket: "#398",
+      deadline: future,
+      worktree: retry.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+    const retryResult = run(TOOL, argvOf(retry), {
+      path: retry.path,
+      env: {
+        ORBIT_FAKE_CODEX_LOG: retry.log,
+        ORBIT_FAKE_LIST: taskPage([task(taskId, status, status === "error" ? 0 : 1)]),
+        ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_cafe",
+      },
+    })
+    const cloudInvocations = readFileSync(retry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    T(
+      `${TOOL}: a terminal ${status} receipt neither blocks its ticket nor consumes capacity`,
+      retryResult.status === 0 &&
+        cloudInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec").length === 1,
+      `exit ${retryResult.status}: ${retryResult.stdout || retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
     )
   }
 
@@ -437,6 +473,54 @@ export const cases = async () => {
       !existsSync(noOrphanPath),
     `timeout ${noOrphanTimeout.status}; clear ${clearedWithoutOrphan.status}: ` +
       `${clearedWithoutOrphan.stdout || clearedWithoutOrphan.stderr}`,
+  )
+
+  const delayedVisibility = fixture("delayed-visibility")
+  delayedVisibility.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(delayedVisibility.configPath, `${JSON.stringify(delayedVisibility.config, null, 2)}\n`)
+  const delayedTaskId = "task_e_a403"
+  const delayedTimeout = run(TOOL, argvOf(delayedVisibility), {
+    path: delayedVisibility.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: delayedVisibility.log,
+      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
+      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${delayedTaskId}`,
+    },
+  })
+  const delayedDirectory = join(delayedVisibility.repo.path, ".git", "orbit-cloud", "receipts")
+  const delayedPath = join(delayedDirectory, readdirSync(delayedDirectory)[0])
+  const delayedListIndex = stage("submit-cloud/delayed-visibility-index.txt", "0")
+  const delayedClear = run(TOOL, ["--clear-unknown", delayedPath], {
+    path: delayedVisibility.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: delayedVisibility.log,
+      ORBIT_FAKE_LIST_INDEX_PATH: delayedListIndex,
+      ORBIT_FAKE_LIST_SEQUENCE: JSON.stringify([
+        taskPage([]),
+        taskPage([task(delayedTaskId, "pending", 0)]),
+      ]),
+    },
+  })
+  const delayedRetry = run(TOOL, argvOf(delayedVisibility), {
+    path: delayedVisibility.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: delayedVisibility.log,
+      ORBIT_FAKE_LIST: taskPage([task(delayedTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+    },
+  })
+  T(
+    `${TOOL}: later visibility inside the observation window preserves the reservation and ticket guard`,
+    delayedTimeout.status === 4 &&
+      delayedClear.status === 3 &&
+      /Waiting 0.01 seconds/.test(delayedClear.stderr) &&
+      /saw 1 unaccounted non terminal task/.test(delayedClear.stderr) &&
+      readFileSync(delayedListIndex, "utf8") === "2" &&
+      existsSync(delayedPath) &&
+      delayedRetry.status === 3 &&
+      /unknown submission reservation/.test(delayedRetry.stderr),
+    `timeout ${delayedTimeout.status}; clear ${delayedClear.status}: ${delayedClear.stderr}\n` +
+      `retry ${delayedRetry.status}: ${delayedRetry.stderr}`,
   )
 
   const listTimeout = fixture("list-timeout")

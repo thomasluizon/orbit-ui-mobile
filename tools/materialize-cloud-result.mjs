@@ -33,7 +33,7 @@ unless --allow-abandoned is explicit. Materialization is serial across the repos
 It never commits, pushes, opens a pull request, or merges.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
-            3 task is not terminal, 4 ready task produced no committed diff, 5 task is abandoned,
+            3 task cannot be materialized, 4 ready task produced no committed diff, 5 task is abandoned,
             6 a Codex cloud command timed out, 7 cloud apply produced an invalid Git landing,
             8 receipt lock acquisition timed out
 
@@ -167,6 +167,12 @@ try {
   }
   receipt = persistConfiguredReceipt(receipt)
 
+  if (task?.status === "error") {
+    fail(3, `cloud task ${receipt.taskId} failed; no diff will exist`, "CLOUD_TASK_ERROR")
+  }
+  if (task?.status === "applied") {
+    fail(3, `cloud task ${receipt.taskId} was already applied elsewhere; it will not be applied again`, "CLOUD_TASK_APPLIED")
+  }
   if (receipt.abandoned && !allowAbandoned) {
     fail(5, `task ${receipt.taskId} was abandoned at ${receipt.abandoned.at}; late results are quarantined`, "ABANDONED")
   }
