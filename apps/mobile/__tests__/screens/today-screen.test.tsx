@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   focusCallback: null as null | (() => void | (() => void)),
   clearSelection: vi.fn(),
   composerEnabled: [] as boolean[],
+  astraOwnership: [] as boolean[],
   date: {
     today: '2026-04-08',
     selectedDate: new Date('2026-04-08T00:00:00'),
@@ -139,7 +140,15 @@ vi.mock('@/components/today/today-date-control', () => ({
 }))
 
 vi.mock('@/components/today/today-astra', () => ({
-  TodayAstra: () => null,
+  TodayAstra: () => {
+    React.useEffect(() => {
+      mocks.astraOwnership.push(true)
+      return () => {
+        mocks.astraOwnership.push(false)
+      }
+    }, [])
+    return React.createElement('TodayAstraOwner')
+  },
 }))
 
 vi.mock('@/components/today/today-modals', () => ({
@@ -202,6 +211,7 @@ describe('Hoje date boundaries', () => {
     vi.clearAllMocks()
     mocks.focusCallback = null
     mocks.composerEnabled.length = 0
+    mocks.astraOwnership.length = 0
     asyncStorageState.values.clear()
     useUIStore.setState({
       isSelectMode: false,
@@ -244,6 +254,30 @@ describe('Hoje date boundaries', () => {
     })
     expect(mocks.clearSelection).toHaveBeenCalledTimes(1)
     expect(mocks.composerEnabled.at(-1)).toBe(false)
+  })
+
+  it('releases the Astra composer and conversation owner when Today blurs', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayAstraOwner')).toHaveLength(0)
+    let blur: void | (() => void)
+    await TestRenderer.act(async () => {
+      blur = mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayAstraOwner')).toHaveLength(1)
+    expect(mocks.astraOwnership).toEqual([true])
+
+    await TestRenderer.act(async () => {
+      blur?.()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayAstraOwner')).toHaveLength(0)
+    expect(mocks.astraOwnership).toEqual([true, false])
   })
 
   it('marks future days without blocking navigation', () => {

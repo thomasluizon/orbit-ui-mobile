@@ -180,10 +180,12 @@ export default function TodayScreen() {
           <CapacityNotice message={t(boundaryKey)} />
         </View>
       ) : null}
-      <TodayAstra
-        isTodaySelected={date.dateStr === date.today}
-        suppressed={isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
-      />
+      {todayFocused ? (
+        <TodayAstra
+          isTodaySelected={date.dateStr === date.today}
+          suppressed={isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+        />
+      ) : null}
     </>
   )
 
