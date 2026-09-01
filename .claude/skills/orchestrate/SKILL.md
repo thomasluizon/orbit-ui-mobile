@@ -535,9 +535,9 @@ is sent through stdin so its size is not constrained by the Windows command line
 
 Under combined `--sleep --cloud`, immediately launch `--watch` as a background task for every
 confirmed receipt. The watcher registers its own live PID in the orchestrating checkout, polls the
-Cloud task, and reconciles each observation into the receipt. It stays alive until the task reaches
-`ready`, `applied`, or `error`, or until the local deadline records abandonment. Its exit wakes the
-session and starts the next scheduler pass, which materializes or quarantines the result. Name that
+Cloud task, and reconciles each observation into the receipt. The local deadline records result
+abandonment, but the watcher stays alive until the remote task reaches `ready`, `applied`, or `error`.
+Its exit wakes the session and starts the next scheduler pass, which materializes or quarantines the result. Name that
 watcher as the turn's final live wake source. Submission alone is not a wake source.
 
 Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
@@ -557,13 +557,15 @@ not move while the task was running and moved at the transition. The CLI referen
 the field or its mutation rules, so the harness records and validates it only as diagnostic data.
 On each scheduler pass, and inside each live receipt watcher, read the stable receipts and
 `codex cloud list --env <id> --json`. Fleet
-capacity is unknown submissions plus receipts that are neither terminal nor abandoned. Same ticket
-admission is stricter: every unmaterialized and unabandoned receipt blocks, including `ready`.
+capacity is unknown submissions plus every remotely nonterminal receipt, including a locally
+abandoned one. Same ticket Cloud admission is stricter: every unresolved receipt blocks, including
+`ready` and an abandoned remote task that is still pending.
 Never maintain a counter. When this harness first observes `ready`, record that local observation
 time and keep it unchanged. The receipt is on time only when that first observation is at or before
 its deadline. Otherwise, once the deadline passes, write `abandoned` with the time and last observed
-status. A successfully materialized receipt is never abandoned by a later refresh. Abandonment frees
-its slot by definition. Requeue the ticket through the local path by default.
+status. A successfully materialized receipt is never abandoned by a later refresh. Abandonment
+quarantines the result and permits a local requeue, but it releases Cloud capacity and same-ticket
+Cloud admission only after terminal observation. Requeue the ticket through the local path by default.
 
 An abandoned task may finish late. Record that terminal observation but keep the result
 quarantined. `materialize-cloud-result.mjs` refuses it unless `--allow-abandoned` is explicit, and
@@ -584,6 +586,13 @@ rerun the same `materialize-cloud-result.mjs --receipt <f>` command. The retry f
 unified diff, compares it byte-for-byte with the staged Git patch, and records materialization without
 applying the cloud task a second time. The pre-apply marker identifies the interrupted attempt; it is
 not asked to contain evidence that could only be written after the interruption point.
+
+A durably materialized receipt is an idempotent success. A retry returns `MATERIALIZED`, removes a
+stale recovery marker when possible, and never calls Cloud apply again. If a `ready` task applies no
+changes or apply fails without touching the worktree, the tool reads the authoritative raw task diff.
+Only the measured no-diff response, exit 1 with zero stdout bytes and the exact task-bound no-diff
+stderr, records `CLOUD_TASK_EMPTY` as unusable and releases ticket admission. Any other failure or
+a non-empty diff keeps the task unresolved.
 
 ### Local execution
 

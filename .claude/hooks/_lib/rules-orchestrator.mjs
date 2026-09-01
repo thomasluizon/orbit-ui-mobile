@@ -16,7 +16,7 @@ import { lstatSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
 
-import { stripHeredocBodies } from "./rules-git.mjs"
+import { stripHeredocBodies, unquotedHeredocRunsCommand } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
@@ -175,12 +175,13 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   if (env[LAUNCHER_MARKER]) return null
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
+  const heredocRunsCommand = unquotedHeredocRunsCommand(command)
   for (const segment of segmentsOf(command)) {
     const binary = invokedBinary(segment)
     if (!ENGINE_BINARIES.has(binary)) continue
     const safeWords = safeEngineWords(segment)
-    if (isSafeCloudRead(safeWords)) continue
-    if (isSafeZeroCostInvocation(safeWords)) continue
+    if (isSafeCloudRead(safeWords) && !heredocRunsCommand) continue
+    if (isSafeZeroCostInvocation(safeWords) && !heredocRunsCommand) continue
     return blocked(
       command,
       "An orchestrating session may not start a model session outside the launcher. Every worker\n" +

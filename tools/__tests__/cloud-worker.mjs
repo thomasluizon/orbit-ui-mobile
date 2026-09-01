@@ -60,10 +60,15 @@ else if (args[0] === "cloud" && args[1] === "diff") {
     process.stderr.write(process.env.ORBIT_FAKE_DIFF_FAILURE)
     process.exit(1)
   }
-  process.stdout.write(process.env.ORBIT_FAKE_DIFF || "")
+  if (process.env.ORBIT_FAKE_DIFF === undefined) {
+    process.stderr.write("Error: No diff available for task " + args[2] + "; it may still be running.\\n")
+    process.exit(1)
+  }
+  process.stdout.write(process.env.ORBIT_FAKE_DIFF)
 }
 else if (args[0] === "cloud" && args[1] === "apply") {
   if (process.env.ORBIT_FAKE_APPLY_MODE === "noop") process.exit(0)
+  if (process.env.ORBIT_FAKE_APPLY_MODE === "fail-noop") process.exit(23)
   if (process.env.ORBIT_FAKE_APPLY_MODE === "move-head") {
     const committed = spawnSync("git", ["commit", "--allow-empty", "-q", "-m", "fake apply moved head"], { encoding: "utf8" })
     process.exit(committed.status || 0)
@@ -251,9 +256,15 @@ export const cases = async () => {
     new Date("2026-08-31T17:30:00.000Z"),
   )
   T(
-    "cloud-worker.mjs: in-flight is derived from non-terminal, non-abandoned receipts",
-    fleet.inFlight.map((entry) => entry.taskId).join(",") === "task_e_a1",
+    "cloud-worker.mjs: local abandonment keeps a remote pending task in fleet capacity and ticket admission",
+    fleet.inFlight.map((entry) => entry.taskId).join(",") === "task_e_a1,task_e_b2" &&
+      cloud.receiptBlocksTicketAdmission(fleet.receipts[1]),
     JSON.stringify(fleet),
+  )
+  T(
+    "cloud-worker.mjs: terminal observation releases an abandoned task from Cloud ownership",
+    !cloud.receiptConsumesFleetCapacity(late) && !cloud.receiptBlocksTicketAdmission(late),
+    JSON.stringify(late),
   )
   const readyReceipt = cloud.refreshReceipt(
     { ...receipt, taskId: "task_e_b3" },
@@ -334,11 +345,39 @@ export const cases = async () => {
   )
   T(
     "cloud-worker.mjs: a stale mirror cannot erase newer scratch recovery markers",
-    reconciled.abandoned === recoveryState.abandoned &&
-      reconciled.terminal === recoveryState.terminal &&
-      reconciled.materialized === recoveryState.materialized,
+    reconciled.abandoned?.at === recoveryState.abandoned.at &&
+      reconciled.terminal?.at === recoveryState.terminal.at &&
+      reconciled.terminal?.observedAt === recoveryState.terminal.observedAt &&
+      reconciled.materialized?.at === recoveryState.materialized.at,
     JSON.stringify(reconciled),
   )
+
+  const onTimeReady = {
+    taskId: "task_e_a2",
+    deadline: "2026-08-31T18:00:00.000Z",
+    firstReadyObservedAt: "2026-08-31T17:59:00.000Z",
+    terminal: { at: "2026-08-31T17:59:00.000Z", observedAt: "2026-08-31T17:59:00.000Z", status: "ready" },
+  }
+  const staleAbandonment = {
+    taskId: "task_e_a2",
+    deadline: "2026-08-31T18:00:00.000Z",
+    abandoned: { at: "2026-08-31T18:01:00.000Z", lastObservedStatus: "pending" },
+  }
+  for (const [label, first, second] of [
+    ["ready then abandonment", onTimeReady, staleAbandonment],
+    ["abandonment then ready", staleAbandonment, onTimeReady],
+  ]) {
+    const deadlineMirror = stage(`cloud-worker/${label.replaceAll(" ", "-")}.json`, `${JSON.stringify(first)}\n`)
+    const deadlineResult = cloud.persistReconciledReceipt(second, deadlineMirror, [], { lockTimeoutMs: 1000 })
+    T(
+      `cloud-worker.mjs: ${label} reconciliation keeps the on-time terminal classification`,
+      deadlineResult.firstReadyObservedAt === onTimeReady.firstReadyObservedAt &&
+        deadlineResult.terminal?.at === onTimeReady.terminal.at &&
+        deadlineResult.abandoned === undefined &&
+        deadlineResult.lateTerminal === undefined,
+      JSON.stringify(deadlineResult),
+    )
+  }
 
   const writerDirectory = join(root, "cloud-worker", "interleaved-receipt-writers")
   mkdirSync(writerDirectory, { recursive: true })

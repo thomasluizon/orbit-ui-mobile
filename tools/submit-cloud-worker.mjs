@@ -180,7 +180,9 @@ if (watchArgument) {
     }
   }
   const watchOutcome = (receipt) => {
-    if (receipt.abandoned) return "ABANDONED"
+    if (receipt.abandoned && isTerminalTaskStatus(receipt.terminal?.status)) {
+      return `ABANDONED_TERMINAL_${receipt.terminal.status.toUpperCase()}`
+    }
     if (receipt.materialized || receipt.released || receipt.unusable) return "RESOLVED"
     if (isTerminalTaskStatus(receipt.terminal?.status)) return `TERMINAL_${receipt.terminal.status.toUpperCase()}`
     return null

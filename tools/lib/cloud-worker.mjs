@@ -29,7 +29,8 @@ export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(statu
 export const isCloudTaskId = (value) => typeof value === "string" && TASK_ID.test(value)
 
 const receiptIsResolved = (receipt) => Boolean(
-  receipt.abandoned || receipt.materialized || receipt.released || receipt.unusable,
+  receipt.materialized || receipt.released || receipt.unusable ||
+  (receipt.abandoned && isTerminalTaskStatus(receipt.terminal?.status)),
 )
 
 // Fleet capacity measures remote compute, so a terminal task no longer consumes a slot.
@@ -123,6 +124,7 @@ export const runCodex = async (command, args, options = {}) => {
     maxBuffer: MAX_OUTPUT_BYTES,
     input: options.input,
     timeoutMs: options.timeoutMs,
+    encoding: options.encoding,
   })
   return {
     status: result.status,
@@ -307,14 +309,34 @@ const newestRecord = (scratchRecord, mirroredRecord) => {
 
 export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
   const reconciled = { ...scratchReceipt, ...mirroredReceipt }
-  for (const field of ["lastObserved", "terminal", "abandoned", "lateTerminal", "materialized", "released", "unusable"]) {
+  for (const field of ["lastObserved", "abandoned", "lateTerminal", "materialized", "released", "unusable"]) {
     const record = newestRecord(scratchReceipt[field], mirroredReceipt[field])
     if (record !== undefined) reconciled[field] = record
+  }
+  const terminalRecords = [scratchReceipt.terminal, mirroredReceipt.terminal].filter(Boolean)
+  if (terminalRecords.length > 0) {
+    const latestTerminal = newestRecord(scratchReceipt.terminal, mirroredReceipt.terminal)
+    const firstTerminalAt = terminalRecords
+      .map((record) => record.at)
+      .filter((value) => typeof value === "string" && Number.isFinite(Date.parse(value)))
+      .sort()[0]
+    reconciled.terminal = firstTerminalAt ? { ...latestTerminal, at: firstTerminalAt } : latestTerminal
   }
   const firstReadyObservations = [scratchReceipt.firstReadyObservedAt, mirroredReceipt.firstReadyObservedAt]
     .filter((value) => typeof value === "string")
     .sort()
   if (firstReadyObservations.length > 0) reconciled.firstReadyObservedAt = firstReadyObservations[0]
+  const deadline = Date.parse(reconciled.deadline)
+  const firstTerminal = Date.parse(reconciled.terminal?.at ?? "")
+  if (
+    isTerminalTaskStatus(reconciled.terminal?.status) &&
+    Number.isFinite(deadline) &&
+    Number.isFinite(firstTerminal) &&
+    firstTerminal <= deadline
+  ) {
+    delete reconciled.abandoned
+    delete reconciled.lateTerminal
+  }
   return reconciled
 }
 

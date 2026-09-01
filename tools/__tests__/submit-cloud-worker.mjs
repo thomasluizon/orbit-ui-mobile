@@ -158,19 +158,26 @@ export const cases = async () => {
   abandonedWatcherReceipt.deadline = new Date(Date.now() - 1000).toISOString()
   writeFileSync(abandonedWatcherReceipt.receiptPath, JSON.stringify(abandonedWatcherReceipt))
   writeFileSync(abandonedWatcherReceipt.mirrorPath, JSON.stringify(abandonedWatcherReceipt))
+  const abandonedWatcherIndex = stage("submit-cloud/abandoned-watcher-index.txt", "0")
   const abandonedWatcherResult = run(TOOL, ["--watch", abandonedWatcherReceipt.receiptPath], {
     path: abandonedWatcher.path,
     env: {
       ORBIT_FAKE_CODEX_LOG: abandonedWatcher.log,
-      ORBIT_FAKE_LIST: taskPage([task(abandonedWatcherReceipt.taskId, "pending", 0)]),
+      ORBIT_FAKE_LIST_SEQUENCE: JSON.stringify([
+        taskPage([task(abandonedWatcherReceipt.taskId, "pending", 0)]),
+        taskPage([task(abandonedWatcherReceipt.taskId, "ready", 1)]),
+      ]),
+      ORBIT_FAKE_LIST_INDEX_PATH: abandonedWatcherIndex,
     },
   })
   const persistedAbandonment = JSON.parse(readFileSync(abandonedWatcherReceipt.receiptPath, "utf8"))
   T(
-    `${TOOL}: a cloud watcher stays responsible until the local deadline records abandonment`,
+    `${TOOL}: a cloud watcher keeps remote ownership after local abandonment until terminal observation`,
     abandonedWatcherResult.status === 0 &&
-      /"outcome":"ABANDONED"/.test(abandonedWatcherResult.stdout) &&
-      persistedAbandonment.abandoned?.lastObservedStatus === "pending",
+      /"outcome":"ABANDONED_TERMINAL_READY"/.test(abandonedWatcherResult.stdout) &&
+      persistedAbandonment.abandoned?.lastObservedStatus === "pending" &&
+      persistedAbandonment.lateTerminal?.status === "ready" &&
+      Number(readFileSync(abandonedWatcherIndex, "utf8")) >= 2,
     `exit ${abandonedWatcherResult.status}: ${abandonedWatcherResult.stdout || abandonedWatcherResult.stderr}\n` +
       JSON.stringify(persistedAbandonment),
   )
@@ -789,6 +796,16 @@ export const cases = async () => {
     },
   })
   const pendingKnownReservation = JSON.parse(readFileSync(knownReservationPath, "utf8"))
+  const idempotentKnownAbandon = run(TOOL, ["--abandon-known", knownReservationPath, "--task-id", knownTaskId], {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "pending", 0)]),
+    },
+  })
+  const competingKnownAbandon = run(TOOL, ["--abandon-known", knownReservationPath, "--task-id", "task_e_ab402"], {
+    path: knownOrphan.path,
+  })
   const staleClearAfterAbandon = run(TOOL, ["--clear-unknown", knownReservationPath, "--assert-no-task-exists"], {
     path: knownOrphan.path,
   })
@@ -815,6 +832,9 @@ export const cases = async () => {
       /cannot be combined.*--task-id/.test(contradictoryClearResult.stderr) &&
       knownAbandonResult.status === 0 &&
       /KNOWN_TASK_ABANDONED/.test(knownAbandonResult.stdout) &&
+      idempotentKnownAbandon.status === 0 &&
+      competingKnownAbandon.status === 2 &&
+      /already bound to task/.test(competingKnownAbandon.stderr) &&
       staleClearAfterAbandon.status === 2 &&
       /not an unknown cloud submission reservation/.test(staleClearAfterAbandon.stderr) &&
       pendingKnownReservation.submissionState === "known-task-abandoned" &&
@@ -827,10 +847,58 @@ export const cases = async () => {
       releasedKnownReservation.released?.by === "scheduler",
     `contradictory clear ${contradictoryClearResult.status}: ${contradictoryClearResult.stderr}\n` +
       `abandon ${knownAbandonResult.status}: ${knownAbandonResult.stdout || knownAbandonResult.stderr}\n` +
+      `idempotent abandon ${idempotentKnownAbandon.status}: ${idempotentKnownAbandon.stdout || idempotentKnownAbandon.stderr}\n` +
+      `competing abandon ${competingKnownAbandon.status}: ${competingKnownAbandon.stdout || competingKnownAbandon.stderr}\n` +
       `stale clear ${staleClearAfterAbandon.status}: ${staleClearAfterAbandon.stdout || staleClearAfterAbandon.stderr}\n` +
       `blocked ${blockedKnownResult.status}: ${blockedKnownResult.stdout || blockedKnownResult.stderr}\n` +
       `released ${releasedKnownResult.status}: ${releasedKnownResult.stdout || releasedKnownResult.stderr}\n` +
       JSON.stringify(releasedKnownReservation),
+  )
+
+  const recoveryRace = fixture("recovery-race")
+  const recoveryRaceDirectory = join(recoveryRace.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(recoveryRaceDirectory, { recursive: true })
+  const recoveryRaceReservationId = "00000000-0000-0000-0000-000000000402"
+  const recoveryRaceTaskId = "task_e_ab403"
+  const recoveryRacePath = join(recoveryRaceDirectory, `reservation-${recoveryRaceReservationId}.json`)
+  writeFileSync(recoveryRacePath, JSON.stringify({
+    kind: "submission-reservation",
+    reservationId: recoveryRaceReservationId,
+    submissionState: "unknown",
+    environmentId: recoveryRace.config.cloud.environmentId,
+    repositoryKey: recoveryRace.config.cloud.repositoryKey,
+    ticket: "#398",
+    worktree: recoveryRace.repo.path,
+    deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    mirrorPath: recoveryRacePath,
+  }))
+  const racingAbandon = spawnTool(
+    recoveryRace,
+    ["--abandon-known", recoveryRacePath, "--task-id", recoveryRaceTaskId],
+    {
+      ORBIT_FAKE_CODEX_LOG: recoveryRace.log,
+      ORBIT_FAKE_LIST: taskPage([task(recoveryRaceTaskId, "pending", 0)]),
+      ORBIT_FAKE_LIST_DELAY_MS: "300",
+    },
+  )
+  const racingListDeadline = Date.now() + 2000
+  while (!readFileSync(recoveryRace.log, "utf8").includes('"list"') && Date.now() < racingListDeadline) await wait(10)
+  const racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
+    path: recoveryRace.path,
+  })
+  const racingAbandonResult = await racingAbandon.result
+  const racingReservation = JSON.parse(readFileSync(recoveryRacePath, "utf8"))
+  T(
+    `${TOOL}: a coordinated clear cannot erase a task binding while abandon owns the mutation lock`,
+    racingAbandonResult.status === 0 &&
+      racingClear.status === 2 &&
+      /cloud submission is already running/.test(racingClear.stderr) &&
+      racingReservation.submissionState === "known-task-abandoned" &&
+      racingReservation.taskId === recoveryRaceTaskId &&
+      racingReservation.released === undefined,
+    `abandon ${racingAbandonResult.status}: ${racingAbandonResult.stdout || racingAbandonResult.stderr}\n` +
+      `clear ${racingClear.status}: ${racingClear.stdout || racingClear.stderr}\n` +
+      JSON.stringify(racingReservation),
   )
 
   const listTimeout = fixture("list-timeout")

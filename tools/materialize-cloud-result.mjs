@@ -141,6 +141,27 @@ const recordApplyAttempt = (attemptedAt) => {
     fail(2, `could not record the cloud apply attempt; cloud apply was not run: ${error.message}`)
   }
 }
+const clearResolvedRecoveryMarker = () => {
+  if (!existsSync(recoveryPath)) return
+  try {
+    unlinkSync(recoveryPath)
+  } catch (error) {
+    console.error(`receipt resolution is durable but its stale recovery marker remains at ${recoveryPath}: ${error.message}`)
+  }
+}
+const emitMaterialized = ({ recovered = false, alreadyMaterialized = false } = {}) => {
+  clearResolvedRecoveryMarker()
+  console.log(JSON.stringify({
+    outcome: "MATERIALIZED",
+    recovered,
+    alreadyMaterialized,
+    taskId: receipt.taskId,
+    worktree,
+    status: receipt.materialized?.status ?? "",
+    stagedStat: receipt.materialized?.stagedStat ?? "",
+  }))
+  process.exit(0)
+}
 let releaseLock
 try {
   releaseLock = acquireMaterializationLock(stateRoot)
@@ -164,11 +185,24 @@ if (existsSync(mirrorPath) && resolve(mirrorPath) !== receiptPath) {
 }
 receipt = persistConfiguredReceipt(receipt)
 if (receipt.materialized) {
-  fail(2, `task ${receipt.taskId} was already materialized at ${receipt.materialized.at}; cloud apply was not run`)
+  emitMaterialized({ alreadyMaterialized: true })
+}
+if (receipt.unusable) {
+  clearResolvedRecoveryMarker()
+  fail(
+    3,
+    `task ${receipt.taskId} was already resolved as unusable at ${receipt.unusable.at}: ${receipt.unusable.reason}`,
+    "CLOUD_TASK_UNUSABLE",
+  )
 }
 
 const git = (args) => spawnSync("git", ["-C", worktree, ...args], {
   encoding: "utf8",
+  maxBuffer: MAX_GIT_REPORT_BYTES,
+  windowsHide: true,
+})
+const gitRaw = (args) => spawnSync("git", ["-C", worktree, ...args], {
+  encoding: null,
   maxBuffer: MAX_GIT_REPORT_BYTES,
   windowsHide: true,
 })
@@ -179,7 +213,7 @@ const readLocalLanding = () => {
   if (head.error || head.status !== 0) fail(2, `could not read worktree HEAD: ${(head.stderr || head.error?.message || "unknown error").trim()}`)
   const stagedStat = git(["diff", "--cached", "--stat"])
   const stagedDiff = git(["diff", "--cached", "--quiet", "--exit-code"])
-  const stagedPatch = git(["diff", "--cached", "--binary", "--full-index"])
+  const stagedPatch = gitRaw(["diff", "--cached", "--binary", "--full-index"])
   if (
     stagedStat.error || stagedStat.status !== 0 ||
     stagedDiff.error || ![0, 1].includes(stagedDiff.status) ||
@@ -190,7 +224,9 @@ const readLocalLanding = () => {
   return { head, status, stagedStat, stagedDiff, stagedPatch }
 }
 
-const assertExpectedLanding = (landing) => {
+const landingHasStagedDiff = (landing) => landing.stagedDiff.status === 1 && landing.stagedStat.stdout.trim().length > 0
+
+const assertExpectedLanding = (landing, { allowEmpty = false } = {}) => {
   if (landing.head.stdout.trim() !== receipt.baseSha) {
     fail(
       7,
@@ -198,7 +234,7 @@ const assertExpectedLanding = (landing) => {
       "APPLY_MOVED_HEAD",
     )
   }
-  if (landing.stagedDiff.status === 0 || landing.stagedStat.stdout.trim().length === 0) {
+  if (!allowEmpty && !landingHasStagedDiff(landing)) {
     fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
   }
   const unexpectedStatus = landing.status.stdout
@@ -242,6 +278,28 @@ const recovery = assertCleanPreconditionsOrReadRecovery()
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
 const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
+const displayRaw = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : String(value ?? "")
+const readTaskDiffRaw = () => runCodex(codexCommand, ["cloud", "diff", receipt.taskId], {
+  cwd: stateRoot,
+  timeoutMs: codexTimeoutMs,
+  encoding: null,
+})
+const resolveEmptyTaskIfProven = async () => {
+  const remoteDiff = await readTaskDiffRaw()
+  const noDiffMessages = [
+    Buffer.from(`Error: No diff available for task ${receipt.taskId}; it may still be running.\n`),
+    Buffer.from(`Error: No diff available for task ${receipt.taskId}; it may still be running.\r\n`),
+  ]
+  const noDiffProven = !remoteDiff.timedOut &&
+    !remoteDiff.error &&
+    remoteDiff.status === 1 &&
+    remoteDiff.stdout.length === 0 &&
+    noDiffMessages.some((message) => remoteDiff.stderr.equals(message))
+  if (!noDiffProven) return false
+  recordUnusableReceipt("ready", "task has no unified diff")
+  clearResolvedRecoveryMarker()
+  fail(3, `cloud task ${receipt.taskId} is ready but has no unified diff`, "CLOUD_TASK_EMPTY")
+}
 
 try {
   let tasks
@@ -260,10 +318,7 @@ try {
   receipt = persistConfiguredReceipt(receipt)
 
   if (recovery) {
-    const remoteDiff = await runCodex(codexCommand, ["cloud", "diff", receipt.taskId], {
-      cwd: stateRoot,
-      timeoutMs: codexTimeoutMs,
-    })
+    const remoteDiff = await readTaskDiffRaw()
     if (remoteDiff.timedOut) {
       fail(6, `codex cloud diff timed out after ${codexTimeoutMs}ms`, "RECOVERY_DIFF_TIMEOUT")
     }
@@ -271,14 +326,14 @@ try {
       fail(
         7,
         `codex cloud diff could not authenticate the staged landing: ${
-          (remoteDiff.stderr || remoteDiff.stdout || remoteDiff.error?.message || "unknown error").trim()
+          displayRaw(remoteDiff.stderr.length > 0 ? remoteDiff.stderr : remoteDiff.stdout.length > 0 ? remoteDiff.stdout : remoteDiff.error?.message || "unknown error").trim()
         }`,
         "RECOVERY_DIFF_UNAVAILABLE",
       )
     }
     const recoveredLanding = readLocalLanding()
     assertExpectedLanding(recoveredLanding)
-    if (remoteDiff.stdout !== recoveredLanding.stagedPatch.stdout) {
+    if (!remoteDiff.stdout.equals(recoveredLanding.stagedPatch.stdout)) {
       fail(7, "the staged diff does not match the cloud task diff", "RECOVERY_PATCH_MISMATCH")
     }
     const recoveredAt = new Date().toISOString()
@@ -288,16 +343,7 @@ try {
       stagedStat: recoveredLanding.stagedStat.stdout,
     }
     receipt = persistConfiguredReceipt(receipt, true)
-    unlinkSync(recoveryPath)
-    console.log(JSON.stringify({
-      outcome: "MATERIALIZED",
-      recovered: true,
-      taskId: receipt.taskId,
-      worktree,
-      status: recoveredLanding.status.stdout,
-      stagedStat: recoveredLanding.stagedStat.stdout,
-    }))
-    process.exit(0)
+    emitMaterialized({ recovered: true })
   }
 
   if (task?.status === "error") {
@@ -340,6 +386,8 @@ try {
     fail(6, `codex cloud apply timed out after ${codexTimeoutMs}ms`, "APPLY_TIMEOUT")
   }
   if (applied.error || applied.status !== 0) {
+    const failedLanding = readLocalLanding()
+    if (failedLanding.status.stdout.length === 0) await resolveEmptyTaskIfProven()
     try {
       unlinkSync(recoveryPath)
     } catch (error) {
@@ -350,18 +398,15 @@ try {
     fail(1, `codex cloud apply failed with exit ${applied.status ?? "spawn"}: ${(applied.stderr || applied.stdout || applied.error?.message || "unknown error").trim()}`, "APPLY_FAILED")
   }
   const landing = readLocalLanding()
-  assertExpectedLanding(landing)
+  assertExpectedLanding(landing, { allowEmpty: true })
+  if (!landingHasStagedDiff(landing)) {
+    await resolveEmptyTaskIfProven()
+    fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
+  }
   const materializedAt = new Date().toISOString()
   receipt.materialized = { at: materializedAt, status: landing.status.stdout, stagedStat: landing.stagedStat.stdout }
   receipt = persistConfiguredReceipt(receipt, true)
-  unlinkSync(recoveryPath)
-  console.log(JSON.stringify({
-    outcome: "MATERIALIZED",
-    taskId: receipt.taskId,
-    worktree,
-    status: landing.status.stdout,
-    stagedStat: landing.stagedStat.stdout,
-  }))
+  emitMaterialized()
 } finally {
   releaseLock()
 }

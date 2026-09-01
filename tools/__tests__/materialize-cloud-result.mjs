@@ -203,6 +203,7 @@ export const cases = () => {
 
   const abandoned = fixture("abandoned", {
     taskId: "task_e_ab1",
+    deadline: "2026-08-31T17:59:00.000Z",
     abandoned: { at: "2026-08-31T18:00:00.000Z", lastObservedStatus: "pending" },
   })
   const abandonedResult = invoke(abandoned, [task(abandoned.receipt.taskId, "ready", 2)])
@@ -215,9 +216,10 @@ export const cases = () => {
 
   const staleMirror = fixture("stale-mirror", {
     taskId: "task_e_ab2",
+    deadline: "2026-08-31T18:00:00.000Z",
     abandoned: { at: "2026-08-31T18:00:00.000Z", lastObservedStatus: "pending" },
-    terminal: { at: "2026-08-31T17:59:00.000Z", observedAt: "2026-08-31T18:01:00.000Z", status: "ready" },
-    firstReadyObservedAt: "2026-08-31T17:59:00.000Z",
+    terminal: { at: "2026-08-31T18:01:00.000Z", observedAt: "2026-08-31T18:01:00.000Z", status: "ready" },
+    firstReadyObservedAt: "2026-08-31T18:01:00.000Z",
   })
   const staleMirrorDirectory = join(staleMirror.repo.path, ".git", "orbit-cloud", "receipts")
   const staleMirrorPath = join(staleMirrorDirectory, `${staleMirror.receipt.taskId}.json`)
@@ -247,18 +249,27 @@ export const cases = () => {
   })
   const materializedMirrorDirectory = join(alreadyMaterialized.repo.path, ".git", "orbit-cloud", "receipts")
   const materializedMirrorPath = join(materializedMirrorDirectory, `${alreadyMaterialized.receipt.taskId}.json`)
+  const alreadyMaterializedRecoveryPath = recoveryPathOf(alreadyMaterialized)
   mkdirSync(materializedMirrorDirectory, { recursive: true })
   writeFileSync(materializedMirrorPath, `${JSON.stringify({
     ...alreadyMaterialized.receipt,
     materialized: undefined,
   }, null, 2)}\n`)
+  writeFileSync(alreadyMaterializedRecoveryPath, `${JSON.stringify({
+    taskId: alreadyMaterialized.receipt.taskId,
+    baseSha: alreadyMaterialized.receipt.baseSha,
+    worktree: alreadyMaterialized.receipt.worktree,
+    attemptedAt: "2026-08-31T18:01:00.000Z",
+  })}\n`)
   const alreadyMaterializedResult = invoke(alreadyMaterialized, [task(alreadyMaterialized.receipt.taskId, "ready", 1)])
   const healedMaterializedMirror = JSON.parse(readFileSync(materializedMirrorPath, "utf8"))
   T(
-    `${TOOL}: recovered materialized state heals the mirror and prevents a second apply`,
-    alreadyMaterializedResult.status === 2 &&
-      /already materialized/.test(alreadyMaterializedResult.stderr) &&
+    `${TOOL}: recovered materialized state is idempotent success and prevents a second apply`,
+    alreadyMaterializedResult.status === 0 &&
+      /"outcome":"MATERIALIZED"/.test(alreadyMaterializedResult.stdout) &&
+      /"alreadyMaterialized":true/.test(alreadyMaterializedResult.stdout) &&
       healedMaterializedMirror.materialized?.at === alreadyMaterialized.receipt.materialized.at &&
+      !existsSync(alreadyMaterializedRecoveryPath) &&
       readFileSync(alreadyMaterialized.log, "utf8") === "",
     `exit ${alreadyMaterializedResult.status}: ${alreadyMaterializedResult.stdout || alreadyMaterializedResult.stderr}\n` +
       `mirror ${JSON.stringify(healedMaterializedMirror)}`,
@@ -304,8 +315,10 @@ export const cases = () => {
   const expiredResult = invoke(expired, [task(expired.receipt.taskId, "pending", 0)])
   const expiredReceipt = JSON.parse(readFileSync(expired.receiptPath, "utf8"))
   T(
-    `${TOOL}: a past-deadline pending task is abandoned locally and frees its derived slot`,
-    expiredResult.status === 5 && expiredReceipt.abandoned?.lastObservedStatus === "pending",
+    `${TOOL}: a past-deadline pending task is quarantined locally but retains remote ownership`,
+    expiredResult.status === 5 &&
+      expiredReceipt.abandoned?.lastObservedStatus === "pending" &&
+      receiptBlocksTicketAdmission(expiredReceipt),
     `exit ${expiredResult.status}: ${expiredResult.stdout || expiredResult.stderr}\n${JSON.stringify(expiredReceipt)}`,
   )
 
@@ -381,12 +394,42 @@ export const cases = () => {
   const noOp = fixture("no-op", { taskId: "task_e_a13" })
   const noOpResult = invoke(noOp, [task(noOp.receipt.taskId, "ready", 1)], [], { ORBIT_FAKE_APPLY_MODE: "noop" })
   const noOpReceipt = JSON.parse(readFileSync(noOp.receiptPath, "utf8"))
+  const noOpRetry = invoke(noOp, [task(noOp.receipt.taskId, "ready", 1)])
+  const noOpInvocations = readFileSync(noOp.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(
-    `${TOOL}: an apply that stages nothing cannot record materialization`,
-    noOpResult.status === 7 &&
-      /"outcome":"APPLY_NO_CHANGES"/.test(noOpResult.stdout) &&
-      noOpReceipt.materialized === undefined,
-    `exit ${noOpResult.status}: ${noOpResult.stdout || noOpResult.stderr}\n${JSON.stringify(noOpReceipt)}`,
+    `${TOOL}: a successful no-op with a zero-byte authoritative diff resolves as unusable`,
+    noOpResult.status === 3 &&
+      /"outcome":"CLOUD_TASK_EMPTY"/.test(noOpResult.stdout) &&
+      noOpReceipt.materialized === undefined &&
+      noOpReceipt.unusable?.reason === "task has no unified diff" &&
+      !receiptBlocksTicketAdmission(noOpReceipt) &&
+      noOpRetry.status === 3 &&
+      /"outcome":"CLOUD_TASK_UNUSABLE"/.test(noOpRetry.stdout) &&
+      noOpInvocations.filter((args) => args[1] === "apply").length === 1,
+    `exit ${noOpResult.status}: ${noOpResult.stdout || noOpResult.stderr}\n` +
+      `retry ${noOpRetry.status}: ${noOpRetry.stdout || noOpRetry.stderr}\n` +
+      `${JSON.stringify(noOpInvocations)}\n${JSON.stringify(noOpReceipt)}`,
+  )
+
+  const failedEmpty = fixture("failed-empty", { taskId: "task_e_a13e" })
+  const failedEmptyResult = invoke(
+    failedEmpty,
+    [task(failedEmpty.receipt.taskId, "ready", 0)],
+    [],
+    { ORBIT_FAKE_APPLY_MODE: "fail-noop" },
+  )
+  const failedEmptyReceipt = JSON.parse(readFileSync(failedEmpty.receiptPath, "utf8"))
+  const failedEmptyInvocations = readFileSync(failedEmpty.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: a failed apply with no landing and a zero-byte authoritative diff resolves as unusable`,
+    failedEmptyResult.status === 3 &&
+      /"outcome":"CLOUD_TASK_EMPTY"/.test(failedEmptyResult.stdout) &&
+      failedEmptyReceipt.unusable?.status === "ready" &&
+      !receiptBlocksTicketAdmission(failedEmptyReceipt) &&
+      failedEmptyInvocations.filter((args) => args[1] === "apply").length === 1 &&
+      failedEmptyInvocations.filter((args) => args[1] === "diff").length === 1,
+    `exit ${failedEmptyResult.status}: ${failedEmptyResult.stdout || failedEmptyResult.stderr}\n` +
+      `${JSON.stringify(failedEmptyInvocations)}\n${JSON.stringify(failedEmptyReceipt)}`,
   )
 
   const partialFailure = fixture("partial-failure", { taskId: "task_e_a13f" })
