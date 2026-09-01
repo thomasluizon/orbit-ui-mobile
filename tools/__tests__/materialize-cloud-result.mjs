@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto"
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import {
@@ -93,7 +92,7 @@ export const cases = () => {
   const changedRecoveryFile = join(changedRecovery.repo.path, "changed.txt")
   writeFileSync(changedRecoveryFile, "first landing\n")
   changedRecovery.repo.git(["add", "changed.txt"])
-  const originalPatch = changedRecovery.repo.git(["diff", "--cached", "--binary"]).stdout
+  const originalPatch = changedRecovery.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout
   const changedRecoveryPath = recoveryPathOf(changedRecovery)
   mkdirSync(dirname(changedRecoveryPath), { recursive: true })
   writeFileSync(changedRecoveryPath, JSON.stringify({
@@ -101,17 +100,49 @@ export const cases = () => {
     baseSha: changedRecovery.receipt.baseSha,
     worktree: changedRecovery.receipt.worktree,
     attemptedAt: new Date().toISOString(),
-    stagedDiffSha256: createHash("sha256").update(originalPatch).digest("hex"),
   }))
   writeFileSync(changedRecoveryFile, "different landing\n")
   changedRecovery.repo.git(["add", "changed.txt"])
-  const changedRecoveryResult = invoke(changedRecovery, [task(changedRecovery.receipt.taskId, "ready", 1)])
+  const changedRecoveryResult = invoke(
+    changedRecovery,
+    [task(changedRecovery.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_DIFF: originalPatch },
+  )
   T(
-    `${TOOL}: recovery compares the marker hash with the exact staged patch`,
+    `${TOOL}: recovery compares the authoritative task diff with the exact staged patch`,
     changedRecoveryResult.status === 7 &&
-      /"outcome":"RECOVERY_HASH_MISMATCH"/.test(changedRecoveryResult.stdout) &&
-      readFileSync(changedRecovery.log, "utf8") === "",
+      /"outcome":"RECOVERY_PATCH_MISMATCH"/.test(changedRecoveryResult.stdout) &&
+      readFileSync(changedRecovery.log, "utf8").includes('"diff"'),
     `exit ${changedRecoveryResult.status}: ${changedRecoveryResult.stdout || changedRecoveryResult.stderr}`,
+  )
+
+  const unavailableRecovery = fixture("unavailable-recovery", { taskId: "task_e_d3" })
+  writeFileSync(join(unavailableRecovery.repo.path, "cloud-landed.txt"), "landed from cloud\n")
+  unavailableRecovery.repo.git(["add", "cloud-landed.txt"])
+  const unavailableRecoveryPath = recoveryPathOf(unavailableRecovery)
+  mkdirSync(dirname(unavailableRecoveryPath), { recursive: true })
+  writeFileSync(unavailableRecoveryPath, JSON.stringify({
+    taskId: unavailableRecovery.receipt.taskId,
+    baseSha: unavailableRecovery.receipt.baseSha,
+    worktree: unavailableRecovery.receipt.worktree,
+    attemptedAt: new Date().toISOString(),
+  }))
+  const unavailableRecoveryResult = invoke(
+    unavailableRecovery,
+    [task(unavailableRecovery.receipt.taskId, "applied", 1)],
+    [],
+    { ORBIT_FAKE_DIFF_FAILURE: "No diff available\n" },
+  )
+  const unavailableRecoveryReceipt = JSON.parse(readFileSync(unavailableRecovery.receiptPath, "utf8"))
+  T(
+    `${TOOL}: recovery fails closed when the authoritative task diff cannot be read`,
+    unavailableRecoveryResult.status === 7 &&
+      /"outcome":"RECOVERY_DIFF_UNAVAILABLE"/.test(unavailableRecoveryResult.stdout) &&
+      unavailableRecoveryReceipt.materialized === undefined &&
+      existsSync(unavailableRecoveryPath),
+    `exit ${unavailableRecoveryResult.status}: ${unavailableRecoveryResult.stdout || unavailableRecoveryResult.stderr}\n` +
+      JSON.stringify(unavailableRecoveryReceipt),
   )
 
   const instrumented = fixture("instrumented", { taskId: "task_e_a12" })
@@ -235,16 +266,12 @@ export const cases = () => {
 
   const empty = fixture("empty", { taskId: "task_e_e1" })
   const emptyResult = invoke(empty, [task(empty.receipt.taskId, "ready", 0)])
-  const emptyReceipt = JSON.parse(readFileSync(empty.receiptPath, "utf8"))
   T(
-    `${TOOL}: ready with zero changed files resolves as unusable without claiming materialization`,
-    emptyResult.status === 4 &&
-      /"outcome":"READY_WITHOUT_COMMIT"/.test(emptyResult.stdout) &&
-      /blocked container commit/.test(emptyResult.stdout) &&
-      emptyReceipt.unusable?.status === "ready" &&
-      emptyReceipt.materialized === undefined &&
-      !receiptBlocksTicketAdmission(emptyReceipt),
-    `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}\n${JSON.stringify(emptyReceipt)}`,
+    `${TOOL}: ready with zero list statistics still attempts authoritative cloud apply`,
+    emptyResult.status === 0 &&
+      /"outcome":"MATERIALIZED"/.test(emptyResult.stdout) &&
+      readFileSync(empty.log, "utf8").includes('"apply"'),
+    `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}`,
   )
 
   for (const [status, outcome, message] of [
@@ -441,55 +468,21 @@ export const cases = () => {
   const recoveredApplyTimeoutResult = invoke(
     applyTimeout,
     [task(applyTimeout.receipt.taskId, "applied", 1)],
+    [],
+    { ORBIT_FAKE_DIFF: applyTimeout.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout },
   )
   const recoveredApplyTimeoutReceipt = JSON.parse(readFileSync(applyTimeout.receiptPath, "utf8"))
   const applyTimeoutInvocations = readFileSync(applyTimeout.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(
-    `${TOOL}: a staged timeout landing is refused when its marker has no authenticating hash`,
-    recoveredApplyTimeoutResult.status === 7 &&
-      /"outcome":"RECOVERY_UNAUTHENTICATED"/.test(recoveredApplyTimeoutResult.stdout) &&
-      recoveredApplyTimeoutReceipt.materialized === undefined &&
-      existsSync(applyTimeoutRecoveryPath) &&
+    `${TOOL}: a staged timeout landing is authenticated from the task diff and recovered`,
+    recoveredApplyTimeoutResult.status === 0 &&
+      /"outcome":"MATERIALIZED"/.test(recoveredApplyTimeoutResult.stdout) &&
+      /"recovered":true/.test(recoveredApplyTimeoutResult.stdout) &&
+      recoveredApplyTimeoutReceipt.materialized?.status.includes("cloud-landed.txt") &&
+      !existsSync(applyTimeoutRecoveryPath) &&
       applyTimeoutInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
     `exit ${recoveredApplyTimeoutResult.status}: ${recoveredApplyTimeoutResult.stdout || recoveredApplyTimeoutResult.stderr}\n` +
       `${JSON.stringify(applyTimeoutInvocations)}\n${JSON.stringify(recoveredApplyTimeoutReceipt)}`,
-  )
-
-  const markerFailure = fixture("marker-failure", { taskId: "task_e_a20" })
-  const markerFailurePath = recoveryPathOf(markerFailure)
-  const markerFailureResult = invoke(
-    markerFailure,
-    [task(markerFailure.receipt.taskId, "ready", 1)],
-    [],
-    { ORBIT_FAKE_RECOVERY_MARKER_WRITE_FAILURE_PATH: markerFailurePath },
-  )
-  const markerFailureLanding = markerFailure.repo.git(["diff", "--cached", "--name-only"]).stdout.trim()
-  const attemptedMarker = JSON.parse(readFileSync(markerFailurePath, "utf8"))
-  T(
-    `${TOOL}: a post-apply marker update failure preserves the pre-apply attempt marker`,
-    markerFailureResult.status === 1 &&
-      /"outcome":"APPLIED_RECOVERY_MARKER_WRITE_FAILED"/.test(markerFailureResult.stdout) &&
-      markerFailureLanding === "cloud-landed.txt" &&
-      attemptedMarker.attemptedAt &&
-      attemptedMarker.stagedDiffSha256 === undefined,
-    `exit ${markerFailureResult.status}: ${markerFailureResult.stdout || markerFailureResult.stderr}\n` +
-      `marker ${JSON.stringify(attemptedMarker)}; staged ${markerFailureLanding}`,
-  )
-  chmodSync(process.platform === "win32" ? markerFailurePath : dirname(markerFailurePath), 0o755)
-  const recoveredMarkerFailureResult = invoke(
-    markerFailure,
-    [task(markerFailure.receipt.taskId, "applied", 1)],
-  )
-  const recoveredMarkerFailureReceipt = JSON.parse(readFileSync(markerFailure.receiptPath, "utf8"))
-  const markerFailureInvocations = readFileSync(markerFailure.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
-  T(
-    `${TOOL}: a failed post-apply marker update cannot authenticate the landing on retry`,
-    recoveredMarkerFailureResult.status === 7 &&
-      /"outcome":"RECOVERY_UNAUTHENTICATED"/.test(recoveredMarkerFailureResult.stdout) &&
-      recoveredMarkerFailureReceipt.materialized === undefined &&
-      markerFailureInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
-    `exit ${recoveredMarkerFailureResult.status}: ${recoveredMarkerFailureResult.stdout || recoveredMarkerFailureResult.stderr}\n` +
-      `${JSON.stringify(markerFailureInvocations)}\n${JSON.stringify(recoveredMarkerFailureReceipt)}`,
   )
 
   const receiptTimeout = fixture("receipt-timeout", {
@@ -527,7 +520,12 @@ export const cases = () => {
       `staged ${stagedAfterTimeout}; receipt ${JSON.stringify(receiptAfterTimeout)}`,
   )
   rmSync(receiptLockDirectory, { recursive: true })
-  const recoveredResult = invoke(receiptTimeout, [task(receiptTimeout.receipt.taskId, "applied", 1)])
+  const recoveredResult = invoke(
+    receiptTimeout,
+    [task(receiptTimeout.receipt.taskId, "applied", 1)],
+    [],
+    { ORBIT_FAKE_DIFF: receiptTimeout.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout },
+  )
   const recoveredReceipt = JSON.parse(readFileSync(receiptTimeout.receiptPath, "utf8"))
   const receiptTimeoutInvocations = readFileSync(receiptTimeout.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(

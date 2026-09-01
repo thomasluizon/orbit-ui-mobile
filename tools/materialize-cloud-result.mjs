@@ -2,7 +2,6 @@
 /** Validate and apply one terminal cloud task into the exact worktree captured at submission. */
 
 import { spawnSync } from "node:child_process"
-import { createHash } from "node:crypto"
 import { existsSync, unlinkSync } from "node:fs"
 import { join, resolve } from "node:path"
 
@@ -29,18 +28,18 @@ const MAX_GIT_REPORT_BYTES = 64 * 1024 * 1024
 
 const USAGE = `usage: materialize-cloud-result.mjs --receipt <file> [--allow-abandoned]
 
-Reads terminal state through codex cloud list, then applies one non-empty ready task in the receipt's
+Reads terminal state through codex cloud list, then applies one ready task in the receipt's
 worktree. The receipt and worktree must still match the repository bound to the cloud environment.
 The worktree must be clean and still at the receipt's exact base SHA. Abandoned tasks are quarantined
 unless --allow-abandoned is explicit. Materialization is serial across the repository.
 It never commits, pushes, opens a pull request, or merges.
 
 If exit 9 reports APPLIED_RECEIPT_WRITE_FAILED, the diff is already applied and staged. Leave the
-worktree unchanged and rerun this same command with the same receipt. The recovery marker lets the
-retry record materialization without running cloud apply again.
+worktree unchanged and rerun this same command with the same receipt. The retry fetches the task diff,
+verifies it byte-for-byte against the staged patch, and records materialization without applying again.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
-            3 task cannot be materialized, 4 ready task produced no committed diff, 5 task is abandoned,
+            3 task cannot be materialized, 5 task is abandoned,
             6 a Codex cloud command timed out, 7 cloud apply produced an invalid or unauthenticated Git landing,
             8 receipt lock acquisition timed out before apply,
             9 diff applied and staged but the receipt write lock timed out
@@ -180,7 +179,7 @@ const readLocalLanding = () => {
   if (head.error || head.status !== 0) fail(2, `could not read worktree HEAD: ${(head.stderr || head.error?.message || "unknown error").trim()}`)
   const stagedStat = git(["diff", "--cached", "--stat"])
   const stagedDiff = git(["diff", "--cached", "--quiet", "--exit-code"])
-  const stagedPatch = git(["diff", "--cached", "--binary"])
+  const stagedPatch = git(["diff", "--cached", "--binary", "--full-index"])
   if (
     stagedStat.error || stagedStat.status !== 0 ||
     stagedDiff.error || ![0, 1].includes(stagedDiff.status) ||
@@ -235,18 +234,7 @@ const assertCleanPreconditionsOrReadRecovery = () => {
     fail(2, "cloud materialization recovery marker carries no apply attempt timestamp")
   }
   assertExpectedLanding(landing)
-  const stagedDiffSha256 = createHash("sha256").update(landing.stagedPatch.stdout).digest("hex")
-  if (!/^[0-9a-f]{64}$/.test(recovery.stagedDiffSha256 ?? "")) {
-    fail(
-      7,
-      "the cloud materialization recovery marker cannot authenticate the staged diff; it was not accepted",
-      "RECOVERY_UNAUTHENTICATED",
-    )
-  }
-  if (recovery.stagedDiffSha256 !== stagedDiffSha256) {
-    fail(7, "the staged diff does not match the cloud materialization recovery marker", "RECOVERY_HASH_MISMATCH")
-  }
-  return recovery
+  return { marker: recovery, landing }
 }
 
 const recovery = assertCleanPreconditionsOrReadRecovery()
@@ -272,13 +260,28 @@ try {
   receipt = persistConfiguredReceipt(receipt)
 
   if (recovery) {
+    const remoteDiff = await runCodex(codexCommand, ["cloud", "diff", receipt.taskId], {
+      cwd: stateRoot,
+      timeoutMs: codexTimeoutMs,
+    })
+    if (remoteDiff.timedOut) {
+      fail(6, `codex cloud diff timed out after ${codexTimeoutMs}ms`, "RECOVERY_DIFF_TIMEOUT")
+    }
+    if (remoteDiff.error || remoteDiff.status !== 0) {
+      fail(
+        7,
+        `codex cloud diff could not authenticate the staged landing: ${
+          (remoteDiff.stderr || remoteDiff.stdout || remoteDiff.error?.message || "unknown error").trim()
+        }`,
+        "RECOVERY_DIFF_UNAVAILABLE",
+      )
+    }
     const recoveredLanding = readLocalLanding()
     assertExpectedLanding(recoveredLanding)
-    const stagedDiffSha256 = createHash("sha256").update(recoveredLanding.stagedPatch.stdout).digest("hex")
-    if (recovery.stagedDiffSha256 !== stagedDiffSha256) {
-      fail(7, "the staged diff changed during cloud materialization recovery", "RECOVERY_HASH_MISMATCH")
+    if (remoteDiff.stdout !== recoveredLanding.stagedPatch.stdout) {
+      fail(7, "the staged diff does not match the cloud task diff", "RECOVERY_PATCH_MISMATCH")
     }
-    const recoveredAt = recovery.materializedAt ?? recovery.at ?? new Date().toISOString()
+    const recoveredAt = new Date().toISOString()
     receipt.materialized = {
       at: recoveredAt,
       status: recoveredLanding.status.stdout,
@@ -310,14 +313,6 @@ try {
   }
   if (!task) fail(3, `task ${receipt.taskId} was not returned by codex cloud list`, "NOT_LISTED")
   if (task.status !== "ready") fail(3, `task ${receipt.taskId} is ${task.status}`, "PENDING")
-  if (task.summary.files_changed === 0) {
-    recordUnusableReceipt(task.status, "ready task committed no files")
-    fail(
-      4,
-      `task ${receipt.taskId} reached ready with summary.files_changed == 0; inspect the task page for a blocked container commit`,
-      "READY_WITHOUT_COMMIT",
-    )
-  }
 
   const cleanLanding = readLocalLanding()
   if (cleanLanding.status.stdout.length > 0) {
@@ -357,23 +352,6 @@ try {
   const landing = readLocalLanding()
   assertExpectedLanding(landing)
   const materializedAt = new Date().toISOString()
-  try {
-    persistReceipt({
-      taskId: receipt.taskId,
-      baseSha: receipt.baseSha,
-      worktree: receipt.worktree,
-      attemptedAt: applyAttemptedAt,
-      materializedAt,
-      stagedDiffSha256: createHash("sha256").update(landing.stagedPatch.stdout).digest("hex"),
-    }, recoveryPath)
-  } catch (error) {
-    fail(
-      1,
-      `cloud apply succeeded and staged its diff, but the recovery marker update failed: ${error.message}. ` +
-      `Leave the worktree unchanged and rerun with --receipt ${JSON.stringify(receiptPath)}`,
-      "APPLIED_RECOVERY_MARKER_WRITE_FAILED",
-    )
-  }
   receipt.materialized = { at: materializedAt, status: landing.status.stdout, stagedStat: landing.stagedStat.stdout }
   receipt = persistConfiguredReceipt(receipt, true)
   unlinkSync(recoveryPath)

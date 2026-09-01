@@ -57,7 +57,8 @@ export const cases = async () => {
   T(
     `${TOOL}: the scheduler contract resolves every terminal task status`,
     schedulerContract.includes("When a task receipt reaches any terminal status") &&
-      schedulerContract.includes("For `error` and `applied`, it records the distinct unusable result"),
+      schedulerContract.includes("For `error` and `applied`, it records the distinct unusable result") &&
+      schedulerContract.includes("List summary statistics are advisory"),
     "the scheduler contract does not route all terminal task receipts through resolution",
   )
   T(

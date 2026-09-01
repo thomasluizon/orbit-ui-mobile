@@ -562,15 +562,17 @@ materialization is serial across the fleet; GitHub-calling readiness work stays 
 When a task receipt reaches any terminal status, run `materialize-cloud-result.mjs` in the local
 control plane. For `error` and `applied`, it records the distinct unusable result and resolves the
 receipt without applying. For `ready`, it requires a clean worktree whose HEAD is byte-for-byte the
-receipt base SHA. A ready task with `summary.files_changed == 0` is a distinct failure requiring
-inspection of the task page, because it means the container produced no commit. A successful apply
-leaves staged changes and never moves HEAD. Continue through the existing local test, signed commit,
-push, pull request, and readiness flow. The cloud tool never performs any of those delivery actions.
+receipt base SHA. List summary statistics are advisory and never decide whether a diff exists, so a
+ready task is applied even when `summary.files_changed` is zero. A successful apply leaves staged
+changes and never moves HEAD. Continue through the existing local test, signed commit, push, pull
+request, and readiness flow. The cloud tool never performs any of those delivery actions.
 
 If materialization exits 9 with `APPLIED_RECEIPT_WRITE_FAILED`, cloud apply already succeeded and
 the diff is staged. Only the bounded receipt write lock timed out. Leave the worktree unchanged and
-rerun the same `materialize-cloud-result.mjs --receipt <f>` command. Its recovery marker verifies the
-staged diff and records materialization without applying the cloud task a second time.
+rerun the same `materialize-cloud-result.mjs --receipt <f>` command. The retry fetches the task's
+unified diff, compares it byte-for-byte with the staged Git patch, and records materialization without
+applying the cloud task a second time. The pre-apply marker identifies the interrupted attempt; it is
+not asked to contain evidence that could only be written after the interruption point.
 
 ### Local execution
 
