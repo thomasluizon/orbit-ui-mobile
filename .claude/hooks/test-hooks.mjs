@@ -480,6 +480,8 @@ T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrat
 // because node ids are globally unique and a wrong one does not fail.
 const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
 const INVENTED = "PRRT_kwDOR5Siws6XdcAt"
+const TRAILING_HYPHEN = "PRRT_kwDOR5Siws6d9bF-"
+const TRAILING_UNDERSCORE = "PRRT_kwDOR5Siws6d9bF_"
 const seen = new Set([OBSERVED])
 const invented = (command, options = {}) => checkInventedIdentifier(command, { observedIdentifiers: seen, ...options })
 // THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
@@ -500,7 +502,14 @@ T("identifier: a gh command with no id at all allows", invented("gh pr view 699 
 T("identifier: PR_NUMBER is not a node id", extractNodeIds("gh pr view $PR_NUMBER"), [])
 T("identifier: IC_CONFIG is not a node id", extractNodeIds("gh api $IC_CONFIG"), [])
 T("identifier: a short body is not a node id", extractNodeIds("gh api PRRT_abc"), [])
-T("identifier: a real node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: an ordinary node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: a node id ending in a hyphen is extracted whole", extractNodeIds(`gh api ${TRAILING_HYPHEN}`), [TRAILING_HYPHEN])
+T("identifier: a node id ending in an underscore is extracted whole", extractNodeIds(`gh api ${TRAILING_UNDERSCORE}`), [TRAILING_UNDERSCORE])
+T(
+  "identifier: an unobserved node id ending in a hyphen is refused whole",
+  invented(`gh api graphql -f thread=${TRAILING_HYPHEN}`)?.message?.includes(TRAILING_HYPHEN) === true,
+  true,
+)
 T("identifier: PR_ and IC_ shapes are guarded too", extractNodeIds("gh api PR_kwDOR5Siws6abc IC_kwDOR5Siws6def").length, 2)
 T("identifier: an empty command allows", invented(""), null)
 // A heredoc BODY is data the command carries, not the command. This gate refused a
