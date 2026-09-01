@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 
 import {
   REPO_ROOT,
@@ -11,6 +11,7 @@ import {
   stageWithConfig,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { receiptBlocksTicketAdmission } from "../lib/cloud-worker.mjs"
 
 const TOOL = "materialize-cloud-result.mjs"
 
@@ -53,6 +54,12 @@ const invoke = (entry, tasks, extra = [], env = {}) => run(TOOL, ["--receipt", e
   path: entry.path,
   env: { ORBIT_FAKE_CODEX_LOG: entry.log, ORBIT_FAKE_LIST: taskPage(tasks), ...env },
 })
+const recoveryPathOf = (entry) => join(
+  entry.repo.path,
+  ".git",
+  "orbit-cloud",
+  `materialization-recovery-${entry.receipt.taskId}.json`,
+)
 
 export const cases = () => {
   const wrongRepository = fixture("wrong-repository", { taskId: "task_e_bad2" })
@@ -202,10 +209,16 @@ export const cases = () => {
 
   const empty = fixture("empty", { taskId: "task_e_e1" })
   const emptyResult = invoke(empty, [task(empty.receipt.taskId, "ready", 0)])
+  const emptyReceipt = JSON.parse(readFileSync(empty.receiptPath, "utf8"))
   T(
-    `${TOOL}: ready with zero changed files is a distinct blocked-commit failure`,
-    emptyResult.status === 4 && /"outcome":"READY_WITHOUT_COMMIT"/.test(emptyResult.stdout) && /blocked container commit/.test(emptyResult.stdout),
-    `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}`,
+    `${TOOL}: ready with zero changed files resolves as unusable without claiming materialization`,
+    emptyResult.status === 4 &&
+      /"outcome":"READY_WITHOUT_COMMIT"/.test(emptyResult.stdout) &&
+      /blocked container commit/.test(emptyResult.stdout) &&
+      emptyReceipt.unusable?.status === "ready" &&
+      emptyReceipt.materialized === undefined &&
+      !receiptBlocksTicketAdmission(emptyReceipt),
+    `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}\n${JSON.stringify(emptyReceipt)}`,
   )
 
   for (const [status, outcome, message] of [
@@ -222,6 +235,9 @@ export const cases = () => {
         terminalResult.stdout.includes(`"outcome":"${outcome}"`) &&
         terminalResult.stdout.includes(message) &&
         terminalReceipt.terminal?.status === status &&
+        terminalReceipt.unusable?.status === status &&
+        terminalReceipt.materialized === undefined &&
+        !receiptBlocksTicketAdmission(terminalReceipt) &&
         !terminalInvocations.some((args) => args[0] === "cloud" && args[1] === "apply"),
       `exit ${terminalResult.status}: ${terminalResult.stdout || terminalResult.stderr}\n` +
         `${JSON.stringify(terminalInvocations)}\n${JSON.stringify(terminalReceipt)}`,
@@ -338,15 +354,75 @@ export const cases = () => {
     applyTimeout,
     [task(applyTimeout.receipt.taskId, "ready", 1)],
     [],
-    { ORBIT_FAKE_HANG: "apply" },
+    { ORBIT_FAKE_HANG_AFTER_APPLY: "apply" },
   )
   const applyTimeoutReceipt = JSON.parse(readFileSync(applyTimeout.receiptPath, "utf8"))
+  const applyTimeoutRecoveryPath = recoveryPathOf(applyTimeout)
+  const applyTimeoutRecovery = JSON.parse(readFileSync(applyTimeoutRecoveryPath, "utf8"))
+  const stagedAfterApplyTimeout = applyTimeout.repo.git(["diff", "--cached", "--name-only"]).stdout.trim()
   T(
-    `${TOOL}: an apply timeout is distinct and never records materialization`,
+    `${TOOL}: a timed out apply that staged its diff leaves durable attempted recovery evidence`,
     applyTimeoutResult.status === 6 &&
       /"outcome":"APPLY_TIMEOUT"/.test(applyTimeoutResult.stdout) &&
-      applyTimeoutReceipt.materialized === undefined,
-    `exit ${applyTimeoutResult.status}: ${applyTimeoutResult.stdout || applyTimeoutResult.stderr}`,
+      applyTimeoutReceipt.materialized === undefined &&
+      applyTimeoutRecovery.attemptedAt &&
+      applyTimeoutRecovery.stagedDiffSha256 === undefined &&
+      stagedAfterApplyTimeout === "cloud-landed.txt",
+    `exit ${applyTimeoutResult.status}: ${applyTimeoutResult.stdout || applyTimeoutResult.stderr}\n` +
+      `recovery ${JSON.stringify(applyTimeoutRecovery)}; staged ${stagedAfterApplyTimeout}`,
+  )
+  const recoveredApplyTimeoutResult = invoke(
+    applyTimeout,
+    [task(applyTimeout.receipt.taskId, "applied", 1)],
+  )
+  const recoveredApplyTimeoutReceipt = JSON.parse(readFileSync(applyTimeout.receiptPath, "utf8"))
+  const applyTimeoutInvocations = readFileSync(applyTimeout.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: the next invocation recovers a staged timeout landing without applying twice`,
+    recoveredApplyTimeoutResult.status === 0 &&
+      /"recovered":true/.test(recoveredApplyTimeoutResult.stdout) &&
+      recoveredApplyTimeoutReceipt.materialized?.status.includes("cloud-landed.txt") &&
+      !existsSync(applyTimeoutRecoveryPath) &&
+      applyTimeoutInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
+    `exit ${recoveredApplyTimeoutResult.status}: ${recoveredApplyTimeoutResult.stdout || recoveredApplyTimeoutResult.stderr}\n` +
+      `${JSON.stringify(applyTimeoutInvocations)}\n${JSON.stringify(recoveredApplyTimeoutReceipt)}`,
+  )
+
+  const markerFailure = fixture("marker-failure", { taskId: "task_e_a20" })
+  const markerFailurePath = recoveryPathOf(markerFailure)
+  const markerFailureResult = invoke(
+    markerFailure,
+    [task(markerFailure.receipt.taskId, "ready", 1)],
+    [],
+    { ORBIT_FAKE_RECOVERY_MARKER_WRITE_FAILURE_PATH: markerFailurePath },
+  )
+  const markerFailureLanding = markerFailure.repo.git(["diff", "--cached", "--name-only"]).stdout.trim()
+  const attemptedMarker = JSON.parse(readFileSync(markerFailurePath, "utf8"))
+  T(
+    `${TOOL}: a post-apply marker update failure preserves the pre-apply attempt marker`,
+    markerFailureResult.status === 1 &&
+      /"outcome":"APPLIED_RECOVERY_MARKER_WRITE_FAILED"/.test(markerFailureResult.stdout) &&
+      markerFailureLanding === "cloud-landed.txt" &&
+      attemptedMarker.attemptedAt &&
+      attemptedMarker.stagedDiffSha256 === undefined,
+    `exit ${markerFailureResult.status}: ${markerFailureResult.stdout || markerFailureResult.stderr}\n` +
+      `marker ${JSON.stringify(attemptedMarker)}; staged ${markerFailureLanding}`,
+  )
+  chmodSync(process.platform === "win32" ? markerFailurePath : dirname(markerFailurePath), 0o755)
+  const recoveredMarkerFailureResult = invoke(
+    markerFailure,
+    [task(markerFailure.receipt.taskId, "applied", 1)],
+  )
+  const recoveredMarkerFailureReceipt = JSON.parse(readFileSync(markerFailure.receiptPath, "utf8"))
+  const markerFailureInvocations = readFileSync(markerFailure.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: retry recovers after the post-apply marker update failure without applying twice`,
+    recoveredMarkerFailureResult.status === 0 &&
+      /"recovered":true/.test(recoveredMarkerFailureResult.stdout) &&
+      recoveredMarkerFailureReceipt.materialized?.status.includes("cloud-landed.txt") &&
+      markerFailureInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
+    `exit ${recoveredMarkerFailureResult.status}: ${recoveredMarkerFailureResult.stdout || recoveredMarkerFailureResult.stderr}\n` +
+      `${JSON.stringify(markerFailureInvocations)}\n${JSON.stringify(recoveredMarkerFailureReceipt)}`,
   )
 
   const receiptTimeout = fixture("receipt-timeout", {

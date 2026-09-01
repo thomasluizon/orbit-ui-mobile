@@ -26,11 +26,10 @@ const ENGINE_BINARIES = new Set(["claude", "codex"])
  * ordinary preflight. `codex --version` was refused by the previous revision, which keyed on the
  * binary alone. */
 const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "whoami", "--list", "login", "logout"])
-/** These cloud subcommands only inspect tasks that already exist. Match the binary and the first
- * two arguments so a prompt containing one of these words grants nothing. */
+/** These cloud subcommands only inspect tasks that already exist. */
 const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
-const COMMAND_SUBSTITUTION = /\$\(|`/
-const ENGINE_TOKEN = /(?:^|[^\w-])(?:claude|codex)(?:\.(?:exe|cmd|bat|ps1))?(?=$|[^\w-])/i
+const SAFE_ENGINE_BINARY = /^(?:claude|codex)(?:\.(?:exe|cmd|bat|ps1))?$/i
+const SAFE_ENGINE_ARGUMENT = /^[A-Za-z0-9_./:+=-]+$/
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -151,6 +150,18 @@ export function segmentsOf(command) {
   return segments
 }
 
+const safeEngineWords = (segment) => {
+  const words = segment.trim().split(/\s+/)
+  return SAFE_ENGINE_BINARY.test(words[0] ?? "") && words.every((word) => SAFE_ENGINE_ARGUMENT.test(word))
+    ? words
+    : null
+}
+
+const isSafeCloudRead = (words) => words?.[0]?.replace(/\.(?:exe|cmd|bat|ps1)$/i, "").toLowerCase() === "codex" &&
+  words[1]?.toLowerCase() === "cloud" && CLOUD_READ_SUBCOMMANDS.has(words[2]?.toLowerCase())
+
+const isSafeZeroCostInvocation = (words) => words?.slice(1).some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))
+
 const blocked = (command, why) => ({ block: true, message: `BLOCKED (Orbit orchestration guardrail):\n  ${command}\n\n${why}\n` })
 
 /**
@@ -167,17 +178,9 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   for (const segment of segmentsOf(command)) {
     const binary = invokedBinary(segment)
     if (!ENGINE_BINARIES.has(binary)) continue
-    const invocation = withoutLeadingAssignments(segment).trim()
-    const leadingToken = LEADING_TOKEN.exec(invocation)
-    const trailingSource = leadingToken ? invocation.slice(leadingToken[0].length) : invocation
-    const words = trailingSource.trim().split(/\s+/)
-    const containsNestedExecution = COMMAND_SUBSTITUTION.test(segment) || ENGINE_TOKEN.test(trailingSource)
-    if (!containsNestedExecution && words.some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))) continue
-    const safeCloudRead = binary === "codex" &&
-      words[0]?.toLowerCase() === "cloud" &&
-      CLOUD_READ_SUBCOMMANDS.has(words[1]?.toLowerCase()) &&
-      !containsNestedExecution
-    if (safeCloudRead) continue
+    const safeWords = safeEngineWords(segment)
+    if (isSafeCloudRead(safeWords)) continue
+    if (isSafeZeroCostInvocation(safeWords)) continue
     return blocked(
       command,
       "An orchestrating session may not start a model session outside the launcher. Every worker\n" +

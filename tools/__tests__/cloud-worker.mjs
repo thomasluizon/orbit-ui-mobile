@@ -25,8 +25,9 @@ export const fakeCodex = (label) => {
   writeFileSync(
     script,
     `#!/usr/bin/env node
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { dirname } from "node:path"
 const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
 if (process.env.ORBIT_FAKE_CODEX_CWD_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_CWD_LOG, process.cwd() + "\\n")
@@ -67,6 +68,11 @@ else if (args[0] === "cloud" && args[1] === "apply") {
       JSON.stringify({ pid: Number(process.env.ORBIT_FAKE_RECEIPT_LOCK_OWNER_PID) }),
     )
   }
+  if (process.env.ORBIT_FAKE_RECOVERY_MARKER_WRITE_FAILURE_PATH) {
+    const recoveryPath = process.env.ORBIT_FAKE_RECOVERY_MARKER_WRITE_FAILURE_PATH
+    chmodSync(process.platform === "win32" ? recoveryPath : dirname(recoveryPath), process.platform === "win32" ? 0o444 : 0o555)
+  }
+  if (process.env.ORBIT_FAKE_HANG_AFTER_APPLY === "apply") Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
   process.exit(added.status || 0)
 } else process.exit(7)
 `,

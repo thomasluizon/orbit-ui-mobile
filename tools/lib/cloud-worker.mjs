@@ -27,7 +27,9 @@ const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
 
 export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
 
-const receiptIsResolved = (receipt) => Boolean(receipt.abandoned || receipt.materialized || receipt.released)
+const receiptIsResolved = (receipt) => Boolean(
+  receipt.abandoned || receipt.materialized || receipt.released || receipt.unusable,
+)
 
 // Fleet capacity measures remote compute, so a terminal task no longer consumes a slot.
 export const receiptConsumesFleetCapacity = (receipt) => (
@@ -303,7 +305,7 @@ const newestRecord = (scratchRecord, mirroredRecord) => {
 
 export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
   const reconciled = { ...scratchReceipt, ...mirroredReceipt }
-  for (const field of ["lastObserved", "terminal", "abandoned", "lateTerminal", "materialized", "released"]) {
+  for (const field of ["lastObserved", "terminal", "abandoned", "lateTerminal", "materialized", "released", "unusable"]) {
     const record = newestRecord(scratchReceipt[field], mirroredReceipt[field])
     if (record !== undefined) reconciled[field] = record
   }
@@ -375,6 +377,7 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
   if (
     !updated.abandoned &&
     !updated.materialized &&
+    !updated.unusable &&
     deadlinePassed(updated, now) &&
     !observedTerminalByDeadline(updated)
   ) {
