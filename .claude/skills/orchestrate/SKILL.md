@@ -516,7 +516,15 @@ absent, and hashes both the order file and the submitted form in the receipt:
 
 `--cloud` is available only for the repository bound to the environment by `cloud.repositoryKey` in
 `.claude/orchestrator.json`. Submission and materialization both verify that local Git identity.
-Submit each implementation with `submit-cloud-worker.mjs`. The receipt
+Publish the contract branch, then submit each implementation with `submit-cloud-worker.mjs`:
+
+```bash
+# Publication belongs to orchestration so the submitter stays read-only toward Git remotes and keeps refusing unpublished or stale branch tips.
+git push -u origin <contract-branch>
+node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <contract-branch> --order <f> --worktree <p>
+```
+
+The submitter verifies that the remote branch SHA exactly matches the worktree HEAD. The receipt
 records the exact pushed branch SHA that the container starts from, the order hashes, target
 worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
 under the shared Git directory is the recovery source after a crashed session.

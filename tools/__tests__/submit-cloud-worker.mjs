@@ -90,6 +90,64 @@ export const cases = async () => {
     JSON.stringify(receipt),
   )
 
+  const firstRun = fixture("first-run")
+  const firstRunBranch = "feature/ticket-398-first-run"
+  const firstRunCreated = firstRun.repo.git(["switch", "-q", "-c", firstRunBranch])
+  const unpublished = firstRun.repo.git(["ls-remote", "--exit-code", "origin", `refs/heads/${firstRunBranch}`])
+  const firstRunPublished = firstRun.repo.git(["push", "-q", "-u", "origin", firstRunBranch])
+  const firstRunArguments = argvOf(firstRun)
+  firstRunArguments[firstRunArguments.indexOf("--branch") + 1] = firstRunBranch
+  const firstRunResult = run(TOOL, firstRunArguments, {
+    path: firstRun.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: firstRun.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_f1",
+    },
+  })
+  const firstRunReceipt = firstRunResult.status === 0 ? JSON.parse(firstRunResult.stdout) : null
+  T(
+    `${TOOL}: a newly created contract branch succeeds after the documented publication step`,
+    firstRunCreated.status === 0 &&
+      unpublished.status !== 0 &&
+      firstRunPublished.status === 0 &&
+      firstRunResult.status === 0 &&
+      firstRunReceipt?.branch === firstRunBranch &&
+      firstRunReceipt?.baseSha === firstRun.repo.git(["rev-parse", "HEAD"]).stdout.trim(),
+    `create ${firstRunCreated.status}: ${firstRunCreated.stderr}\n` +
+      `unpublished ${unpublished.status}: ${unpublished.stderr}\n` +
+      `publish ${firstRunPublished.status}: ${firstRunPublished.stderr}\n` +
+      `submit ${firstRunResult.status}: ${firstRunResult.stderr}`,
+  )
+
+  const mismatchedTip = fixture("mismatched-tip")
+  const mismatchedBranch = "feature/ticket-398-mismatched-tip"
+  const mismatchedCreated = mismatchedTip.repo.git(["switch", "-q", "-c", mismatchedBranch])
+  const mismatchedPublished = mismatchedTip.repo.git(["push", "-q", "-u", "origin", mismatchedBranch])
+  const advancedLocally = mismatchedTip.repo.git(["commit", "-q", "--allow-empty", "-m", "advance local head"])
+  const mismatchedArguments = argvOf(mismatchedTip)
+  mismatchedArguments[mismatchedArguments.indexOf("--branch") + 1] = mismatchedBranch
+  const mismatchedResult = run(TOOL, mismatchedArguments, {
+    path: mismatchedTip.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: mismatchedTip.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_badtip",
+    },
+  })
+  T(
+    `${TOOL}: refuses when the remote branch tip differs from the worktree HEAD`,
+    mismatchedCreated.status === 0 &&
+      mismatchedPublished.status === 0 &&
+      advancedLocally.status === 0 &&
+      mismatchedResult.status === 1 &&
+      /origin\/feature\/ticket-398-mismatched-tip is at [0-9a-f]{40}, but the worktree HEAD is [0-9a-f]{40}; publish the worktree HEAD before submission/.test(mismatchedResult.stderr) &&
+      readFileSync(mismatchedTip.log, "utf8") === "" &&
+      !existsSync(join(mismatchedTip.repo.path, ".git", "orbit-cloud")),
+    `create ${mismatchedCreated.status}: ${mismatchedCreated.stderr}\n` +
+      `publish ${mismatchedPublished.status}: ${mismatchedPublished.stderr}\n` +
+      `advance ${advancedLocally.status}: ${advancedLocally.stderr}\n` +
+      `submit ${mismatchedResult.status}: ${mismatchedResult.stderr}`,
+  )
+
   const wrongRepository = fixture("wrong-repository")
   const apiRepository = stageRepo("submit-cloud-wrong-repository-api")
   const wrongRepositoryResult = run(TOOL, [

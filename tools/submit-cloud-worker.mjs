@@ -36,7 +36,8 @@ Submits one task with the order as one shell-free argument, then writes a receip
 and mirrors it under the repository's shared Git directory. It checks the stable receipts once to
 derive the current in-flight set and enforce caps.cloudParallelTasks. The worktree must belong to
 the repository bound to the cloud environment. The named remote branch is resolved first, and the
-cloud checkout is pinned to that commit while the receipt keeps the branch as context. An unresolved receipt blocks the same ticket.
+remote SHA must match the worktree HEAD. The cloud checkout is pinned to that commit while the
+receipt keeps the branch as context. An unresolved receipt blocks the same ticket.
 It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
@@ -224,6 +225,18 @@ const remoteLines = remote.stdout.trim().split(/\r?\n/).filter(Boolean)
 const remoteMatch = remoteLines.length === 1 ? /^([0-9a-f]{40})\s+refs\/heads\/(.+)$/.exec(remoteLines[0]) : null
 if (!remoteMatch || remoteMatch[2] !== branch) fail(1, `git ls-remote returned an unexpected response for origin/${branch}`)
 const baseSha = remoteMatch[1]
+const localHead = spawnSync("git", ["-C", worktree, "rev-parse", "--verify", "HEAD^{commit}"], {
+  encoding: "utf8",
+  windowsHide: true,
+})
+if (localHead.error || localHead.status !== 0) {
+  fail(1, `git rev-parse could not resolve the worktree HEAD: ${(localHead.stderr || localHead.error?.message || "unknown error").trim()}`)
+}
+const localSha = localHead.stdout.trim()
+if (!/^[0-9a-f]{40}$/.test(localSha)) fail(1, "git rev-parse returned an unexpected response for the worktree HEAD")
+if (baseSha !== localSha) {
+  fail(1, `origin/${branch} is at ${baseSha}, but the worktree HEAD is ${localSha}; publish the worktree HEAD before submission`)
+}
 
 let releaseLock
 try {
