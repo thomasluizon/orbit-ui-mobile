@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -19,6 +19,7 @@ const fixture = (label, overrides = {}) => {
   const config = cloudConfig(codex.command, {
     real: realOrchestratorConfig(),
     cloudCommandMinutes: overrides.cloudCommandMinutes,
+    receiptLockSeconds: overrides.receiptLockSeconds,
   })
   const repo = stageRepo(`materialize-cloud-${label}`)
   config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
@@ -346,6 +347,55 @@ export const cases = () => {
       /"outcome":"APPLY_TIMEOUT"/.test(applyTimeoutResult.stdout) &&
       applyTimeoutReceipt.materialized === undefined,
     `exit ${applyTimeoutResult.status}: ${applyTimeoutResult.stdout || applyTimeoutResult.stderr}`,
+  )
+
+  const receiptTimeout = fixture("receipt-timeout", {
+    taskId: "task_e_a19",
+    receiptLockSeconds: 0.01,
+  })
+  const receiptLockDirectory = join(
+    receiptTimeout.repo.path,
+    ".git",
+    "orbit-cloud",
+    `receipt-${receiptTimeout.receipt.taskId}.json.lock`,
+  )
+  const receiptTimeoutResult = invoke(
+    receiptTimeout,
+    [task(receiptTimeout.receipt.taskId, "ready", 1)],
+    [],
+    {
+      ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH: receiptLockDirectory,
+      ORBIT_FAKE_RECEIPT_LOCK_OWNER_PID: String(process.pid),
+    },
+  )
+  const receiptAfterTimeout = JSON.parse(readFileSync(receiptTimeout.receiptPath, "utf8"))
+  const receiptTimeoutOutput = JSON.parse(receiptTimeoutResult.stdout)
+  const stagedAfterTimeout = receiptTimeout.repo.git(["diff", "--cached", "--name-only"]).stdout.trim()
+  T(
+    `${TOOL}: a receipt lock timeout after apply reports the staged diff and exact recovery command`,
+    receiptTimeoutResult.status === 9 &&
+      receiptTimeoutOutput.outcome === "APPLIED_RECEIPT_WRITE_FAILED" &&
+      /cloud diff is applied and staged/.test(receiptTimeoutOutput.message) &&
+      /only the receipt write failed/.test(receiptTimeoutOutput.message) &&
+      receiptTimeoutOutput.message.includes(`--receipt ${JSON.stringify(receiptTimeout.receiptPath)}`) &&
+      stagedAfterTimeout === "cloud-landed.txt" &&
+      receiptAfterTimeout.materialized === undefined,
+    `exit ${receiptTimeoutResult.status}: ${receiptTimeoutResult.stdout || receiptTimeoutResult.stderr}\n` +
+      `staged ${stagedAfterTimeout}; receipt ${JSON.stringify(receiptAfterTimeout)}`,
+  )
+  rmSync(receiptLockDirectory, { recursive: true })
+  const recoveredResult = invoke(receiptTimeout, [task(receiptTimeout.receipt.taskId, "applied", 1)])
+  const recoveredReceipt = JSON.parse(readFileSync(receiptTimeout.receiptPath, "utf8"))
+  const receiptTimeoutInvocations = readFileSync(receiptTimeout.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: retry records the verified staged landing even after the remote status becomes applied`,
+    recoveredResult.status === 0 &&
+      /"outcome":"MATERIALIZED"/.test(recoveredResult.stdout) &&
+      /"recovered":true/.test(recoveredResult.stdout) &&
+      recoveredReceipt.materialized?.status.includes("cloud-landed.txt") &&
+      receiptTimeoutInvocations.filter((args) => args[0] === "cloud" && args[1] === "apply").length === 1,
+    `exit ${recoveredResult.status}: ${recoveredResult.stdout || recoveredResult.stderr}\n` +
+      `${JSON.stringify(receiptTimeoutInvocations)}\n${JSON.stringify(recoveredReceipt)}`,
   )
 
   const locked = fixture("locked", { taskId: "task_e_c1" })

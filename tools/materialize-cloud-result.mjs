@@ -2,8 +2,9 @@
 /** Validate and apply one terminal cloud task into the exact worktree captured at submission. */
 
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { existsSync, unlinkSync } from "node:fs"
-import { resolve } from "node:path"
+import { join, resolve } from "node:path"
 
 import {
   CodexTimeoutError,
@@ -13,6 +14,7 @@ import {
   cloudStateRoot,
   listCloudTasks,
   mirrorPathFor,
+  persistReceipt,
   persistReconciledReceipt,
   readJsonFile,
   reconcileReceiptCopies,
@@ -32,10 +34,15 @@ The worktree must be clean and still at the receipt's exact base SHA. Abandoned 
 unless --allow-abandoned is explicit. Materialization is serial across the repository.
 It never commits, pushes, opens a pull request, or merges.
 
+If exit 9 reports APPLIED_RECEIPT_WRITE_FAILED, the diff is already applied and staged. Leave the
+worktree unchanged and rerun this same command with the same receipt. The recovery marker lets the
+retry record materialization without running cloud apply again.
+
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
             3 task cannot be materialized, 4 ready task produced no committed diff, 5 task is abandoned,
             6 a Codex cloud command timed out, 7 cloud apply produced an invalid Git landing,
-            8 receipt lock acquisition timed out
+            8 receipt lock acquisition timed out before apply,
+            9 diff applied and staged but the receipt write lock timed out
 
   --help, -h          print this usage and exit 0
   --allow-abandoned   permit a late terminal result to proceed, while keeping the base SHA check`
@@ -99,11 +106,20 @@ try {
   fail(2, error.message)
 }
 const mirrorPath = mirrorPathFor(stateRoot, receipt.taskId)
+const recoveryPath = join(stateRoot, `materialization-recovery-${receipt.taskId}.json`)
 const receiptLockOptions = { lockTimeoutMs: config.timeouts.receiptLockSeconds * 1000 }
-const persistConfiguredReceipt = (value) => {
+const persistConfiguredReceipt = (value, appliedDiffIsStaged = false) => {
   try {
     return persistReconciledReceipt(value, mirrorPath, [receiptPath], receiptLockOptions)
   } catch (error) {
+    if (error instanceof ReceiptLockTimeoutError && appliedDiffIsStaged) {
+      fail(
+        9,
+        `the cloud diff is applied and staged in ${worktree}, and only the receipt write failed. ` +
+        `Leave the worktree unchanged and rerun: node tools/materialize-cloud-result.mjs --receipt ${JSON.stringify(receiptPath)}`,
+        "APPLIED_RECEIPT_WRITE_FAILED",
+      )
+    }
     if (error instanceof ReceiptLockTimeoutError) fail(8, error.message, "RECEIPT_LOCK_TIMEOUT")
     fail(2, error.message)
   }
@@ -135,17 +151,73 @@ if (receipt.materialized) {
 }
 
 const git = (args) => spawnSync("git", ["-C", worktree, ...args], { encoding: "utf8", windowsHide: true })
-const assertLocalPreconditions = () => {
+const readLocalLanding = () => {
   const status = git(["status", "--porcelain"])
   if (status.error || status.status !== 0) fail(2, `could not read worktree status: ${(status.stderr || status.error?.message || "unknown error").trim()}`)
-  if (status.stdout.length > 0) fail(2, `worktree is dirty; cloud apply was not run:\n${status.stdout.trimEnd()}`)
   const head = git(["rev-parse", "HEAD"])
   if (head.error || head.status !== 0) fail(2, `could not read worktree HEAD: ${(head.stderr || head.error?.message || "unknown error").trim()}`)
-  if (head.stdout.trim() !== receipt.baseSha) {
-    fail(2, `worktree HEAD ${head.stdout.trim()} does not equal receipt base SHA ${receipt.baseSha}; cloud apply was not run`)
+  const stagedStat = git(["diff", "--cached", "--stat"])
+  const stagedDiff = git(["diff", "--cached", "--quiet", "--exit-code"])
+  const stagedPatch = git(["diff", "--cached", "--binary"])
+  if (
+    stagedStat.error || stagedStat.status !== 0 ||
+    stagedDiff.error || ![0, 1].includes(stagedDiff.status) ||
+    stagedPatch.error || stagedPatch.status !== 0
+  ) {
+    fail(1, "the local Git landing could not be read", "REPORT_FAILED")
+  }
+  return { head, status, stagedStat, stagedDiff, stagedPatch }
+}
+
+const assertExpectedLanding = (landing) => {
+  if (landing.head.stdout.trim() !== receipt.baseSha) {
+    fail(
+      7,
+      `cloud apply moved HEAD from receipt base SHA ${receipt.baseSha} to ${landing.head.stdout.trim()}`,
+      "APPLY_MOVED_HEAD",
+    )
+  }
+  if (landing.stagedDiff.status === 0 || landing.stagedStat.stdout.trim().length === 0) {
+    fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
+  }
+  const unexpectedStatus = landing.status.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((line) => !/^[MADRCT] /.test(line))
+  if (unexpectedStatus.length > 0) {
+    fail(
+      7,
+      `cloud apply left changes outside the expected staged-only shape:\n${unexpectedStatus.join("\n")}`,
+      "APPLY_INVALID_SHAPE",
+    )
   }
 }
-assertLocalPreconditions()
+
+const assertCleanPreconditionsOrReadRecovery = () => {
+  const landing = readLocalLanding()
+  if (landing.status.stdout.length === 0) {
+    if (landing.head.stdout.trim() !== receipt.baseSha) {
+      fail(2, `worktree HEAD ${landing.head.stdout.trim()} does not equal receipt base SHA ${receipt.baseSha}; cloud apply was not run`)
+    }
+    return null
+  }
+  if (!existsSync(recoveryPath)) {
+    fail(2, `worktree is dirty; cloud apply was not run:\n${landing.status.stdout.trimEnd()}`)
+  }
+  const recovery = readJsonFile(recoveryPath, "cloud materialization recovery marker")
+  const mismatched = ["taskId", "baseSha", "worktree"].filter((field) => recovery[field] !== receipt[field])
+  if (mismatched.length > 0) {
+    fail(2, `cloud materialization recovery marker changed immutable field(s): ${mismatched.join(", ")}`)
+  }
+  assertExpectedLanding(landing)
+  const stagedDiffSha256 = createHash("sha256").update(landing.stagedPatch.stdout).digest("hex")
+  if (recovery.stagedDiffSha256 !== stagedDiffSha256) {
+    fail(2, "the staged diff no longer matches the cloud materialization recovery marker; leave the worktree unchanged for recovery")
+  }
+  return recovery
+}
+
+const recovery = assertCleanPreconditionsOrReadRecovery()
 
 const codexCommand = config.workers.codex?.command
 if (typeof codexCommand !== "string" || codexCommand.length === 0) fail(2, ".claude/orchestrator.json declares no codex command")
@@ -167,6 +239,31 @@ try {
   }
   receipt = persistConfiguredReceipt(receipt)
 
+  if (recovery) {
+    const recoveredLanding = readLocalLanding()
+    assertExpectedLanding(recoveredLanding)
+    const stagedDiffSha256 = createHash("sha256").update(recoveredLanding.stagedPatch.stdout).digest("hex")
+    if (recovery.stagedDiffSha256 !== stagedDiffSha256) {
+      fail(2, "the staged diff changed during cloud materialization recovery; receipt was not updated")
+    }
+    receipt.materialized = {
+      at: recovery.at,
+      status: recoveredLanding.status.stdout,
+      stagedStat: recoveredLanding.stagedStat.stdout,
+    }
+    receipt = persistConfiguredReceipt(receipt, true)
+    unlinkSync(recoveryPath)
+    console.log(JSON.stringify({
+      outcome: "MATERIALIZED",
+      recovered: true,
+      taskId: receipt.taskId,
+      worktree,
+      status: recoveredLanding.status.stdout,
+      stagedStat: recoveredLanding.stagedStat.stdout,
+    }))
+    process.exit(0)
+  }
+
   if (task?.status === "error") {
     fail(3, `cloud task ${receipt.taskId} failed; no diff will exist`, "CLOUD_TASK_ERROR")
   }
@@ -186,7 +283,13 @@ try {
     )
   }
 
-  assertLocalPreconditions()
+  const cleanLanding = readLocalLanding()
+  if (cleanLanding.status.stdout.length > 0) {
+    fail(2, `worktree became dirty before cloud apply; cloud apply was not run:\n${cleanLanding.status.stdout.trimEnd()}`)
+  }
+  if (cleanLanding.head.stdout.trim() !== receipt.baseSha) {
+    fail(2, `worktree HEAD ${cleanLanding.head.stdout.trim()} does not equal receipt base SHA ${receipt.baseSha}; cloud apply was not run`)
+  }
   const codexDiagnosticPath = resolve(worktree, CODEX_DIAGNOSTIC_FILENAME)
   const codexDiagnosticExisted = existsSync(codexDiagnosticPath)
   const applied = await runCodex(codexCommand, ["cloud", "apply", receipt.taskId], {
@@ -206,47 +309,25 @@ try {
   if (applied.error || applied.status !== 0) {
     fail(1, `codex cloud apply failed with exit ${applied.status ?? "spawn"}: ${(applied.stderr || applied.stdout || applied.error?.message || "unknown error").trim()}`, "APPLY_FAILED")
   }
-  const head = git(["rev-parse", "HEAD"])
-  const status = git(["status", "--porcelain"])
-  const stagedStat = git(["diff", "--cached", "--stat"])
-  const stagedDiff = git(["diff", "--cached", "--quiet", "--exit-code"])
-  if (
-    head.error || head.status !== 0 ||
-    status.error || status.status !== 0 ||
-    stagedStat.error || stagedStat.status !== 0 ||
-    stagedDiff.error || ![0, 1].includes(stagedDiff.status)
-  ) {
-    fail(1, "cloud apply exited successfully, but the landed Git state could not be read", "REPORT_FAILED")
-  }
-  if (head.stdout.trim() !== receipt.baseSha) {
-    fail(
-      7,
-      `cloud apply moved HEAD from receipt base SHA ${receipt.baseSha} to ${head.stdout.trim()}`,
-      "APPLY_MOVED_HEAD",
-    )
-  }
-  if (stagedDiff.status === 0 || stagedStat.stdout.trim().length === 0) {
-    fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
-  }
-  const unexpectedStatus = status.stdout
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .filter((line) => !/^[MADRCT] /.test(line))
-  if (unexpectedStatus.length > 0) {
-    fail(
-      7,
-      `cloud apply left changes outside the expected staged-only shape:\n${unexpectedStatus.join("\n")}`,
-      "APPLY_INVALID_SHAPE",
-    )
-  }
-  receipt.materialized = { at: new Date().toISOString(), status: status.stdout, stagedStat: stagedStat.stdout }
-  receipt = persistConfiguredReceipt(receipt)
+  const landing = readLocalLanding()
+  assertExpectedLanding(landing)
+  const materializedAt = new Date().toISOString()
+  persistReceipt({
+    taskId: receipt.taskId,
+    baseSha: receipt.baseSha,
+    worktree: receipt.worktree,
+    at: materializedAt,
+    stagedDiffSha256: createHash("sha256").update(landing.stagedPatch.stdout).digest("hex"),
+  }, recoveryPath)
+  receipt.materialized = { at: materializedAt, status: landing.status.stdout, stagedStat: landing.stagedStat.stdout }
+  receipt = persistConfiguredReceipt(receipt, true)
+  unlinkSync(recoveryPath)
   console.log(JSON.stringify({
     outcome: "MATERIALIZED",
     taskId: receipt.taskId,
     worktree,
-    status: status.stdout,
-    stagedStat: stagedStat.stdout,
+    status: landing.status.stdout,
+    stagedStat: landing.stagedStat.stdout,
   }))
 } finally {
   releaseLock()

@@ -29,6 +29,8 @@ const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "who
 /** These cloud subcommands only inspect tasks that already exist. Match the binary and the first
  * two arguments so a prompt containing one of these words grants nothing. */
 const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
+const COMMAND_SUBSTITUTION = /\$\(|`/
+const ENGINE_TOKEN = /(?:^|[^\w-])(?:claude|codex)(?:\.(?:exe|cmd|bat|ps1))?(?=$|[^\w-])/i
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -165,9 +167,17 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   for (const segment of segmentsOf(command)) {
     const binary = invokedBinary(segment)
     if (!ENGINE_BINARIES.has(binary)) continue
-    const words = withoutLeadingAssignments(segment).trim().split(/\s+/).slice(1)
-    if (words.some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))) continue
-    if (binary === "codex" && words[0]?.toLowerCase() === "cloud" && CLOUD_READ_SUBCOMMANDS.has(words[1]?.toLowerCase())) continue
+    const invocation = withoutLeadingAssignments(segment).trim()
+    const leadingToken = LEADING_TOKEN.exec(invocation)
+    const trailingSource = leadingToken ? invocation.slice(leadingToken[0].length) : invocation
+    const words = trailingSource.trim().split(/\s+/)
+    const containsNestedExecution = COMMAND_SUBSTITUTION.test(segment) || ENGINE_TOKEN.test(trailingSource)
+    if (!containsNestedExecution && words.some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))) continue
+    const safeCloudRead = binary === "codex" &&
+      words[0]?.toLowerCase() === "cloud" &&
+      CLOUD_READ_SUBCOMMANDS.has(words[1]?.toLowerCase()) &&
+      !containsNestedExecution
+    if (safeCloudRead) continue
     return blocked(
       command,
       "An orchestrating session may not start a model session outside the launcher. Every worker\n" +

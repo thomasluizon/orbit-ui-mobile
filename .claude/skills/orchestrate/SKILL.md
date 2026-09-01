@@ -121,7 +121,7 @@ node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
-node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file>
+node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
 node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>]
@@ -523,17 +523,19 @@ under the shared Git directory is the recovery source after a crashed session.
 
 Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
 remote outcome unknown, so that reservation continues to consume capacity and blocks the same
-ticket. Use `--clear-unknown` only once the environment contains no non terminal task that lacks an
-existing receipt. The command lists the environment and refuses to clear while any such possible
-orphan remains, so wait for it to finish or identify it in `codex cloud list` before trying again.
-If a cloud task was created, abandon it rather than adopting it. It may run to completion, but its
-diff is never applied.
+ticket. Absence cannot be proven from `codex cloud list` because the CLI exposes no create to list
+visibility bound. `--clear-unknown` alone therefore refuses. Open the task list in the Codex UI and
+confirm no task exists for the reservation, then add `--assert-no-task-exists`. That flag is a human
+assertion, not a deduction from the listing, and the receipt records the assertion and its time. If
+a cloud task was created, abandon it rather than adopting it. It may run to completion, but its diff
+is never applied.
 
 Cloud has one wall-clock ceiling and no no-progress clock. Across one observed run, `updated_at` did
 not move while the task was running and moved at the transition. The CLI reference does not define
 the field or its mutation rules, so the harness records and validates it only as diagnostic data.
-On each scheduler pass, read the stable receipts and `codex cloud list --env <id> --json`, then
-derive in-flight as unknown submissions plus receipts that are neither terminal nor abandoned.
+On each scheduler pass, read the stable receipts and `codex cloud list --env <id> --json`. Fleet
+capacity is unknown submissions plus receipts that are neither terminal nor abandoned. Same ticket
+admission is stricter: every unmaterialized and unabandoned receipt blocks, including `ready`.
 Never maintain a counter. When this harness first observes `ready`, record that local observation
 time and keep it unchanged. The receipt is on time only when that first observation is at or before
 its deadline. Otherwise, once the deadline passes, write `abandoned` with the time and last observed
@@ -551,6 +553,11 @@ requires a clean worktree whose HEAD is byte-for-byte the receipt base SHA. A re
 it means the container produced no commit. A successful apply leaves staged changes and never moves
 HEAD. Continue through the existing local test, signed commit, push, pull request, and readiness
 flow. The cloud tool never performs any of those delivery actions.
+
+If materialization exits 9 with `APPLIED_RECEIPT_WRITE_FAILED`, cloud apply already succeeded and
+the diff is staged. Only the bounded receipt write lock timed out. Leave the worktree unchanged and
+rerun the same `materialize-cloud-result.mjs --receipt <f>` command. Its recovery marker verifies the
+staged diff and records materialization without applying the cloud task a second time.
 
 ### Local execution
 

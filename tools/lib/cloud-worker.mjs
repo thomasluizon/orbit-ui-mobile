@@ -27,9 +27,15 @@ const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
 
 export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
 
-export const receiptIsInFlight = (receipt) => (
-  !receipt.abandoned && !receipt.materialized && receipt.terminal === undefined
+const receiptIsResolved = (receipt) => Boolean(receipt.abandoned || receipt.materialized || receipt.released)
+
+// Fleet capacity measures remote compute, so a terminal task no longer consumes a slot.
+export const receiptConsumesFleetCapacity = (receipt) => (
+  !receiptIsResolved(receipt) && receipt.terminal === undefined
 )
+
+// Ticket admission measures ownership, so every unresolved receipt blocks even after the task is terminal.
+export const receiptBlocksTicketAdmission = (receipt) => !receiptIsResolved(receipt)
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 
@@ -297,7 +303,7 @@ const newestRecord = (scratchRecord, mirroredRecord) => {
 
 export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
   const reconciled = { ...scratchReceipt, ...mirroredReceipt }
-  for (const field of ["lastObserved", "terminal", "abandoned", "lateTerminal", "materialized"]) {
+  for (const field of ["lastObserved", "terminal", "abandoned", "lateTerminal", "materialized", "released"]) {
     const record = newestRecord(scratchReceipt[field], mirroredReceipt[field])
     if (record !== undefined) reconciled[field] = record
   }
@@ -394,7 +400,7 @@ export const refreshReceipt = (receipt, task, now = new Date()) => {
 export const refreshReceipts = (receipts, tasks, now = new Date()) => {
   const taskById = new Map(tasks.map((task) => [task.id, task]))
   const updated = receipts.map((receipt) => refreshReceipt(receipt, taskById.get(receipt.taskId), now))
-  const inFlight = updated.filter(receiptIsInFlight)
+  const inFlight = updated.filter(receiptConsumesFleetCapacity)
   return { receipts: updated, inFlight }
 }
 

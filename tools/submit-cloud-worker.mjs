@@ -14,14 +14,14 @@ import {
   assertSameGitRepository,
   cloudOrder,
   cloudStateRoot,
-  isTerminalTaskStatus,
   listCloudTasks,
   mirrorPathFor,
   parseTaskUrl,
   persistReceipt,
   persistReconciledReceipt,
   readJsonFile,
-  receiptIsInFlight,
+  receiptBlocksTicketAdmission,
+  receiptConsumesFleetCapacity,
   refreshReceipts,
   reservationPathFor,
   runCodex,
@@ -30,7 +30,7 @@ import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: submit-cloud-worker.mjs --issue <ORB-N|#N|N> --env <environment-id> --branch <name> --order <file> --worktree <path>
-       submit-cloud-worker.mjs --clear-unknown <reservation-file>
+       submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
 
 Submits one task with the order as one shell-free argument, then writes a receipt beside the order
 and mirrors it under the repository's shared Git directory. It checks the stable receipts once to
@@ -40,17 +40,18 @@ cloud checkout is pinned to that commit while the receipt keeps the branch as co
 It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
-URL, that unknown attempt consumes capacity and blocks the same ticket. --clear-unknown requires two
-environment listings separated by timeouts.pollSeconds before absence is trusted, and refuses to
-remove the reservation while any non terminal task lacks an existing receipt. Any orphaned cloud
-task is abandoned rather than adopted, and its diff is never applied.
+URL, that unknown attempt consumes capacity and blocks the same ticket. Task absence cannot be
+proven from codex cloud list. --clear-unknown alone refuses and instructs the operator to inspect the
+Codex UI. --assert-no-task-exists records the operator's assertion and releases the reservation.
+Any orphaned cloud task is abandoned rather than adopted, and its diff is never applied.
 
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error,
             3 cloud capacity is full or recovery safety blocks clearing,
             4 a Codex cloud command timed out, 5 receipt lock acquisition timed out
 
-  --clear-unknown <file>      remove a reservation after a bounded two-list visibility check
+  --clear-unknown <file>      select an unknown reservation for explicit human release
+  --assert-no-task-exists     assert that the Codex UI shows no task for that reservation
   --help, -h                  print this usage and exit 0`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -70,7 +71,7 @@ const valueFlags = new Set([
   "--worktree",
   "--clear-unknown",
 ])
-const knownFlags = new Set([...valueFlags, "--help", "-h"])
+const knownFlags = new Set([...valueFlags, "--assert-no-task-exists", "--help", "-h"])
 const argv = process.argv.slice(2)
 const unknown = argv.filter((value, index) => value.startsWith("-") && !knownFlags.has(value) && !valueFlags.has(argv[index - 1]))
 if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
@@ -84,6 +85,13 @@ if (clearArgument) {
   const submissionFlags = ["--issue", "--env", "--branch", "--order", "--worktree"]
   if (submissionFlags.some((flag) => argOf(flag))) {
     fail(2, `${USAGE}\n\n--clear-unknown cannot be combined with a new submission`)
+  }
+  if (!argv.includes("--assert-no-task-exists")) {
+    fail(
+      3,
+      "task absence cannot be proven from codex cloud list. Open the task list in the Codex UI, " +
+      "confirm that no task exists for this reservation, then rerun with --assert-no-task-exists",
+    )
   }
 
   const reservationFile = resolve(clearArgument)
@@ -123,71 +131,28 @@ if (clearArgument) {
     fail(2, `cloud submission reservation disappeared while acquiring its lock: ${reservationFile}; no receipt was changed`)
   }
 
-  let config
-  try {
-    config = readOrchestratorConfig()
-  } catch (error) {
-    fail(2, error.message)
-  }
-  const codexCommand = config.workers.codex?.command
-  if (typeof codexCommand !== "string" || codexCommand.length === 0) {
-    fail(2, ".claude/orchestrator.json declares no codex command")
-  }
-  const receiptsDirectory = join(reservationStateRoot, "receipts")
-  let accountedTaskIds
-  try {
-    const receipts = readdirSync(receiptsDirectory)
-      .filter((entry) => entry.endsWith(".json"))
-      .map((entry) => readJsonFile(join(receiptsDirectory, entry), "cloud receipt"))
-      .filter((receipt) => receipt.environmentId === reservation.environmentId)
-    accountedTaskIds = new Set(
-      receipts
-        .map((receipt) => receipt.taskId)
-        .filter((taskId) => typeof taskId === "string"),
-    )
-  } catch (error) {
-    fail(2, error.message)
-  }
-
-  const listPossibleOrphans = async () => {
-    const tasks = await listCloudTasks(codexCommand, reservation.environmentId, {
-      timeoutMs: config.timeouts.cloudCommandMinutes * 60 * 1000,
-    })
-    return tasks.filter((task) => !isTerminalTaskStatus(task.status) && !accountedTaskIds.has(task.id))
-  }
-  const refusePossibleOrphans = (possibleOrphans) => {
-    if (possibleOrphans.length > 0) {
-      const taskLabel = possibleOrphans.length === 1 ? "task" : "tasks"
-      fail(
-        3,
-        `refusing to clear unknown submission reservation: saw ${possibleOrphans.length} ` +
-        `unaccounted non terminal ${taskLabel}; wait for them to finish or identify them in ` +
-        `codex cloud list before clearing`,
-      )
-    }
+  reservation.submissionState = "released"
+  reservation.released = {
+    at: new Date().toISOString(),
+    by: "human",
+    assertion: "no task exists for this reservation in the Codex UI",
   }
   try {
-    refusePossibleOrphans(await listPossibleOrphans())
-    console.error(
-      `No possible live orphan was visible. Waiting ${config.timeouts.pollSeconds} seconds before ` +
-      `a second full listing because codex cloud list does not guarantee read after create visibility.`,
-    )
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, config.timeouts.pollSeconds * 1000))
-    refusePossibleOrphans(await listPossibleOrphans())
+    persistReceipt(reservation, reservationFile)
   } catch (error) {
-    if (error instanceof CodexTimeoutError) fail(4, error.message)
-    fail(1, error.message)
+    fail(1, `unknown submission release could not be recorded: ${error.message}`)
   }
-
-  unlinkSync(reservationFile)
   releaseReservationLock()
   console.log(JSON.stringify({
     outcome: "UNKNOWN_SUBMISSION_CLEARED",
     reservationId: reservation.reservationId,
-    traversals: 2,
-    observationWindowSeconds: config.timeouts.pollSeconds,
+    released: reservation.released,
   }))
   process.exit(0)
+}
+
+if (argv.includes("--assert-no-task-exists")) {
+  fail(2, `${USAGE}\n\n--assert-no-task-exists requires --clear-unknown <reservation-file>`)
 }
 
 let ticket
@@ -295,20 +260,24 @@ if (existingReceipts.length > 0) {
       persistReceipt(receipt, stablePath)
       return receipt
     })
-    const blockedTicket = reconciledReceipts.find((receipt) => receipt.ticket === ticket && receiptIsInFlight(receipt))
+    const blockedTicket = reconciledReceipts.find((receipt) => (
+      receipt.ticket === ticket && receiptBlocksTicketAdmission(receipt)
+    ))
     if (blockedTicket) {
       const blockedState = blockedTicket.kind === "submission-reservation"
         ? `unknown submission reservation at ${blockedTicket.mirrorPath}`
         : `task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
       const nextAction = blockedTicket.kind === "submission-reservation"
-        ? "clear it after inspecting cloud tasks"
-        : "wait for it to finish"
+        ? "release it only after confirming in the Codex UI that no task exists"
+        : blockedTicket.terminal
+          ? "resolve that receipt before resubmitting"
+          : "wait for it to finish"
       fail(
         3,
         `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
       )
     }
-    const inFlight = reconciledReceipts.filter(receiptIsInFlight)
+    const inFlight = reconciledReceipts.filter(receiptConsumesFleetCapacity)
     if (inFlight.length >= config.caps.cloudParallelTasks) {
       fail(
         3,

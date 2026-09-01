@@ -25,7 +25,7 @@ export const fakeCodex = (label) => {
   writeFileSync(
     script,
     `#!/usr/bin/env node
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
@@ -60,6 +60,13 @@ else if (args[0] === "cloud" && args[1] === "apply") {
   const path = process.env.ORBIT_FAKE_APPLY_PATH || "cloud-landed.txt"
   writeFileSync(path, "landed from cloud\\n")
   const added = spawnSync("git", ["add", "--", path], { encoding: "utf8" })
+  if (process.env.ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH) {
+    mkdirSync(process.env.ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH, { recursive: true })
+    writeFileSync(
+      process.env.ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH + "/owner.json",
+      JSON.stringify({ pid: Number(process.env.ORBIT_FAKE_RECEIPT_LOCK_OWNER_PID) }),
+    )
+  }
   process.exit(added.status || 0)
 } else process.exit(7)
 `,
@@ -80,6 +87,7 @@ export const cloudConfig = (command, overrides = {}) => {
   real.caps.cloudParallelTasks = overrides.cloudParallelTasks ?? 4
   real.timeouts.cloudCeilingMinutes = overrides.cloudCeilingMinutes ?? 45
   real.timeouts.cloudCommandMinutes = overrides.cloudCommandMinutes ?? 10
+  real.timeouts.receiptLockSeconds = overrides.receiptLockSeconds ?? real.timeouts.receiptLockSeconds
   return real
 }
 
@@ -231,6 +239,16 @@ export const cases = async () => {
     fleet.inFlight.map((entry) => entry.taskId).join(",") === "task_e_a1",
     JSON.stringify(fleet),
   )
+  const readyReceipt = cloud.refreshReceipt(
+    { ...receipt, taskId: "task_e_b3" },
+    task("task_e_b3", "ready", 1),
+    new Date("2026-08-31T17:30:00.000Z"),
+  )
+  T(
+    "cloud-worker.mjs: ready releases fleet capacity but still blocks same ticket admission",
+    !cloud.receiptConsumesFleetCapacity(readyReceipt) && cloud.receiptBlocksTicketAdmission(readyReceipt),
+    JSON.stringify(readyReceipt),
+  )
   const terminalFleet = cloud.refreshReceipts(
     [
       { ...receipt, taskId: "task_e_c4" },
@@ -261,6 +279,12 @@ export const cases = async () => {
     reservation.inFlight.length === 1 &&
       reservation.receipts[0].submissionState === "unknown" &&
       reservation.receipts[0].unknownAt === "2026-08-31T19:00:00.000Z",
+    JSON.stringify(reservation),
+  )
+  T(
+    "cloud-worker.mjs: a human released reservation no longer consumes capacity or blocks its ticket",
+    !cloud.receiptConsumesFleetCapacity({ ...reservation.receipts[0], released: { at: "2026-08-31T19:05:00.000Z" } }) &&
+      !cloud.receiptBlocksTicketAdmission({ ...reservation.receipts[0], released: { at: "2026-08-31T19:05:00.000Z" } }),
     JSON.stringify(reservation),
   )
 

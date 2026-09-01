@@ -204,7 +204,6 @@ export const cases = async () => {
   )
 
   {
-    const state = "pending"
     const status = "pending"
     const retry = fixture(`retry-${status}`)
     const retryReceipts = join(retry.repo.path, ".git", "orbit-cloud", "receipts")
@@ -231,9 +230,9 @@ export const cases = async () => {
     })
     const cloudInvocations = readFileSync(retry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
     T(
-      `${TOOL}: a confirmed ${state} receipt blocks a competing task for the same ticket`,
+      `${TOOL}: a confirmed pending receipt blocks a competing task for the same ticket`,
       retryResult.status === 3 &&
-        retryResult.stderr.includes(`task ${taskId} is ${state}`) &&
+        retryResult.stderr.includes(`task ${taskId} is pending`) &&
         !cloudInvocations.some((args) => args[0] === "cloud" && args[1] === "exec"),
       `exit ${retryResult.status}: ${retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
     )
@@ -265,12 +264,60 @@ export const cases = async () => {
     })
     const cloudInvocations = readFileSync(retry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
     T(
-      `${TOOL}: a terminal ${status} receipt neither blocks its ticket nor consumes capacity`,
-      retryResult.status === 0 &&
-        cloudInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec").length === 1,
+      `${TOOL}: an unresolved terminal ${status} receipt still blocks its ticket`,
+      retryResult.status === 3 &&
+        retryResult.stderr.includes(`task ${taskId} is ${status}`) &&
+        !cloudInvocations.some((args) => args[0] === "cloud" && args[1] === "exec"),
       `exit ${retryResult.status}: ${retryResult.stdout || retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
     )
   }
+
+  const readyCapacity = fixture("ready-capacity")
+  const readyCapacityReceipts = join(readyCapacity.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(readyCapacityReceipts, { recursive: true })
+  const readyCapacityTaskId = "task_e_398e"
+  const readyCapacityTasks = [task(readyCapacityTaskId, "ready", 1)]
+  for (const [taskId, ticket] of [["task_e_a4", "#400"], ["task_e_b5", "#401"], ["task_e_c6", "#402"]]) {
+    readyCapacityTasks.push(task(taskId, "pending", 0))
+    writeFileSync(join(readyCapacityReceipts, `${taskId}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: readyCapacity.config.cloud.environmentId,
+      repositoryKey: readyCapacity.config.cloud.repositoryKey,
+      ticket,
+      deadline: future,
+      worktree: readyCapacity.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+  }
+  writeFileSync(join(readyCapacityReceipts, `${readyCapacityTaskId}.json`), JSON.stringify({
+    kind: "task-receipt",
+    submissionState: "confirmed",
+    taskId: readyCapacityTaskId,
+    environmentId: readyCapacity.config.cloud.environmentId,
+    repositoryKey: readyCapacity.config.cloud.repositoryKey,
+    ticket: "#399",
+    deadline: future,
+    worktree: readyCapacity.repo.path,
+    baseSha: "0".repeat(40),
+  }))
+  const readyCapacityResult = run(TOOL, argvOf(readyCapacity), {
+    path: readyCapacity.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: readyCapacity.log,
+      ORBIT_FAKE_LIST: taskPage(readyCapacityTasks),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_398f",
+    },
+  })
+  const readyCapacityInvocations = readFileSync(readyCapacity.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: a ready unmaterialized receipt leaves the fourth fleet slot available`,
+    readyCapacityResult.status === 0 &&
+      readyCapacityInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec").length === 1,
+    `exit ${readyCapacityResult.status}: ${readyCapacityResult.stdout || readyCapacityResult.stderr}\n` +
+      JSON.stringify(readyCapacityInvocations),
+  )
 
   const interleaved = fixture("interleaved-materialization")
   const interleavedReceipts = join(interleaved.repo.path, ".git", "orbit-cloud", "receipts")
@@ -354,7 +401,7 @@ export const cases = async () => {
   T(
     `${TOOL}: an unknown attempt blocks resubmission of the same ticket before a second remote write`,
     blockedRetry.status === 3 &&
-      /clear it after inspecting cloud tasks before resubmitting/.test(blockedRetry.stderr) &&
+      /release it only after confirming in the Codex UI that no task exists before resubmitting/.test(blockedRetry.stderr) &&
       retryInvocations.filter((args) => args[1] === "exec").length === 1,
     `exit ${blockedRetry.status}: ${blockedRetry.stderr}\n${JSON.stringify(retryInvocations)}`,
   )
@@ -393,7 +440,6 @@ export const cases = async () => {
     path: liveOrphan.path,
     env: {
       ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
-      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
     },
   })
   const blockedSameTicket = run(TOOL, argvOf(liveOrphan), {
@@ -415,11 +461,12 @@ export const cases = async () => {
     },
   })
   T(
-    `${TOOL}: a running accepted orphan refuses clearing and keeps capacity and ticket protections`,
+    `${TOOL}: clear without the human assertion refuses and keeps capacity and ticket protections`,
     liveOrphanTimeout.status === 4 &&
       refusedClear.status === 3 &&
-      /saw 1 unaccounted non terminal task/.test(refusedClear.stderr) &&
-      /wait for them to finish or identify them in codex cloud list before clearing/.test(refusedClear.stderr) &&
+      /task absence cannot be proven from codex cloud list/.test(refusedClear.stderr) &&
+      /Open the task list in the Codex UI/.test(refusedClear.stderr) &&
+      /--assert-no-task-exists/.test(refusedClear.stderr) &&
       existsSync(liveOrphanPath) &&
       blockedSameTicket.status === 3 &&
       /unknown submission reservation/.test(blockedSameTicket.stderr) &&
@@ -430,97 +477,26 @@ export const cases = async () => {
       `capacity ${blockedCapacity.status}: ${blockedCapacity.stderr}`,
   )
 
-  const terminalClear = run(TOOL, ["--clear-unknown", liveOrphanPath], {
+  const invocationsBeforeAssertion = readFileSync(liveOrphan.log, "utf8").trim().split(/\r?\n/).filter(Boolean).length
+  const assertedClear = run(TOOL, ["--clear-unknown", liveOrphanPath, "--assert-no-task-exists"], {
     path: liveOrphan.path,
     env: {
       ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
-      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "ready", 1)]),
     },
   })
+  const releasedReservation = JSON.parse(readFileSync(liveOrphanPath, "utf8"))
+  const invocationsAfterAssertion = readFileSync(liveOrphan.log, "utf8").trim().split(/\r?\n/).filter(Boolean).length
   T(
-    `${TOOL}: the same accepted orphan can be cleared after it becomes terminal`,
-    terminalClear.status === 0 &&
-      /UNKNOWN_SUBMISSION_CLEARED/.test(terminalClear.stdout) &&
-      !existsSync(liveOrphanPath),
-    `exit ${terminalClear.status}: ${terminalClear.stdout || terminalClear.stderr}`,
-  )
-
-  const noOrphan = fixture("clear-without-orphan")
-  noOrphan.config.timeouts.cloudCommandMinutes = 0.005
-  writeFileSync(noOrphan.configPath, `${JSON.stringify(noOrphan.config, null, 2)}\n`)
-  const noOrphanTimeout = run(TOOL, argvOf(noOrphan), {
-    path: noOrphan.path,
-    env: {
-      ORBIT_FAKE_CODEX_LOG: noOrphan.log,
-      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
-      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a402",
-    },
-  })
-  const noOrphanDirectory = join(noOrphan.repo.path, ".git", "orbit-cloud", "receipts")
-  const noOrphanPath = join(noOrphanDirectory, readdirSync(noOrphanDirectory)[0])
-  const clearedWithoutOrphan = run(TOOL, ["--clear-unknown", noOrphanPath], {
-    path: noOrphan.path,
-    env: {
-      ORBIT_FAKE_CODEX_LOG: noOrphan.log,
-      ORBIT_FAKE_LIST: taskPage([]),
-    },
-  })
-  T(
-    `${TOOL}: an unknown reservation can be cleared when the environment has no unaccounted tasks`,
-    noOrphanTimeout.status === 4 &&
-      clearedWithoutOrphan.status === 0 &&
-      /UNKNOWN_SUBMISSION_CLEARED/.test(clearedWithoutOrphan.stdout) &&
-      !existsSync(noOrphanPath),
-    `timeout ${noOrphanTimeout.status}; clear ${clearedWithoutOrphan.status}: ` +
-      `${clearedWithoutOrphan.stdout || clearedWithoutOrphan.stderr}`,
-  )
-
-  const delayedVisibility = fixture("delayed-visibility")
-  delayedVisibility.config.timeouts.cloudCommandMinutes = 0.005
-  writeFileSync(delayedVisibility.configPath, `${JSON.stringify(delayedVisibility.config, null, 2)}\n`)
-  const delayedTaskId = "task_e_a403"
-  const delayedTimeout = run(TOOL, argvOf(delayedVisibility), {
-    path: delayedVisibility.path,
-    env: {
-      ORBIT_FAKE_CODEX_LOG: delayedVisibility.log,
-      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
-      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${delayedTaskId}`,
-    },
-  })
-  const delayedDirectory = join(delayedVisibility.repo.path, ".git", "orbit-cloud", "receipts")
-  const delayedPath = join(delayedDirectory, readdirSync(delayedDirectory)[0])
-  const delayedListIndex = stage("submit-cloud/delayed-visibility-index.txt", "0")
-  const delayedClear = run(TOOL, ["--clear-unknown", delayedPath], {
-    path: delayedVisibility.path,
-    env: {
-      ORBIT_FAKE_CODEX_LOG: delayedVisibility.log,
-      ORBIT_FAKE_LIST_INDEX_PATH: delayedListIndex,
-      ORBIT_FAKE_LIST_SEQUENCE: JSON.stringify([
-        taskPage([]),
-        taskPage([task(delayedTaskId, "pending", 0)]),
-      ]),
-    },
-  })
-  const delayedRetry = run(TOOL, argvOf(delayedVisibility), {
-    path: delayedVisibility.path,
-    env: {
-      ORBIT_FAKE_CODEX_LOG: delayedVisibility.log,
-      ORBIT_FAKE_LIST: taskPage([task(delayedTaskId, "pending", 0)]),
-      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
-    },
-  })
-  T(
-    `${TOOL}: later visibility inside the observation window preserves the reservation and ticket guard`,
-    delayedTimeout.status === 4 &&
-      delayedClear.status === 3 &&
-      /Waiting 0.01 seconds/.test(delayedClear.stderr) &&
-      /saw 1 unaccounted non terminal task/.test(delayedClear.stderr) &&
-      readFileSync(delayedListIndex, "utf8") === "2" &&
-      existsSync(delayedPath) &&
-      delayedRetry.status === 3 &&
-      /unknown submission reservation/.test(delayedRetry.stderr),
-    `timeout ${delayedTimeout.status}; clear ${delayedClear.status}: ${delayedClear.stderr}\n` +
-      `retry ${delayedRetry.status}: ${delayedRetry.stderr}`,
+    `${TOOL}: the explicit human assertion releases and records the unknown reservation without listing`,
+    assertedClear.status === 0 &&
+      /UNKNOWN_SUBMISSION_CLEARED/.test(assertedClear.stdout) &&
+      releasedReservation.submissionState === "released" &&
+      releasedReservation.released?.by === "human" &&
+      releasedReservation.released?.assertion === "no task exists for this reservation in the Codex UI" &&
+      Number.isFinite(Date.parse(releasedReservation.released?.at)) &&
+      invocationsAfterAssertion === invocationsBeforeAssertion,
+    `exit ${assertedClear.status}: ${assertedClear.stdout || assertedClear.stderr}\n` +
+      JSON.stringify(releasedReservation),
   )
 
   const listTimeout = fixture("list-timeout")
