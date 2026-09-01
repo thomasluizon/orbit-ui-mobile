@@ -22,6 +22,7 @@ import {
   type ComposerSuggestions,
 } from '@orbit/shared/contracts/composer'
 import {
+  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
@@ -45,6 +46,7 @@ import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
+import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 
 interface AttemptedSend {
@@ -152,6 +154,14 @@ export function useChatComposer() {
     clearImage,
   } = useChatImageAttachment(setSendError)
 
+  const {
+    textFileInputRef,
+    selectedTextFile,
+    openTextFilePicker,
+    handleTextFileSelect,
+    removeTextFile,
+  } = useChatTextFileAttachment(setSendError)
+
   if (speechError !== previousSpeechError) {
     setPreviousSpeechError(speechError)
     if (speechError) {
@@ -170,7 +180,19 @@ export function useChatComposer() {
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
-  const canSend = hasComposerContent(input) && !isSending && !atMessageLimit && isOnline
+  const attachments = useMemo(
+    () => [
+      ...(selectedTextFile
+        ? [{ id: 'chat-file', kind: 'file' as const, name: selectedTextFile.name }]
+        : []),
+      ...(selectedImage
+        ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
+        : []),
+    ],
+    [selectedImage, selectedTextFile],
+  )
+  const canSend =
+    hasComposerContent(input, attachments) && !isSending && !atMessageLimit && isOnline
   const showSuggestions = messages.length === 0 && !isTyping
 
   const starterChips = useMemo(
@@ -515,31 +537,43 @@ export function useChatComposer() {
   const sendMessage = useCallback(
     async (content?: string) => {
       const typedContent = content?.trim() ?? input.trim()
+      const messageContent = selectedTextFile
+        ? buildChatMessageWithFileContent({
+            message: typedContent,
+            fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
+            fileContent: selectedTextFile.content,
+          })
+        : typedContent
       const sendState = useChatStore.getState()
       if (
-        !hasComposerContent(typedContent) ||
+        !hasComposerContent(typedContent, attachments) ||
         sendState.isTyping ||
         sendState.streamingMessageId !== null
       ) return
 
       const attempted: AttemptedSend = {
-        content: typedContent,
+        content: messageContent,
         image: selectedImage,
         preview: imagePreview,
       }
 
       setInput('')
       clearImage()
+      removeTextFile()
 
       await performSend(attempted, false)
     },
     [
       clearImage,
+      attachments,
       imagePreview,
       input,
       performSend,
+      removeTextFile,
       selectedImage,
+      selectedTextFile,
       setInput,
+      t,
     ],
   )
 
@@ -584,16 +618,19 @@ export function useChatComposer() {
       onSend: () => void sendMessage(),
       onPaste: handlePaste,
       suggestions: composerSuggestions,
-      onAttach: openFilePicker,
+      onAttachFile: openTextFilePicker,
+      onAttachImage: openFilePicker,
       attachWords: {
-        add: t('shell.composer.attach.add'),
+        file: t('chat.attachFile'),
+        image: t('chat.attachImage'),
         trayLabel: t('shell.composer.attach.trayLabel'),
         remove: (name: string) => t('shell.composer.attach.remove', { name }),
       },
-      attachments: selectedImage
-        ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
-        : [],
-      onAttachRemove: removeImage,
+      attachments,
+      onAttachRemove: (id: string) => {
+        if (id === 'chat-file') removeTextFile()
+        if (id === 'chat-image') removeImage()
+      },
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
     }
 
@@ -613,6 +650,7 @@ export function useChatComposer() {
       : { ...common, state }
   }, [
     aiMessagesLimit,
+    attachments,
     atMessageLimit,
     canRetryLastSend,
     composerSuggestions,
@@ -623,9 +661,10 @@ export function useChatComposer() {
     isSending,
     isTranscribing,
     openFilePicker,
+    openTextFilePicker,
     removeImage,
+    removeTextFile,
     retryLastSend,
-    selectedImage,
     setInput,
     sendMessage,
     speechSupported,
@@ -640,10 +679,12 @@ export function useChatComposer() {
   return {
     chatContainerRef,
     fileInputRef,
+    textFileInputRef,
     input,
     setInput,
     sendError,
     selectedImage,
+    selectedTextFile,
     imagePreview,
     isRecording,
     isTranscribing,
@@ -666,6 +707,7 @@ export function useChatComposer() {
     showSuggestions,
     openFilePicker,
     handleFileSelect,
+    handleTextFileSelect,
     removeImage,
     composerProps,
     sendMessage,

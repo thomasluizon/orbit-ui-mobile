@@ -15,7 +15,8 @@ const voiceWords = {
   transcribing: 'transcribing sentinel',
 }
 const attachWords = {
-  add: 'attach sentinel',
+  file: 'attach file sentinel',
+  image: 'attach image sentinel',
   trayLabel: 'tray sentinel',
   remove: (name: string) => `remove sentinel ${name}`,
 }
@@ -90,7 +91,7 @@ describe('Composer', () => {
         {...props({
           value: '   ',
           onSend,
-          onAttach: vi.fn(),
+          onAttachImage: vi.fn(),
           attachWords,
           attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
           onAttachRemove: vi.fn(),
@@ -107,7 +108,7 @@ describe('Composer', () => {
         {...props({
           value: 'log my walk',
           onSend,
-          onAttach: vi.fn(),
+          onAttachImage: vi.fn(),
           attachWords,
           attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
           onAttachRemove: vi.fn(),
@@ -181,9 +182,34 @@ describe('Composer', () => {
   })
 
   it('renders attachment capability without an empty tray', () => {
-    render(<Composer {...props({ onAttach: vi.fn(), attachWords })} />)
-    expect(screen.getByRole('button', { name: attachWords.add })).toBeInTheDocument()
+    render(
+      <Composer
+        {...props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords })}
+      />,
+    )
+    expect(screen.getByRole('button', { name: attachWords.file })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: attachWords.image })).toBeInTheDocument()
     expect(screen.queryByLabelText(attachWords.trayLabel)).not.toBeInTheDocument()
+  })
+
+  it('allows a text file to send without typed text', () => {
+    const onSend = vi.fn()
+    render(
+      <Composer
+        {...props({
+          value: '   ',
+          onSend,
+          onAttachFile: vi.fn(),
+          attachWords,
+          attachments: [{ id: 'file-id', kind: 'file', name: 'notes.txt' }],
+          onAttachRemove: vi.fn(),
+        })}
+      />,
+    )
+    const send = screen.getByRole('button', { name: words.send })
+    expect(send).toBeEnabled()
+    fireEvent.click(send)
+    expect(onSend).toHaveBeenCalledOnce()
   })
 
   it('names, distinguishes, and removes each attachment independently', () => {
@@ -193,7 +219,9 @@ describe('Composer', () => {
       { id: 'image-id', kind: 'image' as const, name: 'walk.png' },
     ]
     const { container } = render(
-      <Composer {...props({ onAttach: vi.fn(), attachWords, attachments, onAttachRemove })} />,
+      <Composer
+        {...props({ onAttachFile: vi.fn(), attachWords, attachments, onAttachRemove })}
+      />,
     )
     expect(screen.getByText('notes.txt')).toBeInTheDocument()
     expect(screen.getByText('walk.png')).toBeInTheDocument()

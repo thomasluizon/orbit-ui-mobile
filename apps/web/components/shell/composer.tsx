@@ -114,7 +114,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value)
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
@@ -148,12 +148,24 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-3)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
         />
 
-        {props.onAttach ? (
+        {props.onAttachFile ? (
           <button
             type="button"
-            aria-label={props.attachWords.add}
+            aria-label={props.attachWords.file}
             disabled={inputDisabled}
-            onClick={props.onAttach}
+            onClick={props.onAttachFile}
+            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+          >
+            <FileText size={20} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        ) : null}
+
+        {props.onAttachImage ? (
+          <button
+            type="button"
+            aria-label={props.attachWords.image}
+            disabled={inputDisabled}
+            onClick={props.onAttachImage}
             className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
           >
             <ImageIcon size={20} strokeWidth={1.8} aria-hidden="true" />

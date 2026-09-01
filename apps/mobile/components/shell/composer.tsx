@@ -140,7 +140,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   const voiceRef = useRef<View>(null)
   useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value)
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
@@ -177,13 +177,30 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
           style={[styles.input, { color: tokens.fg1 }]}
         />
 
-        {props.onAttach ? (
+        {props.onAttachFile ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={props.attachWords.add}
+            accessibilityLabel={props.attachWords.file}
             accessibilityState={{ disabled: inputDisabled }}
             disabled={inputDisabled}
-            onPress={props.onAttach}
+            onPress={props.onAttachFile}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+              inputDisabled ? styles.disabled : null,
+            ]}
+          >
+            <FileText size={20} strokeWidth={1.8} color={tokens.fg3} />
+          </Pressable>
+        ) : null}
+
+        {props.onAttachImage ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={props.attachWords.image}
+            accessibilityState={{ disabled: inputDisabled }}
+            disabled={inputDisabled}
+            onPress={props.onAttachImage}
             style={({ pressed }) => [
               styles.iconButton,
               pressed ? { backgroundColor: tokens.bgElevPressed } : null,

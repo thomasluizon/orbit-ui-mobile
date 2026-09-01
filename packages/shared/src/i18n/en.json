@@ -217,7 +217,6 @@
         "transcribing": "Writing what you said"
       },
       "attach": {
-        "add": "Add an image",
         "trayLabel": "Attached files",
         "remove": "Remove {name}"
       },

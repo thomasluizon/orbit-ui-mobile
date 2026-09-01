@@ -15,7 +15,8 @@ export type ComposerVoiceWords = {
 }
 
 export type ComposerAttachWords = {
-  add: string
+  file: string
+  image: string
   trayLabel: string
   remove: (name: string) => string
 }
@@ -26,9 +27,12 @@ export type ComposerAttachment = {
   name: string
 }
 
-export function hasComposerContent(value: string): boolean {
+export function hasComposerContent(
+  value: string,
+  attachments: readonly ComposerAttachment[] = [],
+): boolean {
   // WHY: ChatController.cs:180 rejects blank messages, including images; https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Api/Controllers/ChatController.cs#L180
-  return value.trim().length > 0
+  return value.trim().length > 0 || attachments.some((attachment) => attachment.kind === 'file')
 }
 
 export type ComposerSuggestion = {
@@ -80,21 +84,37 @@ type ComposerVoice =
   | { onVoice: () => void; voiceWords: ComposerVoiceWords }
   | { onVoice?: never; voiceWords?: never }
 
-type ComposerAttach =
+type ComposerAttachControls =
   | {
-      onAttach: () => void
-      attachWords: ComposerAttachWords
+      onAttachFile: () => void
+      onAttachImage: () => void
+    }
+  | {
+      onAttachFile: () => void
+      onAttachImage?: never
+    }
+  | {
+      onAttachFile?: never
+      onAttachImage: () => void
+    }
+
+type ComposerAttachmentTray =
+  | {
       attachments: readonly ComposerAttachment[]
       onAttachRemove: (id: string) => void
     }
   | {
-      onAttach: () => void
-      attachWords: ComposerAttachWords
       attachments?: never
       onAttachRemove?: never
     }
+
+type ComposerAttach =
+  | (ComposerAttachControls & {
+      attachWords: ComposerAttachWords
+    } & ComposerAttachmentTray)
   | {
-      onAttach?: never
+      onAttachFile?: never
+      onAttachImage?: never
       attachWords?: never
       attachments?: never
       onAttachRemove?: never

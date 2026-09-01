@@ -114,6 +114,23 @@ function controlledSseResponse() {
   }
 }
 
+function fileChangeEvent(file?: File) {
+  const input = document.createElement('input')
+  Object.defineProperty(input, 'files', { value: file ? [file] : [] })
+  return { target: input } as Parameters<
+    ReturnType<typeof useChatComposer>['handleTextFileSelect']
+  >[0]
+}
+
+function textFile(name: string, content: string, size = content.length) {
+  const file = new File([new Uint8Array(size)], name)
+  Object.defineProperty(file, 'text', {
+    configurable: true,
+    value: vi.fn().mockResolvedValue(content),
+  })
+  return file
+}
+
 describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
     mocks.state.profile = undefined
@@ -401,6 +418,133 @@ describe('web useChatComposer streaming send', () => {
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('log my walk')
     expect(requestBody.get('image')).toBe(pastedImage)
+  })
+
+  it('reads a valid text file, folds it into the sent message, and clears it', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const file = textFile('notes.txt', 'Walk\nRead')
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(file))
+    })
+    expect(result.current.selectedTextFile).toEqual({
+      name: 'notes.txt',
+      content: 'Walk\nRead',
+    })
+
+    act(() => result.current.setInput('Import these'))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    expect(requestBody).toBeInstanceOf(FormData)
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe(
+      'Import these\n\nchat.fileAttached:{"name":"notes.txt"}\nWalk\nRead',
+    )
+    expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('rejects an unsupported text-file extension', async () => {
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.pdf', 'text')))
+    })
+
+    expect(result.current.sendError).toBe('chat.fileError')
+    expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('rejects a text file over 1 MiB', async () => {
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(
+        fileChangeEvent(textFile('large.txt', 'text', 1024 * 1024 + 1)),
+      )
+    })
+
+    expect(result.current.sendError).toBe('chat.fileSizeError')
+    expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('surfaces a text-file read failure', async () => {
+    const file = textFile('notes.md', 'text')
+    Object.defineProperty(file, 'text', {
+      configurable: true,
+      value: vi.fn().mockRejectedValue(new Error('read failed')),
+    })
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(file))
+    })
+
+    expect(result.current.sendError).toBe('chat.fileReadError')
+    expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('does nothing when text-file selection is canceled', async () => {
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent())
+    })
+
+    expect(result.current.sendError).toBeNull()
+    expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('removes text-file and image attachments independently by id', async () => {
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:selected-image'),
+      revokeObjectURL: vi.fn(),
+    })
+    const textAttachment = textFile('notes.txt', 'Walk')
+    const image = new File(['image'], 'walk.png', { type: 'image/png' })
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(textAttachment))
+    })
+    act(() => result.current.handleFileSelect(fileChangeEvent(image)))
+    expect(result.current.composerProps.attachments).toHaveLength(2)
+
+    act(() => result.current.composerProps.onAttachRemove?.('chat-file'))
+    expect(result.current.selectedTextFile).toBeNull()
+    expect(result.current.selectedImage).toBe(image)
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(textAttachment))
+    })
+    act(() => result.current.composerProps.onAttachRemove?.('chat-image'))
+    expect(result.current.selectedTextFile?.name).toBe('notes.txt')
+    expect(result.current.selectedImage).toBeNull()
+  })
+
+  it('allows a file-only send and blocks an image-only send', async () => {
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:selected-image'),
+      revokeObjectURL: vi.fn(),
+    })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk')))
+    })
+    act(() => result.current.composerProps.onSend())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+
+    act(() => result.current.handleFileSelect(
+      fileChangeEvent(new File(['image'], 'walk.png', { type: 'image/png' })),
+    ))
+    act(() => result.current.composerProps.onSend())
+    await act(async () => Promise.resolve())
+    expect(mocks.fetch).toHaveBeenCalledOnce()
   })
 
   it('blocks sending while offline and re-enables once back online', async () => {

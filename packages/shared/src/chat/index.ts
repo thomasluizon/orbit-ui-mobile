@@ -79,6 +79,58 @@ export function getChatImageValidationError(
   return null
 }
 
+const MAX_CHAT_TEXT_FILE_SIZE_BYTES = 1024 * 1024
+
+const CHAT_TEXT_FILE_EXTENSIONS = ['.csv', '.json', '.txt', '.md'] as const
+
+export const CHAT_TEXT_FILE_WEB_ACCEPT =
+  '.csv,.json,.txt,.md,text/csv,application/json,text/plain,text/markdown'
+
+export const CHAT_TEXT_FILE_PICKER_MIME_TYPES = ['text/*', 'application/json'] as const
+
+type ChatTextFileValidationError = 'type' | 'size'
+
+interface ChatTextFileCandidate {
+  name?: string | null
+  uri?: string | null
+  fileSize?: number | null
+}
+
+function hasAllowedChatTextFileExtension(value: string | null | undefined): boolean {
+  if (!value) return false
+
+  const normalized = value.trim().toLowerCase()
+  return CHAT_TEXT_FILE_EXTENSIONS.some((extension) => normalized.endsWith(extension))
+}
+
+export function getChatTextFileValidationError(
+  candidate: ChatTextFileCandidate,
+): ChatTextFileValidationError | null {
+  const hasAllowedType =
+    hasAllowedChatTextFileExtension(candidate.name) ||
+    hasAllowedChatTextFileExtension(candidate.uri)
+  if (!hasAllowedType) return 'type'
+
+  if (
+    typeof candidate.fileSize === 'number' &&
+    candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES
+  ) {
+    return 'size'
+  }
+
+  return null
+}
+
+export function buildChatMessageWithFileContent(params: {
+  message: string
+  fileLabel: string
+  fileContent: string
+}): string {
+  const trimmedMessage = params.message.trim()
+  const fileBlock = `${params.fileLabel}\n${params.fileContent.trim()}`
+  return trimmedMessage ? `${trimmedMessage}\n\n${fileBlock}` : fileBlock
+}
+
 const COMPLETE_CHAT_DIRECTIVE = /\[\[orbit:[a-z:]+\]\]/gi
 
 const CHAT_DIRECTIVE_OPEN = '[[orbit:'

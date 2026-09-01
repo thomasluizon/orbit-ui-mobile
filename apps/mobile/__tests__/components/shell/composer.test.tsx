@@ -54,7 +54,8 @@ const voiceWords = {
   transcribing: 'transcribing sentinel',
 }
 const attachWords = {
-  add: 'attach sentinel',
+  file: 'attach file sentinel',
+  image: 'attach image sentinel',
   trayLabel: 'tray sentinel',
   remove: (name: string) => `remove sentinel ${name}`,
 }
@@ -171,7 +172,7 @@ describe('Composer (mobile)', () => {
     const onSend = vi.fn()
     const attachedImage = {
       onSend,
-      onAttach: vi.fn(),
+      onAttachImage: vi.fn(),
       attachWords,
       attachments: [{ id: 'image-id', kind: 'image' as const, name: 'walk.png' }],
       onAttachRemove: vi.fn(),
@@ -249,12 +250,32 @@ describe('Composer (mobile)', () => {
   })
 
   it('renders attachment capability without an empty tray', async () => {
-    const onAttach = vi.fn()
-    const tree = await renderComposer(props({ onAttach, attachWords }))
-    expect(byLabel(tree.root, attachWords.add)).toHaveLength(1)
+    const onAttachFile = vi.fn()
+    const onAttachImage = vi.fn()
+    const tree = await renderComposer(props({ onAttachFile, onAttachImage, attachWords }))
+    expect(byLabel(tree.root, attachWords.file)).toHaveLength(1)
+    expect(byLabel(tree.root, attachWords.image)).toHaveLength(1)
     expect(byLabel(tree.root, attachWords.trayLabel)).toHaveLength(0)
-    pressControl(byLabel(tree.root, attachWords.add)[0])
-    expect(onAttach).toHaveBeenCalledOnce()
+    pressControl(byLabel(tree.root, attachWords.file)[0])
+    pressControl(byLabel(tree.root, attachWords.image)[0])
+    expect(onAttachFile).toHaveBeenCalledOnce()
+    expect(onAttachImage).toHaveBeenCalledOnce()
+  })
+
+  it('allows a text file to send without typed text', async () => {
+    const onSend = vi.fn()
+    const tree = await renderComposer(props({
+      value: '   ',
+      onSend,
+      onAttachFile: vi.fn(),
+      attachWords,
+      attachments: [{ id: 'file-id', kind: 'file' as const, name: 'notes.txt' }],
+      onAttachRemove: vi.fn(),
+    }))
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.disabled).toBe(false)
+    pressControl(send)
+    expect(onSend).toHaveBeenCalledOnce()
   })
 
   it('names, distinguishes, and removes each attachment independently', async () => {
@@ -263,7 +284,7 @@ describe('Composer (mobile)', () => {
       { id: 'file-id', kind: 'file' as const, name: 'notes.txt' },
       { id: 'image-id', kind: 'image' as const, name: 'walk.png' },
     ]
-    const tree = await renderComposer(props({ onAttach: vi.fn(), attachWords, attachments, onAttachRemove }))
+    const tree = await renderComposer(props({ onAttachFile: vi.fn(), attachWords, attachments, onAttachRemove }))
     expect(textValues(tree.root)).toEqual(expect.arrayContaining(['notes.txt', 'walk.png']))
     expect(byLabel(tree.root, attachWords.remove('notes.txt'))).toHaveLength(1)
     pressControl(byLabel(tree.root, attachWords.remove('walk.png'))[0])

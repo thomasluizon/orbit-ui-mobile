@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
@@ -45,7 +46,9 @@ export default function ChatPage() {
     isOnline,
     sendError,
     fileInputRef,
+    textFileInputRef,
     handleFileSelect,
+    handleTextFileSelect,
     composerProps,
   } = useChatComposer()
   const registerShellScroller = useShellScrollerRegistration()
@@ -166,6 +169,13 @@ export default function ChatPage() {
             {sendError}
           </p>
         ) : null}
+        <input
+          ref={textFileInputRef}
+          type="file"
+          accept={CHAT_TEXT_FILE_WEB_ACCEPT}
+          className="hidden"
+          onChange={(event) => void handleTextFileSelect(event)}
+        />
         <input
           ref={fileInputRef}
           type="file"

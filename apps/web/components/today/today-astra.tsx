@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import {
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
@@ -25,7 +26,16 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const t = useTranslations()
   const [composerTarget, setComposerTarget] = useState<HTMLElement | null>(null)
   const { profile, isPending: profilePending, isError: profileError } = useProfile()
-  const chat = useChatComposer()
+  const {
+    atMessageLimit,
+    composerProps: chatComposerProps,
+    fileInputRef,
+    handleFileSelect,
+    handleTextFileSelect,
+    isOnline,
+    starterChips,
+    textFileInputRef,
+  } = useChatComposer()
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
@@ -57,22 +67,22 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
     ? null
     : [
         makeSuggestion('create-habit', createSentence),
-        makeSuggestion('starter-1', chat.starterChips[0] ?? createSentence),
-        makeSuggestion('starter-2', chat.starterChips[1] ?? createSentence),
-        makeSuggestion('starter-3', chat.starterChips[2] ?? createSentence),
+        makeSuggestion('starter-1', starterChips[0] ?? createSentence),
+        makeSuggestion('starter-2', starterChips[1] ?? createSentence),
+        makeSuggestion('starter-3', starterChips[2] ?? createSentence),
       ]
 
   let composerProps: ComposerProps = {
-    ...chat.composerProps,
-    suggestions: suggestions ?? chat.composerProps.suggestions,
+    ...chatComposerProps,
+    suggestions: suggestions ?? chatComposerProps.suggestions,
     onOpenConversation: openConversation,
     conversationLabel: t('todayAstra.openConversation'),
   }
-  if (!chat.isOnline) {
+  if (!isOnline) {
     composerProps = { ...composerProps, state: 'offline', limitReason: t('todayAstra.offline') } as ComposerProps
   }
 
-  const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline: chat.isOnline, atLimit: chat.atMessageLimit })
+  const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
     ? proactive
       ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
       : null
@@ -80,6 +90,20 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
 
   return (
     <>
+      <input
+        ref={textFileInputRef}
+        type="file"
+        accept={CHAT_TEXT_FILE_WEB_ACCEPT}
+        className="hidden"
+        onChange={(event) => void handleTextFileSelect(event)}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
       {line ? (
         <div className="flex min-h-[42px] items-start gap-3 px-4 pb-3 pt-2 text-sm leading-5 text-[var(--fg-2)]">
           <AstraGlyph size={20} color="var(--fg-3)" />

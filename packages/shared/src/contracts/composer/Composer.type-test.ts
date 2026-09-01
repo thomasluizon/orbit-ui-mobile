@@ -17,7 +17,8 @@ const voiceWords = {
   transcribing: 'Transcribing',
 }
 const attachWords = {
-  add: 'Add',
+  file: 'Add file',
+  image: 'Add image',
   trayLabel: 'Attachments',
   remove: (name: string) => `Remove ${name}`,
 }
@@ -38,11 +39,20 @@ acceptComposer({ ...base, state: 'idle', words: { ...words } })
 acceptComposer({ ...base, state: 'atLimit', limitReason: 'Limit' })
 acceptComposer({ ...base, state: 'recording', onVoice: () => undefined, voiceWords })
 acceptComposer({ ...base, state: 'transcribing', onVoice: () => undefined, voiceWords })
-acceptComposer({ ...base, state: 'idle', onAttach: () => undefined, attachWords })
+acceptComposer({ ...base, state: 'idle', onAttachFile: () => undefined, attachWords })
+acceptComposer({ ...base, state: 'idle', onAttachImage: () => undefined, attachWords })
 acceptComposer({
   ...base,
   state: 'idle',
-  onAttach: () => undefined,
+  onAttachFile: () => undefined,
+  onAttachImage: () => undefined,
+  attachWords,
+})
+acceptComposer({
+  ...base,
+  state: 'idle',
+  onAttachFile: () => undefined,
+  onAttachImage: () => undefined,
   attachWords,
   attachments: [],
   onAttachRemove: () => undefined,
@@ -82,18 +92,23 @@ acceptComposer({ ...base, state: 'recording' })
 // @ts-expect-error transcribing is not constructible without voice
 acceptComposer({ ...base, state: 'transcribing' })
 // @ts-expect-error attachment words are paired with the callback
-acceptComposer({ ...base, state: 'idle', onAttach: () => undefined })
+acceptComposer({ ...base, state: 'idle', onAttachFile: () => undefined })
 // @ts-expect-error attachments cannot exist without the capability
 acceptComposer({ ...base, state: 'idle', attachments: [], onAttachRemove: () => undefined })
 // @ts-expect-error removal cannot exist without the capability
 acceptComposer({ ...base, state: 'idle', onAttachRemove: () => undefined })
 // @ts-expect-error a tray requires its removal callback
-acceptComposer({ ...base, state: 'idle', onAttach: () => undefined, attachWords, attachments: [] })
+acceptComposer({ ...base, state: 'idle', onAttachFile: () => undefined, attachWords, attachments: [] })
 // @ts-expect-error retry requires its accessible word
 acceptComposer({ ...base, state: 'idle', onRetry: () => undefined })
 
-// @ts-expect-error remove names each attachment and is therefore a function
-const invalidAttachWords: ComposerAttachWords = { add: 'Add', trayLabel: 'Tray', remove: 'Remove' }
+const invalidAttachWords: ComposerAttachWords = {
+  file: 'Add file',
+  image: 'Add image',
+  trayLabel: 'Tray',
+  // @ts-expect-error remove names each attachment and is therefore a function
+  remove: 'Remove',
+}
 void invalidAttachWords
 
 const validAttachment: ComposerAttachment = { id: 'image', kind: 'image', name: 'image.png' }
