@@ -166,7 +166,7 @@ export function BreakdownSuggestion({
 
       <button
         type="button"
-        className="flex min-h-[44px] items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+        className="flex min-h-[44px] items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-hover)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
         onClick={addHabit}
       >
         <Plus className="size-3.5" />

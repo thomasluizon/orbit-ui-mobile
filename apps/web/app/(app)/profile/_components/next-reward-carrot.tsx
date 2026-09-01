@@ -13,7 +13,6 @@ const upgradeLinkStyle = {
   fontSize: 13,
   fontWeight: 500,
   textDecoration: 'none',
-  boxShadow: 'var(--primary-glow)',
 }
 
 interface NextRewardCarrotProps {
@@ -101,7 +100,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
             </span>
             <Link
               href="/upgrade"
-              className="touch-target-y shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
+              className="touch-target-y shrink-0 rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-hover)] active:translate-y-0 active:scale-[0.96]"
               style={upgradeLinkStyle}
             >
               {t('common.upgrade')}

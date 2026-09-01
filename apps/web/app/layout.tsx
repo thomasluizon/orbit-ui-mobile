@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
-import { Suspense } from 'react'
+import { Suspense, type CSSProperties } from 'react'
 import { Rubik, Inter, Roboto } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
@@ -8,8 +8,9 @@ import { Bell, Check, X } from '@/components/ui/icons'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
+import { resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
+import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import './globals.css'
 
 const rubik = Rubik({
@@ -32,6 +33,24 @@ const roboto = Roboto({
   variable: '--font-roboto',
   display: 'swap',
 })
+
+const schemeNames = Array.from(VALID_COLOR_SCHEMES)
+const canvasByScheme = Object.fromEntries(
+  schemeNames.map((scheme) => [
+    scheme,
+    { dark: resolveDarkNeutrals(scheme).bg, light: resolveLightNeutrals(scheme).bg },
+  ]),
+)
+const variablesByScheme = Object.fromEntries(
+  schemeNames.map((scheme) => [
+    scheme,
+    {
+      dark: resolveWebThemeVariables(scheme, 'dark'),
+      light: resolveWebThemeVariables(scheme, 'light'),
+    },
+  ]),
+)
+const defaultThemeStyle = resolveWebThemeVariables('purple', 'dark') as CSSProperties
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
@@ -82,12 +101,6 @@ export default async function RootLayout({
   const locale = await getLocale()
   const messages = await getMessages()
   const nonce = (await headers()).get('x-nonce') ?? undefined
-  const canvasByScheme = Object.fromEntries(
-    colorSchemeOptions.map(({ value }) => [
-      value,
-      { dark: resolveDarkNeutrals(value).bg, light: resolveLightNeutrals(value).bg },
-    ]),
-  )
   const themeBootstrapScript = `
     try {
       const cookie = document.cookie
@@ -107,12 +120,16 @@ export default async function RootLayout({
         root.classList.remove('dark')
       }
 
-      const schemeNames = ['purple','blue','green','rose','orange','cyan']
+      const schemeNames = ${JSON.stringify(schemeNames)}
       schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
       const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
       root.classList.add('scheme-' + activeScheme)
 
       root.style.setProperty('color-scheme', themeName)
+      const variables = ${JSON.stringify(variablesByScheme)}
+      Object.entries(variables[activeScheme][themeName]).forEach(([property, value]) => {
+        root.style.setProperty(property, value)
+      })
 
       const canvases = ${JSON.stringify(canvasByScheme)}
       document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
@@ -122,7 +139,12 @@ export default async function RootLayout({
   `
 
   return (
-    <html lang={locale} className={`dark scheme-purple ${rubik.variable} ${inter.variable} ${roboto.variable}`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={`dark scheme-purple ${rubik.variable} ${inter.variable} ${roboto.variable}`}
+      style={defaultThemeStyle}
+      suppressHydrationWarning
+    >
       <head>
         <script
           nonce={nonce}

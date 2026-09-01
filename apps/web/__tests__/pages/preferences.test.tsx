@@ -92,9 +92,9 @@ vi.mock('@/components/ui/pro-badge', () => ({
 vi.mock('@orbit/shared/theme', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@orbit/shared/theme')>()),
   colorSchemeOptions: [
-    { value: 'purple', color: '#7f46f7' },
-    { value: 'blue', color: '#3b82f6' },
-    { value: 'green', color: '#22c55e' },
+    { value: 'purple', color: '#C4530F' },
+    { value: 'blue', color: '#C4530F' },
+    { value: 'green', color: '#C4530F' },
   ],
 }))
 

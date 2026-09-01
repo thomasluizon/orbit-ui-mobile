@@ -263,7 +263,7 @@ export function DateField({
                                 : 'text-[var(--fg-3)]'
                             } ${
                               isSelected
-                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-pressed)]'
+                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-hover)]'
                                 : ''
                             } ${
                               isToday && !isSelected

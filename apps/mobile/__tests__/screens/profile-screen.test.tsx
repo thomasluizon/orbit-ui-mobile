@@ -110,9 +110,6 @@ vi.mock('@/lib/theme', () => ({
     cardParent: {},
     cardParentHover: {},
     cardChild: {},
-    glow: () => ({}),
-    glowSm: () => ({}),
-    glowLg: () => ({}),
   },
   shadowsV2: {
     shadow1: {},
@@ -120,7 +117,6 @@ vi.mock('@/lib/theme', () => ({
     shadow3: {},
   },
   tintFromPrimary: () => 'rgba(17, 17, 17, 0.1)',
-  primaryGlow: () => ({}),
 }))
 
 vi.mock('@/lib/api-client', () => ({

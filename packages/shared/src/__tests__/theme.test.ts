@@ -13,38 +13,38 @@ import type { ColorScheme } from '../theme/types'
 const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 
 const HEX = /^#[0-9a-f]{6}$/
+const GRANTED_ACCENTS = {
+  dark: {
+    primary: '#C4530F',
+    primaryHover: '#b74e12',
+    primaryPressed: '#a24716',
+    primarySoft: '#c85716',
+    primaryDim: '#261611',
+    primaryRgb: '196, 83, 15',
+  },
+  light: {
+    primary: '#C4530F',
+    primaryHover: '#b74e12',
+    primaryPressed: '#a24716',
+    primarySoft: '#c15109',
+    primaryDim: '#f4ddd3',
+    primaryRgb: '196, 83, 15',
+  },
+} as const
 
 describe('color schemes', () => {
-  it('has all 6 color schemes', () => {
+  it('keeps all 6 contract values during the API overlap', () => {
     expect(Object.keys(schemes)).toHaveLength(6)
     for (const name of ALL_SCHEMES) {
       expect(schemes[name]).toBeDefined()
     }
   })
 
-  it('has the handoff accent literals (dark)', () => {
-    expect(schemes.purple.accent.dark).toEqual({
-      primary: '#7f46f7', primaryPressed: '#631df2', primaryRgb: '127, 70, 247',
-    })
-    expect(schemes.blue.accent.dark.primary).toBe('#2b7fff')
-    expect(schemes.green.accent.dark.primary).toBe('#00c950')
-    expect(schemes.rose.accent.dark.primary).toBe('#ff2056')
-    expect(schemes.orange.accent.dark.primary).toBe('#ff6900')
-    expect(schemes.cyan.accent.dark.primary).toBe('#00b8db')
-  })
-
-  it('has the handoff accent literals (light)', () => {
-    expect(schemes.purple.accent.light).toEqual({
-      primary: '#631df2', primaryPressed: '#510fd3', primaryRgb: '99, 29, 242',
-    })
-    expect(schemes.blue.accent.light.primary).toBe('#155dfc')
-    expect(schemes.green.accent.light.primary).toBe('#00a63e')
-    expect(schemes.rose.accent.light.primary).toBe('#ec003f')
-    expect(schemes.orange.accent.light.primary).toBe('#f54900')
-    expect(schemes.cyan.accent.light.primary).toBe('#0092b8')
-  })
-
   for (const name of ALL_SCHEMES) {
+    it(`${name}: resolves the granted accent in both modes`, () => {
+      expect(schemes[name].accent).toEqual(GRANTED_ACCENTS)
+    })
+
     it(`${name}: primaryRgb matches the primary hex per mode`, () => {
       for (const mode of ['dark', 'light'] as const) {
         const { primary, primaryRgb } = schemes[name].accent[mode]
@@ -52,7 +52,7 @@ describe('color schemes', () => {
           .split(',')
           .map(part => Number(part.trim()).toString(16).padStart(2, '0'))
           .join('')
-        expect(`#${fromRgb}`).toBe(primary)
+        expect(`#${fromRgb}`).toBe(primary.toLowerCase())
       }
     })
 
@@ -65,20 +65,11 @@ describe('color schemes', () => {
 
 describe('fg-on-primary (scheme x mode AA resolution)', () => {
   const WHITE = '#ffffff'
-  const INK = '#020618'
 
-  it('keeps white where white passes 4.5:1 on the accent', () => {
-    expect(schemes.purple.fgOnPrimary).toEqual({ dark: WHITE, light: WHITE })
-    expect(schemes.blue.fgOnPrimary.light).toBe(WHITE)
-    expect(schemes.rose.fgOnPrimary.light).toBe(WHITE)
-  })
-
-  it('flips to the locked canvas ink where white fails AA', () => {
-    expect(schemes.blue.fgOnPrimary.dark).toBe(INK)
-    expect(schemes.rose.fgOnPrimary.dark).toBe(INK)
-    expect(schemes.green.fgOnPrimary).toEqual({ dark: INK, light: INK })
-    expect(schemes.orange.fgOnPrimary).toEqual({ dark: INK, light: INK })
-    expect(schemes.cyan.fgOnPrimary).toEqual({ dark: INK, light: INK })
+  it('uses white on the granted fill for every served scheme', () => {
+    for (const name of ALL_SCHEMES) {
+      expect(schemes[name].fgOnPrimary).toEqual({ dark: WHITE, light: WHITE })
+    }
   })
 
   it('every resolved value passes 4.5:1 WCAG AA on its accent', () => {
@@ -225,14 +216,14 @@ describe('type roles', () => {
 })
 
 describe('colorSchemeOptions', () => {
-  it('has 6 options in canonical order with the new dark primaries', () => {
+  it('keeps 6 options while every served scheme previews the granted accent', () => {
     expect(colorSchemeOptions).toEqual([
-      { value: 'purple', color: '#7f46f7' },
-      { value: 'blue', color: '#2b7fff' },
-      { value: 'green', color: '#00c950' },
-      { value: 'rose', color: '#ff2056' },
-      { value: 'orange', color: '#ff6900' },
-      { value: 'cyan', color: '#00b8db' },
+      { value: 'purple', color: '#C4530F' },
+      { value: 'blue', color: '#C4530F' },
+      { value: 'green', color: '#C4530F' },
+      { value: 'rose', color: '#C4530F' },
+      { value: 'orange', color: '#C4530F' },
+      { value: 'cyan', color: '#C4530F' },
     ])
   })
 

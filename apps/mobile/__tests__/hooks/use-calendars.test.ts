@@ -56,7 +56,7 @@ function buildCalendar(overrides: Partial<UserCalendar> = {}): UserCalendar {
     name: 'Personal',
     accessRole: 'owner',
     primary: true,
-    backgroundColor: '#7f46f7',
+    backgroundColor: '#C4530F',
     isSynced: true,
     ...overrides,
   }

@@ -19,13 +19,13 @@ describe('useTagSelection', () => {
       const { result } = renderHook(() => useTagSelection())
       expect(result.current.showNewTag).toBe(false)
       expect(result.current.newTagName).toBe('')
-      expect(result.current.newTagColor).toBe('#7f46f7')
+      expect(result.current.newTagColor).toBe('#C4530F')
     })
 
     it('exposes tag color palette', () => {
       const { result } = renderHook(() => useTagSelection())
       expect(result.current.tagColors.length).toBeGreaterThan(0)
-      expect(result.current.tagColors).toContain('#7f46f7')
+      expect(result.current.tagColors).toContain('#C4530F')
     })
   })
 
