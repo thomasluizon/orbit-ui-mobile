@@ -1146,7 +1146,7 @@
       "deleteOnboarding": "O progresso da introdução (o fluxo de boas-vindas volta a aparecer)",
       "preserveAccount": "Sua conta (e-mail, nome, senha)",
       "preserveSubscription": "O status da assinatura Pro",
-      "preservePreferences": "Tema, cor de destaque, idioma e fuso horário",
+      "preservePreferences": "Tema, idioma e fuso horário",
       "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
       "confirmLabel": "Confirmação",
       "confirmPlaceholder": "ORBIT",
@@ -1419,7 +1419,6 @@
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
       "aiChat": "50 mensagens de IA por dia",
-      "allColors": "Todos os 6 temas",
       "aiSummary": "Resumos diários da IA",
       "subHabits": "Sub-hábitos",
       "goals": "Análise de metas por IA",
@@ -1819,7 +1818,7 @@
         "pushNotificationsTitle": "Notificações push",
         "pushNotificationsDesc": "Ative ou desative as notificações push nas Configurações. Use o botão 'Enviar notificação de teste' para conferir se estão funcionando. Os lembretes chegam como notificações push, com base no horário de cada hábito.",
         "subscriptionTitle": "Assinatura e Pro",
-        "subscriptionDesc": "O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário, a análise de metas por IA e todos os temas.",
+        "subscriptionDesc": "O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário e a análise de metas por IA.",
         "weekStartDayTitle": "Início da semana",
         "weekStartDayDesc": "Escolha se a sua semana começa na segunda ou no domingo. Isso vale para todos os calendários, seletores de dias e exibições de frequência semanal no app.",
         "showGeneralTodayTitle": "Mostrar gerais no Hoje",
@@ -1874,12 +1873,6 @@
         "free": "Não",
         "pro": "Incluso",
         "tooltip": "As metas são grátis em qualquer plano: crie metas de longo prazo e ligue hábitos a elas para acompanhar um progresso mensurável. O Pro adiciona a análise por IA, que lê uma meta e aponta o que está funcionando e o que precisa de atenção."
-      },
-      "colors": {
-        "label": "Temas",
-        "free": "1 tema",
-        "pro": "Todos os 6 temas",
-        "tooltip": "Personalize o Orbit com 6 cores de tema: roxo, azul, verde, rosa, laranja e ciano. No plano grátis, você usa o tema roxo padrão."
       },
       "summary": {
         "label": "Resumo diário",
@@ -1979,7 +1972,6 @@
         "unlimited": "Sub-hábitos e sincronização com calendário",
         "ai": "50 mensagens de IA por dia",
         "goals": "Análise de metas por IA e resumos diários",
-        "themes": "Todos os 6 temas",
         "retrospective": "Retrospectiva IA"
       },
       "savePercent": "Economize {percent}%",
@@ -2934,7 +2926,7 @@
       },
       "preferences": {
         "title": "Preferências",
-        "description": "Deixe tudo do seu jeito: idioma, cor do tema, fuso horário, dia de início da semana, notificações push e mais."
+        "description": "Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais."
       },
       "subscription": {
         "title": "Assinatura",

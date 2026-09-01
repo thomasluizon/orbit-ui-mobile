@@ -19,7 +19,6 @@ const PAUSED_FEATURES = [
   'trial.expired.aiChat',
   'trial.expired.goals',
   'trial.expired.aiSummary',
-  'trial.expired.allColors',
 ] as const
 
 /**

@@ -65,7 +65,6 @@ export const UPGRADE_PRO_FEATURES: UpgradePlanFeature[] = [
   { key: 'unlimited', iconKey: 'flame' },
   { key: 'ai', iconKey: 'messageSquare' },
   { key: 'goals', iconKey: 'barChart3' },
-  { key: 'themes', iconKey: 'palette' },
 ]
 
 export const UPGRADE_YEARLY_EXTRA_FEATURES: UpgradePlanFeature[] = [
@@ -108,7 +107,6 @@ export const UPGRADE_FEATURE_CATEGORIES: UpgradeFeatureMatrixCategory[] = [
     category: 'personalization',
     iconKey: 'palette',
     features: [
-      { key: 'colors', type: 'text' },
       { key: 'calendarImport', type: 'boolean', free: false, pro: true },
       { key: 'adFree', type: 'boolean', free: false, pro: true },
     ],
