@@ -91,11 +91,11 @@ export function ScheduledReminderSection({
               {(scheduledReminders ?? []).map((sr, idx) => (
                 <span
                   key={`${sr.when}-${sr.time}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(var(--primary-rgb),0.12)] px-3 py-1.5 text-[var(--primary)]"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(var(--primary-rgb),0.12)] px-3 py-1.5 text-[var(--fg-1)]"
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
                 >
                   {scheduledReminderLabel(sr)}
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 hover:text-[var(--primary-hover)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
                     <X size={13} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>

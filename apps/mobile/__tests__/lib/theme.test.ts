@@ -9,6 +9,51 @@ import {
   tokens,
 } from '@/lib/theme'
 
+type Rgb = readonly [number, number, number]
+
+function parseColor(color: string): { channels: Rgb; alpha: number } {
+  if (color.startsWith('#')) {
+    return {
+      channels: [1, 3, 5].map((offset) =>
+        Number.parseInt(color.slice(offset, offset + 2), 16),
+      ) as unknown as Rgb,
+      alpha: 1,
+    }
+  }
+  const channels = color.match(/[\d.]+/g)?.map(Number)
+  if (!channels || channels.length < 3) throw new Error(`Unsupported color: ${color}`)
+  return {
+    channels: channels.slice(0, 3) as unknown as Rgb,
+    alpha: channels[3] ?? 1,
+  }
+}
+
+function composite(color: string, background: Rgb): Rgb {
+  const { channels, alpha } = parseColor(color)
+  return channels.map((channel, index) =>
+    Math.round(channel * alpha + background[index]! * (1 - alpha)),
+  ) as unknown as Rgb
+}
+
+function contrast(foreground: string, background: Rgb): number {
+  const linear = (channel: number) => {
+    const normalized = channel / 255
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = (channels: Rgb) =>
+    0.2126 * linear(channels[0]) +
+    0.7152 * linear(channels[1]) +
+    0.0722 * linear(channels[2])
+  const foregroundLuminance = luminance(parseColor(foreground).channels)
+  const backgroundLuminance = luminance(background)
+  return (
+    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+  )
+}
+
 describe('mobile theme runtime', () => {
   afterEach(() => {
     setRuntimeTheme({ scheme: 'purple', themeMode: 'dark' })
@@ -97,5 +142,27 @@ describe('mobile theme runtime', () => {
 
     expect(lightSurfaces.sheet.backgroundColor).toBe('#ffffff')
     expect(lightSurfaces.elevated.backgroundColor).toBe('rgb(255, 255, 255)')
+  })
+
+  it('keeps neutral text AA on every raised and tinted component surface', () => {
+    for (const scheme of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'] as const) {
+      for (const mode of ['dark', 'light'] as const) {
+        const resolved = createTokensV2(scheme, mode)
+        const canvas = parseColor(resolved.bg).channels
+        const card = composite(resolved.bgCard, canvas)
+        const elevated = composite(resolved.bgElev, canvas)
+        const sheet = parseColor(resolved.bgSheet).channels
+        const tint = composite(tintFromPrimary(resolved, 0.12), card)
+
+        for (const [foreground, background] of [
+          [resolved.fg1, card],
+          [resolved.fg1, elevated],
+          [resolved.fg2, sheet],
+          [resolved.fg1, tint],
+        ] as const) {
+          expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    }
   })
 })

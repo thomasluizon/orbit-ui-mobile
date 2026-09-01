@@ -1,19 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
-import type { ColorScheme } from '@orbit/shared/theme'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useAuthStore } from '@/stores/auth-store'
 import {
   updateWeekStartDay,
-  updateColorScheme as updateColorSchemeAction,
   updateLanguage,
 } from '@/app/actions/profile'
 import type { PreferencePicker } from './preference-picker-sheet'
@@ -25,11 +22,10 @@ function writeLocaleCookie(value: string) {
 }
 
 export function usePreferenceControls() {
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const { currentScheme, currentTheme, applyScheme, applyTheme } = useColorScheme()
+  const { currentTheme, applyTheme } = useColorScheme()
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
 
@@ -79,34 +75,6 @@ export function usePreferenceControls() {
     },
   })
 
-  // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const colorSchemeMutation = useMutation({
-    mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
-    onMutate: (scheme) => {
-      const previous = profile?.colorScheme
-      patchProfile({ colorScheme: scheme })
-      return { previous }
-    },
-    onError: (_err, _scheme, context) => {
-      if (context?.previous !== undefined) {
-        patchProfile({ colorScheme: context.previous })
-        if (context.previous) {
-          applyScheme(context.previous as ColorScheme)
-        }
-      }
-    },
-  })
-
-  function handleSchemeChange(scheme: ColorScheme) {
-    if (!profile?.hasProAccess && scheme !== 'purple') {
-      setActivePicker(null)
-      router.push('/upgrade')
-      return
-    }
-    applyScheme(scheme)
-    colorSchemeMutation.mutate(scheme)
-  }
-
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
     applyTheme(mode)
@@ -125,14 +93,12 @@ export function usePreferenceControls() {
 
   return {
     profile,
-    currentScheme,
     currentTheme,
     activePicker,
     setActivePicker,
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleSchemeChange,
     handleThemeModeChange,
     toggleShowGeneral,
     weekStartMutation,

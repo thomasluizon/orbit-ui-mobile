@@ -1,8 +1,7 @@
 import type { Ref } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
-import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { Calendar, Languages, Moon } from '@/components/ui/icons'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   getNativePushStatusPresentation,
@@ -11,24 +10,16 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { RadioRow } from '@/components/ui/select-check'
-import { ProBadge } from '@/components/ui/pro-badge'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import { styles, type Tokens } from '@/app/preferences-styles'
 
-export type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
+export type PreferencePicker = 'language' | 'theme' | 'weekStart'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
-
-type SchemeOption = (typeof colorSchemeOptions)[number]
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1)
-}
 
 function sectionEntrance(index: number) {
   return FadeInDown.duration(280)
@@ -69,7 +60,7 @@ export function PushNotificationSection({
   })
   const pushStatusText = t(pushStatusPresentation.messageKey)
   const accentStatusColor =
-    pushStatusPresentation.tone === 'accent' ? tokens.primary : tokens.fg3
+    pushStatusPresentation.tone === 'accent' ? tokens.primarySoft : tokens.fg3
   const pushStatusColor =
     pushStatusPresentation.tone === 'critical' ? tokens.statusBad : accentStatusColor
 
@@ -184,9 +175,7 @@ interface PreferenceSettingsListProps {
   t: TranslationFn
   languageLabel?: string
   themeLabel?: string
-  schemeLabel?: string
   weekStartLabel?: string
-  schemeOption?: SchemeOption
   showGeneralOnToday: boolean
   onOpenPicker: (picker: PreferencePicker) => void
   onToggleShowGeneral: () => void
@@ -199,9 +188,7 @@ export function PreferenceSettingsList({
   t,
   languageLabel,
   themeLabel,
-  schemeLabel,
   weekStartLabel,
-  schemeOption,
   showGeneralOnToday,
   onOpenPicker,
   onToggleShowGeneral,
@@ -226,20 +213,6 @@ export function PreferenceSettingsList({
           onPress={() => onOpenPicker('theme')}
           divider={false}
         />
-        <SettingsRow
-          icon={Palette}
-          label={t('profile.colorScheme.title')}
-          value={schemeLabel}
-          onPress={() => onOpenPicker('scheme')}
-          divider={false}
-        >
-          {schemeOption ? (
-            <View
-              style={[styles.schemeDot, { backgroundColor: schemeOption.color }]}
-            />
-          ) : null}
-          <ProBadge />
-        </SettingsRow>
         <SettingsRow
           icon={Calendar}
           label={t('settings.weekStartDay.title')}
@@ -286,13 +259,11 @@ export function PreferenceSettingsList({
 
 interface PreferencePickerSheetProps {
   tokens: Tokens
-  t: TranslationFn
   activePicker: PreferencePicker | null
   pickerTitles: Record<PreferencePicker, string>
   pickerDescriptions: Partial<Record<PreferencePicker, string>>
   selectedLanguage: 'en' | 'pt-BR'
   currentTheme: ThemeMode
-  currentScheme: ColorScheme
   weekStartDay?: number
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
@@ -301,19 +272,16 @@ interface PreferencePickerSheetProps {
   onHidden: () => void
   onLanguageChange: (locale: 'en' | 'pt-BR') => void
   onThemeModeChange: (mode: ThemeMode) => void
-  onSchemeChange: (scheme: ColorScheme) => void
   onWeekStartChange: (day: 0 | 1) => void
 }
 
 export function PreferencePickerSheet({
   tokens,
-  t,
   activePicker,
   pickerTitles,
   pickerDescriptions,
   selectedLanguage,
   currentTheme,
-  currentScheme,
   weekStartDay,
   themeModeOptions,
   weekStartOptions,
@@ -322,7 +290,6 @@ export function PreferencePickerSheet({
   onHidden,
   onLanguageChange,
   onThemeModeChange,
-  onSchemeChange,
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
   const selectAndClose = (apply: () => void) =>
@@ -365,27 +332,6 @@ export function PreferencePickerSheet({
               onPress={() => selectAndClose(() => onThemeModeChange(mode.value))}
             />
           ))}
-        {activePicker === 'scheme' && (
-          <>
-            {colorSchemeOptions.map((option, index) => (
-              <RadioRow
-                key={option.value}
-                label={t(`preferences.color${capitalize(option.value)}`)}
-                selected={currentScheme === option.value}
-                dot={option.color}
-                divider={index < colorSchemeOptions.length - 1}
-                onPress={() => {
-                  onSchemeChange(option.value)
-                }}
-              />
-            ))}
-            <View style={styles.sheetFooter}>
-              <PillButton variant="secondary" onClick={() => closePicker()}>
-                {t('common.save')}
-              </PillButton>
-            </View>
-          </>
-        )}
         {activePicker === 'weekStart' &&
           weekStartOptions.map((option, index) => (
             <RadioRow

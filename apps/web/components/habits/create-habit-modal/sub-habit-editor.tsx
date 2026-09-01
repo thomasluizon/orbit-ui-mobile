@@ -46,7 +46,7 @@ export function SubHabitEditor({
           </div>
           <button
             type="button"
-            className="flex min-h-11 shrink-0 items-center text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors duration-[var(--dur-fast)]"
+            className="flex min-h-11 shrink-0 items-center text-[var(--fg-1)] hover:text-[var(--fg-2)] transition-colors duration-[var(--dur-fast)]"
             style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
             onClick={onUpgrade}
           >

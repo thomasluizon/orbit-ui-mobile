@@ -1070,10 +1070,6 @@
       "title": "Idioma",
       "description": "Escolha seu idioma"
     },
-    "colorScheme": {
-      "title": "Cor do tema",
-      "description": "Escolha sua cor de destaque"
-    },
     "aiSummary": {
       "title": "Resumo diário",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
@@ -1570,8 +1566,7 @@
       "welcome": {
         "title": "Boas-vindas ao Orbit",
         "subtitle": "Vamos deixar tudo do seu jeito e criar seu primeiro hábito.",
-        "weekStart": "Quando sua semana começa?",
-        "colorScheme": "Escolha sua cor"
+        "weekStart": "Quando sua semana começa?"
       },
       "saveYourPlan": {
         "title": "Salve seu plano",
@@ -1813,8 +1808,6 @@
         "referralsDesc": "Compartilhe seu link de convite pessoal para trazer amigos ao Orbit. Quando eles entram e continuam firmes, as indicações ajudam a comunidade a crescer -- seu link fica no seu Perfil."
       },
       "settingsSection": {
-        "colorSchemeTitle": "Cor do tema",
-        "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). O app inteiro se adapta: fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
         "languageTitle": "Idioma",
         "languageDesc": "Alterne entre inglês e português. O app, as respostas da IA e os e-mails se adaptam ao idioma escolhido.",
         "aiSummaryTitle": "Resumo diário da IA",
@@ -2710,12 +2703,6 @@
   "preferences": {
     "title": "Preferências",
     "general": "Geral",
-    "colorBlue": "Tema azul",
-    "colorCyan": "Tema ciano",
-    "colorGreen": "Tema verde",
-    "colorOrange": "Tema laranja",
-    "colorPurple": "Tema roxo",
-    "colorRose": "Tema rosa",
     "themeMode": "Aparência",
     "themeModeLight": "Claro",
     "themeModeDark": "Escuro"

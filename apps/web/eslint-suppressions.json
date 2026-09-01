@@ -491,9 +491,6 @@
     },
     "local/no-arbitrary-zindex": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/goals/create-goal-modal.tsx": {
@@ -815,7 +812,7 @@
   },
   "components/onboarding/onboarding-complete-habit.tsx": {
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/onboarding/onboarding-complete.tsx": {
@@ -888,7 +885,7 @@
       "count": 3
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/referral/referral-drawer.tsx": {

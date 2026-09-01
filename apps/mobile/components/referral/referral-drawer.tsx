@@ -104,7 +104,7 @@ function ReferralLoadedContent({
     <>
       <View style={styles.heroRow}>
         <View style={[styles.heroDisc, { backgroundColor: tintFromPrimary(tokens, 0.15) }]}>
-          <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
+          <Gift size={30} strokeWidth={1.8} color={tokens.primary} />
         </View>
       </View>
       <View>

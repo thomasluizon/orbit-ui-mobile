@@ -370,7 +370,7 @@ function createStyles(tokens: AppTokensV2) {
     successMessage: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      color: tokens.primary,
+      color: tokens.primarySoft,
       marginTop: 8,
     },
   })

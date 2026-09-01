@@ -143,7 +143,7 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.resetChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--primary-hover)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
               style={{ width: 36, height: 36 }}
               onClick={onReset}
             >
@@ -313,7 +313,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--primary-hover)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
         style={{ width: 36, height: 36 }}
         onClick={() => onDuplicate(index)}
       >

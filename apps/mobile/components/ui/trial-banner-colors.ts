@@ -35,8 +35,8 @@ export function resolveTrialBannerColors(
           backgroundColor: tintFromPrimary(tokens, 0.08),
           borderColor: tintFromPrimary(tokens, 0.18),
         },
-    accentColor: trialUrgent ? tokens.statusOverdueText : tokens.primarySoft,
-    chevronColor: trialUrgent ? tokens.statusOverdue : tokens.primarySoft,
+    accentColor: trialUrgent ? tokens.statusOverdueText : tokens.fg1,
+    chevronColor: trialUrgent ? tokens.statusOverdue : tokens.primary,
     dismissColor: trialUrgent ? tokens.statusOverdue : tokens.fg3,
   }
 }

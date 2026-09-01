@@ -16,7 +16,6 @@ import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-ha
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
   completeOnboarding,
-  updateColorScheme as updateColorSchemeAction,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/app/actions/profile'
 
@@ -27,7 +26,6 @@ export interface OnboardingActions {
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
-  setColorScheme: (scheme: string) => Promise<void>
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
@@ -76,7 +74,7 @@ export function useOnboardingActions(): OnboardingActions {
   return useOnboardingActionsContext().actions
 }
 
-/** Whether the current onboarding mode grants Pro-gated steps (goal step, color scheme). */
+/** Whether the current onboarding mode grants the Pro-gated goal step. */
 export function useOnboardingHasProAccess(): boolean {
   return useOnboardingActionsContext().hasProAccess
 }
@@ -125,10 +123,6 @@ export function useBufferOnboardingActions(): OnboardingActions {
         useOnboardingDraftStore.getState().bufferWeekStartDay(day)
         return Promise.resolve()
       },
-      setColorScheme: (scheme) => {
-        useOnboardingDraftStore.getState().bufferColorScheme(scheme)
-        return Promise.resolve()
-      },
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.push('/login?from=onboarding')
@@ -170,9 +164,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
         )
         await updateWeekStartDayAction({ weekStartDay: day })
         void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-      },
-      setColorScheme: async (scheme) => {
-        await updateColorSchemeAction({ colorScheme: scheme })
       },
       finishOnboarding: async () => {
         try {

@@ -18,7 +18,6 @@ const grantedAccent: Record<SchemeMode, SchemeAccent> = {
     primaryRgb: '196, 83, 15',
   },
 }
-
 const grantedFgOnPrimary: Record<SchemeMode, string> = {
   dark: '#ffffff',
   light: '#ffffff',
@@ -74,12 +73,3 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
     gradientHeaderFrom: { dark: '#01232b', light: '#b2e8fd' },
   },
 }
-
-export const colorSchemeOptions: { value: ColorScheme; color: string }[] = [
-  { value: 'purple', color: grantedAccent.dark.primary },
-  { value: 'blue', color: grantedAccent.dark.primary },
-  { value: 'green', color: grantedAccent.dark.primary },
-  { value: 'rose', color: grantedAccent.dark.primary },
-  { value: 'orange', color: grantedAccent.dark.primary },
-  { value: 'cyan', color: grantedAccent.dark.primary },
-]

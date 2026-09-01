@@ -169,7 +169,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Rubik_500Medium',
       fontSize: 11.5,
       letterSpacing: 0.6,
-      color: tokens.primarySoft,
+      color: tokens.fg1,
     },
     footer: {
       flexDirection: 'row',

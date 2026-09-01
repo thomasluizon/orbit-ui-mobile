@@ -24,14 +24,13 @@ const stubActions: OnboardingActions = {
   logHabit: vi.fn().mockResolvedValue(undefined),
   createGoal: vi.fn().mockResolvedValue(undefined),
   setWeekStartDay: vi.fn().mockResolvedValue(undefined),
-  setColorScheme: vi.fn().mockResolvedValue(undefined),
   finishOnboarding: vi.fn().mockResolvedValue(undefined),
 }
 
 function renderWelcome(hasProAccess: boolean) {
   return render(
     <OnboardingActionsProvider actions={stubActions} hasProAccess={hasProAccess} isLive={false}>
-      <OnboardingWelcome hasProAccess={hasProAccess} />
+      <OnboardingWelcome />
     </OnboardingActionsProvider>,
   )
 }
@@ -57,13 +56,9 @@ describe('OnboardingWelcome', () => {
     ).toBeInTheDocument()
   })
 
-  it('does not show color scheme for non-pro users', () => {
+  it('does not require a color scheme choice for any user', () => {
     renderWelcome(false)
-    expect(screen.queryByText('onboarding.flow.welcome.colorScheme')).not.toBeInTheDocument()
-  })
-
-  it('shows color scheme for pro users', () => {
     renderWelcome(true)
-    expect(screen.getByText('onboarding.flow.welcome.colorScheme')).toBeInTheDocument()
+    expect(screen.queryByText('onboarding.flow.welcome.colorScheme')).not.toBeInTheDocument()
   })
 })

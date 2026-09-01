@@ -201,7 +201,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
               fontWeight: 500,
               letterSpacing: '0.05em',
               textTransform: 'uppercase',
-              color: 'var(--primary-soft)',
+              color: 'var(--fg-2)',
             }}
           >
             Astra

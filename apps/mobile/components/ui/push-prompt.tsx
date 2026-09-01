@@ -144,7 +144,7 @@ export function PushPrompt() {
       >
       <View style={styles.headerRow}>
         <View style={styles.bellDisc}>
-          <Bell size={22} color={tokens.primarySoft} strokeWidth={1.8} />
+          <Bell size={22} color={tokens.primary} strokeWidth={1.8} />
         </View>
         <Pressable
           onPress={dismiss}

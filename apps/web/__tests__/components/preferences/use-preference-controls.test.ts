@@ -4,9 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 
-const mockPush = vi.fn()
 const mockPatchProfile = vi.fn()
-const mockApplyScheme = vi.fn()
 const mockApplyTheme = vi.fn()
 
 const profileRef = vi.hoisted(() => ({
@@ -14,7 +12,6 @@ const profileRef = vi.hoisted(() => ({
 }))
 const authRef = vi.hoisted(() => ({ isAuthenticated: true }))
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: profileRef.value, patchProfile: mockPatchProfile }),
@@ -23,7 +20,6 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({
     currentScheme: 'purple',
     currentTheme: 'dark',
-    applyScheme: mockApplyScheme,
     applyTheme: mockApplyTheme,
   }),
 }))
@@ -33,7 +29,6 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 vi.mock('@/app/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
-  updateColorScheme: vi.fn(),
   updateLanguage: vi.fn(),
 }))
 
@@ -136,21 +131,6 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenLastCalledWith({ weekStartDay: 0 })
-  })
-
-  it('applies and persists a scheme the user is entitled to', () => {
-    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
-    act(() => result.current.handleSchemeChange('blue'))
-    expect(mockApplyScheme).toHaveBeenCalledWith('blue')
-    expect(mockPatchProfile).toHaveBeenCalledWith({ colorScheme: 'blue' })
-  })
-
-  it('routes a free user to upgrade instead of applying a locked scheme', () => {
-    profileRef.value = { hasProAccess: false, weekStartDay: 0, colorScheme: 'purple' }
-    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
-    act(() => result.current.handleSchemeChange('blue'))
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
-    expect(mockApplyScheme).not.toHaveBeenCalled()
   })
 
   it('ignores a theme change to the already-active mode', () => {

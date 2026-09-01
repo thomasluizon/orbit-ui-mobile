@@ -57,7 +57,7 @@ export function createSectionStyles(tokens: AppTokens) {
     chipText: {
       fontFamily: "Rubik_500Medium",
       fontSize: 12,
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     addButton: {
       flexDirection: "row",
@@ -97,7 +97,7 @@ export function createSectionStyles(tokens: AppTokens) {
     dropdownItemTextAccent: {
       fontFamily: "Rubik_500Medium",
       fontSize: 15,
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     customRow: {
       flexDirection: "row",
@@ -140,7 +140,7 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     unitButtonTextActive: {
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     customAddButton: {
       width: 36,
@@ -182,7 +182,7 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     whenButtonTextActive: {
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     timeRow: {
       flexDirection: "row",
@@ -352,7 +352,7 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     emojiCategoryTabTextActive: {
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     emojiModalList: {
       flex: 1,
@@ -596,7 +596,7 @@ export function createStyles(tokens: AppTokens) {
     aiChipText: {
       fontFamily: "Rubik_500Medium",
       fontSize: 13,
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     tagEditSection: {
       gap: 12,
@@ -661,7 +661,7 @@ export function createStyles(tokens: AppTokens) {
       fontSize: 12,
       fontVariant: ["tabular-nums"],
       letterSpacing: 0.24,
-      color: tokens.primary,
+      color: tokens.fg2,
     },
     advancedSection: {
       gap: 24,
@@ -693,7 +693,7 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     segmentTextActive: {
-      color: tokens.primary,
+      color: tokens.fg1,
     },
   });
 }

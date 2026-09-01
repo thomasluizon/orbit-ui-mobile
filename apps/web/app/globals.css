@@ -1026,7 +1026,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .chip-active,
 .chip-active:hover {
   background: var(--selection-bg);
-  color: var(--primary-soft);
+  color: var(--fg-1);
   box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.45);
 }
 .chip-filled,
@@ -1037,12 +1037,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .chip-ai {
   background: rgba(var(--primary-rgb), 0.1);
-  color: var(--primary);
+  color: var(--fg-1);
   box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.28);
 }
 .chip-ai:hover {
   background: rgba(var(--primary-rgb), 0.16);
-  color: var(--primary);
+  color: var(--fg-1);
 }
 .chip-ai:disabled {
   opacity: 0.5;
@@ -1521,8 +1521,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .prose-orbit a {
-  color: var(--primary-soft);
-  text-decoration: none;
+  color: var(--fg-1);
+  text-decoration: underline;
   overflow-wrap: anywhere;
 }
 
@@ -1593,7 +1593,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .prose-orbit :is(pre, table):focus-visible {
-  outline: 2px solid var(--primary-soft);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -1685,7 +1685,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 [data-sonner-toast][data-type='info'] [data-icon] {
-  color: var(--primary-soft);
+  color: var(--primary);
   background: rgba(var(--primary-rgb), 0.18);
 }
 
@@ -1710,7 +1710,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 [data-sonner-toast] [data-button] {
   background: transparent;
-  color: var(--primary-soft);
+  color: var(--fg-1);
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;

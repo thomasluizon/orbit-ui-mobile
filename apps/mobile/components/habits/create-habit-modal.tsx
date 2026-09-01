@@ -558,7 +558,7 @@ function createStyles(
     subHabitsUpgradeText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      color: tokens.primary,
+      color: tokens.fg1,
     },
     subHabitsList: {
       gap: 8,

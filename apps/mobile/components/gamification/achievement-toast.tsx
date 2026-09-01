@@ -177,10 +177,10 @@ export function AchievementToast() {
             { backgroundColor: tintFromPrimary(tokens, 0.16) },
           ]}
         >
-          <Trophy size={17} strokeWidth={2.2} color={tokens.primarySoft} />
+          <Trophy size={17} strokeWidth={2.2} color={tokens.primary} />
         </View>
         <View style={styles.textCol}>
-          <Text style={[styles.eyebrow, { color: tokens.primarySoft }]}>
+          <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>
             {t('gamification.toast.achievementEyebrow', {
               xp: currentAchievement.xpReward,
             })}

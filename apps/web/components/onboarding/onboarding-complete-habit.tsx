@@ -90,7 +90,7 @@ export function OnboardingCompleteHabit({
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
-              marginTop: 3,
+              marginTop: 4,
             }}
           >
             {t('onboarding.flow.completeHabit.tapHint')}
@@ -110,7 +110,7 @@ export function OnboardingCompleteHabit({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            color: 'var(--primary)',
+            color: 'var(--primary-soft)',
           }}
         >
           {t('onboarding.flow.completeHabit.success')}

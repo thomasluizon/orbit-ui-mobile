@@ -48,7 +48,7 @@ export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 500,
-                    color: 'var(--primary)',
+                    color: 'var(--fg-1)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >

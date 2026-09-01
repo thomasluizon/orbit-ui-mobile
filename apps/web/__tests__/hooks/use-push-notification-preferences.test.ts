@@ -111,7 +111,7 @@ describe('use-push-notification-preferences helpers', () => {
   it('maps push statuses to the expected tone classes', () => {
     expect(getPushStatusTone('denied')).toBe('text-[var(--status-bad-text)]')
     expect(getPushStatusTone('sync-failed')).toBe('text-[var(--status-bad-text)]')
-    expect(getPushStatusTone('registered')).toBe('text-[var(--primary)]')
+    expect(getPushStatusTone('registered')).toBe('text-[var(--primary-soft)]')
     expect(getPushStatusTone('not-registered')).toBe('text-[var(--fg-3)]')
   })
 

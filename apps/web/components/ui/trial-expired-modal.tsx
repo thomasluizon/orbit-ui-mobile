@@ -80,7 +80,7 @@ export function TrialExpiredModal() {
             background: 'rgba(var(--primary-rgb), 0.16)',
           }}
         >
-          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary-soft)]" />
+          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary)]" />
         </div>
         <p
           style={{

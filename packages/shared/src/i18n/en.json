@@ -1070,10 +1070,6 @@
       "title": "Language",
       "description": "Select your preferred language"
     },
-    "colorScheme": {
-      "title": "Color Scheme",
-      "description": "Choose your accent color"
-    },
     "aiSummary": {
       "title": "Daily Summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
@@ -1570,8 +1566,7 @@
       "welcome": {
         "title": "Welcome to Orbit",
         "subtitle": "Let's set up your experience and create your first habit.",
-        "weekStart": "When does your week start?",
-        "colorScheme": "Pick your color"
+        "weekStart": "When does your week start?"
       },
       "saveYourPlan": {
         "title": "Save your plan",
@@ -1813,8 +1808,6 @@
         "referralsDesc": "Share your personal invite link to bring friends to Orbit. When they join and stick with it, referrals help the community grow -- find your link in your Profile."
       },
       "settingsSection": {
-        "colorSchemeTitle": "Color Scheme",
-        "colorSchemeDesc": "Choose from 6 accent colors (purple, blue, green, rose, orange, cyan). The entire app adapts -- backgrounds, buttons, shadows, and the AI chat orb all change to match.",
         "languageTitle": "Language",
         "languageDesc": "Switch between English and Portuguese. The app, AI responses, and emails all adapt to your chosen language.",
         "aiSummaryTitle": "AI Daily Summary",
@@ -2710,12 +2703,6 @@
   "preferences": {
     "title": "Preferences",
     "general": "General",
-    "colorBlue": "Blue theme",
-    "colorCyan": "Cyan theme",
-    "colorGreen": "Green theme",
-    "colorOrange": "Orange theme",
-    "colorPurple": "Purple theme",
-    "colorRose": "Rose theme",
     "themeMode": "Appearance",
     "themeModeLight": "Light",
     "themeModeDark": "Dark"

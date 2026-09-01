@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { schemes, colorSchemeOptions } from '../theme/color-schemes'
+import { schemes } from '../theme/color-schemes'
 import {
   alphaSurfaces,
   resolveDarkNeutrals,
@@ -62,7 +62,6 @@ describe('color schemes', () => {
     })
   }
 })
-
 describe('fg-on-primary (scheme x mode AA resolution)', () => {
   const WHITE = '#ffffff'
 
@@ -211,25 +210,6 @@ describe('type roles', () => {
   it('weight scale is squashed to 400-700', () => {
     for (const role of Object.values(typeRoles)) {
       expect([400, 500, 600, 700]).toContain(role.weight)
-    }
-  })
-})
-
-describe('colorSchemeOptions', () => {
-  it('keeps 6 options while every served scheme previews the granted accent', () => {
-    expect(colorSchemeOptions).toEqual([
-      { value: 'purple', color: '#C4530F' },
-      { value: 'blue', color: '#C4530F' },
-      { value: 'green', color: '#C4530F' },
-      { value: 'rose', color: '#C4530F' },
-      { value: 'orange', color: '#C4530F' },
-      { value: 'cyan', color: '#C4530F' },
-    ])
-  })
-
-  it('option colors match scheme dark primaries', () => {
-    for (const option of colorSchemeOptions) {
-      expect(option.color).toBe(schemes[option.value].accent.dark.primary)
     }
   })
 })

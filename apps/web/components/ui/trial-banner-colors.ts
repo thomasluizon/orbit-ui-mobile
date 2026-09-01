@@ -19,7 +19,7 @@ export function resolveTrialBannerColors(trialUrgent: boolean): TrialBannerColor
       : 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.18)',
     accentColor: trialUrgent
       ? 'var(--status-overdue-text)'
-      : 'var(--primary-soft)',
+      : 'var(--fg-1)',
     dismissColor: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-3)',
   }
 }
