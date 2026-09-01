@@ -86,10 +86,11 @@ describe('getChatTextFileValidationError', () => {
     expect(getChatTextFileValidationError({ name: 'noextension', fileSize: 2048 })).toBe('type')
   })
 
-  it('rejects text files above the max size', () => {
-    expect(getChatTextFileValidationError({ name: 'huge.csv', fileSize: 2 * 1024 * 1024 })).toBe(
-      'size',
-    )
+  it('accepts exactly 1 MiB and rejects one byte more', () => {
+    expect(getChatTextFileValidationError({ name: 'limit.csv', fileSize: 1024 * 1024 })).toBeNull()
+    expect(
+      getChatTextFileValidationError({ name: 'over-limit.csv', fileSize: 1024 * 1024 + 1 }),
+    ).toBe('size')
   })
 })
 

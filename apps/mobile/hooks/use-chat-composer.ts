@@ -347,10 +347,11 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     const asset = result.assets[0];
     if (!asset) return;
 
+    const file = new File(asset.uri);
     const validationError = getChatTextFileValidationError({
       name: asset.name,
       uri: asset.uri,
-      fileSize: asset.size,
+      fileSize: asset.size ?? file.size,
     });
     if (validationError === "type") {
       setSendError(t("chat.fileError"));
@@ -362,7 +363,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     }
 
     try {
-      const content = await new File(asset.uri).text();
+      const content = await file.text();
       setSendError(null);
       setSelectedTextFile({ name: asset.name, content });
     } catch {

@@ -93,7 +93,7 @@ type ChatTextFileValidationError = 'type' | 'size'
 interface ChatTextFileCandidate {
   name?: string | null
   uri?: string | null
-  fileSize?: number | null
+  fileSize: number
 }
 
 function hasAllowedChatTextFileExtension(value: string | null | undefined): boolean {
@@ -111,10 +111,7 @@ export function getChatTextFileValidationError(
     hasAllowedChatTextFileExtension(candidate.uri)
   if (!hasAllowedType) return 'type'
 
-  if (
-    typeof candidate.fileSize === 'number' &&
-    candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES
-  ) {
+  if (candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES) {
     return 'size'
   }
 

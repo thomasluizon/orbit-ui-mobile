@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     openChatStream: vi.fn(),
     getDocumentAsync: vi.fn(),
+    fileSize: 1024,
     readFileText: vi.fn(),
     requestMediaLibraryPermissionsAsync: vi.fn(),
     launchImageLibraryAsync: vi.fn(),
@@ -72,15 +73,12 @@ vi.mock('expo-document-picker', () => ({
 
 vi.mock('expo-file-system', () => ({
   File: class MockFile extends Blob {
-    readonly uri: string
-
-    constructor(uri: string) {
-      super(['mock file'])
-      this.uri = uri
+    constructor() {
+      super(['x'.repeat(mocks.fileSize)])
     }
 
-    text() {
-      return mocks.readFileText(this.uri)
+    text(): Promise<string> {
+      return mocks.readFileText()
     }
   },
 }))
@@ -226,6 +224,7 @@ describe('mobile useChatComposer', () => {
     mocks.apiClient.mockReset()
     mocks.openChatStream.mockReset()
     mocks.getDocumentAsync.mockReset()
+    mocks.fileSize = 1024
     mocks.readFileText.mockReset()
     mocks.readFileText.mockResolvedValue('Walk')
     mocks.requestMediaLibraryPermissionsAsync.mockReset()
@@ -645,6 +644,45 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBe('chat.fileSizeError')
     expect(composer.current.selectedTextFile).toBeNull()
     expect(mocks.readFileText).not.toHaveBeenCalled()
+  })
+
+  it('rejects a text file over 1 MiB when the picker omits its size', async () => {
+    mocks.fileSize = 1024 * 1024 + 1
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.getDocumentAsync).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileSizeError')
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
+  })
+
+  it('reads a small text file when the picker omits its size', async () => {
+    mocks.fileSize = 2048
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    mocks.readFileText.mockResolvedValue('Walk\nRead')
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.selectedTextFile).toEqual({
+      name: 'notes.txt',
+      content: 'Walk\nRead',
+    })
   })
 
   it('surfaces a text-file read failure', async () => {
