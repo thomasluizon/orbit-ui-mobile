@@ -50,7 +50,25 @@ function pushTargetDir(segments, pushIndex, cwd) {
 // never searched across the whole string: a body that merely MENTIONS `bash <<`
 // would otherwise switch its own stripping off, which is the same
 // text-is-not-command bug one level down.
-const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n[\s\S]*?^\3[ \t]*$/gm
+const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
+
+/** An unquoted heredoc expands command substitutions before its consumer starts. */
+export function unquotedHeredocRunsCommand(command) {
+  for (const match of command.matchAll(heredoc)) {
+    if (match[2] !== "") continue
+    const body = match[5]
+    const escapedAt = (index) => {
+      let backslashes = 0
+      for (let cursor = index - 1; cursor >= 0 && body[cursor] === "\\"; cursor--) backslashes++
+      return backslashes % 2 === 1
+    }
+    for (let index = 0; index < body.length; index++) {
+      if (body[index] === "`" && !escapedAt(index)) return true
+      if (body[index] === "$" && body[index + 1] === "(" && body[index + 2] !== "(" && !escapedAt(index)) return true
+    }
+  }
+  return false
+}
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. */
 export function stripHeredocBodies(command) {

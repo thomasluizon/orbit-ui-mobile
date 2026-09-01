@@ -165,6 +165,27 @@ T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
 T("engine: a Windows shim extension is still the binary", blocks(engine("codex.cmd exec")), true)
 T("engine: a later chained engine call blocks", blocks(engine("npm test && codex exec")), true)
 T("engine: the refusal names the launcher", engine("codex exec")?.message.includes("tools/launch-worker.mjs"), true)
+T("engine: codex cloud list allows", engine("codex cloud list --json"), null)
+T("engine: codex cloud status allows", engine("codex cloud status task_123"), null)
+T("engine: codex cloud diff allows", engine("codex cloud diff task_123"), null)
+T("engine: a nested dollar command substitution revokes the cloud read exemption", blocks(engine('codex cloud list "$(codex exec \'do work\')"')), true)
+T("engine: a nested backtick command substitution revokes the cloud read exemption", blocks(engine("codex cloud list `codex exec 'do work'`")), true)
+T("engine: a help flag cannot launder a nested engine call", blocks(engine('codex cloud list --help "$(codex exec \'do work\')"')), true)
+T("engine: input process substitution revokes the cloud read exemption", blocks(engine("codex cloud list <(codex exec 'do work')")), true)
+T("engine: output process substitution revokes the cloud read exemption", blocks(engine("codex cloud list >(codex exec 'do work')")), true)
+T("engine: an escaped inner executable revokes the cloud read exemption", blocks(engine("codex cloud list co\\dex exec")), true)
+T("engine: a leading assignment falls outside the complete cloud read shape", blocks(engine("SAFE_READ=1 codex cloud list")), true)
+T("engine: an unquoted heredoc command substitution revokes the cloud read exemption", blocks(engine("codex cloud list <<EOF\n$(codex exec 'do work')\nEOF")), true)
+T("engine: an unquoted heredoc backtick substitution revokes the cloud read exemption", blocks(engine("codex cloud list <<EOF\n`codex exec 'do work'`\nEOF")), true)
+T("engine: an even-backslash heredoc substitution still executes and is blocked", blocks(engine("codex cloud list <<EOF\n\\\\$(codex exec 'do work')\nEOF")), true)
+T("engine: an odd-backslash heredoc substitution is data and keeps the cloud read exemption", engine("codex cloud list <<EOF\n\\$(codex exec 'data only')\nEOF"), null)
+T("engine: a quoted data-only heredoc suppresses expansion and keeps the cloud read exemption", engine("codex cloud list <<'EOF'\n$(codex exec 'data only')\nEOF"), null)
+T("engine: an unquoted heredoc command substitution revokes the zero-cost exemption too", blocks(engine("codex --version <<EOF\n$(codex exec 'do work')\nEOF")), true)
+T("engine: codex cloud exec blocks", blocks(engine('codex cloud exec --env env_1 "do the thing"')), true)
+T("engine: codex cloud apply blocks", blocks(engine("codex cloud apply task_123")), true)
+T('engine: "list" inside a prompt exempts nothing', blocks(engine('codex exec "cloud list things"')), true)
+T("engine: the cloud allowance is codex-only", blocks(engine("claude cloud list")), true)
+T("engine: the refusal names the cloud submitter", engine("codex cloud exec")?.message.includes("tools/submit-cloud-worker.mjs"), true)
 // The launcher exports its marker into every worker it spawns; that is the
 // discriminator, and it is read from the ENVIRONMENT only.
 T("engine: the launcher marker in the environment allows", engine("codex exec", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
@@ -465,6 +486,8 @@ T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrat
 // because node ids are globally unique and a wrong one does not fail.
 const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
 const INVENTED = "PRRT_kwDOR5Siws6XdcAt"
+const TRAILING_HYPHEN = "PRRT_kwDOR5Siws6d9bF-"
+const TRAILING_UNDERSCORE = "PRRT_kwDOR5Siws6d9bF_"
 const seen = new Set([OBSERVED])
 const invented = (command, options = {}) => checkInventedIdentifier(command, { observedIdentifiers: seen, ...options })
 // THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
@@ -485,7 +508,14 @@ T("identifier: a gh command with no id at all allows", invented("gh pr view 699 
 T("identifier: PR_NUMBER is not a node id", extractNodeIds("gh pr view $PR_NUMBER"), [])
 T("identifier: IC_CONFIG is not a node id", extractNodeIds("gh api $IC_CONFIG"), [])
 T("identifier: a short body is not a node id", extractNodeIds("gh api PRRT_abc"), [])
-T("identifier: a real node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: an ordinary node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: a node id ending in a hyphen is extracted whole", extractNodeIds(`gh api ${TRAILING_HYPHEN}`), [TRAILING_HYPHEN])
+T("identifier: a node id ending in an underscore is extracted whole", extractNodeIds(`gh api ${TRAILING_UNDERSCORE}`), [TRAILING_UNDERSCORE])
+T(
+  "identifier: an unobserved node id ending in a hyphen is refused whole",
+  invented(`gh api graphql -f thread=${TRAILING_HYPHEN}`)?.message?.includes(TRAILING_HYPHEN) === true,
+  true,
+)
 T("identifier: PR_ and IC_ shapes are guarded too", extractNodeIds("gh api PR_kwDOR5Siws6abc IC_kwDOR5Siws6def").length, 2)
 T("identifier: an empty command allows", invented(""), null)
 // A heredoc BODY is data the command carries, not the command. This gate refused a

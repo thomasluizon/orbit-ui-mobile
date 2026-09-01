@@ -16,7 +16,7 @@ import { lstatSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
 
-import { stripHeredocBodies } from "./rules-git.mjs"
+import { stripHeredocBodies, unquotedHeredocRunsCommand } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
@@ -26,6 +26,10 @@ const ENGINE_BINARIES = new Set(["claude", "codex"])
  * ordinary preflight. `codex --version` was refused by the previous revision, which keyed on the
  * binary alone. */
 const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "whoami", "--list", "login", "logout"])
+/** These cloud subcommands only inspect tasks that already exist. */
+const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
+const SAFE_ENGINE_BINARY = /^(?:claude|codex)(?:\.(?:exe|cmd|bat|ps1))?$/i
+const SAFE_ENGINE_ARGUMENT = /^[A-Za-z0-9_./:+=-]+$/
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -146,6 +150,18 @@ export function segmentsOf(command) {
   return segments
 }
 
+const safeEngineWords = (segment) => {
+  const words = segment.trim().split(/\s+/)
+  return SAFE_ENGINE_BINARY.test(words[0] ?? "") && words.every((word) => SAFE_ENGINE_ARGUMENT.test(word))
+    ? words
+    : null
+}
+
+const isSafeCloudRead = (words) => words?.[0]?.replace(/\.(?:exe|cmd|bat|ps1)$/i, "").toLowerCase() === "codex" &&
+  words[1]?.toLowerCase() === "cloud" && CLOUD_READ_SUBCOMMANDS.has(words[2]?.toLowerCase())
+
+const isSafeZeroCostInvocation = (words) => words?.slice(1).some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))
+
 const blocked = (command, why) => ({ block: true, message: `BLOCKED (Orbit orchestration guardrail):\n  ${command}\n\n${why}\n` })
 
 /**
@@ -159,10 +175,13 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   if (env[LAUNCHER_MARKER]) return null
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
+  const heredocRunsCommand = unquotedHeredocRunsCommand(command)
   for (const segment of segmentsOf(command)) {
-    if (!ENGINE_BINARIES.has(invokedBinary(segment))) continue
-    const words = withoutLeadingAssignments(segment).trim().split(/\s+/).slice(1)
-    if (words.some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))) continue
+    const binary = invokedBinary(segment)
+    if (!ENGINE_BINARIES.has(binary)) continue
+    const safeWords = safeEngineWords(segment)
+    if (isSafeCloudRead(safeWords) && !heredocRunsCommand) continue
+    if (isSafeZeroCostInvocation(safeWords) && !heredocRunsCommand) continue
     return blocked(
       command,
       "An orchestrating session may not start a model session outside the launcher. Every worker\n" +
@@ -170,7 +189,10 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
         "work order, supervises the two clocks and records the worker PID. None of that happens\n" +
         "for a raw `codex` or `claude` invocation, so its worker is unsupervised.\n" +
         "The refusal is scoped to the CALLER, not the flag: the launcher itself, any command run\n" +
-        "from inside a launcher-created worktree, and version or help queries are permitted.",
+        "from inside a launcher-created worktree, version or help queries, and the read-only\n" +
+        "`codex cloud list|status|diff` subcommands are permitted. Submit cloud work through\n" +
+        "`node tools/submit-cloud-worker.mjs`, and land its diff only through\n" +
+        "`node tools/materialize-cloud-result.mjs` inside the ticket worktree.",
     )
   }
   return null
