@@ -118,6 +118,8 @@ export { useCalendarData, useCalendarRange } from './use-calendar-data'
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showInfo } = useAppToast()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
   return useMutation<
@@ -172,6 +174,7 @@ export function useLogHabit() {
       }
 
       if (queuedResult) {
+        showInfo(t('todayAstra.offlineLog'))
         return
       }
 

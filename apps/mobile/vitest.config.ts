@@ -58,7 +58,6 @@ export default defineConfig({
         'components/wrapped/wrapped-player.tsx',
         'components/wrapped/wrapped-slide.tsx',
         'app/wrapped.tsx',
-        'components/chat/chat-animations.tsx',
         'components/chat/chat-empty-state.tsx',
         'components/chat/chat-input-area.tsx',
         'components/chat/conflict-warning.tsx',

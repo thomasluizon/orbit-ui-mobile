@@ -54,7 +54,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
 

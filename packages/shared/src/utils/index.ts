@@ -303,6 +303,8 @@ export {
   getNotificationGlyph,
   isViewableNotificationUrl,
   resolveNotificationUrl,
+  selectNewestUnreadProactiveCheckin,
+  shouldShowTodayAstraLine,
 } from './notification-actions'
 export {
   buildTempGoal,

@@ -681,6 +681,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
+| Composer | one input, 3 to 6 neutral suggestion chips, one filled send action, paired voice, image attachment and retry capabilities, state exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | neutral / working / done / lost; stable live region; only done self-dismisses, at 5000ms minimum; working draws three dots; done uses `--status-done`; text action only | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |

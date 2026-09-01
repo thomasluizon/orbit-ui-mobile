@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 
 type ActionChipHandler = (entityId: string, actionType: string) => void
+type SuggestionHandler = (suggestion: string) => void
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   goBack: vi.fn(),
   onActionChipClick: null as ActionChipHandler | null,
+  onSuggestion: null as SuggestionHandler | null,
   composer: {
     chatContainerRef: { current: null },
-    textareaRef: { current: null },
     fileInputRef: { current: null },
-    textFileInputRef: { current: null },
     messages: [] as { id: string }[],
     isTyping: false,
     hasProAccess: false,
@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
     isOnline: true,
     input: '',
     setInput: vi.fn(),
-    sendError: null,
+    sendError: null as string | null,
     imagePreview: null,
     isRecording: false,
     isTranscribing: false,
@@ -34,13 +34,8 @@ const mocks = vi.hoisted(() => ({
     canSend: false,
     openFilePicker: vi.fn(),
     handleFileSelect: vi.fn(),
-    handlePaste: vi.fn(),
-    handleKeyDown: vi.fn(),
     removeImage: vi.fn(),
-    selectedTextFileName: null,
-    openTextFilePicker: vi.fn(),
-    handleTextFileSelect: vi.fn(),
-    removeTextFile: vi.fn(),
+    composerProps: {},
     sendMessage: vi.fn(),
     retryLastSend: vi.fn(),
     canRetryLastSend: false,
@@ -56,7 +51,9 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: undefined }) }))
-vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('@/components/ui/app-bar', () => ({
+  AppBar: ({ onBack }: { onBack: () => void }) => <button onClick={onBack}>back sentinel</button>,
+}))
 vi.mock('@/components/chat/message-bubble', () => ({
   MessageBubble: ({ onActionChipClick }: { onActionChipClick: ActionChipHandler }) => {
     mocks.onActionChipClick = onActionChipClick
@@ -64,15 +61,32 @@ vi.mock('@/components/chat/message-bubble', () => ({
   },
 }))
 vi.mock('@/app/(chat)/chat/chat-empty-state', () => ({
-  ChatEmptyState: () => <div data-testid="empty-state" />,
+  ChatEmptyState: ({ onSelectSuggestion }: { onSelectSuggestion: SuggestionHandler }) => {
+    mocks.onSuggestion = onSelectSuggestion
+    return <div data-testid="empty-state" />
+  },
 }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({ goalId }: { goalId: string }) => <div data-testid="goal-drawer">{goalId}</div>,
+  GoalDetailDrawer: ({ goalId, onOpenChange }: { goalId: string; onOpenChange: (open: boolean) => void }) => (
+    <div data-testid="goal-drawer">
+      {goalId}
+      <button onClick={() => onOpenChange(false)}>close goal sentinel</button>
+    </div>
+  ),
 }))
 vi.mock('@/components/habits/habit-detail-drawer', () => ({
-  HabitDetailDrawer: ({ open }: { open: boolean }) => (open ? <div data-testid="habit-drawer" /> : null),
+  HabitDetailDrawer: ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => (
+    open ? (
+      <div data-testid="habit-drawer">
+        <button onClick={() => onOpenChange(false)}>close habit sentinel</button>
+      </div>
+    ) : null
+  ),
 }))
-vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
+vi.mock('@/components/chat/typing-indicator', () => ({
+  TypingIndicator: () => <div data-testid="typing-indicator" />,
+}))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
 import ChatPage from '@/app/(chat)/chat/page'
@@ -83,9 +97,13 @@ describe('ChatPage', () => {
     mocks.push.mockClear()
     mocks.goBack.mockClear()
     mocks.onActionChipClick = null
+    mocks.onSuggestion = null
     mocks.composer.messages = []
     mocks.composer.hasProAccess = false
     mocks.composer.showSuggestions = false
+    mocks.composer.isTyping = false
+    mocks.composer.isOnline = true
+    mocks.composer.sendError = null
   })
 
   it('keeps chat as a full page instead of redirecting into shell chrome', () => {
@@ -99,6 +117,35 @@ describe('ChatPage', () => {
     render(<ChatPage />)
 
     expect(screen.getByTestId('empty-state')).toBeInTheDocument()
+  })
+
+  it('sends the selected live suggestion', () => {
+    mocks.composer.showSuggestions = true
+    render(<ChatPage />)
+
+    act(() => mocks.onSuggestion?.('Plan today'))
+
+    expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Plan today')
+  })
+
+  it('uses the visible app-bar back control', () => {
+    render(<ChatPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'back sentinel' }))
+
+    expect(mocks.goBack).toHaveBeenCalledWith('/')
+  })
+
+  it('renders offline, transport-error, and typing feedback together', () => {
+    mocks.composer.isOnline = false
+    mocks.composer.sendError = 'send failed sentinel'
+    mocks.composer.isTyping = true
+
+    render(<ChatPage />)
+
+    expect(screen.getByText('chat.offline.description')).toBeInTheDocument()
+    expect(screen.getByText('send failed sentinel')).toHaveAttribute('role', 'alert')
+    expect(screen.getByTestId('typing-indicator')).toBeInTheDocument()
   })
 
   it('goes back on Escape when no text is being edited', () => {
@@ -125,6 +172,36 @@ describe('ChatPage', () => {
     textarea.remove()
   })
 
+  it('does not go back on Escape while an input holds text', () => {
+    render(<ChatPage />)
+    const input = document.createElement('input')
+    input.value = 'draft in progress'
+    document.body.appendChild(input)
+
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+
+    expect(mocks.goBack).not.toHaveBeenCalled()
+    input.remove()
+  })
+
+  it('does not go back on Escape while editable content holds text', () => {
+    render(<ChatPage />)
+    const editor = document.createElement('div')
+    editor.contentEditable = 'true'
+    Object.defineProperty(editor, 'isContentEditable', { value: true })
+    editor.textContent = 'draft in progress'
+    document.body.appendChild(editor)
+
+    act(() => {
+      editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+
+    expect(mocks.goBack).not.toHaveBeenCalled()
+    editor.remove()
+  })
+
   it('routes a goal action chip to upgrade when the user lacks pro access', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     mocks.composer.hasProAccess = false
@@ -144,6 +221,8 @@ describe('ChatPage', () => {
     act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
 
     expect(screen.getByTestId('goal-drawer')).toHaveTextContent('goal-9')
+    fireEvent.click(screen.getByRole('button', { name: 'close goal sentinel' }))
+    expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
   })
 
   it('opens the habit drawer for a non-goal action chip', () => {
@@ -153,5 +232,7 @@ describe('ChatPage', () => {
     act(() => mocks.onActionChipClick?.('habit-3', 'view_habit'))
 
     expect(screen.getByTestId('habit-drawer')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'close habit sentinel' }))
+    expect(screen.queryByTestId('habit-drawer')).not.toBeInTheDocument()
   })
 })

@@ -103,6 +103,8 @@ describe('useChatReward', () => {
     )
     expect(mocks.state.profile?.aiMessagesLimit).toBe(10)
     expect(mocks.state.profile?.aiMessagesUsed).toBe(5)
+    expect(reward.current.rewardMessage).toBe('ads.rewardGranted')
+    expect(reward.current.isLoadingReward).toBe(false)
   })
 
   it('does not claim a reward or patch the cache when the ad is not earned', async () => {
@@ -116,6 +118,8 @@ describe('useChatReward', () => {
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.markRewardClaimed).not.toHaveBeenCalled()
     expect(mocks.state.profile?.aiMessagesLimit).toBe(5)
+    expect(reward.current.rewardMessage).toBe('ads.rewardFailed')
+    expect(reward.current.isLoadingReward).toBe(false)
   })
 
   it('leaves the cached limit untouched when the reward claim request fails', async () => {
@@ -129,5 +133,7 @@ describe('useChatReward', () => {
 
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
     expect(mocks.state.profile?.aiMessagesLimit).toBe(5)
+    expect(reward.current.rewardMessage).toBe('ads.rewardFailed')
+    expect(reward.current.isLoadingReward).toBe(false)
   })
 })

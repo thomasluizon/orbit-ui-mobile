@@ -50,6 +50,7 @@ import {
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
+import ChatPage from '@/app/(chat)/chat/page'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { CommandPaletteBackground } from '@/components/command/command-palette'
 import { TodayProvider } from './today-provider'
@@ -112,6 +113,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
+  const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
 
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
@@ -201,6 +203,10 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     <CommandPaletteBackground className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
       <DestinationShell
         onCreate={handleCreate}
+        composer={pathname === '/' ? <div id="today-composer-slot" /> : undefined}
+        conversation={pathname === '/' ? <ChatPage /> : undefined}
+        conversationOpen={pathname === '/' && astraConversationOpen}
+        conversationLabel={t('todayAstra.openConversation')}
         notice={
           <>
             <TrialBanner />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -26,6 +26,9 @@ export interface TodayView {
   selectedHabitIds: Set<string>
   toggleSelectMode: () => void
   setShowCreateModal: (value: boolean) => void
+  showCreateModal: boolean
+  setListSurfaceOpen: (value: boolean) => void
+  listSurfaceOpen: boolean
 }
 
 export function useTodayPage(
@@ -43,9 +46,28 @@ export function useTodayPage(
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const toggleSelectMode = useUIStore((state) => state.toggleSelectMode)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const showCreateModal = useUIStore((state) => state.showCreateModal)
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
   const habitListRef = useRef<HabitListHandle>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
+
+  useEffect(() => {
+    const hidden = isSelectMode || showCreateModal || listSurfaceOpen ||
+      data.isFetching || data.showLoadError || (data.hasFetched && data.habitsCount === 0)
+    setTodayFabHidden(hidden)
+    return () => setTodayFabHidden(false)
+  }, [
+    data.hasFetched,
+    data.habitsCount,
+    data.isFetching,
+    data.showLoadError,
+    isSelectMode,
+    listSurfaceOpen,
+    setTodayFabHidden,
+    showCreateModal,
+  ])
 
   useOverlayEscape({ open: isSelectMode, onDismiss: toggleSelectMode })
 
@@ -77,5 +99,8 @@ export function useTodayPage(
     selectedHabitIds,
     toggleSelectMode,
     setShowCreateModal,
+    showCreateModal,
+    setListSurfaceOpen,
+    listSurfaceOpen,
   }
 }

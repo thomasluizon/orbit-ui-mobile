@@ -96,7 +96,7 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<WebSh
       open={presented}
       modal
       disablePointerDismissal={onClose == null}
-      onOpenChange={(nextOpen) => {
+      onOpenChange={(nextOpen: boolean) => {
         if (!nextOpen && onClose) requestClose()
       }}
       onOpenChangeComplete={(nextOpen) => {

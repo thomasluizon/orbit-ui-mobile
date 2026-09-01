@@ -204,7 +204,32 @@
     "expandSidebar": "Expandir menu",
     "openRail": "Abrir painel",
     "closeRail": "Fechar painel",
-    "openPalette": "Abrir paleta de comandos"
+    "openPalette": "Abrir paleta de comandos",
+    "composer": {
+      "placeholder": "Pergunte para a Astra",
+      "send": "Enviar",
+      "suggestionsLabel": "Sugestões",
+      "retry": "Tentar de novo",
+      "voice": {
+        "start": "Falar",
+        "stop": "Parar",
+        "recording": "Ouvindo",
+        "transcribing": "Escrevendo o que você disse"
+      },
+      "attach": {
+        "trayLabel": "Arquivos anexados",
+        "remove": "Remover {name}"
+      },
+      "limit": {
+        "reason": "A cota de {allowance} mensagens de hoje foi usada."
+      }
+    }
+  },
+  "todayAstra": {
+    "createSentence": "Me ajude a criar um hábito para hoje",
+    "openConversation": "Abrir a conversa",
+    "offline": "A Astra precisa de conexão. Você ainda pode registrar hábitos offline.",
+    "offlineLog": "Salvo neste dispositivo. O Orbit sincroniza quando você se reconectar."
   },
   "command": {
     "title": "Comandos",
