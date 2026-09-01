@@ -23899,6 +23899,7 @@
         "apps/web/__tests__/lib/server-fetch.test.ts",
         "apps/web/__tests__/lib/step-up-storage.test.ts",
         "apps/web/__tests__/lib/supabase.test.ts",
+        "apps/web/__tests__/lib/theme-dom.test.ts",
         "apps/web/__tests__/lib/upload-file.test.ts",
         "apps/web/__tests__/proxy.test.ts",
         "apps/web/__tests__/sentry-before-send.test.ts"
@@ -23927,6 +23928,7 @@
         "apps/web/__tests__/actions/uploads.test.ts",
         "apps/web/__tests__/app/calendar-sync-page.test.tsx",
         "apps/web/__tests__/hooks/use-habit-suggestion.test.ts",
+        "apps/web/__tests__/lib/theme-dom.test.ts",
         "apps/web/__tests__/sentry-before-send.test.ts"
       ],
       "packages/shared/src/api": [
