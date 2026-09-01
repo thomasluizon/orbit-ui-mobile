@@ -43,6 +43,8 @@ if (args[0] === "cloud" && args[1] === "exec") {
   process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
 }
 else if (args[0] === "cloud" && args[1] === "list") {
+  const delayMs = Number(process.env.ORBIT_FAKE_LIST_DELAY_MS || 0)
+  if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
   if (process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH) {
     writeFileSync(process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH, process.env.ORBIT_FAKE_LIST_PUBLICATION_JSON)
   }

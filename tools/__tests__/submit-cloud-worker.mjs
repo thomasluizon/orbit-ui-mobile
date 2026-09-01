@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { setTimeout as wait } from "node:timers/promises"
 
 import {
   T,
@@ -38,8 +39,8 @@ const argvOf = (entry) => [
   "--worktree", entry.repo.path,
 ]
 
-const runConcurrent = (entry, env) => new Promise((resolveResult) => {
-  const child = spawn(process.execPath, [entry.path, ...argvOf(entry)], {
+const spawnTool = (entry, args, env) => {
+  const child = spawn(process.execPath, [entry.path, ...args], {
     cwd: entry.repo.path,
     env: { ...process.env, ...env },
     windowsHide: true,
@@ -48,8 +49,13 @@ const runConcurrent = (entry, env) => new Promise((resolveResult) => {
   let stderr = ""
   child.stdout.on("data", (chunk) => { stdout += chunk.toString() })
   child.stderr.on("data", (chunk) => { stderr += chunk.toString() })
-  child.once("close", (status) => resolveResult({ status, stdout, stderr }))
-})
+  const result = new Promise((resolveResult) => {
+    child.once("close", (status) => resolveResult({ status, stdout, stderr }))
+  })
+  return { child, result }
+}
+
+const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
 
 export const cases = async () => {
   const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
@@ -67,6 +73,13 @@ export const cases = async () => {
       normalizedSchedulerContract.includes("reservation keeps consuming capacity and blocking its ticket") &&
       normalizedSchedulerContract.includes("Never assert absence while the UI shows a task"),
     "the visible task abandon action is missing or releases before terminal observation",
+  )
+  T(
+    `${TOOL}: the combined sleep and cloud contract launches one registered receipt watcher`,
+    normalizedSchedulerContract.includes("Under combined `--sleep --cloud`") &&
+      normalizedSchedulerContract.includes("--watch <receiptPath>") &&
+      normalizedSchedulerContract.includes("Submission alone is not a wake source"),
+    "the cloud path has no durable unattended wake contract",
   )
   const entry = fixture("success")
   const stdinLog = stage("submit-cloud/success-stdin.txt", "")
@@ -109,6 +122,57 @@ export const cases = async () => {
       receipt.repositoryKey === "ui" &&
       readdirSync(join(entry.repo.path, ".git", "orbit-cloud", "receipts")).length === 1,
     JSON.stringify(receipt),
+  )
+
+  const watcher = spawnTool(entry, ["--watch", receipt.receiptPath], {
+    ORBIT_FAKE_CODEX_LOG: entry.log,
+    ORBIT_FAKE_LIST: taskPage([task(receipt.taskId, "ready", 1)]),
+    ORBIT_FAKE_LIST_DELAY_MS: "200",
+  })
+  const wakeSource = join(entry.base, ".git", "orbit-wake-sources", `${watcher.child.pid}.json`)
+  const wakeDeadline = Date.now() + 2000
+  while (!existsSync(wakeSource) && Date.now() < wakeDeadline) await wait(10)
+  const watcherWasLive = existsSync(wakeSource)
+  const watcherResult = await watcher.result
+  const watchedReceipt = JSON.parse(readFileSync(receipt.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a cloud watcher is a live registered wake source until it records a terminal receipt`,
+    watcherWasLive &&
+      watcherResult.status === 0 &&
+      /"outcome":"TERMINAL_READY"/.test(watcherResult.stdout) &&
+      watchedReceipt.terminal?.status === "ready" &&
+      !existsSync(wakeSource),
+    `exit ${watcherResult.status}: ${watcherResult.stdout || watcherResult.stderr}\n` +
+      `live ${watcherWasLive}; receipt ${JSON.stringify(watchedReceipt)}`,
+  )
+
+  const abandonedWatcher = fixture("abandoned-watcher")
+  const abandonedSubmission = run(TOOL, argvOf(abandonedWatcher), {
+    path: abandonedWatcher.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: abandonedWatcher.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_ab398",
+    },
+  })
+  const abandonedWatcherReceipt = JSON.parse(abandonedSubmission.stdout)
+  abandonedWatcherReceipt.deadline = new Date(Date.now() - 1000).toISOString()
+  writeFileSync(abandonedWatcherReceipt.receiptPath, JSON.stringify(abandonedWatcherReceipt))
+  writeFileSync(abandonedWatcherReceipt.mirrorPath, JSON.stringify(abandonedWatcherReceipt))
+  const abandonedWatcherResult = run(TOOL, ["--watch", abandonedWatcherReceipt.receiptPath], {
+    path: abandonedWatcher.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: abandonedWatcher.log,
+      ORBIT_FAKE_LIST: taskPage([task(abandonedWatcherReceipt.taskId, "pending", 0)]),
+    },
+  })
+  const persistedAbandonment = JSON.parse(readFileSync(abandonedWatcherReceipt.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a cloud watcher stays responsible until the local deadline records abandonment`,
+    abandonedWatcherResult.status === 0 &&
+      /"outcome":"ABANDONED"/.test(abandonedWatcherResult.stdout) &&
+      persistedAbandonment.abandoned?.lastObservedStatus === "pending",
+    `exit ${abandonedWatcherResult.status}: ${abandonedWatcherResult.stdout || abandonedWatcherResult.stderr}\n` +
+      JSON.stringify(persistedAbandonment),
   )
 
   const largeOrder = fixture("large-order")
@@ -673,6 +737,22 @@ export const cases = async () => {
       JSON.stringify(releasedReservation),
   )
 
+  const staleAbandonAfterClear = run(TOOL, ["--abandon-known", liveOrphanPath, "--task-id", liveOrphanTaskId], {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+    },
+  })
+  T(
+    `${TOOL}: abandon revalidates the locked reservation and cannot overwrite a completed clear`,
+    staleAbandonAfterClear.status === 2 &&
+      /not an unresolved cloud submission reservation/.test(staleAbandonAfterClear.stderr) &&
+      JSON.parse(readFileSync(liveOrphanPath, "utf8")).submissionState === "released",
+    `exit ${staleAbandonAfterClear.status}: ${staleAbandonAfterClear.stdout || staleAbandonAfterClear.stderr}\n` +
+      readFileSync(liveOrphanPath, "utf8"),
+  )
+
   const knownOrphan = fixture("known-orphan")
   const knownOrphanDirectory = join(knownOrphan.repo.path, ".git", "orbit-cloud", "receipts")
   mkdirSync(knownOrphanDirectory, { recursive: true })
@@ -709,6 +789,9 @@ export const cases = async () => {
     },
   })
   const pendingKnownReservation = JSON.parse(readFileSync(knownReservationPath, "utf8"))
+  const staleClearAfterAbandon = run(TOOL, ["--clear-unknown", knownReservationPath, "--assert-no-task-exists"], {
+    path: knownOrphan.path,
+  })
   const blockedKnownResult = run(TOOL, argvOf(knownOrphan), {
     path: knownOrphan.path,
     env: {
@@ -732,6 +815,8 @@ export const cases = async () => {
       /cannot be combined.*--task-id/.test(contradictoryClearResult.stderr) &&
       knownAbandonResult.status === 0 &&
       /KNOWN_TASK_ABANDONED/.test(knownAbandonResult.stdout) &&
+      staleClearAfterAbandon.status === 2 &&
+      /not an unknown cloud submission reservation/.test(staleClearAfterAbandon.stderr) &&
       pendingKnownReservation.submissionState === "known-task-abandoned" &&
       pendingKnownReservation.released === undefined &&
       blockedKnownResult.status === 3 &&
@@ -742,6 +827,7 @@ export const cases = async () => {
       releasedKnownReservation.released?.by === "scheduler",
     `contradictory clear ${contradictoryClearResult.status}: ${contradictoryClearResult.stderr}\n` +
       `abandon ${knownAbandonResult.status}: ${knownAbandonResult.stdout || knownAbandonResult.stderr}\n` +
+      `stale clear ${staleClearAfterAbandon.status}: ${staleClearAfterAbandon.stdout || staleClearAfterAbandon.stderr}\n` +
       `blocked ${blockedKnownResult.status}: ${blockedKnownResult.stdout || blockedKnownResult.stderr}\n` +
       `released ${releasedKnownResult.status}: ${releasedKnownResult.stdout || releasedKnownResult.stderr}\n` +
       JSON.stringify(releasedKnownReservation),

@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs"
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path"
+import { setTimeout as wait } from "node:timers/promises"
 
 import { dashFindings } from "./check-dashes.mjs"
 import {
@@ -15,12 +16,14 @@ import {
   cloudOrder,
   cloudStateRoot,
   isCloudTaskId,
+  isTerminalTaskStatus,
   listCloudTasks,
   mirrorPathFor,
   parseTaskUrl,
   persistReceipt,
   persistReconciledReceipt,
   readJsonFile,
+  reconcileReceiptCopies,
   receiptBlocksTicketAdmission,
   receiptConsumesFleetCapacity,
   refreshReceipts,
@@ -31,8 +34,10 @@ import {
 import { runBounded } from "./lib/bounded-process.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: submit-cloud-worker.mjs --issue <ORB-N|#N|N> --env <environment-id> --branch <name> --order <file> --worktree <path>
+       submit-cloud-worker.mjs --watch <receipt-file>
        submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
        submit-cloud-worker.mjs --abandon-known <reservation-file> --task-id <task_e_id>
 
@@ -42,7 +47,10 @@ derive the current in-flight set and enforce caps.cloudParallelTasks. The worktr
 the repository bound to the cloud environment. The named remote branch is resolved first, and the
 remote SHA must match the worktree HEAD. The cloud checkout is pinned to that commit while the
 receipt keeps the branch as context. An unresolved receipt blocks the same ticket.
-It never waits for completion, applies a diff, commits, pushes, or opens a pull request.
+Submission mode never waits for completion, applies a diff, commits, pushes, or opens a pull request.
+
+--watch is the separate unattended wake source. It registers its own PID, refreshes the named
+receipt until the task is terminal or locally abandoned, then exits so the scheduler resumes.
 
 A reservation is persisted before the remote write. If submission ends without a confirmed task
 URL, that unknown attempt consumes capacity and blocks the same ticket. Task absence cannot be
@@ -77,6 +85,7 @@ const valueFlags = new Set([
   "--branch",
   "--order",
   "--worktree",
+  "--watch",
   "--clear-unknown",
   "--abandon-known",
   "--task-id",
@@ -92,7 +101,153 @@ const argOf = (flag) => {
 
 const clearArgument = argOf("--clear-unknown")
 const abandonArgument = argOf("--abandon-known")
-if (clearArgument && abandonArgument) fail(2, `${USAGE}\n\n--clear-unknown and --abandon-known are mutually exclusive`)
+const watchArgument = argOf("--watch")
+if ([clearArgument, abandonArgument, watchArgument].filter(Boolean).length > 1) {
+  fail(2, `${USAGE}\n\n--watch, --clear-unknown, and --abandon-known are mutually exclusive`)
+}
+if (watchArgument) {
+  const incompatibleFlags = [
+    "--issue",
+    "--env",
+    "--branch",
+    "--order",
+    "--worktree",
+    "--clear-unknown",
+    "--abandon-known",
+    "--task-id",
+  ]
+  if (incompatibleFlags.some((flag) => argOf(flag)) || argv.includes("--assert-no-task-exists")) {
+    fail(2, `${USAGE}\n\n--watch cannot be combined with submission or recovery options`)
+  }
+
+  const receiptFile = resolve(watchArgument)
+  if (!existsSync(receiptFile) || !statSync(receiptFile).isFile()) {
+    fail(2, `cloud task receipt not found: ${receiptFile}`)
+  }
+  let config
+  try {
+    config = readOrchestratorConfig()
+  } catch (error) {
+    fail(2, error.message)
+  }
+  const codexCommand = config.workers.codex?.command
+  if (typeof codexCommand !== "string" || codexCommand.length === 0) {
+    fail(2, ".claude/orchestrator.json declares no codex command")
+  }
+  const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
+  const pollMs = config.timeouts.pollSeconds * 1000
+  const receiptLockOptions = { lockTimeoutMs: config.timeouts.receiptLockSeconds * 1000 }
+
+  const readCurrentReceipt = () => {
+    const scratchReceipt = readJsonFile(receiptFile, "cloud task receipt")
+    if (scratchReceipt.kind !== "task-receipt" || scratchReceipt.submissionState !== "confirmed") {
+      throw new Error(`${receiptFile} is not a confirmed cloud task receipt`)
+    }
+    if (!isCloudTaskId(scratchReceipt.taskId)) throw new Error(`${receiptFile} carries an invalid cloud task id`)
+    if (typeof scratchReceipt.worktree !== "string" || scratchReceipt.worktree.length === 0) {
+      throw new Error(`${receiptFile} carries no worktree`)
+    }
+    if (typeof scratchReceipt.receiptPath !== "string" || scratchReceipt.receiptPath.length === 0) {
+      throw new Error(`${receiptFile} carries no receiptPath`)
+    }
+    if (typeof scratchReceipt.mirrorPath !== "string" || scratchReceipt.mirrorPath.length === 0) {
+      throw new Error(`${receiptFile} carries no mirrorPath`)
+    }
+    if (scratchReceipt.environmentId !== config.cloud.environmentId) {
+      throw new Error(`receipt environment ${scratchReceipt.environmentId} does not match configured environment ${config.cloud.environmentId}`)
+    }
+    if (scratchReceipt.repositoryKey !== config.cloud.repositoryKey) {
+      throw new Error(`receipt repository ${scratchReceipt.repositoryKey} does not match configured repository ${config.cloud.repositoryKey}`)
+    }
+    assertSameGitRepository(scratchReceipt.worktree, config.repos[scratchReceipt.repositoryKey], scratchReceipt.repositoryKey)
+    const stateRoot = cloudStateRoot(scratchReceipt.worktree)
+    const expectedMirror = mirrorPathFor(stateRoot, scratchReceipt.taskId)
+    if (resolve(scratchReceipt.mirrorPath) !== resolve(expectedMirror)) {
+      throw new Error(`receipt must use its stable mirror path: ${expectedMirror}`)
+    }
+    const allowedPaths = new Set([resolve(expectedMirror), resolve(scratchReceipt.receiptPath)])
+    if (!allowedPaths.has(receiptFile)) {
+      throw new Error(`watch target must be the receipt or its stable mirror: ${scratchReceipt.receiptPath}`)
+    }
+    const mirroredReceipt = existsSync(expectedMirror)
+      ? readJsonFile(expectedMirror, "mirrored cloud task receipt")
+      : scratchReceipt
+    return {
+      receipt: reconcileReceiptCopies(scratchReceipt, mirroredReceipt),
+      mirrorPath: expectedMirror,
+      replicaPaths: [scratchReceipt.receiptPath],
+      stateRoot,
+    }
+  }
+  const watchOutcome = (receipt) => {
+    if (receipt.abandoned) return "ABANDONED"
+    if (receipt.materialized || receipt.released || receipt.unusable) return "RESOLVED"
+    if (isTerminalTaskStatus(receipt.terminal?.status)) return `TERMINAL_${receipt.terminal.status.toUpperCase()}`
+    return null
+  }
+
+  let watched
+  try {
+    watched = readCurrentReceipt()
+  } catch (error) {
+    fail(2, error.message)
+  }
+  registerWakeSource({
+    pid: process.pid,
+    what: `cloud task ${watched.receipt.taskId}`,
+    taskId: watched.receipt.taskId,
+    receiptPath: receiptFile,
+    startedAt: new Date().toISOString(),
+  })
+  process.once("exit", () => clearWakeSource(process.pid))
+
+  while (true) {
+    try {
+      watched = readCurrentReceipt()
+    } catch (error) {
+      fail(2, error.message)
+    }
+    const existingOutcome = watchOutcome(watched.receipt)
+    if (existingOutcome) {
+      console.log(JSON.stringify({ outcome: existingOutcome, taskId: watched.receipt.taskId, receiptPath: receiptFile }))
+      process.exit(0)
+    }
+
+    let tasks = null
+    try {
+      tasks = await listCloudTasks(codexCommand, watched.receipt.environmentId, {
+        cwd: watched.stateRoot,
+        timeoutMs: codexTimeoutMs,
+      })
+    } catch (error) {
+      console.error(`cloud receipt watcher will retry after list failure: ${error.message}`)
+    }
+    const task = tasks?.find((candidate) => candidate.id === watched.receipt.taskId)
+    let refreshed = refreshReceipt(watched.receipt, task, new Date())
+    let persisted = false
+    try {
+      refreshed = persistReconciledReceipt(
+        refreshed,
+        watched.mirrorPath,
+        watched.replicaPaths,
+        receiptLockOptions,
+      )
+      persisted = true
+    } catch (error) {
+      if (error instanceof ReceiptLockTimeoutError) {
+        console.error(`cloud receipt watcher will retry after receipt lock timeout: ${error.message}`)
+      } else {
+        fail(1, `cloud receipt watcher could not persist task ${watched.receipt.taskId}: ${error.message}`)
+      }
+    }
+    const refreshedOutcome = persisted ? watchOutcome(refreshed) : null
+    if (refreshedOutcome) {
+      console.log(JSON.stringify({ outcome: refreshedOutcome, taskId: refreshed.taskId, receiptPath: receiptFile }))
+      process.exit(0)
+    }
+    await wait(pollMs)
+  }
+}
 if (clearArgument) {
   const submissionFlags = ["--issue", "--env", "--branch", "--order", "--worktree"]
   if (submissionFlags.some((flag) => argOf(flag)) || argOf("--task-id")) {
@@ -110,28 +265,7 @@ if (clearArgument) {
   if (!existsSync(reservationFile) || !statSync(reservationFile).isFile()) {
     fail(2, `cloud submission reservation not found: ${reservationFile}`)
   }
-  let reservation
-  try {
-    reservation = readJsonFile(reservationFile, "cloud submission reservation")
-  } catch (error) {
-    fail(2, error.message)
-  }
-  if (
-    reservation.kind !== "submission-reservation" ||
-    !["submitting", "unknown"].includes(reservation.submissionState)
-  ) {
-    fail(2, `${reservationFile} is not an unknown cloud submission reservation`)
-  }
-  let reservationStateRoot
-  try {
-    reservationStateRoot = cloudStateRoot(reservation.worktree)
-    const expectedPath = reservationPathFor(reservationStateRoot, reservation.reservationId)
-    if (resolve(expectedPath) !== reservationFile) {
-      fail(2, `reservation must be managed through its stable path: ${expectedPath}`)
-    }
-  } catch (error) {
-    fail(2, error.message)
-  }
+  const reservationStateRoot = dirname(dirname(reservationFile))
   let releaseReservationLock
   try {
     releaseReservationLock = acquireSubmissionLock(reservationStateRoot)
@@ -141,6 +275,23 @@ if (clearArgument) {
   process.once("exit", releaseReservationLock)
   if (!existsSync(reservationFile)) {
     fail(2, `cloud submission reservation disappeared while acquiring its lock: ${reservationFile}; no receipt was changed`)
+  }
+  let reservation
+  try {
+    reservation = readJsonFile(reservationFile, "cloud submission reservation")
+    if (
+      reservation.kind !== "submission-reservation" ||
+      !["submitting", "unknown"].includes(reservation.submissionState)
+    ) {
+      fail(2, `${reservationFile} is not an unknown cloud submission reservation`)
+    }
+    const expectedStateRoot = cloudStateRoot(reservation.worktree)
+    const expectedPath = reservationPathFor(expectedStateRoot, reservation.reservationId)
+    if (resolve(expectedStateRoot) !== resolve(reservationStateRoot) || resolve(expectedPath) !== reservationFile) {
+      fail(2, `reservation must be managed through its stable path: ${expectedPath}`)
+    }
+  } catch (error) {
+    fail(2, error.message)
   }
 
   reservation.submissionState = "released"
@@ -174,35 +325,10 @@ if (abandonArgument) {
   if (!existsSync(reservationFile) || !statSync(reservationFile).isFile()) {
     fail(2, `cloud submission reservation not found: ${reservationFile}`)
   }
-  let reservation
-  try {
-    reservation = readJsonFile(reservationFile, "cloud submission reservation")
-  } catch (error) {
-    fail(2, error.message)
-  }
-  if (
-    reservation.kind !== "submission-reservation" ||
-    !["submitting", "unknown", "known-task-abandoned"].includes(reservation.submissionState)
-  ) {
-    fail(2, `${reservationFile} is not an unresolved cloud submission reservation`)
-  }
-  if (reservation.taskId && reservation.taskId !== taskId) {
-    fail(2, `reservation is already bound to task ${reservation.taskId}`)
-  }
+  const reservationStateRoot = dirname(dirname(reservationFile))
   let config
-  let reservationStateRoot
   try {
     config = readOrchestratorConfig()
-    if (reservation.environmentId !== config.cloud.environmentId) {
-      fail(2, `reservation environment ${reservation.environmentId} does not match configured environment ${config.cloud.environmentId}`)
-    }
-    if (reservation.repositoryKey !== config.cloud.repositoryKey) {
-      fail(2, `reservation repository ${reservation.repositoryKey} does not match configured repository ${config.cloud.repositoryKey}`)
-    }
-    assertSameGitRepository(reservation.worktree, config.repos[reservation.repositoryKey], reservation.repositoryKey)
-    reservationStateRoot = cloudStateRoot(reservation.worktree)
-    const expectedPath = reservationPathFor(reservationStateRoot, reservation.reservationId)
-    if (resolve(expectedPath) !== reservationFile) fail(2, `reservation must be managed through its stable path: ${expectedPath}`)
   } catch (error) {
     fail(2, error.message)
   }
@@ -213,6 +339,36 @@ if (abandonArgument) {
     fail(2, error.message)
   }
   process.once("exit", releaseReservationLock)
+  if (!existsSync(reservationFile)) {
+    fail(2, `cloud submission reservation disappeared while acquiring its lock: ${reservationFile}; no receipt was changed`)
+  }
+  let reservation
+  try {
+    reservation = readJsonFile(reservationFile, "cloud submission reservation")
+    if (
+      reservation.kind !== "submission-reservation" ||
+      !["submitting", "unknown", "known-task-abandoned"].includes(reservation.submissionState)
+    ) {
+      fail(2, `${reservationFile} is not an unresolved cloud submission reservation`)
+    }
+    if (reservation.taskId && reservation.taskId !== taskId) {
+      fail(2, `reservation is already bound to task ${reservation.taskId}`)
+    }
+    if (reservation.environmentId !== config.cloud.environmentId) {
+      fail(2, `reservation environment ${reservation.environmentId} does not match configured environment ${config.cloud.environmentId}`)
+    }
+    if (reservation.repositoryKey !== config.cloud.repositoryKey) {
+      fail(2, `reservation repository ${reservation.repositoryKey} does not match configured repository ${config.cloud.repositoryKey}`)
+    }
+    assertSameGitRepository(reservation.worktree, config.repos[reservation.repositoryKey], reservation.repositoryKey)
+    const expectedStateRoot = cloudStateRoot(reservation.worktree)
+    const expectedPath = reservationPathFor(expectedStateRoot, reservation.reservationId)
+    if (resolve(expectedStateRoot) !== resolve(reservationStateRoot) || resolve(expectedPath) !== reservationFile) {
+      fail(2, `reservation must be managed through its stable path: ${expectedPath}`)
+    }
+  } catch (error) {
+    fail(2, error.message)
+  }
   const codexCommand = config.workers.codex?.command
   const codexTimeoutMs = config.timeouts.cloudCommandMinutes * 60 * 1000
   let tasks

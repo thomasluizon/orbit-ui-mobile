@@ -66,7 +66,7 @@ run it always was.
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
                      written to the scratchpad, never inside a repo
  5  Spawn worker     local: supervised headless worker · cloud: submit one receipt-backed task
- 6  Watchdog         local: two clocks and process-tree kill · cloud: one wall clock, abandon locally
+  6  Watchdog         local: two clocks and process-tree kill · cloud: receipt watcher and one wall clock
  7  VERIFY OUT OF BAND
                      git status --porcelain            -> empty
                      git rev-list --count <base>..HEAD -> >= 1
@@ -121,6 +121,7 @@ node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
+node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
 node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
@@ -522,6 +523,8 @@ Publish the contract branch, then submit each implementation with `submit-cloud-
 # Publication belongs to orchestration so the submitter stays read-only toward Git remotes and keeps refusing unpublished or stale branch tips.
 git push -u origin <contract-branch>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <contract-branch> --order <f> --worktree <p>
+# Read receiptPath from the submitter's JSON, then launch this as a background task.
+node tools/submit-cloud-worker.mjs --watch <receiptPath>
 ```
 
 The submitter verifies that the remote branch SHA exactly matches the worktree HEAD. The receipt
@@ -529,6 +532,13 @@ records the exact pushed branch SHA that the container starts from, the order ha
 worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
 under the shared Git directory is the recovery source after a crashed session. The composed order
 is sent through stdin so its size is not constrained by the Windows command line limit.
+
+Under combined `--sleep --cloud`, immediately launch `--watch` as a background task for every
+confirmed receipt. The watcher registers its own live PID in the orchestrating checkout, polls the
+Cloud task, and reconciles each observation into the receipt. It stays alive until the task reaches
+`ready`, `applied`, or `error`, or until the local deadline records abandonment. Its exit wakes the
+session and starts the next scheduler pass, which materializes or quarantines the result. Name that
+watcher as the turn's final live wake source. Submission alone is not a wake source.
 
 Persisting the reservation happens before `codex cloud exec`. A local timeout or crash can leave the
 remote outcome unknown, so that reservation continues to consume capacity and blocks the same
@@ -545,7 +555,8 @@ task.
 Cloud has one wall-clock ceiling and no no-progress clock. Across one observed run, `updated_at` did
 not move while the task was running and moved at the transition. The CLI reference does not define
 the field or its mutation rules, so the harness records and validates it only as diagnostic data.
-On each scheduler pass, read the stable receipts and `codex cloud list --env <id> --json`. Fleet
+On each scheduler pass, and inside each live receipt watcher, read the stable receipts and
+`codex cloud list --env <id> --json`. Fleet
 capacity is unknown submissions plus receipts that are neither terminal nor abandoned. Same ticket
 admission is stricter: every unmaterialized and unabandoned receipt blocks, including `ready`.
 Never maintain a counter. When this harness first observes `ready`, record that local observation
@@ -1036,8 +1047,9 @@ will wake me" with nothing scheduled.
 
 **When there is genuinely nothing to wait on and work remains, LAUNCH THE NEXT TICKET.** All slots
 free plus a non-empty queue is not a reason to end the turn; it is the definition of the next
-action. `launch-worker.mjs` registers itself as a wake source, so starting the next worker satisfies
-the invariant by construction.
+action. `launch-worker.mjs` registers itself as a local wake source, and
+`submit-cloud-worker.mjs --watch <receiptPath>` does the same for a Cloud task. Starting the next
+worker or watcher satisfies the invariant by construction.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So
