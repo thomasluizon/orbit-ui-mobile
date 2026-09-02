@@ -288,13 +288,32 @@ describe('HabitFormFields', () => {
 
   it('reveals the detail sections from the single disclosure', () => {
     mockProfileState.hasProAccess = true
-    renderForm(createFormHelpers({ title: 'Run' }))
+    renderForm(createFormHelpers({ title: 'Run', isBadHabit: true }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     expect(screen.getByText('checklist-editor')).toBeDefined()
     expect(screen.getByText('sub-habit-editor')).toBeDefined()
     expect(screen.getByText('goal-linking')).toBeDefined()
     expect(screen.getByText('date-field')).toBeDefined()
     expect(screen.getByText('slip-alert')).toBeDefined()
+  })
+
+  it('hides slip alerts for a positive habit', () => {
+    mockProfileState.hasProAccess = true
+    renderForm(createFormHelpers({ title: 'Run', isBadHabit: false }), undefined, true)
+
+    expect(screen.queryByText('slip-alert')).toBeNull()
+  })
+
+  it('hides slip alerts after switching a bad habit back to positive', () => {
+    mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ title: 'Run', isBadHabit: true })
+    const view = renderForm(formHelpers, undefined, true)
+    expect(screen.getByText('slip-alert')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.habitTypeAvoid' }))
+    view.rerenderForm()
+
+    expect(screen.queryByText('slip-alert')).toBeNull()
   })
 
   it.each([

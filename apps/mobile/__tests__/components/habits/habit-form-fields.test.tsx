@@ -265,6 +265,38 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')).toHaveLength(1)
   })
 
+  it('hides slip alerts for a positive habit', async () => {
+    mockProfileState.hasProAccess = true
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isBadHabit: false })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.slipAlert')).toHaveLength(0)
+  })
+
+  it('hides slip alerts after switching a bad habit back to positive', async () => {
+    mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ isBadHabit: true })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.slipAlert')).toHaveLength(1)
+
+    const habitTypeSwitch = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.habitTypeAvoid')[0]
+    TestRenderer.act(() => habitTypeSwitch.props.onPress())
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.slipAlert')).toHaveLength(0)
+  })
+
   it.each([
     { mode: 'one-time', isOneTime: true, isGeneral: false },
     { mode: 'General', isOneTime: false, isGeneral: true },

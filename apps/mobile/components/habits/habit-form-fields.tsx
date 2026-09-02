@@ -151,6 +151,34 @@ function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorPr
   )
 }
 
+interface SlipAlertEditorProps {
+  visible: boolean
+  tokens: AppTokens
+  hasProAccess: boolean
+  slipAlertEnabled: boolean
+  onToggle: () => void
+  onUpgrade: () => void
+  t: (key: string) => string
+}
+
+function SlipAlertEditor({
+  visible,
+  tokens,
+  hasProAccess,
+  slipAlertEnabled,
+  onToggle,
+  onUpgrade,
+  t,
+}: Readonly<SlipAlertEditorProps>) {
+  if (!visible) return null
+  return (
+    <View>
+      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.slipAlert')}</SectionLabel>
+      <SlipAlertSection tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
+    </View>
+  )
+}
+
 function SubHabitSection({
   canUseSubHabits,
   proposed,
@@ -431,10 +459,7 @@ export function HabitFormFields({
               <Switch label={t('habits.form.habitTypeAvoid')} checked={isBadHabit} onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })} />
               <Text style={styles.hint}>{t('habits.form.habitTypeAvoidHint')}</Text>
             </View>
-            <View>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.slipAlert')}</SectionLabel>
-              <SlipAlertSection tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} />
-            </View>
+            <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
             <View>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.tags')}</SectionLabel>
               <View style={formStyles.tagsRow}>
