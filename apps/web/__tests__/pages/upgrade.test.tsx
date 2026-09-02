@@ -732,7 +732,9 @@ describe('UpgradePage', () => {
     expect(screen.getByText(
       trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
     )).toBeInTheDocument()
-    const paidActions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
+    const paidActions = screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel:/,
+    })
     expect(paidActions).toHaveLength(2)
     expect(paidActions[0]).toBeDisabled()
     expect(paidActions[1]).toBeDisabled()
@@ -785,7 +787,9 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel:/,
+    })[0]!)
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const call = fetchMock.mock.calls[0]
@@ -813,7 +817,9 @@ describe('UpgradePage', () => {
     }))
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel:/,
+    })[0]!)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('toast.errors.server')
   })
@@ -838,22 +844,30 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel:/,
+    })[0]!)
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]).toHaveAttribute(
+      expect(screen.getAllByRole('button', {
+        name: /^upgrade\.plans\.checkoutLabel:/,
+      })[0]).toHaveAttribute(
         'aria-busy',
         'true',
       )
     })
-    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[1]!)
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel:/,
+    })[1]!)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
     resolveCheckout?.({ ok: true, json: async () => ({}) })
     await waitFor(() => {
       expect(
-        screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0],
+        screen.getAllByRole('button', {
+          name: /^upgrade\.plans\.checkoutLabel:/,
+        })[0],
       ).not.toBeDisabled()
     })
   })
