@@ -73,6 +73,9 @@ describe('upgrade utils', () => {
       'upgrade.outcomes.noticing.title',
       'upgrade.outcomes.noticing.body',
       'upgrade.plans.loading',
+      'upgrade.plans.intervalLabel',
+      'upgrade.plans.interval.monthly',
+      'upgrade.plans.interval.annual',
     ]
 
     for (const locale of [en, ptBR]) {

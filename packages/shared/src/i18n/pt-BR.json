@@ -1935,6 +1935,11 @@
       }
     },
     "plans": {
+      "intervalLabel": "Como pagar",
+      "interval": {
+        "monthly": "Mensal",
+        "annual": "Anual"
+      },
       "free": {
         "note": "Mantenha sequências, XP e congelamento, sempre de graça."
       },

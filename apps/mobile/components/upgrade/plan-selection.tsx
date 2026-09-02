@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { styles } from './styles'
@@ -66,7 +67,19 @@ export function PlanSelection({
     formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
 
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={t('upgrade.plan')} style={styles.planGroup}>
+    <View style={styles.planGroup}>
+      <SegmentedControl
+        label={t('upgrade.plans.intervalLabel')}
+        options={[
+          { id: 'monthly', label: t('upgrade.plans.interval.monthly') },
+          { id: 'yearly', label: t('upgrade.plans.interval.annual') },
+        ]}
+        value={selectedInterval}
+        onChange={(interval) => {
+          if (interval === 'monthly' || interval === 'yearly') onSelectInterval(interval)
+        }}
+      />
+      <View accessibilityRole="radiogroup" accessibilityLabel={t('upgrade.plan')} style={styles.planChoices}>
       <PlanCard
         name={t('upgrade.plans.yearly.name')}
         badge={<Badge>{t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}</Badge>}
@@ -93,6 +106,7 @@ export function PlanSelection({
       >
         <Text style={[styles.freeLinkText, { color: tokens.fg3 }]}>{t('upgrade.convert.stayFree')}</Text>
       </Pressable>
+      </View>
     </View>
   )
 }

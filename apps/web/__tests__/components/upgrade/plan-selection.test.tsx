@@ -41,9 +41,14 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
 }
 
 describe('PlanSelection', () => {
-  it('renders three plan-card choices with yearly selected as recommended', () => {
+  it('separates the annual default interval from the plan actions', () => {
     renderSelection()
     expect(screen.getAllByRole('button')).toHaveLength(3)
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    expect(screen.getByRole('radio', { name: 'upgrade.plans.interval.annual' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
     expect(screen.getByRole('button', { name: /upgrade\.free/ })).toHaveAttribute(
       'aria-pressed',
       'false',
@@ -59,6 +64,23 @@ describe('PlanSelection', () => {
     expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveTextContent(
       formatPrice(plans.yearly.unitAmount, plans.currency),
     )
+  })
+
+  it('switches the rendered interval without starting checkout', () => {
+    const onCheckout = vi.fn()
+    renderSelection({ onCheckout })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' }))
+
+    expect(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(onCheckout).not.toHaveBeenCalled()
   })
 
   it('owns loading and retry states for the price tiers', () => {

@@ -53,13 +53,17 @@ describe('PlanSelection (mobile)', () => {
   it('preselects the yearly plan card', () => {
     const tree = renderSelection('yearly')
     const pressables = tree.root.findAllByType('Pressable')
-    expect(pressables).toHaveLength(3)
-    expect(pressables[0].props.accessibilityState).toEqual({
+    expect(pressables).toHaveLength(5)
+    expect(pressables[1].props.accessibilityState).toEqual({
+      checked: true,
+      disabled: undefined,
+    })
+    expect(pressables[2].props.accessibilityState).toEqual({
       checked: true,
       disabled: false,
       busy: false,
     })
-    expect(pressables[1].props.accessibilityState).toEqual({
+    expect(pressables[3].props.accessibilityState).toEqual({
       checked: false,
       disabled: false,
       busy: false,
@@ -88,19 +92,19 @@ describe('PlanSelection (mobile)', () => {
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
-  it('selects monthly and exposes the quiet free escape hatch', () => {
+  it('selects monthly separately and exposes the quiet free escape hatch', () => {
     const onSelectInterval = vi.fn()
     const onStayFree = vi.fn()
     const tree = renderSelection('yearly', { onSelectInterval, onStayFree })
 
     const pressables = tree.root.findAllByType('Pressable')
     TestRenderer.act(() => {
-      pressables[1].props.onPress()
+      pressables[0].props.onPress()
     })
     expect(onSelectInterval).toHaveBeenCalledWith('monthly')
 
     TestRenderer.act(() => {
-      pressables[2].props.onPress()
+      pressables[4].props.onPress()
     })
     expect(onStayFree).toHaveBeenCalledTimes(1)
   })

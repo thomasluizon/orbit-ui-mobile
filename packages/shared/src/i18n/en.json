@@ -1935,6 +1935,11 @@
       }
     },
     "plans": {
+      "intervalLabel": "How to pay",
+      "interval": {
+        "monthly": "Monthly",
+        "annual": "Annual"
+      },
       "free": {
         "note": "Keep streaks, XP and streak freeze, always free."
       },
