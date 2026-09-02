@@ -450,6 +450,10 @@ describe('subscription dashboards (mobile)', () => {
     expect(text).toContain('upgrade.convert.freeEyebrow')
     expect(text).toContain('upgrade.convert.proAllowance')
     expect(text).toContain('upgrade.convert.allowanceNote')
+    expect(tree.root.findAll(
+      (node) => node.type === 'View'
+        && node.props.accessibilityLabel === 'upgrade.convert.allowanceLabel',
+    )).toHaveLength(0)
     expect(text).toContain('upgrade.convert.promise')
     expect(text).toContain('upgrade.convert.trustLine')
     expect(text).toContain('upgrade.convert.cancelAnytime')

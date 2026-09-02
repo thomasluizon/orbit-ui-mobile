@@ -80,11 +80,7 @@ export function PricingSection({
         ) : null}
       </View>
 
-      <View
-        accessible
-        accessibilityLabel={t('upgrade.convert.allowanceLabel')}
-        style={styles.allowanceSection}
-      >
+      <View style={styles.allowanceSection}>
         <View
           style={[
             styles.allowanceCard,
