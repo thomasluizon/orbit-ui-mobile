@@ -51,8 +51,11 @@ import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 
 interface AttemptedSend {
   content: string
+  draftContent: string
   image: File | null
   preview: string | null
+  restoreDraftOnFailure: boolean
+  clearDraftOnSuccess: boolean
 }
 
 interface StreamSendFailure {
@@ -259,6 +262,12 @@ export function useChatComposer() {
     draftMessageId: string | null,
   ) => {
     setIsTyping(false)
+    const failedAttempt = attempted.restoreDraftOnFailure
+      ? { ...attempted, restoreDraftOnFailure: false }
+      : attempted
+    if (attempted.restoreDraftOnFailure) {
+      setInput(attempted.draftContent)
+    }
     const resolvedError = failureInput.error.trim() || t('chat.sendError')
     const failure = classifySendFailure({
       status: failureInput.status,
@@ -274,12 +283,12 @@ export function useChatComposer() {
 
     if (failure.kind === 'timeout') {
       setSendError(t('chat.timeoutError'))
-      setLastFailedSend(attempted)
+      setLastFailedSend(failedAttempt)
     } else if (failure.kind === 'limit') {
       setSendError(t('chat.limitReachedError'))
     } else {
       setSendError(t('chat.sendError'))
-      setLastFailedSend(attempted)
+      setLastFailedSend(failedAttempt)
     }
 
     if (draftMessageId) {
@@ -293,7 +302,7 @@ export function useChatComposer() {
       })
     }
     scrollToBottom()
-  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
+  }, [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
     setIsTyping(false)
@@ -447,7 +456,7 @@ export function useChatComposer() {
           attempted,
           draftMessageId,
         )
-        return
+        return false
       }
 
       const outcome = await consumeChatSseStream(
@@ -466,7 +475,7 @@ export function useChatComposer() {
 
       if (outcome.kind === 'final') {
         await applyFinalResponse(outcome.response, draftMessageId)
-        return
+        return true
       }
       if (outcome.kind === 'error') {
         handleFailedSend(
@@ -474,13 +483,14 @@ export function useChatComposer() {
           attempted,
           draftMessageId,
         )
-        return
+        return false
       }
       handleFailedSend(
         { status: null, error: t('chat.sendError'), code: null },
         attempted,
         draftMessageId,
       )
+      return false
     } catch (error: unknown) {
       handleFailedSend(
         {
@@ -491,6 +501,7 @@ export function useChatComposer() {
         attempted,
         draftMessageId,
       )
+      return false
     } finally {
       clearTimeout(idleTimer)
       if (useChatStore.getState().streamingMessageId === draftMessageId) {
@@ -529,7 +540,7 @@ export function useChatComposer() {
       setIsTyping(true)
       scrollToBottom()
 
-      await runStreamingSend(attempted)
+      return runStreamingSend(attempted)
     },
     [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   )
@@ -553,8 +564,11 @@ export function useChatComposer() {
 
       const attempted: AttemptedSend = {
         content: messageContent,
+        draftContent: typedContent,
         image: selectedImage,
         preview: imagePreview,
+        restoreDraftOnFailure: content === undefined,
+        clearDraftOnSuccess: content === undefined,
       }
 
       setInput('')
@@ -580,8 +594,17 @@ export function useChatComposer() {
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState()
     if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
-    await performSend(lastFailedSend, true)
-  }, [lastFailedSend, performSend])
+    const attempted = lastFailedSend
+    const succeeded = await performSend(attempted, true)
+    if (
+      succeeded &&
+      attempted.clearDraftOnSuccess &&
+      useChatStore.getState().draft === attempted.draftContent
+    ) {
+      setInput('')
+      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+    }
+  }, [lastFailedSend, performSend, setInput])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
 

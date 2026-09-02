@@ -489,6 +489,80 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBeNull()
   })
 
+  it('clears an untouched restored draft after a successful retry', async () => {
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(composer.current.composerProps.value).toBe('log water')
+
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    expect(composer.current.composerProps.value).toBe('')
+  })
+
+  it('keeps a newer draft edit when an in-flight retry fails', async () => {
+    const retryStream = controlledSseStreamResponse()
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(retryStream.response)
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    TestRenderer.act(() => {
+      retryPromise = composer.current.retryLastSend()
+    })
+    TestRenderer.act(() => composer.current.setInput('log water and vitamins'))
+
+    await TestRenderer.act(async () => {
+      retryStream.enqueue(frame('{"type":"error","status":500,"error":"boom again"}'))
+      retryStream.close()
+      await retryPromise
+    })
+
+    expect(composer.current.composerProps.value).toBe('log water and vitamins')
+  })
+
+  it('keeps an intentionally cleared draft when its retry fails', async () => {
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom again"}'),
+      ))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(composer.current.composerProps.value).toBe('log water')
+
+    TestRenderer.act(() => composer.current.setInput(''))
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    expect(composer.current.composerProps.value).toBe('')
+  })
+
   it('confirms then executes a pending operation through the API', async () => {
     mocks.apiClient
       .mockResolvedValueOnce({ confirmationToken: 'token-1' })
