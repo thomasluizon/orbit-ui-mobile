@@ -221,7 +221,9 @@ describe("ScheduledReminderSection", () => {
           !node.props.accessibilityLabel && node.props.disabled === false,
       )!,
     );
-    expect(onValidationError).toHaveBeenCalled();
+    expect(onValidationError).toHaveBeenCalledWith(
+      "habits.form.duplicateScheduledReminder",
+    );
     expect(onSetScheduledReminders).not.toHaveBeenCalled();
   });
 
