@@ -22,6 +22,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
 
@@ -51,6 +52,7 @@ export function HabitChecklist({
   const [newItemText, setNewItemText] = useState('')
 
   const checkedCount = items.filter((i) => i.isChecked).length
+  const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -74,11 +76,11 @@ export function HabitChecklist({
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
-    if (!text) return
+    if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
     setNewItemText('')
-  }, [items, newItemText, onItemsChange])
+  }, [atItemLimit, items, newItemText, onItemsChange])
 
   const removeItem = useCallback(
     (index: number) => {
@@ -99,13 +101,13 @@ export function HabitChecklist({
   const duplicateItem = useCallback(
     (index: number) => {
       const item = items[index]
-      if (!item) return
+      if (!item || atItemLimit) return
       const clone: ChecklistItem = { text: item.text, isChecked: false }
       const next = [...items]
       next.splice(index + 1, 0, clone)
       onItemsChange?.(next)
     },
-    [items, onItemsChange],
+    [atItemLimit, items, onItemsChange],
   )
 
   const clearAll = useCallback(() => {
@@ -120,7 +122,7 @@ export function HabitChecklist({
   )
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
           <ProgressBar
@@ -171,7 +173,7 @@ export function HabitChecklist({
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               {items.map((item, index) => (
                 <SortableChecklistItem
                   key={sortableIds[index]}
@@ -181,6 +183,7 @@ export function HabitChecklist({
                   onUpdateText={updateItemText}
                   onDuplicate={duplicateItem}
                   onRemove={removeItem}
+                  duplicateDisabled={atItemLimit}
                 />
               ))}
             </div>
@@ -231,12 +234,20 @@ export function HabitChecklist({
       )}
 
       {editable && (
-        <ChecklistAddRow
-          inputId={newItemInputId}
-          value={newItemText}
-          onChangeText={setNewItemText}
-          onAdd={addItem}
-        />
+        <div className="flex flex-col gap-2">
+          <ChecklistAddRow
+            inputId={newItemInputId}
+            value={newItemText}
+            onChangeText={setNewItemText}
+            onAdd={addItem}
+            disabled={atItemLimit}
+          />
+          {atItemLimit ? (
+            <p role="status" className="text-xs text-[var(--fg-3)]">
+              {t('habits.form.checklistItemLimit')}
+            </p>
+          ) : null}
+        </div>
       )}
     </div>
   )
@@ -249,6 +260,7 @@ function SortableChecklistItem({
   onUpdateText,
   onDuplicate,
   onRemove,
+  duplicateDisabled,
 }: Readonly<{
   id: string
   item: ChecklistItem
@@ -256,6 +268,7 @@ function SortableChecklistItem({
   onUpdateText: (index: number, text: string) => void
   onDuplicate: (index: number) => void
   onRemove: (index: number) => void
+  duplicateDisabled: boolean
 }>) {
   const t = useTranslations()
   const {
@@ -315,6 +328,7 @@ function SortableChecklistItem({
         aria-label={t('habits.form.duplicateChecklistItem')}
         className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
         style={{ width: 36, height: 36 }}
+        disabled={duplicateDisabled}
         onClick={() => onDuplicate(index)}
       >
         <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -387,11 +401,13 @@ function ChecklistAddRow({
   value,
   onChangeText,
   onAdd,
+  disabled,
 }: Readonly<{
   inputId: string
   value: string
   onChangeText: (text: string) => void
   onAdd: () => void
+  disabled: boolean
 }>) {
   const t = useTranslations()
   return (
@@ -403,6 +419,7 @@ function ChecklistAddRow({
         id={inputId}
         value={value}
         type="text"
+        disabled={disabled}
         placeholder={t('habits.form.checklistPlaceholder')}
         className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
         style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
@@ -418,7 +435,7 @@ function ChecklistAddRow({
         type="button"
         aria-label={t('common.add')}
         className="shrink-0 inline-flex items-center justify-center px-4 rounded-r-[14px] bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150"
-        disabled={!value.trim()}
+        disabled={disabled || !value.trim()}
         onClick={onAdd}
       >
         <Plus size={18} strokeWidth={1.8} aria-hidden="true" />

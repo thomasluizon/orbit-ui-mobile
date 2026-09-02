@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 
 
 vi.mock('next-intl', () => ({
@@ -247,6 +248,22 @@ describe('HabitChecklist', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} editable />)
       expect(screen.queryByRole('progressbar')).toBeNull()
+    })
+
+    it('states and enforces the fifty item ceiling', () => {
+      const onItemsChange = vi.fn()
+      const items = Array.from({ length: MAX_CHECKLIST_ITEMS }, (_, index) => ({
+        text: `Step ${index + 1}`,
+        isChecked: false,
+      }))
+
+      render(<HabitChecklist items={items} editable onItemsChange={onItemsChange} />)
+
+      expect(screen.getByText('habits.form.checklistItemLimit')).toBeDefined()
+      expect(screen.getByPlaceholderText('habits.form.checklistPlaceholder')).toBeDisabled()
+      expect(screen.getByLabelText('common.add')).toBeDisabled()
+      expect(screen.getAllByLabelText('habits.form.duplicateChecklistItem')[0]).toBeDisabled()
+      expect(onItemsChange).not.toHaveBeenCalled()
     })
   })
 })
