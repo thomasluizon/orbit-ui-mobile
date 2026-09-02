@@ -102,6 +102,12 @@ describe('upgrade utils', () => {
       expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.matrix')).toBeUndefined()
       expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.features')).toBeUndefined()
     }
+    expect(en.upgrade.plans.renewalNote).toBe(
+      'The subscription renews automatically at the end of each period.',
+    )
+    expect(ptBR.upgrade.plans.renewalNote).toBe(
+      'A assinatura renova automaticamente no fim de cada período.',
+    )
   })
 
   it('applies plan checks consistently', () => {

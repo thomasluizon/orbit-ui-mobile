@@ -1957,7 +1957,7 @@
       "coupon": {
         "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },
-      "renewalNote": "A assinatura renova sozinha no fim do período, e dá para desligar isso no portal.",
+      "renewalNote": "A assinatura renova automaticamente no fim de cada período.",
       "loading": "Buscando os valores",
       "error": "Não foi possível carregar os preços",
       "retry": "Tentar de novo"
