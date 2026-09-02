@@ -311,7 +311,11 @@ export function HabitFormFields({
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
 
   const handleAskAstra = useCallback(async () => {
-    setProposal(await askAstra(onSuggestSetup, atMessageLimit))
+    const nextProposal = await askAstra(onSuggestSetup, atMessageLimit)
+    if (nextProposal.setup) {
+      phraseOwnershipRef.current = { cadence: false, dueTime: false }
+    }
+    setProposal(nextProposal)
   }, [atMessageLimit, onSuggestSetup])
 
   useEffect(() => {

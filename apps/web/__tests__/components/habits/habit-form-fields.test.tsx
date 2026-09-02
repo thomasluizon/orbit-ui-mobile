@@ -226,6 +226,34 @@ describe('HabitFormFields', () => {
     expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
+  it('preserves an Astra schedule across the next title edit', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const onSuggestSetup = vi.fn(() => {
+      formHelpers.testValues.frequencyUnit = 'Week'
+      formHelpers.testValues.frequencyQuantity = 3
+      formHelpers.testValues.dueTime = '07:00'
+      return SETUP_PROPOSAL
+    })
+    const view = renderForm(formHelpers, onSuggestSetup, false, true)
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true }))
+
+    formHelpers.testValues.title = 'Build a stronger routine'
+    view.rerenderForm()
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true }))
+    formHelpers.testValues.days = []
+    formHelpers.testValues.frequencyUnit = null
+    view.rerenderForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
+
+    vi.mocked(formHelpers.form.setValue).mockClear()
+    vi.mocked(formHelpers.setOneTime).mockClear()
+    formHelpers.testValues.title = 'Build a calmer routine'
+    view.rerenderForm()
+    await waitFor(() => expect(formHelpers.form.setValue).not.toHaveBeenCalledWith('dueTime', '', { shouldDirty: true }))
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
+  })
+
   it('reveals the detail sections from the single disclosure', () => {
     mockProfileState.hasProAccess = true
     renderForm(createFormHelpers({ title: 'Run' }))

@@ -187,6 +187,50 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
+  it('preserves an Astra schedule across the next title edit', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    const onSuggestSetup = vi.fn(() => {
+      controlValues.frequencyUnit = 'Week'
+      controlValues.frequencyQuantity = 3
+      controlValues.dueTime = '07:00'
+      return SETUP_PROPOSAL
+    })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} readPhraseLocally />
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
+    })
+
+    controlValues.title = 'Build a stronger routine'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    controlValues.days = []
+    controlValues.frequencyUnit = null
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+
+    vi.mocked(formHelpers.form.setValue).mockClear()
+    vi.mocked(formHelpers.setOneTime).mockClear()
+    controlValues.title = 'Build a calmer routine'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    expect(formHelpers.form.setValue).not.toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
+  })
+
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', async () => {
     const formHelpers = createFormHelpers({ dueTime: '08:00' })
     let tree: any
