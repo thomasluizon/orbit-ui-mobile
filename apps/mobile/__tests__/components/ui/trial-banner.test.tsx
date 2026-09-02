@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, create } from 'react-test-renderer'
-import { StyleSheet } from 'react-native'
 
 let profile = { isTrialActive: true, hasProAccess: true }
 let daysLeft = 5
@@ -79,9 +78,12 @@ describe('TrialBanner (mobile)', () => {
   it('removes dismissal translation when reduced motion is enabled', async () => {
     prefersReducedMotion = true
     const tree = await renderBanner()
-    const banner = tree.root.findByProps({ testID: 'trial-banner' })
-    const style = StyleSheet.flatten(banner.props.style)
+    const banner = tree.root.findAll((node) => node.props.testID === 'trial-banner')[0]!
 
-    expect(style.transform).toEqual([{ translateY: 0 }])
+    expect(banner.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ transform: [{ translateY: 0 }] }),
+      ]),
+    )
   })
 })
