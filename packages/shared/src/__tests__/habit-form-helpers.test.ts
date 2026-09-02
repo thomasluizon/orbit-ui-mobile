@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   EMPTY_HABIT_FORM_PROPOSAL,
   HABIT_REMINDER_PRESETS,
@@ -275,6 +277,59 @@ describe('habit form helpers', () => {
       .toBe('Seg, Qua e Sex')
     expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
       .toBe('Seg, Qua e Sex às 08:00')
+  })
+
+  it.each([
+    {
+      locale: 'en',
+      messages: en.habits.form,
+      month: 'Once a month',
+      monthAt: 'Once a month at 08:00',
+      year: 'Once a year',
+      yearAt: 'Once a year at 08:00',
+      pluralMonth: '2 times a month',
+      pluralYear: '2 times a year',
+    },
+    {
+      locale: 'pt-BR',
+      messages: ptBR.habits.form,
+      month: 'Uma vez por mês',
+      monthAt: 'Uma vez por mês às 08:00',
+      year: 'Uma vez por ano',
+      yearAt: 'Uma vez por ano às 08:00',
+      pluralMonth: '2 vezes por mês',
+      pluralYear: '2 vezes por ano',
+    },
+  ])('formats singular Month and Year schedules in $locale', ({
+    locale,
+    messages,
+    month,
+    monthAt,
+    year,
+    yearAt,
+    pluralMonth,
+    pluralYear,
+  }) => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = messages[key.replace('habits.form.', '') as keyof typeof messages]
+      return Object.entries(values ?? {}).reduce(
+        (result, [name, value]) => result.replace(`{${name}}`, String(value)),
+        message,
+      )
+    }
+
+    expect(buildHabitUnderstandingSentence([], [], false, 'Month', 1, '', locale, translate))
+      .toBe(month)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Month', 1, '08:00', locale, translate))
+      .toBe(monthAt)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Year', 1, '', locale, translate))
+      .toBe(year)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Year', 1, '08:00', locale, translate))
+      .toBe(yearAt)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Month', 2, '', locale, translate))
+      .toBe(pluralMonth)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Year', 2, '', locale, translate))
+      .toBe(pluralYear)
   })
 
   it('tracks proposal visibility, Astra limits, start dates, and reminder labels', () => {

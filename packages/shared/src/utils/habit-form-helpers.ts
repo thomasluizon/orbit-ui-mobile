@@ -489,6 +489,19 @@ export function buildHabitAstraFallbackCopy(
   }
 }
 
+function getHabitIntervalUnderstandingKey(
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+): string | null {
+  if (frequencyUnit === 'Month') {
+    return quantity === 1 ? 'habits.form.understoodMonthOnce' : 'habits.form.understoodMonth'
+  }
+  if (frequencyUnit === 'Year') {
+    return quantity === 1 ? 'habits.form.understoodYearOnce' : 'habits.form.understoodYear'
+  }
+  return null
+}
+
 export function buildHabitUnderstandingSentence(
   days: string[],
   dayOptions: { value: string; label: string }[],
@@ -501,6 +514,7 @@ export function buildHabitUnderstandingSentence(
 ): string | null {
   let key: string
   let values: Record<string, string | number> = {}
+  const intervalKey = getHabitIntervalUnderstandingKey(frequencyUnit, quantity)
   if (days.length > 0) {
     const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label)
     const listLocale = locale === 'en' ? 'en-GB' : locale
@@ -511,11 +525,8 @@ export function buildHabitUnderstandingSentence(
     }).format(labels)
   } else if (!isFlexible && frequencyUnit === 'Day' && quantity === 1) {
     key = 'habits.form.understoodDaily'
-  } else if (frequencyUnit === 'Month') {
-    key = 'habits.form.understoodMonth'
-    values.count = quantity
-  } else if (frequencyUnit === 'Year') {
-    key = 'habits.form.understoodYear'
+  } else if (intervalKey) {
+    key = intervalKey
     values.count = quantity
   } else if (isFlexible || frequencyUnit) {
     key = 'habits.form.understoodCount'
