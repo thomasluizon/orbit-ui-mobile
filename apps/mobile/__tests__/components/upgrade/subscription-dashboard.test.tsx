@@ -9,6 +9,7 @@ import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-c
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
+import type { PlayOffer } from '@/hooks/use-play-billing'
 
 vi.mock('@/components/upgrade/plan-summary-card', () => ({
   PlanSummaryCard: ({ badges, ...props }: Record<string, unknown>) =>
@@ -19,18 +20,10 @@ vi.mock('@/components/upgrade/usage-card', () => ({
   UsageCard: (props: Record<string, unknown>) => React.createElement('UsageCard', props),
 }))
 
-vi.mock('@/components/upgrade/plan-selection', () => ({
-  PlanSelection: (props: Record<string, unknown>) => React.createElement('PlanSelection', props),
-}))
-
-vi.mock('@/components/upgrade/plan-comparison-cards', () => ({
-  PlanComparisonCards: (props: Record<string, unknown>) =>
-    React.createElement('PlanComparisonCards', props),
-}))
-
 vi.mock('@/hooks/use-subscription-plans', () => ({
   formatPrice: (amount: number, currency: string) =>
     `${currency} ${(amount / 100).toFixed(2)}`,
+  monthlyEquivalent: (amount: number) => Math.round(amount / 12),
 }))
 
 vi.mock('@/lib/plural', () => ({
@@ -96,6 +89,16 @@ const plans = {
   currency: 'brl',
 }
 
+const yearlyReferralOffer: PlayOffer = {
+  interval: 'yearly',
+  sku: 'yearly-sku',
+  offerToken: 'yearly-referral',
+  displayPrice: '',
+  isReferral: true,
+  priceAmountMicros: null,
+  currency: null,
+}
+
 function renderPricing(
   overrides: Partial<React.ComponentProps<typeof PricingSection>> = {},
 ) {
@@ -110,8 +113,12 @@ function renderPricing(
       selectedInterval="yearly"
       onSelectInterval={() => {}}
       onStayFree={() => {}}
+      monthlyOffer={null}
       yearlyOffer={null}
-      isReferralPricing={false}
+      checkoutLoading={null}
+      checkoutError=""
+      checkoutDisabled={false}
+      onCheckout={() => {}}
       isRestoring={false}
       onRestore={() => {}}
       onRetryPlans={() => {}}
@@ -446,18 +453,68 @@ describe('subscription dashboards (mobile)', () => {
     expect(cardText).not.toContain('upgrade.billing.plan.monthly')
   })
 
+  it('renders the arithmetic pitch and exactly three outcome rows', () => {
+    const onStayFree = vi.fn()
+    const tree = renderPricing({ plans, onStayFree })
+    const text = renderedText(tree)
+
+    expect(text).toContain('upgrade.convert.freeAllowance')
+    expect(text).toContain('upgrade.convert.freeEyebrow')
+    expect(text).toContain('upgrade.convert.proAllowance')
+    expect(text).toContain('upgrade.convert.allowanceNote')
+    expect(tree.root.findAll(
+      (node) => node.type === 'View'
+        && node.props.accessibilityLabel === 'upgrade.convert.allowanceLabel',
+    )).toHaveLength(0)
+    expect(text).toContain('upgrade.convert.promise')
+    expect(text).toContain('upgrade.convert.trustLine')
+    expect(text).toContain('upgrade.convert.cancelAnytime')
+    expect(text).toContain('upgrade.plans.renewalNote')
+    expect(text).toContain('upgrade.convert.handOff')
+    expect(text).toContain('upgrade.convert.stayFree')
+    expect(
+      tree.root.findAll(
+        (node) => node.props.children === 'upgrade.convert.freeHeading',
+      )[0]?.props.accessibilityRole,
+    ).toBe('header')
+    expect(tree.root.findAll(
+      (node) => node.type === 'View'
+        && node.props.accessibilityElementsHidden === true
+        && node.props.importantForAccessibility === 'no-hide-descendants',
+    )).toHaveLength(4)
+    expect(tree.root.findAll(
+      (node) => node.type === 'Text'
+        && node.props.accessibilityRole === 'header'
+        && typeof node.props.children === 'string'
+        && node.props.children.startsWith('upgrade.outcomes.'),
+    )).toHaveLength(3)
+    const decline = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
+    ).at(-1)
+    expect(decline).toBeDefined()
+    TestRenderer.act(() => (decline?.props.onPress as (() => void) | undefined)?.())
+    expect(onStayFree).toHaveBeenCalledTimes(1)
+    expect(text.match(/upgrade\.outcomes\.(calendar|retrospective|noticing)\.title/g)).toHaveLength(3)
+    expect(text).not.toContain('upgrade.features.')
+    expect(text).not.toContain('upgrade.matrix.')
+  })
+
   it.each([
     [null, 'upgrade.convert.trialEyebrow'],
     [0, 'upgrade.convert.trialLastDay'],
+    [1, 'upgrade.convert.trialLastDay'],
+    [5, 'upgrade.convert.trialDaysLeft'],
   ] as const)('renders the trial countdown boundary for %s days', (trialDaysLeft, label) => {
     const tree = renderPricing({ profile: { isTrialActive: true }, trialDaysLeft })
     expect(renderedText(tree)).toContain(label)
+    expect(renderedText(tree)).toContain('upgrade.convert.trialHeading')
+    expect(renderedText(tree)).not.toContain('upgrade.convert.freeHeading')
     expect(renderedText(tree)).not.toContain('upgrade.convert.trustLine')
   })
 
   it('renders plan loading, retry, referral, and restore outcomes', () => {
     const loading = renderPricing({ isLoadingPlans: true })
-    expect(renderedText(loading)).toContain('common.loading')
+    expect(renderedText(loading)).toContain('upgrade.plans.loading')
 
     const onRetryPlans = vi.fn()
     const failed = renderPricing({ isPlansError: true, onRetryPlans })
@@ -468,22 +525,29 @@ describe('subscription dashboards (mobile)', () => {
     ;(retry?.props.onPress as (() => void) | undefined)?.()
     expect(onRetryPlans).toHaveBeenCalledTimes(1)
 
-    const online = renderPricing({ plans, isReferralPricing: true })
-    expect(renderedText(online)).toContain('upgrade.plans.coupon.appliedNote')
-    expect(renderedText(online)).toContain('upgrade.matrix.yearlyTag')
+    const online = renderPricing({
+      plans: { ...plans, couponPercentOff: 23 },
+      yearlyOffer: yearlyReferralOffer,
+    })
+    expect(renderedText(online)).toContain('upgrade.plans.coupon.line')
+    expect(renderedText(online)).not.toContain('upgrade.matrix.')
     expect(renderedText(online)).toContain('upgrade.restorePurchase')
 
     const restoring = renderPricing({ plans, isOnline: false, isRestoring: true })
     expect(renderedText(restoring)).not.toContain('upgrade.restorePurchase')
     const restoreButton = restoring.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+      (node) => node.type === 'Pressable'
+        && node.props.accessibilityRole === 'button'
+        && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
     expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true })
 
     const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
     expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
     const offlineRestore = offlinePlans.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+      (node) => node.type === 'Pressable'
+        && node.props.accessibilityRole === 'button'
+        && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
     expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
   })

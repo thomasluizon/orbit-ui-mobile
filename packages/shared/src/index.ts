@@ -158,9 +158,6 @@ export {
   resolveUpgradeEntitlementDenial,
   resolveUpgradeEntitlementFromError,
   resolveUpgradeEntitlementFromPolicyDenial,
-  UPGRADE_FEATURE_CATEGORIES,
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
   resolveSupportedLocale,
@@ -225,11 +222,6 @@ export type {
   UpgradeEntitlementMode,
   UpgradeEntitlementRequirement,
   UpgradeEntitlementResolution,
-  UpgradeFeatureMatrixCategory,
-  UpgradeFeatureMatrixRow,
-  UpgradeIconKey,
-  UpgradePlanFeature,
-  UpgradeProState,
 } from './utils/upgrade'
 export type {
   LabeledOption,

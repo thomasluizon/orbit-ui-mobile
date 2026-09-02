@@ -25,6 +25,7 @@ export function Button({
   disabled = false,
   loading = false,
   children,
+  accessibleName,
   iconOnly,
   label,
   formId,
@@ -38,7 +39,7 @@ export function Button({
       onClick={loading ? undefined : onClick}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      aria-label={iconOnly ? label : undefined}
+      aria-label={iconOnly ? label : accessibleName}
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}

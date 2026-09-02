@@ -1,12 +1,16 @@
-import { AlertTriangle, Tag } from '@/components/ui/icons'
+import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PlanSelection } from './plan-selection'
-import { PlanComparisonCards } from './plan-comparison-cards'
-import { cardSurface } from './styles'
 import { plural } from '@/lib/plural'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
+
+const OUTCOMES = [
+  { key: 'calendar', Icon: Calendar },
+  { key: 'retrospective', Icon: FileText },
+  { key: 'noticing', Icon: Eye },
+] as const
 
 interface PricingSectionProps {
   profile: { isTrialActive?: boolean } | null
@@ -45,7 +49,7 @@ export function PricingSection({
     eyebrow = t('upgrade.convert.freeEyebrow')
   } else if (trialDaysLeft === null) {
     eyebrow = t('upgrade.convert.trialEyebrow')
-  } else if (trialDaysLeft === 0) {
+  } else if (trialDaysLeft <= 1) {
     eyebrow = t('upgrade.convert.trialLastDay')
   } else {
     eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
@@ -54,89 +58,112 @@ export function PricingSection({
 
   return (
     <>
-      <header style={{ marginBottom: 20 }}>
-        <p className="t-eyebrow" style={{ margin: 0, color: 'var(--primary-soft)' }}>
+      <header className="flex flex-col gap-2">
+        <p className="t-eyebrow text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="t-display" style={{ margin: '6px 0 0', textWrap: 'balance' }}>
+        <h1 className="t-display text-pretty">
           {heading}
         </h1>
-        <p className="t-secondary" style={{ margin: '10px 0 0', maxWidth: '46ch' }}>
+        <p className="t-secondary max-w-[46ch] text-pretty">
           {t('upgrade.convert.promise')}
         </p>
         {!trialActive ? (
-          <p className="t-meta" style={{ margin: '10px 0 0', maxWidth: '46ch' }}>
+          <p className="t-meta max-w-[46ch] text-pretty">
             {t('upgrade.convert.trustLine')}
           </p>
         ) : null}
       </header>
 
-      {isLoadingPlans ? (
-        <div className="grid grid-cols-1" style={{ gap: 16 }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[18px]" style={{ padding: '22px', ...cardSurface }}>
-              <div className="skeleton-pulse h-4 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
-              <div className="skeleton-pulse mt-3 h-7 w-24 rounded" style={{ background: 'var(--bg-elev-2)' }} />
-              <div className="skeleton-pulse mt-5 h-9 w-full rounded-full" style={{ background: 'var(--bg-elev-2)' }} />
-            </div>
-          ))}
+      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
+        <div className="grid grid-cols-[1fr_1px_1fr] gap-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+          <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} />
+          <span aria-hidden="true" className="h-full w-px bg-[var(--hairline)]" />
+          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} />
         </div>
-      ) : null}
+        <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+          {t('upgrade.convert.allowanceNote')}
+        </p>
+      </section>
 
-      {isPlansError && !plans && !isLoadingPlans && isOnline ? (
-        <div className="rounded-[18px] text-center" style={{ padding: '28px 18px', ...cardSurface }}>
-          <AlertTriangle size={26} strokeWidth={1.8} className="mx-auto text-[var(--fg-3)]" />
-          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('upgrade.plans.error')}
-          </p>
-          <button type="button" className="chip touch-target" style={{ marginTop: 10 }} onClick={onRetryPlans}>
-            {t('upgrade.plans.retry')}
-          </button>
-        </div>
-      ) : null}
+      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.outcomes.label')}>
+        {OUTCOMES.map(({ key, Icon }) => (
+          <div key={key} className="flex items-start gap-3">
+            <span aria-hidden="true" className="mt-1 grid size-6 shrink-0 place-items-center text-[var(--fg-3)]">
+              <Icon size={20} strokeWidth={1.8} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
+                {t(`upgrade.outcomes.${key}.title`)}
+              </p>
+              <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
+                {t(`upgrade.outcomes.${key}.body`)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <PlanSelection
+        plans={plans}
+        isLoading={isLoadingPlans}
+        isError={isPlansError}
+        isOnline={isOnline}
+        discountedAmount={discountedAmount}
+        checkoutLoading={checkoutLoading}
+        checkoutDisabled={!isOnline}
+        onCheckout={onCheckout}
+        onRetry={onRetryPlans}
+        t={t}
+      />
 
       {plans ? (
         <>
-          <PlanSelection
-            plans={plans}
-            discountedAmount={discountedAmount}
-            trialActive={trialActive}
-            checkoutLoading={checkoutLoading}
-            checkoutDisabled={!isOnline}
-            onCheckout={onCheckout}
-            onStayFree={onStayFree}
-            t={t}
-          />
-
-          <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 20 }}>
-            {plans.couponPercentOff ? (
-              <p
-                className="flex items-center justify-center"
-                style={{ gap: 6, margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--status-done)' }}
-              >
-                <Tag size={13} strokeWidth={1.8} aria-hidden="true" />
-                {t('upgrade.plans.coupon.appliedNote')}
-              </p>
-            ) : null}
+          <div className="mt-6 flex flex-col items-start gap-2">
             {checkoutError ? (
-              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
+              <p
+                role="alert"
+                aria-live="polite"
+                className="text-center text-xs text-[var(--status-bad)]"
+              >
                 {checkoutError}
               </p>
             ) : null}
-            <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--fg-2)' }}>
+            <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
               {t('upgrade.convert.cancelAnytime')}
             </p>
-            <p
-              className="text-center"
-              style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-3)', maxWidth: '52ch' }}
-            >
+            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
               {t('upgrade.plans.renewalNote')}
             </p>
+            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+              {t('upgrade.convert.handOff')}
+            </p>
+            <a
+              href="/profile"
+              aria-disabled={checkoutLoading !== null}
+              onClick={(event) => {
+                event.preventDefault()
+                if (checkoutLoading === null) onStayFree()
+              }}
+              className="text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 aria-disabled:pointer-events-none aria-disabled:opacity-40"
+            >
+              {t('upgrade.convert.stayFree')}
+            </a>
           </div>
-
-          <PlanComparisonCards t={t} />
         </>
       ) : null}
     </>
+  )
+}
+
+function Allowance({ amount, label, perDay }: Readonly<{ amount: string; label: string; perDay: string }>) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">{label}</p>
+      <p className="font-display text-[44px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)]">
+        {amount}
+      </p>
+      <p className="text-sm leading-[1.4] text-[var(--fg-3)]">{perDay}</p>
+    </div>
   )
 }
