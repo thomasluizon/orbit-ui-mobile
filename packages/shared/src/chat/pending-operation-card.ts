@@ -62,7 +62,7 @@ export interface PendingOperationCardRenderers {
   verification: (props: PendingOperationVerificationProps) => ReactNode
 }
 
-interface PendingOperationCardProps {
+export interface PendingOperationCardProps {
   labels: PendingOperationCardLabels
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
@@ -75,6 +75,11 @@ interface PendingOperationCardProps {
   pendingOperation: PendingAgentOperation
   render: PendingOperationCardRenderers
 }
+
+export type PendingOperationCardAdapterProps = Pick<
+  PendingOperationCardProps,
+  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'pendingOperation'
+>
 
 export function SharedPendingOperationCard({
   labels,

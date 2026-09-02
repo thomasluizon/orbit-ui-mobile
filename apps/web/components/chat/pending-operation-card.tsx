@@ -3,15 +3,13 @@
 import { useTranslations } from 'next-intl'
 import {
   SharedPendingOperationCard,
+  type PendingOperationCardAdapterProps,
   type PendingOperationCardRenderers,
+  type PendingOperationVerificationProps,
 } from '@orbit/shared/chat'
 import {
   usePendingOperationStepUpVerification,
-  type PendingOperationExecutionResult,
-  type PendingOperationStepUpPreparationResult,
-  type PreparedPendingOperationStepUp,
 } from '@orbit/shared/hooks'
-import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import { getAgentCapabilityLabelKey } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -21,31 +19,13 @@ import { Button } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 
-interface PendingOperationCardProps {
-  pendingOperation: PendingAgentOperation
-  onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
-  onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
-  onVerifyStepUp: (
-    id: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ) => Promise<PendingOperationExecutionResult>
-}
-
 function StepUpVerificationSheet({
   pendingOperationId,
   prepared,
   onClose,
   onCompleted,
   onVerify,
-}: Readonly<{
-  pendingOperationId: string
-  prepared: PreparedPendingOperationStepUp
-  onClose: () => void
-  onCompleted: (status: 'done' | 'failed') => void
-  onVerify: PendingOperationCardProps['onVerifyStepUp']
-}>) {
+}: Readonly<PendingOperationVerificationProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
   const completed = (status: 'done' | 'failed') => closeSheet(() => onCompleted(status))
@@ -87,7 +67,7 @@ export function PendingOperationCard({
   onConfirmExecute,
   onPrepareStepUp,
   onVerifyStepUp,
-}: Readonly<PendingOperationCardProps>) {
+}: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
   const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
 
