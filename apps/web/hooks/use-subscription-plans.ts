@@ -37,8 +37,10 @@ export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}
   })
 
   useEffect(() => {
-    if (!options.handlesError && query.error) reportApiError(query.error)
-  }, [options.handlesError, query.error])
+    if (!options.handlesError && query.error && query.isFetchedAfterMount) {
+      reportApiError(query.error)
+    }
+  }, [options.handlesError, query.error, query.isFetchedAfterMount])
 
   const plans = query.data ?? null
 

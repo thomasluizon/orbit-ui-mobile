@@ -185,6 +185,38 @@ describe('useSubscriptionPlans', () => {
     expect(mockReportApiError).toHaveBeenCalledWith(upgrade.result.current.error)
   })
 
+  it('does not replay a settled modal failure while upgrade refetches', async () => {
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(subscriptionKeys.plans(), makePlans({ currency: 'brl' }))
+    const upgradePlans = makePlans({ currency: 'usd' })
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'Payment service unavailable' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(upgradePlans),
+      })
+
+    const modal = renderHook(
+      () => useSubscriptionPlans({ handlesError: true }),
+      { wrapper: createWrapperWithClient(queryClient) },
+    )
+
+    await waitFor(() => expect(modal.result.current.isRefetchError).toBe(true))
+
+    const upgrade = renderHook(
+      () => useSubscriptionPlans(),
+      { wrapper: createWrapperWithClient(queryClient) },
+    )
+
+    await waitFor(() => expect(upgrade.result.current.isSuccess).toBe(true))
+    expect(upgrade.result.current.plans).toEqual(upgradePlans)
+    expect(mockReportApiError).not.toHaveBeenCalled()
+  })
+
   it('exposes formatPrice and monthlyEquivalent utilities', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
