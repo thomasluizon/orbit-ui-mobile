@@ -48,7 +48,7 @@ export function TrialBanner() {
   if (!visible) return null
 
   const label = isTrialActive
-    ? (trialDaysLeft ?? 0) <= 1
+    ? (trialDaysLeft ?? 0) === 0
       ? t('trial.banner.lastDay')
       : plural(
           t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),

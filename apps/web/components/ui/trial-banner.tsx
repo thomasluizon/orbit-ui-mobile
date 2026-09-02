@@ -21,7 +21,7 @@ export function TrialBanner() {
   const isFree = profile?.hasProAccess === false
   const visible = (isTrialActive || isFree) && !dismissed
   const label = isTrialActive
-    ? (trialDaysLeft ?? 0) <= 1
+    ? (trialDaysLeft ?? 0) === 0
       ? t('trial.banner.lastDay')
       : plural(
           t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),

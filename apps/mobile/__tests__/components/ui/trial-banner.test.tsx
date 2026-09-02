@@ -48,11 +48,18 @@ describe('TrialBanner (mobile)', () => {
     expect(renderedText(tree)).toContain('trial.banner.daysLeft')
   })
 
-  it('uses the dedicated last-day string instead of a count of one', async () => {
-    daysLeft = 1
+  it('uses the dedicated last-day string when 0 days are left', async () => {
+    daysLeft = 0
     const tree = await renderBanner()
     expect(renderedText(tree)).toContain('trial.banner.lastDay')
     expect(renderedText(tree)).not.toContain('trial.banner.daysLeft')
+  })
+
+  it('uses the singular day-count variant when 1 day is left', async () => {
+    daysLeft = 1
+    const tree = await renderBanner()
+    expect(renderedText(tree)).toContain('trial.banner.daysLeft')
+    expect(renderedText(tree)).not.toContain('trial.banner.lastDay')
   })
 
   it('renders the free-plan variant outside a trial', async () => {

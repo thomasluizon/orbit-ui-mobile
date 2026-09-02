@@ -88,9 +88,17 @@ describe('TrialBanner', () => {
 
   it('shows last day message when 0 days left', () => {
     mockProfile = { isTrialActive: true, hasProAccess: true }
-    mockTrialDaysLeft = 1
+    mockTrialDaysLeft = 0
     render(<TrialBanner />)
     expect(screen.getByText('trial.banner.lastDay')).toBeInTheDocument()
+  })
+
+  it('uses the singular day-count variant when 1 day is left', () => {
+    mockProfile = { isTrialActive: true, hasProAccess: true }
+    mockTrialDaysLeft = 1
+    render(<TrialBanner />)
+    expect(document.body.textContent).toContain('trial.banner.daysLeft')
+    expect(screen.queryByText('trial.banner.lastDay')).not.toBeInTheDocument()
   })
 
   it('shows the plural days-left count', () => {
