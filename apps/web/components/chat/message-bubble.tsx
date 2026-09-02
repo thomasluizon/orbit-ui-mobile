@@ -4,8 +4,7 @@ import { useState, useMemo } from 'react'
 import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import type { ChatMessage } from '@orbit/shared/types/chat'
-import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import type { MessageBubbleProps } from '@orbit/shared/chat'
 import {
   getRelatedSurfaces,
   partitionMessageActions,
@@ -21,29 +20,6 @@ import { GoalListCard } from './goal-list-card'
 import { HabitListCard } from './habit-list-card'
 import { PendingOperationCard } from './pending-operation-card'
 import { OperationOutcomes } from './operation-outcomes'
-
-interface MessageBubbleProps {
-  message: ChatMessage
-  animateEntry?: boolean
-  isStreaming?: boolean
-  onBreakdownConfirmed?: () => void
-  onActionChipClick?: (entityId: string, actionType: string) => void
-  onPendingOperationConfirmExecute?: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
-  onPendingOperationPrepareStepUp?: (
-    pendingOperationId: string,
-  ) => Promise<
-    | { ok: true; challengeId: string; confirmationToken: string }
-    | { ok: false; error?: string }
-  >
-  onPendingOperationVerifyStepUp?: (
-    pendingOperationId: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
-}
 
 export function MessageBubble({
   message,

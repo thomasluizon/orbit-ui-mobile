@@ -6,8 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
-import type { ChatMessage } from "@orbit/shared/types/chat";
-import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
+import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
   getRelatedSurfaces,
   partitionMessageActions,
@@ -24,29 +23,6 @@ import { Markdown } from "@/components/ui/markdown";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
-
-interface MessageBubbleProps {
-  message: ChatMessage;
-  animateEntry?: boolean;
-  isStreaming?: boolean;
-  onBreakdownConfirmed?: () => void;
-  onActionChipClick?: (entityId: string, actionType: string) => void;
-  onPendingOperationConfirmExecute?: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
-  onPendingOperationPrepareStepUp?: (
-    pendingOperationId: string,
-  ) => Promise<
-    | { ok: true; challengeId: string; confirmationToken: string }
-    | { ok: false; error?: string }
-  >;
-  onPendingOperationVerifyStepUp?: (
-    pendingOperationId: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
-}
 
 function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
   sourceText: string;
