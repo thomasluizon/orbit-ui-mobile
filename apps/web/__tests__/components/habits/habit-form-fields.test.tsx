@@ -19,6 +19,7 @@ const testTranslations: Record<string, string> = {
   'habits.form.understoodDailyAt': 'Every day at {time}',
   'habits.form.understoodDaysAt': 'On {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+  'habits.form.understoodTime': 'At {time}',
 }
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
@@ -186,6 +187,13 @@ describe('HabitFormFields', () => {
     view.rerenderForm()
 
     expect(screen.getByText('3 times a week, any day at 09:00')).toBeDefined()
+
+    formHelpers.testValues.isFlexible = false
+    formHelpers.testValues.frequencyUnit = null
+    formHelpers.testValues.dueTime = '15:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('At 15:00')).toBeDefined()
   })
 
   it('applies a time-only local phrase without inventing a cadence', async () => {

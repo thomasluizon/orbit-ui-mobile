@@ -18,6 +18,7 @@ const testTranslations: Record<string, string> = {
   'habits.form.understoodDailyAt': 'Every day at {time}',
   'habits.form.understoodDaysAt': 'On {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+  'habits.form.understoodTime': 'At {time}',
 }
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
@@ -131,6 +132,16 @@ describe('HabitFormFields mobile', () => {
     })
 
     expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('3 times a week, any day at 09:00')
+
+    controlValues.isFlexible = false
+    controlValues.frequencyUnit = null
+    controlValues.dueTime = '15:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('At 15:00')
   })
 
   it('applies a time-only local phrase without inventing a cadence', async () => {
