@@ -363,6 +363,7 @@ export {
 } from './profile-selectors'
 export {
   getAgentCapabilityLabelKey,
+  getAgentOperationLabelKey,
   getAgentPolicyReasonKey,
 } from './agent-pending-operation'
 export {

@@ -1088,16 +1088,95 @@
       "planWeek": "Planejar minha semana"
     },
     "habitList": {
+      "title": "Hábitos de hoje",
+      "count": "{shown} de {total}",
+      "open": "Abrir {name}",
+      "log": "Registrar {name}",
+      "unlog": "Desfazer o registro de {name}",
+      "logged": "Feito",
+      "pending": "Pendente",
+      "more": "Mostrar mais",
       "today": "Hoje",
       "overdue": "Atrasado",
       "general": "Geral",
       "empty": "Nenhum hábito para mostrar"
     },
     "goalList": {
+      "title": "Suas metas",
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Prazo {date}",
-      "empty": "Nenhuma meta para mostrar"
+      "empty": "Nenhuma meta ainda. Uma meta nasce de um hábito, ou de um pedido aqui.",
+      "done": "{name} foi concluída",
+      "ring": "Progresso de {name}",
+      "progressLink": "Ver no Progresso"
+    },
+    "preview": {
+      "proposed": "Proposto pelo Astra",
+      "editItem": "Editar item",
+      "editName": "Editar {name}",
+      "approve": "Aprovar",
+      "edit": "Editar",
+      "reject": "Rejeitar",
+      "rejected": "{name} foi rejeitado. Nada foi salvo."
+    },
+    "breakdown": {
+      "title": "Dividir {name}",
+      "frequency": "Frequência de {name}, toque para mudar",
+      "conflict": "Já existe um hábito chamado {name}."
+    },
+    "batch": {
+      "retry": "Tentar os {count} que faltaram"
+    },
+    "operation": {
+      "unknown": "Operação do Astra",
+      "pendingTitle": "Aguardando confirmação",
+      "pending": "Nada mudou ainda",
+      "irreversible": "Definitivo",
+      "confirmNote": "Apagar não pode ser desfeito, então aprovar pede uma confirmação.",
+      "approve": "Aprovar",
+      "confirmTitle": "Aprovar esta mudança?",
+      "confirmBody": "Esta mudança não pode ser desfeita.",
+      "confirm": "Aprovar",
+      "stepUpMessage": "Confirme a identidade no aparelho antes de continuar.",
+      "stepUpAction": "Confirmar identidade",
+      "openProfile": "Abrir Perfil",
+      "risk": {
+        "low": "Risco baixo",
+        "destructive": "Destrutivo",
+        "high": "Risco alto"
+      },
+      "outcome": {
+        "PendingConfirmation": "Aguardando confirmação",
+        "Denied": "Não disponível",
+        "UnsupportedByPolicy": "Só no Perfil",
+        "Succeeded": "Concluído",
+        "Failed": "Alguns itens não foram salvos"
+      },
+      "status": {
+        "PendingConfirmation": "Nada mudou ainda",
+        "Denied": "Esta conta não pode fazer isso",
+        "UnsupportedByPolicy": "Gerencie isto no Perfil",
+        "Succeeded": "Feito",
+        "Failed": "Não foi salvo"
+      },
+      "source": {
+        "createHabit": "Criar hábito",
+        "logHabit": "Registrar hábito",
+        "updateHabit": "Atualizar hábito",
+        "deleteHabit": "Apagar hábito",
+        "skipHabit": "Pular hábito",
+        "bulkLogHabits": "Registrar hábitos",
+        "bulkSkipHabits": "Pular hábitos",
+        "createSubHabit": "Criar sub-hábito",
+        "moveHabit": "Mover hábito",
+        "createGoal": "Criar meta",
+        "updateGoal": "Atualizar meta",
+        "deleteGoal": "Apagar meta",
+        "updateGoalProgress": "Atualizar progresso da meta",
+        "updateGoalStatus": "Atualizar status da meta",
+        "linkHabitsToGoal": "Vincular hábitos à meta"
+      }
     }
   },
   "profile": {

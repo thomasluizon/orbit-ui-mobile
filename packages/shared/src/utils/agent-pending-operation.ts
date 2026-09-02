@@ -14,6 +14,24 @@ const LOCALIZED_CAPABILITY_IDS = new Set([
 
 const LOCALIZED_POLICY_REASONS = new Set(['confirmation_required', 'step_up_required'])
 
+const OPERATION_LABEL_KEYS: Readonly<Record<string, string>> = {
+  CreateHabit: 'chat.operation.source.createHabit',
+  LogHabit: 'chat.operation.source.logHabit',
+  UpdateHabit: 'chat.operation.source.updateHabit',
+  DeleteHabit: 'chat.operation.source.deleteHabit',
+  SkipHabit: 'chat.operation.source.skipHabit',
+  BulkLogHabits: 'chat.operation.source.bulkLogHabits',
+  BulkSkipHabits: 'chat.operation.source.bulkSkipHabits',
+  CreateSubHabit: 'chat.operation.source.createSubHabit',
+  MoveHabit: 'chat.operation.source.moveHabit',
+  CreateGoal: 'chat.operation.source.createGoal',
+  UpdateGoal: 'chat.operation.source.updateGoal',
+  DeleteGoal: 'chat.operation.source.deleteGoal',
+  UpdateGoalProgress: 'chat.operation.source.updateGoalProgress',
+  UpdateGoalStatus: 'chat.operation.source.updateGoalStatus',
+  LinkHabitsToGoal: 'chat.operation.source.linkHabitsToGoal',
+}
+
 /**
  * i18n key for a confirmation-gated agent capability's display name, or null when the
  * capability has no localized label yet (callers fall back to the server's English
@@ -24,6 +42,11 @@ export function getAgentCapabilityLabelKey(capabilityId: string): string | null 
   return LOCALIZED_CAPABILITY_IDS.has(capabilityId)
     ? `chat.pendingOp.capability.${capabilityId.replaceAll('.', '-')}`
     : null
+}
+
+/** Returns local copy for a typed operation source without exposing a server symbol. */
+export function getAgentOperationLabelKey(sourceName: string): string | null {
+  return OPERATION_LABEL_KEYS[sourceName] ?? getAgentCapabilityLabelKey(sourceName)
 }
 
 /**

@@ -1,143 +1,112 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { BulkCreateResponse } from '@orbit/shared/types/habit'
+import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
+import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => {
-    const t = (key: string, params?: Record<string, unknown>) => {
-      if (params) return `${key}(${JSON.stringify(params)})`
-      return key
-    }
-    t.rich = (key: string, _opts?: unknown) => key
-    return t
-  },
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}(${JSON.stringify(params)})` : key,
 }))
 
-vi.mock('@/lib/plural', () => ({
-  plural: (text: string) => text,
-}))
-
-const bulkCreateMock = vi.fn().mockResolvedValue(undefined)
+const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
-  useBulkCreateHabits: () => ({
-    mutateAsync: bulkCreateMock,
-    isPending: false,
-  }),
+  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
 }))
 
-import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
-import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
+const subHabits: SuggestedSubHabit[] = [
+  { title: 'Dishes', description: '', frequencyUnit: 'Day' },
+  { title: 'Laundry', description: '', frequencyUnit: 'Week' },
+]
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+const defaultProps = {
+  parentName: 'House routine',
+  subHabits,
+  onConfirmed: vi.fn(),
+  onCancelled: vi.fn(),
+}
+
+function response(statuses: Array<'Success' | 'Failed'>): BulkCreateResponse {
+  return {
+    results: statuses.map((status, index) => ({
+      index,
+      status,
+      habitId: status === 'Success' ? `habit-${index}` : null,
+      title: subHabits[index]?.title ?? null,
+      error: status === 'Failed' ? 'failed' : null,
+      field: null,
+    })),
   }
 }
 
 describe('BreakdownSuggestion', () => {
-  const subHabits: SuggestedSubHabit[] = [
-    { title: 'Push-ups', description: '3 sets of 10' },
-    { title: 'Squats', description: '3 sets of 15' },
-  ]
-
-  const defaultProps = {
-    parentName: 'Exercise',
-    subHabits,
-    onConfirmed: vi.fn(),
-    onCancelled: vi.fn(),
-  }
-
   beforeEach(() => {
-    defaultProps.onConfirmed.mockClear()
-    defaultProps.onCancelled.mockClear()
-    bulkCreateMock.mockReset()
-    bulkCreateMock.mockResolvedValue(undefined)
+    bulkCreate.mockReset()
+    defaultProps.onConfirmed.mockReset()
   })
 
-  it('renders sub-habits as editable inputs', () => {
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    const inputs = screen.getAllByDisplayValue('Push-ups')
-    expect(inputs.length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByDisplayValue('Squats')).toBeInTheDocument()
+  it('withholds the batch until Approve is pressed', async () => {
+    bulkCreate.mockResolvedValue(response(['Success', 'Success']))
+    render(<BreakdownSuggestion {...defaultProps} />)
+
+    expect(bulkCreate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+
+    await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(1))
+    expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onCancelled when cancel button clicked', () => {
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByText('common.cancel'))
-    expect(defaultProps.onCancelled).toHaveBeenCalled()
+  it('collapses a rejected preview in place', () => {
+    render(<BreakdownSuggestion {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.reject' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
+    expect(screen.queryByRole('button', { name: 'chat.preview.approve' })).not.toBeInTheDocument()
   })
 
-  it('adds a new empty habit when add button clicked', () => {
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    const addButton = screen.getByRole('button', { name: 'habits.breakdown.addHabit' })
-    expect(addButton).toHaveClass('text-[var(--fg-1)]')
-    expect(addButton).not.toHaveClass('hover:text-[var(--primary-hover)]')
-    fireEvent.click(addButton)
-    const inputs = screen.getAllByRole('textbox')
-    expect(inputs.length).toBeGreaterThanOrEqual(3)
+  it('edits one proposed row before approval', () => {
+    render(<BreakdownSuggestion {...defaultProps} />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'chat.preview.editItem' })[0]!)
+    const input = screen.getByRole('textbox', { name: /chat\.preview\.editName/ })
+    fireEvent.change(input, { target: { value: 'Kitchen dishes' } })
+
+    expect(input).toHaveValue('Kitchen dishes')
   })
 
-  it('removes a habit when its labeled X button is clicked', () => {
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    const removeButton = screen.getByRole('button', {
-      name: /habits\.breakdown\.removeHabit.*Push-ups/,
-    })
-    fireEvent.click(removeButton)
-    expect(screen.queryByDisplayValue('Push-ups')).not.toBeInTheDocument()
+  it('changes frequency from the row control', () => {
+    render(<BreakdownSuggestion {...defaultProps} />)
+    const frequency = screen.getByRole('button', { name: /chat\.breakdown\.frequency.*Dishes/ })
+
+    expect(frequency).toHaveTextContent('habits.filter.daily')
+    fireEvent.click(frequency)
+    expect(frequency).toHaveTextContent('habits.filter.weekly')
   })
 
-  it('shows the friendly i18n fallback instead of a raw Error message on failure', async () => {
-    bulkCreateMock.mockRejectedValue(new Error('ECONNREFUSED 127.0.0.1:5432'))
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-
-    fireEvent.click(
-      screen.getByText('habits.breakdown.createCount({"n":2})'),
-    )
-
-    expect(
-      await screen.findByText('errors.bulkCreateHabits'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/ECONNREFUSED/)).not.toBeInTheDocument()
-  })
-
-  it('reveals the frequency-quantity editor once a recurrence unit is chosen', () => {
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-
-    expect(
-      screen.queryByLabelText('habits.breakdown.frequencyQuantityLabel'),
-    ).not.toBeInTheDocument()
-
-    const [firstUnitSelect] = screen.getAllByRole('combobox')
-    fireEvent.change(firstUnitSelect!, { target: { value: 'Week' } })
-
-    expect(
-      screen.getByLabelText('habits.breakdown.frequencyQuantityLabel'),
-    ).toBeInTheDocument()
-  })
-
-  it('passes the chosen frequency quantity into the bulk-create request', async () => {
-    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-
-    const [firstUnitSelect] = screen.getAllByRole('combobox')
-    fireEvent.change(firstUnitSelect!, { target: { value: 'Week' } })
-    fireEvent.change(
-      screen.getByLabelText('habits.breakdown.frequencyQuantityLabel'),
-      { target: { value: '3' } },
-    )
-    fireEvent.click(
-      screen.getByText('habits.breakdown.createCount({"n":2})'),
-    )
-
-    await vi.waitFor(() => expect(bulkCreateMock).toHaveBeenCalled())
-    const request = bulkCreateMock.mock.calls[0]![0] as {
-      habits: { frequencyUnit?: string; frequencyQuantity?: number }[]
+  it('names a colliding habit above the actions', () => {
+    const warning: ConflictWarning = {
+      hasConflict: true,
+      conflictingHabits: [{ habitId: 'habit-1', habitTitle: 'Dishes', conflictDescription: 'Monday' }],
+      severity: 'HIGH',
     }
-    expect(request.habits[0]).toMatchObject({
-      frequencyUnit: 'Week',
-      frequencyQuantity: 3,
-    })
+    render(<BreakdownSuggestion {...defaultProps} warning={warning} />)
+
+    expect(screen.getByText(/chat\.breakdown\.conflict.*Dishes/)).toBeInTheDocument()
+  })
+
+  it('keeps successful rows and retries only failures', async () => {
+    bulkCreate
+      .mockResolvedValueOnce(response(['Success', 'Failed']))
+      .mockResolvedValueOnce(response(['Success']))
+    render(<BreakdownSuggestion {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+    const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
+    fireEvent.click(retry)
+
+    await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(2))
+    expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Laundry' }] })
   })
 })

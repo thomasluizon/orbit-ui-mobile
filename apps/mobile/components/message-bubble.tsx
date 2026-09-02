@@ -8,13 +8,13 @@ import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
 import { getRelatedSurfaces, stripChatDirectives } from "@orbit/shared/chat";
-import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
 import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
+import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -50,7 +50,6 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
-  onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -83,23 +82,14 @@ export function MessageBubble({
     [message.actions],
   );
 
-  const hasUpgradeDenial = useMemo(
-    () =>
-      (message.policyDenials ?? []).some(
-        (denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
-      ),
-    [message.policyDenials],
-  );
-
   const nonSuggestionActions = useMemo(
     () =>
       message.actions?.filter(
         (a) =>
           a.status !== "Suggestion" &&
-          a.status !== "NeedsClarification" &&
-          !(hasUpgradeDenial && a.status === "Failed"),
+          a.status !== "NeedsClarification",
       ) ?? [],
-    [message.actions, hasUpgradeDenial],
+    [message.actions],
   );
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
@@ -150,7 +140,7 @@ export function MessageBubble({
         ) : null}
 
         {!isUser && message.goalList ? (
-          <GoalListCard goalList={message.goalList} />
+          <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, "CreateGoal")} />
         ) : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
@@ -196,6 +186,7 @@ export function MessageBubble({
                   key={actionKey}
                   parentName={action.entityName || "Habit"}
                   subHabits={action.suggestedSubHabits ?? []}
+                  warning={action.conflictWarning}
                   onConfirmed={() => onBreakdownConfirmed?.()}
                   onCancelled={() => dismissBreakdown(actionKey)}
                 />
@@ -235,53 +226,11 @@ export function MessageBubble({
             </View>
           )}
 
-        {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
+        {!isUser && ((message.operations?.length ?? 0) > 0 || (message.policyDenials?.length ?? 0) > 0) ? (
           <View style={styles.operationStack}>
-            {message.policyDenials.map((denial) => {
-              const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(
-                denial,
-              );
-
-              return (
-                <View
-                  key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  style={styles.denialCard}
-                >
-                  <Text style={styles.denialTitle}>
-                    {upgradeResolution.shouldUpgrade
-                      ? t("chat.proGate.title")
-                      : denial.sourceName}
-                  </Text>
-                  <Text style={styles.denialReason}>
-                    {upgradeResolution.shouldUpgrade
-                      ? t("chat.proGate.body")
-                      : denial.reason}
-                  </Text>
-                  {upgradeResolution.shouldUpgrade && onUpgradeClick ? (
-                    <Pressable
-                      onPress={onUpgradeClick}
-                      accessibilityRole="button"
-                      hitSlop={{ top: 6, bottom: 6 }}
-                      style={({ pressed }) => [
-                        styles.denialUpgrade,
-                        {
-                          backgroundColor: pressed
-                            ? tokens.primaryPressed
-                            : tokens.primary,
-                        },
-                        pressed ? styles.denialUpgradePressed : null,
-                      ]}
-                    >
-                      <Text style={styles.denialUpgradeText}>
-                        {t("upgrade.subscribe")}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              );
-            })}
+            <OperationOutcomes operations={message.operations ?? []} denials={message.policyDenials ?? []} />
           </View>
-        )}
+        ) : null}
       </View>
     </>
   );
@@ -313,7 +262,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       marginBottom: 16,
       paddingHorizontal: 16,
-      gap: 10,
+      gap: 8,
     },
     userContainer: {
       justifyContent: "flex-end",
@@ -349,7 +298,7 @@ function createStyles(tokens: AppTokens) {
       maxWidth: "100%",
       minWidth: 0,
       flexShrink: 1,
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
       paddingVertical: 12,
     },
     userBubble: {
@@ -385,7 +334,7 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
       color: tokens.fg3,
-      marginBottom: 6,
+      marginBottom: 4,
       paddingHorizontal: 4,
     },
     relatedChips: {
@@ -396,7 +345,7 @@ function createStyles(tokens: AppTokens) {
     relatedChip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
       minHeight: 44,
       paddingHorizontal: 16,
       borderRadius: 999,
@@ -420,41 +369,6 @@ function createStyles(tokens: AppTokens) {
       gap: 12,
       marginTop: 12,
       width: "100%",
-    },
-    denialCard: {
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: `${tokens.statusBad}33`,
-      backgroundColor: `${tokens.statusBad}14`,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      gap: 4,
-    },
-    denialTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      color: tokens.statusBadText,
-    },
-    denialReason: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-      lineHeight: 17,
-      color: tokens.statusBadText,
-    },
-    denialUpgrade: {
-      alignSelf: "flex-start",
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 999,
-      marginTop: 8,
-    },
-    denialUpgradePressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    denialUpgradeText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 12,
-      color: tokens.fgOnPrimary,
     },
   });
 }

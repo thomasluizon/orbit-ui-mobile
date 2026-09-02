@@ -1,287 +1,78 @@
-import { useState, useMemo } from 'react'
-import {
-  View,
-  Text,
-  Pressable,
-} from 'react-native'
-import { Check, Plus } from '@/components/ui/icons'
+import { useState } from 'react'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import {
-  buildBreakdownCreateRequest,
-  createClientId,
-  filterValidBreakdownHabits,
-} from '@orbit/shared/utils'
+import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
+import type { BreakdownEditableHabit } from '@orbit/shared/utils'
+import { buildBreakdownCreateRequest, filterValidBreakdownHabits } from '@orbit/shared/utils'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { Button } from '@/components/ui/pill-button'
+import { AlertTriangle } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
-import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { plural } from '@/lib/plural'
-import {
-  BreakdownHabitRow,
-  type EditableHabit,
-} from './breakdown-habit-row'
-import {
-  createStyles,
-  type AppTokens,
-  type BreakdownStyles,
-} from './breakdown-suggestion.styles'
 
-interface BreakdownSuggestionProps {
-  parentName: string
-  subHabits: SuggestedSubHabit[]
-  onConfirmed: () => void
-  onCancelled: () => void
-}
+type DraftHabit = BreakdownEditableHabit & { id: string }
+type ItemResult = 'done' | 'failed' | undefined
+const CADENCES = ['Day', 'Week', 'Month'] as const
 
-function createEditableHabitId() {
-  return createClientId('editable-habit')
-}
-
-function createEditableHabit(source?: SuggestedSubHabit): EditableHabit {
+function toDraftHabit(habit: SuggestedSubHabit, index: number): DraftHabit {
   return {
-    id: createEditableHabitId(),
-    title: source?.title ?? '',
-    description: source?.description ?? '',
-    frequencyUnit: source?.frequencyUnit ?? null,
-    frequencyQuantity: source?.frequencyQuantity ?? null,
-    days: source?.days ?? null,
-    isBadHabit: source?.isBadHabit ?? false,
-    dueDate: source?.dueDate ?? null,
-    checklistItems: source?.checklistItems ?? null,
+    id: `proposal-${index}`,
+    title: habit.title,
+    description: habit.description ?? '',
+    frequencyUnit: habit.frequencyUnit ?? null,
+    frequencyQuantity: habit.frequencyQuantity ?? null,
+    days: habit.days ?? null,
+    isBadHabit: habit.isBadHabit ?? false,
+    dueDate: habit.dueDate ?? null,
+    checklistItems: habit.checklistItems ?? null,
   }
 }
 
-interface BreakdownSuccessCardProps {
-  tokens: AppTokens
-  styles: BreakdownStyles
-  parentName: string
-  createdCount: number
-  createAsParent: boolean
+function nextCadence(current: DraftHabit['frequencyUnit']): typeof CADENCES[number] {
+  const index = CADENCES.indexOf(current as typeof CADENCES[number])
+  return CADENCES[(index + 1) % CADENCES.length] ?? 'Day'
 }
 
-function BreakdownSuccessCard({
-  tokens,
-  styles,
-  parentName,
-  createdCount,
-  createAsParent,
-}: Readonly<BreakdownSuccessCardProps>) {
+export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const { t } = useTranslation()
-  return (
-    <View style={styles.card}>
-      <View style={styles.successRow}>
-        <View style={styles.successIcon}>
-          <Check size={14} color={tokens.statusDone} />
-        </View>
-        <Text style={styles.successText}>
-          {createAsParent
-            ? plural(
-                t('habits.breakdown.createAsParentSuccess', {
-                  name: parentName,
-                  n: createdCount,
-                }),
-                createdCount,
-              )
-            : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-interface BreakdownActionsProps {
-  tokens: AppTokens
-  styles: BreakdownStyles
-  createAsParent: boolean
-  createError: string
-  validCount: number
-  isSubmitting: boolean
-  onAddHabit: () => void
-  onToggleCreateAsParent: () => void
-  onConfirm: () => void
-  onCancel: () => void
-}
-
-function BreakdownActions({
-  tokens,
-  styles,
-  createAsParent,
-  createError,
-  validCount,
-  isSubmitting,
-  onAddHabit,
-  onToggleCreateAsParent,
-  onConfirm,
-  onCancel,
-}: Readonly<BreakdownActionsProps>) {
-  const { t } = useTranslation()
-  return (
-    <>
-      <Pressable
-        style={({ pressed }) => [styles.addBtn, pressed && styles.controlPressed]}
-        accessibilityRole="button"
-        accessibilityLabel={t('habits.breakdown.addHabit')}
-        onPress={onAddHabit}
-      >
-        <Plus size={14} color={tokens.primary} />
-        <Text style={styles.addBtnText}>{t('habits.breakdown.addHabit')}</Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [styles.checkboxRow, pressed && styles.controlPressed]}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: createAsParent }}
-        accessibilityLabel={t('habits.breakdown.createAsParent')}
-        onPress={onToggleCreateAsParent}
-      >
-        <View
-          style={[
-            styles.checkbox,
-            createAsParent && styles.checkboxActive,
-          ]}
-        >
-          {createAsParent && <Check size={10} color={tokens.fgOnPrimary} />}
-        </View>
-        <Text style={styles.checkboxLabel}>
-          {t('habits.breakdown.createAsParent')}
-        </Text>
-      </Pressable>
-
-      {createError !== '' && (
-        <Text style={styles.errorText}>{createError}</Text>
-      )}
-
-      <View style={styles.actions}>
-        <PillButton
-
-          disabled={validCount === 0 || isSubmitting}
-          onClick={onConfirm}
-
-        >
-          {plural(t('habits.breakdown.createCount', { n: validCount }), validCount)}
-        </PillButton>
-        <PillButton
-          variant="ghost"
-
-          disabled={isSubmitting}
-          onClick={onCancel}
-        >
-          {t('common.cancel')}
-        </PillButton>
-      </View>
-    </>
-  )
-}
-
-export function BreakdownSuggestion({
-  parentName,
-  subHabits,
-  onConfirmed,
-  onCancelled,
-}: Readonly<BreakdownSuggestionProps>) {
-  const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
   const bulkCreate = useBulkCreateHabits()
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-
-  const [habits, setHabits] = useState<EditableHabit[]>(() =>
-    subHabits.map((h) => createEditableHabit(h)),
-  )
-
-  const [isCreated, setIsCreated] = useState(false)
-  const [createdCount, setCreatedCount] = useState(0)
-  const [createAsParent, setCreateAsParent] = useState(false)
-  const [createError, setCreateError] = useState('')
-
-  const validHabits = useMemo(
-    () => filterValidBreakdownHabits(habits),
-    [habits],
-  )
-
-  function updateHabit(index: number, patch: Partial<EditableHabit>) {
-    setHabits((prev) => prev.map((h, i) => (i === index ? { ...h, ...patch } : h)))
-  }
-
-  function removeHabit(index: number) {
-    setHabits((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function addHabit() {
-    setHabits((prev) => [...prev, createEditableHabit()])
-  }
-
-  async function handleConfirm() {
-    if (validHabits.length === 0) return
-    setCreateError('')
-
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const [habits, setHabits] = useState<DraftHabit[]>(() => subHabits.map(toDraftHabit))
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [rejected, setRejected] = useState(false)
+  const [results, setResults] = useState<Record<string, ItemResult>>({})
+  const failedIds = habits.filter((habit) => results[habit.id] === 'failed').map((habit) => habit.id)
+  const submit = async (onlyIds?: readonly string[]) => {
+    const selected = onlyIds ? habits.filter((habit) => onlyIds.includes(habit.id)) : habits
+    const valid = filterValidBreakdownHabits(selected)
+    if (valid.length === 0) return
     try {
-      await bulkCreate.mutateAsync(
-        buildBreakdownCreateRequest(validHabits, parentName, createAsParent),
-      )
-      setCreatedCount(validHabits.length)
-      setIsCreated(true)
-      onConfirmed()
-    } catch (err: unknown) {
-      setCreateError(
-        process.env.NODE_ENV === 'development' && err instanceof Error
-          ? err.message
-          : t('errors.bulkCreateHabits'),
-      )
+      const response = await bulkCreate.mutateAsync(buildBreakdownCreateRequest(valid, parentName, false))
+      const next = { ...results }
+      response.results.forEach((result) => {
+        const habit = selected[result.index]
+        if (habit) next[habit.id] = result.status === 'Success' ? 'done' : 'failed'
+      })
+      setResults(next)
+      if (response.results.every((result) => result.status === 'Success')) onConfirmed()
+    } catch {
+      setResults((current) => ({ ...current, ...Object.fromEntries(selected.map((habit) => [habit.id, 'failed'])) }))
     }
   }
-
-  const isSubmitting = bulkCreate.isPending
-
-  if (isCreated) {
-    return (
-      <BreakdownSuccessCard
-        tokens={tokens}
-        styles={styles}
-        parentName={parentName}
-        createdCount={createdCount}
-        createAsParent={createAsParent}
-      />
-    )
-  }
-
-  return (
-    <View style={styles.card}>
-      <Text style={styles.headerText}>
-        {t('habits.breakdown.breakInto', { name: parentName })}
-      </Text>
-
-      <View style={styles.habitsList}>
-        {habits.map((habit, index) => (
-          <BreakdownHabitRow
-            key={habit.id}
-            habit={habit}
-            tokens={tokens}
-            styles={styles}
-            onUpdate={(patch) => updateHabit(index, patch)}
-            onRemove={() => removeHabit(index)}
-          />
-        ))}
-      </View>
-
-      <BreakdownActions
-        tokens={tokens}
-        styles={styles}
-        createAsParent={createAsParent}
-        createError={createError}
-        validCount={validHabits.length}
-        isSubmitting={isSubmitting}
-        onAddHabit={addHabit}
-        onToggleCreateAsParent={() => setCreateAsParent((prev) => !prev)}
-        onConfirm={() => {
-          void handleConfirm()
-        }}
-        onCancel={onCancelled}
-      />
-    </View>
-  )
+  if (rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
+  const partiallyFailed = failedIds.length > 0
+  const rows = habits.map((habit) => ({
+    id: habit.id,
+    label: editingId === habit.id ? <TextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => setEditingId(null)} onChangeText={(title) => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, title } : item))} style={{ minHeight: 44, color: tokens.fg1, backgroundColor: tokens.bgField }} /> : habit.title,
+    meta: results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
+    status: results[habit.id],
+    proposed: results[habit.id] == null,
+    control: results[habit.id] == null ? <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, frequencyUnit: nextCadence(item.frequencyUnit) } : item))} style={{ minHeight: 40, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(`habits.filter.${habit.frequencyUnit === 'Week' ? 'weekly' : habit.frequencyUnit === 'Month' ? 'monthly' : 'daily'}`)}</Text></Pressable> : undefined,
+  }))
+  return <BlockFrame state={bulkCreate.isPending ? 'acting' : partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={setEditingId} actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+    {warning?.hasConflict ? <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} color={tokens.statusOverdue} /><Text style={{ color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
+    {partiallyFailed ? <Button size="sm" onClick={() => void submit(failedIds)}>{t('chat.batch.retry', { count: failedIds.length })}</Button> : <><Button size="sm" disabled={bulkCreate.isPending} onClick={() => void submit()}>{t('chat.preview.approve')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => setEditingId(habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => setRejected(true)}>{t('chat.preview.reject')}</Button></>}
+  </View>} />
 }

@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { getRelatedSurfaces, stripChatDirectives } from '@orbit/shared/chat'
-import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
@@ -17,6 +16,7 @@ import { ClarificationCard } from './clarification-card'
 import { GoalListCard } from './goal-list-card'
 import { HabitListCard } from './habit-list-card'
 import { PendingOperationCard } from './pending-operation-card'
+import { OperationOutcomes } from './operation-outcomes'
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -48,7 +48,6 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
-  onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
   const router = useRouter()
@@ -76,23 +75,14 @@ export function MessageBubble({
     [message.actions],
   )
 
-  const hasUpgradeDenial = useMemo(
-    () =>
-      (message.policyDenials ?? []).some(
-        (denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
-      ),
-    [message.policyDenials],
-  )
-
   const nonSuggestionActions = useMemo(
     () =>
       message.actions?.filter(
         (a) =>
           a.status !== 'Suggestion' &&
-          a.status !== 'NeedsClarification' &&
-          !(hasUpgradeDenial && a.status === 'Failed'),
+          a.status !== 'NeedsClarification',
       ) ?? [],
-    [message.actions, hasUpgradeDenial],
+    [message.actions],
   )
 
   function dismissBreakdown(key: string) {
@@ -104,7 +94,7 @@ export function MessageBubble({
   return (
     <div
       className={`${animateEntry ? 'animate-msg-in ' : ''}flex ${isUser ? 'justify-end' : 'justify-start'}`}
-      style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
+      style={{ gap: 8, padding: '0 16px', marginBottom: 16 }}
     >
       {!isUser && (
         <div
@@ -163,7 +153,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.goalList && (
-          <GoalListCard goalList={message.goalList} />
+          <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, 'CreateGoal')} />
         )}
 
         {!isUser && relatedSurfaces.length > 0 && (
@@ -175,7 +165,7 @@ export function MessageBubble({
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
-                marginBottom: 6,
+                marginBottom: 4,
                 paddingLeft: 4,
               }}
             >
@@ -202,7 +192,7 @@ export function MessageBubble({
         )}
 
         {!isUser && suggestionActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
             {suggestionActions.map((action) => {
               const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
               return dismissedBreakdowns.has(actionKey) ? null : (
@@ -210,6 +200,7 @@ export function MessageBubble({
                   key={actionKey}
                   parentName={action.entityName || 'Habit'}
                   subHabits={action.suggestedSubHabits ?? []}
+                  warning={action.conflictWarning}
                   onConfirmed={() => onBreakdownConfirmed?.()}
                   onCancelled={() => dismissBreakdown(actionKey)}
                 />
@@ -219,7 +210,7 @@ export function MessageBubble({
         )}
 
         {!isUser && clarificationActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
             {clarificationActions.map((action) => (
               <ClarificationCard
                 key={action.clarificationRequest.operationId}
@@ -231,7 +222,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.pendingOperations && message.pendingOperations.length > 0 && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp && (
-          <div className="mt-3 w-full md:max-w-[65ch] space-y-3">
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
             {message.pendingOperations.map((pendingOperation) => (
               <PendingOperationCard
                 key={pendingOperation.id}
@@ -244,39 +235,9 @@ export function MessageBubble({
           </div>
         )}
 
-        {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
-          <div className="mt-3 w-full md:max-w-[65ch] space-y-2">
-            {message.policyDenials.map((denial) => {
-              const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(denial)
-
-              return (
-                <div
-                  key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  className="rounded-[16px] px-3 py-2"
-                  style={{
-                    background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
-                    boxShadow:
-                      'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 20%, transparent)',
-                  }}
-                >
-                  <p className="text-xs font-medium text-[var(--status-bad-text)]">
-                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.title') : denial.sourceName}
-                  </p>
-                  <p className="mt-1 text-[12px] text-[var(--status-bad-text)]">
-                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.body') : denial.reason}
-                  </p>
-                  {upgradeResolution.shouldUpgrade && onUpgradeClick && (
-                    <button
-                      type="button"
-                      onClick={onUpgradeClick}
-                      className="touch-target-y mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-hover)] active:scale-[0.96]"
-                    >
-                      {t('upgrade.subscribe')}
-                    </button>
-                  )}
-                </div>
-              )
-            })}
+        {!isUser && ((message.operations?.length ?? 0) > 0 || (message.policyDenials?.length ?? 0) > 0) && (
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
+            <OperationOutcomes operations={message.operations ?? []} denials={message.policyDenials ?? []} />
           </div>
         )}
       </div>
