@@ -1276,10 +1276,9 @@
   },
   "marketingConsent": {
     "prompt": {
-      "eyebrow": "Stay in the loop",
-      "title": "Product updates by email?",
+      "title": "Product updates",
       "body": "We'll occasionally email you about new Orbit features and improvements. No spam, and you can unsubscribe anytime.",
-      "accept": "Yes, keep me posted",
+      "accept": "Email me",
       "decline": "No thanks"
     }
   },
