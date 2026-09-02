@@ -17,6 +17,13 @@ export interface HabitFormTranslationAdapter {
   friday: string
   saturday: string
   sunday: string
+  mondayLong: string
+  tuesdayLong: string
+  wednesdayLong: string
+  thursdayLong: string
+  fridayLong: string
+  saturdayLong: string
+  sundayLong: string
   unitDay: string
   unitWeek: string
   unitMonth: string
@@ -88,15 +95,15 @@ export function getHabitFormFlags(values: HabitFormData) {
 export function buildHabitDaysList(
   translations: HabitFormTranslationAdapter,
   weekStartDay = 1,
-): Array<{ value: string; label: string }> {
+): HabitDayOption[] {
   const mondayFirst = [
-    { value: 'Monday', label: translations.monday },
-    { value: 'Tuesday', label: translations.tuesday },
-    { value: 'Wednesday', label: translations.wednesday },
-    { value: 'Thursday', label: translations.thursday },
-    { value: 'Friday', label: translations.friday },
-    { value: 'Saturday', label: translations.saturday },
-    { value: 'Sunday', label: translations.sunday },
+    { value: 'Monday', label: translations.monday, accessibleLabel: translations.mondayLong },
+    { value: 'Tuesday', label: translations.tuesday, accessibleLabel: translations.tuesdayLong },
+    { value: 'Wednesday', label: translations.wednesday, accessibleLabel: translations.wednesdayLong },
+    { value: 'Thursday', label: translations.thursday, accessibleLabel: translations.thursdayLong },
+    { value: 'Friday', label: translations.friday, accessibleLabel: translations.fridayLong },
+    { value: 'Saturday', label: translations.saturday, accessibleLabel: translations.saturdayLong },
+    { value: 'Sunday', label: translations.sunday, accessibleLabel: translations.sundayLong },
   ]
 
   if (weekStartDay === 0) {
@@ -126,6 +133,12 @@ export interface HabitFormSuggestionPatch {
   dueTime: string | null
   subHabitTitles: string[]
   checklistItems: ChecklistItem[]
+}
+
+export interface HabitDayOption {
+  value: string
+  label: string
+  accessibleLabel: string
 }
 
 export interface HabitFormProposal {
@@ -192,7 +205,7 @@ export interface HabitUnderstandingProps {
   error?: string
   emoji: string
   days: string[]
-  dayOptions: Array<{ value: string; label: string }>
+  dayOptions: HabitDayOption[]
   quantity: number
   sentence: string | null
   consumed: readonly HabitPhraseToken[]

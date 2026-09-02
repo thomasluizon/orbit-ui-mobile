@@ -174,6 +174,7 @@ export {
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
+  HabitDayOption,
   HabitFormSuggestionPatch,
   HabitFormCommonProps,
   HabitFormController,

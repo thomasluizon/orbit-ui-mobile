@@ -87,7 +87,7 @@ function createFormHelpers(overrides: Record<string, unknown> = {}): TestHabitFo
     } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false,
     showDayPicker: false, showEndDate: true,
-    daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3) })),
+    daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(),
     setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(),
     formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),
@@ -156,6 +156,19 @@ describe('HabitFormFields', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
+  })
+
+  it('uses the localized full weekday name for the correction control', () => {
+    const formHelpers = createFormHelpers({ title: 'Correr' })
+    formHelpers.daysList[0] = {
+      value: 'Monday',
+      label: 'Seg',
+      accessibleLabel: 'Segunda-feira',
+    }
+
+    renderForm(formHelpers)
+
+    expect(screen.getByRole('button', { name: 'Segunda-feira' })).toBeDefined()
   })
 
   it('states daily, timed daily, timed fixed-day, and timed flexible schedules exactly', () => {

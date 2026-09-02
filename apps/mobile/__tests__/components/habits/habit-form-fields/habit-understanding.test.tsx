@@ -62,8 +62,8 @@ function renderUnderstanding(
     emoji: "",
     days: [],
     dayOptions: [
-      { value: "Monday", label: "M" },
-      { value: "Tuesday", label: "T" },
+      { value: "Monday", label: "S", accessibleLabel: "Segunda-feira" },
+      { value: "Tuesday", label: "T", accessibleLabel: "Terça-feira" },
     ],
     quantity: 1,
     sentence: null,
@@ -160,8 +160,8 @@ describe("HabitUnderstanding mobile", () => {
       textDecorationLine: "underline",
     });
 
-    const monday = button(tree, "Monday");
-    const tuesday = button(tree, "Tuesday");
+    const monday = button(tree, "Segunda-feira");
+    const tuesday = button(tree, "Terça-feira");
     expect(monday.props.accessibilityState).toEqual({ selected: true });
     expect(tuesday.props.accessibilityState).toEqual({ selected: false });
     (monday.props.style as (state: { pressed: boolean }) => unknown)({

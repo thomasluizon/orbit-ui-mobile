@@ -18,7 +18,7 @@ import {
   validateHabitFormInput,
   toggleSelectedId,
 } from '@orbit/shared/utils'
-import type { HabitFormValidationContext } from '@orbit/shared/utils'
+import type { HabitDayOption, HabitFormValidationContext } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 export interface HabitFormOptions {
@@ -34,7 +34,7 @@ export interface HabitFormHelpers {
   isRecurring: boolean
   showDayPicker: boolean
   showEndDate: boolean
-  daysList: { value: string; label: string }[]
+  daysList: HabitDayOption[]
   toggleDay: (day: string) => void
   frequencyUnits: { value: FrequencyUnit; label: string }[]
   setOneTime: () => void
@@ -93,6 +93,13 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
           friday: t('dates.daysShort.friday'),
           saturday: t('dates.daysShort.saturday'),
           sunday: t('dates.daysShort.sunday'),
+          mondayLong: t('dates.daysLong.monday'),
+          tuesdayLong: t('dates.daysLong.tuesday'),
+          wednesdayLong: t('dates.daysLong.wednesday'),
+          thursdayLong: t('dates.daysLong.thursday'),
+          fridayLong: t('dates.daysLong.friday'),
+          saturdayLong: t('dates.daysLong.saturday'),
+          sundayLong: t('dates.daysLong.sunday'),
           unitDay: t('habits.form.unitDay'),
           unitWeek: t('habits.form.unitWeek'),
           unitMonth: t('habits.form.unitMonth'),

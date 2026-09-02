@@ -133,6 +133,13 @@ describe('habit form helpers', () => {
       friday: 'Fri',
       saturday: 'Sat',
       sunday: 'Sun',
+      mondayLong: 'Monday',
+      tuesdayLong: 'Tuesday',
+      wednesdayLong: 'Wednesday',
+      thursdayLong: 'Thursday',
+      fridayLong: 'Friday',
+      saturdayLong: 'Saturday',
+      sundayLong: 'Sunday',
       unitDay: 'Day',
       unitWeek: 'Week',
       unitMonth: 'Month',
@@ -148,6 +155,20 @@ describe('habit form helpers', () => {
       'Saturday',
       'Sunday',
     ])
+    expect(buildHabitDaysList(translations)[0]).toEqual({
+      value: 'Monday',
+      label: 'Mon',
+      accessibleLabel: 'Monday',
+    })
+    expect(buildHabitDaysList({
+      ...translations,
+      monday: 'Seg',
+      mondayLong: 'Segunda-feira',
+    })[0]).toEqual({
+      value: 'Monday',
+      label: 'Seg',
+      accessibleLabel: 'Segunda-feira',
+    })
     expect(buildHabitDaysList(translations, 0).map((day) => day.value)).toEqual([
       'Sunday',
       'Monday',

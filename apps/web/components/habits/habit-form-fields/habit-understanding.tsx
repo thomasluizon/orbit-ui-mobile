@@ -92,7 +92,7 @@ export function HabitUnderstanding({
                     key={day.value}
                     type="button"
                     aria-pressed={selected}
-                    aria-label={day.value}
+                    aria-label={day.accessibleLabel}
                     className={`grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] ${
                       selected
                         ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]'

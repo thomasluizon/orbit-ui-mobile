@@ -87,7 +87,7 @@ export function HabitUnderstanding({
                   <Pressable
                     key={day.value}
                     accessibilityRole="button"
-                    accessibilityLabel={day.value}
+                    accessibilityLabel={day.accessibleLabel}
                     accessibilityState={{ selected }}
                     style={({ pressed }) => [
                       styles.day,
