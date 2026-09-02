@@ -5,6 +5,7 @@ import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import type { GoalListCard as GoalListData, HabitListCard as HabitListData } from '@orbit/shared/types/chat'
 import { GoalListCard } from '@/components/chat/goal-list-card'
 import { HabitListCard } from '@/components/chat/habit-list-card'
+import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
@@ -58,15 +59,6 @@ function render(element: React.ReactElement) {
   return tree
 }
 
-function allText(node: unknown): string {
-  if (node == null || typeof node === 'boolean') return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(allText).join(' ')
-  if (typeof node === 'object' && 'children' in node) return allText((node as { children?: unknown }).children)
-  if (typeof node === 'object' && 'props' in node) return allText((node as { props: { children?: unknown } }).props.children)
-  return ''
-}
-
 describe('Astra list cards on mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -78,8 +70,8 @@ describe('Astra list cards on mobile', () => {
 
   it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
     const tree = render(<HabitListCard habitList={habits} />)
-    expect(allText(tree.toJSON())).toContain('chat.habitList.count')
-    expect(allText(tree.toJSON())).toContain('3')
+    expect(renderedText(tree.toJSON())).toContain('chat.habitList.count')
+    expect(renderedText(tree.toJSON())).toContain('3')
 
     const open = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.open:{"name":"Water"}' })
     TestRenderer.act(() => open.props.onPress())
@@ -89,9 +81,9 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => log.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
 
-    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && allText(node.props.children).includes('chat.habitList.more'))[0]
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.habitList.more'))[0]
     TestRenderer.act(() => more.props.onPress())
-    expect(allText(tree.toJSON())).toContain('4')
+    expect(renderedText(tree.toJSON())).toContain('4')
   })
 
   it('announces unlog for an already-completed occurrence', () => {
@@ -116,11 +108,11 @@ describe('Astra list cards on mobile', () => {
   it('opens a goal row in place and routes the progress action', () => {
     const onOpenGoal = vi.fn()
     const tree = render(<GoalListCard goalList={goals} onOpenGoal={onOpenGoal} />)
-    const goal = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && allText(node.props.children).includes('Run 10 km'))[0]
+    const goal = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('Run 10 km'))[0]
     TestRenderer.act(() => goal.props.onPress())
     expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
 
-    const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && allText(node.props.children).includes('chat.goalList.progressLink'))[0]
+    const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
     TestRenderer.act(() => progress.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/progress')
   })

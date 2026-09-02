@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BulkCreateResponse } from '@orbit/shared/types/habit'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
+import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
@@ -57,22 +58,9 @@ function renderBreakdown(warning?: ConflictWarning) {
   return tree
 }
 
-function text(node: unknown): string {
-  if (node == null || typeof node === 'boolean') return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(text).join(' ')
-  if (typeof node === 'object' && 'children' in node) {
-    return text((node as { children?: unknown }).children)
-  }
-  if (typeof node === 'object' && 'props' in node) {
-    return text((node as { props: { children?: unknown } }).props.children)
-  }
-  return ''
-}
-
 function press(tree: any, label: string) {
   return tree.root.findAll((node: any) =>
-    typeof node.props?.onPress === 'function' && text(node.props.children).includes(label),
+    typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes(label),
   )[0]
 }
 
@@ -104,8 +92,8 @@ describe('BreakdownSuggestion (mobile)', () => {
     const tree = renderBreakdown()
     TestRenderer.act(() => press(tree, 'chat.preview.reject').props.onPress())
 
-    expect(text(tree.toJSON())).toContain('chat.preview.rejected')
-    expect(text(tree.toJSON())).not.toContain('chat.preview.approve')
+    expect(renderedText(tree.toJSON())).toContain('chat.preview.rejected')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.preview.approve')
   })
 
   it('edits one row and changes its cadence', () => {
@@ -125,9 +113,9 @@ describe('BreakdownSuggestion (mobile)', () => {
       String(node.props?.accessibilityLabel).includes('chat.breakdown.frequency') &&
       String(node.props?.accessibilityLabel).includes('Kitchen dishes'),
     )[0]
-    expect(text(cadence.props.children)).toContain('habits.filter.daily')
+    expect(renderedText(cadence.props.children)).toContain('habits.filter.daily')
     TestRenderer.act(() => cadence.props.onPress())
-    expect(text(cadence.props.children)).toContain('habits.filter.weekly')
+    expect(renderedText(cadence.props.children)).toContain('habits.filter.weekly')
   })
 
   it('preserves yearly and one-time proposal cadences', () => {
@@ -150,14 +138,14 @@ describe('BreakdownSuggestion (mobile)', () => {
       String(node.props?.accessibilityLabel).includes('File taxes'),
     )[0]
 
-    expect(text(yearly.props.children)).toContain('habits.filter.yearly')
-    expect(text(oneTime.props.children)).toContain('habits.filter.oneTime')
+    expect(renderedText(yearly.props.children)).toContain('habits.filter.yearly')
+    expect(renderedText(oneTime.props.children)).toContain('habits.filter.oneTime')
     TestRenderer.act(() => yearly.props.onPress())
     const updatedYearly = tree.root.findAll((node: any) =>
       typeof node.props?.onPress === 'function' &&
       String(node.props?.accessibilityLabel).includes('Year review'),
     )[0]
-    expect(text(updatedYearly.props.children)).toContain('habits.filter.oneTime')
+    expect(renderedText(updatedYearly.props.children)).toContain('habits.filter.oneTime')
   })
 
   it('names a colliding habit', () => {
@@ -168,8 +156,8 @@ describe('BreakdownSuggestion (mobile)', () => {
     }
     const tree = renderBreakdown(warning)
 
-    expect(text(tree.toJSON())).toContain('chat.breakdown.conflict')
-    expect(text(tree.toJSON())).toContain('Dishes')
+    expect(renderedText(tree.toJSON())).toContain('chat.breakdown.conflict')
+    expect(renderedText(tree.toJSON())).toContain('Dishes')
   })
 
   it('retries only failed rows', async () => {

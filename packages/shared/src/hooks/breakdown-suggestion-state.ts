@@ -55,7 +55,7 @@ export function useBreakdownSuggestionState({
   onConfirmed: () => void
 }>): BreakdownSuggestionState {
   const [habits, setHabits] = useState<BreakdownDraftHabit[]>(() =>
-    subHabits.map(toDraftHabit),
+    subHabits.map((habit, index) => toDraftHabit(habit, index)),
   )
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)

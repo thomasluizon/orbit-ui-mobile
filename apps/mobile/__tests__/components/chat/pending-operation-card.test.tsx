@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TextInput, View } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -49,22 +50,9 @@ function renderCard(overrides: Partial<PendingAgentOperation> = {}) {
   return { tree, handlers }
 }
 
-function text(node: unknown): string {
-  if (node == null || typeof node === 'boolean') return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(text).join(' ')
-  if (typeof node === 'object' && 'children' in node) {
-    return text((node as { children?: unknown }).children)
-  }
-  if (typeof node === 'object' && 'props' in node) {
-    return text((node as { props: { children?: unknown } }).props.children)
-  }
-  return ''
-}
-
 function press(tree: any, label: string) {
   return tree.root.findAll((node: any) =>
-    typeof node.props?.onPress === 'function' && text(node.props.children).includes(label),
+    typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes(label),
   )[0]
 }
 
@@ -78,8 +66,8 @@ describe('PendingOperationCard (mobile)', () => {
       response: { operation: { status: 'Succeeded' } },
     })
 
-    expect(text(tree.toJSON())).toContain('chat.operation.risk.destructive')
-    expect(text(tree.toJSON())).toContain('chat.operation.irreversible')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.risk.destructive')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.irreversible')
     TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
     await TestRenderer.act(async () => {
@@ -119,7 +107,7 @@ describe('PendingOperationCard (mobile)', () => {
       '123456',
       'confirmation-1',
     )
-    expect(text(tree.toJSON())).toContain('status.done')
+    expect(renderedText(tree.toJSON())).toContain('status.done')
   })
 
   it('cancels without executing', () => {
@@ -141,7 +129,7 @@ describe('PendingOperationCard (mobile)', () => {
       await Promise.resolve()
     })
 
-    expect(text(tree.toJSON())).toContain('status.failed')
-    expect(text(tree.toJSON())).not.toContain('status.done')
+    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).not.toContain('status.done')
   })
 })
