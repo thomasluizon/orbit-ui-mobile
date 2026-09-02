@@ -2,20 +2,21 @@
 
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Crown } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
 const PAUSED_FEATURES = [
-  'trial.expired.subHabits',
-  'trial.expired.aiChat',
-  'trial.expired.goals',
-  'trial.expired.aiSummary',
+  'trial.expired.astraCeiling',
+  'trial.expired.calendarSync',
+  'trial.expired.retrospective',
+  'trial.expired.proactiveAstra',
 ] as const
 
 export function TrialExpiredModal() {
@@ -24,6 +25,7 @@ export function TrialExpiredModal() {
   const router = useRouter()
   const pathname = usePathname()
   const trialExpired = useTrialExpired()
+  const { plans } = useSubscriptionPlans()
   const [dismissed, setDismissed] = useState(false)
   const mounted = useIsClient()
 
@@ -49,10 +51,9 @@ export function TrialExpiredModal() {
       onClose={hide}
       title={t('trial.expired.heading')}
       actions={
-        <div className="flex flex-col" style={{ gap: 10 }}>
+        <div className="flex w-full flex-col gap-2">
           <PillButton
             variant="primary"
-
             onClick={() =>
               closeSheet(() => {
                 hide()
@@ -68,68 +69,32 @@ export function TrialExpiredModal() {
         </div>
       }
     >
-      <div className="flex flex-col" style={{ gap: 14 }}>
-        <div
-          aria-hidden="true"
-          className="flex items-center justify-center self-center rounded-full"
-          style={{
-            width: 64,
-            height: 64,
-            marginTop: 2,
-            background: 'rgba(var(--primary-rgb), 0.16)',
-          }}
-        >
-          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary)]" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <p className="t-eyebrow m-0">{t('trial.expired.eyebrow')}</p>
+          <p className="m-0 max-w-[65ch] text-pretty text-base leading-[1.55] text-[var(--fg-2)]">
+            {t('trial.expired.subtitleQuiet')}
+          </p>
+          {plans ? (
+            <p className="m-0 font-mono text-xs tabular-nums text-[var(--fg-3)]">
+              {t('trial.expired.savings', { percent: plans.savingsPercent })}
+            </p>
+          ) : null}
         </div>
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            color: 'var(--fg-2)',
-            lineHeight: 1.5,
-            margin: 0,
-            textAlign: 'center',
-            textWrap: 'pretty',
-          }}
-        >
-          {t('trial.expired.subtitleQuiet')}
-        </p>
-        <div>
-          {PAUSED_FEATURES.map((featureKey, index) => (
-            <div
+
+        <SettingsGroup>
+          {PAUSED_FEATURES.map((featureKey) => (
+            <SettingsGroupRow
               key={featureKey}
-              className="flex items-baseline justify-between"
-              style={{
-                padding: '12px 0',
-                borderBottom:
-                  index === PAUSED_FEATURES.length - 1
-                    ? undefined
-                    : '1px solid var(--hairline)',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
-                  color: 'var(--fg-1)',
-                }}
-              >
-                {t(featureKey)}
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 11,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  color: 'var(--fg-3)',
-                }}
-              >
-                {t('trial.expired.paused')}
-              </span>
-            </div>
+              label={t(featureKey)}
+              trailing={
+                <span className="font-mono text-xs text-[var(--fg-3)]">
+                  {t('trial.expired.paused')}
+                </span>
+              }
+            />
           ))}
-        </div>
+        </SettingsGroup>
       </div>
     </Sheet>
   )

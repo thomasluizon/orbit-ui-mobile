@@ -1,6 +1,5 @@
 import { forwardRef, useMemo } from 'react'
-// react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a static bundled logo rendered into a react-native-view-shot capture (expo-image does not reliably render in view-shot snapshots), so RN Image is the deliberate correct choice here. Adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -8,6 +7,7 @@ import { buildShareCardStats, recapPeriodLabelKey } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { StatTile } from '@/components/ui/stat-tile'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 const WEEKDAY_KEYS = [
   'monday',
@@ -19,14 +19,12 @@ const WEEKDAY_KEYS = [
   'sunday',
 ] as const
 
-const logoSource = require('../../assets/logo-no-bg.png') as ImageSourcePropType
-
 interface ShareCardProps {
   recap: Recap
   displayName?: string
 }
 
-/** Branded navy-violet recap card and the react-native-view-shot capture target. Reused by share + Wrapped (#198) surfaces. */
+/** Flat token-native recap card and the react-native-view-shot capture target. */
 export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
   { recap, displayName },
   ref,
@@ -48,10 +46,10 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
     <View ref={ref} testID="share-card" style={styles.card}>
       <View style={styles.band}>
         <View style={styles.brandRow}>
-          <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+          <OrbitMark size={24} accent />
           <Text style={styles.wordmark}>Orbit</Text>
         </View>
-        <Text style={styles.eyebrow}>{eyebrow.toUpperCase()}</Text>
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
         <Text testID="share-card-streak" style={styles.streak}>
           {`${t('shareCard.streak', { count: metrics.currentStreak })} 🔥`}
         </Text>
@@ -85,7 +83,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
                 style={[
                   styles.bar,
                   {
-                    height: Math.max(6, (clamped / 100) * 44),
+                    height: Math.max(4, (clamped / 100) * 48),
                     backgroundColor: tokens.primary,
                     opacity: clamped === 0 ? 0.25 : 1,
                   },
@@ -97,7 +95,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
 
         {topHabits.length > 0 ? (
           <View style={styles.habitSection}>
-            <Text style={styles.habitHeader}>{t('shareCard.stats.topHabits').toUpperCase()}</Text>
+            <Text style={styles.habitHeader}>{t('shareCard.stats.topHabits')}</Text>
             <View style={styles.habitChips}>
               {topHabits.map((habit) => (
                 <View key={habit.name} style={styles.habitChip}>
@@ -141,35 +139,29 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     band: {
       backgroundColor: tokens.bgCard,
-      paddingTop: 20,
-      paddingHorizontal: 22,
-      paddingBottom: 22,
+      padding: 24,
     },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 9,
-    },
-    logo: {
-      width: 26,
-      height: 26,
+      gap: 8,
     },
     wordmark: {
-      fontFamily: 'Inter_600SemiBold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 18,
       letterSpacing: -0.18,
       color: tokens.fg1,
     },
     eyebrow: {
       marginTop: 16,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,
     },
     streak: {
       marginTop: 4,
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 28,
       letterSpacing: -0.56,
       fontVariant: ['tabular-nums'],
@@ -177,32 +169,32 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     body: {
       gap: 12,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       paddingTop: 16,
-      paddingBottom: 18,
+      paddingBottom: 16,
     },
     statsGrid: {
-      gap: 10,
+      gap: 12,
     },
     statsRow: {
       flexDirection: 'row',
-      gap: 10,
+      gap: 12,
     },
     weeklyCard: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      gap: 6,
+      gap: 4,
       height: 64,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 18,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderRadius: 16,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
     bar: {
       flex: 1,
-      borderRadius: 5,
+      borderRadius: 4,
     },
     habitSection: {
       gap: 8,
@@ -216,39 +208,39 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     habitChips: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 6,
+      gap: 8,
     },
     habitChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 999,
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
     habitEmoji: {
-      fontSize: 13,
+      fontSize: 16,
     },
     habitName: {
       maxWidth: 120,
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 12,
       color: tokens.fg2,
     },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       paddingVertical: 16,
       borderTopWidth: 1,
       borderTopColor: tokens.hairline,
     },
     qrTile: {
-      padding: 6,
+      padding: 4,
       borderRadius: 12,
       backgroundColor: '#ffffff',
     },
@@ -256,13 +248,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
     },
     scanText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 12,
       color: tokens.fg1,
     },
     shortLink: {
-      marginTop: 2,
-      fontFamily: 'Roboto_400Regular',
+      marginTop: 4,
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       color: tokens.fg3,

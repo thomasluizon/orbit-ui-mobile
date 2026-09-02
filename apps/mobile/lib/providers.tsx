@@ -27,6 +27,19 @@ import {
   Roboto_500Medium,
   Roboto_700Bold,
 } from '@expo-google-fonts/roboto'
+import {
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+} from '@expo-google-fonts/geist'
+import {
+  GeistMono_400Regular,
+  GeistMono_500Medium,
+} from '@expo-google-fonts/geist-mono'
+import {
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+} from '@expo-google-fonts/space-grotesk'
 import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
 import { syncWidgetData } from './orbit-widget'
 import { useAuthStore } from '@/stores/auth-store'
@@ -142,6 +155,13 @@ function AuthInitializer({
     Roboto_400Regular,
     Roboto_500Medium,
     Roboto_700Bold,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
   })
 
   useEffect(() => {

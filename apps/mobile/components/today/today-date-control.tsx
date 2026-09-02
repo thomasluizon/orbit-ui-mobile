@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   numericDate: {
-    fontFamily: 'RobotoMono_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
   },
   todayButton: {

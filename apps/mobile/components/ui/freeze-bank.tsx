@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   legendItem: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   legendMark: { borderRadius: 8, height: 16, width: 16 },
-  meta: { fontFamily: 'RobotoMono_400Regular', fontSize: 12, lineHeight: 16 },
+  meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   disclosure: {
     alignItems: 'center',
     borderRadius: 12,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   protectedRow: { alignItems: 'center', flexDirection: 'row', gap: 8, minHeight: 44 },
   protectedDate: {
     flex: 1,
-    fontFamily: 'RobotoMono_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
     lineHeight: 16,

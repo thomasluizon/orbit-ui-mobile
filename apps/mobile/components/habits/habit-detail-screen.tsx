@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 4 },
   tag: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  tagText: { fontFamily: 'RobotoMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
+  tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
   disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   disclosureTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   proposedBlock: { gap: 16, padding: 16 },

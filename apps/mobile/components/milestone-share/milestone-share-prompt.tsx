@@ -106,7 +106,12 @@ export function MilestoneSharePrompt() {
   }
 
   return (
-    variant !== null ? (<Sheet ref={sheetRef} open onClose={() => setVisibleKey(null)}>
+    variant !== null ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => setVisibleKey(null)}
+      title={t('milestoneShare.title')}
+    >
       <View style={styles.content}>
           <View style={styles.cardWrap}>
             <MilestoneShareCard ref={shareRef} variant={variant} referralUrl={referralUrl} />
@@ -158,7 +163,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: 28,
+      paddingBottom: 24,
       gap: 16,
       alignItems: 'center',
     },
@@ -166,15 +171,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
     },
     body: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
     },
     errorText: {
       textAlign: 'center',
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusBad,
     },
@@ -191,7 +196,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.98 }],
     },
     laterText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg3,
     },

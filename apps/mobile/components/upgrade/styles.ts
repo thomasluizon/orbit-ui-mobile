@@ -23,7 +23,7 @@ export const styles = StyleSheet.create({
     width: 1,
   },
   allowanceLabel: {
-    fontFamily: 'RobotoMono_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     letterSpacing: 0.48,
   },
@@ -205,7 +205,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tierSecond: {
-    fontFamily: 'RobotoMono_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
     lineHeight: 18,

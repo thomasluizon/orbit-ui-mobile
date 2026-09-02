@@ -3,52 +3,38 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import { Gift } from '@/components/ui/icons'
-import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { referralKeys } from '@orbit/shared/query'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import {
   canPromptReferral,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { useUIStore } from '@/stores/ui-store'
+import { PillButton } from '@/components/ui/pill-button'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const SETTLE_DELAY_MS = 500
-const DEFAULT_DISCOUNT_PERCENT = 10
 
-function enterTransition(delayMs: number) {
-  return {
-    duration: motionDurations.base / 1000,
-    ease: motionEasings.enter,
-    delay: delayMs / 1000,
-  }
-}
-
-/** One-shot milestone nudge: shows once no celebration is in flight and the re-prompt guard allows it, then hands off to the referral drawer. */
+/** One-shot milestone nudge that hands off to the referral drawer. */
 export function ReferralPrompt() {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
-  const prefersReducedMotion = useReducedMotion()
   const queryClient = useQueryClient()
-  const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
+  const armedPrompt = useReferralPromptStore((state) => state.armedPrompt)
   const markEngagementPrompted = useReferralPromptStore(
-    (s) => s.markEngagementPrompted,
+    (state) => state.markEngagementPrompted,
   )
   const clearArmedMilestone = useReferralPromptStore(
-    (s) => s.clearArmedMilestone,
+    (state) => state.clearArmedMilestone,
   )
   const celebrationInFlight = useUIStore(
-    (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
+    (state) => state.activeCelebration !== null || state.queuedCelebrations.length > 0,
   )
 
   const armedMilestoneKey =
     armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
-
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
   const [showDrawer, setShowDrawer] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -85,16 +71,13 @@ export function ReferralPrompt() {
 
   const milestone = visibleKey ? parseReferralMilestoneKey(visibleKey) : null
   const cached = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
-  const discount = cached?.stats.discountPercent ?? DEFAULT_DISCOUNT_PERCENT
-
-  const title =
-    milestone?.kind === 'level'
-      ? t('referral.prompt.levelTitle', { level: milestone.value })
-      : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
-
-  function dismiss() {
-    closeSheet()
-  }
+  const discount = cached?.stats.discountPercent
+  const title = milestone?.kind === 'level'
+    ? t('referral.prompt.levelTitle', { level: milestone.value })
+    : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
+  const body = discount == null
+    ? t('referral.prompt.bodyFallback')
+    : t('referral.prompt.body', { discount })
 
   function openDrawer() {
     closeSheet(() => {
@@ -105,81 +88,32 @@ export function ReferralPrompt() {
 
   return (
     <>
-      {visibleKey !== null ? (<Sheet
-        ref={sheetRef}
-        open
-        onClose={() => setVisibleKey(null)}
-        title={title}
-      >
-        <LazyMotion features={domAnimation}>
-          <div
-            className="flex flex-col items-center text-center"
-            style={{ gap: 16, padding: '4px 0 4px' }}
-          >
-            <m.p
-              className="t-eyebrow"
-              style={{ margin: 0 }}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={enterTransition(70)}
-            >
-              {t('referral.prompt.eyebrow')}
-            </m.p>
-            <m.span
-              aria-hidden="true"
-              className="flex items-center justify-center rounded-full"
-              style={{
-                width: 64,
-                height: 64,
-                background: 'rgba(var(--primary-rgb), 0.15)',
-              }}
-              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={enterTransition(0)}
-            >
-              <Gift size={30} strokeWidth={1.8} color="var(--primary)" />
-            </m.span>
-            <m.p
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 15,
-                lineHeight: 1.5,
-                color: 'var(--fg-2)',
-              }}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={enterTransition(70)}
-            >
-              {t('referral.prompt.body', { discount })}
-            </m.p>
-            <m.div
-              className="flex w-full flex-col"
-              style={{ gap: 8, paddingTop: 4 }}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={enterTransition(140)}
-            >
-              <PillButton  onClick={openDrawer}>
+      {visibleKey !== null ? (
+        <Sheet
+          ref={sheetRef}
+          open
+          onClose={() => setVisibleKey(null)}
+          title={title}
+        >
+          <div className="flex flex-col items-center gap-4 px-6 pb-6 text-center">
+            <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
+              {body}
+            </p>
+            <div className="flex w-full flex-col gap-2">
+              <PillButton onClick={openDrawer}>
                 {t('referral.prompt.cta')}
               </PillButton>
               <button
                 type="button"
-                onClick={dismiss}
-                className="w-full text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-                style={{
-                  padding: '12px 0',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
+                onClick={() => closeSheet()}
+                className="touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-out hover:text-[var(--fg-1)] active:scale-[0.96]"
               >
                 {t('referral.prompt.later')}
               </button>
-            </m.div>
+            </div>
           </div>
-        </LazyMotion>
-      </Sheet>) : null}
+        </Sheet>
+      ) : null}
       <ReferralDrawer open={showDrawer} onOpenChange={setShowDrawer} />
     </>
   )
