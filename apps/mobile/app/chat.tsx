@@ -17,6 +17,7 @@ import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 import { useChatComposer } from "@/hooks/use-chat-composer";
+import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { Composer } from "@/components/shell/composer";
@@ -25,12 +26,55 @@ import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { ErrorState } from "@/components/ui/error-state";
+import { PillButton } from "@/components/ui/pill-button";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
 import { useUIStore } from "@/stores/ui-store";
+
+interface ChatRewardRecoveryProps {
+  canWatchRewardAd: boolean;
+  rewardsClaimedToday: number;
+  dailyRewardCap: number;
+  rewardMessage: string | null;
+  onWatchAd: () => void;
+  textColor: string;
+  mutedTextColor: string;
+}
+
+function ChatRewardRecovery({
+  canWatchRewardAd,
+  rewardsClaimedToday,
+  dailyRewardCap,
+  rewardMessage,
+  onWatchAd,
+  textColor,
+  mutedTextColor,
+}: Readonly<ChatRewardRecoveryProps>) {
+  const { t } = useTranslation();
+  return (
+    <View style={{ gap: 8, alignItems: "flex-start" }}>
+      <PillButton size="sm" disabled={!canWatchRewardAd} onClick={onWatchAd}>
+        {t("ads.watchForMessages")}
+      </PillButton>
+      <Text
+        style={{ color: mutedTextColor, fontFamily: "GeistMono_400Regular", fontSize: 12 }}
+      >
+        {rewardsClaimedToday}/{dailyRewardCap} {t("ads.dailyLimitReached")}
+      </Text>
+      {rewardMessage ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: textColor, fontFamily: "Geist_400Regular", fontSize: 14 }}
+        >
+          {rewardMessage}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -72,6 +116,16 @@ export default function ChatScreen() {
     verifyStepUpForBubble,
   } = useChatComposer({ isOnline, offlineTitle });
 
+  const {
+    adsEnabledForUser,
+    canWatchRewardAd,
+    rewardsClaimedToday,
+    dailyRewardCap,
+    rewardMessage,
+    watchAdForMessages,
+  } = useChatReward();
+  const canRecoverWithReward =
+    adsEnabledForUser && rewardsClaimedToday < dailyRewardCap;
   const microphonePermissionDenied = speechError === t("speech.micDenied");
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
@@ -251,7 +305,26 @@ export default function ChatScreen() {
               </Text>
             </Pressable>
           ) : null}
-          <Composer {...composerProps} />
+          {composerProps.state === "atLimit" && canRecoverWithReward ? (
+            <Composer
+              {...composerProps}
+              limitRecovery={
+                <ChatRewardRecovery
+                  canWatchRewardAd={canWatchRewardAd}
+                  rewardsClaimedToday={rewardsClaimedToday}
+                  dailyRewardCap={dailyRewardCap}
+                  rewardMessage={rewardMessage}
+                  onWatchAd={() => {
+                    void watchAdForMessages();
+                  }}
+                  textColor={tokens.fg2}
+                  mutedTextColor={tokens.fg3}
+                />
+              }
+            />
+          ) : (
+            <Composer {...composerProps} />
+          )}
         </View>
       </KeyboardAvoidingView>
 

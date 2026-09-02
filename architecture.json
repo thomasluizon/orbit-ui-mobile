@@ -2359,6 +2359,20 @@
       ]
     },
     {
+      "name": "subscription.adReward",
+      "method": "POST",
+      "path": "/api/subscriptions/ad-reward",
+      "usedBy": {
+        "webCallsites": [],
+        "mobileCallsites": [
+          "apps/mobile/hooks/use-chat-reward.ts"
+        ]
+      },
+      "zodSchemas": [
+        "packages/shared/src/types/profile.ts"
+      ]
+    },
+    {
       "name": "subscription.billing",
       "method": null,
       "path": "/api/subscriptions/billing",
@@ -11966,6 +11980,10 @@
         "routePath": "/",
         "sourceFile": "apps/mobile/app/(onboarding)/index.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -12303,6 +12321,10 @@
         "routePath": "/calendar",
         "sourceFile": "apps/mobile/app/(tabs)/calendar.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -12687,6 +12709,10 @@
         "routePath": "/",
         "sourceFile": "apps/mobile/app/(tabs)/index.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.isAiLabel",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
@@ -13227,6 +13253,10 @@
         "routePath": "/profile",
         "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -13655,6 +13685,10 @@
         "routePath": "/progress",
         "sourceFile": "apps/mobile/app/(tabs)/progress.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -14069,6 +14103,10 @@
         "routePath": "/+not-found",
         "sourceFile": "apps/mobile/app/+not-found.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -14411,6 +14449,10 @@
         "keys": [
           "about.title",
           "about.version",
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -14755,6 +14797,10 @@
         "routePath": "/achievements",
         "sourceFile": "apps/mobile/app/achievements.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -15092,6 +15138,10 @@
         "routePath": "/advanced",
         "sourceFile": "apps/mobile/app/advanced.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "advancedSettings.title",
           "advancedSettings.widgetSection",
           "aiDisclosure.notMedicalAdvice",
@@ -15480,6 +15530,10 @@
         "routePath": "/ai-settings",
         "sourceFile": "apps/mobile/app/ai-settings.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "aiSettings.title",
           "auth.codeSent",
@@ -15824,6 +15878,10 @@
         "routePath": "/auth-callback",
         "sourceFile": "apps/mobile/app/auth-callback.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.backToLogin",
           "auth.callbackError",
@@ -16164,6 +16222,10 @@
         "routePath": "/calendar-sync",
         "sourceFile": "apps/mobile/app/calendar-sync.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -16546,6 +16608,10 @@
         "routePath": "/chat",
         "sourceFile": "apps/mobile/app/chat.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -16883,6 +16949,10 @@
         "routePath": "/habits/[id]",
         "sourceFile": "apps/mobile/app/habits/[id].tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -17418,6 +17488,10 @@
         "routePath": "/login",
         "sourceFile": "apps/mobile/app/login.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.changeEmail",
           "auth.codeSent",
@@ -17778,6 +17852,10 @@
         "routePath": "/preferences",
         "sourceFile": "apps/mobile/app/preferences.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -18137,6 +18215,10 @@
         "routePath": "/privacy",
         "sourceFile": "apps/mobile/app/privacy.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -18537,6 +18619,10 @@
         "routePath": "/r/[code]",
         "sourceFile": "apps/mobile/app/r/[code].tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -18874,6 +18960,10 @@
         "routePath": "/retrospective",
         "sourceFile": "apps/mobile/app/retrospective.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -19211,6 +19301,10 @@
         "routePath": "/step-up",
         "sourceFile": "apps/mobile/app/step-up.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -19576,6 +19670,10 @@
         "routePath": "/streak",
         "sourceFile": "apps/mobile/app/streak.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -19913,6 +20011,10 @@
         "routePath": "/support",
         "sourceFile": "apps/mobile/app/support.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -20262,6 +20364,10 @@
         "routePath": "/terms",
         "sourceFile": "apps/mobile/app/terms.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -20626,6 +20732,10 @@
         "routePath": "/upgrade",
         "sourceFile": "apps/mobile/app/upgrade.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -21045,6 +21155,10 @@
         "routePath": "/wrapped",
         "sourceFile": "apps/mobile/app/wrapped.tsx",
         "keys": [
+          "ads.dailyLimitReached",
+          "ads.rewardFailed",
+          "ads.rewardGranted",
+          "ads.watchForMessages",
           "aiDisclosure.notMedicalAdvice",
           "auth.codeSent",
           "auth.genericError",
@@ -22580,6 +22694,7 @@
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
         "apps/mobile/__tests__/hooks/use-calendars.test.ts",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
+        "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-checklist-templates.test.tsx",
         "apps/mobile/__tests__/hooks/use-coach-tour.test.tsx",
         "apps/mobile/__tests__/hooks/use-config.test.ts",
@@ -23089,6 +23204,7 @@
         "apps/mobile/__tests__/components/profile/use-data-export.test.tsx",
         "apps/mobile/__tests__/hooks/use-apply-onboarding.test.tsx",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
+        "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-checklist-templates.test.tsx",
         "apps/mobile/__tests__/hooks/use-config.test.ts",
         "apps/mobile/__tests__/hooks/use-gamification.test.tsx",
@@ -23168,6 +23284,7 @@
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
         "apps/mobile/__tests__/hooks/use-calendars.test.ts",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
+        "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-checklist-templates.test.tsx",
         "apps/mobile/__tests__/hooks/use-config.test.ts",
         "apps/mobile/__tests__/hooks/use-goal-queries.test.ts",
@@ -23270,6 +23387,7 @@
         "apps/mobile/__tests__/hooks/use-calendar-data.test.ts",
         "apps/mobile/__tests__/hooks/use-calendars.test.ts",
         "apps/mobile/__tests__/hooks/use-chat-composer.test.tsx",
+        "apps/mobile/__tests__/hooks/use-chat-reward.test.tsx",
         "apps/mobile/__tests__/hooks/use-coach-tour.test.tsx",
         "apps/mobile/__tests__/hooks/use-config.test.ts",
         "apps/mobile/__tests__/hooks/use-drill-navigation.test.tsx",

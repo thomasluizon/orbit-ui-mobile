@@ -2042,6 +2042,12 @@
       "nothingToRestore": "Não encontramos nenhuma compra anterior para restaurar."
     }
   },
+  "ads": {
+    "watchForMessages": "Assistir a um anúncio e ganhar +5 mensagens de IA",
+    "rewardGranted": "+5 mensagens de IA adicionadas",
+    "rewardFailed": "O anúncio não foi até o fim",
+    "dailyLimitReached": "recompensas diárias"
+  },
   "errors": {
     "fetchHabits": "Não foi possível carregar os hábitos",
     "createHabit": "Não foi possível criar o hábito",

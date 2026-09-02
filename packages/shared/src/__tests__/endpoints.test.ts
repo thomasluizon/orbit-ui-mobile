@@ -122,6 +122,7 @@ describe('API endpoints', () => {
       expect(API.subscription.status).toBe('/api/subscriptions/status')
       expect(API.subscription.plans).toBe('/api/subscriptions/plans')
       expect(API.subscription.billing).toBe('/api/subscriptions/billing')
+      expect(API.subscription.adReward).toBe('/api/subscriptions/ad-reward')
     })
   })
 

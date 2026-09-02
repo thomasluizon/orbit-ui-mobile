@@ -6,6 +6,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   openSettings: vi.fn(),
+  watchAdForMessages: vi.fn(),
   useTourTarget: vi.fn(),
   router: { push: vi.fn() },
   composer: {
@@ -37,6 +38,13 @@ const mocks = vi.hoisted(() => ({
     prepareStepUpForBubble: vi.fn(),
     verifyStepUpForBubble: vi.fn(),
   },
+  reward: {
+    adsEnabledForUser: true,
+    canWatchRewardAd: true,
+    rewardsClaimedToday: 1,
+    dailyRewardCap: 3,
+    rewardMessage: null as string | null,
+  },
 }))
 
 vi.mock('react-i18next', () => ({
@@ -52,6 +60,12 @@ vi.mock('react-native', async (importOriginal) => {
 })
 vi.mock('@/hooks/use-tour-target', () => ({ useTourTarget: mocks.useTourTarget }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
+vi.mock('@/hooks/use-chat-reward', () => ({
+  useChatReward: () => ({
+    ...mocks.reward,
+    watchAdForMessages: mocks.watchAdForMessages,
+  }),
+}))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
@@ -72,6 +86,18 @@ vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: (
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/astra-avatar', () => ({ AstraMark: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: (props: { children: string; disabled?: boolean; onClick: () => void }) =>
+    React.createElement(
+      'Pressable',
+      {
+        accessibilityLabel: props.children,
+        disabled: props.disabled,
+        onPress: props.onClick,
+      },
+      React.createElement('Text', null, props.children),
+    ),
+}))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareFlatList: () => null,
 }))
@@ -110,12 +136,28 @@ describe('ChatScreen composer recoveries', () => {
     vi.clearAllMocks()
     mocks.composer.sendError = null
     mocks.composer.speechError = null
+    mocks.reward.adsEnabledForUser = true
+    mocks.reward.canWatchRewardAd = true
+    mocks.reward.rewardsClaimedToday = 1
+    mocks.reward.dailyRewardCap = 3
+    mocks.reward.rewardMessage = null
   })
 
-  it('renders no recovery action in the at-limit composer', async () => {
+  it('surfaces the rewarded ad through the at-limit recovery slot for an eligible user', async () => {
     const tree = await renderScreen()
-    const composer = tree.root.findAll((node) => node.type === 'Composer')[0]
-    expect(composer?.props.limitRecovery).toBeUndefined()
+    const rewardAction = findByLabel(tree.root, 'ads.watchForMessages')
+
+    expect(rewardAction).toBeDefined()
+    TestRenderer.act(() => press(rewardAction))
+    expect(mocks.watchAdForMessages).toHaveBeenCalledOnce()
+  })
+
+  it('removes rewarded recovery after the daily cap is reached', async () => {
+    mocks.reward.rewardsClaimedToday = mocks.reward.dailyRewardCap
+
+    const tree = await renderScreen()
+
+    expect(findByLabel(tree.root, 'ads.watchForMessages')).toBeUndefined()
   })
 
   it('keeps microphone permission recovery after the transient alert clears', async () => {

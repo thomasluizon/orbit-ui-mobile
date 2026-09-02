@@ -2042,6 +2042,12 @@
       "nothingToRestore": "No previous purchase found to restore."
     }
   },
+  "ads": {
+    "watchForMessages": "Watch ad for +5 AI messages",
+    "rewardGranted": "+5 AI messages added",
+    "rewardFailed": "Ad not completed",
+    "dailyLimitReached": "daily rewards"
+  },
   "errors": {
     "fetchHabits": "Failed to load habits",
     "createHabit": "Failed to create habit",

@@ -145,10 +145,17 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({
+    isInitialized: true,
+    canClaimReward: true,
+    rewardsClaimedToday: 0,
+    dailyRewardCap: 3,
+    shouldShowAds: () => true,
     initialize: async () => {
 await Promise.resolve()},
     showInterstitialIfDue: async () => {
 await Promise.resolve()},
+    showRewardedAd: async () => { await Promise.resolve(); return false; },
+    markRewardClaimed: () => {},
   }),
 }))
 
