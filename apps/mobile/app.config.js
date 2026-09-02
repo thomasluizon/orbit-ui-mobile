@@ -76,7 +76,6 @@ function assertProductionAdMobConfig(adMobOptions) {
     !adMobOptions.androidAppId && "EXPO_PUBLIC_ADMOB_ANDROID_APP_ID",
     !adMobOptions.androidInterstitialId &&
       "EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID",
-    !adMobOptions.androidRewardedId && "EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID",
   ].filter(Boolean);
 
   if (missingEnvVars.length > 0) {
@@ -99,9 +98,7 @@ module.exports = () => {
     androidAppId: readEnv("EXPO_PUBLIC_ADMOB_ANDROID_APP_ID"),
     iosAppId: readEnv("EXPO_PUBLIC_ADMOB_IOS_APP_ID"),
     androidInterstitialId: readEnv("EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID"),
-    androidRewardedId: readEnv("EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID"),
     iosInterstitialId: readEnv("EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID"),
-    iosRewardedId: readEnv("EXPO_PUBLIC_ADMOB_IOS_REWARDED_ID"),
   };
 
   assertProductionAdMobConfig(adMobOptions);
@@ -125,9 +122,7 @@ module.exports = () => {
       adMob: {
         useTestIds: adMobOptions.useTestIds,
         androidInterstitialId: adMobOptions.androidInterstitialId ?? null,
-        androidRewardedId: adMobOptions.androidRewardedId ?? null,
         iosInterstitialId: adMobOptions.iosInterstitialId ?? null,
-        iosRewardedId: adMobOptions.iosRewardedId ?? null,
       },
     },
   };

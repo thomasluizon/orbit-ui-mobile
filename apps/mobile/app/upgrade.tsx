@@ -281,8 +281,6 @@ export default function UpgradeScreen() {
           onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
           t={t}
         />
-
-        <View style={styles.bottomSpace} />
       </ScrollView>
     </SafeAreaView>
   )
@@ -293,11 +291,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
-  bottomSpace: { height: 24 },
   padBlock: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 8,
     alignItems: 'center',

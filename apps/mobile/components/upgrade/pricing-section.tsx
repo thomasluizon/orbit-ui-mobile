@@ -71,7 +71,7 @@ export function PricingSection({
 
   return (
     <>
-      <View>
+      <View style={styles.convertHeader}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
         <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>

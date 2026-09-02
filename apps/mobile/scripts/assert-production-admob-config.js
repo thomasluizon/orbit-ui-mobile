@@ -52,7 +52,6 @@ function assertProductionAdMobConfig(config) {
     androidInterstitialId: readRequiredEnv(
       "EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID"
     ),
-    androidRewardedId: readRequiredEnv("EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID"),
   };
 
   const extra = config.extra ?? config.expo?.extra ?? {};
@@ -73,11 +72,6 @@ function assertProductionAdMobConfig(config) {
     "extra.adMob.androidInterstitialId",
     adMob.androidInterstitialId,
     expected.androidInterstitialId
-  );
-  assertResolvedId(
-    "extra.adMob.androidRewardedId",
-    adMob.androidRewardedId,
-    expected.androidRewardedId
   );
 }
 

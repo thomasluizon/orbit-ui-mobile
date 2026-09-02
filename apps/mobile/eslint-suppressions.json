@@ -163,11 +163,6 @@
       "count": 4
     }
   },
-  "app/upgrade.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
       "count": 11
@@ -801,11 +796,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/upgrade/styles.ts": {
-    "local/spacing-scale": {
-      "count": 31
     }
   },
   "components/wrapped/wrapped-entry-button.tsx": {
