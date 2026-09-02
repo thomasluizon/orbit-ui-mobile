@@ -15,8 +15,9 @@ import { ShareCard } from '@/components/share/share-card'
 
 describe('ShareCard', () => {
   it('renders the branded capture target from a recap', () => {
-    render(<ShareCard recap={createMockRecap()} />)
+    const { container } = render(<ShareCard recap={createMockRecap()} />)
     expect(screen.getByTestId('share-card')).toBeInTheDocument()
+    expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
   })
 
   it('renders the streak hero, formatted stats, top habits, and the scannable link', () => {

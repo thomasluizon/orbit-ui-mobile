@@ -3027,6 +3027,7 @@
     "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
   },
   "milestoneShare": {
+    "title": "Share milestone",
     "streakEyebrow": "Streak milestone",
     "achievementEyebrow": "Achievement earned",
     "streakTitle": "{count}-day streak",

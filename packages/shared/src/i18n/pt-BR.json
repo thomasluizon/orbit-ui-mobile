@@ -3027,6 +3027,7 @@
     "notMedicalAdvice": "A Astra é IA e pode errar. Isto não é aconselhamento médico ou profissional."
   },
   "milestoneShare": {
+    "title": "Compartilhar marco",
     "streakEyebrow": "Marco de sequência",
     "achievementEyebrow": "Conquista obtida",
     "streakTitle": "Sequência de {count} dias",

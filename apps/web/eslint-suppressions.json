@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "__tests__/components/milestone-share/milestone-share-prompt.test.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "__tests__/components/ui/trial-banner.test.tsx": {
     "local/react19-api": {
       "count": 1
@@ -747,19 +742,6 @@
       "count": 1
     }
   },
-  "components/milestone-share/milestone-share-card.tsx": {
-    "local/react19-api": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "components/milestone-share/milestone-share-prompt.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/navigation/notification-bell.tsx": {
     "local/icon-size-grid": {
       "count": 4
@@ -852,17 +834,6 @@
   "components/profile/profile-nav-icon.tsx": {
     "local/no-sparkle-ai-marker": {
       "count": 1
-    }
-  },
-  "components/share/share-card.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
-    "local/react19-api": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 11
     }
   },
   "components/tour/tour-provider.tsx": {

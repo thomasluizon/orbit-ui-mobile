@@ -1,13 +1,11 @@
 import { forwardRef, useMemo } from 'react'
-// react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a static bundled logo rendered into a react-native-view-shot capture (expo-image does not reliably render in view-shot snapshots), so RN Image is the deliberate correct choice here. Adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const logoSource = require('../../assets/logo-no-bg.png') as ImageSourcePropType
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
@@ -18,7 +16,7 @@ interface MilestoneShareCardProps {
   referralUrl: string
 }
 
-/** Branded navy-violet milestone card and the react-native-view-shot capture target. Streak variant shows the day count; achievement variant shows emoji, name, and rarity. */
+/** Flat token-native milestone card and the react-native-view-shot capture target. */
 export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
   function MilestoneShareCard({ variant, referralUrl }, ref) {
     const { t } = useTranslation()
@@ -36,11 +34,11 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
       <View ref={ref} testID="milestone-share-card" style={styles.card}>
         <View style={styles.band}>
           <View style={styles.brandRow}>
-            <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+            <OrbitMark size={24} accent />
             <Text style={styles.wordmark}>Orbit</Text>
           </View>
 
-          <Text style={styles.eyebrow}>{eyebrow.toUpperCase()}</Text>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
 
           {variant.kind === 'streak' ? (
             <>
@@ -60,7 +58,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
                 </Text>
                 <View style={styles.rarityPill}>
                   <Text style={styles.rarityText}>
-                    {t(`milestoneShare.rarity.${variant.rarity}`).toUpperCase()}
+                    {t(`milestoneShare.rarity.${variant.rarity}`)}
                   </Text>
                 </View>
               </View>
@@ -98,61 +96,55 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     band: {
       backgroundColor: tokens.bgCard,
-      paddingTop: 20,
-      paddingHorizontal: 22,
-      paddingBottom: 24,
+      padding: 24,
     },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 9,
-    },
-    logo: {
-      width: 26,
-      height: 26,
+      gap: 8,
     },
     wordmark: {
-      fontFamily: 'Inter_600SemiBold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 18,
       letterSpacing: -0.18,
       color: tokens.fg1,
     },
     eyebrow: {
-      marginTop: 18,
-      fontFamily: 'Rubik_500Medium',
+      marginTop: 16,
+      fontFamily: 'RobotoMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,
     },
     streakNumber: {
-      marginTop: 6,
-      fontFamily: 'Inter_700Bold',
+      marginTop: 8,
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 56,
       lineHeight: 60,
-      letterSpacing: -1.6,
+      letterSpacing: -1.5,
       fontVariant: ['tabular-nums'],
       color: tokens.fg1,
     },
     streakTitle: {
       marginTop: 8,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg2,
     },
     achievementRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
-      marginTop: 10,
+      gap: 16,
+      marginTop: 12,
     },
     achievementEmoji: {
-      fontSize: 52,
+      fontSize: 48,
     },
     achievementText: {
       flex: 1,
     },
     achievementName: {
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 22,
       letterSpacing: -0.22,
       color: tokens.fg1,
@@ -160,14 +152,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     rarityPill: {
       alignSelf: 'flex-start',
       marginTop: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.16),
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: tokens.bgField,
     },
     rarityText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 11.5,
+      fontFamily: 'RobotoMono_500Medium',
+      fontSize: 12,
       letterSpacing: 0.6,
       color: tokens.fg1,
     },
@@ -175,13 +167,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       paddingVertical: 16,
       borderTopWidth: 1,
       borderTopColor: tokens.hairline,
     },
     qrTile: {
-      padding: 6,
+      padding: 4,
       borderRadius: 12,
       backgroundColor: '#ffffff',
     },
@@ -189,13 +181,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
     },
     scanText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 12,
       color: tokens.fg1,
     },
     shortLink: {
-      marginTop: 2,
-      fontFamily: 'Roboto_400Regular',
+      marginTop: 4,
+      fontFamily: 'RobotoMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       color: tokens.fg3,

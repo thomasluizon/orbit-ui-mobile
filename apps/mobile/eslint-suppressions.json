@@ -482,16 +482,6 @@
       "count": 5
     }
   },
-  "components/milestone-share/milestone-share-card.tsx": {
-    "local/spacing-scale": {
-      "count": 12
-    }
-  },
-  "components/milestone-share/milestone-share-prompt.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/navigation/notification-bell.styles.ts": {
     "local/spacing-scale": {
       "count": 11
@@ -613,11 +603,6 @@
   "components/review-moment/review-moment-sheet.tsx": {
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/share/share-card.tsx": {
-    "local/spacing-scale": {
-      "count": 18
     }
   },
   "components/tour/tour-replay-modal.tsx": {

@@ -3,19 +3,11 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  AnimatePresence,
-  domAnimation,
-  LazyMotion,
-  m,
-  useReducedMotion,
-} from 'motion/react'
-import {
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
   type RecapSharePeriod,
 } from '@orbit/shared/utils'
-import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useRecap } from '@/hooks/use-recap'
 import { useShareCard } from '@/hooks/use-share-card'
 import { Sheet } from '@/components/ui/sheet'
@@ -36,8 +28,6 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
   const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
-  const prefersReducedMotion = useReducedMotion()
-  const cardEnterMotion = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
 
   const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
   const showCard = !isLoading && !isError && recap && !isEmpty
@@ -103,22 +93,10 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
           </div>
         )}
 
-        <LazyMotion features={domAnimation}>
-        <AnimatePresence initial={false}>
           {showCard && (
-            <m.div
+            <div
               className="flex flex-col"
               style={{ gap: 16 }}
-              initial={{ opacity: 0, y: cardEnterMotion.shift }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                transition: {
-                  duration: cardEnterMotion.enterDuration / 1000,
-                  ease: cardEnterMotion.enterEasing,
-                },
-              }}
-              exit={{ opacity: 0, y: cardEnterMotion.shift }}
             >
               <div className="flex justify-center">
                 <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
@@ -153,10 +131,8 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
                   {t('shareCard.download')}
                 </PillButton>
               </div>
-            </m.div>
+            </div>
           )}
-        </AnimatePresence>
-        </LazyMotion>
       </div>
     </Sheet>) : null
   )
