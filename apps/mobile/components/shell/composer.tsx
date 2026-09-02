@@ -33,7 +33,7 @@ function AttachmentTray({
   tokens: AppTokensV2
 }>) {
   return (
-    <View accessible accessibilityLabel={words.trayLabel} style={styles.tray}>
+    <View accessible={false} testID="composer-attachment-tray" style={styles.tray}>
       {attachments.map((attachment) => (
         <View
           key={attachment.id}

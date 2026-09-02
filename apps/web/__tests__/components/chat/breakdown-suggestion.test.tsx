@@ -81,6 +81,7 @@ describe('BreakdownSuggestion', () => {
     fireEvent.change(input, { target: { value: 'Kitchen dishes' } })
 
     expect(input).toHaveValue('Kitchen dishes')
+    expect(input).toHaveClass('text-base')
   })
 
   it('changes frequency from the row control', () => {

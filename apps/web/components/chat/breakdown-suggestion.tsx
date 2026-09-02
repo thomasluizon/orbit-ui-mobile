@@ -68,7 +68,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const rows = habits.map((habit) => ({
     id: habit.id,
     label: editingId === habit.id ? (
-      <input autoFocus aria-label={t('chat.preview.editName', { name: habit.title })} className="min-h-11 w-full rounded-[8px] bg-[var(--bg-field)] px-3 text-sm outline outline-1 outline-[var(--border-control)]" value={habit.title} onBlur={() => setEditingId(null)} onChange={(event) => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, title: event.target.value } : item))} />
+      <input autoFocus aria-label={t('chat.preview.editName', { name: habit.title })} className="min-h-11 w-full rounded-[8px] bg-[var(--bg-field)] px-3 text-base outline outline-1 outline-[var(--border-control)] sm:text-sm" value={habit.title} onBlur={() => setEditingId(null)} onChange={(event) => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, title: event.target.value } : item))} />
     ) : habit.title,
     meta: results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: results[habit.id],
