@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildChatMessageWithFileContent,
   getChatImageValidationError,
+  getChatTextFileValidationError,
   resolveChatImageMimeType,
   stripChatDirectives,
 } from '../chat'
-import { COMPOSER_MESSAGE_MAX_LENGTH, hasComposerContent } from '../contracts/composer'
+import { hasComposerContent } from '../contracts/composer'
 
 describe('hasComposerContent', () => {
   it.each(['', ' ', '\t\n'])('rejects blank composer content %j', (content) => {
@@ -15,9 +17,9 @@ describe('hasComposerContent', () => {
     expect(hasComposerContent('  log my walk  ')).toBe(true)
   })
 
-  it('accepts content at the message limit and rejects content over it', () => {
-    expect(hasComposerContent('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH))).toBe(true)
-    expect(hasComposerContent('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH + 1))).toBe(false)
+  it('accepts a text file without typed content but still rejects an image alone', () => {
+    expect(hasComposerContent('', [{ id: 'file', kind: 'file', name: 'habits.csv' }])).toBe(true)
+    expect(hasComposerContent('', [{ id: 'image', kind: 'image', name: 'walk.png' }])).toBe(false)
   })
 })
 
@@ -61,6 +63,56 @@ describe('getChatImageValidationError', () => {
         fileSize: 21 * 1024 * 1024,
       }),
     ).toBe('size')
+  })
+})
+
+describe('getChatTextFileValidationError', () => {
+  it('accepts supported text files under the size limit case insensitively', () => {
+    expect(getChatTextFileValidationError({ name: 'habits.csv', fileSize: 2048 })).toBeNull()
+    expect(getChatTextFileValidationError({ name: 'export.JSON', fileSize: 2048 })).toBeNull()
+    expect(getChatTextFileValidationError({ name: 'notes.md', fileSize: 2048 })).toBeNull()
+    expect(getChatTextFileValidationError({ name: 'list.txt', fileSize: 2048 })).toBeNull()
+  })
+
+  it('infers the allowed extension from the uri when the name is missing', () => {
+    expect(
+      getChatTextFileValidationError({ uri: 'file:///tmp/export.csv', fileSize: 2048 }),
+    ).toBeNull()
+  })
+
+  it('rejects unsupported or extensionless files', () => {
+    expect(getChatTextFileValidationError({ name: 'photo.png', fileSize: 2048 })).toBe('type')
+    expect(getChatTextFileValidationError({ name: 'report.pdf', fileSize: 2048 })).toBe('type')
+    expect(getChatTextFileValidationError({ name: 'noextension', fileSize: 2048 })).toBe('type')
+  })
+
+  it('accepts exactly 1 MiB and rejects one byte more', () => {
+    expect(getChatTextFileValidationError({ name: 'limit.csv', fileSize: 1024 * 1024 })).toBeNull()
+    expect(
+      getChatTextFileValidationError({ name: 'over-limit.csv', fileSize: 1024 * 1024 + 1 }),
+    ).toBe('size')
+  })
+})
+
+describe('buildChatMessageWithFileContent', () => {
+  it('appends the file block beneath the typed message', () => {
+    expect(
+      buildChatMessageWithFileContent({
+        message: 'Import these please',
+        fileLabel: 'Attached file "habits.csv":',
+        fileContent: 'Run\nRead',
+      }),
+    ).toBe('Import these please\n\nAttached file "habits.csv":\nRun\nRead')
+  })
+
+  it('returns only the file block when no message is typed', () => {
+    expect(
+      buildChatMessageWithFileContent({
+        message: '   ',
+        fileLabel: 'Attached file "list.txt":',
+        fileContent: 'Meditate',
+      }),
+    ).toBe('Attached file "list.txt":\nMeditate')
   })
 })
 

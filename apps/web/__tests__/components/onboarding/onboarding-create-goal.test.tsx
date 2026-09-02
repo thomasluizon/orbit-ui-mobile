@@ -22,7 +22,6 @@ const stubActions: OnboardingActions = {
   logHabit: vi.fn().mockResolvedValue(undefined),
   createGoal,
   setWeekStartDay: vi.fn().mockResolvedValue(undefined),
-  setColorScheme: vi.fn().mockResolvedValue(undefined),
   finishOnboarding: vi.fn().mockResolvedValue(undefined),
 }
 

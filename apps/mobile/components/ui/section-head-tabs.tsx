@@ -64,14 +64,14 @@ export function SectionHeadTabs<T extends string = string>({
             {tab.locked ? (
               <Lock
                 size={14}
-                color={isActive ? tokens.primarySoft : tokens.fg2}
+                color={isActive ? tokens.primary : tokens.fg2}
                 strokeWidth={1.8}
               />
             ) : null}
             <Text
               style={[
                 styles.label,
-                { color: isActive ? tokens.primarySoft : tokens.fg2 },
+                { color: isActive ? tokens.fg1 : tokens.fg2 },
               ]}
               numberOfLines={1}
             >

@@ -1,9 +1,5 @@
 import React from 'react'
-import {
-  COMPOSER_MESSAGE_MAX_LENGTH,
-  type ComposerProps,
-  type ComposerSuggestions,
-} from '@orbit/shared/contracts/composer'
+import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 
@@ -58,7 +54,8 @@ const voiceWords = {
   transcribing: 'transcribing sentinel',
 }
 const attachWords = {
-  add: 'attach sentinel',
+  file: 'attach file sentinel',
+  image: 'attach image sentinel',
   trayLabel: 'tray sentinel',
   remove: (name: string) => `remove sentinel ${name}`,
 }
@@ -144,18 +141,6 @@ describe('Composer (mobile)', () => {
     expect(onChangeValue).toHaveBeenCalledWith('oi')
   })
 
-  it('opens the conversation from the visible Astra trigger', async () => {
-    const onOpenConversation = vi.fn()
-    const tree = await renderComposer(props({
-      onOpenConversation,
-      openConversationLabel: 'Open conversation',
-    }))
-
-    pressControl(byLabel(tree.root, 'Open conversation')[0])
-
-    expect(onOpenConversation).toHaveBeenCalledOnce()
-  })
-
   it.each(['', '   '])('does not send a blank value %j', async (value) => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value, onSend }))
@@ -167,23 +152,6 @@ describe('Composer (mobile)', () => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value: 'oi', onSend }))
     pressControl(byLabel(tree.root, words.send)[0])
-    expect(onSend).toHaveBeenCalledOnce()
-  })
-
-  it('sends at the message limit and blocks content over it', async () => {
-    const onSend = vi.fn()
-    const atLimit = 'a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)
-    const tree = await renderComposer(props({ value: atLimit, onSend }))
-    const input = byLabel(tree.root, words.placeholder)[0]
-
-    expect(input.props.maxLength).toBe(COMPOSER_MESSAGE_MAX_LENGTH)
-    pressControl(byLabel(tree.root, words.send)[0])
-    expect(onSend).toHaveBeenCalledOnce()
-
-    TestRenderer.act(() => tree.update(<Composer {...props({ value: `${atLimit}a`, onSend })} />))
-    const send = byLabel(tree.root, words.send)[0]
-    expect(send.props.disabled).toBe(true)
-    TestRenderer.act(() => send.props.onPress())
     expect(onSend).toHaveBeenCalledOnce()
   })
 
@@ -204,7 +172,7 @@ describe('Composer (mobile)', () => {
     const onSend = vi.fn()
     const attachedImage = {
       onSend,
-      onAttach: vi.fn(),
+      onAttachImage: vi.fn(),
       attachWords,
       attachments: [{ id: 'image-id', kind: 'image' as const, name: 'walk.png' }],
       onAttachRemove: vi.fn(),
@@ -233,32 +201,9 @@ describe('Composer (mobile)', () => {
 
   it('renders only the limit reason above disabled neutral controls', async () => {
     const tree = await renderComposer(props({ state: 'atLimit', limitReason: 'limit sentinel' }))
-    const limitReason = tree.root.findAllByType('Text').find(
-      (node: { props: { children: unknown } }) => node.props.children === 'limit sentinel',
-    )
-    expect(limitReason?.props.accessibilityLiveRegion).toBe('polite')
+    expect(textValues(tree.root)).toContain('limit sentinel')
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
     expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
-    expect(tree.root.findByProps({ testID: 'composer-send-neutral' })).toBeDefined()
-  })
-
-  it('renders the offline refusal without interactive chips or composer controls', async () => {
-    const onSend = vi.fn()
-    const chips = suggestions(3)
-    const tree = await renderComposer(props({
-      state: 'offline',
-      offlineReason: 'offline sentinel',
-      value: 'hello',
-      onSend,
-      suggestions: chips,
-    }))
-
-    expect(textValues(tree.root)).toContain('offline sentinel')
-    expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
-    expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
-    TestRenderer.act(() => byLabel(tree.root, words.send)[0].props.onPress())
-    expect(onSend).not.toHaveBeenCalled()
-    expect(chips.every((chip) => !vi.mocked(chip.onSelect).mock.calls.length)).toBe(true)
     expect(tree.root.findByProps({ testID: 'composer-send-neutral' })).toBeDefined()
   })
 
@@ -305,12 +250,32 @@ describe('Composer (mobile)', () => {
   })
 
   it('renders attachment capability without an empty tray', async () => {
-    const onAttach = vi.fn()
-    const tree = await renderComposer(props({ onAttach, attachWords }))
-    expect(byLabel(tree.root, attachWords.add)).toHaveLength(1)
+    const onAttachFile = vi.fn()
+    const onAttachImage = vi.fn()
+    const tree = await renderComposer(props({ onAttachFile, onAttachImage, attachWords }))
+    expect(byLabel(tree.root, attachWords.file)).toHaveLength(1)
+    expect(byLabel(tree.root, attachWords.image)).toHaveLength(1)
     expect(byLabel(tree.root, attachWords.trayLabel)).toHaveLength(0)
-    pressControl(byLabel(tree.root, attachWords.add)[0])
-    expect(onAttach).toHaveBeenCalledOnce()
+    pressControl(byLabel(tree.root, attachWords.file)[0])
+    pressControl(byLabel(tree.root, attachWords.image)[0])
+    expect(onAttachFile).toHaveBeenCalledOnce()
+    expect(onAttachImage).toHaveBeenCalledOnce()
+  })
+
+  it('allows a text file to send without typed text', async () => {
+    const onSend = vi.fn()
+    const tree = await renderComposer(props({
+      value: '   ',
+      onSend,
+      onAttachFile: vi.fn(),
+      attachWords,
+      attachments: [{ id: 'file-id', kind: 'file' as const, name: 'notes.txt' }],
+      onAttachRemove: vi.fn(),
+    }))
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.disabled).toBe(false)
+    pressControl(send)
+    expect(onSend).toHaveBeenCalledOnce()
   })
 
   it('names, distinguishes, and removes each attachment independently', async () => {
@@ -319,15 +284,9 @@ describe('Composer (mobile)', () => {
       { id: 'file-id', kind: 'file' as const, name: 'notes.txt' },
       { id: 'image-id', kind: 'image' as const, name: 'walk.png' },
     ]
-    const tree = await renderComposer(props({ onAttach: vi.fn(), attachWords, attachments, onAttachRemove }))
-    expect(tree.root.findByProps({ testID: 'composer-attachment-tray' }).props.accessible).not.toBe(true)
+    const tree = await renderComposer(props({ onAttachFile: vi.fn(), attachWords, attachments, onAttachRemove }))
     expect(textValues(tree.root)).toEqual(expect.arrayContaining(['notes.txt', 'walk.png']))
-    const removeFile = byLabel(tree.root, attachWords.remove('notes.txt'))
-    const removeImage = byLabel(tree.root, attachWords.remove('walk.png'))
-    expect(removeFile).toHaveLength(1)
-    expect(removeImage).toHaveLength(1)
-    expect(removeFile[0].props.accessible).toBe(true)
-    expect(removeImage[0].props.accessible).toBe(true)
+    expect(byLabel(tree.root, attachWords.remove('notes.txt'))).toHaveLength(1)
     pressControl(byLabel(tree.root, attachWords.remove('walk.png'))[0])
     expect(onAttachRemove).toHaveBeenCalledOnce()
     expect(onAttachRemove).toHaveBeenCalledWith('image-id')
@@ -354,13 +313,11 @@ describe('Composer (mobile)', () => {
     expect(input.props.placeholder).toBe(words.placeholder)
   })
 
-  it.each(['idle', 'sending', 'recording', 'transcribing', 'offline', 'atLimit'] as const)(
+  it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(
     'exposes the %s state through test id and accessibility state',
     async (state) => {
       const stateProps = state === 'atLimit'
         ? { state, limitReason: 'limit sentinel' }
-        : state === 'offline'
-          ? { state, offlineReason: 'offline sentinel' }
         : state === 'recording' || state === 'transcribing'
           ? { state, onVoice: vi.fn(), voiceWords }
           : { state }

@@ -143,7 +143,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
     },
     chipTextSelected: {
-      color: tokens.primarySoft,
+      color: tokens.fg1,
     },
     chipPercentage: {
       fontFamily: 'Roboto_400Regular',
@@ -154,7 +154,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     chipPercentageSelected: {
-      color: tokens.primarySoft,
+      color: tokens.fg1,
     },
     emptyText: {
       fontFamily: 'Rubik_400Regular',

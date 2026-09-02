@@ -1,5 +1,4 @@
 import {
-  COMPOSER_MESSAGE_MAX_LENGTH,
   hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
@@ -34,7 +33,7 @@ function AttachmentTray({
   tokens: AppTokensV2
 }>) {
   return (
-    <View testID="composer-attachment-tray" style={styles.tray}>
+    <View accessible accessibilityLabel={words.trayLabel} style={styles.tray}>
       {attachments.map((attachment) => (
         <View
           key={attachment.id}
@@ -46,7 +45,6 @@ function AttachmentTray({
             {attachment.name}
           </Text>
           <Pressable
-            accessible
             accessibilityRole="button"
             accessibilityLabel={words.remove(attachment.name)}
             onPress={() => onRemove(attachment.id)}
@@ -118,22 +116,10 @@ function VoiceStatus({
 }
 
 function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  if (props.state === 'offline') {
-    return (
-      <Text accessibilityLiveRegion="polite" style={[styles.limitReason, { color: tokens.fg2 }]}>
-        {props.offlineReason}
-      </Text>
-    )
-  }
-  if (props.state === 'atLimit') {
+  if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <View style={styles.limitStatus}>
-        <Text
-          accessibilityLiveRegion="polite"
-          style={[styles.limitReason, { color: tokens.fg2 }]}
-        >
-          {props.limitReason}
-        </Text>
+        <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
         {props.limitRecovery}
       </View>
     )
@@ -154,38 +140,32 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   const voiceRef = useRef<View>(null)
   useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value)
-  const isAtLimit = props.state === 'atLimit'
-  const isOffline = props.state === 'offline'
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit || isOffline
+  const voiceDisabled = isTranscribing || props.state === 'sending' || isBlocked
 
   return (
     <View style={styles.inputRow}>
+      {props.onOpenConversation && props.conversationLabel ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={props.conversationLabel}
+          onPress={props.onOpenConversation}
+          style={styles.openConversation}
+        >
+          <AstraGlyph size={20} color={tokens.fg3} />
+        </Pressable>
+      ) : null}
       <View
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.hairline }]}
       >
-        {props.onOpenConversation ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={props.openConversationLabel}
-            onPress={props.onOpenConversation}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
-            ]}
-          >
-            <AstraGlyph size={24} color={tokens.primary} />
-          </Pressable>
-        ) : null}
-
         <TextInput
           accessibilityLabel={props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}
           editable={!inputDisabled}
-          maxLength={COMPOSER_MESSAGE_MAX_LENGTH}
           multiline
           placeholder={props.words.placeholder}
           placeholderTextColor={tokens.fg3}
@@ -197,13 +177,30 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
           style={[styles.input, { color: tokens.fg1 }]}
         />
 
-        {props.onAttach ? (
+        {props.onAttachFile ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={props.attachWords.add}
+            accessibilityLabel={props.attachWords.file}
             accessibilityState={{ disabled: inputDisabled }}
             disabled={inputDisabled}
-            onPress={props.onAttach}
+            onPress={props.onAttachFile}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+              inputDisabled ? styles.disabled : null,
+            ]}
+          >
+            <FileText size={20} strokeWidth={1.8} color={tokens.fg3} />
+          </Pressable>
+        ) : null}
+
+        {props.onAttachImage ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={props.attachWords.image}
+            accessibilityState={{ disabled: inputDisabled }}
+            disabled={inputDisabled}
+            onPress={props.onAttachImage}
             style={({ pressed }) => [
               styles.iconButton,
               pressed ? { backgroundColor: tokens.bgElevPressed } : null,
@@ -267,7 +264,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
 }
 
 function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  if (!props.onRetry || props.state === 'offline') return null
+  if (!props.onRetry) return null
   return (
     <Pressable
       accessibilityRole="button"
@@ -383,6 +380,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
+  },
+  openConversation: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   field: {
     minHeight: 48,

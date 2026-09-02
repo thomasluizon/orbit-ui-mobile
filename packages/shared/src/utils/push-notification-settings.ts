@@ -47,7 +47,7 @@ export function getPushStatusToneClass(tone: PushStatusTone): string {
   }
 
   if (tone === 'accent') {
-    return 'text-[var(--primary)]'
+    return 'text-[var(--primary-soft)]'
   }
 
   return 'text-[var(--fg-3)]'

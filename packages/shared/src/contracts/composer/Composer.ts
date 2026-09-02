@@ -7,16 +7,6 @@ export type ComposerWords = {
   retry?: string
 }
 
-type ComposerConversationControl =
-  | {
-      onOpenConversation: () => void
-      openConversationLabel: string
-    }
-  | {
-      onOpenConversation?: never
-      openConversationLabel?: never
-    }
-
 export type ComposerVoiceWords = {
   start: string
   stop: string
@@ -25,7 +15,8 @@ export type ComposerVoiceWords = {
 }
 
 export type ComposerAttachWords = {
-  add: string
+  file: string
+  image: string
   trayLabel: string
   remove: (name: string) => string
 }
@@ -36,11 +27,12 @@ export type ComposerAttachment = {
   name: string
 }
 
-export const COMPOSER_MESSAGE_MAX_LENGTH = 4000
-
-export function hasComposerContent(value: string): boolean {
-  // WHY: ChatController.cs:180 rejects blank messages and messages over AppConstants.MaxChatMessageLength; https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Api/Controllers/ChatController.cs#L180
-  return value.trim().length > 0 && value.length <= COMPOSER_MESSAGE_MAX_LENGTH
+export function hasComposerContent(
+  value: string,
+  attachments: readonly ComposerAttachment[] = [],
+): boolean {
+  // WHY: ChatController.cs:180 rejects blank messages, including images; https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Api/Controllers/ChatController.cs#L180
+  return value.trim().length > 0 || attachments.some((attachment) => attachment.kind === 'file')
 }
 
 export type ComposerSuggestion = {
@@ -64,16 +56,17 @@ type ComposerBase = {
   onChangeValue: (value: string) => void
   onSend: () => void
   suggestions: ComposerSuggestions
+  onOpenConversation?: () => void
+  conversationLabel?: string
 }
 
 type ComposerState =
-  | { state: 'idle'; offlineReason?: never; limitReason?: never; limitRecovery?: never }
-  | { state: 'sending'; offlineReason?: never; limitReason?: never; limitRecovery?: never }
-  | { state: 'offline'; offlineReason: string; limitReason?: never; limitRecovery?: never }
-  | { state: 'atLimit'; offlineReason?: never; limitReason: string; limitRecovery?: ReactNode }
+  | { state: 'idle'; limitReason?: never; limitRecovery?: never }
+  | { state: 'sending'; limitReason?: never; limitRecovery?: never }
+  | { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
+  | { state: 'offline'; limitReason: string; limitRecovery?: never }
   | {
       state: 'recording'
-      offlineReason?: never
       limitReason?: never
       limitRecovery?: never
       onVoice: () => void
@@ -81,7 +74,6 @@ type ComposerState =
     }
   | {
       state: 'transcribing'
-      offlineReason?: never
       limitReason?: never
       limitRecovery?: never
       onVoice: () => void
@@ -92,21 +84,37 @@ type ComposerVoice =
   | { onVoice: () => void; voiceWords: ComposerVoiceWords }
   | { onVoice?: never; voiceWords?: never }
 
-type ComposerAttach =
+type ComposerAttachControls =
   | {
-      onAttach: () => void
-      attachWords: ComposerAttachWords
+      onAttachFile: () => void
+      onAttachImage: () => void
+    }
+  | {
+      onAttachFile: () => void
+      onAttachImage?: never
+    }
+  | {
+      onAttachFile?: never
+      onAttachImage: () => void
+    }
+
+type ComposerAttachmentTray =
+  | {
       attachments: readonly ComposerAttachment[]
       onAttachRemove: (id: string) => void
     }
   | {
-      onAttach: () => void
-      attachWords: ComposerAttachWords
       attachments?: never
       onAttachRemove?: never
     }
+
+type ComposerAttach =
+  | (ComposerAttachControls & {
+      attachWords: ComposerAttachWords
+    } & ComposerAttachmentTray)
   | {
-      onAttach?: never
+      onAttachFile?: never
+      onAttachImage?: never
       attachWords?: never
       attachments?: never
       onAttachRemove?: never
@@ -120,5 +128,4 @@ export type ComposerProps = ComposerBase &
   ComposerState &
   ComposerVoice &
   ComposerAttach &
-  ComposerRetry &
-  ComposerConversationControl
+  ComposerRetry

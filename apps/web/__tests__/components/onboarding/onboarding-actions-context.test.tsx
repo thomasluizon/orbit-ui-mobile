@@ -15,7 +15,6 @@ const mocks = vi.hoisted(() => ({
   logHabit: vi.fn(),
   createGoal: vi.fn(),
   completeOnboarding: vi.fn(),
-  updateColorScheme: vi.fn(),
   updateWeekStartDay: vi.fn(),
   setQueryData: vi.fn(),
   invalidateQueries: vi.fn(),
@@ -33,7 +32,6 @@ vi.mock('@/hooks/use-goals', () => ({
 
 vi.mock('@/app/actions/profile', () => ({
   completeOnboarding: (...args: unknown[]) => mocks.completeOnboarding(...args),
-  updateColorScheme: (...args: unknown[]) => mocks.updateColorScheme(...args),
   updateWeekStartDay: (...args: unknown[]) => mocks.updateWeekStartDay(...args),
 }))
 
@@ -113,17 +111,15 @@ describe('buffer onboarding actions', () => {
     expect(habits[1]?.emoji).toBeUndefined()
   })
 
-  it('buffers the goal, week-start day, and color scheme', async () => {
+  it('buffers the goal and week-start day', async () => {
     const { result } = renderHook(() => useBufferOnboardingActions())
 
     await result.current.createGoal({ title: 'Read 12 books', targetValue: 12, unit: 'books' })
     await result.current.setWeekStartDay(1)
-    await result.current.setColorScheme('emerald')
 
     const state = useOnboardingDraftStore.getState()
     expect(state.goal?.title).toBe('Read 12 books')
     expect(state.weekStartDay).toBe(1)
-    expect(state.colorScheme).toBe('emerald')
   })
 })
 
@@ -136,7 +132,6 @@ describe('live onboarding actions', () => {
     mocks.logHabit.mockResolvedValue(undefined)
     mocks.createGoal.mockResolvedValue(undefined)
     mocks.completeOnboarding.mockResolvedValue(undefined)
-    mocks.updateColorScheme.mockResolvedValue(undefined)
     mocks.updateWeekStartDay.mockResolvedValue(undefined)
   })
 
@@ -165,12 +160,6 @@ describe('live onboarding actions', () => {
     const updater = mocks.setQueryData.mock.calls[0]![1] as (old: unknown) => unknown
     expect(updater({ weekStartDay: 1 })).toMatchObject({ weekStartDay: 0 })
     expect(updater(undefined)).toBeUndefined()
-  })
-
-  it('persists the color scheme', async () => {
-    const { result } = renderHook(() => useLiveOnboardingActions())
-    await result.current.setColorScheme('violet')
-    expect(mocks.updateColorScheme).toHaveBeenCalledWith({ colorScheme: 'violet' })
   })
 
   it('finishes onboarding and routes home even when completion fails', async () => {

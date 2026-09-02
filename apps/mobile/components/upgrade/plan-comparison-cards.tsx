@@ -137,7 +137,7 @@ export function PlanComparisonCards({
           <View style={[styles.matrixHeaderRow, { borderBottomColor: tokens.hairline }]}>
             <View style={styles.matrixHeadSpacer} />
             <Text style={[styles.matrixHeadFree, { color: tokens.fg2 }]}>{t('upgrade.free')}</Text>
-            <Text style={[styles.matrixHeadPro, { color: tokens.primarySoft }]}>{t('common.proBadge')}</Text>
+            <Text style={[styles.matrixHeadPro, { color: tokens.fg1 }]}>{t('common.proBadge')}</Text>
           </View>
           {UPGRADE_FEATURE_CATEGORIES.map((category) => {
             const Icon = iconByKey[category.iconKey]

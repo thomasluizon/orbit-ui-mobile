@@ -5,7 +5,7 @@ describe('resolveTrialBannerColors', () => {
   it('uses the calm primary tint when the trial is not urgent', () => {
     const colors = resolveTrialBannerColors(false)
     expect(colors.background).toContain('primary-rgb')
-    expect(colors.accentColor).toBe('var(--primary-soft)')
+    expect(colors.accentColor).toBe('var(--fg-1)')
     expect(colors.dismissColor).toBe('var(--fg-3)')
   })
 

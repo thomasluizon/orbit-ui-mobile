@@ -113,11 +113,13 @@ export interface AppTokensV2 {
   fg4: string
   fgOnPrimary: string
   primary: string
+  primaryHover: string
   primaryPressed: string
   /** "r, g, b" channels of `primary` for alpha tints (never hardcode violet). */
   primaryRgb: string
-  /** Soft accent foreground (lightened primary on dark, primary on light). */
+  /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string
+  primaryDim: string
   gradientHeaderFrom: string
   gradientHeaderTo: string
   statusDone: string
@@ -198,9 +200,11 @@ export function createTokensV2(
       fg4: neutrals.fg4,
       fgOnPrimary,
       primary: accent.primary,
+      primaryHover: accent.primaryHover,
       primaryPressed: accent.primaryPressed,
       primaryRgb: accent.primaryRgb,
-      primarySoft: accent.primary,
+      primarySoft: accent.primarySoft,
+      primaryDim: accent.primaryDim,
       gradientHeaderFrom: gradientFrom,
       gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: neutrals.fg1,
@@ -236,9 +240,11 @@ export function createTokensV2(
     fg4: neutrals.fg4,
     fgOnPrimary,
     primary: accent.primary,
+    primaryHover: accent.primaryHover,
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
-    primarySoft: lightenHex(accent.primary, 0.45),
+    primarySoft: accent.primarySoft,
+    primaryDim: accent.primaryDim,
     gradientHeaderFrom: gradientFrom,
     gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: neutrals.fg1,
@@ -263,11 +269,7 @@ export function tintFromPrimary(appTokens: AppTokensV2, alpha: number): string {
   return `rgba(${appTokens.primaryRgb}, ${alpha})`
 }
 
-/**
- * Solid hex equal to the primary tint alpha-composited over the canvas.
- * Required under elevation glows: Android renders the native shadow through
- * translucent fills as a dark plate, so glowing wells need opaque pixels.
- */
+/** Solid hex equal to the primary tint alpha-composited over the canvas. */
 export function solidTintFromPrimary(
   appTokens: AppTokensV2,
   alpha: number,
@@ -278,17 +280,6 @@ export function solidTintFromPrimary(
     Math.round(top * alpha + base * (1 - alpha))
   const channel = (value: number) => value.toString(16).padStart(2, '0')
   return `#${channel(mix(pr, br))}${channel(mix(pg, bgC))}${channel(mix(pb, bb))}`
-}
-
-/** RN shadow props for the handoff primary glow (0 8px 28px primary @ .45). */
-export function primaryGlow(appTokens: AppTokensV2): AppShadowV2 {
-  return {
-    shadowColor: appTokens.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 28,
-    elevation: 8,
-  }
 }
 
 /**
@@ -420,34 +411,6 @@ export function createSurfaces(
   }
 }
 
-/**
- * Simulates `color-mix(in srgb, hex, white amount%)`.
- * amount is 0-1 (0 = original, 1 = white).
- */
-export function lightenHex(hex: string, amount: number): string {
-  const normalized = hex.replace('#', '')
-
-  let r: number
-  let g: number
-  let b: number
-
-  if (normalized.length === 3) {
-    const [rh, gh, bh] = normalized.split('')
-    r = Number.parseInt(`${rh}${rh}`, 16)
-    g = Number.parseInt(`${gh}${gh}`, 16)
-    b = Number.parseInt(`${bh}${bh}`, 16)
-  } else if (normalized.length === 6) {
-    r = Number.parseInt(normalized.slice(0, 2), 16)
-    g = Number.parseInt(normalized.slice(2, 4), 16)
-    b = Number.parseInt(normalized.slice(4, 6), 16)
-  } else {
-    return hex
-  }
-
-  const blend = (channel: number) =>
-    Math.round(channel + (255 - channel) * amount)
-  return `rgb(${blend(r)},${blend(g)},${blend(b)})`
-}
 
 /**
  * Simulates `color-mix(in srgb, hex, black amount%)` — the web destructive

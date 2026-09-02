@@ -87,7 +87,7 @@ function DatePickerMonthNav({
           <Text
             style={[
               styles.yearLabel,
-              pickerMode === 'years' && { color: tokens.primary },
+              pickerMode === 'years' && { color: tokens.fg1 },
             ]}
           >
             {yearLabel}

@@ -39,5 +39,6 @@ describe('PlanComparisonCards (mobile)', () => {
     expect(expanded).toContain('upgrade.matrix.notIncluded')
     const retiredKey = ['upgrade.features.ai', 'Memory.label'].join('')
     expect(expanded).not.toContain(retiredKey)
+    expect(expanded).not.toContain('upgrade.features.colors.label')
   })
 })

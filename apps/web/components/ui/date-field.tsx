@@ -185,7 +185,7 @@ export function DateField({
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
               className="relative text-xs font-medium rounded-md px-1 py-1 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-2"
-              style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
+              style={{ color: 'var(--fg-1)' }}
             >
               {yearLabel}
             </button>
@@ -263,7 +263,7 @@ export function DateField({
                                 : 'text-[var(--fg-3)]'
                             } ${
                               isSelected
-                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-pressed)]'
+                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-hover)]'
                                 : ''
                             } ${
                               isToday && !isSelected

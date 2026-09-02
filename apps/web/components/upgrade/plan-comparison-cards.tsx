@@ -114,7 +114,7 @@ export function PlanComparisonCards({ t }: Readonly<{ t: Translate }>) {
             <th style={{ ...headCell, width: 92, textAlign: 'center', color: 'var(--fg-2)' }} scope="col">
               {t('upgrade.free')}
             </th>
-            <th style={{ ...headCell, width: 104, textAlign: 'center', color: 'var(--primary-soft)' }} scope="col">
+            <th style={{ ...headCell, width: 104, textAlign: 'center', color: 'var(--fg-1)' }} scope="col">
               {t('common.proBadge')}
             </th>
           </tr>

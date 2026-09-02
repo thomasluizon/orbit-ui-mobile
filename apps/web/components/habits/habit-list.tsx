@@ -156,6 +156,7 @@ interface HabitListProps {
   /** Notified whenever the all-collapsed status changes. Used by parent
    * components that need to surface this in render (e.g., a controls menu). */
   onAllCollapsedChange?: (allCollapsed: boolean) => void
+  onSurfaceOpenChange?: (open: boolean) => void
 }
 
 function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 'one-time' {
@@ -222,6 +223,7 @@ export function HabitList({
   onCreate,
   onSeeUpcoming,
   onAllCollapsedChange,
+  onSurfaceOpenChange,
 }: Readonly<HabitListProps>) {
   const t = useTranslations()
   const router = useRouter()
@@ -643,6 +645,22 @@ export function HabitList({
   const [selectedMoveParentId, setSelectedMoveParentId] = useState<string | null>(null)
   const [isMovingParent, setIsMovingParent] = useState(false)
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
+
+  const surfaceOpen = Boolean(
+    drill.currentParent ||
+    showDetailDrawer ||
+    showEditModal ||
+    showSubHabitModal ||
+    showRescheduleSheet ||
+    showDeleteConfirm ||
+    habitToSkip ||
+    habitToDuplicate ||
+    parentPrompt ||
+    showMoveParentOverlay,
+  )
+  useEffect(() => {
+    onSurfaceOpenChange?.(surfaceOpen)
+  }, [onSurfaceOpenChange, surfaceOpen])
 
   function recordHabitResolution(
     confirmedResolutions: ConfirmedResolutionRecord,

@@ -128,7 +128,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                     styles.heroDisc,
                     {
                       backgroundColor: rgbaFromHex(tokens.statusFrozen, 0.16),
-                      boxShadow: `0px 0px 60px ${rgbaFromHex(tokens.statusFrozen, 0.4)}`,
                     },
                     orbStyle,
                   ]}

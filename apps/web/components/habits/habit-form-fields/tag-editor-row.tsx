@@ -44,7 +44,7 @@ export function TagEditorRow({
       />
       <button
         type="button"
-        className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-[background-color,opacity,transform] duration-[var(--dur-fast)] active:scale-[0.96] disabled:opacity-40"
+        className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] transition-[background-color,opacity,transform] duration-[var(--dur-fast)] active:scale-[0.96] disabled:opacity-40"
         style={{
           padding: '9px 14px',
           fontFamily: 'var(--font-sans)',

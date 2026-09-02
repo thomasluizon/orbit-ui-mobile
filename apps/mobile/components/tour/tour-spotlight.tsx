@@ -53,13 +53,6 @@ export function TourSpotlight({ targetRect }: Readonly<TourSpotlightProps>) {
     height: timing(cutoutHeight),
   }))
 
-  const glowProps = useAnimatedProps(() => ({
-    x: timing(cutoutX),
-    y: timing(cutoutY),
-    width: timing(cutoutWidth),
-    height: timing(cutoutHeight),
-  }))
-
   const ringProps = useAnimatedProps(() => ({
     x: timing(cutoutX),
     y: timing(cutoutY),
@@ -99,14 +92,6 @@ export function TourSpotlight({ targetRect }: Readonly<TourSpotlightProps>) {
               height={screenHeight}
               fill="rgba(0, 0, 0, 0.55)"
               mask="url(#tourMask)"
-            />
-            <AnimatedRect
-              rx={BORDER_RADIUS}
-              ry={BORDER_RADIUS}
-              fill="none"
-              stroke={tintFromPrimary(tokens, 0.18)}
-              strokeWidth={6}
-              animatedProps={glowProps}
             />
             <AnimatedRect
               rx={BORDER_RADIUS}

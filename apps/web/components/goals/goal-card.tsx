@@ -31,7 +31,7 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
       return { state: 'streak', color: 'var(--status-overdue)', textColor: 'var(--status-overdue-text)' }
     if (goal.progressPercentage >= 75)
       return { state: 'high', color: 'var(--status-done)', textColor: 'var(--status-done)' }
-    return { state: 'mid', color: 'var(--primary)', textColor: 'var(--primary)' }
+    return { state: 'mid', color: 'var(--primary)', textColor: 'var(--fg-1)' }
   }, [goal.status, goal.progressPercentage, isStreak])
 
   const deadlineInfo = useMemo(() => {

@@ -126,7 +126,6 @@ export function OnboardingCreateGoal({
             width: 56,
             height: 56,
             background: 'var(--primary)',
-            boxShadow: 'var(--primary-glow)',
             animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
@@ -165,7 +164,7 @@ export function OnboardingCreateGoal({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            color: 'var(--primary)',
+            color: 'var(--primary-soft)',
           }}
         >
           {t('onboarding.flow.createGoal.success')}

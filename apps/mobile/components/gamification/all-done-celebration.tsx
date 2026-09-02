@@ -89,7 +89,6 @@ export function AllDoneCelebration() {
                   styles.heroDisc,
                   {
                     backgroundColor: tintFromPrimary(tokens, 0.16),
-                    boxShadow: `0px 0px 60px ${tintFromPrimary(tokens, 0.4)}`,
                   },
                   orbStyle,
                 ]}

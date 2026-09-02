@@ -1,13 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -15,38 +8,27 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
+  CHAT_TEXT_FILE_PICKER_MIME_TYPES,
   consumeChatSseStream,
-  deriveLiveChatSuggestions,
   getChatImageValidationError,
+  getChatTextFileValidationError,
   resolveChatImageMimeType,
-  type ChatSuggestionDestination,
-  type LiveChatSuggestionState,
 } from "@orbit/shared/chat";
 import {
   hasComposerContent,
   type ComposerProps,
   type ComposerSuggestions,
 } from "@orbit/shared/contracts/composer";
-import {
-  goalKeys,
-  habitKeys,
-  profileKeys,
-  tagKeys,
-} from "@orbit/shared/query";
-import { useLiveSuggestionQueryKey } from "@orbit/shared/query/live-suggestion-query";
+import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
   ChatMessage,
   ChatResponse,
 } from "@orbit/shared/types";
 import type { Profile } from "@orbit/shared/types/profile";
-import type { Goal } from "@orbit/shared/types/goal";
-import type {
-  CalendarMonthResponse,
-  HabitScheduleItem,
-} from "@orbit/shared/types/habit";
 import {
   buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
@@ -72,7 +54,11 @@ interface AttemptedSend {
   content: string;
   image: ImagePicker.ImagePickerAsset | null;
   preview: string | null;
-  restoreDraftOnFailure: boolean;
+}
+
+interface SelectedChatTextFile {
+  name: string;
+  content: string;
 }
 
 interface StreamSendFailure {
@@ -128,8 +114,7 @@ function buildImageFileName(asset: ImagePicker.ImagePickerAsset): string {
 
 interface UseChatComposerOptions {
   isOnline: boolean;
-  destination?: ChatSuggestionDestination;
-  onOpenConversation?: () => void;
+  offlineTitle: string;
 }
 
 /**
@@ -138,11 +123,7 @@ interface UseChatComposerOptions {
  * I/O, mirroring the web `useChatComposer`. Offline gating is injected because
  * the offline UI itself lives on the screen.
  */
-export function useChatComposer({
-  isOnline,
-  destination,
-  onOpenConversation,
-}: UseChatComposerOptions) {
+export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptions) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -156,6 +137,10 @@ export function useChatComposer({
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent);
   const setIsTyping = useChatStore((s) => s.setIsTyping);
   const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId);
+  const input = useChatStore((s) => s.draft);
+  const setInput = useChatStore((s) => s.setDraft);
+  const draftHydrated = useChatStore((s) => s.draftHydrated);
+  const hydrateDraft = useChatStore((s) => s.hydrateDraft);
 
   const {
     isRecording,
@@ -170,42 +155,31 @@ export function useChatComposer({
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const pendingVoiceCommit = useRef(false);
 
-  const [input, setInputState] = useState("");
-  const inputRef = useRef(input);
-  const setInput = useCallback((nextInput: SetStateAction<string>) => {
-    if (typeof nextInput === "function") {
-      setInputState((current) => {
-        const resolvedInput = nextInput(current);
-        inputRef.current = resolvedInput;
-        return resolvedInput;
-      });
-      return;
-    }
-    inputRef.current = nextInput;
-    setInputState(nextInput);
-  }, []);
   const [sendError, setSendError] = useState<string | null>(null);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [suggestionCacheRevision, refreshSuggestions] = useReducer(
-    (value) => value + 1,
-    0,
-  );
-  const habitsSuggestionQueryKey = useLiveSuggestionQueryKey("habits");
-  const calendarSuggestionQueryKey = useLiveSuggestionQueryKey("calendar");
-
-  useEffect(
-    () => queryClient.getQueryCache().subscribe(() => refreshSuggestions()),
-    [queryClient],
-  );
+  const [selectedTextFile, setSelectedTextFile] =
+    useState<SelectedChatTextFile | null>(null);
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
   const isSending = isTyping || streamingMessageId !== null;
+  const imageName = selectedImage?.fileName ?? selectedImage?.uri.split("/").at(-1);
+  const attachments = useMemo(
+    () => [
+      ...(selectedTextFile
+        ? [{ id: "chat-file", kind: "file" as const, name: selectedTextFile.name }]
+        : []),
+      ...(selectedImage && imageName
+        ? [{ id: "chat-image", kind: "image" as const, name: imageName }]
+        : []),
+    ],
+    [imageName, selectedImage, selectedTextFile],
+  );
   const showSuggestions = messages.length === 0 && !isTyping;
 
   const starterChips = useMemo(
@@ -213,49 +187,24 @@ export function useChatComposer({
     [t],
   );
 
-  const liveSuggestionState = useMemo<LiveChatSuggestionState | null>(() => {
-    void suggestionCacheRevision;
-    if (!destination || !profile) return null;
-
-    const habits = habitsSuggestionQueryKey
-      ? queryClient.getQueryData<HabitScheduleItem[]>(habitsSuggestionQueryKey)
-      : undefined;
-    const calendar = calendarSuggestionQueryKey
-      ? queryClient.getQueryData<CalendarMonthResponse>(calendarSuggestionQueryKey)
-      : undefined;
-    const goals = queryClient.getQueryData<Goal[]>(goalKeys.list({}));
-
-    if (destination === "hoje" && habits === undefined) return null;
-    if (destination === "calendario" && calendar === undefined) return null;
-    if (destination === "progresso" && goals === undefined) return null;
-
-    return { destination, habits, calendar, goals, profile };
-  }, [
-    calendarSuggestionQueryKey,
-    destination,
-    habitsSuggestionQueryKey,
-    profile,
-    queryClient,
-    suggestionCacheRevision,
-  ]);
-
   useEffect(() => {
     let active = true;
     void AsyncStorage.getItem(CHAT_DRAFT_STORAGE_KEY).then((storedDraft) => {
-      if (active && storedDraft) setInput(storedDraft);
+      if (active) hydrateDraft(storedDraft);
     });
     return () => {
       active = false;
     };
-  }, [setInput]);
+  }, [hydrateDraft]);
 
   useEffect(() => {
+    if (!draftHydrated) return;
     if (input.trim()) {
       void AsyncStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input);
     } else {
       void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
     }
-  }, [input]);
+  }, [draftHydrated, input]);
 
   useEffect(() => {
     if (isRecording) {
@@ -387,6 +336,45 @@ export function useChatComposer({
     setImagePreview(null);
   }, []);
 
+  const openTextFilePicker = useCallback(async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [...CHAT_TEXT_FILE_PICKER_MIME_TYPES],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    const file = new File(asset.uri);
+    const validationError = getChatTextFileValidationError({
+      name: asset.name,
+      uri: asset.uri,
+      fileSize: asset.size ?? file.size,
+    });
+    if (validationError === "type") {
+      setSendError(t("chat.fileError"));
+      return;
+    }
+    if (validationError === "size") {
+      setSendError(t("chat.fileSizeError"));
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      setSendError(null);
+      setSelectedTextFile({ name: asset.name, content });
+    } catch {
+      setSendError(t("chat.fileReadError"));
+    }
+  }, [t]);
+
+  const removeTextFile = useCallback(() => {
+    setSelectedTextFile(null);
+  }, []);
+
   const handleFailedSend = useCallback(
     (
       failureInput: StreamSendFailure,
@@ -394,9 +382,6 @@ export function useChatComposer({
       draftMessageId: string | null,
     ) => {
       setIsTyping(false);
-      if (attempted.restoreDraftOnFailure) {
-        setInput((currentDraft) => currentDraft || attempted.content);
-      }
       const resolvedError = failureInput.error.trim() || t("chat.sendError");
       const failure = classifySendFailure({
         status: failureInput.status,
@@ -432,7 +417,7 @@ export function useChatComposer({
       }
       scrollToBottom();
     },
-    [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
+    [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
   );
 
   const applyFinalResponse = useCallback(
@@ -587,7 +572,7 @@ export function useChatComposer({
             attempted,
             draftMessageId,
           );
-          return false;
+          return;
         }
 
         const outcome = await consumeChatSseStream(
@@ -606,7 +591,7 @@ export function useChatComposer({
 
         if (outcome.kind === "final") {
           await applyFinalResponse(outcome.response, draftMessageId);
-          return true;
+          return;
         }
         if (outcome.kind === "error") {
           handleFailedSend(
@@ -614,14 +599,13 @@ export function useChatComposer({
             attempted,
             draftMessageId,
           );
-          return false;
+          return;
         }
         handleFailedSend(
           { status: null, error: t("chat.sendError"), code: null },
           attempted,
           draftMessageId,
         );
-        return false;
       } catch (err: unknown) {
         handleFailedSend(
           {
@@ -632,7 +616,6 @@ export function useChatComposer({
           attempted,
           draftMessageId,
         );
-        return false;
       } finally {
         clearTimeout(idleTimer);
         if (useChatStore.getState().streamingMessageId === draftMessageId) {
@@ -656,7 +639,6 @@ export function useChatComposer({
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
-      onOpenConversation?.();
       setSendError(null);
       setLastFailedSend(null);
 
@@ -675,87 +657,72 @@ export function useChatComposer({
       setIsTyping(true);
       scrollToBottom();
 
-      return runStreamingSend(attempted);
+      await runStreamingSend(attempted);
     },
-    [addMessage, onOpenConversation, runStreamingSend, scrollToBottom, setIsTyping],
+    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   );
 
   const sendMessage = useCallback(
     async (content?: string) => {
       const typedContent = content?.trim() ?? input.trim();
+      const messageContent = selectedTextFile
+        ? buildChatMessageWithFileContent({
+            message: typedContent,
+            fileLabel: t("chat.fileAttached", { name: selectedTextFile.name }),
+            fileContent: selectedTextFile.content,
+          })
+        : typedContent;
       const sendState = useChatStore.getState();
       if (
-        !hasComposerContent(typedContent) ||
+        !hasComposerContent(typedContent, attachments) ||
         sendState.isTyping ||
-        sendState.streamingMessageId !== null ||
-        !isOnline ||
-        atMessageLimit
+        sendState.streamingMessageId !== null
       ) return;
+      if (!isOnline) {
+        setSendError(offlineTitle);
+        return;
+      }
 
       const attempted: AttemptedSend = {
-        content: typedContent,
+        content: messageContent,
         image: selectedImage,
         preview: imagePreview,
-        restoreDraftOnFailure: content === undefined,
       };
 
       setInput("");
       setSelectedImage(null);
       setImagePreview(null);
+      setSelectedTextFile(null);
 
       await performSend(attempted, false);
     },
     [
+      attachments,
       imagePreview,
       input,
       isOnline,
+      offlineTitle,
       performSend,
       selectedImage,
+      selectedTextFile,
       setInput,
-      atMessageLimit,
+      t,
     ],
   );
 
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState();
-    if (
-      !lastFailedSend ||
-      sendState.isTyping ||
-      sendState.streamingMessageId !== null ||
-      !isOnline
-    ) return;
-    const attempted = lastFailedSend;
-    const succeeded = await performSend(attempted, true);
-    if (
-      succeeded &&
-      attempted.restoreDraftOnFailure &&
-      inputRef.current === attempted.content
-    ) {
-      setInput("");
-      void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
+    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return;
+    if (!isOnline) {
+      setSendError(offlineTitle);
+      return;
     }
-  }, [isOnline, lastFailedSend, performSend, setInput]);
+    await performSend(lastFailedSend, true);
+  }, [isOnline, lastFailedSend, offlineTitle, performSend]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
 
   const composerSuggestions = useMemo<ComposerSuggestions>(() => {
-    if (liveSuggestionState) {
-      const suggestions = deriveLiveChatSuggestions(liveSuggestionState);
-      const makeLiveSuggestion = (suggestion: (typeof suggestions)[number]) => {
-        const label = t(suggestion.key, suggestion.values);
-        return {
-          id: suggestion.key,
-          label,
-          onSelect: () => void sendMessage(label),
-        };
-      };
-      return [
-        makeLiveSuggestion(suggestions[0]),
-        makeLiveSuggestion(suggestions[1]),
-        makeLiveSuggestion(suggestions[2]),
-      ];
-    }
-
     const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
       const label = t(key);
       return { id: key, label, onSelect: () => void sendMessage(label) };
@@ -766,7 +733,7 @@ export function useChatComposer({
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
     ];
-  }, [liveSuggestionState, sendMessage, t]);
+  }, [sendMessage, t]);
 
   const composerProps = useMemo(() => {
     const words = {
@@ -781,57 +748,45 @@ export function useChatComposer({
       recording: t("shell.composer.voice.recording"),
       transcribing: t("shell.composer.voice.transcribing"),
     };
-    const imageName = selectedImage?.fileName ?? selectedImage?.uri.split("/").at(-1);
     const common = {
       words,
       value: input,
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       suggestions: composerSuggestions,
-      onAttach: () => void openFilePicker(),
+      onAttachFile: () => void openTextFilePicker(),
+      onAttachImage: () => void openFilePicker(),
       attachWords: {
-        add: t("shell.composer.attach.add"),
+        file: t("chat.attachFile"),
+        image: t("chat.attachImage"),
         trayLabel: t("shell.composer.attach.trayLabel"),
         remove: (name: string) => t("shell.composer.attach.remove", { name }),
       },
-      attachments: selectedImage && imageName
-        ? [{ id: "chat-image", kind: "image" as const, name: imageName }]
-        : [],
-      onAttachRemove: removeImage,
-      ...(onOpenConversation
-        ? {
-            onOpenConversation,
-            openConversationLabel: t("shell.composer.openConversation"),
-          }
-        : {}),
+      attachments,
+      onAttachRemove: (id: string) => {
+        if (id === "chat-file") removeTextFile();
+        if (id === "chat-image") removeImage();
+      },
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
     };
-
-    if (!isOnline) {
-      const offlineReason = t("shell.composer.offline.reason");
-      return speechSupported
-        ? { ...common, state: "offline", offlineReason, onVoice: toggleRecording, voiceWords }
-        : { ...common, state: "offline", offlineReason };
-    }
 
     if (isRecording) return { ...common, state: "recording", onVoice: toggleRecording, voiceWords };
     if (isTranscribing) return { ...common, state: "transcribing", onVoice: toggleRecording, voiceWords };
 
     if (atMessageLimit) {
-      const limitReason = t("shell.composer.limit.reason", {
-        allowance: aiMessagesLimit,
-      });
+      const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
       return speechSupported
         ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: "atLimit", limitReason };
     }
 
-    const state: "idle" | "sending" = isSending ? "sending" : "idle";
+    const state: "idle" | "sending" = isSending || !isOnline ? "sending" : "idle";
     return speechSupported
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state };
   }, [
     aiMessagesLimit,
+    attachments,
     atMessageLimit,
     canRetryLastSend,
     composerSuggestions,
@@ -840,13 +795,13 @@ export function useChatComposer({
     isRecording,
     isSending,
     isTranscribing,
-    onOpenConversation,
     openFilePicker,
+    openTextFilePicker,
     removeImage,
+    removeTextFile,
     retryLastSend,
-    selectedImage,
-    sendMessage,
     setInput,
+    sendMessage,
     speechSupported,
     t,
     toggleRecording,
@@ -872,6 +827,7 @@ export function useChatComposer({
     input,
     setInput,
     selectedImage,
+    selectedTextFile,
     imagePreview,
     composerProps,
     isRecording,
@@ -899,5 +855,3 @@ export function useChatComposer({
     verifyStepUpForBubble,
   };
 }
-
-export type ChatComposerController = ReturnType<typeof useChatComposer>;

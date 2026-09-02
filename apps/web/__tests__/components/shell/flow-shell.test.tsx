@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import {
@@ -28,8 +28,7 @@ function ScrollerConsumer() {
 }
 
 function RegisteredFullFlow() {
-  const owner = useMemo(() => Symbol('full-flow'), [])
-  const registerScroller = useShellScrollerRegistration(owner)
+  const registerScroller = useShellScrollerRegistration()
   return (
     <>
       <div ref={registerScroller} data-testid="full-flow-scroller" />

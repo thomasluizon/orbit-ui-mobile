@@ -81,23 +81,6 @@ vi.mock('@/stores/auth-store', () => ({
     selector({ isAuthenticated: true }),
 }))
 
-vi.mock('@/components/ui/pro-badge', () => ({
-  ProBadge: () => <span data-testid="pro-badge">PRO</span>,
-}))
-
-/**
- * Only the scheme list is fixed here; everything else stays the real module, so
- * this mock cannot drift out of step with the shared theme.
- */
-vi.mock('@orbit/shared/theme', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@orbit/shared/theme')>()),
-  colorSchemeOptions: [
-    { value: 'purple', color: '#7f46f7' },
-    { value: 'blue', color: '#3b82f6' },
-    { value: 'green', color: '#22c55e' },
-  ],
-}))
-
 vi.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn }: { mutationFn: (...args: unknown[]) => unknown }) => ({
     mutate: vi.fn(),
@@ -183,29 +166,9 @@ describe('PreferencesPage', () => {
   })
 
 
-  it('renders color scheme section with ProBadge and shows its description in the picker sheet', () => {
+  it('does not render a color scheme preference', () => {
     render(<PreferencesPage />)
-    expect(screen.getByText('profile.colorScheme.title')).toBeInTheDocument()
-    expect(screen.getByTestId('pro-badge')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
-    expect(screen.getByText('profile.colorScheme.description')).toBeInTheDocument()
-  })
-
-  it('renders a color scheme radio for each option', () => {
-    render(<PreferencesPage />)
-    fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
-    const colorRadios = screen.getAllByRole('radio').filter(
-      (radio) => radio.textContent.startsWith('preferences.color'),
-    )
-    expect(colorRadios).toHaveLength(3)
-  })
-
-  it('redirects to upgrade when non-Pro user picks non-purple scheme', () => {
-    mockProfile = { ...mockProfile, hasProAccess: false }
-    render(<PreferencesPage />)
-    fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
-    fireEvent.click(screen.getByRole('radio', { name: 'preferences.colorBlue' }))
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(screen.queryByText('profile.colorScheme.title')).not.toBeInTheDocument()
   })
 
 

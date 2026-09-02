@@ -71,7 +71,6 @@ describe('FeatureGuideDrawer', () => {
     { tab: 'goals', title: 'onboarding.featureGuide.goalsSection.creatingTitle' },
     { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.colorsTitle' },
     { tab: 'rewards', title: 'onboarding.featureGuide.rewardsSection.xpLevelsTitle' },
-    { tab: 'settings', title: 'onboarding.featureGuide.settingsSection.colorSchemeTitle' },
     { tab: 'notifications', title: 'onboarding.featureGuide.notificationsSection.bellTitle' },
   ])('switches to the $tab section when its tab is clicked', ({ tab, title }) => {
     render(

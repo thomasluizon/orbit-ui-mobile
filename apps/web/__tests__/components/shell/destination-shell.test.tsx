@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/',
@@ -9,8 +9,6 @@ const mocks = vi.hoisted(() => ({
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
   keyboardEnabled: vi.fn(),
-  showSendControl: false,
-  showAttachmentControls: false,
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -23,29 +21,6 @@ vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: (enabled: boolean) => mocks.keyboardEnabled(enabled),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
-vi.mock('@/hooks/use-chat-composer', async () => {
-  const { useId, useState } = await import('react')
-  return {
-    useChatComposer: ({ onOpenConversation }: { onOpenConversation?: () => void } = {}) => {
-      const [sendError, setSendError] = useState<string | null>(null)
-      const fileInputId = useId()
-      return {
-        fileInputId,
-        handleFileSelect: vi.fn(),
-        sendError,
-        composerProps: {
-          onOpenConversation,
-          onAttach: () => globalThis.document.getElementById(fileInputId)?.click(),
-          onSend: () => {
-            onOpenConversation?.()
-            setSendError('send failed sentinel')
-          },
-          ...(sendError ? { onRetry: () => setSendError(null) } : {}),
-        },
-      }
-    },
-  }
-})
 vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen }) => unknown) =>
     selector({ setPaletteOpen: mocks.setPaletteOpen }),
@@ -67,104 +42,33 @@ vi.mock('@/components/ui/fab', () => ({
     <button type="button" aria-label={label} onClick={onClick} />
   ),
 }))
-vi.mock('@/components/shell/shell-composer', () => ({
-  ShellComposer: ({
-    composer,
-  }: {
-    composer: {
-      composerProps: {
-        onOpenConversation?: () => void
-        onAttach?: () => void
-        onSend: () => void
-      }
-    }
-  }) => (
-    <>
-      <button
-        type="button"
-        aria-label="shell-open"
-        onClick={composer.composerProps.onOpenConversation}
-      />
-      {mocks.showSendControl ? (
-        <button type="button" aria-label="shell-send" onClick={composer.composerProps.onSend} />
-      ) : null}
-      {mocks.showAttachmentControls ? (
-        <button type="button" aria-label="shell-attach" onClick={composer.composerProps.onAttach} />
-      ) : null}
-    </>
-  ),
-}))
-vi.mock('@/components/chat/chat-page-content', () => ({
-  ChatPageContent: ({
-    composer,
-    onClose,
-  }: {
-    composer: {
-      sendError: string | null
-      composerProps: { onAttach?: () => void; onRetry?: () => void }
-    }
-    onClose: () => void
-  }) => (
-    <>
-      <button type="button" aria-label="conversation-close" onClick={onClose} />
-      {mocks.showAttachmentControls ? (
-        <button
-          type="button"
-          aria-label="conversation-attach"
-          onClick={composer.composerProps.onAttach}
-        />
-      ) : null}
-      {composer.sendError ? <p role="alert">{composer.sendError}</p> : null}
-      {composer.composerProps.onRetry ? (
-        <button type="button" onClick={composer.composerProps.onRetry}>retry send</button>
-      ) : null}
-    </>
-  ),
-}))
 vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ children, tabBar, fab, notice, composer, conversation, conversationOpen }: {
+  Shell412: ({ children, tabBar, fab, notice, composer }: {
     children: ReactNode
     tabBar?: ReactNode
     fab?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
-    conversation?: ReactNode
-    conversationOpen?: boolean
   }) => (
     <div data-testid="compact-shell">
       {children}{notice}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {tabBar}{fab}
-      {conversationOpen ? conversation : null}
     </div>
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({
-    children,
-    items,
-    onSelect,
-    onCreate,
-    notice,
-    composer,
-    conversation,
-    conversationOpen,
-  }: {
+  ShellWide: ({ children, items, onSelect, onCreate, notice, composer }: {
     children: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     onSelect?: (id: string) => void
     onCreate?: () => void
     notice?: ReactNode
     composer?: ReactNode
-    conversation?: ReactNode
-    conversationOpen?: boolean
   }) => (
     <div data-testid="wide-shell">
       {children}{notice}
-      {composer && !conversationOpen ? (
-        <div data-shell-pinned-slot="">{composer}</div>
-      ) : null}
-      {conversationOpen ? conversation : null}
+      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       ))}
@@ -191,8 +95,6 @@ describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
-    mocks.showSendControl = false
-    mocks.showAttachmentControls = false
     resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
@@ -202,7 +104,6 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
-      'shell-open',
       'nav.today',
       'nav.calendar',
       'nav.progress',
@@ -276,63 +177,9 @@ describe('DestinationShell', () => {
       await waitFor(() => {
         expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
       })
-      const pinnedSlot = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')
-      if (!pinnedSlot) throw new Error('Expected the Astra composer to reclaim the pinned slot')
-      expect(within(pinnedSlot).getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
+      expect(document.querySelector('[data-shell-pinned-slot]')).not.toBeInTheDocument()
     },
   )
-
-  it('gives the Today selection tray the pinned slot until selection mode ends', async () => {
-    function TodaySelection() {
-      const [active, setActive] = useState(false)
-      useShellComposerSlot(
-        active,
-        () => (
-          <SelectionTray
-            selectedCount={1}
-            allSelected={false}
-            onSelectAll={() => {}}
-            onDeselectAll={() => {}}
-            onBulkLog={() => {}}
-            onBulkSkip={() => {}}
-            onBulkDelete={() => {}}
-            onCancel={() => {}}
-          />
-        ),
-        active ? 'selected:h-1' : 'empty',
-      )
-      return (
-        <button type="button" onClick={() => setActive((current) => !current)}>
-          Toggle selection
-        </button>
-      )
-    }
-
-    render(
-      <DestinationShell onCreate={() => {}}>
-        <TodaySelection />
-      </DestinationShell>,
-    )
-
-    const pinnedSlot = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')
-    if (!pinnedSlot) throw new Error('Expected a pinned shell slot')
-    expect(within(pinnedSlot).getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle selection' }))
-
-    await waitFor(() => {
-      expect(within(pinnedSlot).getByTestId('bulk-action-bar')).toBeInTheDocument()
-      expect(within(pinnedSlot).queryByRole('button', { name: 'shell-open' }))
-        .not.toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle selection' }))
-
-    await waitFor(() => {
-      expect(within(pinnedSlot).getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
-      expect(within(pinnedSlot).queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
-    })
-  })
 
   it('clears the tray while the exiting Today subtree remains mounted', async () => {
     const view = {
@@ -402,7 +249,6 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      '',
       'nav.today',
       'nav.calendar',
       'nav.progress',
@@ -422,104 +268,6 @@ describe('DestinationShell', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
     expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
-  })
-
-  it.each(['/', '/calendar', '/progress', '/profile'])('mounts the composer at %s', (pathname) => {
-    mocks.pathname = pathname
-    render(<DestinationShell onCreate={() => {}}><h1>Destination</h1></DestinationShell>)
-
-    expect(screen.getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
-  })
-
-  it('does not mount the composer on a pushed screen', () => {
-    mocks.pathname = '/preferences'
-    render(<DestinationShell onCreate={() => {}}><h1>Preferences</h1></DestinationShell>)
-
-    expect(screen.queryByRole('button', { name: 'shell-open' })).not.toBeInTheDocument()
-  })
-
-  it('opens and closes the shell conversation from the Astra trigger', () => {
-    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
-
-    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
-    fireEvent.click(screen.getByRole('button', { name: 'conversation-close' }))
-
-    expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
-  })
-
-  it('keeps a dismissed destination conversation closed after navigating back', () => {
-    const { rerender } = render(
-      <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
-    expect(screen.getByRole('button', { name: 'conversation-close' })).toBeInTheDocument()
-
-    mocks.pathname = '/calendar'
-    rerender(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
-    mocks.pathname = '/'
-    rerender(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
-
-    expect(screen.queryByRole('button', { name: 'conversation-close' })).not.toBeInTheDocument()
-  })
-
-  it('opens the attachment picker from the conversation', () => {
-    mocks.showAttachmentControls = true
-    const pickerClick = vi.spyOn(HTMLInputElement.prototype, 'click')
-    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
-
-    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
-    fireEvent.click(screen.getByRole('button', { name: 'conversation-attach' }))
-
-    expect(pickerClick).toHaveBeenCalledOnce()
-    pickerClick.mockRestore()
-  })
-
-  it('opens the attachment picker from the persistent composer after closing the conversation', () => {
-    mocks.showAttachmentControls = true
-    const pickerClick = vi.spyOn(HTMLInputElement.prototype, 'click')
-    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
-
-    fireEvent.click(screen.getByRole('button', { name: 'shell-open' }))
-    fireEvent.click(screen.getByRole('button', { name: 'conversation-close' }))
-    fireEvent.click(screen.getByRole('button', { name: 'shell-attach' }))
-
-    expect(pickerClick).toHaveBeenCalledOnce()
-    pickerClick.mockRestore()
-  })
-
-  it('shows a failed shell send and retry inside the opened conversation', () => {
-    mocks.showSendControl = true
-    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
-
-    fireEvent.click(screen.getByRole('button', { name: 'shell-send' }))
-
-    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
-    fireEvent.click(screen.getByRole('button', { name: 'retry send' }))
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('keeps failed-send recovery when the wide shell unmounts its composer', () => {
-    mocks.wide = true
-    mocks.showSendControl = true
-    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
-
-    fireEvent.click(screen.getByRole('button', { name: 'shell-send' }))
-
-    expect(screen.queryByRole('button', { name: 'shell-send' })).not.toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
-    expect(screen.getByRole('button', { name: 'retry send' })).toBeInTheDocument()
-  })
-
-  it('keeps the composer mounted when a notice is present', () => {
-    render(
-      <DestinationShell onCreate={() => {}} notice={<div>Notice sentinel</div>}>
-        <h1>Today</h1>
-      </DestinationShell>,
-    )
-
-    expect(screen.getByText('Notice sentinel')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'shell-open' })).toBeInTheDocument()
   })
 
   it.each([

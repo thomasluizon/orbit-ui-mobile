@@ -11,11 +11,9 @@ import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habi
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
-import type { ColorScheme } from '@orbit/shared/theme'
 import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
-import { useAppTheme } from '@/lib/use-app-theme'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
@@ -30,7 +28,6 @@ export interface OnboardingActions {
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
-  setColorScheme: (scheme: string) => Promise<void>
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
@@ -79,7 +76,7 @@ export function useOnboardingActions(): OnboardingActions {
   return useOnboardingActionsContext().actions
 }
 
-/** Whether the current onboarding mode grants Pro-gated steps (goal step, color scheme). */
+/** Whether the current onboarding mode grants the Pro-gated goal step. */
 export function useOnboardingHasProAccess(): boolean {
   return useOnboardingActionsContext().hasProAccess
 }
@@ -128,10 +125,6 @@ export function useBufferOnboardingActions(): OnboardingActions {
         useOnboardingDraftStore.getState().bufferWeekStartDay(day)
         return Promise.resolve()
       },
-      setColorScheme: (scheme) => {
-        useOnboardingDraftStore.getState().bufferColorScheme(scheme)
-        return Promise.resolve()
-      },
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.replace('/login?from=onboarding')
@@ -152,7 +145,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
   const { patchProfile } = useProfile()
-  const { applyScheme } = useAppTheme()
 
   return useMemo<OnboardingActions>(
     () => ({
@@ -179,10 +171,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
           dedupeKey: 'onboarding-week-start-day',
         })
         patchProfile({ weekStartDay: day })
-      },
-      setColorScheme: (scheme) => {
-        applyScheme(scheme as ColorScheme)
-        return Promise.resolve()
       },
       finishOnboarding: async () => {
         try {
@@ -211,7 +199,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
       },
     }),
     [
-      applyScheme,
       bulkCreateHabits,
       createGoal,
       createHabit,

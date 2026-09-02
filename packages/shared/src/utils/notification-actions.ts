@@ -1,5 +1,28 @@
 import type { NotificationItem } from '../types/notification'
 
+export function selectNewestUnreadProactiveCheckin(
+  notifications: readonly NotificationItem[],
+): NotificationItem | null {
+  const candidates = notifications
+    .filter((item) => !item.isRead && item.url === '/chat' && item.habitId === null)
+  candidates.sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc))
+  return candidates[0] ?? null
+}
+
+export function shouldShowTodayAstraLine({
+  isTodaySelected,
+  inDrillOrSurface,
+  isOnline,
+  atLimit,
+}: Readonly<{
+  isTodaySelected: boolean
+  inDrillOrSurface: boolean
+  isOnline: boolean
+  atLimit: boolean
+}>): boolean {
+  return isTodaySelected && !inDrillOrSurface && isOnline && !atLimit
+}
+
 export function isViewableNotificationUrl(
   url: string | null | undefined,
 ): url is string {

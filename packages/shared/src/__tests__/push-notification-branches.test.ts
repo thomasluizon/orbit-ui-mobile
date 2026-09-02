@@ -19,7 +19,7 @@ function snapshot(overrides: Partial<NativePushStatusSnapshot> = {}): NativePush
 describe('getPushStatusToneClass', () => {
   it('maps each tone to its token class', () => {
     expect(getPushStatusToneClass('critical')).toBe('text-[var(--status-bad-text)]')
-    expect(getPushStatusToneClass('accent')).toBe('text-[var(--primary)]')
+    expect(getPushStatusToneClass('accent')).toBe('text-[var(--primary-soft)]')
     expect(getPushStatusToneClass('muted')).toBe('text-[var(--fg-3)]')
   })
 })

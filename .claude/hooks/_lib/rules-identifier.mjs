@@ -38,7 +38,8 @@
  */
 import { stripHeredocBodies } from "./rules-git.mjs"
 
-const NODE_ID = /\b(?:PRRT|PRR|PR|IC)_[A-Za-z0-9_-]{10,}\b/g
+// A plain trailing \b backtracks before a terminal `-`, because `-` and the next space are both non-word characters.
+const NODE_ID = /\b(?:PRRT|PRR|PR|IC)_[A-Za-z0-9_-]{10,}(?![A-Za-z0-9_-])/g
 const HAS_LOWERCASE = /[a-z]/
 
 /** Only a command that can actually reach GitHub is worth judging. An id inside an editor command

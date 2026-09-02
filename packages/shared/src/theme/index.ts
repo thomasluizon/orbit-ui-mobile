@@ -4,7 +4,7 @@ export type {
   SchemeAccent,
   ColorSchemeDefinition,
 } from './types'
-export { schemes, colorSchemeOptions } from './color-schemes'
+export { schemes } from './color-schemes'
 export {
   oklchToHex,
   oklchToRgba,

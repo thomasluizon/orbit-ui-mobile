@@ -6,25 +6,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useSyncExternalStore,
-  type SetStateAction,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import {
-  goalKeys,
-  habitKeys,
-  profileKeys,
-  tagKeys,
-} from '@orbit/shared/query'
-import { useLiveSuggestionQueryKey } from '@orbit/shared/query/live-suggestion-query'
+import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
-import type { Goal } from '@orbit/shared/types/goal'
-import type { CalendarMonthResponse, HabitScheduleItem } from '@orbit/shared/types/habit'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
   hasComposerContent,
@@ -32,12 +22,10 @@ import {
   type ComposerSuggestions,
 } from '@orbit/shared/contracts/composer'
 import {
+  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
-  deriveLiveChatSuggestions,
-  type ChatSuggestionDestination,
-  type LiveChatSuggestionState,
 } from '@orbit/shared/chat'
 import {
   buildAgentExecutionMessage,
@@ -58,24 +46,19 @@ import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
+import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 
 interface AttemptedSend {
   content: string
   image: File | null
   preview: string | null
-  restoreDraftOnFailure: boolean
 }
 
 interface StreamSendFailure {
   status: number | null
   error: string
   code: string | null
-}
-
-interface UseChatComposerOptions {
-  destination?: ChatSuggestionDestination
-  onOpenConversation?: () => void
 }
 
 function isAbortError(error: unknown): boolean {
@@ -123,7 +106,7 @@ async function* streamTextChunks(
  * send is the one sanctioned client-side `fetch` to the API (a Server Action
  * cannot return a streaming `ReadableStream`); see apps/web/CLAUDE.md.
  */
-export function useChatComposer({ destination, onOpenConversation }: UseChatComposerOptions = {}) {
+export function useChatComposer() {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -138,6 +121,10 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent)
   const setIsTyping = useChatStore((s) => s.setIsTyping)
   const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId)
+  const input = useChatStore((s) => s.draft)
+  const setInput = useChatStore((s) => s.setDraft)
+  const draftHydrated = useChatStore((s) => s.draftHydrated)
+  const hydrateDraft = useChatStore((s) => s.hydrateDraft)
 
   const {
     isRecording,
@@ -152,30 +139,12 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const pendingVoiceCommit = useRef(false)
 
-  const [input, setInputState] = useState<string>(() => {
-    if (!('localStorage' in globalThis)) return ''
-    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `'localStorage' in globalThis` SSR check above (the repo's canonical guard, #490); never reads on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
-  })
-  const inputRef = useRef(input)
-  const setInput = useCallback((nextInput: SetStateAction<string>) => {
-    if (typeof nextInput === 'function') {
-      setInputState((current) => {
-        const resolvedInput = nextInput(current)
-        inputRef.current = resolvedInput
-        return resolvedInput
-      })
-      return
-    }
-    inputRef.current = nextInput
-    setInputState(nextInput)
-  }, [])
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
-    fileInputId,
+    fileInputRef,
     selectedImage,
     imagePreview,
     openFilePicker,
@@ -184,6 +153,14 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     removeImage,
     clearImage,
   } = useChatImageAttachment(setSendError)
+
+  const {
+    textFileInputRef,
+    selectedTextFile,
+    openTextFilePicker,
+    handleTextFileSelect,
+    removeTextFile,
+  } = useChatTextFileAttachment(setSendError)
 
   if (speechError !== previousSpeechError) {
     setPreviousSpeechError(speechError)
@@ -197,53 +174,31 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     readNetworkStatus,
     readServerNetworkStatus,
   )
-  const [suggestionCacheRevision, refreshSuggestions] = useReducer((value) => value + 1, 0)
-  const habitsSuggestionQueryKey = useLiveSuggestionQueryKey('habits')
-  const calendarSuggestionQueryKey = useLiveSuggestionQueryKey('calendar')
-
-  useEffect(
-    () => queryClient.getQueryCache().subscribe(() => refreshSuggestions()),
-    [queryClient],
-  )
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
-  const canSend = hasComposerContent(input) && !isSending && !atMessageLimit && isOnline
+  const attachments = useMemo(
+    () => [
+      ...(selectedTextFile
+        ? [{ id: 'chat-file', kind: 'file' as const, name: selectedTextFile.name }]
+        : []),
+      ...(selectedImage
+        ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
+        : []),
+    ],
+    [selectedImage, selectedTextFile],
+  )
+  const canSend =
+    hasComposerContent(input, attachments) && !isSending && !atMessageLimit && isOnline
   const showSuggestions = messages.length === 0 && !isTyping
 
   const starterChips = useMemo(
     () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
     [t],
   )
-
-  const liveSuggestionState = useMemo<LiveChatSuggestionState | null>(() => {
-    void suggestionCacheRevision
-    if (!destination || !profile) return null
-
-    const habits = habitsSuggestionQueryKey
-      ? queryClient.getQueryData<HabitScheduleItem[]>(habitsSuggestionQueryKey)
-      : undefined
-    const calendar = calendarSuggestionQueryKey
-      ? queryClient.getQueryData<CalendarMonthResponse>(calendarSuggestionQueryKey)
-      : undefined
-    const goals = queryClient.getQueryData<Goal[]>(goalKeys.list({}))
-
-    if (destination === 'hoje' && habits === undefined) return null
-    if (destination === 'calendario' && calendar === undefined) return null
-    if (destination === 'progresso' && goals === undefined) return null
-
-    return { destination, habits, calendar, goals, profile }
-  }, [
-    calendarSuggestionQueryKey,
-    destination,
-    habitsSuggestionQueryKey,
-    profile,
-    queryClient,
-    suggestionCacheRevision,
-  ])
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)
@@ -304,9 +259,6 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     draftMessageId: string | null,
   ) => {
     setIsTyping(false)
-    if (attempted.restoreDraftOnFailure) {
-      setInput((currentDraft) => currentDraft || attempted.content)
-    }
     const resolvedError = failureInput.error.trim() || t('chat.sendError')
     const failure = classifySendFailure({
       status: failureInput.status,
@@ -341,7 +293,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       })
     }
     scrollToBottom()
-  }, [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
+  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
     setIsTyping(false)
@@ -405,13 +357,20 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
   }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, setStreamingMessageId, shouldRouteToUpgrade, updateMessage])
 
   useEffect(() => {
+    if (!draftHydrated) {
+      hydrateDraft(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY))
+    }
+  }, [draftHydrated, hydrateDraft])
+
+  useEffect(() => {
+    if (!draftHydrated) return
     const trimmedDraft = input.trim()
     if (!trimmedDraft) {
       globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
       return
     }
     globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input)
-  }, [input])
+  }, [draftHydrated, input])
 
   useEffect(() => {
     if (isRecording) {
@@ -488,7 +447,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
           attempted,
           draftMessageId,
         )
-        return false
+        return
       }
 
       const outcome = await consumeChatSseStream(
@@ -507,7 +466,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
 
       if (outcome.kind === 'final') {
         await applyFinalResponse(outcome.response, draftMessageId)
-        return true
+        return
       }
       if (outcome.kind === 'error') {
         handleFailedSend(
@@ -515,14 +474,13 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
           attempted,
           draftMessageId,
         )
-        return false
+        return
       }
       handleFailedSend(
         { status: null, error: t('chat.sendError'), code: null },
         attempted,
         draftMessageId,
       )
-      return false
     } catch (error: unknown) {
       handleFailedSend(
         {
@@ -533,7 +491,6 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
         attempted,
         draftMessageId,
       )
-      return false
     } finally {
       clearTimeout(idleTimer)
       if (useChatStore.getState().streamingMessageId === draftMessageId) {
@@ -555,7 +512,6 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
-      onOpenConversation?.()
       setSendError(null)
       setLastFailedSend(null)
 
@@ -573,83 +529,63 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       setIsTyping(true)
       scrollToBottom()
 
-      return runStreamingSend(attempted)
+      await runStreamingSend(attempted)
     },
-    [addMessage, onOpenConversation, runStreamingSend, scrollToBottom, setIsTyping],
+    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   )
 
   const sendMessage = useCallback(
     async (content?: string) => {
       const typedContent = content?.trim() ?? input.trim()
+      const messageContent = selectedTextFile
+        ? buildChatMessageWithFileContent({
+            message: typedContent,
+            fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
+            fileContent: selectedTextFile.content,
+          })
+        : typedContent
       const sendState = useChatStore.getState()
       if (
-        !hasComposerContent(typedContent) ||
+        !hasComposerContent(typedContent, attachments) ||
         sendState.isTyping ||
-        sendState.streamingMessageId !== null ||
-        !isOnline ||
-        atMessageLimit
+        sendState.streamingMessageId !== null
       ) return
 
       const attempted: AttemptedSend = {
-        content: typedContent,
+        content: messageContent,
         image: selectedImage,
         preview: imagePreview,
-        restoreDraftOnFailure: content === undefined,
       }
 
       setInput('')
       clearImage()
+      removeTextFile()
 
       await performSend(attempted, false)
     },
     [
       clearImage,
+      attachments,
       imagePreview,
       input,
-      isOnline,
       performSend,
+      removeTextFile,
       selectedImage,
+      selectedTextFile,
       setInput,
-      atMessageLimit,
+      t,
     ],
   )
 
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState()
-    if (
-      !lastFailedSend ||
-      sendState.isTyping ||
-      sendState.streamingMessageId !== null ||
-      !isOnline
-    ) return
-    const attempted = lastFailedSend
-    const succeeded = await performSend(attempted, true)
-    if (
-      succeeded &&
-      attempted.restoreDraftOnFailure &&
-      inputRef.current === attempted.content
-    ) {
-      setInput('')
-      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
-    }
-  }, [isOnline, lastFailedSend, performSend, setInput])
+    if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
+    await performSend(lastFailedSend, true)
+  }, [lastFailedSend, performSend])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
 
   const composerSuggestions = useMemo<ComposerSuggestions>(() => {
-    if (liveSuggestionState) {
-      const suggestions = deriveLiveChatSuggestions(liveSuggestionState)
-      const makeLiveSuggestion = (suggestion: (typeof suggestions)[number]) => {
-        const label = t(suggestion.key, suggestion.values)
-        return { id: suggestion.key, label, onSelect: () => void sendMessage(label) }
-      }
-      return [
-        makeLiveSuggestion(suggestions[0]),
-        makeLiveSuggestion(suggestions[1]),
-        makeLiveSuggestion(suggestions[2]),
-      ]
-    }
-
     const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
       const label = t(key)
       return { id: key, label, onSelect: () => void sendMessage(label) }
@@ -660,7 +596,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
     ]
-  }, [liveSuggestionState, sendMessage, t])
+  }, [sendMessage, t])
 
   const composerProps = useMemo(() => {
     const words = {
@@ -682,30 +618,20 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
       onSend: () => void sendMessage(),
       onPaste: handlePaste,
       suggestions: composerSuggestions,
-      onAttach: openFilePicker,
+      onAttachFile: openTextFilePicker,
+      onAttachImage: openFilePicker,
       attachWords: {
-        add: t('shell.composer.attach.add'),
+        file: t('chat.attachFile'),
+        image: t('chat.attachImage'),
         trayLabel: t('shell.composer.attach.trayLabel'),
         remove: (name: string) => t('shell.composer.attach.remove', { name }),
       },
-      attachments: selectedImage
-        ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
-        : [],
-      onAttachRemove: removeImage,
-      ...(onOpenConversation
-        ? {
-            onOpenConversation,
-            openConversationLabel: t('shell.composer.openConversation'),
-          }
-        : {}),
+      attachments,
+      onAttachRemove: (id: string) => {
+        if (id === 'chat-file') removeTextFile()
+        if (id === 'chat-image') removeImage()
+      },
       ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
-    }
-
-    if (!isOnline) {
-      const offlineReason = t('shell.composer.offline.reason')
-      return speechSupported
-        ? { ...common, state: 'offline', offlineReason, onVoice: toggleRecording, voiceWords }
-        : { ...common, state: 'offline', offlineReason }
     }
 
     if (isRecording) return { ...common, state: 'recording', onVoice: toggleRecording, voiceWords }
@@ -718,12 +644,13 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
         : { ...common, state: 'atLimit', limitReason }
     }
 
-    const state: 'idle' | 'sending' = isSending ? 'sending' : 'idle'
+    const state: 'idle' | 'sending' = isSending || !isOnline ? 'sending' : 'idle'
     return speechSupported
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state }
   }, [
     aiMessagesLimit,
+    attachments,
     atMessageLimit,
     canRetryLastSend,
     composerSuggestions,
@@ -733,13 +660,13 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     isRecording,
     isSending,
     isTranscribing,
-    onOpenConversation,
     openFilePicker,
+    openTextFilePicker,
     removeImage,
+    removeTextFile,
     retryLastSend,
-    selectedImage,
-    sendMessage,
     setInput,
+    sendMessage,
     speechSupported,
     t,
     toggleRecording,
@@ -751,11 +678,13 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
 
   return {
     chatContainerRef,
-    fileInputId,
+    fileInputRef,
+    textFileInputRef,
     input,
     setInput,
     sendError,
     selectedImage,
+    selectedTextFile,
     imagePreview,
     isRecording,
     isTranscribing,
@@ -778,6 +707,7 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     showSuggestions,
     openFilePicker,
     handleFileSelect,
+    handleTextFileSelect,
     removeImage,
     composerProps,
     sendMessage,
@@ -790,5 +720,3 @@ export function useChatComposer({ destination, onOpenConversation }: UseChatComp
     scrollToBottom,
   }
 }
-
-export type ChatComposerController = ReturnType<typeof useChatComposer>

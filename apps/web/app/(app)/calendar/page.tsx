@@ -29,7 +29,6 @@ import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
-import { useRegisterLiveSuggestionQuery } from '@orbit/shared/query/live-suggestion-query'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
@@ -89,14 +88,7 @@ export default function CalendarPage() {
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
 
-  const {
-    dayMap,
-    isLoading,
-    isFetching,
-    error,
-    refresh,
-    queryKey: monthQueryKey,
-  } = useCalendarData(currentMonth)
+  const { dayMap, isLoading, isFetching, error, refresh } = useCalendarData(currentMonth)
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -123,12 +115,7 @@ export default function CalendarPage() {
     isFetching: rangeFetching,
     error: rangeError,
     refresh: rangeRefresh,
-    queryKey: rangeQueryKey,
   } = useCalendarRange(gridStartDate, gridEndDate, view === 'week' || view === 'range')
-  useRegisterLiveSuggestionQuery(
-    'calendar',
-    activeView === 'month' ? monthQueryKey : rangeQueryKey,
-  )
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days =

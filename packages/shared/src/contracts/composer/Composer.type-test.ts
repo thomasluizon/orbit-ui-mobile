@@ -17,7 +17,8 @@ const voiceWords = {
   transcribing: 'Transcribing',
 }
 const attachWords = {
-  add: 'Add',
+  file: 'Add file',
+  image: 'Add image',
   trayLabel: 'Attachments',
   remove: (name: string) => `Remove ${name}`,
 }
@@ -34,22 +35,24 @@ const base = {
 function acceptComposer(_props: ComposerProps) {}
 
 acceptComposer({ ...base, state: 'idle' })
-acceptComposer({ ...base, state: 'offline', offlineReason: 'Offline' })
 acceptComposer({ ...base, state: 'idle', words: { ...words } })
-acceptComposer({
-  ...base,
-  state: 'idle',
-  onOpenConversation: () => undefined,
-  openConversationLabel: 'Open conversation',
-})
 acceptComposer({ ...base, state: 'atLimit', limitReason: 'Limit' })
 acceptComposer({ ...base, state: 'recording', onVoice: () => undefined, voiceWords })
 acceptComposer({ ...base, state: 'transcribing', onVoice: () => undefined, voiceWords })
-acceptComposer({ ...base, state: 'idle', onAttach: () => undefined, attachWords })
+acceptComposer({ ...base, state: 'idle', onAttachFile: () => undefined, attachWords })
+acceptComposer({ ...base, state: 'idle', onAttachImage: () => undefined, attachWords })
 acceptComposer({
   ...base,
   state: 'idle',
-  onAttach: () => undefined,
+  onAttachFile: () => undefined,
+  onAttachImage: () => undefined,
+  attachWords,
+})
+acceptComposer({
+  ...base,
+  state: 'idle',
+  onAttachFile: () => undefined,
+  onAttachImage: () => undefined,
   attachWords,
   attachments: [],
   onAttachRemove: () => undefined,
@@ -72,10 +75,6 @@ acceptComposer({ ...base, state: 'idle', words: undefined })
 acceptComposer({ ...base, state: 'idle', words: { placeholder: 'Ask', suggestionsLabel: 'Suggestions' } })
 // @ts-expect-error atLimit requires the caller's real reason
 acceptComposer({ ...base, state: 'atLimit' })
-// @ts-expect-error offline requires the caller's visible reason
-acceptComposer({ ...base, state: 'offline' })
-// @ts-expect-error offlineReason belongs only to offline
-acceptComposer({ ...base, state: 'idle', offlineReason: 'Offline' })
 // @ts-expect-error limitReason belongs only to atLimit
 acceptComposer({ ...base, state: 'idle', limitReason: 'Limit' })
 // @ts-expect-error limitReason belongs only to atLimit
@@ -93,22 +92,23 @@ acceptComposer({ ...base, state: 'recording' })
 // @ts-expect-error transcribing is not constructible without voice
 acceptComposer({ ...base, state: 'transcribing' })
 // @ts-expect-error attachment words are paired with the callback
-acceptComposer({ ...base, state: 'idle', onAttach: () => undefined })
+acceptComposer({ ...base, state: 'idle', onAttachFile: () => undefined })
 // @ts-expect-error attachments cannot exist without the capability
 acceptComposer({ ...base, state: 'idle', attachments: [], onAttachRemove: () => undefined })
 // @ts-expect-error removal cannot exist without the capability
 acceptComposer({ ...base, state: 'idle', onAttachRemove: () => undefined })
 // @ts-expect-error a tray requires its removal callback
-acceptComposer({ ...base, state: 'idle', onAttach: () => undefined, attachWords, attachments: [] })
+acceptComposer({ ...base, state: 'idle', onAttachFile: () => undefined, attachWords, attachments: [] })
 // @ts-expect-error retry requires its accessible word
 acceptComposer({ ...base, state: 'idle', onRetry: () => undefined })
-// @ts-expect-error the conversation trigger requires its accessible name
-acceptComposer({ ...base, state: 'idle', onOpenConversation: () => undefined })
-// @ts-expect-error a conversation name without its trigger names nothing
-acceptComposer({ ...base, state: 'idle', openConversationLabel: 'Open conversation' })
 
-// @ts-expect-error remove names each attachment and is therefore a function
-const invalidAttachWords: ComposerAttachWords = { add: 'Add', trayLabel: 'Tray', remove: 'Remove' }
+const invalidAttachWords: ComposerAttachWords = {
+  file: 'Add file',
+  image: 'Add image',
+  trayLabel: 'Tray',
+  // @ts-expect-error remove names each attachment and is therefore a function
+  remove: 'Remove',
+}
 void invalidAttachWords
 
 const validAttachment: ComposerAttachment = { id: 'image', kind: 'image', name: 'image.png' }

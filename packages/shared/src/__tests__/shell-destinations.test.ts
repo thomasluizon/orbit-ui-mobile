@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isPrimaryShellDestination,
-  resolveShellDestination,
-} from '../utils/shell-destinations'
+import { resolveShellDestination } from '../utils/shell-destinations'
 
 describe('resolveShellDestination', () => {
   it.each([
@@ -28,15 +25,5 @@ describe('resolveShellDestination', () => {
     expect(resolveShellDestination('/upgrade')).toBeNull()
     expect(resolveShellDestination('/unknown')).toBeNull()
     expect(resolveShellDestination('/calendarized')).toBeNull()
-  })
-})
-
-describe('isPrimaryShellDestination', () => {
-  it.each(['/', '/calendar', '/progress', '/profile', '/calendar/'])('accepts %s', (pathname) => {
-    expect(isPrimaryShellDestination(pathname)).toBe(true)
-  })
-
-  it.each(['/chat', '/upgrade', '/calendar-sync', '/profile/security'])('rejects %s', (pathname) => {
-    expect(isPrimaryShellDestination(pathname)).toBe(false)
   })
 })

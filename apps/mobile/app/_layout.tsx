@@ -55,7 +55,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
-import { DestinationShell } from '@/components/shell/destination-shell'
+import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -65,6 +65,7 @@ import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
+import ChatScreen from '@/app/chat'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
@@ -174,6 +175,7 @@ function RootStackScreens({
 }
 
 function RootLayoutNav() {
+  const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
@@ -188,6 +190,8 @@ function RootLayoutNav() {
   const totalHabitCount = useTotalHabitCount()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const todayFabHidden = useUIStore((s) => s.todayFabHidden)
+  const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
@@ -207,6 +211,11 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
+  const todayConversation = pathname === '/' ? {
+    conversation: <ChatScreen />,
+    conversationOpen: astraConversationOpen,
+    conversationLabel: t('todayAstra.openConversation'),
+  } : {}
   const androidBackFallbackRoute = useMemo(
     () =>
       getAndroidBackFallbackRoute(pathname, {
@@ -273,21 +282,23 @@ function RootLayoutNav() {
 
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
-          <DestinationShell
-            pathname={pathname}
+          <Shell412
+            {...todayConversation}
             tabBar={<AppBottomTabBar pathname={pathname} />}
-            fab={pathname === '/' ? <AppCreateFab onCreate={handleCreate} /> : undefined}
+            fab={pathname === '/' && !todayFabHidden
+              ? <AppCreateFab onCreate={handleCreate} />
+              : undefined}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
-          </DestinationShell>
+          </Shell412>
         ) : (
-          <DestinationShell nav={false} pathname={pathname}>
+          <Shell412 nav={false}>
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
-          </DestinationShell>
+          </Shell412>
         )}
 
         {captureBuildEnabled && captureReady ? (

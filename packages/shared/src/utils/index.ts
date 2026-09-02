@@ -46,7 +46,6 @@ export {
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
 export {
-  isPrimaryShellDestination,
   resolveShellDestination,
   SHELL_DESTINATION_ROUTES,
 } from './shell-destinations'
@@ -304,6 +303,8 @@ export {
   getNotificationGlyph,
   isViewableNotificationUrl,
   resolveNotificationUrl,
+  selectNewestUnreadProactiveCheckin,
+  shouldShowTodayAstraLine,
 } from './notification-actions'
 export {
   buildTempGoal,

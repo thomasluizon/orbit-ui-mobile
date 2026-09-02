@@ -24,7 +24,7 @@ export function UserAvatar({ name, size = 44, className, style }: Readonly<UserA
         width: size,
         height: size,
         background: 'rgba(var(--primary-rgb), 0.14)',
-        color: 'var(--primary)',
+        color: 'var(--fg-1)',
         fontFamily: 'var(--font-sans)',
         fontWeight: 600,
         fontSize: Math.round(size * 0.4),

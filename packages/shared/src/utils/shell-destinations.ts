@@ -29,8 +29,6 @@ export const SHELL_DESTINATION_ROUTES: readonly ShellDestinationRoute[] = [
   { pattern: '/step-up', destination: 'perfil' },
 ]
 
-const PRIMARY_SHELL_DESTINATION_PATHS = new Set(['/', '/calendar', '/progress', '/profile'])
-
 function matchesRoute(pathname: string, pattern: string): boolean {
   if (pattern === '/') return pathname === '/'
   return pathname === pattern || pathname.startsWith(`${pattern}/`)
@@ -41,9 +39,4 @@ export function resolveShellDestination(pathname: string): ShellDestinationId | 
   return SHELL_DESTINATION_ROUTES.find(({ pattern }) =>
     matchesRoute(normalizedPathname, pattern),
   )?.destination ?? null
-}
-
-export function isPrimaryShellDestination(pathname: string): boolean {
-  const normalizedPathname = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  return PRIMARY_SHELL_DESTINATION_PATHS.has(normalizedPathname)
 }

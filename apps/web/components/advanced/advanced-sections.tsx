@@ -523,7 +523,7 @@ export function WidgetInfoOverlay({
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 500,
-                    color: 'var(--primary)',
+                    color: 'var(--fg-2)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >

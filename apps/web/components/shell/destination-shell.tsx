@@ -13,15 +13,13 @@ import {
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
-import { isPrimaryShellDestination, resolveShellDestination } from '@orbit/shared/utils'
-import { ChatPageContent } from '@/components/chat/chat-page-content'
+import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
-import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -30,13 +28,15 @@ import {
   setRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
 import { Shell412 } from './shell-412'
-import { ShellComposer } from './shell-composer'
 import { ShellWide } from './shell-wide'
 
 interface DestinationShellProps {
   children: ReactNode
   notice?: ReactNode
   composer?: ReactNode
+  conversation?: ReactNode
+  conversationOpen?: boolean
+  conversationLabel?: string
   onCreate: () => void
 }
 
@@ -87,6 +87,9 @@ export function DestinationShell({
   children,
   notice,
   composer,
+  conversation,
+  conversationOpen,
+  conversationLabel,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
@@ -95,7 +98,10 @@ export function DestinationShell({
     <ShellComposerSlotContext.Provider value={registeredComposer.value}>
       <DestinationShellContent
         notice={notice}
-        composer={composer ?? registeredComposer.content}
+        composer={registeredComposer.content ?? composer}
+        conversation={conversation}
+        conversationOpen={conversationOpen}
+        conversationLabel={conversationLabel}
         onCreate={onCreate}
       >
         {children}
@@ -107,7 +113,10 @@ export function DestinationShell({
 function DestinationShellContent({
   children,
   notice,
-  composer: registeredComposer,
+  composer,
+  conversation,
+  conversationOpen,
+  conversationLabel,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const t = useTranslations()
@@ -117,35 +126,12 @@ function DestinationShellContent({
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const destination = resolveShellDestination(pathname)
-  const primaryDestination = isPrimaryShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
-  const [conversationOwnership, setConversationOwnership] = useState({
-    observedPathname: pathname,
-    ownerPathname: null as string | null,
-  })
-  if (conversationOwnership.observedPathname !== pathname) {
-    setConversationOwnership({ observedPathname: pathname, ownerPathname: null })
-  }
-  const conversationOpen =
-    primaryDestination && conversationOwnership.ownerPathname === pathname
-  const openConversation = useCallback(
-    () => setConversationOwnership({ observedPathname: pathname, ownerPathname: pathname }),
-    [pathname],
-  )
-  const chatComposer = useChatComposer({
-    destination: primaryDestination ? destination ?? undefined : undefined,
-    onOpenConversation: openConversation,
-  })
-  const persistentFileInput = (
-    <input
-      id={chatComposer.fileInputId}
-      type="file"
-      accept="image/jpeg,image/png,image/webp"
-      className="hidden"
-      onChange={chatComposer.handleFileSelect}
-    />
-  )
+  const conversationSlot = conversation !== undefined && conversationLabel
+    ? { conversation, conversationOpen, conversationLabel }
+    : {}
 
   useKeyboardShortcuts(navigationEnabled)
 
@@ -209,22 +195,6 @@ function DestinationShellContent({
     />
   )
 
-  const astraSlots = primaryDestination
-    ? {
-        composer: registeredComposer ?? <ShellComposer composer={chatComposer} />,
-        conversation: (
-          <ChatPageContent
-            composer={chatComposer}
-            onClose={() => {
-              setConversationOwnership({ observedPathname: pathname, ownerPathname: null })
-            }}
-          />
-        ),
-        conversationLabel: t('chat.title'),
-        conversationOpen,
-      }
-    : {}
-
   if (!navigationEnabled) {
     const flow = wide ? (
       <ShellWide nav={false} notice={notice}>
@@ -235,18 +205,12 @@ function DestinationShellContent({
         {children}
       </Shell412>
     )
-    return (
-      <>
-        {persistentFileInput}
-        {flow}
-      </>
-    )
+    return flow
   }
 
   if (wide) {
     return (
       <>
-        {persistentFileInput}
         <a
           href="#orbit-main"
           className="z-tooltip fixed left-4 top-4 -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
@@ -254,6 +218,7 @@ function DestinationShellContent({
           {t('common.skipToContent')}
         </a>
         <ShellWide
+          {...conversationSlot}
           items={wideItems}
           activeId={destination}
           navLabel={t('nav.mainNavigation')}
@@ -265,7 +230,7 @@ function DestinationShellContent({
           paletteLabel={t('command.title')}
           paletteHint="Ctrl K"
           notice={notice}
-          {...astraSlots}
+          composer={composer}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -276,8 +241,8 @@ function DestinationShellContent({
 
   return (
     <>
-      {persistentFileInput}
       <Shell412
+        {...conversationSlot}
         tabBar={
           <BottomTabBar
             active={destination}
@@ -287,14 +252,14 @@ function DestinationShellContent({
           />
         }
         fab={
-          pathname === '/' ? (
+          pathname === '/' && !todayFabHidden && !conversationOpen ? (
             <Fab label={t('nav.create')} onClick={onCreate}>
               <Plus size={24} strokeWidth={2} aria-hidden="true" />
             </Fab>
           ) : undefined
         }
         notice={notice}
-        {...astraSlots}
+        composer={composer}
       >
         {children}
       </Shell412>

@@ -3,7 +3,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { hashKey } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
-import { useRegisterLiveSuggestionQuery } from '@orbit/shared/query/live-suggestion-query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
@@ -82,7 +81,6 @@ export function useTodayHabitsData({
       ? initialHabits.items
       : undefined
   const habitsQuery = useHabits(filters, initialItems)
-  useRegisterLiveSuggestionQuery('habits', habitsQuery.queryKey)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size

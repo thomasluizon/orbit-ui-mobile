@@ -12,7 +12,7 @@ const REFRESH_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
   fontSize: 13,
   fontWeight: 500,
-  color: 'var(--primary-soft)',
+  color: 'var(--fg-1)',
   padding: '0 4px',
 } as const
 

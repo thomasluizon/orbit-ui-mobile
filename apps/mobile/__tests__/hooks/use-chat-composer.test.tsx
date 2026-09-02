@@ -1,32 +1,18 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
-import { COMPOSER_MESSAGE_MAX_LENGTH } from '@orbit/shared/contracts/composer'
-import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
-import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
-import {
-  registerLiveSuggestionQuery,
-  resetLiveSuggestionQueries,
-} from '@orbit/shared/query/live-suggestion-query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
-import type { CalendarMonthResponse, HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { DocumentPickerAsset } from 'expo-document-picker'
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
 
-function suggestionHabit(title: string): HabitScheduleItem {
-  return {
-    ...createMockHabit({ title, linkedGoals: [] }),
-    children: [],
-    linkedGoals: [],
-  }
-}
-
 const TestRenderer = require('react-test-renderer')
+const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -42,9 +28,6 @@ const mocks = vi.hoisted(() => {
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn(),
-    getQueryData: vi.fn(),
-    getQueriesData: vi.fn(() => []),
-    getQueryCache: vi.fn(() => ({ subscribe: vi.fn(() => vi.fn()) })),
   }
 
   return {
@@ -52,6 +35,9 @@ const mocks = vi.hoisted(() => {
     queryClient,
     apiClient: vi.fn(),
     openChatStream: vi.fn(),
+    getDocumentAsync: vi.fn(),
+    fileSize: 1024,
+    readFileText: vi.fn(),
     requestMediaLibraryPermissionsAsync: vi.fn(),
     launchImageLibraryAsync: vi.fn(),
     routerPush: vi.fn(),
@@ -81,6 +67,22 @@ vi.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: mocks.launchImageLibraryAsync,
 }))
 
+vi.mock('expo-document-picker', () => ({
+  getDocumentAsync: mocks.getDocumentAsync,
+}))
+
+vi.mock('expo-file-system', () => ({
+  File: class MockFile extends Blob {
+    constructor() {
+      super(['x'.repeat(mocks.fileSize)])
+    }
+
+    text(): Promise<string> {
+      return mocks.readFileText()
+    }
+  },
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.state.profile }),
 }))
@@ -102,17 +104,14 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
 type ComposerApi = ReturnType<typeof useChatComposer>
 
 async function renderComposer(
-  options: {
-    isOnline?: boolean
-    destination?: 'hoje' | 'calendario' | 'progresso' | 'perfil'
-  } = {},
+  options: { isOnline?: boolean; offlineTitle?: string } = {},
 ): Promise<{ current: ComposerApi; rerender: () => void; unmount: () => void }> {
   const ref: { current: ComposerApi | null } = { current: null }
 
   function Harness() {
     ref.current = useChatComposer({
       isOnline: options.isOnline ?? true,
-      destination: options.destination,
+      offlineTitle: options.offlineTitle ?? 'offline',
     })
     return null
   }
@@ -120,6 +119,7 @@ async function renderComposer(
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<Harness />)
+    mountedTrees.push(tree)
     await Promise.resolve()
   })
 
@@ -201,6 +201,17 @@ function httpErrorResponse(status: number, errorBody: { error?: string; errorCod
   }
 }
 
+function documentPickerAsset(
+  overrides: Partial<DocumentPickerAsset> = {},
+): DocumentPickerAsset {
+  return {
+    name: 'notes.txt',
+    uri: 'file:///notes.txt',
+    lastModified: 0,
+    ...overrides,
+  }
+}
+
 describe('mobile useChatComposer', () => {
   beforeEach(() => {
     mocks.state.profile = undefined
@@ -212,6 +223,10 @@ describe('mobile useChatComposer', () => {
     mocks.state.transcript = ''
     mocks.apiClient.mockReset()
     mocks.openChatStream.mockReset()
+    mocks.getDocumentAsync.mockReset()
+    mocks.fileSize = 1024
+    mocks.readFileText.mockReset()
+    mocks.readFileText.mockResolvedValue('Walk')
     mocks.requestMediaLibraryPermissionsAsync.mockReset()
     mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
@@ -219,14 +234,11 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
-    mocks.queryClient.getQueryData.mockReset()
-    mocks.queryClient.getQueriesData.mockReset()
-    resetLiveSuggestionQueries()
-    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
+    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true })
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    for (const tree of mountedTrees.splice(0)) tree.unmount()
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -252,23 +264,6 @@ describe('mobile useChatComposer', () => {
     })
     expect(useChatStore.getState().isTyping).toBe(false)
     expect(composer.current.canRetryLastSend).toBe(false)
-  })
-
-  it('sends a controlled draft at the message limit and rejects one over it', async () => {
-    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => composer.current.setInput('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-    expect(mocks.openChatStream).toHaveBeenCalledOnce()
-
-    TestRenderer.act(() => composer.current.setInput('a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH + 1)))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-    expect(mocks.openChatStream).toHaveBeenCalledOnce()
   })
 
   it('rejects an overlapping send before a second request starts', async () => {
@@ -428,20 +423,15 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.canRetryLastSend).toBe(false)
   })
 
-  it('owns the offline refusal and blocks input and suggestion sends', async () => {
-    const composer = await renderComposer({ isOnline: false })
+  it('blocks sending and surfaces the offline title when offline', async () => {
+    const composer = await renderComposer({ isOnline: false, offlineTitle: 'You are offline' })
 
     await TestRenderer.act(async () => {
       await composer.current.sendMessage('hello')
-      composer.current.composerProps.suggestions[0].onSelect()
     })
 
     expect(mocks.openChatStream).not.toHaveBeenCalled()
-    expect(composer.current.composerProps.state).toBe('offline')
-    expect(composer.current.composerProps.offlineReason).toBe(
-      'shell.composer.offline.reason',
-    )
-    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.sendError).toBe('You are offline')
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {
@@ -497,129 +487,6 @@ describe('mobile useChatComposer', () => {
     expect(messages.at(-1)).toMatchObject({ role: 'ai', content: 'Recovered' })
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.sendError).toBeNull()
-  })
-
-  it('clears a restored controlled draft and its storage after a successful retry', async () => {
-    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
-    const removeDraft = vi.spyOn(AsyncStorage, 'removeItem')
-    mocks.openChatStream
-      .mockResolvedValueOnce(sseStreamResponse(
-        frame('{"type":"error","status":500,"error":"boom"}'),
-      ))
-      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => composer.current.setInput('log water'))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-    expect(composer.current.composerProps.value).toBe('log water')
-    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water')
-    removeDraft.mockClear()
-
-    await TestRenderer.act(async () => {
-      await composer.current.retryLastSend()
-    })
-
-    expect(composer.current.composerProps.value).toBe('')
-    expect(removeDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY)
-  })
-
-  it('keeps an edited restored draft after a successful retry', async () => {
-    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
-    const removeDraft = vi.spyOn(AsyncStorage, 'removeItem')
-    mocks.openChatStream
-      .mockResolvedValueOnce(sseStreamResponse(
-        frame('{"type":"error","status":500,"error":"boom"}'),
-      ))
-      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => composer.current.setInput('log water'))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-    TestRenderer.act(() => composer.current.setInput('log water and vitamins'))
-    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water and vitamins')
-    removeDraft.mockClear()
-
-    await TestRenderer.act(async () => {
-      await composer.current.retryLastSend()
-    })
-
-    expect(composer.current.composerProps.value).toBe('log water and vitamins')
-    expect(removeDraft).not.toHaveBeenCalled()
-  })
-
-  it('keeps a controlled draft restored and editable when its retry fails', async () => {
-    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
-    const removeDraft = vi.spyOn(AsyncStorage, 'removeItem')
-    mocks.openChatStream.mockResolvedValue(sseStreamResponse(
-      frame('{"type":"error","status":500,"error":"boom"}'),
-    ))
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => composer.current.setInput('log water'))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-    removeDraft.mockClear()
-    await TestRenderer.act(async () => {
-      await composer.current.retryLastSend()
-    })
-
-    expect(composer.current.composerProps.value).toBe('log water')
-    expect(removeDraft).not.toHaveBeenCalled()
-    TestRenderer.act(() => composer.current.setInput('log water later'))
-    expect(composer.current.composerProps.value).toBe('log water later')
-    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water later')
-  })
-
-  it('keeps a newer draft edit when an in-flight retry fails', async () => {
-    const setDraft = vi.spyOn(AsyncStorage, 'setItem')
-    const retryStream = controlledSseStreamResponse()
-    mocks.openChatStream
-      .mockResolvedValueOnce(sseStreamResponse(
-        frame('{"type":"error","status":500,"error":"boom"}'),
-      ))
-      .mockResolvedValueOnce(retryStream.response)
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => composer.current.setInput('log water'))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-
-    let retryPromise!: Promise<void>
-    TestRenderer.act(() => {
-      retryPromise = composer.current.retryLastSend()
-    })
-    TestRenderer.act(() => composer.current.setInput('log water and vitamins'))
-
-    await TestRenderer.act(async () => {
-      retryStream.enqueue(frame('{"type":"error","status":500,"error":"boom again"}'))
-      retryStream.close()
-      await retryPromise
-    })
-
-    expect(composer.current.composerProps.value).toBe('log water and vitamins')
-    expect(setDraft).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water and vitamins')
-  })
-
-  it('restores a rejected controlled draft for editing', async () => {
-    mocks.openChatStream.mockResolvedValue(
-      httpErrorResponse(400, { error: 'invalid request' }),
-    )
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => composer.current.setInput('draft to repair'))
-    await TestRenderer.act(async () => {
-      await composer.current.sendMessage()
-    })
-
-    expect(composer.current.composerProps.value).toBe('draft to repair')
-    TestRenderer.act(() => composer.current.composerProps.onChangeValue('repaired draft'))
-    expect(composer.current.composerProps.value).toBe('repaired draft')
   })
 
   it('confirms then executes a pending operation through the API', async () => {
@@ -713,6 +580,209 @@ describe('mobile useChatComposer', () => {
     appendFormPart.mockRestore()
   })
 
+  it('reads a valid text file, folds it into the sent message, and clears it', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    mocks.readFileText.mockResolvedValue('Walk\nRead')
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+    expect(composer.current.selectedTextFile).toEqual({
+      name: 'notes.txt',
+      content: 'Walk\nRead',
+    })
+
+    TestRenderer.act(() => composer.current.setInput('Import these'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    expect(appendFormPart).toHaveBeenCalledWith(
+      'message',
+      'Import these\n\nchat.fileAttached:{"name":"notes.txt"}\nWalk\nRead',
+    )
+    expect(composer.current.selectedTextFile).toBeNull()
+    appendFormPart.mockRestore()
+  })
+
+  it('rejects an unsupported text-file extension', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset({ name: 'notes.pdf', uri: 'file:///notes.pdf' })],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.getDocumentAsync).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileError')
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
+  })
+
+  it('rejects a text file over 1 MiB', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset({ size: 1024 * 1024 + 1 })],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.getDocumentAsync).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileSizeError')
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
+  })
+
+  it('rejects a text file over 1 MiB when the picker omits its size', async () => {
+    mocks.fileSize = 1024 * 1024 + 1
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.getDocumentAsync).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileSizeError')
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
+  })
+
+  it('reads a small text file when the picker omits its size', async () => {
+    mocks.fileSize = 2048
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    mocks.readFileText.mockResolvedValue('Walk\nRead')
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.selectedTextFile).toEqual({
+      name: 'notes.txt',
+      content: 'Walk\nRead',
+    })
+  })
+
+  it('surfaces a text-file read failure', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset({ name: 'notes.md', uri: 'file:///notes.md' })],
+    })
+    mocks.readFileText.mockRejectedValue(new Error('read failed'))
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileReadError')
+    expect(composer.current.selectedTextFile).toBeNull()
+  })
+
+  it('does nothing when the document picker is canceled', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.getDocumentAsync).toHaveBeenCalledOnce())
+    })
+
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
+  })
+
+  it('removes text-file and image attachments independently by id', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+      await composer.current.openFilePicker()
+    })
+    expect(composer.current.composerProps.attachments).toHaveLength(2)
+
+    TestRenderer.act(() => composer.current.composerProps.onAttachRemove?.('chat-file'))
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(composer.current.selectedImage?.fileName).toBe('pic.jpg')
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledTimes(2))
+    })
+    TestRenderer.act(() => composer.current.composerProps.onAttachRemove?.('chat-image'))
+    expect(composer.current.selectedTextFile?.name).toBe('notes.txt')
+    expect(composer.current.selectedImage).toBeNull()
+  })
+
+  it('allows a file-only send and blocks an image-only send', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [documentPickerAsset()],
+    })
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 },
+      ],
+    })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+  })
+
   it('blocks image selection when the media-library permission is denied', async () => {
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false })
     const composer = await renderComposer()
@@ -788,7 +858,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.starterChips.length).toBeGreaterThan(0)
   })
 
-  it('states only the consumed allowance at the message limit', async () => {
+  it('states only the allowance at the message limit', async () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
@@ -800,22 +870,21 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.limitReason).toBe(
       'shell.composer.limit.reason:{"allowance":20}',
     )
-    expect(composer.current.composerProps.limitReason).not.toContain('reset')
+    expect(composer.current.composerProps.limitReason).not.toContain('resetsAt')
+    expect(composer.current.composerProps.limitReason).not.toContain('midnight')
   })
 
-  it('uses the same allowance-only copy without an account timezone', async () => {
-    mocks.state.profile = createMockProfile({
-      hasProAccess: false,
-      aiMessagesUsed: 20,
-      aiMessagesLimit: 20,
-      timeZone: null,
-    })
+  it('shares a selected Today draft with a newly mounted conversation composer', async () => {
+    const todayComposer = await renderComposer()
 
-    const composer = await renderComposer()
-    expect(composer.current.composerProps.limitReason).toBe(
-      'shell.composer.limit.reason:{"allowance":20}',
+    await TestRenderer.act(() => {
+      todayComposer.current.setInput('Help me create a morning walk habit')
+    })
+    const conversationComposer = await renderComposer()
+
+    expect(conversationComposer.current.composerProps.value).toBe(
+      'Help me create a morning walk habit',
     )
-    expect(composer.current.composerProps.limitReason).not.toContain('midnight')
   })
 
   it('ignores an empty send with nothing typed or attached', async () => {
@@ -891,7 +960,7 @@ describe('mobile useChatComposer', () => {
 
   it('keeps a failed request queued when retry is attempted offline', async () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
-    const options = { isOnline: true }
+    const options = { isOnline: true, offlineTitle: 'offline sentinel' }
     const composer = await renderComposer(options)
 
     await TestRenderer.act(async () => {
@@ -905,8 +974,7 @@ describe('mobile useChatComposer', () => {
       await composer.current.retryLastSend()
     })
 
-    expect(composer.current.composerProps.state).toBe('offline')
-    expect(composer.current.sendError).toBe('chat.sendError')
+    expect(composer.current.sendError).toBe('offline sentinel')
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
   })
 
@@ -921,50 +989,6 @@ describe('mobile useChatComposer', () => {
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
     appendFormPart.mockRestore()
-  })
-
-  it('keeps Today suggestions on its exact filtered query when another list is cached', async () => {
-    const todayKey = habitKeys.list({ dateFrom: '2026-08-29', dateTo: '2026-08-29' })
-    const commandKey = habitKeys.list({})
-    const cachedQueries = new Map<string, HabitScheduleItem[]>([
-      [JSON.stringify(todayKey), [suggestionHabit('Today habit')]],
-      [JSON.stringify(commandKey), [suggestionHabit('Other habit')]],
-    ])
-    mocks.state.profile = createMockProfile()
-    mocks.queryClient.getQueryData.mockImplementation(
-      (key: readonly unknown[]) => cachedQueries.get(JSON.stringify(key)),
-    )
-    registerLiveSuggestionQuery('habits', todayKey)
-
-    const composer = await renderComposer({ destination: 'hoje' })
-    expect(composer.current.composerProps.suggestions[0].label).toContain('Today habit')
-
-    cachedQueries.set(JSON.stringify(commandKey), [suggestionHabit('Later other habit')])
-    composer.rerender()
-
-    expect(composer.current.composerProps.suggestions[0].label).toContain('Today habit')
-    expect(composer.current.composerProps.suggestions[0].label).not.toContain('other habit')
-  })
-
-  it('switches Calendar suggestions to the exact query for the visible view', async () => {
-    const monthKey = habitKeys.calendar('2026-08-01', '2026-08-31')
-    const weekKey = habitKeys.calendar('2026-08-24', '2026-08-30')
-    const cachedQueries = new Map<string, CalendarMonthResponse>([
-      [JSON.stringify(monthKey), { habits: [suggestionHabit('Month habit')], logs: {} }],
-      [JSON.stringify(weekKey), { habits: [suggestionHabit('Week habit')], logs: {} }],
-    ])
-    mocks.state.profile = createMockProfile()
-    mocks.queryClient.getQueryData.mockImplementation(
-      (key: readonly unknown[]) => cachedQueries.get(JSON.stringify(key)),
-    )
-    registerLiveSuggestionQuery('calendar', weekKey)
-    const composer = await renderComposer({ destination: 'calendario' })
-    expect(composer.current.composerProps.suggestions[0].label).toContain('Week habit')
-
-    TestRenderer.act(() => registerLiveSuggestionQuery('calendar', monthKey))
-
-    expect(composer.current.composerProps.suggestions[0].label).toContain('Month habit')
-    expect(composer.current.composerProps.suggestions[0].label).not.toContain('Week habit')
   })
 
   it('refreshes the habit list after a confirmed breakdown', async () => {

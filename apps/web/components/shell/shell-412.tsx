@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useRef } from 'react'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
@@ -13,8 +13,7 @@ export function Shell412(props: Readonly<Shell412Props>) {
   const navigationEnabled = props.nav !== false
   const conversationOpen = isConversationOpen(props)
   const conversationRef = useRef<HTMLDivElement>(null)
-  const scrollerOwner = useMemo(() => Symbol('shell-412'), [])
-  const registerScroller = useShellScrollerRegistration(scrollerOwner)
+  const registerScroller = useShellScrollerRegistration()
   useModalFocusTrap(conversationOpen, conversationRef)
 
   const pinnedSlot = navigationEnabled ? props.composer : props.action

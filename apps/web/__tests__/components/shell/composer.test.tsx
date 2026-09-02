@@ -1,9 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import {
-  COMPOSER_MESSAGE_MAX_LENGTH,
-  type ComposerProps,
-  type ComposerSuggestions,
-} from '@orbit/shared/contracts/composer'
+import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 
@@ -19,7 +15,8 @@ const voiceWords = {
   transcribing: 'transcribing sentinel',
 }
 const attachWords = {
-  add: 'attach sentinel',
+  file: 'attach file sentinel',
+  image: 'attach image sentinel',
   trayLabel: 'tray sentinel',
   remove: (name: string) => `remove sentinel ${name}`,
 }
@@ -73,15 +70,6 @@ describe('Composer', () => {
     expect(onChangeValue).toHaveBeenCalledWith('oi')
   })
 
-  it('opens the conversation from the visible Astra trigger', () => {
-    const onOpenConversation = vi.fn()
-    render(<Composer {...props({ onOpenConversation, openConversationLabel: 'Open conversation' })} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
-
-    expect(onOpenConversation).toHaveBeenCalledOnce()
-  })
-
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)
@@ -96,23 +84,6 @@ describe('Composer', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('sends at the message limit and blocks content over it', () => {
-    const onSend = vi.fn()
-    const atLimit = 'a'.repeat(COMPOSER_MESSAGE_MAX_LENGTH)
-    const { rerender } = render(<Composer {...props({ value: atLimit, onSend })} />)
-    const input = screen.getByRole('textbox', { name: words.placeholder })
-    const send = screen.getByRole('button', { name: words.send })
-
-    expect(input).toHaveAttribute('maxlength', String(COMPOSER_MESSAGE_MAX_LENGTH))
-    fireEvent.click(send)
-    expect(onSend).toHaveBeenCalledOnce()
-
-    rerender(<Composer {...props({ value: `${atLimit}a`, onSend })} />)
-    expect(send).toBeDisabled()
-    fireEvent.click(send)
-    expect(onSend).toHaveBeenCalledOnce()
-  })
-
   it('requires nonblank text when an image is attached', () => {
     const onSend = vi.fn()
     const { rerender } = render(
@@ -120,7 +91,7 @@ describe('Composer', () => {
         {...props({
           value: '   ',
           onSend,
-          onAttach: vi.fn(),
+          onAttachImage: vi.fn(),
           attachWords,
           attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
           onAttachRemove: vi.fn(),
@@ -137,7 +108,7 @@ describe('Composer', () => {
         {...props({
           value: 'log my walk',
           onSend,
-          onAttach: vi.fn(),
+          onAttachImage: vi.fn(),
           attachWords,
           attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }],
           onAttachRemove: vi.fn(),
@@ -158,35 +129,10 @@ describe('Composer', () => {
 
   it('renders only the limit reason above disabled controls without an accent send', () => {
     const { container } = render(<Composer {...props({ state: 'atLimit', limitReason: 'limit sentinel' })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('limit sentinel')
-    expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('limit sentinel')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
     expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
-    expect(container.querySelector('[data-accent]')).toBeNull()
-  })
-
-  it('renders the offline refusal without interactive chips or composer controls', () => {
-    const onSend = vi.fn()
-    const chips = suggestions(3)
-    const { container } = render(
-      <Composer
-        {...props({
-          state: 'offline',
-          offlineReason: 'offline sentinel',
-          value: 'hello',
-          onSend,
-          suggestions: chips,
-        })}
-      />,
-    )
-
-    expect(screen.getByText('offline sentinel')).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: words.send }))
-    expect(onSend).not.toHaveBeenCalled()
-    expect(chips.every((chip) => !vi.mocked(chip.onSelect).mock.calls.length)).toBe(true)
     expect(container.querySelector('[data-accent]')).toBeNull()
   })
 
@@ -236,9 +182,34 @@ describe('Composer', () => {
   })
 
   it('renders attachment capability without an empty tray', () => {
-    render(<Composer {...props({ onAttach: vi.fn(), attachWords })} />)
-    expect(screen.getByRole('button', { name: attachWords.add })).toBeInTheDocument()
+    render(
+      <Composer
+        {...props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords })}
+      />,
+    )
+    expect(screen.getByRole('button', { name: attachWords.file })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: attachWords.image })).toBeInTheDocument()
     expect(screen.queryByLabelText(attachWords.trayLabel)).not.toBeInTheDocument()
+  })
+
+  it('allows a text file to send without typed text', () => {
+    const onSend = vi.fn()
+    render(
+      <Composer
+        {...props({
+          value: '   ',
+          onSend,
+          onAttachFile: vi.fn(),
+          attachWords,
+          attachments: [{ id: 'file-id', kind: 'file', name: 'notes.txt' }],
+          onAttachRemove: vi.fn(),
+        })}
+      />,
+    )
+    const send = screen.getByRole('button', { name: words.send })
+    expect(send).toBeEnabled()
+    fireEvent.click(send)
+    expect(onSend).toHaveBeenCalledOnce()
   })
 
   it('names, distinguishes, and removes each attachment independently', () => {
@@ -248,7 +219,9 @@ describe('Composer', () => {
       { id: 'image-id', kind: 'image' as const, name: 'walk.png' },
     ]
     const { container } = render(
-      <Composer {...props({ onAttach: vi.fn(), attachWords, attachments, onAttachRemove })} />,
+      <Composer
+        {...props({ onAttachFile: vi.fn(), attachWords, attachments, onAttachRemove })}
+      />,
     )
     expect(screen.getByText('notes.txt')).toBeInTheDocument()
     expect(screen.getByText('walk.png')).toBeInTheDocument()
@@ -275,13 +248,11 @@ describe('Composer', () => {
     expect(screen.getByPlaceholderText(words.placeholder)).toHaveAccessibleName(words.placeholder)
   })
 
-  it.each(['idle', 'sending', 'recording', 'transcribing', 'offline', 'atLimit'] as const)(
+  it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(
     'exposes the %s state without false boolean attributes',
     (state) => {
       const stateProps = state === 'atLimit'
         ? { state, limitReason: 'limit sentinel' }
-        : state === 'offline'
-          ? { state, offlineReason: 'offline sentinel' }
         : state === 'recording' || state === 'transcribing'
           ? { state, onVoice: vi.fn(), voiceWords }
           : { state }

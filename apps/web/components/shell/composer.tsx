@@ -2,7 +2,6 @@
 
 import type { ClipboardEventHandler } from 'react'
 import {
-  COMPOSER_MESSAGE_MAX_LENGTH,
   hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
@@ -69,7 +68,6 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
         <button
           key={suggestion.id}
           type="button"
-          data-conversation-control={`suggestion:${suggestion.id}`}
           onClick={suggestion.onSelect}
           className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         >
@@ -100,23 +98,10 @@ function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElem
 }
 
 function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
-  if (props.state === 'offline') {
-    return (
-      <p aria-live="polite" className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">
-        {props.offlineReason}
-      </p>
-    )
-  }
-  if (props.state === 'atLimit') {
+  if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <div className="flex flex-col gap-2">
-        <p
-          aria-live="polite"
-          role="status"
-          className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]"
-        >
-          {props.limitReason}
-        </p>
+        <p className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
         {props.limitRecovery}
       </div>
     )
@@ -129,34 +114,29 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value)
-  const isAtLimit = props.state === 'atLimit'
-  const isOffline = props.state === 'offline'
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isAtLimit || isOffline
+  const voiceDisabled = isTranscribing || props.state === 'sending' || isBlocked
 
   return (
     <div className="flex items-end gap-2">
+      {props.onOpenConversation && props.conversationLabel ? (
+        <button
+          type="button"
+          aria-label={props.conversationLabel}
+          onClick={props.onOpenConversation}
+          className="flex size-12 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[color,transform] hover:text-[var(--fg-1)] active:scale-[0.96]"
+        >
+          <AstraGlyph size={20} color="currentColor" />
+        </button>
+      ) : null}
       <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]">
-        {props.onOpenConversation ? (
-          <button
-            type="button"
-            data-conversation-control="astra"
-            aria-label={props.openConversationLabel}
-            onClick={props.onOpenConversation}
-            className="flex size-11 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-          >
-            <AstraGlyph size={24} />
-          </button>
-        ) : null}
-
         <textarea
           rows={1}
-          maxLength={COMPOSER_MESSAGE_MAX_LENGTH}
           data-composer-input
-          data-conversation-control="input"
           data-tour="tour-chat-input"
           aria-label={props.words.placeholder}
           disabled={inputDisabled}
@@ -168,12 +148,24 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-3)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
         />
 
-        {props.onAttach ? (
+        {props.onAttachFile ? (
           <button
             type="button"
-            aria-label={props.attachWords.add}
+            aria-label={props.attachWords.file}
             disabled={inputDisabled}
-            onClick={props.onAttach}
+            onClick={props.onAttachFile}
+            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+          >
+            <FileText size={20} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        ) : null}
+
+        {props.onAttachImage ? (
+          <button
+            type="button"
+            aria-label={props.attachWords.image}
+            disabled={inputDisabled}
+            onClick={props.onAttachImage}
             className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
           >
             <ImageIcon size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -200,7 +192,6 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 
       <button
         type="button"
-        data-conversation-control="send"
         aria-label={props.words.send}
         data-accent={sendIsAccent ? '' : undefined}
         disabled={!canSend}
@@ -216,7 +207,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 }
 
 function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
-  if (!props.onRetry || props.state === 'offline') return null
+  if (!props.onRetry) return null
   return (
     <button
       type="button"

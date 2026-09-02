@@ -201,7 +201,7 @@ export function WelcomeBackToast() {
             {variant === 'welcome' ? (
               <Text style={styles.iconEmoji}>🔥</Text>
             ) : (
-              <Gift size={17} strokeWidth={2.2} color={tokens.primarySoft} />
+              <Gift size={17} strokeWidth={2.2} color={tokens.primary} />
             )}
           </View>
           <View style={styles.textCol}>

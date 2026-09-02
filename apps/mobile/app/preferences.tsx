@@ -33,11 +33,10 @@ export default function PreferencesScreen() {
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleSchemeChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
     weekStartMutation,
-  } = usePreferenceControls(closeSheet)
+  } = usePreferenceControls()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -85,11 +84,10 @@ export default function PreferencesScreen() {
     { value: 'light', label: t('preferences.themeModeLight') },
   ]
 
-  const { languageLabel, themeLabel, schemeLabel, schemeOption, weekStartLabel } =
+  const { languageLabel, themeLabel, weekStartLabel } =
     derivePreferenceLabels(t, {
       selectedLanguage,
       currentTheme,
-      currentScheme,
       weekStartDay: profile?.weekStartDay,
       themeModeOptions,
       weekStartOptions,
@@ -98,13 +96,11 @@ export default function PreferencesScreen() {
   const pickerTitles: Record<PreferencePicker, string> = {
     language: t('profile.language.title'),
     theme: t('preferences.themeMode'),
-    scheme: t('profile.colorScheme.title'),
     weekStart: t('settings.weekStartDay.title'),
   }
 
   const pickerDescriptions: Partial<Record<PreferencePicker, string>> = {
     language: t('profile.language.description'),
-    scheme: t('profile.colorScheme.description'),
     weekStart: t('settings.weekStartDay.description'),
   }
 
@@ -135,9 +131,7 @@ export default function PreferencesScreen() {
           t={t}
           languageLabel={languageLabel}
           themeLabel={themeLabel}
-          schemeLabel={schemeLabel}
           weekStartLabel={weekStartLabel}
-          schemeOption={schemeOption}
           showGeneralOnToday={showGeneralOnToday}
           onOpenPicker={setActivePicker}
           onToggleShowGeneral={() => {
@@ -172,13 +166,11 @@ export default function PreferencesScreen() {
 
       <PreferencePickerSheet
         tokens={tokens}
-        t={t}
         activePicker={activePicker}
         pickerTitles={pickerTitles}
         pickerDescriptions={pickerDescriptions}
         selectedLanguage={selectedLanguage}
         currentTheme={currentTheme}
-        currentScheme={currentScheme}
         weekStartDay={profile?.weekStartDay}
         themeModeOptions={themeModeOptions}
         weekStartOptions={weekStartOptions}
@@ -189,7 +181,6 @@ export default function PreferencesScreen() {
           void handleLanguageChange(locale)
         }}
         onThemeModeChange={handleThemeModeChange}
-        onSchemeChange={handleSchemeChange}
         onWeekStartChange={(day) => weekStartMutation.mutate(day)}
       />
     </SafeAreaView>

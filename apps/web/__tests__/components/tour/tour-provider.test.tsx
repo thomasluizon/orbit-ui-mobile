@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import type { ComposerProps } from '@orbit/shared/contracts/composer'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -27,26 +26,6 @@ const mockChatComposer = vi.hoisted(() => ({
   confirmAndExecutePendingOperation: vi.fn(),
   prepareStepUpForBubble: vi.fn(),
   verifyStepUpForBubble: vi.fn(),
-  isOnline: true,
-  sendError: null,
-  fileInputRef: { current: null as HTMLInputElement | null },
-  handleFileSelect: vi.fn(),
-  composerProps: {
-    state: 'idle',
-    words: {
-      placeholder: 'Ask Astra',
-      send: 'Send',
-      suggestionsLabel: 'Suggestions',
-    },
-    value: '',
-    onChangeValue: vi.fn(),
-    onSend: vi.fn(),
-    suggestions: [
-      { id: 'one', label: 'One', onSelect: vi.fn() },
-      { id: 'two', label: 'Two', onSelect: vi.fn() },
-      { id: 'three', label: 'Three', onSelect: vi.fn() },
-    ],
-  } satisfies ComposerProps,
 }))
 
 const mockRouterPush = vi.fn()
@@ -75,7 +54,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
 
@@ -93,30 +72,11 @@ import ChatPage from '@/app/(chat)/chat/page'
 let observedShellScroller: HTMLElement | null = null
 
 function TourHarness() {
-  const owner = useMemo(() => Symbol('tour-shell'), [])
-  const registerScroller = useShellScrollerRegistration(owner)
+  const registerScroller = useShellScrollerRegistration()
   return (
     <div ref={registerScroller} data-testid="tour-shell-scroller">
       <TourProvider />
     </div>
-  )
-}
-
-function ConversationScroller() {
-  const owner = useMemo(() => Symbol('tour-conversation'), [])
-  const registerScroller = useShellScrollerRegistration(owner)
-  return <div ref={registerScroller} role="log" aria-label="Conversation" />
-}
-
-function TourConversationHarness({ conversationOpen }: Readonly<{ conversationOpen: boolean }>) {
-  const owner = useMemo(() => Symbol('tour-page'), [])
-  const registerScroller = useShellScrollerRegistration(owner)
-  return (
-    <>
-      <div ref={registerScroller} data-testid="tour-page-scroller" />
-      {conversationOpen ? <ConversationScroller /> : null}
-      <TourProvider />
-    </>
   )
 }
 
@@ -301,46 +261,5 @@ describe('TourProvider session lifecycle', () => {
     })
 
     expect(useTourStore.getState().targetRect).not.toBeNull()
-  })
-
-  it('remeasures from the page after a conversation opens and closes', async () => {
-    const view = render(
-      <ShellScrollerProvider>
-        <TourConversationHarness conversationOpen={false} />
-      </ShellScrollerProvider>,
-    )
-
-    act(() => {
-      useTourStore.getState().startSectionReplay('habits')
-    })
-    const step = useTourStore.getState().getCurrentStep()
-    expect(step).toBeTruthy()
-
-    const target = document.createElement('div')
-    target.setAttribute('data-tour', step!.targetId)
-    target.scrollIntoView = vi.fn()
-    document.body.appendChild(target)
-
-    view.rerender(
-      <ShellScrollerProvider>
-        <TourConversationHarness conversationOpen />
-      </ShellScrollerProvider>,
-    )
-    view.rerender(
-      <ShellScrollerProvider>
-        <TourConversationHarness conversationOpen={false} />
-      </ShellScrollerProvider>,
-    )
-
-    act(() => {
-      useTourStore.getState().setTargetRect(null)
-    })
-    await act(async () => {
-      screen.getByTestId('tour-page-scroller').dispatchEvent(new Event('scroll'))
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
-    })
-
-    expect(useTourStore.getState().targetRect).not.toBeNull()
-    target.remove()
   })
 })

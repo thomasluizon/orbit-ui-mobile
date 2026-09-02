@@ -1,4 +1,4 @@
-export { COMPOSER_MESSAGE_MAX_LENGTH, hasComposerContent } from './Composer'
+export { hasComposerContent } from './Composer'
 export type {
   ComposerAttachWords,
   ComposerAttachment,
