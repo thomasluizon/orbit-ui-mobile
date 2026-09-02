@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -30,13 +31,15 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
 
-async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscriptionPlans>> {
+async function renderUseSubscriptionPlans(
+  options?: Parameters<typeof useSubscriptionPlans>[0],
+): Promise<ReturnType<typeof useSubscriptionPlans>> {
   const latestValueHolder: {
     current: ReturnType<typeof useSubscriptionPlans> | null
   } = { current: null }
 
   function Harness() {
-    latestValueHolder.current = useSubscriptionPlans()
+    latestValueHolder.current = useSubscriptionPlans(options)
     return null
   }
 
@@ -86,5 +89,19 @@ describe('mobile useSubscriptionPlans', () => {
     expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
       refetchOnMount: 'always',
     }))
+  })
+
+  it('keeps caller handled and upgrade observers on the shared plans query', async () => {
+    await renderUseSubscriptionPlans({ handlesError: true })
+    await renderUseSubscriptionPlans()
+
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ queryKey: subscriptionKeys.plans() }),
+    )
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ queryKey: subscriptionKeys.plans() }),
+    )
   })
 })
