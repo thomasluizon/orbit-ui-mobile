@@ -126,6 +126,23 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
+  it('states daily and timed fixed-day schedules exactly', () => {
+    const formHelpers = createFormHelpers({
+      title: 'Run',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+    })
+    const view = renderForm(formHelpers)
+
+    expect(screen.getByText('habits.form.understoodDaily:{}')).toBeDefined()
+
+    formHelpers.testValues.days = ['Monday']
+    formHelpers.testValues.dueTime = '08:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('habits.form.understoodDaysAt:{"days":"Mon","time":"08:00"}')).toBeDefined()
+  })
+
   it('applies a time-only local phrase without inventing a cadence', async () => {
     const formHelpers = createFormHelpers({ title: 'Dentist at 15:00' })
     renderForm(formHelpers, undefined, false, true)

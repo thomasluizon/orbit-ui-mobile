@@ -6,6 +6,7 @@ import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   applyHabitPhraseRead,
+  buildHabitUnderstandingSentence,
   coalesceFormText,
   formatLocaleDate,
   getFriendlyErrorMessage,
@@ -141,22 +142,6 @@ function reminderLabel(minutes: number, t: (key: string) => string): string {
   }
   const days = Math.floor(minutes / 1440)
   return `${days} ${t(days === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays')}`
-}
-
-function buildUnderstandingSentence(
-  days: string[],
-  dayOptions: { value: string; label: string }[],
-  isFlexible: boolean,
-  hasFrequencyUnit: boolean,
-  quantity: number,
-  translate: (key: string, values?: Record<string, unknown>) => string,
-): string | null {
-  if (days.length > 0) {
-    const selectedDays = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label).join(', ')
-    return translate('habits.form.understoodDays', { days: selectedDays })
-  }
-  if (isFlexible || hasFrequencyUnit) return translate('habits.form.understoodCount', { count: quantity })
-  return null
 }
 
 interface ReminderEditorsProps {
@@ -296,8 +281,8 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildUnderstandingSentence(days, daysList, isFlexible, !!frequencyUnit, frequencyQuantity, translate),
-    [days, daysList, frequencyQuantity, frequencyUnit, isFlexible, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, translate),
+    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, translate],
   )
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isAtMessageLimit(hasProAccess, profile?.aiMessagesUsed ?? 0, allowance)
