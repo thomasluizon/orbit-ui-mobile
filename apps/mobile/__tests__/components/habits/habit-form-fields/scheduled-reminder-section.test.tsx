@@ -247,6 +247,11 @@ describe("ScheduledReminderSection", () => {
     expect(tree.root.findAll((node) => node.type === "TimeField")).toHaveLength(
       0,
     );
+    press(buttons(tree).find((node) => !node.props.accessibilityLabel)!);
+    const reopenedPicker = tree.root.findAll(
+      (node) => node.type === "TimeField",
+    )[0]!;
+    expect(reopenedPicker.props.value).toBe("");
     expect(onSetScheduledReminders).not.toHaveBeenCalled();
   });
 
