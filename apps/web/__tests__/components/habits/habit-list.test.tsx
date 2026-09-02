@@ -2212,6 +2212,68 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
   })
 
+  it('queues confirmations when concurrent row skips complete two mixed parents', async () => {
+    const parentA = createMockHabit({
+      id: 'parent-a',
+      title: 'Parent A',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const parentB = createMockHabit({
+      id: 'parent-b',
+      title: 'Parent B',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const children = [
+      createMockHabit({
+        id: 'logged-a',
+        parentId: parentA.id,
+        isCompleted: true,
+        scheduledDates: [TODAY],
+      }),
+      createMockHabit({ id: 'skipped-a', parentId: parentA.id, scheduledDates: [TODAY] }),
+      createMockHabit({
+        id: 'logged-b',
+        parentId: parentB.id,
+        isCompleted: true,
+        scheduledDates: [TODAY],
+      }),
+      createMockHabit({ id: 'skipped-b', parentId: parentB.id, scheduledDates: [TODAY] }),
+    ]
+    for (const habit of [parentA, parentB, ...children]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parentA.id, ['logged-a', 'skipped-a'])
+    mockHabitsData.childrenByParent.set(parentB.id, ['logged-b', 'skipped-b'])
+    mockHabitsData.topLevelHabits = [parentA, parentB]
+    const resolveSkips: (() => void)[] = []
+    skipHabitMutateAsync.mockImplementation(
+      () => new Promise<void>((resolve) => resolveSkips.push(resolve)),
+    )
+
+    renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('skip-skipped-a'))
+      fireEvent.click(screen.getByTestId('skip-skipped-b'))
+    })
+    await act(async () => {
+      resolveSkips.forEach((resolve) => resolve())
+      await Promise.resolve()
+    })
+
+    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent A"})'))
+      .toBeDefined()
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent B"})'))
+      .toBeDefined()
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentA.id, date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentB.id, date: TODAY })
+  })
+
   it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
     const parent = createMockHabit({
       id: 'parent',
