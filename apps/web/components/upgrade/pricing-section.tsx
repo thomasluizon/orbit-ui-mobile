@@ -1,7 +1,6 @@
 import { AlertTriangle, Tag } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PlanSelection } from './plan-selection'
-import { PlanComparisonCards } from './plan-comparison-cards'
 import { cardSurface } from './styles'
 import { plural } from '@/lib/plural'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -54,22 +53,33 @@ export function PricingSection({
 
   return (
     <>
-      <header style={{ marginBottom: 20 }}>
-        <p className="t-eyebrow" style={{ margin: 0, color: 'var(--primary-soft)' }}>
+      <header className="flex flex-col gap-2">
+        <p className="t-eyebrow text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="t-display" style={{ margin: '6px 0 0', textWrap: 'balance' }}>
+        <h1 className="t-display text-pretty">
           {heading}
         </h1>
-        <p className="t-secondary" style={{ margin: '10px 0 0', maxWidth: '46ch' }}>
+        <p className="t-secondary max-w-[46ch] text-pretty">
           {t('upgrade.convert.promise')}
         </p>
         {!trialActive ? (
-          <p className="t-meta" style={{ margin: '10px 0 0', maxWidth: '46ch' }}>
+          <p className="t-meta max-w-[46ch] text-pretty">
             {t('upgrade.convert.trustLine')}
           </p>
         ) : null}
       </header>
+
+      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
+        <div className="grid grid-cols-[1fr_1px_1fr] gap-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+          <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} />
+          <span aria-hidden="true" className="h-full w-px bg-[var(--hairline)]" />
+          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} />
+        </div>
+        <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+          {t('upgrade.convert.allowanceNote')}
+        </p>
+      </section>
 
       {isLoadingPlans ? (
         <div className="grid grid-cols-1" style={{ gap: 16 }}>
@@ -133,10 +143,20 @@ export function PricingSection({
               {t('upgrade.plans.renewalNote')}
             </p>
           </div>
-
-          <PlanComparisonCards t={t} />
         </>
       ) : null}
     </>
+  )
+}
+
+function Allowance({ amount, label, perDay }: Readonly<{ amount: string; label: string; perDay: string }>) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">{label}</p>
+      <p className="font-display text-[44px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)]">
+        {amount}
+      </p>
+      <p className="text-sm leading-[1.4] text-[var(--fg-3)]">{perDay}</p>
+    </div>
   )
 }

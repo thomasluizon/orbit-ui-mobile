@@ -1,38 +1,13 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import {
-  AlertTriangle,
-  BarChart3,
-  Flame,
-  MessageSquare,
-  Palette,
-  ShieldCheck,
-  Tag,
-} from '@/components/ui/icons'
-import {
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
-} from '@orbit/shared/utils/upgrade'
-import type { UpgradeIconKey } from '@orbit/shared/utils/upgrade'
+import { AlertTriangle, Tag } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PlanComparisonCards } from './plan-comparison-cards'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
-
-const iconByKey: Record<UpgradeIconKey, typeof Flame> = {
-  flame: Flame,
-  messageSquare: MessageSquare,
-  palette: Palette,
-  shieldCheck: ShieldCheck,
-  barChart3: BarChart3,
-}
-
-const MARQUEE = [...UPGRADE_PRO_FEATURES, ...UPGRADE_YEARLY_EXTRA_FEATURES]
 
 function sectionEntrance(index: number) {
   return FadeInDown.duration(280)
@@ -93,13 +68,31 @@ export function PricingSection({
   return (
     <>
       <Animated.View entering={sectionEntrance(0)}>
-        <Text style={[styles.convertEyebrow, { color: tokens.primarySoft }]}>{eyebrow}</Text>
+        <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
         <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
         {!trialActive ? (
           <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
         ) : null}
       </Animated.View>
+
+      <View
+        accessible
+        accessibilityLabel={t('upgrade.convert.allowanceLabel')}
+        style={styles.allowanceSection}
+      >
+        <View
+          style={[
+            styles.allowanceCard,
+            { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+          ]}
+        >
+          <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.allowanceDivider, { backgroundColor: tokens.hairline }]} />
+          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
+        </View>
+        <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
+      </View>
 
       {isLoadingPlans ? (
         <View style={{ marginTop: 18 }}>
@@ -153,27 +146,6 @@ export function PricingSection({
             </View>
           ) : null}
 
-          <Animated.View style={styles.marqueePad} entering={sectionEntrance(2)}>
-            {MARQUEE.map((feature) => {
-              const Icon = iconByKey[feature.iconKey]
-              return (
-                <View key={feature.key} style={styles.marqueeRow}>
-                  <View style={styles.marqueeIcon}>
-                    <Icon size={20} strokeWidth={1.8} color={tokens.primary} />
-                  </View>
-                  <Text style={[styles.marqueeText, { color: tokens.fg1 }]}>
-                    {t(`upgrade.plans.proFeatures.${feature.key}`)}
-                  </Text>
-                  {feature.key === 'retrospective' ? (
-                    <Badge >{t('upgrade.matrix.yearlyTag')}</Badge>
-                  ) : null}
-                </View>
-              )
-            })}
-          </Animated.View>
-
-          <PlanComparisonCards t={t} tokens={tokens} />
-
           <Pressable
             accessibilityRole="button"
             onPress={onRestore}
@@ -195,5 +167,27 @@ export function PricingSection({
         </>
       ) : null}
     </>
+  )
+}
+
+function Allowance({
+  amount,
+  label,
+  perDay,
+  color,
+  mutedColor,
+}: Readonly<{
+  amount: string
+  label: string
+  perDay: string
+  color: string
+  mutedColor: string
+}>) {
+  return (
+    <View style={styles.allowanceColumn}>
+      <Text style={[styles.allowanceLabel, { color: mutedColor }]}>{label}</Text>
+      <Text style={[styles.allowanceAmount, { color }]}>{amount}</Text>
+      <Text style={[styles.allowancePerDay, { color: mutedColor }]}>{perDay}</Text>
+    </View>
   )
 }

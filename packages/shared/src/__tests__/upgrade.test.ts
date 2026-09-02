@@ -3,9 +3,6 @@ import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import {
   DEFAULT_FREE_COLOR_SCHEME,
-  UPGRADE_FEATURE_CATEGORIES,
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
   canAccessEntitlement,
   resolveAccessibleColorScheme,
   resolveUpgradeEntitlementDenial,
@@ -23,55 +20,7 @@ function getMessageValue(
   }, messages)
 }
 
-const allMatrixRows = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => category.features)
-
 describe('upgrade utils', () => {
-  it('marks AI Retrospective as yearly-only Pro, not a Pro cross', () => {
-    const retrospective = allMatrixRows.find((feature) => feature.key === 'retrospective')
-    expect(retrospective).toBeDefined()
-    expect(retrospective?.type).toBe('boolean')
-    expect(retrospective?.free).toBe(false)
-    expect(retrospective?.pro).toBe('yearly')
-  })
-
-  it('keeps the post-rebalance free essentials positive on both tiers', () => {
-    const insights = UPGRADE_FEATURE_CATEGORIES.find((category) => category.category === 'insights')
-    const freePositive = (insights?.features ?? [])
-      .filter((feature) => feature.free === true && feature.pro === true)
-      .map((feature) => feature.key)
-    expect(freePositive).toEqual(
-      expect.arrayContaining(['streaks', 'xpLevels', 'streakFreeze']),
-    )
-  })
-
-  it('defines the shrunk marquee and the yearly extra', () => {
-    expect(UPGRADE_PRO_FEATURES.map((feature) => feature.key)).toEqual([
-      'unlimited',
-      'ai',
-      'goals',
-    ])
-    expect(UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => feature.key)).toEqual([
-      'retrospective',
-    ])
-  })
-
-  it('groups the matrix under four icon-led categories', () => {
-    expect(UPGRADE_FEATURE_CATEGORIES.map((category) => category.category)).toEqual([
-      'habits',
-      'ai',
-      'insights',
-      'personalization',
-    ])
-    for (const category of UPGRADE_FEATURE_CATEGORIES) {
-      expect(typeof category.iconKey).toBe('string')
-    }
-  })
-
-  it('omits the retired AI comparison row', () => {
-    const retiredKey = ['ai', 'Memory'].join('')
-    expect(allMatrixRows.some((feature) => feature.key === retiredKey)).toBe(false)
-  })
-
   it('omits color schemes from upgrade surfaces and selectable preference copy', () => {
     const removedKeys = [
       'trial.expired.allColors',
@@ -107,46 +56,25 @@ describe('upgrade utils', () => {
     expect(ptBR.privacy.dataCollected.preferences).toContain('cor do tema')
   })
 
-  it('has matching locale entries in both en and pt-BR for every rendered key', () => {
-    const matrixKeys = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => [
-      `upgrade.categories.${category.category}`,
-      ...category.features.flatMap((feature) =>
-        feature.type === 'text'
-          ? [
-              `upgrade.features.${feature.key}.label`,
-              `upgrade.features.${feature.key}.free`,
-              `upgrade.features.${feature.key}.pro`,
-            ]
-          : [`upgrade.features.${feature.key}.label`],
-      ),
-    ])
-    const marqueeKeys = [...UPGRADE_PRO_FEATURES, ...UPGRADE_YEARLY_EXTRA_FEATURES].map(
-      (feature) => `upgrade.plans.proFeatures.${feature.key}`,
-    )
+  it('has matching locale entries for the allowance pitch and no matrix copy', () => {
     const copyKeys = [
-      'upgrade.matrix.title',
-      'upgrade.matrix.included',
-      'upgrade.matrix.notIncluded',
-      'upgrade.matrix.yearlyTag',
       'upgrade.convert.promise',
-      'upgrade.convert.trialCta',
-      'upgrade.convert.freeCta',
-      'upgrade.convert.trustLine',
-      'upgrade.convert.stayFree',
-      'upgrade.convert.cancelAnytime',
-      'upgrade.plans.free.note',
-      'upgrade.plans.monthly.note',
-      'upgrade.plans.yearly.heroLine',
-      'upgrade.plans.yearly.billedSave',
+      'upgrade.convert.freeHeading',
+      'upgrade.convert.allowanceLabel',
+      'upgrade.convert.freeAllowance',
+      'upgrade.convert.proAllowance',
+      'upgrade.convert.perDay',
+      'upgrade.convert.allowanceNote',
     ]
-    const messageKeys = [...matrixKeys, ...marqueeKeys, ...copyKeys]
 
     for (const locale of [en, ptBR]) {
-      for (const key of messageKeys) {
+      for (const key of copyKeys) {
         expect(getMessageValue(locale as Record<string, unknown>, key)).toEqual(
           expect.any(String),
         )
       }
+      expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.matrix')).toBeUndefined()
+      expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.features')).toBeUndefined()
     }
   })
 

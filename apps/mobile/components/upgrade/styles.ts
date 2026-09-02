@@ -1,6 +1,49 @@
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
+  allowanceSection: {
+    gap: 12,
+    marginTop: 32,
+    paddingHorizontal: 16,
+  },
+  allowanceCard: {
+    alignItems: 'stretch',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 16,
+    padding: 16,
+  },
+  allowanceColumn: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+  },
+  allowanceDivider: {
+    width: 1,
+  },
+  allowanceLabel: {
+    fontFamily: 'RobotoMono_400Regular',
+    fontSize: 12,
+    letterSpacing: 0.48,
+  },
+  allowanceAmount: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 34,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.68,
+    lineHeight: 36,
+  },
+  allowancePerDay: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  allowanceNote: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
+  },
   safe: { flex: 1 },
   container: { flex: 1 },
   scrollContent: {

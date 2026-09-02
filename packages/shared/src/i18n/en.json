@@ -1900,114 +1900,24 @@
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
-    "categories": {
-      "habits": "Habits",
-      "ai": "AI Features",
-      "insights": "Insights",
-      "personalization": "Personalization"
-    },
-    "features": {
-      "habits": {
-        "label": "Habits",
-        "free": "Up to 1000",
-        "pro": "Up to 1000",
-        "tooltip": "Create and track daily, weekly, or monthly habits. Every plan can have up to 1000 active habits."
-      },
-      "ai": {
-        "label": "AI Chat",
-        "free": "5 msgs/day",
-        "pro": "50 msgs/day",
-        "tooltip": "Chat with an AI coach that can create habits, log completions, analyze progress, suggest breakdowns, and offer personalized advice."
-      },
-      "subHabits": {
-        "label": "Sub-habits",
-        "free": "No",
-        "pro": "Unlimited",
-        "tooltip": "Break complex habits into smaller steps. Sub-habits nest under a parent habit for better organization."
-      },
-      "goals": {
-        "label": "AI Goal Review",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Goals are free on every plan: create long-term goals and link habits to track measurable progress. Pro adds the AI review, which reads a goal and reports what is working and what needs attention."
-      },
-      "summary": {
-        "label": "Daily Summary",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Get an AI-generated daily overview of your habits, streaks, and what needs attention today."
-      },
-      "apiKeys": {
-        "label": "API Keys",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Create API keys to connect Orbit with developer tools and external MCP integrations."
-      },
-      "retrospective": {
-        "label": "Retrospective",
-        "free": "No",
-        "pro": "Yearly only",
-        "tooltip": "AI analyzes your habit data over weeks, months, or quarters to surface patterns, wins, and areas for improvement."
-      },
-      "streaks": {
-        "label": "Current & longest streak"
-      },
-      "xpLevels": {
-        "label": "XP & levels"
-      },
-      "streakFreeze": {
-        "label": "Streak freeze"
-      },
-      "achievements": {
-        "label": "Achievements & XP",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Earn XP for completing habits, level up, and earn achievements that celebrate your consistency and milestones."
-      },
-      "slipAlerts": {
-        "label": "Slip Alerts",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "For bad habits, AI detects your slip patterns and sends motivational notifications before your usual slip times."
-      },
-      "proactiveCheckins": {
-        "label": "Proactive check-ins",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "When you fall behind, Astra sends a personalized push to coach you back on track, even if you forget to open the app."
-      },
-      "calendarImport": {
-        "label": "Google Calendar",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Import events from Google Calendar as habits with one tap. Keep your routines and calendar in sync."
-      },
-      "adFree": {
-        "label": "Ad-free experience",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Remove all ads from the mobile app for a distraction-free habit tracking experience."
-      }
-    },
     "convert": {
-      "promise": "Everything Orbit can do, in one calm plan.",
+      "promise": "The plan changes Astra, never your habits and logs.",
       "trialEyebrow": "Pro Trial",
       "trialDaysLeft": "Pro Trial · {days} day left | Pro Trial · {days} days left",
       "trialLastDay": "Pro Trial · last day",
       "trialHeading": "Keep your Pro features",
       "trialCta": "Keep Pro",
       "freeEyebrow": "Free plan",
-      "freeHeading": "Your Pro trial ended",
+      "freeHeading": "Ten times more Astra.",
       "freeCta": "Get Pro",
       "trustLine": "No card was ever taken, you dropped to Free automatically.",
       "cancelAnytime": "Cancel anytime",
-      "stayFree": "Stay free"
-    },
-    "matrix": {
-      "title": "Compare every feature",
-      "included": "Included",
-      "notIncluded": "Not included",
-      "yearlyTag": "Yearly"
+      "stayFree": "Stay free",
+      "allowanceLabel": "Daily Astra allowance",
+      "freeAllowance": "5",
+      "proAllowance": "50",
+      "perDay": "messages a day",
+      "allowanceNote": "The free 5 cover logging the day and asking for one change. The 50 cover rearranging the week as often as you need to."
     },
     "plans": {
       "free": {
@@ -2024,12 +1934,6 @@
         "period": "/yr",
         "heroLine": "Everything in Pro Monthly, plus AI Retrospective.",
         "billedSave": "Billed {price}/yr, save {amount} a year"
-      },
-      "proFeatures": {
-        "unlimited": "Sub-habits and calendar sync",
-        "ai": "50 AI messages a day",
-        "goals": "AI goal review and daily summaries",
-        "retrospective": "AI Retrospective"
       },
       "savePercent": "Save {percent}%",
       "coupon": {
