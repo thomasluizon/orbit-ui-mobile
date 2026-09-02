@@ -22,6 +22,7 @@ vi.mock('@/components/upgrade/usage-card', () => ({
 vi.mock('@/hooks/use-subscription-plans', () => ({
   formatPrice: (amount: number, currency: string) =>
     `${currency} ${(amount / 100).toFixed(2)}`,
+  monthlyEquivalent: (amount: number) => Math.round(amount / 12),
 }))
 
 vi.mock('@/lib/plural', () => ({
@@ -102,7 +103,10 @@ function renderPricing(
       onSelectInterval={() => {}}
       onStayFree={() => {}}
       yearlyOffer={null}
-      isReferralPricing={false}
+      checkoutLoading={null}
+      checkoutError=""
+      checkoutDisabled={false}
+      onCheckout={() => {}}
       isRestoring={false}
       onRestore={() => {}}
       onRetryPlans={() => {}}
@@ -471,8 +475,8 @@ describe('subscription dashboards (mobile)', () => {
     ;(retry?.props.onPress as (() => void) | undefined)?.()
     expect(onRetryPlans).toHaveBeenCalledTimes(1)
 
-    const online = renderPricing({ plans, isReferralPricing: true })
-    expect(renderedText(online)).toContain('upgrade.plans.coupon.appliedNote')
+    const online = renderPricing({ plans: { ...plans, couponPercentOff: 23 } })
+    expect(renderedText(online)).toContain('upgrade.plans.coupon.line')
     expect(renderedText(online)).not.toContain('upgrade.matrix.')
     expect(renderedText(online)).toContain('upgrade.restorePurchase')
 

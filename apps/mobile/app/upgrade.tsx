@@ -27,13 +27,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
-import { resolveUpgradeSelectedCharge } from '@/app/upgrade-model'
 import { AppBar } from '@/components/ui/app-bar'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
-import { PricingFooter } from '@/components/upgrade/pricing-footer'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
 
@@ -163,16 +161,6 @@ export default function UpgradeScreen() {
     return () => subscription.remove()
   }, [refetchBilling, refetchStatus, showSuccess, t])
 
-  const selectedCharge = resolveUpgradeSelectedCharge({
-    plans,
-    selectedInterval,
-    yearlyDisplayPrice: playBilling.yearlyOffer?.displayPrice,
-    monthlyDisplayPrice: playBilling.monthlyOffer?.displayPrice,
-  })
-  const planNameKey = `upgrade.plans.${selectedInterval}.name`
-  const planPeriodKey = `upgrade.plans.${selectedInterval}.period`
-  const priceEcho = plans ? `${t(planNameKey)} · ${selectedCharge}${t(planPeriodKey)}` : ''
-
   function handleCheckout(interval: SubscriptionInterval) {
     playBilling.clearError()
     setCheckoutLoading(interval)
@@ -255,7 +243,10 @@ export default function UpgradeScreen() {
         yearlyOffer={playBilling.yearlyOffer}
         monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
         yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
-        isReferralPricing={playBilling.isReferralPricing}
+        checkoutLoading={checkoutLoading}
+        checkoutError={checkoutError}
+        checkoutDisabled={!isOnline}
+        onCheckout={handleCheckout}
         isRestoring={playBilling.isRestoring}
         onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}
         onRetryPlans={() => { if (isOnline) refetchPlans().catch(() => {}) }}
@@ -264,9 +255,6 @@ export default function UpgradeScreen() {
       />
     </>
   )
-
-  const showPricingFooter = model.content === 'pitch' && Boolean(plans) && isOnline
-    && model.state !== 'loading' && model.state !== 'load-failed'
 
   return (
     <SafeAreaView
@@ -296,19 +284,6 @@ export default function UpgradeScreen() {
 
         <View style={styles.bottomSpace} />
       </ScrollView>
-      {showPricingFooter ? (
-        <PricingFooter
-          trialActive={!!status?.isTrialActive}
-          selectedInterval={selectedInterval}
-          priceEcho={priceEcho}
-          checkoutLoading={checkoutLoading}
-          checkoutError={checkoutError}
-          disabled={!isOnline}
-          onCheckout={handleCheckout}
-          t={t}
-          tokens={tokens}
-        />
-      ) : null}
     </SafeAreaView>
   )
 }

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createTokensV2 } from '@/lib/theme'
+import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
-import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
-import { formatPrice } from '@/hooks/use-subscription-plans'
+import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -37,7 +37,11 @@ function renderSelection(
         isOnline
         yearlyOffer={null}
         selectedInterval={selectedInterval}
+        checkoutLoading={null}
+        checkoutError=""
+        checkoutDisabled={false}
         onSelectInterval={() => {}}
+        onCheckout={() => {}}
         onStayFree={() => {}}
         onRetry={() => {}}
         t={t}
@@ -50,33 +54,62 @@ function renderSelection(
 }
 
 describe('PlanSelection (mobile)', () => {
-  it('preselects the yearly plan card', () => {
-    const tree = renderSelection('yearly')
-    const pressables = tree.root.findAllByType('Pressable')
-    expect(pressables).toHaveLength(5)
-    expect(pressables[1].props.accessibilityState).toEqual({
-      checked: true,
-      disabled: undefined,
-    })
-    expect(pressables[2].props.accessibilityState).toEqual({
-      checked: true,
-      disabled: false,
-      busy: false,
-    })
-    expect(pressables[3].props.accessibilityState).toEqual({
-      checked: false,
-      disabled: false,
-      busy: false,
-    })
+  it('leads with annual and gives it the only filled action', () => {
+    const tree = renderSelection()
+    const tiers = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'View' && typeof node.props.testID === 'string'
+        && node.props.testID.startsWith('upgrade-tier-'))
+
+    expect(tiers.map((tier: { props: { testID: string } }) => tier.props.testID)).toEqual([
+      'upgrade-tier-yearly',
+      'upgrade-tier-monthly',
+    ])
+    expect(JSON.stringify(tree.toJSON()).match(/upgrade\.plans\.recommended/g)).toHaveLength(1)
+    expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.testID === 'button-primary-md')).toHaveLength(1)
+    expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.testID === 'button-ghost-md')).toHaveLength(1)
     expect(JSON.stringify(tree.toJSON())).toContain(
       formatPrice(plans.yearly.unitAmount, plans.currency),
     )
   })
 
+  it('selects monthly separately without starting checkout', () => {
+    const onSelectInterval = vi.fn()
+    const onCheckout = vi.fn()
+    const tree = renderSelection('yearly', { onSelectInterval, onCheckout })
+
+    const monthlySegment = tree.root.findAllByType('Pressable')[0]
+    TestRenderer.act(() => monthlySegment.props.onPress())
+    expect(onSelectInterval).toHaveBeenCalledWith('monthly')
+    expect(onCheckout).not.toHaveBeenCalled()
+  })
+
+  it('renders annual arithmetic from the payload', () => {
+    const tree = renderSelection()
+    const rendered = JSON.stringify(tree.toJSON())
+
+    expect(rendered).toContain(`upgrade.plans.yearly.equivalent`)
+    expect(rendered).toContain(formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
+    expect(rendered).toContain(String(plans.savingsPercent))
+  })
+
+  it('shows the payload coupon on both tiers only when it exists', () => {
+    const couponPercentOff = 23
+    const withCoupon = JSON.stringify(renderSelection('yearly', {
+      plans: { ...plans, couponPercentOff },
+    }).toJSON())
+    expect(withCoupon.match(/upgrade\.plans\.coupon\.line/g)).toHaveLength(2)
+    expect(withCoupon).toContain(String(couponPercentOff))
+
+    const withoutCoupon = JSON.stringify(renderSelection().toJSON())
+    expect(withoutCoupon).not.toContain('upgrade.plans.coupon.line')
+  })
+
   it('owns loading and retry states for the price tiers', () => {
     const onRetry = vi.fn()
     const loading = renderSelection('yearly', { plans: null, isLoading: true })
-    expect(JSON.stringify(loading.toJSON())).toContain('upgrade.plans.loading')
+    expect(JSON.stringify(loading.toJSON()).match(/upgrade\.plans\.loading/g)!.length).toBeGreaterThan(1)
 
     const failed = renderSelection('yearly', {
       plans: null,
@@ -92,20 +125,31 @@ describe('PlanSelection (mobile)', () => {
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
-  it('selects monthly separately and exposes the quiet free escape hatch', () => {
-    const onSelectInterval = vi.fn()
+  it('checks out from either tier with the same CTA verb', () => {
+    const onCheckout = vi.fn()
+    const tree = renderSelection('yearly', { onCheckout })
+    const actions = tree.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'Pressable' && String(node.props.testID).startsWith('button-'),
+    )
+
+    TestRenderer.act(() => actions[0].props.onPress())
+    TestRenderer.act(() => actions[1].props.onPress())
+    expect(onCheckout).toHaveBeenNthCalledWith(1, 'yearly')
+    expect(onCheckout).toHaveBeenNthCalledWith(2, 'monthly')
+    expect(JSON.stringify(tree.toJSON()).match(/upgrade\.plans\.cta/g)).toHaveLength(2)
+  })
+
+  it('keeps the free escape separate and locks actions during checkout', () => {
     const onStayFree = vi.fn()
-    const tree = renderSelection('yearly', { onSelectInterval, onStayFree })
-
-    const pressables = tree.root.findAllByType('Pressable')
-    TestRenderer.act(() => {
-      pressables[0].props.onPress()
+    const tree = renderSelection('yearly', {
+      checkoutLoading: 'yearly',
+      onStayFree,
     })
-    expect(onSelectInterval).toHaveBeenCalledWith('monthly')
+    const buttons = tree.root.findAllByType('Pressable')
 
-    TestRenderer.act(() => {
-      pressables[4].props.onPress()
-    })
-    expect(onStayFree).toHaveBeenCalledTimes(1)
+    expect(buttons.filter((button: { props: { disabled?: boolean } }) => button.props.disabled)).toHaveLength(5)
+    expect(JSON.stringify(tree.toJSON())).toContain('upgrade.convert.stayFree')
+    expect(onStayFree).not.toHaveBeenCalled()
   })
 })

@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
+import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
@@ -34,7 +34,10 @@ export function PricingSection({
   yearlyOffer,
   monthlyDisplayPrice,
   yearlyDisplayPrice,
-  isReferralPricing,
+  checkoutLoading,
+  checkoutError,
+  checkoutDisabled,
+  onCheckout,
   isRestoring,
   onRestore,
   onRetryPlans,
@@ -53,7 +56,10 @@ export function PricingSection({
   yearlyOffer: PlayOffer | null
   monthlyDisplayPrice?: string
   yearlyDisplayPrice?: string
-  isReferralPricing: boolean
+  checkoutLoading: SubscriptionInterval | null
+  checkoutError: string
+  checkoutDisabled: boolean
+  onCheckout: (interval: SubscriptionInterval) => void
   isRestoring: boolean
   onRestore: () => void
   onRetryPlans: () => void
@@ -127,7 +133,11 @@ export function PricingSection({
           monthlyPrice={monthlyDisplayPrice}
           yearlyPrice={yearlyDisplayPrice}
           selectedInterval={selectedInterval}
+          checkoutLoading={checkoutLoading}
+          checkoutError={checkoutError}
+          checkoutDisabled={checkoutDisabled}
           onSelectInterval={onSelectInterval}
+          onCheckout={onCheckout}
           onStayFree={onStayFree}
           onRetry={onRetryPlans}
           t={t}
@@ -137,15 +147,6 @@ export function PricingSection({
 
       {plans ? (
         <>
-          {isReferralPricing ? (
-            <View style={[styles.couponRow, { alignSelf: 'center', marginTop: 2 }]}>
-              <Tag size={13} strokeWidth={1.8} color={tokens.statusDone} />
-              <Text style={[styles.couponNote, { color: tokens.statusDone }]}>
-                {t('upgrade.plans.coupon.appliedNote')}
-              </Text>
-            </View>
-          ) : null}
-
           <Pressable
             accessibilityRole="button"
             onPress={onRestore}

@@ -1940,27 +1940,21 @@
         "monthly": "Mensal",
         "annual": "Anual"
       },
-      "free": {
-        "note": "Mantenha sequências, XP e congelamento, sempre de graça."
-      },
       "monthly": {
-        "name": "Pro Mensal",
-        "period": "/mês",
-        "cta": "Assinar",
-        "note": "Cobrado mensalmente"
+        "name": "Mensal",
+        "period": " por mês"
       },
       "yearly": {
-        "name": "Pro Anual",
-        "period": "/ano",
-        "heroLine": "Tudo do Pro Mensal, mais a Retrospectiva IA.",
-        "billedSave": "Cobrado {price}/ano, economize {amount} por ano"
+        "name": "Anual",
+        "period": " por ano",
+        "heroLine": "O jeito mais barato de ter o Astra o ano inteiro.",
+        "equivalent": "Sai a {price} por mês, {percent}% menos que o mensal."
       },
-      "savePercent": "Economize {percent}%",
+      "recommended": "Recomendado",
+      "cta": "Assinar",
       "coupon": {
-        "discountBadge": "{percent}% de desconto",
-        "appliedNote": "Desconto de indicação aplicado"
+        "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },
-      "equivalent": "{price}/mês",
       "renewalNote": "A assinatura é renovada automaticamente. Cancele quando quiser, com pelo menos 24h de antecedência, para evitar cobranças futuras.",
       "loading": "Buscando os valores",
       "error": "Não foi possível carregar os preços",

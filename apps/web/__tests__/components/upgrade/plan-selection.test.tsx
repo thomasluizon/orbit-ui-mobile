@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
-import { formatPrice } from '@/hooks/use-subscription-plans'
+import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -28,7 +28,6 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
     isError: false,
     isOnline: true,
     discountedAmount: (amount: number) => amount,
-    trialActive: false,
     checkoutLoading: null,
     onCheckout: vi.fn(),
     onStayFree: vi.fn(),
@@ -40,33 +39,35 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
   return { ...props, unmount: view.unmount }
 }
 
+function tierNamed(name: string) {
+  return screen.getByRole('heading', { level: 2, name }).closest('section')!
+}
+
 describe('PlanSelection', () => {
-  it('separates the annual default interval from the plan actions', () => {
+  it('leads with annual and gives the recommended tier the only filled action', () => {
     renderSelection()
-    expect(screen.getAllByRole('button')).toHaveLength(3)
+
     expect(screen.getAllByRole('radio')).toHaveLength(2)
     expect(screen.getByRole('radio', { name: 'upgrade.plans.interval.annual' })).toHaveAttribute(
       'aria-checked',
       'true',
     )
-    expect(screen.getByRole('button', { name: /upgrade\.free/ })).toHaveAttribute(
-      'aria-pressed',
-      'false',
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'upgrade.plans.yearly.name',
+      'upgrade.plans.monthly.name',
+    ])
+    expect(screen.getAllByText('upgrade.plans.recommended')).toHaveLength(1)
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute(
+      'data-variant',
+      'primary',
     )
-    expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    expect(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
-    expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveTextContent(
-      formatPrice(plans.yearly.unitAmount, plans.currency),
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
+      'data-variant',
+      'ghost',
     )
   })
 
-  it('switches the rendered interval without starting checkout', () => {
+  it('switches the rendered order without starting checkout', () => {
     const onCheckout = vi.fn()
     renderSelection({ onCheckout })
 
@@ -76,11 +77,41 @@ describe('PlanSelection', () => {
       'aria-checked',
       'true',
     )
-    expect(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'upgrade.plans.monthly.name',
+      'upgrade.plans.yearly.name',
+    ])
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
+      'data-variant',
+      'primary',
     )
     expect(onCheckout).not.toHaveBeenCalled()
+  })
+
+  it('renders annual arithmetic from the payload', () => {
+    renderSelection()
+
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveTextContent(
+      formatPrice(plans.yearly.unitAmount, plans.currency),
+    )
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveTextContent(
+      `upgrade.plans.yearly.equivalent:${JSON.stringify({
+        price: formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency),
+        percent: plans.savingsPercent,
+      })}`,
+    )
+  })
+
+  it('shows the payload coupon on both tiers only when it exists', () => {
+    const couponPercentOff = 23
+    const first = renderSelection({ plans: { ...plans, couponPercentOff } })
+    expect(screen.getAllByText(
+      `upgrade.plans.coupon.line:${JSON.stringify({ percent: couponPercentOff })}`,
+    )).toHaveLength(2)
+
+    first.unmount()
+    renderSelection()
+    expect(screen.queryByText(/upgrade\.plans\.coupon\.line/)).not.toBeInTheDocument()
   })
 
   it('owns loading and retry states for the price tiers', () => {
@@ -94,81 +125,28 @@ describe('PlanSelection', () => {
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the same accessible plan choices across trial states', () => {
-    const { unmount } = render(
-      <PlanSelection
-        plans={plans}
-        isLoading={false}
-        isError={false}
-        isOnline
-        discountedAmount={(amount) => amount}
-        trialActive
-        checkoutLoading={null}
-        onCheckout={vi.fn()}
-        onStayFree={vi.fn()}
-        onRetry={vi.fn()}
-        t={t}
-      />,
-    )
-    expect(
-      screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.convert.trialCta')).not.toBeInTheDocument()
-    unmount()
-
-    render(
-      <PlanSelection
-        plans={plans}
-        isLoading={false}
-        isError={false}
-        isOnline
-        discountedAmount={(amount) => amount}
-        trialActive={false}
-        checkoutLoading={null}
-        onCheckout={vi.fn()}
-        onStayFree={vi.fn()}
-        onRetry={vi.fn()}
-        t={t}
-      />,
-    )
-    expect(
-      screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.convert.freeCta')).not.toBeInTheDocument()
-  })
-
-  it('checks out the chosen interval and keeps the free escape hatch', () => {
+  it('checks out from either tier with the same CTA verb', () => {
     const onCheckout = vi.fn()
-    const onStayFree = vi.fn()
-    renderSelection({ onCheckout, onStayFree })
+    renderSelection({ onCheckout })
 
-    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
-    expect(onCheckout).toHaveBeenCalledWith('yearly')
-
-    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ }))
-    expect(onCheckout).toHaveBeenCalledWith('monthly')
-
-    fireEvent.click(screen.getByRole('button', { name: /upgrade\.free/ }))
-    expect(onStayFree).toHaveBeenCalledTimes(1)
+    const actions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
+    expect(actions).toHaveLength(2)
+    fireEvent.click(actions[0]!)
+    fireEvent.click(actions[1]!)
+    expect(onCheckout).toHaveBeenNthCalledWith(1, 'yearly')
+    expect(onCheckout).toHaveBeenNthCalledWith(2, 'monthly')
   })
 
-  it('locks every choice while a paid checkout is pending', () => {
+  it('keeps the free escape hatch separate and locks actions during checkout', () => {
     const onCheckout = vi.fn()
     const onStayFree = vi.fn()
     renderSelection({ checkoutLoading: 'yearly', onCheckout, onStayFree })
 
-    const free = screen.getByRole('button', { name: /upgrade\.free/ })
-    const yearly = screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })
-    const monthly = screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })
-
-    expect(free).toBeDisabled()
-    expect(yearly).toBeDisabled()
-    expect(yearly).toHaveAttribute('aria-busy', 'true')
-    expect(monthly).toBeDisabled()
-
-    fireEvent.click(free)
-    fireEvent.click(yearly)
-    fireEvent.click(monthly)
+    const paidActions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
+    const stayFree = screen.getByRole('button', { name: 'upgrade.convert.stayFree' })
+    expect(paidActions.every((action) => action.hasAttribute('disabled'))).toBe(true)
+    expect(paidActions[0]).toHaveAttribute('aria-busy', 'true')
+    expect(stayFree).toBeDisabled()
     expect(onStayFree).not.toHaveBeenCalled()
     expect(onCheckout).not.toHaveBeenCalled()
   })

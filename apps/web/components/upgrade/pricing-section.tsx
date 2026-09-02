@@ -1,4 +1,4 @@
-import { Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
+import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PlanSelection } from './plan-selection'
 import { plural } from '@/lib/plural'
@@ -110,7 +110,6 @@ export function PricingSection({
         isError={isPlansError}
         isOnline={isOnline}
         discountedAmount={discountedAmount}
-        trialActive={trialActive}
         checkoutLoading={checkoutLoading}
         checkoutDisabled={!isOnline}
         onCheckout={onCheckout}
@@ -122,15 +121,6 @@ export function PricingSection({
       {plans ? (
         <>
           <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 20 }}>
-            {plans.couponPercentOff ? (
-              <p
-                className="flex items-center justify-center"
-                style={{ gap: 6, margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--status-done)' }}
-              >
-                <Tag size={13} strokeWidth={1.8} aria-hidden="true" />
-                {t('upgrade.plans.coupon.appliedNote')}
-              </p>
-            ) : null}
             {checkoutError ? (
               <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
                 {checkoutError}

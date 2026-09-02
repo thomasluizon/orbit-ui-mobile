@@ -76,6 +76,11 @@ describe('upgrade utils', () => {
       'upgrade.plans.intervalLabel',
       'upgrade.plans.interval.monthly',
       'upgrade.plans.interval.annual',
+      'upgrade.plans.recommended',
+      'upgrade.plans.cta',
+      'upgrade.plans.yearly.heroLine',
+      'upgrade.plans.yearly.equivalent',
+      'upgrade.plans.coupon.line',
     ]
 
     for (const locale of [en, ptBR]) {

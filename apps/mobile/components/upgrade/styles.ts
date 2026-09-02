@@ -82,7 +82,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   planChoices: {
-    gap: 16,
+    gap: 12,
   },
   safe: { flex: 1 },
   container: { flex: 1 },
@@ -189,14 +189,15 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
   },
   freeLink: {
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginTop: 4,
   },
   freeLinkText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    textDecorationLine: 'underline',
   },
   marqueePad: {
     paddingHorizontal: 20,
@@ -218,9 +219,56 @@ export const styles = StyleSheet.create({
     fontSize: 15,
   },
   planGroup: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     gap: 16,
-    marginTop: 18,
+    marginTop: 32,
+  },
+  tierCard: {
+    borderRadius: 20,
+    gap: 8,
+    padding: 24,
+  },
+  tierHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tierName: {
+    flex: 1,
+    fontFamily: 'Geist_500Medium',
+    fontSize: 17,
+    lineHeight: 22,
+    minWidth: 0,
+  },
+  tierPrice: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 28,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.56,
+    lineHeight: 32,
+  },
+  tierPeriod: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+  },
+  tierHero: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  tierSecond: {
+    fontFamily: 'RobotoMono_400Regular',
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 18,
+  },
+  tierCoupon: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  tierAction: {
+    paddingTop: 8,
   },
   actionPad: {
     paddingHorizontal: 20,

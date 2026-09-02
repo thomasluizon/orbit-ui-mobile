@@ -1940,27 +1940,21 @@
         "monthly": "Monthly",
         "annual": "Annual"
       },
-      "free": {
-        "note": "Keep streaks, XP and streak freeze, always free."
-      },
       "monthly": {
-        "name": "Pro Monthly",
-        "period": "/mo",
-        "cta": "Subscribe",
-        "note": "Billed monthly"
+        "name": "Monthly",
+        "period": " a month"
       },
       "yearly": {
-        "name": "Pro Yearly",
-        "period": "/yr",
-        "heroLine": "Everything in Pro Monthly, plus AI Retrospective.",
-        "billedSave": "Billed {price}/yr, save {amount} a year"
+        "name": "Annual",
+        "period": " a year",
+        "heroLine": "The cheapest way to have Astra all year.",
+        "equivalent": "That is {price} a month, {percent}% less than monthly."
       },
-      "savePercent": "Save {percent}%",
+      "recommended": "Recommended",
+      "cta": "Subscribe",
       "coupon": {
-        "discountBadge": "{percent}% off",
-        "appliedNote": "Referral discount applied"
+        "line": "With your coupon, {percent}% off the first charge."
       },
-      "equivalent": "{price}/mo",
       "renewalNote": "Your subscription renews automatically. Cancel anytime, at least 24 hours before renewal, to avoid future charges.",
       "loading": "Fetching the amounts",
       "error": "Couldn't load pricing",
