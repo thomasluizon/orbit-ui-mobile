@@ -79,6 +79,7 @@ describe('Sheet (mobile)', () => {
     expect(bodyScroller).toBeDefined()
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.scrollable).toBe(true)
+    expect(nativeSheet.props.maxContentHeight).toBe(892 * 0.85 - 24)
   })
 
   it('reveals a focused lower input through the sheet body scroller', async () => {

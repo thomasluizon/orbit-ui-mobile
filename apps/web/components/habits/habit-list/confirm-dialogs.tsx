@@ -1,18 +1,17 @@
 'use client'
 
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { plural } from '@/lib/plural'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
   showDeleteConfirm: boolean
-  skipHabitName: string | null
-  skipKind: 'recurring' | 'flexible' | 'one-time'
+  deleteHabitName: string
+  deleteDescendantCount: number
   duplicateHabitName: string | null
-  parentPrompt: { name: string; mode: 'log' | 'skip' } | null
+  parentPrompt: { id: string; name: string; mode: 'log' | 'skip' } | null
   onConfirmDelete: () => void
   onCancelDelete: () => void
-  onConfirmSkip: () => void
-  onCancelSkip: () => void
   onConfirmDuplicate: () => void
   onCancelDuplicate: () => void
   onConfirmParent: () => void
@@ -26,14 +25,12 @@ interface HabitListConfirmDialogsProps {
 export function HabitListConfirmDialogs({
   t,
   showDeleteConfirm,
-  skipHabitName,
-  skipKind,
+  deleteHabitName,
+  deleteDescendantCount,
   duplicateHabitName,
   parentPrompt,
   onConfirmDelete,
   onCancelDelete,
-  onConfirmSkip,
-  onCancelSkip,
   onConfirmDuplicate,
   onCancelDuplicate,
   onConfirmParent,
@@ -41,18 +38,6 @@ export function HabitListConfirmDialogs({
 }: Readonly<HabitListConfirmDialogsProps>) {
   return (
     <>
-      <ConfirmSheet
-        open={skipHabitName !== null}
-        title={t(skipKind === 'one-time' ? 'habits.postponeConfirmTitle' : 'habits.skipConfirmTitle')}
-        message={t(skipKind === 'one-time'
-          ? 'habits.postponeConfirmMessage'
-          : skipKind === 'flexible'
-            ? 'habits.skipConfirmMessageFlexible'
-            : 'habits.skipConfirmMessage')}
-        confirmLabel={t(skipKind === 'one-time' ? 'habits.postponeConfirmButton' : 'habits.skipConfirmButton')}
-        onCancel={onCancelSkip}
-        onConfirm={onConfirmSkip}
-      />
       <ConfirmSheet
         open={duplicateHabitName !== null}
         title={t('habits.duplicateConfirmTitle')}
@@ -62,6 +47,7 @@ export function HabitListConfirmDialogs({
         onConfirm={onConfirmDuplicate}
       />
       <ConfirmSheet
+        key={parentPrompt?.id ?? 'parent-prompt'}
         open={parentPrompt !== null}
         title={t(parentPrompt?.mode === 'skip' ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle')}
         message={t(parentPrompt?.mode === 'skip' ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage', { name: parentPrompt?.name ?? '' })}
@@ -73,7 +59,13 @@ export function HabitListConfirmDialogs({
       <ConfirmSheet
         open={showDeleteConfirm}
         title={t('habits.deleteConfirmTitle')}
-        message={t('habits.deleteConfirmMessage')}
+        message={plural(
+          t('habits.deleteListConfirmMessage', {
+            name: deleteHabitName,
+            count: deleteDescendantCount,
+          }),
+          deleteDescendantCount,
+        )}
         confirmLabel={t('common.delete')}
         destructive
         onCancel={onCancelDelete}
