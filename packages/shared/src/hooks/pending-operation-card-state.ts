@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
 import type { AgentExecuteOperationResponse } from '../types/ai'
 
 export type PendingOperationExecutionResult = {
@@ -18,6 +18,28 @@ export type PendingOperationStepUpPreparationResult =
 
 export type PendingOperationCardStatus = 'done' | 'failed' | undefined
 
+interface PendingOperationCardState {
+  busy: boolean
+  confirmOpen: boolean
+  dismissed: boolean
+  preparedStepUp: PreparedPendingOperationStepUp | undefined
+  status: PendingOperationCardStatus
+  completeStepUp: (status: Exclude<PendingOperationCardStatus, undefined>) => void
+  closeStepUp: () => void
+  dismiss: () => void
+  execute: () => Promise<void>
+  setConfirmOpen: Dispatch<SetStateAction<boolean>>
+  startStepUp: () => Promise<void>
+}
+
+interface PendingOperationStepUpVerificationState {
+  code: string
+  error: string | undefined
+  setCode: Dispatch<SetStateAction<string>>
+  verifying: boolean
+  verify: () => Promise<void>
+}
+
 export function getPendingOperationExecutionStatus(
   result: PendingOperationExecutionResult,
 ): Exclude<PendingOperationCardStatus, undefined> {
@@ -32,7 +54,7 @@ export function usePendingOperationCardState({
   pendingOperationId: string
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
-}>) {
+}>): PendingOperationCardState {
   const [busy, setBusy] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [status, setStatus] = useState<PendingOperationCardStatus>()
@@ -102,7 +124,7 @@ export function usePendingOperationStepUpVerification({
   ) => Promise<PendingOperationExecutionResult>
   pendingOperationId: string
   prepared: PreparedPendingOperationStepUp
-}>) {
+}>): PendingOperationStepUpVerificationState {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string>()
   const [verifying, setVerifying] = useState(false)

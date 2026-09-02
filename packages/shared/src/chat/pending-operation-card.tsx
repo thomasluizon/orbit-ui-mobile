@@ -39,6 +39,10 @@ export interface PendingOperationCardProps {
   ) => Promise<PendingOperationExecutionResult>
 }
 
+type PendingOperationCardComponent = (
+  props: Readonly<PendingOperationCardProps>,
+) => ReactNode
+
 interface StepUpVerificationSheetProps {
   pendingOperationId: string
   prepared: PreparedPendingOperationStepUp
@@ -47,7 +51,9 @@ interface StepUpVerificationSheetProps {
   onVerify: PendingOperationCardProps['onVerifyStepUp']
 }
 
-export function createPendingOperationCard(adapter: PendingOperationCardAdapter) {
+export function createPendingOperationCard(
+  adapter: PendingOperationCardAdapter,
+): PendingOperationCardComponent {
   const {
     Badge,
     BlockFrame,
