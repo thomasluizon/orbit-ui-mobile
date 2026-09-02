@@ -261,23 +261,26 @@ export function Menu({
   if (!portalTarget) return null
 
   return createPortal(
-    <div
-      ref={panelRef}
-      role="menu"
-      aria-label={title}
-      className="orbit-menu-panel"
-      data-positioned={position ? '' : undefined}
-      style={position ? { left: position.left, top: position.top, transformOrigin: position.origin } : undefined}
-      onKeyDown={handleMenuKeyDown}
-    >
-      <MenuItems
-        items={items}
-        onActivate={(id) => {
-          onSelect?.(id)
-          onClose?.()
-        }}
-      />
-    </div>,
+    <>
+      <div className="orbit-menu-catcher" aria-hidden="true" />
+      <div
+        ref={panelRef}
+        role="menu"
+        aria-label={title}
+        className="orbit-menu-panel"
+        data-positioned={position ? '' : undefined}
+        style={position ? { left: position.left, top: position.top, transformOrigin: position.origin } : undefined}
+        onKeyDown={handleMenuKeyDown}
+      >
+        <MenuItems
+          items={items}
+          onActivate={(id) => {
+            onSelect?.(id)
+            onClose?.()
+          }}
+        />
+      </div>
+    </>,
     portalTarget,
   )
 }

@@ -65,7 +65,7 @@ export function OtpInput({
                   ? tokens.statusBad
                   : index === activeIndex
                     ? tokens.primary
-                    : tokens.hairline,
+                    : tokens.borderControl,
                 borderWidth: error || index === activeIndex ? 2 : 1,
               },
             ]}

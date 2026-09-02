@@ -96,9 +96,9 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                 ringCount={3}
                 ringSize={280}
                 dashed
-                ringColor="var(--status-frozen)"
+                ringColor="var(--fg-2)"
                 eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
-                eyebrowColor="var(--status-frozen)"
+                eyebrowColor="var(--fg-2)"
                 anchor={
                   <span
                     aria-hidden="true"
@@ -108,7 +108,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                       height: 120,
                       fontSize: 60,
                       background:
-                        'color-mix(in srgb, var(--status-frozen) 16%, transparent)',
+                        'color-mix(in srgb, var(--fg-2) 16%, transparent)',
                       animation: 'fresh-start-orb 0.7s var(--ease-out) both',
                     }}
                   >

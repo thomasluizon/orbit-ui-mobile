@@ -15,7 +15,7 @@ export function SegmentedControl(props: Readonly<SegmentedControlProps>) {
       testID="segmented-control"
       style={[
         styles.group,
-        { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
+        { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
         props.disabled ? styles.disabled : null,
       ]}
     >

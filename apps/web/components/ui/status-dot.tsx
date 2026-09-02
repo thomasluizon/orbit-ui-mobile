@@ -29,7 +29,7 @@ const COLOR_VAR: Record<StatusDotState, string> = {
   skip: 'var(--fg-3)',
   overdue: 'var(--status-overdue)',
   bad: 'var(--status-bad)',
-  frozen: 'var(--status-frozen)',
+  frozen: 'var(--fg-2)',
 }
 
 /** Tappable status dot. Completion remains a neutral, static status cue. */

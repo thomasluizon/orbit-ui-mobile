@@ -6,7 +6,7 @@ type StripValue = AccountDayValue | HabitDayValue
 
 function cellStyle(state: StripValue) {
   if (state === 'done' || state === 'active') return { background: 'var(--fg-1)' }
-  if (state === 'frozen') return { background: 'var(--fg-2)' }
+  if (state === 'frozen') return { background: 'var(--status-frozen)' }
   if (state === 'today') return { boxShadow: 'inset 0 0 0 2px var(--primary)' }
   if (state === 'not-scheduled') return { background: 'var(--bg-well)' }
   return { boxShadow: 'inset 0 0 0 1px var(--fg-4)' }

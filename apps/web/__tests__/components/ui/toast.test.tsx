@@ -1,9 +1,8 @@
 import React from 'react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Toast } from '@/components/ui/toast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 function revealMessage() {
   void act(() => vi.advanceTimersByTime(0))
@@ -172,11 +171,10 @@ describe('Toast', () => {
     expect(mark.className).toContain('bg-[var(--status-done)]')
     expect(mark.className).not.toContain('primary')
 
-    const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-    const doneValues = [...css.matchAll(/--status-done:\s*([^;]+);/g)]
-      .map((match) => match[1]?.trim())
-
-    expect(doneValues).toEqual(['var(--fg-1)', 'var(--fg-1)'])
-    expect(css).not.toMatch(/--fg-1:\s*var\(--primary\)/)
+    for (const mode of ['dark', 'light'] as const) {
+      const variables = resolveWebThemeVariables('purple', mode)
+      expect(variables['--status-done']).toBe(variables['--fg-1'])
+      expect(variables['--status-done']).not.toBe(variables['--primary'])
+    }
   })
 })

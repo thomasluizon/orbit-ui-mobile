@@ -97,7 +97,7 @@ export function SettingsGroupRow({
           {icon}
         </span>
       ) : null}
-      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 3 }}>
+      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
         <span className="flex items-center" style={{ gap: 6 }}>
           <span
             className="min-w-0 overflow-hidden line-clamp-2"
@@ -149,7 +149,7 @@ export function SettingsGroupRow({
         aria-label={ariaLabel}
         data-tour={dataTour}
         data-testid={dataTestId}
-        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
+        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]"
         style={{
           ...SETTINGS_ROW_STYLE,
           appearance: 'none',

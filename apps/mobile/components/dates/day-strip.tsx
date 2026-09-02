@@ -19,7 +19,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
       {days.map((state, index) => {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         const filled = state === 'done' || state === 'active'
-        const backgroundColor = filled ? tokens.fg1 : state === 'frozen' ? tokens.fg2 : state === 'not-scheduled' ? tokens.bgWell : 'transparent'
+        const backgroundColor = filled ? tokens.fg1 : state === 'frozen' ? tokens.statusFrozen : state === 'not-scheduled' ? tokens.bgWell : 'transparent'
         const borderColor = state === 'today' ? tokens.primary : state === 'missed' ? tokens.fg4 : 'transparent'
         return (
           <View

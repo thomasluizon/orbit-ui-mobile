@@ -119,15 +119,15 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
               ringCount={3}
               ringSize={280}
               dashed
-              ringColor={tokens.statusFrozen}
+              ringColor={tokens.fg2}
               eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
-              eyebrowColor={tokens.statusFrozen}
+              eyebrowColor={tokens.fg2}
               anchor={
                 <Animated.View
                   style={[
                     styles.heroDisc,
                     {
-                      backgroundColor: rgbaFromHex(tokens.statusFrozen, 0.16),
+                      backgroundColor: rgbaFromHex(tokens.fg2, 0.16),
                     },
                     orbStyle,
                   ]}

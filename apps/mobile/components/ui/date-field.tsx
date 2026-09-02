@@ -376,7 +376,7 @@ function createStyles(tokens: AppTokens) {
       minHeight: 56,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderColor: tokens.borderControl,
       borderRadius: radius.md,
       paddingVertical: 8,
       paddingHorizontal: 16,

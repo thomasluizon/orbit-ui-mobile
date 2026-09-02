@@ -34,7 +34,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || !onClick ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{body}</div>
       ) : (
-        <button type="button" onClick={onClick} className="flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={bodyStyle}>{body}</button>
+        <button type="button" onClick={onClick} className="flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={bodyStyle}>{body}</button>
       )}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-elev)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={{ color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>

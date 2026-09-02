@@ -21,7 +21,7 @@ export function GoalAskAstraRow({ onClick, className, style }: Readonly<GoalAskA
       onClick={onClick}
       aria-label={`${t('goals.detail.askAstraEyebrow')}: ${prompt}`}
       className={[
-        'block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]',
+        'block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]',
         className,
       ]
         .filter(Boolean)
