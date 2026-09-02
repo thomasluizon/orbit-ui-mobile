@@ -240,6 +240,7 @@ export default function UpgradeScreen() {
         selectedInterval={selectedInterval}
         onSelectInterval={setSelectedInterval}
         onStayFree={() => goBackOrFallback(fallbackRoute)}
+        monthlyOffer={playBilling.monthlyOffer}
         yearlyOffer={playBilling.yearlyOffer}
         monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
         yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}

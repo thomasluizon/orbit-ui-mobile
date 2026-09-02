@@ -24,6 +24,7 @@ export function PricingSection({
   selectedInterval,
   onSelectInterval,
   onStayFree,
+  monthlyOffer,
   yearlyOffer,
   monthlyDisplayPrice,
   yearlyDisplayPrice,
@@ -46,6 +47,7 @@ export function PricingSection({
   selectedInterval: SubscriptionInterval
   onSelectInterval: (interval: SubscriptionInterval) => void
   onStayFree: () => void
+  monthlyOffer: PlayOffer | null
   yearlyOffer: PlayOffer | null
   monthlyDisplayPrice?: string
   yearlyDisplayPrice?: string
@@ -122,6 +124,7 @@ export function PricingSection({
           isLoading={isLoadingPlans}
           isError={isPlansError}
           isOnline={isOnline}
+          monthlyOffer={monthlyOffer}
           yearlyOffer={yearlyOffer}
           monthlyPrice={monthlyDisplayPrice}
           yearlyPrice={yearlyDisplayPrice}

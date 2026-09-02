@@ -33,6 +33,7 @@ export function PlanSelection({
   isOnline,
   monthlyPrice,
   yearlyPrice,
+  monthlyOffer,
   yearlyOffer,
   selectedInterval,
   checkoutLoading,
@@ -48,6 +49,7 @@ export function PlanSelection({
   isLoading: boolean
   isError: boolean
   isOnline: boolean
+  monthlyOffer: PlayOffer | null
   yearlyOffer: PlayOffer | null
   monthlyPrice?: string
   yearlyPrice?: string
@@ -122,14 +124,14 @@ export function PlanSelection({
       price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
       percent: plans.savingsPercent,
     }),
-    couponLine,
+    couponLine: yearlyOffer?.isReferral ? couponLine : undefined,
   }
   const monthlyTier: Tier = {
     interval: 'monthly',
     name: t('upgrade.plans.monthly.name'),
     price: monthlyCharge,
     period: t('upgrade.plans.monthly.period'),
-    couponLine,
+    couponLine: monthlyOffer?.isReferral ? couponLine : undefined,
   }
   const tiers = selectedInterval === 'yearly'
     ? [annualTier, monthlyTier]

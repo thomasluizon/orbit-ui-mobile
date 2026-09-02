@@ -9,6 +9,7 @@ import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-c
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
+import type { PlayOffer } from '@/hooks/use-play-billing'
 
 vi.mock('@/components/upgrade/plan-summary-card', () => ({
   PlanSummaryCard: ({ badges, ...props }: Record<string, unknown>) =>
@@ -88,6 +89,16 @@ const plans = {
   currency: 'brl',
 }
 
+const yearlyReferralOffer: PlayOffer = {
+  interval: 'yearly',
+  sku: 'yearly-sku',
+  offerToken: 'yearly-referral',
+  displayPrice: '',
+  isReferral: true,
+  priceAmountMicros: null,
+  currency: null,
+}
+
 function renderPricing(
   overrides: Partial<React.ComponentProps<typeof PricingSection>> = {},
 ) {
@@ -102,6 +113,7 @@ function renderPricing(
       selectedInterval="yearly"
       onSelectInterval={() => {}}
       onStayFree={() => {}}
+      monthlyOffer={null}
       yearlyOffer={null}
       checkoutLoading={null}
       checkoutError=""
@@ -513,7 +525,10 @@ describe('subscription dashboards (mobile)', () => {
     ;(retry?.props.onPress as (() => void) | undefined)?.()
     expect(onRetryPlans).toHaveBeenCalledTimes(1)
 
-    const online = renderPricing({ plans: { ...plans, couponPercentOff: 23 } })
+    const online = renderPricing({
+      plans: { ...plans, couponPercentOff: 23 },
+      yearlyOffer: yearlyReferralOffer,
+    })
     expect(renderedText(online)).toContain('upgrade.plans.coupon.line')
     expect(renderedText(online)).not.toContain('upgrade.matrix.')
     expect(renderedText(online)).toContain('upgrade.restorePurchase')

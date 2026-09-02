@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
+import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -23,6 +24,19 @@ const plans: SubscriptionPlans = {
   currency: 'usd',
 }
 
+function offer(interval: SubscriptionInterval, isReferral: boolean): PlayOffer {
+  const plan = interval === 'monthly' ? plans.monthly : plans.yearly
+  return {
+    interval,
+    sku: `sku-${interval}`,
+    offerToken: `offer-${interval}`,
+    displayPrice: formatPrice(plan.unitAmount, plan.currency),
+    isReferral,
+    priceAmountMicros: null,
+    currency: plan.currency,
+  }
+}
+
 function renderSelection(
   selectedInterval: SubscriptionInterval = 'yearly',
   overrides: Partial<React.ComponentProps<typeof PlanSelection>> = {},
@@ -35,6 +49,7 @@ function renderSelection(
         isLoading={false}
         isError={false}
         isOnline
+        monthlyOffer={null}
         yearlyOffer={null}
         selectedInterval={selectedInterval}
         checkoutLoading={null}
@@ -93,13 +108,19 @@ describe('PlanSelection (mobile)', () => {
     expect(rendered).toContain(String(plans.savingsPercent))
   })
 
-  it('shows the payload coupon on both tiers only when it exists', () => {
+  it('shows coupon copy only for Play offers that apply it', () => {
     const couponPercentOff = 23
-    const withCoupon = JSON.stringify(renderSelection('yearly', {
+    const oneReferralOffer = renderSelection('yearly', {
       plans: { ...plans, couponPercentOff },
-    }).toJSON())
-    expect(withCoupon.match(/upgrade\.plans\.coupon\.line/g)).toHaveLength(2)
+      monthlyOffer: offer('monthly', true),
+      yearlyOffer: offer('yearly', false),
+    })
+    const withCoupon = JSON.stringify(oneReferralOffer.toJSON())
+    expect(withCoupon.match(/upgrade\.plans\.coupon\.line/g)).toHaveLength(1)
     expect(withCoupon).toContain(String(couponPercentOff))
+    const annualTier = oneReferralOffer.root.findByProps({ testID: 'upgrade-tier-yearly' })
+    expect(annualTier.findAll((node: { props: { children?: unknown } }) =>
+      String(node.props.children).includes('upgrade.plans.coupon.line'))).toHaveLength(0)
 
     const withoutCoupon = JSON.stringify(renderSelection().toJSON())
     expect(withoutCoupon).not.toContain('upgrade.plans.coupon.line')
