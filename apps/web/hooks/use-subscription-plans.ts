@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { subscriptionKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -11,7 +11,7 @@ import {
   getClientTimeZone,
   monthlyEquivalent,
 } from '@orbit/shared/utils'
-import { fetchJson } from '@/lib/api-fetch'
+import { fetchJson, reportApiError } from '@/lib/api-fetch'
 
 interface SubscriptionPlansQueryOptions {
   enabled?: boolean
@@ -29,13 +29,16 @@ export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}
   const query = useQuery({
     queryKey: subscriptionKeys.plans(),
     queryFn: () => fetchJson<SubscriptionPlans>(plansUrl, undefined, {
-      handlesError: options.handlesError,
+      handlesError: true,
     }),
     enabled: options.enabled,
-    meta: { handlesError: options.handlesError === true },
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
     refetchOnMount: 'always',
   })
+
+  useEffect(() => {
+    if (!options.handlesError && query.error) reportApiError(query.error)
+  }, [options.handlesError, query.error])
 
   const plans = query.data ?? null
 

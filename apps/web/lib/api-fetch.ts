@@ -69,6 +69,25 @@ export class ApiError extends Error {
   }
 }
 
+const reportedApiErrors = new WeakSet<ApiError>()
+
+export function reportApiError(error: unknown): void {
+  if (!(error instanceof ApiError) || reportedApiErrors.has(error)) return
+  if (error.status === 401 || error.status === 426) return
+  if (
+    error.status === 403 &&
+    extractBackendErrorCode({ data: error.data }) === 'PAY_GATE'
+  ) {
+    return
+  }
+
+  reportedApiErrors.add(error)
+  toast.error(getToastTitle(error.status), {
+    description: extractBackendError({ data: error.data }) || undefined,
+    duration: 5000,
+  })
+}
+
 async function getStatusError(
   status: number,
   body: unknown,
@@ -136,17 +155,11 @@ export async function apiFetch<T>(
     }
 
     const backendMsg = extractBackendError({ data: body })
+    const error = new ApiError(status, backendMsg || getToastTitle(status), body)
 
-    const title = getToastTitle(status)
+    if (!behavior?.handlesError) reportApiError(error)
 
-    if (!behavior?.handlesError) {
-      toast.error(title, {
-        description: backendMsg || undefined,
-        duration: 5000,
-      })
-    }
-
-    throw new ApiError(status, backendMsg || title, body)
+    throw error
   }
 
   return validateApiResponse(await res.json(), schema, url)

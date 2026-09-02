@@ -28,7 +28,6 @@ export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}
     queryKey: subscriptionKeys.plans(),
     queryFn: () => apiClient<SubscriptionPlans>(plansUrl),
     enabled: options.enabled,
-    meta: { handlesError: options.handlesError === true },
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
     refetchOnMount: 'always',
   })

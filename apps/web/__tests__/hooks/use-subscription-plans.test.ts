@@ -11,6 +11,9 @@ import {
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 const mockFetch = vi.fn()
+const { mockReportApiError } = vi.hoisted(() => ({
+  mockReportApiError: vi.fn(),
+}))
 vi.stubGlobal('fetch', mockFetch)
 
 vi.mock('@/lib/api-fetch', () => ({
@@ -20,6 +23,7 @@ vi.mock('@/lib/api-fetch', () => ({
       return res.json()
     }),
   ),
+  reportApiError: mockReportApiError,
 }))
 
 function createWrapper() {
@@ -91,6 +95,7 @@ describe('monthlyEquivalent', () => {
 describe('useSubscriptionPlans', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockReportApiError.mockReset()
     vi.unstubAllGlobals()
     vi.stubGlobal('fetch', mockFetch)
   })
@@ -126,7 +131,7 @@ describe('useSubscriptionPlans', () => {
     expect(result.current.plans).toBeNull()
   })
 
-  it('marks and handles a caller owned plans failure', async () => {
+  it('leaves a caller owned plans failure to that observer', async () => {
     const queryClient = createQueryClient()
     mockFetch.mockResolvedValue({
       ok: false,
@@ -143,8 +148,41 @@ describe('useSubscriptionPlans', () => {
     )
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(queryClient.getQueryCache().find({ queryKey: subscriptionKeys.plans() })?.meta)
-      .toEqual({ handlesError: true })
+    expect(queryClient.getQueryCache().find({ queryKey: subscriptionKeys.plans() }))
+      .toBeDefined()
+    expect(mockReportApiError).not.toHaveBeenCalled()
+  })
+
+  it('reports a shared pending failure for a later upgrade observer', async () => {
+    const queryClient = createQueryClient()
+    let resolveModalRequest: ((response: unknown) => void) | undefined
+
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveModalRequest = resolve
+    }))
+
+    const modal = renderHook(
+      () => useSubscriptionPlans({ handlesError: true }),
+      { wrapper: createWrapperWithClient(queryClient) },
+    )
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+    const upgrade = renderHook(
+      () => useSubscriptionPlans(),
+      { wrapper: createWrapperWithClient(queryClient) },
+    )
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    resolveModalRequest?.({
+      ok: false,
+      json: () => Promise.resolve({ error: 'Payment service unavailable' }),
+    })
+    await waitFor(() => expect(modal.result.current.isError).toBe(true))
+    await waitFor(() => expect(upgrade.result.current.isError).toBe(true))
+    expect(mockReportApiError).toHaveBeenCalledTimes(1)
+    expect(mockReportApiError).toHaveBeenCalledWith(upgrade.result.current.error)
   })
 
   it('exposes formatPrice and monthlyEquivalent utilities', async () => {

@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -90,11 +91,17 @@ describe('mobile useSubscriptionPlans', () => {
     }))
   })
 
-  it('marks a caller handled plans failure without disabling upgrade errors', async () => {
+  it('keeps caller handled and upgrade observers on the shared plans query', async () => {
     await renderUseSubscriptionPlans({ handlesError: true })
+    await renderUseSubscriptionPlans()
 
-    expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
-      meta: { handlesError: true },
-    }))
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ queryKey: subscriptionKeys.plans() }),
+    )
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ queryKey: subscriptionKeys.plans() }),
+    )
   })
 })
