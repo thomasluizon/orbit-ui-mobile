@@ -549,9 +549,11 @@ describe('CreateHabitModal', () => {
     await act(async () => { await Promise.resolve() })
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.addSubHabit' }))
 
+    const onSuggestSetup = mockHabitFormFieldsState.onSuggestSetup
+    if (!onSuggestSetup) throw new Error('Expected the suggestion handler')
     let proposalPromise!: Promise<HabitFormProposal>
     act(() => {
-      proposalPromise = Promise.resolve(mockHabitFormFieldsState.onSuggestSetup?.())
+      proposalPromise = Promise.resolve(onSuggestSetup())
     })
     await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
     fireEvent.change(
