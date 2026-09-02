@@ -202,7 +202,7 @@ export function CalendarDayDetail({
                       <span
                         className="shrink-0 rounded-full uppercase"
                         style={{
-                          padding: '3px 9px',
+                          padding: '4px 8px',
                           fontFamily: 'var(--font-sans)',
                           fontSize: 12,
                           fontWeight: 600,
@@ -227,7 +227,7 @@ export function CalendarDayDetail({
   const goToDay = (
     <Link
       href={`/?date=${dateStr}`}
-      className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+      className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-2 rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
       style={{
         marginTop: 16,
         padding: '14px 26px',
@@ -257,11 +257,6 @@ export function CalendarDayDetail({
           >
             {body}
           </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0"
-            style={{ height: 24, background: 'linear-gradient(to top, var(--bg), transparent)' }}
-          />
         </div>
         {goToDay}
       </section>

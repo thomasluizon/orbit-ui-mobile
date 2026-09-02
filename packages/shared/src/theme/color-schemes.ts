@@ -27,31 +27,25 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   purple: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
-    gradientHeaderFrom: { dark: '#22094f', light: '#e9d4ff' },
   },
   blue: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
-    gradientHeaderFrom: { dark: '#001b48', light: '#cedfff' },
   },
   green: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
-    gradientHeaderFrom: { dark: '#012709', light: '#c4eac7' },
   },
   rose: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
-    gradientHeaderFrom: { dark: '#40010e', light: '#ffd1d0' },
   },
   orange: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
-    gradientHeaderFrom: { dark: '#371100', light: '#ffd3c6' },
   },
   cyan: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
-    gradientHeaderFrom: { dark: '#01232b', light: '#b2e8fd' },
   },
 }

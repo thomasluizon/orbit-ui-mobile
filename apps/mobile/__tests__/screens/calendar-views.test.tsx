@@ -77,7 +77,6 @@ vi.mock("@/lib/theme", () => ({
 }));
 
 vi.mock("@/components/ui/sheet", async () => await import("@/__tests__/support/sheet-double"));
-vi.mock("@/components/ui/gradient-top", () => ({ GradientTop: () => null }));
 vi.mock("@/components/ui/section-label", () => ({ SectionLabel: () => null }));
 
 vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({

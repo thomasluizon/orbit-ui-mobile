@@ -93,13 +93,18 @@ ruleTester.run('no-raw-gradient', rule('no-raw-gradient'), {
   valid: [
     '<div className="bg-[var(--bg-elev)]" />',
     'const mask = { maskImage: "radial-gradient(transparent 58%, black 60%)" }',
+    'const pane = { backgroundColor: "var(--bg)", backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }',
     '<div className="from-left to-right" />',
   ],
   invalid: [
     { code: 'const c = "var(--gradient-header)"', errors: [{ messageId: 'noGradientToken' }] },
     { code: 'const s = { background: "linear-gradient(180deg, #22094f, transparent)" }', errors: [{ messageId: 'noGradientFunction' }] },
+    { code: 'const pane = { backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }', errors: [{ messageId: 'noGradientFunction' }] },
+    { code: 'const pane = { backgroundColor: "var(--bg-card)", backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }', errors: [{ messageId: 'noGradientFunction' }] },
     { code: '<div className="bg-gradient-to-b from-black" />', errors: [{ messageId: 'noGradientClass' }] },
     { code: '<LinearGradient colors={c} />', errors: [{ messageId: 'noGradientElement' }] },
+    { code: '<linearGradient id="wash" />', errors: [{ messageId: 'noGradientElement' }] },
+    { code: '<radialGradient id="wash" />', errors: [{ messageId: 'noGradientElement' }] },
     { code: 'import { LinearGradient } from "expo-linear-gradient"', errors: [{ messageId: 'noGradientImport' }] },
   ],
 })
