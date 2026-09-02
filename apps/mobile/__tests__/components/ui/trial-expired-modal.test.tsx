@@ -11,16 +11,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useTrialExpired: () => true,
 }))
 
-vi.mock('@/hooks/use-subscription-plans', () => ({
-  useSubscriptionPlans: () => ({ plans: { savingsPercent: 41 } }),
-}))
-
 vi.mock('@/components/ui/sheet', async () =>
   await import('@/__tests__/support/sheet-double'),
 )
 
 describe('TrialExpiredModal (mobile)', () => {
-  it('renders only the current paused Pro features and payload saving', async () => {
+  it('renders only the current paused Pro features', async () => {
     let tree: import('react-test-renderer').ReactTestRenderer | undefined
 
     await act(async () => {
@@ -36,11 +32,7 @@ describe('TrialExpiredModal (mobile)', () => {
     expect(renderedText).toContain('trial.expired.calendarSync')
     expect(renderedText).toContain('trial.expired.retrospective')
     expect(renderedText).toContain('trial.expired.proactiveAstra')
-    expect(
-      renderedText?.some((children) =>
-        JSON.stringify(children).includes('trial.expired.savings'),
-      ),
-    ).toBe(true)
+    expect(renderedText).not.toContain('trial.expired.savings')
     expect(renderedText).not.toContain('trial.expired.subHabits')
     expect(renderedText).not.toContain('trial.expired.goals')
   })

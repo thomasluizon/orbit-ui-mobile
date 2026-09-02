@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTrialExpired } from '@/hooks/use-profile'
-import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -33,7 +32,6 @@ export function TrialExpiredModal() {
   const styles = useMemo(createStyles, [])
   const { sheetRef, closeSheet } = useSheetHost()
   const trialExpired = useTrialExpired()
-  const { plans } = useSubscriptionPlans()
   const [dismissed, setDismissed] = useState(false)
   const [alreadySeen, setAlreadySeen] = useState(true)
 
@@ -85,11 +83,6 @@ export function TrialExpiredModal() {
           <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
             {t('trial.expired.subtitleQuiet')}
           </Text>
-          {plans ? (
-            <Text style={[styles.savings, { color: tokens.fg3 }]}>
-              {t('trial.expired.savings', { percent: plans.savingsPercent })}
-            </Text>
-          ) : null}
         </View>
 
         <SettingsGroup>
@@ -129,12 +122,6 @@ function createStyles() {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 24,
-    },
-    savings: {
-      fontFamily: 'RobotoMono_400Regular',
-      fontSize: 12,
-      fontVariant: ['tabular-nums'],
-      lineHeight: 16,
     },
     paused: {
       fontFamily: 'RobotoMono_400Regular',
