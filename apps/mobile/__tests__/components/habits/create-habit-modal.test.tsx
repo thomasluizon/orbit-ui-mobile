@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -354,6 +356,54 @@ describe('CreateHabitModal (mobile)', () => {
 
     expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false })
     expect(mockSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
+  })
+
+  it('preserves a sub-habit edit made while an Astra suggestion is pending', async () => {
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    TestRenderer.act(() => {
+      tree.root.findAll((node: any) => node.type === SubHabitEditor)[0].props.onAddSubHabit()
+    })
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+    let proposalPromise!: Promise<HabitFormProposal>
+    TestRenderer.act(() => {
+      proposalPromise = formFields.props.onSuggestSetup()
+    })
+    const editor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
+    TestRenderer.act(() => {
+      editor.props.onUpdateSubHabit(editor.props.subHabits[0].id, 'Edited while pending')
+    })
+
+    let proposal: HabitFormProposal | undefined
+    await TestRenderer.act(async () => {
+      resolveSuggestion({
+        emoji: null,
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: ['Suggested stretch'],
+        checklistItems: [],
+      })
+      proposal = await proposalPromise
+    })
+
+    const latestEditor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
+    expect(latestEditor.props.subHabits.map((subHabit: { value: string }) => subHabit.value))
+      .toEqual(['Edited while pending', 'Suggested stretch'])
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true })
   })
 
   it('creates the habit and closes on a successful submit', async () => {

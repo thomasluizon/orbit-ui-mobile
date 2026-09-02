@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 
 const mockCreateMutateAsync = vi.fn()
@@ -531,5 +532,51 @@ describe('CreateHabitModal', () => {
 
     expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false })
     expect(mockFormSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
+  })
+
+  it('preserves a sub-habit edit made while an Astra suggestion is pending', async () => {
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    await act(async () => { await Promise.resolve() })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.addSubHabit' }))
+
+    let proposalPromise!: Promise<HabitFormProposal>
+    act(() => {
+      proposalPromise = Promise.resolve(mockHabitFormFieldsState.onSuggestSetup?.())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    fireEvent.change(
+      screen.getByLabelText('habits.form.subHabitInputLabel({"index":1})'),
+      { target: { value: 'Edited while pending' } },
+    )
+
+    let proposal: HabitFormProposal | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: null,
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: ['Suggested stretch'],
+        checklistItems: [],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(screen.getByDisplayValue('Edited while pending')).toBeDefined()
+    expect(screen.getByDisplayValue('Suggested stretch')).toBeDefined()
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true })
   })
 })

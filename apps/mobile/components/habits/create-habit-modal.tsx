@@ -136,6 +136,11 @@ export function CreateHabitModal({
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
+  const subHabitsRef = useRef<SubHabitEntry[]>([])
+  const replaceSubHabits = useCallback((nextSubHabits: SubHabitEntry[]) => {
+    subHabitsRef.current = nextSubHabits
+    setSubHabits(nextSubHabits)
+  }, [])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
@@ -211,7 +216,7 @@ export function CreateHabitModal({
       formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
       tags.resetTags()
       setSelectedGoalIds([])
-      setSubHabits([])
+      replaceSubHabits([])
       setReminderTimes([0, 15])
 
       let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
@@ -247,7 +252,7 @@ export function CreateHabitModal({
       )
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [open])
+  }, [open, replaceSubHabits])
 
   useEffect(() => {
     if (!open) return
@@ -377,7 +382,7 @@ export function CreateHabitModal({
 
       const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
 
-      const filledSubHabits = subHabits.filter((entry) => entry.value.trim().length > 0)
+      const filledSubHabits = subHabitsRef.current.filter((entry) => entry.value.trim().length > 0)
       const suggestedSubHabitTitles = selectSuggestedSubHabitTitles(
         filledSubHabits.map((entry) => entry.value),
         patch.subHabitTitles,
@@ -385,7 +390,7 @@ export function CreateHabitModal({
       )
       const appliedSubHabits = suggestedSubHabitTitles.length > 0
       if (appliedSubHabits) {
-        setSubHabits([
+        replaceSubHabits([
           ...filledSubHabits,
           ...suggestedSubHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
         ])
@@ -415,27 +420,27 @@ export function CreateHabitModal({
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     }
-  }, [canUseSubHabits, formHelpers, i18n.language, showError, showInfo, showSuccess, subHabits, suggestion, t])
+  }, [canUseSubHabits, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     resolveSubHabitProposalRef.current()
-    setSubHabits((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, value } : s)),
+    replaceSubHabits(
+      subHabitsRef.current.map((subHabit) => subHabit.id === id ? { ...subHabit, value } : subHabit),
     )
-  }, [])
+  }, [replaceSubHabits])
 
   const removeSubHabit = useCallback((id: string) => {
     resolveSubHabitProposalRef.current()
-    setSubHabits((prev) => prev.filter((s) => s.id !== id))
-  }, [])
+    replaceSubHabits(subHabitsRef.current.filter((subHabit) => subHabit.id !== id))
+  }, [replaceSubHabits])
 
   const addSubHabit = useCallback(() => {
     resolveSubHabitProposalRef.current()
-    setSubHabits((prev) => [...prev, createSubHabitEntry()])
-  }, [])
+    replaceSubHabits([...subHabitsRef.current, createSubHabitEntry()])
+  }, [replaceSubHabits])
   const handleResolveSubHabitProposalReady = useCallback((resolve: () => void) => {
     resolveSubHabitProposalRef.current = resolve
   }, [])
