@@ -1,4 +1,4 @@
-import { useCallback, useImperativeHandle, useRef, type Ref } from 'react'
+import { useCallback, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 
 interface SheetHandle {
@@ -40,6 +40,7 @@ export const sheetTestControls = {
  * `vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))`.
  */
 export function Sheet({ title, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
+  const [presented, setPresented] = useState(true)
   const requestClose = useCallback(
     (exitAction?: () => void) => {
       const finish = () => {
@@ -50,6 +51,7 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
         onClose?.()
       }
       if (deferDismissal) {
+        setPresented(false)
         pendingDismissal = finish
         return
       }
@@ -61,7 +63,12 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
   useImperativeHandle(ref, () => ({ requestClose }), [requestClose])
 
   return (
-    <div role="dialog" aria-label={title} data-testid="sheet">
+    <div
+      role="dialog"
+      aria-label={title}
+      aria-hidden={presented ? undefined : true}
+      data-testid="sheet"
+    >
       {title ? <h2>{title}</h2> : null}
       {onClose ? (
         <button type="button" onClick={() => requestClose()}>

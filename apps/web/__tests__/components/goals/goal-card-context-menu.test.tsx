@@ -70,41 +70,50 @@ function renderCard(goal: Goal) {
 }
 
 describe('GoalCard context menu', () => {
-  it('opens a menu on right-click with the goal actions', () => {
+  it('opens a menu on right-click with the goal actions', async () => {
     renderCard(makeGoal())
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
 
-    expect(screen.getByRole('menuitem', { name: 'contextMenu.viewDetails' })).toBeInTheDocument()
+    expect(await screen.findByRole(
+      'menuitem',
+      { name: 'contextMenu.viewDetails' },
+    )).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'contextMenu.edit' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'contextMenu.complete' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'contextMenu.delete' })).toBeInTheDocument()
   })
 
-  it('deep-links the drawer into the edit action', () => {
+  it('deep-links the drawer into the edit action', async () => {
     const onOpenDetail = renderCard(makeGoal())
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'contextMenu.edit' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'contextMenu.edit' }))
 
     expect(onOpenDetail).toHaveBeenCalledWith('1', 'edit')
   })
 
-  it('requests the drawer with no action for view details', () => {
+  it('requests the drawer with no action for view details', async () => {
     const onOpenDetail = renderCard(makeGoal())
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'contextMenu.viewDetails' }))
+    fireEvent.click(await screen.findByRole(
+      'menuitem',
+      { name: 'contextMenu.viewDetails' },
+    ))
 
     expect(onOpenDetail).toHaveBeenCalledWith('1', null)
   })
 
-  it('omits complete for a non-active goal', () => {
+  it('omits complete for a non-active goal', async () => {
     renderCard(makeGoal({ status: 'Completed' }))
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
 
+    expect(await screen.findByRole(
+      'menuitem',
+      { name: 'contextMenu.delete' },
+    )).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'contextMenu.complete' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'contextMenu.delete' })).toBeInTheDocument()
   })
 })
