@@ -187,7 +187,7 @@ describe('UpgradePage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('exposes matrix feature labels as text with decorative icons hidden', () => {
+  it('renders the arithmetic pitch and exactly three outcome rows', () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -195,20 +195,15 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    const { container } = render(<UpgradePage />)
+    render(<UpgradePage />)
 
-    expect(screen.getAllByText('upgrade.features.subHabits.label').length).toBeGreaterThan(0)
-
-    const icons = container.querySelectorAll('table svg')
-    expect(icons.length).toBeGreaterThan(0)
-    icons.forEach((icon) => {
-      expect(icon).toHaveAttribute('aria-hidden', 'true')
-    })
-
-    screen.getAllByRole('button').forEach((button) => {
-      const accessibleName = button.getAttribute('aria-label') ?? button.textContent.trim()
-      expect(accessibleName).toBeTruthy()
-    })
+    expect(screen.getByText('upgrade.convert.freeHeading')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.convert.freeAllowance')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.convert.proAllowance')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.convert.allowanceNote')).toBeInTheDocument()
+    expect(screen.getByLabelText('upgrade.outcomes.label').children).toHaveLength(3)
+    expect(document.body.textContent).not.toContain('upgrade.features.')
+    expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })
 
   it('shows plan loading skeletons when plans are loading', () => {

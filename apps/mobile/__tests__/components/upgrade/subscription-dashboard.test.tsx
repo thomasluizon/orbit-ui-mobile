@@ -23,11 +23,6 @@ vi.mock('@/components/upgrade/plan-selection', () => ({
   PlanSelection: (props: Record<string, unknown>) => React.createElement('PlanSelection', props),
 }))
 
-vi.mock('@/components/upgrade/plan-comparison-cards', () => ({
-  PlanComparisonCards: (props: Record<string, unknown>) =>
-    React.createElement('PlanComparisonCards', props),
-}))
-
 vi.mock('@/hooks/use-subscription-plans', () => ({
   formatPrice: (amount: number, currency: string) =>
     `${currency} ${(amount / 100).toFixed(2)}`,
@@ -446,6 +441,18 @@ describe('subscription dashboards (mobile)', () => {
     expect(cardText).not.toContain('upgrade.billing.plan.monthly')
   })
 
+  it('renders the arithmetic pitch and exactly three outcome rows', () => {
+    const tree = renderPricing({ plans })
+    const text = renderedText(tree)
+
+    expect(text).toContain('upgrade.convert.freeAllowance')
+    expect(text).toContain('upgrade.convert.proAllowance')
+    expect(text).toContain('upgrade.convert.allowanceNote')
+    expect(text.match(/upgrade\.outcomes\.(calendar|retrospective|noticing)\.title/g)).toHaveLength(3)
+    expect(text).not.toContain('upgrade.features.')
+    expect(text).not.toContain('upgrade.matrix.')
+  })
+
   it.each([
     [null, 'upgrade.convert.trialEyebrow'],
     [0, 'upgrade.convert.trialLastDay'],
@@ -470,7 +477,7 @@ describe('subscription dashboards (mobile)', () => {
 
     const online = renderPricing({ plans, isReferralPricing: true })
     expect(renderedText(online)).toContain('upgrade.plans.coupon.appliedNote')
-    expect(renderedText(online)).toContain('upgrade.matrix.yearlyTag')
+    expect(renderedText(online)).not.toContain('upgrade.matrix.')
     expect(renderedText(online)).toContain('upgrade.restorePurchase')
 
     const restoring = renderPricing({ plans, isOnline: false, isRestoring: true })

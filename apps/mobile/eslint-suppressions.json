@@ -813,7 +813,7 @@
   },
   "components/upgrade/styles.ts": {
     "local/spacing-scale": {
-      "count": 39
+      "count": 33
     }
   },
   "components/wrapped/wrapped-entry-button.tsx": {

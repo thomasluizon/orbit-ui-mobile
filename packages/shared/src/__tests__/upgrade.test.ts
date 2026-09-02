@@ -65,6 +65,13 @@ describe('upgrade utils', () => {
       'upgrade.convert.proAllowance',
       'upgrade.convert.perDay',
       'upgrade.convert.allowanceNote',
+      'upgrade.outcomes.label',
+      'upgrade.outcomes.calendar.title',
+      'upgrade.outcomes.calendar.body',
+      'upgrade.outcomes.retrospective.title',
+      'upgrade.outcomes.retrospective.body',
+      'upgrade.outcomes.noticing.title',
+      'upgrade.outcomes.noticing.body',
     ]
 
     for (const locale of [en, ptBR]) {

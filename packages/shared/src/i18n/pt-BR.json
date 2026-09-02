@@ -1919,6 +1919,21 @@
       "perDay": "mensagens por dia",
       "allowanceNote": "As 5 do plano grátis dão para registrar o dia e pedir um ajuste. As 50 dão para reorganizar a semana quantas vezes precisar."
     },
+    "outcomes": {
+      "label": "O que muda com o Pro",
+      "calendar": {
+        "title": "A sua agenda ao lado dos hábitos",
+        "body": "Sincronizar com o Google Calendar mostra os seus compromissos junto do dia."
+      },
+      "retrospective": {
+        "title": "A retrospectiva do período",
+        "body": "O Astra fecha a semana e o mês com o que aconteceu e o que mudar."
+      },
+      "noticing": {
+        "title": "O Astra percebe sem você pedir",
+        "body": "Ele avisa quando algo escapa em vez de esperar você abrir o app."
+      }
+    },
     "plans": {
       "free": {
         "note": "Mantenha sequências, XP e congelamento, sempre de graça."

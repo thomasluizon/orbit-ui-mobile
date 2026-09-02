@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { AlertTriangle, Tag } from '@/components/ui/icons'
+import { AlertTriangle, Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
@@ -14,6 +14,12 @@ function sectionEntrance(index: number) {
     .delay(index * 40)
     .reduceMotion(ReduceMotion.System)
 }
+
+const OUTCOMES = [
+  { key: 'calendar', Icon: Calendar },
+  { key: 'retrospective', Icon: FileText },
+  { key: 'noticing', Icon: Eye },
+] as const
 
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section aggregator: each boolean is an independent upgrade-screen UI-state flag (plans loading/error, online, ...) owned by the upgrade screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function PricingSection({
@@ -92,6 +98,24 @@ export function PricingSection({
           <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
         </View>
         <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
+      </View>
+
+      <View accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
+        {OUTCOMES.map(({ key, Icon }) => (
+          <View key={key} style={styles.outcomeRow}>
+            <View style={styles.outcomeIcon}>
+              <Icon size={20} strokeWidth={1.8} color={tokens.fg3} />
+            </View>
+            <View style={styles.outcomeCopy}>
+              <Text style={[styles.outcomeTitle, { color: tokens.fg1 }]}>
+                {t(`upgrade.outcomes.${key}.title`)}
+              </Text>
+              <Text style={[styles.outcomeBody, { color: tokens.fg3 }]}>
+                {t(`upgrade.outcomes.${key}.body`)}
+              </Text>
+            </View>
+          </View>
+        ))}
       </View>
 
       {isLoadingPlans ? (
