@@ -556,6 +556,26 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
+  it('replaces a streamed draft with the daily allowance when the stream reaches the limit', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(
+      frame('{"type":"started"}'),
+      frame('{"type":"delta","text":"Checking"}'),
+      frame('{"type":"error","status":403,"error":"limit reached"}'),
+    ))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('check my habits')
+    })
+
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'ai',
+      content: 'shell.composer.limit.reason:{"allowance":5}',
+    })
+    expect(result.current.sendError).toBeNull()
+    expect(result.current.canRetryLastSend).toBe(false)
+  })
+
   it('submits a pasted image with nonblank text through the rendered composer', async () => {
     const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
     vi.stubGlobal('URL', {
@@ -768,6 +788,44 @@ describe('web useChatComposer streaming send', () => {
     )
     expect(result.current.composerProps.limitReason).not.toContain('resetsAt')
     expect(result.current.composerProps.limitReason).not.toContain('midnight')
+  })
+
+  it('shows the daily allowance instead of sending when the account is already at its limit', async () => {
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 5,
+      aiMessagesLimit: 5,
+    })
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('plan my morning')
+    })
+
+    expect(mocks.fetch).not.toHaveBeenCalled()
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'ai',
+      content: 'shell.composer.limit.reason:{"allowance":5}',
+    })
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it('keeps the draft and explains that sending is unavailable offline', async () => {
+    Object.defineProperty(globalThis.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    })
+    const { result } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('log my walk'))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    expect(mocks.fetch).not.toHaveBeenCalled()
+    expect(result.current.composerProps.value).toBe('log my walk')
+    expect(result.current.sendError).toBe('shell.composer.offline.reason')
+    Reflect.deleteProperty(globalThis.navigator, 'onLine')
   })
 
   it('restores a saved draft into the rendered composer', async () => {
