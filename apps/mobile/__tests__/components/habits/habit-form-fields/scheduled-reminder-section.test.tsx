@@ -188,6 +188,8 @@ describe("ScheduledReminderSection", () => {
       pressed: false,
     });
     press(dayBefore);
+    expect(dayBefore.props.accessibilityState).toEqual({ selected: true });
+    expect(sameDay.props.accessibilityState).toEqual({ selected: false });
     press(sameDay);
     const add = buttons(tree).find(
       (node) => !node.props.accessibilityLabel && node.props.disabled === false,
