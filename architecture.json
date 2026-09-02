@@ -24330,6 +24330,7 @@
         "packages/shared/src/__tests__/action-chips.test.ts",
         "packages/shared/src/__tests__/chat.test.ts",
         "packages/shared/src/__tests__/habit-list-directive.test.ts",
+        "packages/shared/src/__tests__/pending-operation-card.test.ts",
         "packages/shared/src/__tests__/related-surfaces.test.ts",
         "packages/shared/src/__tests__/sse-stream.test.ts"
       ],
@@ -24351,6 +24352,7 @@
         "packages/shared/src/__tests__/block-frame-contract.test.ts",
         "packages/shared/src/__tests__/chat.test.ts",
         "packages/shared/src/__tests__/date-surfaces.test.ts",
+        "packages/shared/src/__tests__/pending-operation-card.test.ts",
         "packages/shared/src/__tests__/primitive-contracts.test.ts"
       ],
       "packages/shared/src/hooks": [
@@ -24441,7 +24443,8 @@
         "apps/web/__tests__/components/chat/list-cards.test.tsx",
         "apps/web/__tests__/components/chat/operation-outcomes.test.tsx",
         "apps/web/__tests__/components/chat/pending-operation-card.test.tsx",
-        "packages/shared/src/__tests__/action-chips.test.ts"
+        "packages/shared/src/__tests__/action-chips.test.ts",
+        "packages/shared/src/__tests__/pending-operation-card.test.ts"
       ],
       "packages/shared/src/theme": [
         "apps/mobile/__tests__/lib/motion.test.ts",
