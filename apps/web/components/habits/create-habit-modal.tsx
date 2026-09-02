@@ -290,7 +290,8 @@ export function CreateHabitModal({
 
         const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
-        const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+        const appliedChecklistItems = applySuggestionChecklist(patch, formHelpers.form)
+        const appliedChecklist = appliedChecklistItems > 0
 
         const filledSubHabits = subHabitsRef.current.filter((entry) => entry.value.trim().length > 0)
         const suggestedSubHabitTitles = selectSuggestedSubHabitTitles(
@@ -314,6 +315,8 @@ export function CreateHabitModal({
           setup: appliedSetup,
           checklist: appliedChecklist,
           subHabits: appliedSubHabits,
+          checklistItems: appliedChecklistItems,
+          subHabitItems: suggestedSubHabitTitles.length,
         }
         const appliedAnything = hasHabitFormProposal(proposal)
         if (appliedAnything) {
@@ -403,9 +406,10 @@ export function CreateHabitModal({
             readPhraseLocally
             lockedGeneral={parentHabit?.isGeneral ?? null}
           >
-            {!isSubHabitMode ? (
+            {(proposedItemCount) => !isSubHabitMode ? (
               <SubHabitEditor
                 subHabits={subHabits}
+                proposedItemCount={proposedItemCount}
                 onUpdateSubHabit={updateSubHabitValue}
                 onRemoveSubHabit={removeSubHabit}
                 onAddSubHabit={addSubHabit}

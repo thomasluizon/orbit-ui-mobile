@@ -25,6 +25,7 @@ import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
+import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -32,6 +33,7 @@ interface HabitChecklistProps {
   interactive?: boolean
   /** Editable mode: user can add/remove/reorder items */
   editable?: boolean
+  proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
@@ -42,6 +44,7 @@ export function HabitChecklist({
   items,
   interactive = false,
   editable = false,
+  proposedItemCount = 0,
   onItemsChange,
   onToggle,
   onReset,
@@ -177,16 +180,22 @@ export function HabitChecklist({
           <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-1">
               {items.map((item, index) => (
-                <SortableChecklistItem
+                <Proposed
                   key={sortableIds[index]}
-                  id={sortableIds[index]!}
-                  item={item}
-                  index={index}
-                  onUpdateText={updateItemText}
-                  onDuplicate={duplicateItem}
-                  onRemove={removeItem}
-                  duplicateDisabled={atItemLimit}
-                />
+                  proposed={index >= items.length - proposedItemCount}
+                  scope="row"
+                  label={t('habits.form.proposed')}
+                >
+                  <SortableChecklistItem
+                    id={sortableIds[index]!}
+                    item={item}
+                    index={index}
+                    onUpdateText={updateItemText}
+                    onDuplicate={duplicateItem}
+                    onRemove={removeItem}
+                    duplicateDisabled={atItemLimit}
+                  />
+                </Proposed>
               ))}
             </div>
           </SortableContext>

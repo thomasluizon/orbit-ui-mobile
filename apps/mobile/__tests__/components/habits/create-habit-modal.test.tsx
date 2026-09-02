@@ -147,8 +147,12 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
-  HabitFormFields: (props: { children?: React.ReactNode }) =>
-    React.createElement('HabitFormFields', props, props.children),
+  HabitFormFields: (props: { children?: React.ReactNode | ((proposedItems: number) => React.ReactNode) }) =>
+    React.createElement(
+      'HabitFormFields',
+      props,
+      typeof props.children === 'function' ? props.children(0) : props.children,
+    ),
 }))
 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
@@ -326,7 +330,7 @@ describe('CreateHabitModal (mobile)', () => {
       ],
       { shouldDirty: true },
     )
-    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false })
+    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false, checklistItems: 2, subHabitItems: 0 })
   })
 
   it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
@@ -354,7 +358,7 @@ describe('CreateHabitModal (mobile)', () => {
       proposal = await formFields.props.onSuggestSetup()
     })
 
-    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false })
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 })
     expect(mockSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
   })
 
@@ -403,7 +407,7 @@ describe('CreateHabitModal (mobile)', () => {
     const latestEditor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
     expect(latestEditor.props.subHabits.map((subHabit: { value: string }) => subHabit.value))
       .toEqual(['Edited while pending', 'Suggested stretch'])
-    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true })
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
   })
 
   it('creates the habit and closes on a successful submit', async () => {

@@ -8,15 +8,15 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
-const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false }
-const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
-const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
-const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true }
+const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
+const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
+const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 }
+const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
 
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
   'habits.form.understoodDailyAt': 'Every day at {time}',
-  'habits.form.understoodDaysAt': 'Every {days} at {time}',
+  'habits.form.understoodDayAt': 'Every {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
   'habits.form.understoodTime': 'At {time}',
 }
@@ -385,12 +385,15 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
     expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(true)
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(4)
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
+    const proposedBreakdownCount = tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length
+    expect(proposedBreakdownCount).toBeGreaterThan(0)
 
     TestRenderer.act(() => tree.root.findByType('HabitUnderstanding').props.onToggleDay('Monday'))
 
     expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(false)
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(4)
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(proposedBreakdownCount)
   })
 
   it('marks only an Astra checklist proposal and resolves it when edited', async () => {
@@ -408,11 +411,11 @@ describe('HabitFormFields mobile', () => {
       ask.props.onPress()
       await Promise.resolve()
     })
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length).toBeGreaterThan(0)
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
     expect(tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')).toHaveLength(0)
 
     TestRenderer.act(() => tree.root.findByProps({ testID: 'checklist' }).props.onItemsChange([{ text: 'Edited', isChecked: false }]))
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(0)
   })
 
   it('resolves a proposed sub-habit section when its parent editor changes it', async () => {

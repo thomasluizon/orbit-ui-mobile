@@ -14,6 +14,7 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { CheckRow } from '@/components/ui/check-row'
+import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -21,6 +22,7 @@ interface HabitChecklistProps {
   interactive?: boolean
   /** Editable mode: user can add/remove/reorder items */
   editable?: boolean
+  proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
@@ -251,6 +253,7 @@ export function HabitChecklist({
   items,
   interactive = false,
   editable = false,
+  proposedItemCount = 0,
   onItemsChange,
   onToggle,
   onReset,
@@ -375,21 +378,27 @@ export function HabitChecklist({
       {editable ? (
         <View style={styles.itemsList}>
           {items.map((item, index) => (
-            <EditableChecklistItem
+            <Proposed
               key={editableItemKeys[index]}
-              text={item.text}
-              index={index}
-              onUpdateText={updateItemText}
-              onDuplicate={duplicateItem}
-              onRemove={removeItem}
-              onMoveUp={() => moveItem(index, index - 1)}
-              onMoveDown={() => moveItem(index, index + 1)}
-              isFirst={index === 0}
-              isLast={index === items.length - 1}
-              duplicateDisabled={atItemLimit}
-              styles={styles}
-              tokens={tokens}
-            />
+              proposed={index >= items.length - proposedItemCount}
+              scope="row"
+              label={t('habits.form.proposed')}
+            >
+              <EditableChecklistItem
+                text={item.text}
+                index={index}
+                onUpdateText={updateItemText}
+                onDuplicate={duplicateItem}
+                onRemove={removeItem}
+                onMoveUp={() => moveItem(index, index - 1)}
+                onMoveDown={() => moveItem(index, index + 1)}
+                isFirst={index === 0}
+                isLast={index === items.length - 1}
+                duplicateDisabled={atItemLimit}
+                styles={styles}
+                tokens={tokens}
+              />
+            </Proposed>
           ))}
         </View>
       ) : (

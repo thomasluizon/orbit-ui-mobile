@@ -354,12 +354,15 @@ export function EditHabitModal({
 
       const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
-      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklistItems = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklist = appliedChecklistItems > 0
 
       const proposal = {
         setup: appliedSetup,
         checklist: appliedChecklist,
         subHabits: false,
+        checklistItems: appliedChecklistItems,
+        subHabitItems: 0,
       }
       const appliedAnything = hasHabitFormProposal(proposal)
       if (appliedAnything) {

@@ -59,6 +59,13 @@ interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, Ta
   onUpgrade: () => void
 }
 
+function renderSubHabitChildren(
+  children: ReactNode | ((proposedItems: number) => ReactNode),
+  proposedItems: number,
+): ReactNode {
+  return typeof children === 'function' ? children(proposedItems) : children
+}
+
 interface AstraFallbackProps {
   visible: boolean
   atLimit: boolean
@@ -194,6 +201,7 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t, i18n } = useTranslation()
+  const locale = resolveSupportedLocale(i18n.language)
   const translate = useCallback((key: string, values?: Record<string, unknown>) => t(key, values), [t])
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
@@ -225,6 +233,8 @@ export function HabitFormFields({
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
+  const rendersGranularSubHabits = typeof children === 'function'
+  const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
   const [previousExpandSignal, setPreviousExpandSignal] = useState(expandAdvancedSignal)
@@ -240,8 +250,8 @@ export function HabitFormFields({
   const selectedTagIdSet = useMemo(() => new Set(tags.selectedTagIds), [tags.selectedTagIds])
   const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
   const localRead = useMemo(
-    () => readHabitPhrase(title, resolveSupportedLocale(i18n.language)),
-    [i18n.language, title],
+    () => readHabitPhrase(title, locale),
+    [locale, title],
   )
 
   useEffect(() => {
@@ -256,8 +266,8 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, translate),
-    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate),
+    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, locale, translate],
   )
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
@@ -391,13 +401,11 @@ export function HabitFormFields({
             </View>
             <View>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
-              <Proposed proposed={proposal.checklist} scope="field" label={t('habits.form.proposed')}>
-                <HabitChecklist items={checklistItems} editable onItemsChange={controller.setChecklistItems} />
-                <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
-              </Proposed>
+              <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
+              <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits} onUpgrade={onUpgrade} t={t}>
-              {children}
+            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={onUpgrade} t={t}>
+              {subHabitChildren}
             </SubHabitSection>
             <View style={styles.compactGroup}>
               <SectionLabel inset={false} top={0} bottom={0}>{t('habits.form.habitTypeAvoid')}</SectionLabel>

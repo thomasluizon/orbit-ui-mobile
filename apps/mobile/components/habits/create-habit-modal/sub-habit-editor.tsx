@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import type { createTokensV2 } from '@/lib/theme'
+import { Proposed } from '@/components/ui/proposed'
 
 export interface SubHabitEntry {
   id: string
@@ -12,6 +13,7 @@ export interface SubHabitEntry {
 
 interface SubHabitEditorProps {
   subHabits: SubHabitEntry[]
+  proposedItemCount?: number
   onUpdateSubHabit: (id: string, value: string) => void
   onRemoveSubHabit: (id: string) => void
   onAddSubHabit: () => void
@@ -32,6 +34,7 @@ interface SubHabitEditorProps {
 
 export function SubHabitEditor({
   subHabits,
+  proposedItemCount = 0,
   onUpdateSubHabit,
   onRemoveSubHabit,
   onAddSubHabit,
@@ -48,7 +51,8 @@ export function SubHabitEditor({
       {subHabits.length > 0 ? (
         <View style={styles.subHabitsList}>
           {subHabits.map((entry, index) => (
-            <View key={entry.id} style={styles.subHabitRow}>
+            <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.form.proposed')}>
+            <View style={styles.subHabitRow}>
               <Text style={styles.subHabitIndex}>{index + 1}</Text>
               <BottomSheetAppTextInput
                 value={entry.value}
@@ -79,6 +83,7 @@ export function SubHabitEditor({
                 <Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} />
               </Pressable>
             </View>
+            </Proposed>
           ))}
         </View>
       ) : null}

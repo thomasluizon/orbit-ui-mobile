@@ -160,7 +160,7 @@ vi.mock('./habit-form-fields', () => ({
     onSuggestSetup,
     onToggleGoal,
   }: {
-    children?: React.ReactNode
+    children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
     onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
     onToggleGoal: (goalId: string) => void
   }) => {
@@ -175,7 +175,7 @@ vi.mock('./habit-form-fields', () => ({
         <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
           goal
         </button>
-        {children}
+        {typeof children === 'function' ? children(0) : children}
       </div>
     )
   },
@@ -187,7 +187,7 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     onSuggestSetup,
     onToggleGoal,
   }: {
-    children?: React.ReactNode
+    children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
     onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
     onToggleGoal: (goalId: string) => void
   }) => {
@@ -202,7 +202,7 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
         <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
           goal
         </button>
-        {children}
+        {typeof children === 'function' ? children(0) : children}
       </div>
     )
   },
@@ -503,7 +503,7 @@ describe('CreateHabitModal', () => {
       ],
       { shouldDirty: true },
     )
-    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false })
+    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false, checklistItems: 2, subHabitItems: 0 })
   })
 
   it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
@@ -530,7 +530,7 @@ describe('CreateHabitModal', () => {
       proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
     })
 
-    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false })
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 })
     expect(mockFormSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
   })
 
@@ -579,6 +579,6 @@ describe('CreateHabitModal', () => {
 
     expect(screen.getByDisplayValue('Edited while pending')).toBeDefined()
     expect(screen.getByDisplayValue('Suggested stretch')).toBeDefined()
-    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true })
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
   })
 })

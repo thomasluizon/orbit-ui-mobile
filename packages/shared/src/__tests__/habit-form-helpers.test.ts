@@ -239,14 +239,42 @@ describe('habit form helpers', () => {
       `${key}:${JSON.stringify(values ?? {})}`
     const days = [{ value: 'Monday', label: 'Monday' }]
 
-    expect(buildHabitUnderstandingSentence([], days, false, 'Day', 1, '', translate))
+    expect(buildHabitUnderstandingSentence([], days, false, 'Day', 1, '', 'en', translate))
       .toBe('habits.form.understoodDaily:{}')
-    expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '08:00', translate))
-      .toBe('habits.form.understoodDaysAt:{"days":"Monday","time":"08:00"}')
-    expect(buildHabitUnderstandingSentence([], days, true, 'Week', 3, '09:00', translate))
+    expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '08:00', 'en', translate))
+      .toBe('habits.form.understoodDayAt:{"days":"Monday","time":"08:00"}')
+    expect(buildHabitUnderstandingSentence([], days, true, 'Week', 3, '09:00', 'en', translate))
       .toBe('habits.form.understoodCountAt:{"count":3,"time":"09:00"}')
-    expect(buildHabitUnderstandingSentence([], days, false, null, 3, '15:00', translate))
+    expect(buildHabitUnderstandingSentence([], days, false, null, 3, '15:00', 'en', translate))
       .toBe('habits.form.understoodTime:{"time":"15:00"}')
+  })
+
+  it('formats singular and multi-day pt-BR schedules naturally', () => {
+    const translations: Record<string, string> = {
+      'habits.form.understoodDay': 'Toda {days}',
+      'habits.form.understoodDayAt': 'Toda {days} às {time}',
+      'habits.form.understoodDays': '{days}',
+      'habits.form.understoodDaysAt': '{days} às {time}',
+    }
+    const translate = (key: string, values?: Record<string, string | number>) =>
+      Object.entries(values ?? {}).reduce(
+        (message, [name, value]) => message.replace(`{${name}}`, String(value)),
+        translations[key] ?? key,
+      )
+    const days = [
+      { value: 'Monday', label: 'Seg' },
+      { value: 'Wednesday', label: 'Qua' },
+      { value: 'Friday', label: 'Sex' },
+    ]
+
+    expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '', 'pt-BR', translate))
+      .toBe('Toda Seg')
+    expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
+      .toBe('Toda Seg às 08:00')
+    expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '', 'pt-BR', translate))
+      .toBe('Seg, Qua e Sex')
+    expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
+      .toBe('Seg, Qua e Sex às 08:00')
   })
 
   it('tracks proposal visibility, Astra limits, start dates, and reminder labels', () => {
@@ -268,7 +296,7 @@ describe('habit form helpers', () => {
   })
 
   it('centralizes proposal state and fallback copy', async () => {
-    const proposal = { setup: true, checklist: true, subHabits: false }
+    const proposal = { setup: true, checklist: true, subHabits: false, checklistItems: 2, subHabitItems: 0 }
     const translate = (key: string, values?: Record<string, string | number>) =>
       values ? `${key}:${JSON.stringify(values)}` : key
     const action = vi.fn(async () => proposal)
@@ -277,6 +305,8 @@ describe('habit form helpers', () => {
       setup: false,
       checklist: true,
       subHabits: false,
+      checklistItems: 2,
+      subHabitItems: 0,
     })
     expect(clearHabitFormProposalSection(proposal, 'subHabits')).toBe(proposal)
     await expect(requestHabitFormProposal(action, false)).resolves.toBe(proposal)
@@ -324,7 +354,7 @@ describe('habit form helpers', () => {
   })
 
   it('coordinates form corrections and proposal ownership', async () => {
-    const proposed = { setup: true, checklist: true, subHabits: true }
+    const proposed = { setup: true, checklist: true, subHabits: true, checklistItems: 2, subHabitItems: 1 }
     let proposal = EMPTY_HABIT_FORM_PROPOSAL
     let ownership = { cadence: true, dueTime: true }
     const fields = new Map<string, { value: unknown; validate?: boolean }>()
@@ -385,7 +415,13 @@ describe('habit form helpers', () => {
     proposal = proposed
     controller.setEmoji('🌱')
     expect(fields.get('emoji')?.value).toBe('🌱')
-    expect(proposal).toEqual({ setup: false, checklist: true, subHabits: true })
+    expect(proposal).toEqual({
+      setup: false,
+      checklist: true,
+      subHabits: true,
+      checklistItems: 2,
+      subHabitItems: 1,
+    })
     controller.resolveChecklistProposal()
     controller.resolveSubHabitProposal()
     expect(proposal).toEqual(EMPTY_HABIT_FORM_PROPOSAL)
@@ -412,7 +448,7 @@ describe('habit form helpers', () => {
   })
 
   it('honors locked cadence and toggle overrides', async () => {
-    let proposal = { setup: true, checklist: true, subHabits: true }
+    let proposal = { setup: true, checklist: true, subHabits: true, checklistItems: 2, subHabitItems: 1 }
     const ownership = { cadence: false, dueTime: false }
     const action = vi.fn(async () => proposal)
     const onReminderEnabledChange = vi.fn()

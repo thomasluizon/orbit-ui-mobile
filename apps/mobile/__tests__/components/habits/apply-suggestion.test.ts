@@ -16,7 +16,7 @@ describe('applySuggestionChecklist mobile', () => {
     const setValue = vi.fn()
     const form = { getValues: () => existing, setValue } as unknown as HabitFormHelpers['form']
 
-    expect(applySuggestionChecklist({ mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null, emoji: null, subHabitTitles: [], checklistItems: [{ text: 'One', isChecked: false }, { text: 'Two', isChecked: false }] }, form)).toBe(true)
+    expect(applySuggestionChecklist({ mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null, emoji: null, subHabitTitles: [], checklistItems: [{ text: 'One', isChecked: false }, { text: 'Two', isChecked: false }] }, form)).toBe(1)
     expect(setValue.mock.calls[0]?.[1]).toHaveLength(50)
   })
 

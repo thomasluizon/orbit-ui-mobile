@@ -57,6 +57,13 @@ interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, Ta
   titleInputRef?: RefObject<HTMLInputElement | null>
 }
 
+function renderSubHabitChildren(
+  children: ReactNode | ((proposedItems: number) => ReactNode),
+  proposedItems: number,
+): ReactNode {
+  return typeof children === 'function' ? children(proposedItems) : children
+}
+
 interface AstraFallbackProps {
   visible: boolean
   atLimit: boolean
@@ -218,6 +225,8 @@ export function HabitFormFields({
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
+  const rendersGranularSubHabits = typeof children === 'function'
+  const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
   useExpandAdvancedSignal(expandAdvancedSignal, () => setDetailsOpen(true))
@@ -237,8 +246,8 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, translate),
-    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate),
+    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, locale, translate],
   )
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
@@ -386,21 +395,20 @@ export function HabitFormFields({
 
             <section>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
-              <Proposed proposed={proposal.checklist} scope="field" label={t('habits.form.proposed')}>
-                <HabitChecklist
-                  items={checklistItems}
-                  editable
-                  onItemsChange={controller.setChecklistItems}
-                />
-                <ChecklistTemplates
-                  items={checklistItems}
-                  onLoad={controller.setChecklistItems}
-                />
-              </Proposed>
+              <HabitChecklist
+                items={checklistItems}
+                editable
+                proposedItemCount={proposal.checklistItems}
+                onItemsChange={controller.setChecklistItems}
+              />
+              <ChecklistTemplates
+                items={checklistItems}
+                onLoad={controller.setChecklistItems}
+              />
             </section>
 
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits} onUpgrade={() => router.push('/upgrade')} t={t}>
-              {children}
+            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={() => router.push('/upgrade')} t={t}>
+              {subHabitChildren}
             </SubHabitSection>
 
             <section className="flex flex-col" style={{ gap: 8 }}>

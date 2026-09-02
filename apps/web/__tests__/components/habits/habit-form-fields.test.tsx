@@ -9,15 +9,15 @@ import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
-const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false }
-const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
-const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
-const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true }
+const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
+const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
+const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 }
+const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
 
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
   'habits.form.understoodDailyAt': 'Every day at {time}',
-  'habits.form.understoodDaysAt': 'Every {days} at {time}',
+  'habits.form.understoodDayAt': 'Every {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
   'habits.form.understoodTime': 'At {time}',
 }
@@ -57,8 +57,8 @@ vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({
   HabitEmojiSelector: ({ onSelect }: { onSelect: (emoji: string) => void }) => <button type="button" onClick={() => onSelect('🏃')}>emoji</button>,
 }))
 vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: ({ onItemsChange }: { onItemsChange?: (items: Array<{ text: string; isChecked: boolean }>) => void }) => (
-    <button type="button" onClick={() => onItemsChange?.([{ text: 'Edited', isChecked: false }])}>checklist-editor</button>
+  HabitChecklist: ({ onItemsChange, proposedItemCount }: { onItemsChange?: (items: Array<{ text: string; isChecked: boolean }>) => void; proposedItemCount?: number }) => (
+    <button data-proposed-item-count={proposedItemCount} type="button" onClick={() => onItemsChange?.([{ text: 'Edited', isChecked: false }])}>checklist-editor</button>
   ),
 }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => <div>checklist-templates</div> }))
@@ -360,12 +360,13 @@ describe('HabitFormFields', () => {
     }, true)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(3))
+    await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(2))
+    expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
 
-    expect(document.querySelectorAll('[data-proposed]')).toHaveLength(2)
-    expect(screen.getByText('checklist-editor').closest('[data-proposed]')).not.toBeNull()
+    expect(document.querySelectorAll('[data-proposed]')).toHaveLength(1)
+    expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
     expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull()
   })
 
@@ -397,11 +398,11 @@ describe('HabitFormFields', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(screen.getByText('checklist-editor').closest('[data-proposed]')).not.toBeNull())
+    await waitFor(() => expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1'))
     expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
 
     fireEvent.click(screen.getByText('checklist-editor'))
-    expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()
+    expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '0')
   })
 
   it('resolves a proposed sub-habit section when its parent editor changes it', async () => {

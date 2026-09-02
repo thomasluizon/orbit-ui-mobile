@@ -66,15 +66,15 @@ export function applySuggestionSchedule(
 export function applySuggestionChecklist(
   patch: HabitFormSuggestionPatch,
   form: HabitFormHelpers['form'],
-): boolean {
-  if (patch.checklistItems.length === 0) return false
+): number {
+  if (patch.checklistItems.length === 0) return 0
   const existingChecklist = form.getValues('checklistItems') ?? []
   const suggestedChecklist = patch.checklistItems.slice(0, MAX_CHECKLIST_ITEMS - existingChecklist.length)
-  if (suggestedChecklist.length === 0) return false
+  if (suggestedChecklist.length === 0) return 0
   form.setValue('checklistItems', [...existingChecklist, ...suggestedChecklist], {
     shouldDirty: true,
   })
-  return true
+  return suggestedChecklist.length
 }
 
 export function selectSuggestedSubHabitTitles(

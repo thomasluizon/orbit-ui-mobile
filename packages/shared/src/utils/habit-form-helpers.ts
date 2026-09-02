@@ -132,6 +132,8 @@ export interface HabitFormProposal {
   setup: boolean
   checklist: boolean
   subHabits: boolean
+  checklistItems: number
+  subHabitItems: number
 }
 
 export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
@@ -152,7 +154,7 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   isSuggesting?: boolean
   readPhraseLocally?: boolean
   startDate?: string | null
-  children?: ChildNode
+  children?: ChildNode | ((proposedItems: number) => ChildNode)
 }
 
 export interface HabitUnderstandingLabels {
@@ -189,6 +191,8 @@ export const EMPTY_HABIT_FORM_PROPOSAL: HabitFormProposal = {
   setup: false,
   checklist: false,
   subHabits: false,
+  checklistItems: 0,
+  subHabitItems: 0,
 }
 
 export function hasHabitFormProposal(proposal: HabitFormProposal): boolean {
@@ -197,9 +201,12 @@ export function hasHabitFormProposal(proposal: HabitFormProposal): boolean {
 
 export function clearHabitFormProposalSection(
   proposal: HabitFormProposal,
-  section: keyof HabitFormProposal,
+  section: 'setup' | 'checklist' | 'subHabits',
 ): HabitFormProposal {
-  return proposal[section] ? { ...proposal, [section]: false } : proposal
+  if (!proposal[section]) return proposal
+  if (section === 'checklist') return { ...proposal, checklist: false, checklistItems: 0 }
+  if (section === 'subHabits') return { ...proposal, subHabits: false, subHabitItems: 0 }
+  return { ...proposal, setup: false }
 }
 
 export function habitFeaturePlan(hasProAccess: boolean): 'pro' | 'free' {
@@ -301,7 +308,7 @@ export function createHabitFormController({
   onSlipAlertEnabledChange,
   target,
 }: HabitFormControllerOptions): HabitFormController {
-  const resolveSection = (section: keyof HabitFormProposal) => {
+  const resolveSection = (section: 'setup' | 'checklist' | 'subHabits') => {
     target.updateProposal((proposal) => clearHabitFormProposalSection(proposal, section))
   }
   const releaseOwnership = (field: keyof HabitPhraseFormOwnership) => {
@@ -489,15 +496,27 @@ export function buildHabitUnderstandingSentence(
   frequencyUnit: FrequencyUnit | null | undefined,
   quantity: number,
   dueTime: string,
+  locale: string,
   translate: UnderstandingTranslator,
 ): string | null {
   let key: string
   let values: Record<string, string | number> = {}
   if (days.length > 0) {
-    key = 'habits.form.understoodDays'
-    values.days = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label).join(', ')
+    const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label)
+    const listLocale = locale === 'en' ? 'en-GB' : locale
+    key = labels.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
+    values.days = new Intl.ListFormat(listLocale, {
+      style: 'long',
+      type: 'conjunction',
+    }).format(labels)
   } else if (!isFlexible && frequencyUnit === 'Day' && quantity === 1) {
     key = 'habits.form.understoodDaily'
+  } else if (frequencyUnit === 'Month') {
+    key = 'habits.form.understoodMonth'
+    values.count = quantity
+  } else if (frequencyUnit === 'Year') {
+    key = 'habits.form.understoodYear'
+    values.count = quantity
   } else if (isFlexible || frequencyUnit) {
     key = 'habits.form.understoodCount'
     values.count = quantity
