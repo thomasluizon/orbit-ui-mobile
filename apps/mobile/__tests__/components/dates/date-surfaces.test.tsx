@@ -1,5 +1,5 @@
 import React from 'react'
-import { Text } from 'react-native'
+import { StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
@@ -81,6 +81,9 @@ describe('DayStrip', () => {
     const today = tree.root.findByProps({ testID: 'day-strip-cell-today' })
     expect(today.props.accessibilityState).toEqual({ selected: true })
     expect(tree.root.findByProps({ testID: 'day-strip-cell-active' }).props.accessibilityState).toEqual({ selected: false })
+    const frozen = tree.root.findByProps({ testID: 'day-strip-cell-frozen' })
+    const frozenStyle = StyleSheet.flatten(frozen.props.style as StyleProp<ViewStyle>)
+    expect(frozenStyle.backgroundColor).toBe('#C9C9CC')
   })
 })
 

@@ -930,11 +930,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard);
 }
 
-.orbit-menu-backdrop {
+.orbit-menu-catcher {
   position: fixed;
   inset: 0;
   z-index: calc(var(--z-index-dropdown) - 1);
-  background: var(--scrim);
+  background: transparent;
 }
 
 .orbit-link-action {
@@ -955,6 +955,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transform: scaleX(0);
   transform-origin: left;
   transition: transform var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-link-action-persistent {
+  text-decoration: underline;
+}
+
+.orbit-link-action-persistent::after {
+  content: none;
 }
 
 @media (hover: hover) and (pointer: fine) {

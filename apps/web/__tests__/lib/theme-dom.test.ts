@@ -16,7 +16,6 @@ import {
 
 const SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 const MODES: ThemeMode[] = ['dark', 'light']
-const REMOVED_TOKENS = new Set(['--status-frozen', '--status-skip'])
 
 function tokenBlock(heading: string): string {
   const design = readFileSync(resolve(process.cwd(), '../../DESIGN.md'), 'utf8')
@@ -33,7 +32,7 @@ function documentedTokens(): string[] {
   ]
   return [...new Set(blocks.flatMap((block) =>
     [...block.matchAll(/--[a-z0-9-]+/g)].map(([token]) => token),
-  ))].filter((token) => !REMOVED_TOKENS.has(token))
+  ))]
 }
 
 describe('web theme variables', () => {
@@ -85,6 +84,7 @@ describe('web theme variables', () => {
           '--fg-on-primary': '#FFFFFF',
           '--status-done': neutral.fg1,
           '--status-empty': neutral.fg4,
+          '--status-frozen': 'var(--fg-2)',
           '--status-overdue': status.overdue,
           '--status-bad': status.bad,
           '--fg-on-bad': status.fgOnBad,
@@ -143,6 +143,12 @@ describe('web theme variables', () => {
     )
     expect(stylesheet).toContain(
       '.orbit-link-action:hover::after {\n    transform: scaleX(1);',
+    )
+    expect(stylesheet).toContain(
+      '.orbit-link-action-persistent {\n  text-decoration: underline;',
+    )
+    expect(stylesheet).toContain(
+      '.orbit-link-action-persistent::after {\n  content: none;',
     )
   })
 })

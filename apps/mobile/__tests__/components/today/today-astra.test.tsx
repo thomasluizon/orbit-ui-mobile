@@ -130,8 +130,10 @@ describe('mobile Today Astra', () => {
       node.props.children === 'todayAstra.openConversation',
     )[0]
     if (!action) throw new Error('Proactive conversation action did not render')
-    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor)
-      .toBeUndefined()
+    expect(StyleSheet.flatten(action.props.style) as Record<string, unknown>).toMatchObject({
+      textDecorationLine: 'underline',
+    })
+    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
     const onPressIn = action.props.onPressIn
     if (typeof onPressIn !== 'function') throw new Error('Proactive action cannot receive press feedback')
     await TestRenderer.act(async () => {

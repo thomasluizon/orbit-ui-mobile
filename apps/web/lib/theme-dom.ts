@@ -68,6 +68,7 @@ export function resolveWebThemeVariables(
     '--fg-on-primary': definition.fgOnPrimary[theme],
     '--status-done': neutral.fg1,
     '--status-empty': neutral.fg4,
+    '--status-frozen': 'var(--fg-2)',
     '--status-overdue': status.overdue,
     '--status-bad': status.bad,
     '--status-overdue-text': status.overdueText,

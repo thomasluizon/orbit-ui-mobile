@@ -262,7 +262,7 @@ export function Menu({
 
   return createPortal(
     <>
-      <div className="orbit-menu-backdrop" aria-hidden="true" />
+      <div className="orbit-menu-catcher" aria-hidden="true" />
       <div
         ref={panelRef}
         role="menu"

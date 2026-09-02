@@ -124,6 +124,7 @@ export interface AppTokensV2 {
   gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
+  statusFrozen: string
   statusOverdue: string
   statusBad: string
   /** AA text variant of `statusOverdue` — use for status-colored text. */
@@ -209,6 +210,7 @@ export function createTokensV2(
     gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: neutral.fg1,
     statusEmpty: neutral.fg4,
+    statusFrozen: neutral.fg2,
     statusOverdue: status.overdue,
     statusBad: status.bad,
     statusOverdueText: status.overdueText,

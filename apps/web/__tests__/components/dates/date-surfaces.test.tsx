@@ -52,6 +52,9 @@ describe('DayStrip', () => {
 
     expect(container.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
     expect(container.querySelector('[aria-current="date"]')).toHaveAttribute('data-state', 'today')
+    expect(container.querySelector('[data-state="frozen"]')).toHaveStyle({
+      background: 'var(--status-frozen)',
+    })
   })
 })
 

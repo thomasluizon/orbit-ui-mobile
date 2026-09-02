@@ -98,12 +98,12 @@ export function Menu({
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={[styles.overlay, { backgroundColor: tokens.scrim }]}>
+      <View style={styles.overlay}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no"
           onPress={onClose}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, styles.catcher]}
         />
         <View
           accessibilityLabel={title}
@@ -199,6 +199,9 @@ function orderMenuItems(items: readonly MenuItem[]) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+  },
+  catcher: {
+    backgroundColor: 'transparent',
   },
   panel: {
     ...shadowsV2.shadow2,
