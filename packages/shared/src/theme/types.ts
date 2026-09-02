@@ -14,8 +14,5 @@ export interface SchemeAccent {
 export interface ColorSchemeDefinition {
   accent: Record<SchemeMode, SchemeAccent>
   fgOnPrimary: Record<SchemeMode, string>
-  neutralHue: number
-  chromaScaleBg: number
-  chromaScaleFg: number
   gradientHeaderFrom: Record<SchemeMode, string>
 }

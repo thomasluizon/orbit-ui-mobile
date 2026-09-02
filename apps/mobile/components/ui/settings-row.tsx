@@ -63,7 +63,7 @@ export function SettingsRow({
         styles.row,
         {
           backgroundColor:
-            pressed && onPress ? tokens.bgElevPressed : 'transparent',
+            pressed && onPress ? tokens.bgHover : 'transparent',
           borderBottomColor: tokens.hairline,
           borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
         },

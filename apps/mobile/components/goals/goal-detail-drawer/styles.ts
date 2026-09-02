@@ -108,7 +108,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       marginTop: 8,
     },
     askAstraPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.99 }],
     },
     askAstraWell: {
@@ -150,7 +150,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingVertical: 12,
     },
     actionRowPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
     },
     actionRowText: {
       fontFamily: 'Rubik_400Regular',

@@ -20,7 +20,7 @@ export function HabitLogButton({ label, logged, completed = logged, onPress, pro
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed ? { backgroundColor: tokens.bgElevPressed, transform: [{ scale: 0.96 }] } : null]}
+      style={({ pressed }) => [styles.button, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {progress === undefined || completed ? (
