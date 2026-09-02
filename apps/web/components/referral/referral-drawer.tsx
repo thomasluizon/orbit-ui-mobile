@@ -170,10 +170,8 @@ function ReferralDrawerContent({
         url: referralUrl,
       })
       setInteractionError(false)
-    } catch (shareError) {
-      if (!(shareError instanceof DOMException && shareError.name === 'AbortError')) {
-        setInteractionError(true)
-      }
+    } catch {
+      setInteractionError(true)
     }
   }
 

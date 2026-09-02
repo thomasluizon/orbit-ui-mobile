@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -33,6 +33,10 @@ import { ReferralDrawer } from '@/components/referral/referral-drawer'
 describe('ReferralDrawer', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    })
     mockStats = null
     mockIsLoading = false
     mockIsError = false
@@ -129,6 +133,24 @@ describe('ReferralDrawer', () => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     expect(document.body.textContent).toContain('referral.drawer.disclaimer')
     expect(document.body.textContent).toContain('"discount":15')
+  })
+
+  it('shows feedback when the native share operation rejects', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('No share target', 'AbortError'))
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: share,
+    })
+
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.share' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('referral.drawer.actionFailed')
+    expect(share).toHaveBeenCalledWith({
+      title: 'referral.share.title',
+      text: undefined,
+      url: mockReferralUrl,
+    })
   })
 
   it('does not invent discount copy before stats load', () => {
