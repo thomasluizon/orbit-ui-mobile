@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "__tests__/components/milestone-share/milestone-share-prompt.test.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "__tests__/components/ui/trial-banner.test.tsx": {
     "local/react19-api": {
       "count": 1
@@ -703,24 +698,6 @@
       "count": 4
     }
   },
-  "components/marketing-consent/marketing-consent-prompt.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/milestone-share/milestone-share-card.tsx": {
-    "local/react19-api": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "components/milestone-share/milestone-share-prompt.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/navigation/notification-bell.tsx": {
     "local/icon-size-grid": {
       "count": 4
@@ -813,38 +790,6 @@
   "components/profile/profile-nav-icon.tsx": {
     "local/no-sparkle-ai-marker": {
       "count": 1
-    }
-  },
-  "components/referral/referral-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/referral/referral-drawer.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 15
-    }
-  },
-  "components/referral/referral-prompt.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/share/share-card.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
-    "local/react19-api": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 11
     }
   },
   "components/tour/tour-provider.tsx": {
@@ -960,22 +905,6 @@
   "components/ui/settings-row.tsx": {
     "local/icon-size-grid": {
       "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/ui/trial-banner.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/ui/trial-expired-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
     },
     "local/spacing-scale": {
       "count": 3

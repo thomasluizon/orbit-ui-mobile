@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 8,
   },
   value: {
-    fontFamily: 'RobotoMono_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
   },
   label: {

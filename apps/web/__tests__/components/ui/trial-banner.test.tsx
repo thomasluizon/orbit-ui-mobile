@@ -8,14 +8,15 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-let mockProfile = { isTrialActive: true }
+let mockProfile: { isTrialActive: boolean; hasProAccess: boolean } = {
+  isTrialActive: true,
+  hasProAccess: true,
+}
 let mockTrialDaysLeft = 5
-let mockTrialUrgent = false
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),
   useTrialDaysLeft: () => mockTrialDaysLeft,
-  useTrialUrgent: () => mockTrialUrgent,
 }))
 
 vi.mock('@/lib/plural', () => ({
@@ -58,21 +59,27 @@ vi.mock('motion/react', async () => {
 import { TrialBanner } from '@/components/ui/trial-banner'
 
 describe('TrialBanner', () => {
-  it('renders nothing when trial is not active', () => {
-    mockProfile = { isTrialActive: false }
+  it('renders nothing for a Pro account outside a trial', () => {
+    mockProfile = { isTrialActive: false, hasProAccess: true }
     const { container } = render(<TrialBanner />)
     expect(container.innerHTML).toBe('')
   })
 
+  it('renders the free-plan variant outside a trial', () => {
+    mockProfile = { isTrialActive: false, hasProAccess: false }
+    render(<TrialBanner />)
+    expect(screen.getByText('trial.banner.freeLine')).toBeInTheDocument()
+  })
+
   it('renders banner when trial is active', () => {
-    mockProfile = { isTrialActive: true }
+    mockProfile = { isTrialActive: true, hasProAccess: true }
     mockTrialDaysLeft = 5
     render(<TrialBanner />)
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   it('shows upgrade link', () => {
-    mockProfile = { isTrialActive: true }
+    mockProfile = { isTrialActive: true, hasProAccess: true }
     render(<TrialBanner />)
     const link = screen.getByText('trial.banner.upgrade')
     expect(link).toBeInTheDocument()
@@ -80,30 +87,29 @@ describe('TrialBanner', () => {
   })
 
   it('shows last day message when 0 days left', () => {
-    mockProfile = { isTrialActive: true }
+    mockProfile = { isTrialActive: true, hasProAccess: true }
     mockTrialDaysLeft = 0
     render(<TrialBanner />)
     expect(screen.getByText('trial.banner.lastDay')).toBeInTheDocument()
   })
 
-  it('shows the urgent last-day message when no days remain', () => {
-    mockProfile = { isTrialActive: true }
-    mockTrialUrgent = true
-    mockTrialDaysLeft = 0
+  it('uses the singular day-count variant when 1 day is left', () => {
+    mockProfile = { isTrialActive: true, hasProAccess: true }
+    mockTrialDaysLeft = 1
     render(<TrialBanner />)
-    expect(screen.getByText('trial.banner.lastDay')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('trial.banner.daysLeft')
+    expect(screen.queryByText('trial.banner.lastDay')).not.toBeInTheDocument()
   })
 
-  it('shows the days-left count when trial is not urgent', () => {
-    mockProfile = { isTrialActive: true }
-    mockTrialUrgent = false
+  it('shows the plural days-left count', () => {
+    mockProfile = { isTrialActive: true, hasProAccess: true }
     mockTrialDaysLeft = 5
     render(<TrialBanner />)
     expect(document.body.textContent).toContain('trial.banner.daysLeft')
   })
 
   it('dismisses when dismiss button clicked', () => {
-    mockProfile = { isTrialActive: true }
+    mockProfile = { isTrialActive: true, hasProAccess: true }
     render(<TrialBanner />)
     const dismissBtn = screen.getByLabelText('common.dismiss')
     fireEvent.click(dismissBtn)

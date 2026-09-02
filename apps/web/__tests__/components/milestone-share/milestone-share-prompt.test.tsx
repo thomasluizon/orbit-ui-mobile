@@ -1,4 +1,4 @@
-import React from 'react'
+import type { Ref } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 
@@ -13,9 +13,9 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/milestone-share/milestone-share-card', () => ({
-  MilestoneShareCard: React.forwardRef<HTMLDivElement>(function MilestoneShareCard(_props, ref) {
+  MilestoneShareCard: ({ ref }: { ref?: Ref<HTMLDivElement> }) => {
     return <div ref={ref} data-testid="milestone-share-card" />
-  }),
+  },
 }))
 
 vi.mock('@/hooks/use-share-card', () => ({

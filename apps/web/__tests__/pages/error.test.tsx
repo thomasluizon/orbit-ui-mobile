@@ -11,7 +11,7 @@ vi.mock('@sentry/nextjs', () => ({
 }))
 
 vi.mock('next/font/google', () => ({
-  Rubik: () => ({ variable: 'font-rubik', className: 'font-rubik' }),
+  Geist: () => ({ variable: 'font-geist', className: 'font-geist' }),
 }))
 
 vi.mock('@/components/ui/icons', async (importOriginal) => {

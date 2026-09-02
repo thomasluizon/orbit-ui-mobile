@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
-import { Mail } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -16,10 +14,6 @@ import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
 const SETTLE_DELAY_MS = 500
-
-function enterAnimation(delayMs: number) {
-  return FadeInDown.duration(220).delay(delayMs).reduceMotion(ReduceMotion.System)
-}
 
 /**
  * One-time LGPD-lawful marketing-email consent nudge. Shows once onboarding is complete, the
@@ -108,17 +102,11 @@ export function MarketingConsentPrompt() {
       title={t('marketingConsent.prompt.title')}
     >
       <View style={styles.content}>
-        <Animated.Text entering={enterAnimation(70)} style={styles.eyebrow}>
-          {t('marketingConsent.prompt.eyebrow')}
-        </Animated.Text>
-        <Animated.View entering={enterAnimation(0)} style={styles.heroDisc}>
-          <Mail size={30} strokeWidth={1.8} color={tokens.primary} />
-        </Animated.View>
-        <Animated.Text entering={enterAnimation(70)} style={styles.body}>
+        <Text style={styles.body}>
           {t('marketingConsent.prompt.body')}
-        </Animated.Text>
-        <Animated.View entering={enterAnimation(140)} style={styles.actions}>
-          <PillButton  onClick={() => answer(true)}>
+        </Text>
+        <View style={styles.actions}>
+          <PillButton onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
           <Pressable
@@ -134,7 +122,7 @@ export function MarketingConsentPrompt() {
               {t('marketingConsent.prompt.decline')}
             </Text>
           </Pressable>
-        </Animated.View>
+        </View>
       </View>
     </Sheet>) : null
   )
@@ -148,46 +136,31 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       alignItems: 'center',
       paddingHorizontal: 24,
-      paddingTop: 8,
       paddingBottom: 24,
       gap: 16,
     },
-    eyebrow: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-    },
-    heroDisc: {
-      width: 64,
-      height: 64,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: tintFromPrimary(tokens, 0.15),
-    },
     body: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      maxWidth: 420,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
     },
     actions: {
       alignSelf: 'stretch',
       gap: 8,
-      paddingTop: 4,
     },
     laterButton: {
       alignItems: 'center',
-      paddingVertical: 12,
+      minHeight: 44,
+      justifyContent: 'center',
     },
     laterButtonPressed: {
       opacity: 0.6,
     },
     laterText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg3,
     },

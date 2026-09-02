@@ -1250,12 +1250,12 @@
     "applied": "Referral applied. You both got a discount.",
     "eyebrow": "Referral applied",
     "card": {
-      "title": "Invite Friends",
+      "title": "Invite friends",
       "hint": "Earn discount coupons for you and your friends",
       "progress": "{count}/{max} successful referrals"
     },
     "drawer": {
-      "title": "Invite Friends",
+      "title": "Invite friends",
       "yourLink": "Your referral link",
       "copy": "Copy",
       "copyLink": "Copy link",
@@ -1267,17 +1267,18 @@
       "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
       "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends",
-      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change."
+      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change.",
+      "actionFailed": "That action did not work. Try again."
     },
     "share": {
       "title": "Join me on Orbit",
       "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon"
     },
     "prompt": {
-      "eyebrow": "You're on a roll",
       "streakTitle": "{count}-day streak",
       "levelTitle": "You reached level {level}",
       "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
+      "bodyFallback": "Invite a friend to build better habits together.",
       "cta": "Invite friends",
       "later": "Maybe later"
     },
@@ -1285,10 +1286,9 @@
   },
   "marketingConsent": {
     "prompt": {
-      "eyebrow": "Stay in the loop",
-      "title": "Product updates by email?",
+      "title": "Product updates",
       "body": "We'll occasionally email you about new Orbit features and improvements. No spam, and you can unsubscribe anytime.",
-      "accept": "Yes, keep me posted",
+      "accept": "Email me",
       "decline": "No thanks"
     }
   },
@@ -1477,22 +1477,23 @@
   "trial": {
     "proBadge": "Trial",
     "banner": {
-      "trialEyebrow": "Pro Trial",
+      "freeLine": "Free plan",
       "daysLeft": "{days} day left | {days} days left",
       "lastDay": "Trial ends today",
-      "upgrade": "Upgrade"
+      "upgrade": "View Pro"
     },
     "expired": {
       "eyebrow": "Trial ended",
       "heading": "Your Pro trial has ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "aiChat": "50 AI messages per day",
-      "aiSummary": "Daily AI summaries",
-      "subHabits": "Sub-habits",
-      "goals": "AI goal review",
-      "subscribe": "Subscribe to Pro",
-      "continueFree": "Continue with Free"
+      "astraCeiling": "50 Astra messages per day",
+      "calendarSync": "Calendar sync",
+      "retrospective": "Periodic retrospective",
+      "proactiveAstra": "Proactive Astra",
+      "savings": "Annual saves {percent}%",
+      "subscribe": "View plans",
+      "continueFree": "Stay free"
     }
   },
   "metrics": {
@@ -3036,6 +3037,7 @@
     "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
   },
   "milestoneShare": {
+    "title": "Share milestone",
     "streakEyebrow": "Streak milestone",
     "achievementEyebrow": "Achievement earned",
     "streakTitle": "{count}-day streak",

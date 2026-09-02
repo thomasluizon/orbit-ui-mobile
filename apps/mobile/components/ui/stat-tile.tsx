@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   emptyValue: {
-    fontFamily: 'RobotoMono_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     lineHeight: 24,
   },
