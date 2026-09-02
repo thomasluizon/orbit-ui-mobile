@@ -298,6 +298,7 @@ describe('CreateHabitModal', () => {
     await waitFor(() => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
     })
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
   })
 
   it('keeps goal linking in the create request without a plan gate', async () => {

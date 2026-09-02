@@ -6,11 +6,12 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0 }))
 
 vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
-  useProfile: () => ({ profile: { aiMessagesUsed: 0, aiMessagesLimit: 5 } }),
+  useProfile: () => ({ profile: { aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -40,6 +41,7 @@ function createTags(): TagSelectionState {
 describe('HabitFormFields mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockProfileState.aiMessagesUsed = 0
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
 
@@ -59,5 +61,31 @@ describe('HabitFormFields mobile', () => {
     understanding.props.onQuantityChange(4)
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
+  })
+
+  it('keeps local corrections and details live at the Astra ceiling', async () => {
+    mockProfileState.aiMessagesUsed = 5
+    const onSuggestSetup = vi.fn(() => true)
+    const formHelpers = createFormHelpers()
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    expect(ask.props.disabled).toBe(true)
+    expect(ask.props.accessibilityState.disabled).toBe(true)
+
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    understanding.props.onToggleDay('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+
+    const details = tree.root.findAll(
+      (node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.moreDetails').length > 0,
+    )[0]
+    TestRenderer.act(() => details.props.onPress())
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'checklist')).toHaveLength(1)
+    expect(onSuggestSetup).not.toHaveBeenCalled()
   })
 })

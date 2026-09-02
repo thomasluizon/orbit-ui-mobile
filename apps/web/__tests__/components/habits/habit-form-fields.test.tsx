@@ -1,10 +1,12 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
+
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0 }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -14,7 +16,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
-  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC' } }),
+  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC', aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
@@ -26,7 +28,7 @@ vi.mock('@/hooks/use-tags', () => ({
 }))
 
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({
-  HabitEmojiSelector: () => <button type="button">emoji</button>,
+  HabitEmojiSelector: ({ onSelect }: { onSelect: (emoji: string) => void }) => <button type="button" onClick={() => onSelect('🏃')}>emoji</button>,
 }))
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => <div>checklist-editor</div> }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => <div>checklist-templates</div> }))
@@ -72,11 +74,11 @@ function createTags(): TagSelectionState {
   }
 }
 
-function renderForm(formHelpers = createFormHelpers()) {
+function renderForm(formHelpers = createFormHelpers(), onSuggestSetup?: () => boolean | Promise<boolean>) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>,
@@ -84,7 +86,10 @@ function renderForm(formHelpers = createFormHelpers()) {
 }
 
 describe('HabitFormFields', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockProfileState.aiMessagesUsed = 0
+  })
 
   it('starts with one phrase field, closed details, and an immutable start date', () => {
     renderForm()
@@ -118,5 +123,37 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('goal-linking')).toBeDefined()
     expect(screen.getByText('date-field')).toBeDefined()
     expect(screen.getByText('slip-alert')).toBeDefined()
+  })
+
+  it('keeps every local control live when the Astra allowance is exhausted', () => {
+    mockProfileState.aiMessagesUsed = 5
+    const onSuggestSetup = vi.fn(() => true)
+    const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
+    renderForm(formHelpers, onSuggestSetup)
+
+    const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    expect(ask).toBeDisabled()
+    fireEvent.click(ask)
+    expect(onSuggestSetup).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    expect(screen.getByText('checklist-editor')).toBeDefined()
+  })
+
+  it.each([
+    ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
+    ['stepper', () => fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))],
+    ['emoji', () => fireEvent.click(screen.getByRole('button', { name: 'emoji' }))],
+  ])('resolves a proposed setup on the first %s correction', async (_kind, correct) => {
+    renderForm(createFormHelpers({ title: 'Run', frequencyQuantity: 3 }), async () => true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
+
+    correct()
+
+    expect(screen.getByText('habits.form.understood')).toBeDefined()
   })
 })

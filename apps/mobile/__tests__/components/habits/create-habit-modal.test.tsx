@@ -320,6 +320,7 @@ await Promise.resolve()
     })
 
     expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(mockShowError).not.toHaveBeenCalled()
   })
