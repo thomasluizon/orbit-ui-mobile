@@ -5,7 +5,11 @@ import type { GoalListCard as GoalListData, HabitListCard as HabitListData } fro
 import { GoalListCard } from '@/components/chat/goal-list-card'
 import { HabitListCard } from '@/components/chat/habit-list-card'
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), mutate: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  mutate: vi.fn(),
+  occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
+}))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en-US',
@@ -13,7 +17,10 @@ vi.mock('next-intl', () => ({
     values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.mutate }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
+  useLogHabit: () => ({ mutate: mocks.mutate }),
+}))
 vi.mock('@/components/ui/status-ring', () => ({ StatusRing: () => <span /> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <span /> }))
 vi.mock('@/components/ui/block-frame', () => ({
@@ -41,9 +48,15 @@ const goals: GoalListData = {
 }
 
 describe('Astra list cards on web', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.occurrencesById.clear()
+    for (const item of habits.items) {
+      mocks.occurrencesById.set(item.id, { isCompleted: false, isLoggedInRange: false })
+    }
+  })
 
-  it('logs and unlogs locally, opens the habit, and pages the count without an AI call', () => {
+  it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
     render(<HabitListCard habitList={habits} />)
 
     expect(screen.getByText('chat.habitList.count:{"shown":3,"total":4}')).toBeInTheDocument()
@@ -51,12 +64,25 @@ describe('Astra list cards on web', () => {
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-1')
 
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.log.*Water/ }))
-    fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
     expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1' })
-    expect(mocks.mutate).toHaveBeenNthCalledWith(2, { habitId: 'habit-1' })
 
     fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
     expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
+  })
+
+  it('announces unlog for an already-completed occurrence', () => {
+    mocks.occurrencesById.set('habit-1', { isCompleted: true, isLoggedInRange: true })
+    render(<HabitListCard habitList={habits} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
+    expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1' })
+  })
+
+  it('withholds the toggle when the occurrence is not authoritative', () => {
+    mocks.occurrencesById.delete('habit-1')
+    render(<HabitListCard habitList={habits} />)
+
+    expect(screen.queryByRole('button', { name: /chat\.habitList\.(?:log|unlog).*Water/ })).not.toBeInTheDocument()
   })
 
   it('opens a goal row in place and routes the progress action', () => {

@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
+import { formatAPIDate } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { StatusRing } from '@/components/ui/status-ring'
 import { Button } from '@/components/ui/pill-button'
-import { useLogHabit } from '@/hooks/use-habits'
+import { useHabits, useLogHabit } from '@/hooks/use-habits'
 
 const PAGE_SIZE = 3
 
@@ -15,11 +16,20 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const t = useTranslations()
   const router = useRouter()
   const logHabit = useLogHabit()
+  const [occurrenceDate] = useState(() => formatAPIDate(new Date()))
+  const occurrences = useHabits({
+    dateFrom: occurrenceDate,
+    dateTo: occurrenceDate,
+    includeGeneral: true,
+    includeOverdue: true,
+  })
   const [shownCount, setShownCount] = useState(PAGE_SIZE)
-  const [loggedIds, setLoggedIds] = useState<ReadonlySet<string>>(new Set())
   const visibleItems = habitList.items.slice(0, shownCount)
   const rows = visibleItems.map((item) => {
-    const logged = loggedIds.has(item.id)
+    const occurrence = occurrences.data?.habitsById.get(item.id)
+    const logged = occurrence
+      ? item.isBadHabit ? occurrence.isLoggedInRange : occurrence.isCompleted
+      : false
     return {
       id: item.id,
       label: (
@@ -29,19 +39,13 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
         </button>
       ),
       meta: item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
-      control: (
+      control: occurrence ? (
         <button aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} className="grid size-11 place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)]" onClick={() => {
-          setLoggedIds((current) => {
-            const next = new Set(current)
-            if (logged) next.delete(item.id)
-            else next.add(item.id)
-            return next
-          })
           logHabit.mutate({ habitId: item.id })
         }} type="button">
           <StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} />
         </button>
-      ),
+      ) : undefined,
     }
   })
 
