@@ -299,6 +299,9 @@ describe('EditHabitModal (mobile)', () => {
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
       return {}
     })
     mockSuggestMutateAsync.mockResolvedValue({
@@ -341,12 +344,15 @@ describe('EditHabitModal (mobile)', () => {
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
       return {}
     })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
-      frequencyUnit: null,
-      frequencyQuantity: null,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
       days: [],
       isFlexible: false,
       flexibleTarget: null,

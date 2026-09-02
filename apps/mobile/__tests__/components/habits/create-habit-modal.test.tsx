@@ -434,13 +434,17 @@ await Promise.resolve()
   })
 
   it('notifies when an AI suggestion applied nothing', async () => {
-    mockGetValues.mockImplementation((field?: unknown) =>
-      field === 'title' ? 'Swim' : field === 'checklistItems' ? [] : {},
-    )
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems' || field === 'days') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      return {}
+    })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
-      frequencyUnit: null,
-      frequencyQuantity: null,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
       days: [],
       isFlexible: false,
       flexibleTarget: null,
