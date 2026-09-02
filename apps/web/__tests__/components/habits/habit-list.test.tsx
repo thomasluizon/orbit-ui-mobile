@@ -265,6 +265,7 @@ vi.mock('@/components/ui/highlight-text', () => ({
 }))
 
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -316,6 +317,7 @@ const defaultFilters = {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sheetTestControls.defer(false)
     mockHabitsDataUpdatedAt = 1
     useActualHabitVisibility = false
     drillRefreshCurrent.mockReset()
@@ -2252,7 +2254,8 @@ describe('HabitList', () => {
       () => new Promise<void>((resolve) => resolveSkips.push(resolve)),
     )
 
-    renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    sheetTestControls.defer(true)
 
     act(() => {
       fireEvent.click(screen.getByTestId('skip-skipped-a'))
@@ -2265,10 +2268,30 @@ describe('HabitList', () => {
 
     expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent A"})'))
       .toBeDefined()
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    fireEvent.click(within(
+      screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
+    ).getByRole('button', { name: 'habits.autoLogParentConfirm' }))
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+
+    await act(async () => {
+      sheetTestControls.completeDismissal()
+      await Promise.resolve()
+    })
     expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent B"})'))
       .toBeDefined()
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    mockHabitsDataUpdatedAt += 1
+    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+
+    fireEvent.click(within(
+      screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
+    ).getByRole('button', { name: 'habits.autoLogParentConfirm' }))
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    await act(async () => {
+      sheetTestControls.completeDismissal()
+      await Promise.resolve()
+    })
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentA.id, date: TODAY })
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentB.id, date: TODAY })

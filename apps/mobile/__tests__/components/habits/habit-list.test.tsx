@@ -13,6 +13,7 @@ import { useTourStore } from '@/stores/tour-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
@@ -359,7 +360,9 @@ function seedHabits(habits: NormalizedHabit[]) {
 
 /** The sheet double renders every sheet as a `Sheet` host node carrying its title. */
 function confirmationSheets(tree: any, title: string) {
-  return tree.root.findAll((node: any) => node.type === 'Sheet' && node.props?.title === title)
+  return tree.root.findAll(
+    (node: any) => node.type === 'Sheet' && node.props?.title === title && node.props.open,
+  )
 }
 
 function pressConfirm(tree: any, label: string) {
@@ -432,6 +435,7 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sheetTestControls.defer(false)
     clearOfflineQueue()
     offlineMocks.appliedHabitIds.length = 0
     offlineMocks.loggedHabits.clear()
@@ -2404,6 +2408,7 @@ describe('HabitList', () => {
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
+    sheetTestControls.defer(true)
 
     TestRenderer.act(() => {
       for (const childId of ['skipped-a', 'skipped-b']) {
@@ -2422,16 +2427,34 @@ describe('HabitList', () => {
     expect(flattenRenderedText(confirmation)).toContain(
       'habits.autoLogParentMessage({"name":"Parent A"})',
     )
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       pressConfirm(tree, 'habits.autoLogParentConfirm')
+    })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      sheetTestControls.completeDismissal()
       await Promise.resolve()
     })
     ;[confirmation] = confirmationSheets(tree, 'habits.autoLogParentTitle')
     expect(flattenRenderedText(confirmation)).toContain(
       'habits.autoLogParentMessage({"name":"Parent B"})',
     )
-    await TestRenderer.act(async () => {
+
+    TestRenderer.act(() => {
+      mockHabitsDataUpdatedAt += 1
+      tree.update(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    TestRenderer.act(() => {
       pressConfirm(tree, 'habits.autoLogParentConfirm')
+    })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    await TestRenderer.act(async () => {
+      sheetTestControls.completeDismissal()
       await Promise.resolve()
     })
 

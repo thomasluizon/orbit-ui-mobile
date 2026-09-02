@@ -9,7 +9,7 @@ interface HabitListConfirmDialogsProps {
   deleteHabitName: string
   deleteDescendantCount: number
   duplicateHabitName: string | null
-  parentPrompt: { name: string; mode: 'log' | 'skip' } | null
+  parentPrompt: { id: string; name: string; mode: 'log' | 'skip' } | null
   onConfirmDelete: () => void
   onCancelDelete: () => void
   onConfirmDuplicate: () => void
@@ -47,6 +47,7 @@ export function HabitListConfirmDialogs({
         onConfirm={onConfirmDuplicate}
       />
       <ConfirmSheet
+        key={parentPrompt?.id ?? 'parent-prompt'}
         open={parentPrompt !== null}
         title={t(parentPrompt?.mode === 'skip' ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle')}
         message={t(parentPrompt?.mode === 'skip' ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage', { name: parentPrompt?.name ?? '' })}

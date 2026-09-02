@@ -247,6 +247,41 @@ function getParentPromptProgress(
   })
 }
 
+function clearPersistedResolutions(
+  confirmedResolutions: ConfirmedResolutionRecord,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+) {
+  for (const habitId of confirmedResolutions.modes.keys()) {
+    const habit = habitsById.get(habitId)
+    const hasFlexibleSkip = habit?.flexibleTarget != null &&
+      habit.flexibleCompleted != null &&
+      habit.flexibleCompleted >= habit.flexibleTarget &&
+      !habit.isLoggedInRange
+    if (!habit?.isCompleted && !habit?.isLoggedInRange && !hasFlexibleSkip) continue
+    confirmedResolutions.modes.delete(habitId)
+    confirmedResolutions.skippedIds.delete(habitId)
+  }
+}
+
+function refreshConfirmedResolutions(
+  confirmedResolutions: ConfirmedResolutionRecord,
+  hasQueuedParentPrompt: boolean,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+) {
+  if (hasQueuedParentPrompt) {
+    clearPersistedResolutions(confirmedResolutions, habitsById)
+    confirmedResolutions.clearWhenIdle = false
+    return
+  }
+  if (confirmedResolutions.activeSettlements === 0) {
+    confirmedResolutions.modes.clear()
+    confirmedResolutions.skippedIds.clear()
+    confirmedResolutions.clearWhenIdle = false
+    return
+  }
+  confirmedResolutions.clearWhenIdle = true
+}
+
 function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecord {
   return {
     date,
@@ -275,9 +310,9 @@ function getDeleteConfirmation(
 function getVisibleParentPrompt(
   prompt: ParentSettlementPrompt | null,
   selectedDate: string,
-): { name: string; mode: 'log' | 'skip' } | null {
+): { id: string; name: string; mode: 'log' | 'skip' } | null {
   if (!prompt || prompt.date !== selectedDate) return null
-  return { name: prompt.habit.title, mode: prompt.mode }
+  return { id: prompt.habit.id, name: prompt.habit.title, mode: prompt.mode }
 }
 
 function resolveParentSettlement(
@@ -426,6 +461,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       prompts: [],
     })
     const parentPrompt = getCurrentParentPrompt(parentPromptQueue, selectedDateStr)
+    const hasQueuedParentPrompt = parentPrompt !== null
     const promptDataRef = useRef<ParentSettlementData | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
@@ -780,12 +816,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     useEffect(() => {
       const confirmedResolutions = confirmedResolutionsRef.current
-      if (confirmedResolutions.activeSettlements === 0) {
-        confirmedResolutions.modes.clear()
-        confirmedResolutions.skippedIds.clear()
-      } else {
-        confirmedResolutions.clearWhenIdle = true
-      }
+      refreshConfirmedResolutions(
+        confirmedResolutions,
+        hasQueuedParentPrompt,
+        promptDataRef.current?.habitsById ?? EMPTY_HABITS_BY_ID,
+      )
       for (const parentId of promptedParentIdsRef.current) {
         const progress = getParentPromptProgress(
           parentId,
@@ -796,7 +831,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           promptedParentIdsRef.current.delete(parentId)
         }
       }
-    }, [habitsQuery.dataUpdatedAt])
+    }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt])
 
     const recordHabitResolution = useCallback((
       confirmedResolutions: ConfirmedResolutionRecord,
