@@ -55,4 +55,34 @@ describe('applySuggestionChecklist mobile', () => {
     expect(applySuggestionSchedule(patch, target)).toBe(false)
     expect(applySuggestionSchedule({ ...patch, dueTime: '08:00' }, target)).toBe(true)
   })
+
+  it('moves a recurring form to one-time only when Astra changes its mode', () => {
+    const setOneTime = vi.fn()
+    const target = {
+      form: { getValues: () => null, setValue: vi.fn() },
+      isOneTime: false,
+      isRecurring: true,
+      isFlexible: false,
+      setFlexible: vi.fn(),
+      setRecurring: vi.fn(),
+      setOneTime,
+    } as unknown as HabitFormHelpers
+    const patch = {
+      mode: 'oneTime' as const,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      dueTime: null,
+      emoji: null,
+      subHabitTitles: [],
+      checklistItems: [],
+    }
+
+    expect(applySuggestionSchedule(patch, target)).toBe(true)
+    expect(setOneTime).toHaveBeenCalledOnce()
+
+    const alreadyOneTime = { ...target, isOneTime: true, isRecurring: false, setOneTime: vi.fn() }
+    expect(applySuggestionSchedule(patch, alreadyOneTime)).toBe(false)
+    expect(alreadyOneTime.setOneTime).not.toHaveBeenCalled()
+  })
 })

@@ -13,7 +13,7 @@ function matchesSuggestionMode(
 ): boolean {
   if (patch.mode === 'flexible') return target.isFlexible
   if (patch.mode === 'recurring') return target.isRecurring
-  return true
+  return target.isOneTime
 }
 
 function hasSameDays(current: string[] | undefined, proposed: string[]): boolean {
@@ -24,8 +24,9 @@ function applySuggestionMode(
   patch: HabitFormSuggestionPatch,
   target: SuggestionScheduleTarget,
 ): boolean {
-  if (patch.mode === 'oneTime' || matchesSuggestionMode(patch, target)) return false
-  if (patch.mode === 'flexible') target.setFlexible()
+  if (matchesSuggestionMode(patch, target)) return false
+  if (patch.mode === 'oneTime') target.setOneTime()
+  else if (patch.mode === 'flexible') target.setFlexible()
   else target.setRecurring()
   return true
 }
