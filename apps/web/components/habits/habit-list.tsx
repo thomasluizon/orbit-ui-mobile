@@ -948,7 +948,14 @@ export function HabitList({
       const confirmedResolutions = confirmedResolutionsRef.current
       recordHabitResolution(confirmedResolutions, habitId, 'skip')
       markRecentlyCompleted(habitId)
-      checkAndSettleParent(habitId, confirmedResolutions)
+      const settlementData = promptDataRef.current
+      if (settlementData) {
+        settleParentAutomatically(habitId, {
+          data: settlementData,
+          date: selectedDateStr,
+          confirmedResolutions,
+        })
+      }
     } catch {
     }
   }

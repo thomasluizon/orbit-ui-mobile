@@ -2255,15 +2255,6 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoSkipParentConfirm')
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoSkipParentConfirm')
-      await Promise.resolve()
-    })
-
     expect(skipMutateAsync.mock.calls).toEqual([
       [{ habitId: 'child', date: YESTERDAY }],
       [{ habitId: 'parent', date: YESTERDAY }],
@@ -2299,6 +2290,8 @@ describe('HabitList', () => {
       await TestRenderer.act(async () => {
         card?.props.actions.onSkip()
         await Promise.resolve()
+        await Promise.resolve()
+        await Promise.resolve()
       })
     }
 
@@ -2309,11 +2302,6 @@ describe('HabitList', () => {
     )
 
     await skipChild('child-b')
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoSkipParentConfirm')
-      await Promise.resolve()
-    })
-
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })

@@ -1047,14 +1047,21 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const confirmedResolutions = confirmedResolutionsRef.current
         recordHabitResolution(confirmedResolutions, habitId, 'skip')
         markRecentlyCompleted(habitId)
-        checkAndSettleParent(habitId, confirmedResolutions)
+        const settlementData = promptDataRef.current
+        if (settlementData) {
+          settleParentAutomatically(habitId, {
+            data: settlementData,
+            date: selectedDateStr,
+            confirmedResolutions,
+          })
+        }
       } catch {
       }
     }, [
-      checkAndSettleParent,
       markRecentlyCompleted,
       recordHabitResolution,
       selectedDateStr,
+      settleParentAutomatically,
       skipMutation,
     ])
 

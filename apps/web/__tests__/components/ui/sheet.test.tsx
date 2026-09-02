@@ -11,7 +11,8 @@ describe('Sheet', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
       .replaceAll('\r\n', '\n')
 
-    expect(stylesheet).toContain('max-height: calc(85dvh - 24px);')
+    expect(stylesheet).toContain('padding-block-start: var(--space-6);')
+    expect(stylesheet).toContain('max-height: 85%;')
   })
 
   it('keeps the body and fixed action row in separate slots', () => {

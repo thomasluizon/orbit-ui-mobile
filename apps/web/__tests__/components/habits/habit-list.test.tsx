@@ -2044,9 +2044,6 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
-    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
-
     expect(skipHabitMutateAsync.mock.calls).toEqual([
       [{ habitId: 'child', date: YESTERDAY }],
       [{ habitId: 'parent', date: YESTERDAY }],
@@ -2130,12 +2127,14 @@ describe('HabitList', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-b'))
+      await Promise.resolve()
+      await Promise.resolve()
     })
-    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull()
   })
 
   it('stores drill edit onSaved callback without invoking refresh eagerly', async () => {
