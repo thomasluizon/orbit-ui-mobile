@@ -111,7 +111,7 @@ function createStyles(tokens: AppTokens) {
     percentage: {
       fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      color: tokens.primary,
+      color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
     track: {

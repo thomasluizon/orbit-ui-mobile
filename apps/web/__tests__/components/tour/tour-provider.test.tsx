@@ -50,7 +50,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 
 vi.mock('@/hooks/use-profile', () => ({

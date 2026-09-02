@@ -86,13 +86,12 @@ vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: 'TourProvider'
 vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: 'TourOverlay' }))
 
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
-  createHabit: async () => ({ id: '', title: '' }),
-  createHabitsBulk: async () => {},
-  logHabit: async () => {},
-  createGoal: async () => {},
-  setWeekStartDay: async () => {},
-  setColorScheme: async () => {},
-  finishOnboarding: async () => {},
+  createHabit: () => Promise.resolve({ id: '', title: '' }),
+  createHabitsBulk: () => Promise.resolve(),
+  logHabit: () => Promise.resolve(),
+  createGoal: () => Promise.resolve(),
+  setWeekStartDay: () => Promise.resolve(),
+  finishOnboarding: () => Promise.resolve(),
 }
 
 function buildProps(
@@ -115,11 +114,10 @@ function buildProps(
 async function renderLayer(
   overrides: Partial<OverlayLayerProps> = {},
 ): Promise<TestInstance> {
-  let instance: TestInstance | null = null
-  await TestRenderer.act(async () => {
+  let instance!: TestInstance
+  await TestRenderer.act(() => {
     instance = TestRenderer.create(<OverlayLayer {...buildProps(overrides)} />)
   })
-  if (!instance) throw new Error('render failed')
   return instance
 }
 

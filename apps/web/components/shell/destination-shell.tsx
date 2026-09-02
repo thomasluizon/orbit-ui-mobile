@@ -34,6 +34,9 @@ interface DestinationShellProps {
   children: ReactNode
   notice?: ReactNode
   composer?: ReactNode
+  conversation?: ReactNode
+  conversationOpen?: boolean
+  conversationLabel?: string
   onCreate: () => void
 }
 
@@ -84,6 +87,9 @@ export function DestinationShell({
   children,
   notice,
   composer,
+  conversation,
+  conversationOpen,
+  conversationLabel,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
@@ -92,7 +98,10 @@ export function DestinationShell({
     <ShellComposerSlotContext.Provider value={registeredComposer.value}>
       <DestinationShellContent
         notice={notice}
-        composer={composer ?? registeredComposer.content}
+        composer={registeredComposer.content ?? composer}
+        conversation={conversation}
+        conversationOpen={conversationOpen}
+        conversationLabel={conversationLabel}
         onCreate={onCreate}
       >
         {children}
@@ -105,6 +114,9 @@ function DestinationShellContent({
   children,
   notice,
   composer,
+  conversation,
+  conversationOpen,
+  conversationLabel,
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const t = useTranslations()
@@ -114,8 +126,12 @@ function DestinationShellContent({
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const destination = resolveShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
+  const conversationSlot = conversation !== undefined && conversationLabel
+    ? { conversation, conversationOpen, conversationLabel }
+    : {}
 
   useKeyboardShortcuts(navigationEnabled)
 
@@ -202,6 +218,7 @@ function DestinationShellContent({
           {t('common.skipToContent')}
         </a>
         <ShellWide
+          {...conversationSlot}
           items={wideItems}
           activeId={destination}
           navLabel={t('nav.mainNavigation')}
@@ -225,6 +242,7 @@ function DestinationShellContent({
   return (
     <>
       <Shell412
+        {...conversationSlot}
         tabBar={
           <BottomTabBar
             active={destination}
@@ -234,7 +252,7 @@ function DestinationShellContent({
           />
         }
         fab={
-          pathname === '/' ? (
+          pathname === '/' && !todayFabHidden && !conversationOpen ? (
             <Fab label={t('nav.create')} onClick={onCreate}>
               <Plus size={24} strokeWidth={2} aria-hidden="true" />
             </Fab>

@@ -25,7 +25,7 @@ function severityStyle(severity: ConflictWarningType['severity']): {
       }
     case 'LOW':
       return {
-        className: 'bg-[rgba(var(--primary-rgb),0.10)] text-[var(--primary)]',
+        className: 'bg-[rgba(var(--primary-rgb),0.10)] text-[var(--fg-1)]',
         ring: 'rgba(var(--primary-rgb), 0.30)',
       }
     default:

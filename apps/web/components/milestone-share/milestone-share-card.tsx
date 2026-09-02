@@ -14,7 +14,7 @@ const rarityBadgeStyle: CSSProperties = {
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
-  color: 'var(--primary-soft)',
+  color: 'var(--fg-1)',
   background: 'rgba(var(--primary-rgb), 0.16)',
 }
 

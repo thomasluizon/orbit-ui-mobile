@@ -141,7 +141,6 @@ export function OnboardingFlow() {
         return (
           <OnboardingWelcome
             key="welcome"
-            hasProAccess={hasProAccess}
             onHaveAccount={!isLive ? () => router.push('/login') : undefined}
           />
         )

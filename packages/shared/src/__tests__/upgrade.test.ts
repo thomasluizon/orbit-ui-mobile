@@ -49,7 +49,6 @@ describe('upgrade utils', () => {
       'unlimited',
       'ai',
       'goals',
-      'themes',
     ])
     expect(UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => feature.key)).toEqual([
       'retrospective',
@@ -71,6 +70,41 @@ describe('upgrade utils', () => {
   it('omits the retired AI comparison row', () => {
     const retiredKey = ['ai', 'Memory'].join('')
     expect(allMatrixRows.some((feature) => feature.key === retiredKey)).toBe(false)
+  })
+
+  it('omits color schemes from upgrade surfaces and selectable preference copy', () => {
+    const removedKeys = [
+      'trial.expired.allColors',
+      'upgrade.features.colors',
+      'upgrade.plans.proFeatures.themes',
+    ]
+
+    for (const locale of [en, ptBR]) {
+      for (const key of removedKeys) {
+        expect(getMessageValue(locale as Record<string, unknown>, key)).toBeUndefined()
+      }
+    }
+
+    expect(en.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
+      'The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, and the AI goal review.',
+    )
+    expect(ptBR.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
+      'O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário e a análise de metas por IA.',
+    )
+    expect(en.tour.profile.preferences.description).toBe(
+      'Customize your experience: language, timezone, week start day, push notifications, and more.',
+    )
+    expect(ptBR.tour.profile.preferences.description).toBe(
+      'Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais.',
+    )
+    expect(en.profile.freshStart.preservePreferences).toBe(
+      'Theme, language, and timezone',
+    )
+    expect(ptBR.profile.freshStart.preservePreferences).toBe(
+      'Tema, idioma e fuso horário',
+    )
+    expect(en.privacy.dataCollected.preferences).toContain('color scheme')
+    expect(ptBR.privacy.dataCollected.preferences).toContain('cor do tema')
   })
 
   it('has matching locale entries in both en and pt-BR for every rendered key', () => {

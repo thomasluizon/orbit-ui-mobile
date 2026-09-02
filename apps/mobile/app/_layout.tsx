@@ -65,6 +65,7 @@ import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
+import ChatScreen from '@/app/chat'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
@@ -174,6 +175,7 @@ function RootStackScreens({
 }
 
 function RootLayoutNav() {
+  const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
@@ -188,6 +190,8 @@ function RootLayoutNav() {
   const totalHabitCount = useTotalHabitCount()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const todayFabHidden = useUIStore((s) => s.todayFabHidden)
+  const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
@@ -207,6 +211,11 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
+  const todayConversation = pathname === '/' ? {
+    conversation: <ChatScreen />,
+    conversationOpen: astraConversationOpen,
+    conversationLabel: t('todayAstra.openConversation'),
+  } : {}
   const androidBackFallbackRoute = useMemo(
     () =>
       getAndroidBackFallbackRoute(pathname, {
@@ -274,8 +283,11 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
+            {...todayConversation}
             tabBar={<AppBottomTabBar pathname={pathname} />}
-            fab={pathname === '/' ? <AppCreateFab onCreate={handleCreate} /> : undefined}
+            fab={pathname === '/' && !todayFabHidden
+              ? <AppCreateFab onCreate={handleCreate} />
+              : undefined}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}

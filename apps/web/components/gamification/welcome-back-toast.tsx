@@ -124,10 +124,10 @@ export function WelcomeBackToast() {
           {variant === 'welcome' ? (
             '🔥'
           ) : (
-            <Gift size={17} strokeWidth={2.2} color="var(--primary-soft)" />
+            <Gift size={17} strokeWidth={2.2} color="var(--primary)" />
           )}
         </span>
-        <div className="flex-1 flex flex-col" style={{ gap: 3 }}>
+        <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
           <span
             style={{
               fontFamily: 'var(--font-sans)',

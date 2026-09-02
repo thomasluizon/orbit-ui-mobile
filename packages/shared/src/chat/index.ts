@@ -83,11 +83,9 @@ const MAX_CHAT_TEXT_FILE_SIZE_BYTES = 1024 * 1024
 
 const CHAT_TEXT_FILE_EXTENSIONS = ['.csv', '.json', '.txt', '.md'] as const
 
-/** `accept` attribute value for the web chat text-file `<input type="file">`. */
 export const CHAT_TEXT_FILE_WEB_ACCEPT =
   '.csv,.json,.txt,.md,text/csv,application/json,text/plain,text/markdown'
 
-/** MIME-type filters for the mobile `expo-document-picker` text-file picker. */
 export const CHAT_TEXT_FILE_PICKER_MIME_TYPES = ['text/*', 'application/json'] as const
 
 type ChatTextFileValidationError = 'type' | 'size'
@@ -95,7 +93,7 @@ type ChatTextFileValidationError = 'type' | 'size'
 interface ChatTextFileCandidate {
   name?: string | null
   uri?: string | null
-  fileSize?: number | null
+  fileSize: number
 }
 
 function hasAllowedChatTextFileExtension(value: string | null | undefined): boolean {
@@ -105,14 +103,6 @@ function hasAllowedChatTextFileExtension(value: string | null | undefined): bool
   return CHAT_TEXT_FILE_EXTENSIONS.some((extension) => normalized.endsWith(extension))
 }
 
-/**
- * Validates a chat text-file attachment by extension and size, mirroring
- * {@link getChatImageValidationError}. Returns `'type'` for an unsupported
- * extension, `'size'` for a file over {@link MAX_CHAT_TEXT_FILE_SIZE_BYTES}, or
- * `null` when valid. The gate is extension-based because picker/browser MIME
- * types are unreliable for `.csv`/`.md`, and the contents ride to Astra as plain
- * chat text (no upload, no backend change).
- */
 export function getChatTextFileValidationError(
   candidate: ChatTextFileCandidate,
 ): ChatTextFileValidationError | null {
@@ -121,23 +111,13 @@ export function getChatTextFileValidationError(
     hasAllowedChatTextFileExtension(candidate.uri)
   if (!hasAllowedType) return 'type'
 
-  if (
-    typeof candidate.fileSize === 'number' &&
-    candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES
-  ) {
+  if (candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES) {
     return 'size'
   }
 
   return null
 }
 
-/**
- * Folds an attached text file's contents into the outgoing chat message so the
- * existing Astra pipeline parses it as plain text. `fileLabel` is the
- * already-localized "Attached file ..." heading; both platforms call this so the
- * framing Astra receives stays identical. Returns the file block alone when the
- * user typed no accompanying message.
- */
 export function buildChatMessageWithFileContent(params: {
   message: string
   fileLabel: string

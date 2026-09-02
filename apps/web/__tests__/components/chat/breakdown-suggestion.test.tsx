@@ -72,7 +72,10 @@ describe('BreakdownSuggestion', () => {
 
   it('adds a new empty habit when add button clicked', () => {
     render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByText('habits.breakdown.addHabit'))
+    const addButton = screen.getByRole('button', { name: 'habits.breakdown.addHabit' })
+    expect(addButton).toHaveClass('text-[var(--fg-1)]')
+    expect(addButton).not.toHaveClass('hover:text-[var(--primary-hover)]')
+    fireEvent.click(addButton)
     const inputs = screen.getAllByRole('textbox')
     expect(inputs.length).toBeGreaterThanOrEqual(3)
   })

@@ -73,7 +73,7 @@ function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
           { backgroundColor: tintFromPrimary(tokens, 0.15) },
         ]}
       >
-        <Check size={34} color={tokens.primarySoft} strokeWidth={1.8} />
+        <Check size={34} color={tokens.primary} strokeWidth={1.8} />
       </View>
       <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
         {t('profile.support.success')}

@@ -1,21 +1,19 @@
-import { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState, type ReactNode } from 'react'
-
-type ComposerRenderer = () => ReactNode
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 interface ShellComposerSlotContextValue {
-  register: (renderer: ComposerRenderer) => () => void
+  register: (content: ReactNode) => () => void
 }
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 
 export function useShellComposerHost() {
-  const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
-  const register = useCallback((nextRenderer: ComposerRenderer) => {
-    setRenderer(() => nextRenderer)
-    return () => setRenderer(null)
+  const [content, setContent] = useState<ReactNode>(null)
+  const register = useCallback((nextContent: ReactNode) => {
+    setContent(nextContent)
+    return () => setContent((current) => current === nextContent ? null : current)
   }, [])
   const value = useMemo(() => ({ register }), [register])
-  return { value, content: renderer?.() }
+  return { value, content }
 }
 
 export function ShellComposerSlotProvider({ value, children }: Readonly<{ value: ShellComposerSlotContextValue; children: ReactNode }>) {
@@ -23,12 +21,11 @@ export function ShellComposerSlotProvider({ value, children }: Readonly<{ value:
 }
 
 /** Registers destination-owned controls in Shell412's pinned composer slot. */
-export function useShellComposerSlot(enabled: boolean, renderer: ComposerRenderer, refreshKey: string) {
+export function useShellComposerSlot(enabled: boolean, content: ReactNode) {
   const host = useContext(ShellComposerSlotContext)
-  const registerRenderer = useEffectEvent(() => host?.register(renderer))
 
   useEffect(() => {
     if (!enabled) return
-    return registerRenderer()
-  }, [enabled, host, refreshKey])
+    return host?.register(content)
+  }, [content, enabled, host])
 }

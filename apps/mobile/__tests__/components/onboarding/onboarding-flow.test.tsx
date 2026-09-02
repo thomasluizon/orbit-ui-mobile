@@ -30,7 +30,6 @@ const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
       logHabit: vi.fn(() => Promise.resolve(undefined)),
       createGoal: vi.fn(() => Promise.resolve(undefined)),
       setWeekStartDay: vi.fn(() => Promise.resolve(undefined)),
-      setColorScheme: vi.fn(() => Promise.resolve(undefined)),
       finishOnboarding: vi.fn(() => Promise.resolve(undefined)),
       onImport: () => router.replace('/chat'),
     },

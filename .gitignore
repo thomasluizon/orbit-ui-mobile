@@ -93,6 +93,8 @@ apps/mobile/ios/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# The Codex CLI writes this diagnostic into its working directory.
+error.log
 
 .claude/sweeps/
 

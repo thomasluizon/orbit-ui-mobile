@@ -21,6 +21,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import { TodayAstra } from '@/components/today/today-astra'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -46,6 +47,7 @@ export default function TodayScreen() {
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
   const [todayFocused, setTodayFocused] = useState(false)
+  const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
@@ -54,6 +56,7 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const showCreateGoalModal = useUIStore((state) => state.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
 
   useEffect(() => {
     AsyncStorage.getItem('orbit_show_general_on_today')
@@ -93,9 +96,27 @@ export default function TodayScreen() {
     }, [clearSelection]),
   )
 
+  useEffect(() => {
+    const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
+      habitsQuery.isLoading || (habitsQuery.isError && !habitsQuery.data) ||
+      Boolean(habitsQuery.data && habitsById.size === 0)
+    setTodayFabHidden(hidden)
+    return () => setTodayFabHidden(false)
+  }, [
+    editHabit,
+    habitsById.size,
+    habitsQuery.data,
+    habitsQuery.isError,
+    habitsQuery.isLoading,
+    isSelectMode,
+    listSurfaceOpen,
+    setTodayFabHidden,
+    showCreateModal,
+  ])
+
   useShellComposerSlot(
     isSelectMode && todayFocused,
-    () => (
+    (
       <View style={styles.selectionTray}>
         <SelectionTray
           count={selection.selectedCount}
@@ -116,7 +137,6 @@ export default function TodayScreen() {
         />
       </View>
     ),
-    `${Array.from(selectedHabitIds).sort().join(',')}:${selection.allSelected ? 'all' : 'some'}`,
   )
 
   const listHeader = (
@@ -151,6 +171,12 @@ export default function TodayScreen() {
           <CapacityNotice message={t(boundaryKey)} />
         </View>
       ) : null}
+      {todayFocused ? (
+        <TodayAstra
+          isTodaySelected={date.dateStr === date.today}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+        />
+      ) : null}
     </>
   )
 
@@ -177,6 +203,7 @@ export default function TodayScreen() {
         }}
         onAllLoadedIdsChange={setAllLoadedIds}
         onAllCollapsedChange={setHabitListAllCollapsed}
+        onSurfaceOpenChange={setListSurfaceOpen}
       />
 
       <TodayModals

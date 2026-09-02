@@ -81,6 +81,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
       onCreate={() => setShowCreateModal(true)}
       onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
       onAllCollapsedChange={setHabitListAllCollapsed}
+      onSurfaceOpenChange={view.setListSurfaceOpen}
     />
   )
 }

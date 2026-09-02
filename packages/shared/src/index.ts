@@ -133,6 +133,7 @@ export {
   validateHabitFormInput,
   buildCalendarDayMap,
   buildUnresolvedBulkFailures,
+  rebaseSelectedIds,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,

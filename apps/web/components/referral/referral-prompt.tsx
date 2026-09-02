@@ -137,7 +137,7 @@ export function ReferralPrompt() {
               animate={{ opacity: 1, scale: 1 }}
               transition={enterTransition(0)}
             >
-              <Gift size={30} strokeWidth={1.8} color="var(--primary-soft)" />
+              <Gift size={30} strokeWidth={1.8} color="var(--primary)" />
             </m.span>
             <m.p
               style={{

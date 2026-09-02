@@ -41,9 +41,9 @@ export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>)
               background: 'rgba(var(--primary-rgb), 0.15)',
             }}
           >
-            <UserPlus size={22} strokeWidth={1.8} color="var(--primary-soft)" />
+            <UserPlus size={22} strokeWidth={1.8} color="var(--primary)" />
           </span>
-          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',

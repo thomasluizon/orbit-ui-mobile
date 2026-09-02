@@ -281,7 +281,7 @@ export function useAdMob() {
       const resolveWithoutReward = () => settle(false)
 
       const unsubscribeLoaded = rewardedAd.addAdEventListener(
-        AdEventType.LOADED,
+        RewardedAdEventType.LOADED,
         () => {
           rewardedAd.show().catch(resolveWithoutReward)
         },

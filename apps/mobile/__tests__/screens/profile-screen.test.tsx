@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import ProfileScreen from '@/app/(tabs)/profile'
+import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
@@ -110,9 +111,6 @@ vi.mock('@/lib/theme', () => ({
     cardParent: {},
     cardParentHover: {},
     cardChild: {},
-    glow: () => ({}),
-    glowSm: () => ({}),
-    glowLg: () => ({}),
   },
   shadowsV2: {
     shadow1: {},
@@ -120,7 +118,6 @@ vi.mock('@/lib/theme', () => ({
     shadow3: {},
   },
   tintFromPrimary: () => 'rgba(17, 17, 17, 0.1)',
-  primaryGlow: () => ({}),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -157,6 +154,10 @@ vi.mock('@/hooks/use-tour-scroll-container', () => ({
 
 vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => null,
+}))
+
+vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
+  MarketingConsentSection: () => null,
 }))
 
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
@@ -246,6 +247,9 @@ vi.mock('@/components/ui/icons', () => {
     Pencil: createIcon('Pencil'),
     UserX: createIcon('UserX'),
     TriangleAlert: createIcon('TriangleAlert'),
+    Calendar: createIcon('Calendar'),
+    Languages: createIcon('Languages'),
+    Moon: createIcon('Moon'),
   }
 })
 
@@ -402,5 +406,49 @@ describe('ProfileScreen', () => {
     })
 
     expect(mockRouterPush).toHaveBeenCalledWith('/wrapped')
+  })
+})
+
+describe('PreferenceSettingsList', () => {
+  it('does not render a color scheme row', () => {
+    const tokens = new Proxy({}, { get: () => '#111111' })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <PreferenceSettingsList
+          tokens={tokens as never}
+          t={(key) => key}
+          languageLabel="English"
+          themeLabel="Dark"
+          weekStartLabel="Monday"
+          showGeneralOnToday={false}
+          onOpenPicker={vi.fn()}
+          onToggleShowGeneral={vi.fn()}
+          push={{
+            pushSupported: false,
+            pushEnabled: false,
+            pushRegistered: false,
+            pushLoading: false,
+            permissionStatus: null,
+            registrationStatus: 'unsupported',
+            onToggle: vi.fn(),
+            onOpenSettings: vi.fn(),
+          }}
+          persistentReminder={{
+            isSupported: false,
+            enabled: false,
+            isLoading: false,
+            onToggle: vi.fn(),
+          }}
+        />,
+      )
+    })
+    expect(
+      tree.root.findAll(
+        (node: SettingsRowStubNode) =>
+          node.type === 'SettingsRowStub' &&
+          node.props.label === 'profile.colorScheme.title',
+      ),
+    ).toHaveLength(0)
   })
 })

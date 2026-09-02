@@ -40,5 +40,6 @@ describe('PlanComparisonCards', () => {
     render(<PlanComparisonCards t={t} />)
     const retiredKey = ['upgrade.features.ai', 'Memory.label'].join('')
     expect(screen.queryByText(retiredKey)).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.features.colors.label')).not.toBeInTheDocument()
   })
 })

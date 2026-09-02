@@ -69,7 +69,7 @@ function NotificationListActions({
           {({ pressed }) => (
             <CheckCheck
               size={18}
-              color={pressed ? tokens.primarySoft : tokens.fg3}
+              color={pressed ? tokens.primary : tokens.fg3}
               strokeWidth={1.8}
             />
           )}

@@ -124,9 +124,23 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
     throw new Error(`.claude/orchestrator.json worker "${config.worker}" is not one of its workers`)
   }
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
+  positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")
+  positive(config.timeouts?.cloudCommandMinutes, "timeouts.cloudCommandMinutes")
+  positive(config.timeouts?.gitRemoteSeconds, "timeouts.gitRemoteSeconds")
+  positive(config.timeouts?.receiptLockSeconds, "timeouts.receiptLockSeconds")
   positive(config.timeouts?.noProgressMinutes, "timeouts.noProgressMinutes")
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewFixAttempts, "caps.reviewFixAttempts")
+  if (!Number.isInteger(config.caps?.cloudParallelTasks) || config.caps.cloudParallelTasks < 4 || config.caps.cloudParallelTasks > 8) {
+    throw new Error(".claude/orchestrator.json caps.cloudParallelTasks must be an integer from 4 through 8")
+  }
+  if (!isRecord(config.cloud)) throw new Error(".claude/orchestrator.json must declare a cloud object")
+  nonEmptyString(config.cloud.environmentId, "cloud.environmentId")
+  const cloudRepositoryKey = nonEmptyString(config.cloud.repositoryKey, "cloud.repositoryKey")
+  if (!isRecord(config.repos) || typeof config.repos[cloudRepositoryKey] !== "string") {
+    throw new Error(`.claude/orchestrator.json cloud.repositoryKey must name a configured repository (${cloudRepositoryKey})`)
+  }
+  nonEmptyString(config.repos[cloudRepositoryKey], `repos.${cloudRepositoryKey}`)
   validateTickets(config.tickets)
   return config
 }

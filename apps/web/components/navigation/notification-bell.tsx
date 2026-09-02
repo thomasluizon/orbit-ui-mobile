@@ -40,8 +40,8 @@ const glyphIconMap = {
 
 const glyphColorMap: Record<NotificationGlyph, string> = {
   streak: 'var(--status-overdue)',
-  celebration: 'var(--primary-soft)',
-  astra: 'var(--primary-soft)',
+  celebration: 'var(--primary)',
+  astra: 'var(--primary)',
   reminder: 'var(--fg-3)',
 }
 
@@ -262,7 +262,7 @@ export function NotificationBell() {
                 type="button"
                 aria-label={t('notifications.markAllRead')}
                 title={t('notifications.markAllRead')}
-                className="touch-target icon-btn hover:text-[var(--primary-soft)]"
+                className="touch-target icon-btn hover:text-[var(--primary)]"
                 style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
                 onClick={() => markAllAsRead.mutate()}
               >

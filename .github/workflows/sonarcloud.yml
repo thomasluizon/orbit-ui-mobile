@@ -1,8 +1,12 @@
 name: SonarCloud
 
 on:
+  # Analysing redesign/main on push creates a long lived branch only if sonar.branch.longLivedBranches.regex matches it.
+  # Project value set 2026-08-31: (main|redesign/main|(branch|release)-.*), overriding the SonarCloud instance default
+  # of (branch|release)-.*. If its first analysis does not match, the branch is created short lived and
+  # cannot be reclassified, so the setting must be updated before that first analysis.
   push:
-    branches: [main]
+    branches: [main, redesign/main]
   pull_request:
     branches: [main, redesign/main]
 

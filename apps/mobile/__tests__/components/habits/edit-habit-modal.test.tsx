@@ -242,7 +242,7 @@ describe('EditHabitModal (mobile)', () => {
     expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('hydrates pristine goals before adding and submitting another goal', async () => {
+  it('replays a pre-authority goal action onto authoritative goals', async () => {
     const initialHabit = createMockHabit({ id: 'h-1', title: 'Exercise', linkedGoals: [] })
     let tree: any
     await TestRenderer.act(() => {
@@ -254,6 +254,9 @@ describe('EditHabitModal (mobile)', () => {
           relationshipFieldsLoaded={false}
         />,
       )
+    })
+    await TestRenderer.act(() => {
+      findFormFields(tree).props.onToggleGoal('goal-2')
     })
     await TestRenderer.act(() => {
       tree.update(
@@ -269,10 +272,6 @@ describe('EditHabitModal (mobile)', () => {
         />,
       )
     })
-    await TestRenderer.act(() => {
-      findFormFields(tree).props.onToggleGoal('goal-2')
-    })
-
     expect(findFormFields(tree).props.selectedGoalIds).toEqual(['goal-1', 'goal-2'])
     await TestRenderer.act(async () => {
       await findSaveButton(tree)?.props.onClick()

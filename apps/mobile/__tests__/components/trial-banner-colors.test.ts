@@ -9,8 +9,8 @@ describe('resolveTrialBannerColors', () => {
     const colors = resolveTrialBannerColors(false, tokens)
     expect(colors.container.backgroundColor).toBe(tintFromPrimary(tokens, 0.08))
     expect(colors.container.borderColor).toBe(tintFromPrimary(tokens, 0.18))
-    expect(colors.accentColor).toBe(tokens.primarySoft)
-    expect(colors.chevronColor).toBe(tokens.primarySoft)
+    expect(colors.accentColor).toBe(tokens.fg1)
+    expect(colors.chevronColor).toBe(tokens.primary)
     expect(colors.dismissColor).toBe(tokens.fg3)
   })
 

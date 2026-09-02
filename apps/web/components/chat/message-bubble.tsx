@@ -269,7 +269,7 @@ export function MessageBubble({
                     <button
                       type="button"
                       onClick={onUpgradeClick}
-                      className="touch-target-y mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)] active:scale-[0.96]"
+                      className="touch-target-y mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-hover)] active:scale-[0.96]"
                     >
                       {t('upgrade.subscribe')}
                     </button>

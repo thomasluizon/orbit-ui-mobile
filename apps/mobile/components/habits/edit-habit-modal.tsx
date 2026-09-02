@@ -27,6 +27,7 @@ import {
   coalesceFormText,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  rebaseSelectedIds,
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -120,6 +121,7 @@ export function EditHabitModal({
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
   const relationshipFieldsHydratedRef = useRef(false)
+  const relationshipSelectionBaselineRef = useRef({ goalIds: [] as string[], tagIds: [] as string[] })
   const relationshipSessionHabitIdRef = useRef<string | null>(null)
   const previousRelationshipFieldsLoadedRef = useRef(relationshipFieldsLoaded)
   const previousSessionRef = useRef<{
@@ -197,6 +199,7 @@ export function EditHabitModal({
         tagIds: false,
         slipAlertEnabled: false,
       }
+      relationshipSelectionBaselineRef.current = { goalIds: [], tagIds: [] }
       return
     }
 
@@ -207,13 +210,22 @@ export function EditHabitModal({
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
     const touched = relationshipFieldsTouchedRef.current
-    if (!touched.tagIds) {
-      tags.resetTags(prefill.selectedTagIds)
-      setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
-    }
-    if (!touched.goalIds) {
-      setSelectedGoalIds(prefill.selectedGoalIds)
-      setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
+    const baseline = relationshipSelectionBaselineRef.current
+    const authoritativeTagIds = prefill.selectedTagIds
+    const authoritativeGoalIds = prefill.selectedGoalIds
+    const rebasedTagIds = touched.tagIds
+      ? rebaseSelectedIds(authoritativeTagIds, baseline.tagIds, tags.selectedTagIds)
+      : authoritativeTagIds
+    tags.resetTags(rebasedTagIds)
+    setSelectedGoalIds((currentGoalIds) => {
+      if (!touched.goalIds) return authoritativeGoalIds
+      return rebaseSelectedIds(authoritativeGoalIds, baseline.goalIds, currentGoalIds)
+    })
+    setInitialTagIds(JSON.stringify([...authoritativeTagIds].sort((a, b) => a.localeCompare(b))))
+    setInitialGoalIds(JSON.stringify([...authoritativeGoalIds].sort((a, b) => a.localeCompare(b))))
+    relationshipSelectionBaselineRef.current = {
+      goalIds: authoritativeGoalIds,
+      tagIds: authoritativeTagIds,
     }
     if (!touched.slipAlertEnabled) {
       formHelpers.form.resetField('slipAlertEnabled', {
@@ -248,10 +260,12 @@ export function EditHabitModal({
     setReminderTimes(prefill.reminderTimes)
     if (!touched.tagIds) {
       tags.resetTags(prefill.selectedTagIds)
+      relationshipSelectionBaselineRef.current.tagIds = prefill.selectedTagIds
       setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
     }
     if (!touched.goalIds) {
       setSelectedGoalIds(prefill.selectedGoalIds)
+      relationshipSelectionBaselineRef.current.goalIds = prefill.selectedGoalIds
       setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
     }
     setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))

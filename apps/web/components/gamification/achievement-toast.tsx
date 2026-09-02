@@ -134,7 +134,7 @@ export function AchievementToast() {
             background: 'rgba(var(--primary-rgb), 0.16)',
           }}
         >
-          <Trophy size={17} strokeWidth={2.2} color="var(--primary-soft)" />
+          <Trophy size={17} strokeWidth={2.2} color="var(--primary)" />
         </div>
         <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
           <span
@@ -142,7 +142,7 @@ export function AchievementToast() {
               fontFamily: 'var(--font-mono)',
               fontSize: 12,
               fontWeight: 500,
-              color: 'var(--primary-soft)',
+              color: 'var(--fg-2)',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               fontVariantNumeric: 'tabular-nums',

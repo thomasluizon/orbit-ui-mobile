@@ -235,7 +235,7 @@ export function CalendarHeader({
           ]}
         >
           <Text
-            style={[styles.yearTitle, isYearOpen && { color: tokens.primary }]}
+            style={[styles.yearTitle, isYearOpen && { color: tokens.fg1 }]}
           >
             {year}
           </Text>

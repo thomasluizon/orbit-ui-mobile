@@ -140,7 +140,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+            className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150"
             style={{
               padding: '9px 14px',
               fontFamily: 'var(--font-sans)',

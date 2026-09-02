@@ -5,7 +5,7 @@ type T = (key: string) => string
 
 export function createTourMockTags(t: T) {
   return [
-    { id: 'tour-tag-1', name: t('tour.mockData.tags.mindfulness'), color: '#7f46f7' },
+    { id: 'tour-tag-1', name: t('tour.mockData.tags.mindfulness'), color: '#C4530F' },
     { id: 'tour-tag-2', name: t('tour.mockData.tags.health'), color: '#00c950' },
     { id: 'tour-tag-3', name: t('tour.mockData.tags.learning'), color: '#2b7fff' },
   ]

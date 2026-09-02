@@ -2,6 +2,7 @@ import {
   motionDurations,
   resolveDarkNeutrals,
   resolveLightNeutrals,
+  schemes,
   type ColorScheme,
   type ThemeMode,
 } from '@orbit/shared'
@@ -32,6 +33,27 @@ export function canvasColor(scheme: ColorScheme, theme: ThemeMode): string {
     : resolveDarkNeutrals(scheme).bg
 }
 
+export function resolveWebThemeVariables(
+  scheme: ColorScheme,
+  theme: ThemeMode,
+): Record<`--${string}`, string> {
+  const definition = schemes[scheme]
+  const accent = definition.accent[theme]
+
+  return {
+    '--primary': accent.primary,
+    '--primary-hover': accent.primaryHover,
+    '--primary-pressed': accent.primaryPressed,
+    '--primary-soft': accent.primarySoft,
+    '--primary-dim': accent.primaryDim,
+    '--primary-rgb': accent.primaryRgb,
+    '--hue': String(definition.neutralHue),
+    '--chroma-scale-bg': String(definition.chromaScaleBg),
+    '--chroma-scale-fg': String(definition.chromaScaleFg),
+    '--fg-on-primary': definition.fgOnPrimary[theme],
+  }
+}
+
 export function applyThemeTokensToDOM(
   scheme: ColorScheme,
   theme: ThemeMode,
@@ -60,6 +82,9 @@ export function applyThemeTokensToDOM(
   root.classList.add(`scheme-${scheme}`)
 
   root.style.setProperty('color-scheme', theme)
+  for (const [property, value] of Object.entries(resolveWebThemeVariables(scheme, theme))) {
+    root.style.setProperty(property, value)
+  }
 
   for (const metaThemeColor of document.querySelectorAll('meta[name="theme-color"]')) {
     metaThemeColor.setAttribute('content', canvasColor(scheme, theme))

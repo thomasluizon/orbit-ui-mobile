@@ -4,7 +4,10 @@ export type SchemeMode = 'dark' | 'light'
 
 export interface SchemeAccent {
   primary: string
+  primaryHover: string
   primaryPressed: string
+  primarySoft: string
+  primaryDim: string
   primaryRgb: string
 }
 

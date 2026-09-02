@@ -358,7 +358,7 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.96]"
+          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-hover)] active:translate-y-0 active:scale-[0.96]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" strokeWidth={1.8} />}

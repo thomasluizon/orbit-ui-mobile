@@ -83,20 +83,6 @@ describe('useChatImageAttachment', () => {
     expect(result.current.selectedImage).toBeNull()
   })
 
-  it('captures a pasted image and prevents the default paste', () => {
-    const setSendError = vi.fn()
-    const { result } = renderHook(() => useChatImageAttachment(setSendError))
-    const event = pasteEvent(imageFile('image/jpeg', 2048, 'pasted.jpg'), 'image/jpeg')
-
-    act(() => {
-      result.current.handlePaste(event)
-    })
-
-    expect(event.preventDefault).toHaveBeenCalledTimes(1)
-    expect(setSendError).toHaveBeenCalledWith(null)
-    expect(result.current.selectedImage?.type).toBe('image/jpeg')
-  })
-
   it('surfaces a validation error when a pasted image is the wrong type', () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))

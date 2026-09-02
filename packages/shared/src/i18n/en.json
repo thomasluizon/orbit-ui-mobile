@@ -204,7 +204,32 @@
     "expandSidebar": "Expand sidebar",
     "openRail": "Open panel",
     "closeRail": "Close panel",
-    "openPalette": "Open command palette"
+    "openPalette": "Open command palette",
+    "composer": {
+      "placeholder": "Ask Astra",
+      "send": "Send",
+      "suggestionsLabel": "Suggestions",
+      "retry": "Try again",
+      "voice": {
+        "start": "Speak",
+        "stop": "Stop",
+        "recording": "Listening",
+        "transcribing": "Writing what you said"
+      },
+      "attach": {
+        "trayLabel": "Attached files",
+        "remove": "Remove {name}"
+      },
+      "limit": {
+        "reason": "Today's allowance of {allowance} messages is used."
+      }
+    }
+  },
+  "todayAstra": {
+    "createSentence": "Help me create a habit for today",
+    "openConversation": "Open the conversation",
+    "offline": "Astra needs a connection. Habit logging still works offline.",
+    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
   },
   "command": {
     "title": "Commands",
@@ -1102,10 +1127,6 @@
       "title": "Language",
       "description": "Select your preferred language"
     },
-    "colorScheme": {
-      "title": "Color Scheme",
-      "description": "Choose your accent color"
-    },
     "aiSummary": {
       "title": "Daily Summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
@@ -1182,7 +1203,7 @@
       "deleteOnboarding": "Onboarding progress (will replay welcome flow)",
       "preserveAccount": "Your account (email, name, password)",
       "preserveSubscription": "Pro subscription status",
-      "preservePreferences": "Theme, color scheme, language, and timezone",
+      "preservePreferences": "Theme, language, and timezone",
       "confirmInstruction": "Type ORBIT below to confirm this action.",
       "confirmLabel": "Confirmation",
       "confirmPlaceholder": "ORBIT",
@@ -1455,7 +1476,6 @@
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "aiChat": "50 AI messages per day",
-      "allColors": "All 6 color schemes",
       "aiSummary": "Daily AI summaries",
       "subHabits": "Sub-habits",
       "goals": "AI goal review",
@@ -1602,8 +1622,7 @@
       "welcome": {
         "title": "Welcome to Orbit",
         "subtitle": "Let's set up your experience and create your first habit.",
-        "weekStart": "When does your week start?",
-        "colorScheme": "Pick your color"
+        "weekStart": "When does your week start?"
       },
       "saveYourPlan": {
         "title": "Save your plan",
@@ -1845,8 +1864,6 @@
         "referralsDesc": "Share your personal invite link to bring friends to Orbit. When they join and stick with it, referrals help the community grow -- find your link in your Profile."
       },
       "settingsSection": {
-        "colorSchemeTitle": "Color Scheme",
-        "colorSchemeDesc": "Choose from 6 accent colors (purple, blue, green, rose, orange, cyan). The entire app adapts -- backgrounds, buttons, shadows, and the AI chat orb all change to match.",
         "languageTitle": "Language",
         "languageDesc": "Switch between English and Portuguese. The app, AI responses, and emails all adapt to your chosen language.",
         "aiSummaryTitle": "AI Daily Summary",
@@ -1858,7 +1875,7 @@
         "pushNotificationsTitle": "Push Notifications",
         "pushNotificationsDesc": "Enable or disable push notifications in Settings. Use the 'Send test notification' button to verify they work. Reminders are sent as push notifications based on each habit's due time.",
         "subscriptionTitle": "Subscription & Pro",
-        "subscriptionDesc": "The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, the AI goal review, and all color schemes.",
+        "subscriptionDesc": "The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, and the AI goal review.",
         "weekStartDayTitle": "Week Start Day",
         "weekStartDayDesc": "Choose whether your week starts on Monday or Sunday. This affects all calendars, day pickers, and weekly frequency displays throughout the app.",
         "showGeneralTodayTitle": "Show General on Today",
@@ -1913,12 +1930,6 @@
         "free": "No",
         "pro": "Included",
         "tooltip": "Goals are free on every plan: create long-term goals and link habits to track measurable progress. Pro adds the AI review, which reads a goal and reports what is working and what needs attention."
-      },
-      "colors": {
-        "label": "Color Schemes",
-        "free": "1 theme",
-        "pro": "All 6 themes",
-        "tooltip": "Personalize Orbit with 6 color schemes: purple, blue, green, rose, orange, and cyan. Free users get the default purple theme."
       },
       "summary": {
         "label": "Daily Summary",
@@ -2018,7 +2029,6 @@
         "unlimited": "Sub-habits and calendar sync",
         "ai": "50 AI messages a day",
         "goals": "AI goal review and daily summaries",
-        "themes": "All 6 color themes",
         "retrospective": "AI Retrospective"
       },
       "savePercent": "Save {percent}%",
@@ -2742,12 +2752,6 @@
   "preferences": {
     "title": "Preferences",
     "general": "General",
-    "colorBlue": "Blue theme",
-    "colorCyan": "Cyan theme",
-    "colorGreen": "Green theme",
-    "colorOrange": "Orange theme",
-    "colorPurple": "Purple theme",
-    "colorRose": "Rose theme",
     "themeMode": "Appearance",
     "themeModeLight": "Light",
     "themeModeDark": "Dark"
@@ -2979,7 +2983,7 @@
       },
       "preferences": {
         "title": "Preferences",
-        "description": "Customize your experience: language, color scheme, timezone, week start day, push notifications, and more."
+        "description": "Customize your experience: language, timezone, week start day, push notifications, and more."
       },
       "subscription": {
         "title": "Subscription",

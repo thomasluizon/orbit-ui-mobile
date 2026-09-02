@@ -101,12 +101,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         /** Terminal color fallback (navy-dark surface) when a value is blank or malformed. */
         private const val SAFE_FALLBACK = 0xFF020618.toInt()
 
-        // Bootstrap fallback (purple dark) for the first paint before JS syncs the
+        // Bootstrap fallback for the first paint before JS syncs the
         // active scheme into SharedPreferences. The full per-scheme palette lives
         // in the app's createTokensV2 and arrives via OrbitWidgetModule.syncTheme;
         // alpha tokens arrive pre-flattened over the canvas, mirrored here.
         private val FALLBACK_COLORS = mapOf(
-            "primary" to "#7f46f7",
+            "primary" to "#C4530F",
             "background" to "#020618",
             "surface" to "#111526",
             "surfaceGround" to "#010411",

@@ -141,6 +141,7 @@ const mocks = vi.hoisted(() => {
     invalidateHabitMutationQueries: vi.fn(async () => {}),
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showInfo: vi.fn(),
     showUndoToast: vi.fn(),
   }
 })
@@ -209,7 +210,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
     showSuccess: mocks.showSuccess,
     showError: mocks.showError,
     showQueued: vi.fn(),
-    showInfo: vi.fn(),
+    showInfo: mocks.showInfo,
     showToast: vi.fn(),
   }),
 }))
@@ -1317,6 +1318,7 @@ describe('mobile habit hooks', () => {
 
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
+    expect(mocks.showInfo).toHaveBeenCalledWith('todayAstra.offlineLog')
   })
 
   it('rolls back the optimistic completion when logging fails', async () => {

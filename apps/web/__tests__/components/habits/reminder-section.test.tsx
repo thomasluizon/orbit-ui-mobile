@@ -54,7 +54,7 @@ describe('ReminderSection', () => {
 
   it('renders a chip per reminder time using the label formatter', () => {
     renderSection({ reminderTimes: [15, 30] })
-    expect(screen.getByText('label-15')).toBeInTheDocument()
+    expect(screen.getByText('label-15')).toHaveClass('text-[var(--fg-1)]')
     expect(screen.getByText('label-30')).toBeInTheDocument()
   })
 

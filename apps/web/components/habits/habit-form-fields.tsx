@@ -577,7 +577,7 @@ export function HabitFormFields({
         <ChevronDown className={`size-4 transition-transform duration-[var(--dur-base)] ${showAdvanced ? 'rotate-180' : ''}`} />
         {t('habits.form.moreOptions')}
         {advancedFieldCount > 0 && (
-          <span className="font-mono text-xs tabular-nums text-[var(--primary)]">{t('habits.form.moreOptionsCount', { count: advancedFieldCount })}</span>
+          <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]">{t('habits.form.moreOptionsCount', { count: advancedFieldCount })}</span>
         )}
       </button>
 
@@ -704,7 +704,7 @@ export function HabitFormFields({
                   className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${
                     watchedIsBadHabit
                       ? 'text-[var(--fg-3)] hover:text-[var(--fg-1)]'
-                      : 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--primary)]'
+                      : 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--fg-1)]'
                   }`}
                 >
                   <TrendingUp size={16} strokeWidth={2} aria-hidden="true" />
@@ -717,7 +717,7 @@ export function HabitFormFields({
                   onClick={() => setValue('isBadHabit', true, { shouldDirty: true })}
                   className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${
                     watchedIsBadHabit
-                      ? 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--primary)]'
+                      ? 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--fg-1)]'
                       : 'text-[var(--fg-3)] hover:text-[var(--fg-1)]'
                   }`}
                 >

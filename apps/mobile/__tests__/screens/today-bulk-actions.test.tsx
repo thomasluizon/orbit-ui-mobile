@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
     toggleSelectMode: vi.fn(),
     selectAllHabits: vi.fn(),
     clearSelection: vi.fn(),
+    todayFabHidden: false,
+    setTodayFabHidden: vi.fn(),
   },
 }))
 
@@ -170,16 +172,19 @@ vi.mock('@/components/habits/selection-tray', () => ({
 }))
 
 vi.mock('@/components/shell/shell-composer-slot', () => ({
-  useShellComposerSlot: (enabled: boolean, render: () => React.ReactElement) => {
+  useShellComposerSlot: (enabled: boolean, content: React.ReactElement<ComponentProps>) => {
     if (!enabled) return
-    const slot = render() as React.ReactElement<ComponentProps>
-    const tray = slot.props.children as React.ReactElement<ComponentProps>
+    const tray = content.props.children as React.ReactElement<ComponentProps>
     mocks.bulkBarProps = tray.props
   },
 }))
 
 vi.mock('@/components/today/today-date-control', () => ({
   TodayDateControl: () => null,
+}))
+
+vi.mock('@/components/today/today-astra', () => ({
+  TodayAstra: () => null,
 }))
 
 vi.mock('@/components/today/today-modals', () => ({

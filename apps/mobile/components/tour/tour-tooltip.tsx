@@ -27,7 +27,6 @@ import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import {
   createTokensV2,
   easings,
-  primaryGlow,
   radius,
   shadowsV2,
   tintFromPrimary,
@@ -188,7 +187,6 @@ export function TourTooltip({
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.nextButton,
-              primaryGlow(tokens),
               pressed ? styles.nextButtonPressed : null,
             ]}
             onPress={onNext}

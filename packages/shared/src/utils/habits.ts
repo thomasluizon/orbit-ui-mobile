@@ -193,6 +193,26 @@ export function buildUnresolvedBulkFailures<TItem, TResult>(
   return items.map((item, offset) => buildFailure(item, startIndex + offset, message))
 }
 
+export function rebaseSelectedIds(
+  authoritativeIds: readonly string[],
+  baselineIds: readonly string[],
+  editedIds: readonly string[],
+): string[] {
+  const baseline = new Set(baselineIds)
+  const edited = new Set(editedIds)
+  const rebased = authoritativeIds.filter((id) => !baseline.has(id) || edited.has(id))
+  const rebasedSet = new Set(rebased)
+
+  for (const id of editedIds) {
+    if (!baseline.has(id) && !rebasedSet.has(id)) {
+      rebased.push(id)
+      rebasedSet.add(id)
+    }
+  }
+
+  return rebased
+}
+
 export interface ReorderableHabitItem {
   id: string
   parentId: string | null

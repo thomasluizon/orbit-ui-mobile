@@ -69,7 +69,7 @@ export function createStyles(tokens: AppTokens) {
   },
   freqChipTextActive: {
     fontFamily: 'Rubik_500Medium',
-    color: tokens.primary,
+    color: tokens.fg1,
   },
   quantityRow: {
     flexDirection: 'row',
@@ -110,7 +110,7 @@ export function createStyles(tokens: AppTokens) {
   addBtnText: {
     fontFamily: 'Rubik_600SemiBold',
     fontSize: 12,
-    color: tokens.primary,
+    color: tokens.fg1,
   },
   checkboxRow: {
     flexDirection: 'row',

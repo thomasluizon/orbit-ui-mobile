@@ -49,7 +49,7 @@ import { HabitRow } from './habit-row'
 import { useHabitDetail, useHabitLogs, useHabitMetrics, useHabits } from '@/hooks/use-habit-queries'
 import { useDeleteHabit, useLogHabit, useUpdateChecklist, useUpdateHabit } from '@/hooks/use-habits'
 import { isQueuedResult } from '@/lib/offline-mutations'
-import { waitForFirstWriteFinalization } from '@/lib/offline-queue'
+import { findUnfinalizedFirstWrite, waitForFirstWriteFinalization } from '@/lib/offline-queue'
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
@@ -236,7 +236,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
     const toggleKey = `habit-toggle:${targetHabitId}:${dateStr}`
     const pendingToggleKeys = pendingToggleKeysRef.current
-    if (pendingToggleKeys.has(toggleKey)) return false
+    if (
+      pendingToggleKeys.has(toggleKey) ||
+      findUnfinalizedFirstWrite({ type: 'logHabit', dedupeKey: toggleKey })
+    ) return false
 
     pendingToggleKeys.add(toggleKey)
     try {

@@ -159,7 +159,7 @@ export function PricingSection({
               return (
                 <View key={feature.key} style={styles.marqueeRow}>
                   <View style={styles.marqueeIcon}>
-                    <Icon size={20} strokeWidth={1.8} color={tokens.primarySoft} />
+                    <Icon size={20} strokeWidth={1.8} color={tokens.primary} />
                   </View>
                   <Text style={[styles.marqueeText, { color: tokens.fg1 }]}>
                     {t(`upgrade.plans.proFeatures.${feature.key}`)}

@@ -114,11 +114,6 @@ export function StreakCelebration() {
                     animation: 'fresh-start-orb 0.7s var(--ease-out) both',
                   }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="animate-orbit-pulse absolute inset-0 rounded-full"
-                    style={{ boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)' }}
-                  />
                   {'🔥'}
                 </span>
               }

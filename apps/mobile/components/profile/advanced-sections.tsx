@@ -214,7 +214,7 @@ export function ApiKeysSection({
             hitSlop={8}
           >
             <Plus size={14} color={tokens.primary} strokeWidth={2.2} />
-            <Text style={[styles.actionLink, { color: tokens.primary }]}>
+            <Text style={[styles.actionLink, { color: tokens.fg1 }]}>
               {t('orbitMcp.createKeyShort')}
             </Text>
           </Pressable>
@@ -445,7 +445,7 @@ export function WidgetInfoSheet({
         <View style={styles.widgetList}>
           {WIDGET_STEP_KEYS.map((stepKey, index) => (
             <View key={stepKey} style={styles.widgetStepRow}>
-              <Text style={[styles.widgetStepNumber, { color: tokens.primary }]}>
+              <Text style={[styles.widgetStepNumber, { color: tokens.fg2 }]}>
                 {`${index + 1}.`}
               </Text>
               <Text style={[styles.widgetItemText, { color: tokens.fg2 }]}>

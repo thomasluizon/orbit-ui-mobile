@@ -91,9 +91,9 @@ vi.mock('@/hooks/use-tag-selection', () => ({
     setShowNewTag: vi.fn(),
     newTagName: '',
     setNewTagName: vi.fn(),
-    newTagColor: '#7f46f7',
+    newTagColor: '#C4530F',
     setNewTagColor: vi.fn(),
-    tagColors: ['#7f46f7'],
+    tagColors: ['#C4530F'],
   }),
 }))
 
@@ -295,7 +295,7 @@ describe('EditHabitModal', () => {
     expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('hydrates pristine goals before adding and submitting another goal', async () => {
+  it('replays a pre-authority goal action onto authoritative goals', async () => {
     const onOpenChange = vi.fn()
     const initialHabit = createMockHabit({ id: 'h-1', linkedGoals: [] })
     const authoritativeHabit = createMockHabit({
@@ -314,6 +314,8 @@ describe('EditHabitModal', () => {
       </QueryClientProvider>,
     )
 
+    fireEvent.click(screen.getByTestId('second-goal-trigger'))
+
     rerender(
       <QueryClientProvider client={queryClient}>
         <EditHabitModal
@@ -324,8 +326,6 @@ describe('EditHabitModal', () => {
         />
       </QueryClientProvider>,
     )
-    fireEvent.click(screen.getByTestId('second-goal-trigger'))
-
     expect(screen.getByTestId('goal-selection')).toHaveTextContent('["goal-1","goal-2"]')
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
 

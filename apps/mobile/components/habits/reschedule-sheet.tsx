@@ -221,7 +221,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 12,
       letterSpacing: 0.6,
       textTransform: 'uppercase',
-      color: tokens.primarySoft,
+      color: tokens.fg2,
     },
     aiBadge: {
       fontFamily: 'Roboto_500Medium',

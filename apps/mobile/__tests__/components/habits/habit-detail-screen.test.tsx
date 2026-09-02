@@ -420,7 +420,7 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ testID: 'stat-habits.detail.totalCompletions' }).props.value).toBe('2')
   })
 
-  it('keeps a repeated offline detail toggle aligned with retained acknowledgement and replay', async () => {
+  it('keeps a remounted offline detail aligned with the retained first intent', async () => {
     mocks.log.mockImplementation(async ({ habitId, date, intent }: {
       habitId: string
       date: string
@@ -455,6 +455,10 @@ describe('HabitDetailScreen', () => {
     })
     expect(tree!.root.findByProps({ testID: 'header-log' }).props.logged).toBe(true)
 
+    TestRenderer.act(() => tree!.unmount())
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
     await Promise.resolve()
     TestRenderer.act(() => {

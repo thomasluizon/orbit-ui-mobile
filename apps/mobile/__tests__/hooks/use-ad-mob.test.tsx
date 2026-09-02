@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
+import { Platform } from 'react-native'
 
 vi.unmock('@/hooks/use-ad-mob')
 
@@ -44,9 +45,9 @@ const mocks = vi.hoisted(() => {
     ),
   }
 
-  const initialize = vi.fn(async () => undefined)
-  const gatherConsent = vi.fn(async () => undefined)
-  const getConsentInfo = vi.fn(async () => ({ canRequestAds: true }))
+  const initialize = vi.fn(() => Promise.resolve())
+  const gatherConsent = vi.fn(() => Promise.resolve())
+  const getConsentInfo = vi.fn(() => Promise.resolve({ canRequestAds: true }))
 
   const createMockAd = (): MockAd => {
     const listeners = new Map<string, Set<(payload?: unknown) => void>>()
@@ -62,7 +63,7 @@ const mocks = vi.hoisted(() => {
         }
       }),
       load: vi.fn(() => undefined),
-      show: vi.fn(async () => undefined),
+      show: vi.fn(() => Promise.resolve()),
       emit: (event: string, payload?: unknown) => {
         listeners.get(event)?.forEach((listener) => listener(payload))
       },
@@ -117,7 +118,8 @@ vi.mock('react-native-google-mobile-ads', () => ({
     CLOSED: 'closed',
   },
   RewardedAdEventType: {
-    EARNED_REWARD: 'rewarded',
+    LOADED: 'rewarded_loaded',
+    EARNED_REWARD: 'rewarded_earned_reward',
   },
   TestIds: {
     INTERSTITIAL: 'test-interstitial',
@@ -169,6 +171,7 @@ describe('mobile useAdMob', () => {
       isTrialActive: false,
       adRewardsClaimedToday: 0,
     })
+    Platform.OS = 'android'
     mocks.constants.expoGoConfig = null
     mocks.constants.expoConfig.extra = {}
     mocks.state.interstitials = []
@@ -252,10 +255,10 @@ describe('mobile useAdMob', () => {
     const rewardedAd = mocks.state.rewardeds[0]
     expect(mocks.createRewarded).toHaveBeenCalledWith('test-rewarded')
     expect(rewardedAd?.load).toHaveBeenCalledTimes(1)
-    rewardedAd?.emit('loaded')
+    rewardedAd?.emit('rewarded_loaded')
     await Promise.resolve()
     expect(rewardedAd?.show).toHaveBeenCalledTimes(1)
-    rewardedAd?.emit('rewarded')
+    rewardedAd?.emit('rewarded_earned_reward')
     rewardedAd?.emit('closed')
 
     await expect(rewardAttempt).resolves.toBe(true)
@@ -286,14 +289,61 @@ describe('mobile useAdMob', () => {
     const rewardedAttempt = result.showRewardedAd()
     await Promise.resolve()
     expect(mocks.createRewarded).toHaveBeenCalledWith('prod-rewarded')
-    mocks.state.rewardeds[0]?.emit('loaded')
+    mocks.state.rewardeds[0]?.emit('rewarded_loaded')
     await Promise.resolve()
-    mocks.state.rewardeds[0]?.emit('rewarded')
+    mocks.state.rewardeds[0]?.emit('rewarded_earned_reward')
     mocks.state.rewardeds[0]?.emit('closed')
     await expect(rewardedAttempt).resolves.toBe(true)
 
     expect(mocks.createInterstitial).not.toHaveBeenCalledWith('test-interstitial')
     expect(mocks.createRewarded).not.toHaveBeenCalledWith('test-rewarded')
+  })
+
+  it('uses the configured iOS ad unit ids on iOS', async () => {
+    Platform.OS = 'ios'
+    mocks.constants.expoConfig.extra = {
+      adMob: {
+        useTestIds: false,
+        iosInterstitialId: 'ios-interstitial',
+        iosRewardedId: 'ios-rewarded',
+      },
+    }
+    const { result } = await renderUseAdMob()
+
+    await TestRenderer.act(async () => {
+      await result.initialize()
+    })
+
+    const interstitialAttempt = result.showInterstitialIfDue()
+    await Promise.resolve()
+    expect(mocks.createInterstitial).toHaveBeenCalledWith('ios-interstitial')
+    mocks.state.interstitials[0]?.emit('loaded')
+    await Promise.resolve()
+    mocks.state.interstitials[0]?.emit('closed')
+    await interstitialAttempt
+
+    const rewardedAttempt = result.showRewardedAd()
+    await Promise.resolve()
+    expect(mocks.createRewarded).toHaveBeenCalledWith('ios-rewarded')
+    mocks.state.rewardeds[0]?.emit('rewarded_loaded')
+    await Promise.resolve()
+    mocks.state.rewardeds[0]?.emit('rewarded_earned_reward')
+    mocks.state.rewardeds[0]?.emit('closed')
+    await expect(rewardedAttempt).resolves.toBe(true)
+  })
+
+  it('keeps every ad path unavailable in Expo Go', async () => {
+    mocks.constants.expoGoConfig = {}
+    const { result } = await renderUseAdMob()
+
+    expect(result.shouldShowAds()).toBe(false)
+    await result.initialize()
+    await result.showInterstitialIfDue()
+    await expect(result.showRewardedAd()).resolves.toBe(false)
+
+    expect(mocks.initialize).not.toHaveBeenCalled()
+    expect(mocks.createInterstitial).not.toHaveBeenCalled()
+    expect(mocks.createRewarded).not.toHaveBeenCalled()
   })
 
   it('falls back to test ids in development when useTestIds is not configured', async () => {

@@ -325,6 +325,8 @@ export {
   getNotificationGlyph,
   isViewableNotificationUrl,
   resolveNotificationUrl,
+  selectNewestUnreadProactiveCheckin,
+  shouldShowTodayAstraLine,
 } from './notification-actions'
 export {
   buildTempGoal,
@@ -387,6 +389,7 @@ export type {
 export {
   buildCalendarDayMap,
   buildUnresolvedBulkFailures,
+  rebaseSelectedIds,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,

@@ -4,18 +4,11 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { getChatTextFileValidationError } from '@orbit/shared/chat'
 
-interface SelectedChatTextFile {
+export interface SelectedChatTextFile {
   name: string
   content: string
 }
 
-/**
- * Manages the chat composer's text-file attachment: hidden file input, picker,
- * validation, and reading the file's contents client-side via `File.text()`.
- * The contents ride into the outgoing message as plain chat text (no upload, no
- * backend change), mirroring the image-attachment hook. Drives the composer's
- * send error via `setSendError` (cleared on a valid pick, set on a failure).
- */
 export function useChatTextFileAttachment(setSendError: (message: string | null) => void) {
   const t = useTranslations()
   const textFileInputRef = useRef<HTMLInputElement>(null)

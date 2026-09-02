@@ -25,7 +25,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
+        className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
         style={{
           minHeight: 44,
           fontFamily: 'var(--font-sans)',

@@ -240,5 +240,4 @@ export const primaryTintAlphas = {
   iconWell: 0.15,
   soft: 0.18,
   ring: 0.28,
-  glow: 0.45,
 } as const
