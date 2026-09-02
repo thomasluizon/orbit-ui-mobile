@@ -22610,6 +22610,7 @@
         "apps/mobile/__tests__/components/habit-list/empty-state.test.tsx",
         "apps/mobile/__tests__/components/habit-list/move-parent-dialog.test.tsx",
         "apps/mobile/__tests__/components/habit-list/move-parent-tree-helpers.test.ts",
+        "apps/mobile/__tests__/components/habits/apply-suggestion.test.ts",
         "apps/mobile/__tests__/components/habits/create-habit-modal.test.tsx",
         "apps/mobile/__tests__/components/habits/edit-habit-modal.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx",
@@ -22701,6 +22702,7 @@
         "apps/mobile/__tests__/stores/ui-store.test.ts"
       ],
       "apps/mobile/hooks": [
+        "apps/mobile/__tests__/components/habits/apply-suggestion.test.ts",
         "apps/mobile/__tests__/components/habits/habit-form-fields.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-list.test.tsx",
         "apps/mobile/__tests__/hooks/use-ad-mob.test.tsx",
@@ -22990,6 +22992,7 @@
         "apps/web/__tests__/components/goals/goal-list.test.tsx",
         "apps/web/__tests__/components/goals/goal-metrics-panel.test.tsx",
         "apps/web/__tests__/components/goals/use-goal-progress-form-state.test.ts",
+        "apps/web/__tests__/components/habits/apply-suggestion.test.ts",
         "apps/web/__tests__/components/habits/checklist-templates.test.tsx",
         "apps/web/__tests__/components/habits/create-habit-modal.test.tsx",
         "apps/web/__tests__/components/habits/description-viewer.test.tsx",
@@ -23099,6 +23102,7 @@
       ],
       "apps/web/hooks": [
         "apps/web/__tests__/components/command/command-palette.test.tsx",
+        "apps/web/__tests__/components/habits/apply-suggestion.test.ts",
         "apps/web/__tests__/components/habits/habit-form-fields.test.tsx",
         "apps/web/__tests__/hooks/use-app-toast.test.ts",
         "apps/web/__tests__/hooks/use-billing.test.ts",
