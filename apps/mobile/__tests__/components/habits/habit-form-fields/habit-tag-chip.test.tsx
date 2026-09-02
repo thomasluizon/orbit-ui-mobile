@@ -93,13 +93,20 @@ describe('HabitTagChip mobile', () => {
     expect(props.onDelete).toHaveBeenCalledOnce()
   })
 
-  it('locks only an unselected chip at the tag limit', () => {
+  it('locks only an unselected chip at the tag limit', async () => {
     vi.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
     const timing = vi.spyOn(Animated, 'timing')
-    const { tree } = renderChip({ atLimit: true, disabled: true })
-    expect(button(tree, 'Health').props.disabled).toBe(true)
-    expect(button(tree, 'Edit Health').props.disabled).toBe(true)
-    expect(button(tree, 'Delete Health').props.disabled).toBe(true)
+    const unselected = renderChip({ atLimit: true, disabled: false })
+    const selected = renderChip({ atLimit: true, disabled: false, selected: true })
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(button(unselected.tree, 'Health').props.disabled).toBe(true)
+    expect(button(unselected.tree, 'Edit Health').props.disabled).toBe(false)
+    expect(button(unselected.tree, 'Delete Health').props.disabled).toBe(false)
+    expect(button(selected.tree, 'Health').props.disabled).toBe(false)
     expect(timing).not.toHaveBeenCalled()
   })
 })
