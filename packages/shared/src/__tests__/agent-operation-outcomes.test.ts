@@ -20,6 +20,36 @@ const denial: AgentPolicyDenial = {
 }
 
 describe('coalesceAgentOperationOutcomes', () => {
+  it('keeps successful operation details when policy did not replace the outcome', () => {
+    const successfulOperation: AgentOperationResult = {
+      operationId: 'operation-2',
+      sourceName: 'CreateHabit',
+      targetName: 'Morning walk',
+      riskClass: 'Low',
+      confirmationRequirement: 'None',
+      status: 'Succeeded',
+    }
+
+    expect(coalesceAgentOperationOutcomes([operation, successfulOperation], [])).toEqual([
+      {
+        id: 'operation-1',
+        source: 'DeleteHabit',
+        target: undefined,
+        riskClass: 'High',
+        status: 'Denied',
+        policyReason: 'step_up_required',
+      },
+      {
+        id: 'operation-2',
+        source: 'CreateHabit',
+        target: 'Morning walk',
+        riskClass: 'Low',
+        status: 'Succeeded',
+        policyReason: undefined,
+      },
+    ])
+  })
+
   it('keeps one policy outcome and its reason when both API records share an id', () => {
     expect(coalesceAgentOperationOutcomes([operation], [denial])).toEqual([{
       id: 'operation-1',
