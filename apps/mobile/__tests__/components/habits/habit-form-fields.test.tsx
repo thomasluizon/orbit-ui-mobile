@@ -29,7 +29,7 @@ vi.mock('@/components/ui/time-field', () => ({ TimeField: () => React.createElem
 function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
   const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false, ...overrides }
   return {
-    form: { control: { values }, getValues: vi.fn((field: string) => values[field]), setValue: vi.fn(), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
+    form: { control: { values }, getValues: vi.fn((field: string) => values[field]), setValue: vi.fn((field: string, value: unknown) => { values[field] = value }), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false, showDayPicker: false, showEndDate: true,
     daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3) })),
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(), formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),
@@ -65,15 +65,47 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('clears a stale schedule when the current phrase is unresolved', async () => {
-    const formHelpers = createFormHelpers({ title: 'Drink water when I can', dueTime: '08:00' })
+  it('applies a time-only local phrase without inventing a cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Dentist at 15:00' })
     await TestRenderer.act(async () => {
       TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />)
       await Promise.resolve()
     })
 
-    expect(formHelpers.setOneTime).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
+  })
+
+  it('reconciles parser-owned fields across phrase changes without clearing a manual cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
+
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    TestRenderer.act(() => understanding.props.onQuantityChange(4))
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    controlValues.title = 'Run'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+
+    controlValues.title = 'Dentist at 15:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
   })
 
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', async () => {

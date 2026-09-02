@@ -1,13 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
-import type { HabitPhraseRead } from '@orbit/shared/utils'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import {
+  applyHabitPhraseRead,
   coalesceFormText,
   formatLocaleDate,
   getFriendlyErrorMessage,
@@ -59,35 +59,6 @@ interface HabitFormFieldsProps {
   readPhraseLocally?: boolean
   startDate?: string | null
   children?: ReactNode
-}
-
-function applyLocalRead(
-  enabled: boolean,
-  read: HabitPhraseRead,
-  emoji: string,
-  setOneTime: HabitFormHelpers['setOneTime'],
-  setFlexible: HabitFormHelpers['setFlexible'],
-  setRecurring: HabitFormHelpers['setRecurring'],
-  setValue: HabitFormHelpers['form']['setValue'],
-) {
-  if (!enabled) return
-  setValue('dueTime', read.dueTime ?? '', { shouldDirty: true })
-  if (!read.cadence) {
-    setOneTime()
-    return
-  }
-  if (read.cadence === 'flexible') {
-    setFlexible()
-    setValue('frequencyUnit', 'Week', { shouldDirty: true })
-    setValue('frequencyQuantity', read.frequencyQuantity, { shouldDirty: true })
-    setValue('days', [], { shouldDirty: true })
-  } else {
-    setRecurring()
-    setValue('frequencyUnit', 'Day', { shouldDirty: true })
-    setValue('frequencyQuantity', 1, { shouldDirty: true })
-    setValue('days', read.days, { shouldDirty: true })
-  }
-  if (read.emoji && !emoji) setValue('emoji', read.emoji, { shouldDirty: true })
 }
 
 interface AstraFallbackProps {
@@ -270,6 +241,8 @@ export function HabitFormFields({
   const displayedStartDate = resolveStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposed, setProposed] = useState(false)
+  const phraseOwnershipRef = useRef({ cadence: false, dueTime: false })
+  const lastLocallyReadTitleRef = useRef<string | null>(null)
   useExpandAdvancedSignal(expandAdvancedSignal, () => setDetailsOpen(true))
 
   const { tags: availableTags = [] } = useTags()
@@ -281,8 +254,23 @@ export function HabitFormFields({
   const localRead = useMemo(() => readHabitPhrase(title, locale), [locale, title])
 
   useEffect(() => {
-    applyLocalRead(readPhraseLocally, localRead, emoji, setOneTime, setFlexible, setRecurring, setValue)
-  }, [emoji, localRead, readPhraseLocally, setFlexible, setOneTime, setRecurring, setValue])
+    if (lastLocallyReadTitleRef.current === title) return
+    lastLocallyReadTitleRef.current = title
+    phraseOwnershipRef.current = applyHabitPhraseRead(
+      readPhraseLocally,
+      localRead,
+      emoji,
+      null,
+      phraseOwnershipRef.current,
+      {
+        setOneTime,
+        setRecurring,
+        setFlexible,
+        setGeneral: formHelpers.setGeneral,
+        setField: (field, value) => setValue(field, value as never, { shouldDirty: true }),
+      },
+    )
+  }, [emoji, formHelpers.setGeneral, localRead, readPhraseLocally, setFlexible, setOneTime, setRecurring, setValue, title])
 
   useEffect(() => {
     if (!dueTime && form.getValues('dueEndTime')) {
@@ -303,6 +291,7 @@ export function HabitFormFields({
 
   const handleToggleDay = useCallback((day: string) => {
     setProposed(false)
+    phraseOwnershipRef.current.cadence = false
     setRecurring()
     setValue('frequencyUnit', 'Day', { shouldDirty: true })
     setValue('frequencyQuantity', 1, { shouldDirty: true })
@@ -311,6 +300,7 @@ export function HabitFormFields({
 
   const handleQuantityChange = useCallback((quantity: number) => {
     setProposed(false)
+    phraseOwnershipRef.current.cadence = false
     setFlexible()
     setValue('frequencyUnit', 'Week', { shouldDirty: true })
     setValue('frequencyQuantity', quantity, { shouldDirty: true })
@@ -422,8 +412,14 @@ export function HabitFormFields({
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
                 value={dueTime as Time24 | ''}
-                onChange={(value) => setValue('dueTime', value, { shouldDirty: true })}
-                onClear={() => setValue('dueTime', '', { shouldDirty: true })}
+                onChange={(value) => {
+                  phraseOwnershipRef.current.dueTime = false
+                  setValue('dueTime', value, { shouldDirty: true })
+                }}
+                onClear={() => {
+                  phraseOwnershipRef.current.dueTime = false
+                  setValue('dueTime', '', { shouldDirty: true })
+                }}
               />
             </section>
 

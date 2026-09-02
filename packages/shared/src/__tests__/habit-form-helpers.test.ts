@@ -181,14 +181,14 @@ describe('habit form helpers', () => {
     const calls: string[] = []
     const fields: Record<string, string | number | string[]> = {}
 
-    applyHabitPhraseRead(true, {
+    const ownership = applyHabitPhraseRead(true, {
       cadence: null,
       days: [],
       frequencyQuantity: null,
       dueTime: '15:00',
       emoji: null,
       consumed: [],
-    }, '', false, {
+    }, '', false, { cadence: false, dueTime: false }, {
       setOneTime: () => calls.push('one-time'),
       setRecurring: () => calls.push('recurring'),
       setFlexible: () => calls.push('flexible'),
@@ -196,22 +196,23 @@ describe('habit form helpers', () => {
       setField: (field, value) => { fields[field] = value },
     })
 
-    expect(calls).toEqual(['one-time'])
+    expect(calls).toEqual([])
     expect(fields).toEqual({ dueTime: '15:00' })
+    expect(ownership).toEqual({ cadence: false, dueTime: true })
   })
 
   it('preserves a locked General schedule during phrase application', () => {
     const calls: string[] = []
     const fields: Record<string, string | number | string[]> = {}
 
-    applyHabitPhraseRead(true, {
+    const ownership = applyHabitPhraseRead(true, {
       cadence: 'fixed',
       days: ['Monday'],
       frequencyQuantity: null,
       dueTime: '08:00',
       emoji: '🏃',
       consumed: [],
-    }, '', true, {
+    }, '', true, { cadence: false, dueTime: false }, {
       setOneTime: () => calls.push('one-time'),
       setRecurring: () => calls.push('recurring'),
       setFlexible: () => calls.push('flexible'),
@@ -221,6 +222,7 @@ describe('habit form helpers', () => {
 
     expect(calls).toEqual(['general'])
     expect(fields).toEqual({})
+    expect(ownership).toEqual({ cadence: true, dueTime: true })
   })
 
   it('builds truthful daily, fixed-day, flexible, and time-only summaries', () => {

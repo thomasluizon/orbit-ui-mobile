@@ -154,37 +154,51 @@ interface HabitPhraseFormTarget {
   setField: (field: PhraseField, value: string | number | string[]) => void
 }
 
+export interface HabitPhraseFormOwnership {
+  cadence: boolean
+  dueTime: boolean
+}
+
 export function applyHabitPhraseRead(
   enabled: boolean,
   read: HabitPhraseRead,
   emoji: string,
   lockedGeneral: boolean | null,
+  ownership: HabitPhraseFormOwnership,
   target: HabitPhraseFormTarget,
-): void {
-  if (!enabled) return
+): HabitPhraseFormOwnership {
+  if (!enabled) return ownership
   if (lockedGeneral === true) {
     target.setGeneral()
-    return
+    return { cadence: true, dueTime: true }
   }
 
-  target.setField('dueTime', read.dueTime ?? '')
+  const nextOwnership = { ...ownership }
+  if (read.dueTime) {
+    target.setField('dueTime', read.dueTime)
+    nextOwnership.dueTime = true
+  } else if (ownership.dueTime) {
+    target.setField('dueTime', '')
+  }
   if (read.emoji && !emoji) target.setField('emoji', read.emoji)
   if (!read.cadence) {
-    target.setOneTime()
-    return
+    if (ownership.cadence) target.setOneTime()
+    return nextOwnership
   }
+  nextOwnership.cadence = true
   if (read.cadence === 'flexible') {
     target.setFlexible()
     target.setField('frequencyUnit', 'Week')
     target.setField('frequencyQuantity', read.frequencyQuantity!)
     target.setField('days', [])
-    return
+    return nextOwnership
   }
 
   target.setRecurring()
   target.setField('frequencyUnit', 'Day')
   target.setField('frequencyQuantity', 1)
   target.setField('days', read.days)
+  return nextOwnership
 }
 
 type UnderstandingTranslator = (

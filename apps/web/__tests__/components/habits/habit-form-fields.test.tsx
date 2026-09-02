@@ -39,7 +39,9 @@ vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ Sli
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => <div>time-field</div> }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => <div>date-field</div> }))
 
-function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
+type TestHabitFormHelpers = HabitFormHelpers & { testValues: Record<string, unknown> }
+
+function createFormHelpers(overrides: Record<string, unknown> = {}): TestHabitFormHelpers {
   const values: Record<string, unknown> = {
     title: '', emoji: '', frequencyUnit: null, frequencyQuantity: null, days: [],
     isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '',
@@ -50,7 +52,7 @@ function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHe
     form: {
       watch: vi.fn((field: string) => values[field]),
       getValues: vi.fn((field: string) => values[field]),
-      setValue: vi.fn(),
+      setValue: vi.fn((field: string, value: unknown) => { values[field] = value }),
       formState: { errors: {} },
     } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false,
@@ -59,6 +61,7 @@ function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHe
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(),
     setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(),
     formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),
+    testValues: values,
   }
 }
 
@@ -81,13 +84,15 @@ function renderForm(
   readPhraseLocally = false,
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const buildForm = () => (
     <QueryClientProvider client={queryClient}>
       <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   )
+  const view = render(buildForm())
+  return { ...view, rerenderForm: () => view.rerender(buildForm()) }
 }
 
 describe('HabitFormFields', () => {
@@ -120,12 +125,35 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('clears a stale schedule when the current phrase is unresolved', async () => {
-    const formHelpers = createFormHelpers({ title: 'Drink water when I can', dueTime: '08:00' })
+  it('applies a time-only local phrase without inventing a cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Dentist at 15:00' })
     renderForm(formHelpers, undefined, false, true)
 
-    await waitFor(() => expect(formHelpers.setOneTime).toHaveBeenCalledOnce())
+    await waitFor(() => {
+      expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
+    })
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
+  })
+
+  it('reconciles parser-owned fields across phrase changes without clearing a manual cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const view = renderForm(formHelpers, undefined, false, true)
+
+    await waitFor(() => expect(formHelpers.setRecurring).toHaveBeenCalledOnce())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    formHelpers.testValues.title = 'Run'
+    view.rerenderForm()
+
+    await waitFor(() => expect(formHelpers.setOneTime).not.toHaveBeenCalled())
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+
+    formHelpers.testValues.title = 'Dentist at 15:00'
+    view.rerenderForm()
+    await waitFor(() => {
+      expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
+    })
   })
 
   it('reveals the detail sections from the single disclosure', () => {

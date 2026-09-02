@@ -166,6 +166,7 @@ export {
 export type {
   HabitFormSuggestionPatch,
   HabitFormProposal,
+  HabitPhraseFormOwnership,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'
