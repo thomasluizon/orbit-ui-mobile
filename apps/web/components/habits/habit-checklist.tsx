@@ -245,9 +245,9 @@ export function HabitChecklist({
             disabled={atItemLimit}
           />
           {atItemLimit ? (
-            <p role="status" className="text-xs text-[var(--fg-3)]">
+            <output className="text-xs text-[var(--fg-3)]">
               {t('habits.form.checklistItemLimit')}
-            </p>
+            </output>
           ) : null}
         </div>
       )}

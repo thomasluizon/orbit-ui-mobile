@@ -1,18 +1,27 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   EMPTY_HABIT_FORM_PROPOSAL,
   HABIT_REMINDER_PRESETS,
+  applyHabitDayCorrection,
   applyHabitPhraseRead,
+  applyHabitQuantityCorrection,
+  buildHabitAstraFallbackCopy,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
+  buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
+  clearHabitFormProposalSection,
+  createHabitFormController,
   formatHabitReminderLabel,
   formatHabitTimeInput,
   getHabitFormFlags,
+  habitFeaturePlan,
   hasHabitFormProposal,
   isHabitAstraLimitReached,
   isValidHabitTimeInput,
   normalizeHabitFormData,
+  releaseHabitPhraseOwnership,
+  requestHabitFormProposal,
   resolveHabitStartDate,
   shouldShowHabitAstraFallback,
   validateHabitFormInput,
@@ -256,6 +265,192 @@ describe('habit form helpers', () => {
     expect(formatHabitReminderLabel(31, translate)).toBe('31 habits.form.reminderMinutes')
     expect(formatHabitReminderLabel(61, translate)).toBe('1 habits.form.reminderHour')
     expect(formatHabitReminderLabel(2880, translate)).toBe('2 habits.form.reminderDays')
+  })
+
+  it('centralizes proposal state and fallback copy', async () => {
+    const proposal = { setup: true, checklist: true, subHabits: false }
+    const translate = (key: string, values?: Record<string, string | number>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key
+    const action = vi.fn(async () => proposal)
+
+    expect(clearHabitFormProposalSection(proposal, 'setup')).toEqual({
+      setup: false,
+      checklist: true,
+      subHabits: false,
+    })
+    expect(clearHabitFormProposalSection(proposal, 'subHabits')).toBe(proposal)
+    await expect(requestHabitFormProposal(action, false)).resolves.toBe(proposal)
+    await expect(requestHabitFormProposal(action, true)).resolves.toBe(EMPTY_HABIT_FORM_PROPOSAL)
+    await expect(requestHabitFormProposal(undefined, false)).resolves.toBe(EMPTY_HABIT_FORM_PROPOSAL)
+    expect(action).toHaveBeenCalledOnce()
+    expect(habitFeaturePlan(true)).toBe('pro')
+    expect(habitFeaturePlan(false)).toBe('free')
+    expect(buildHabitUnderstandingLabels(translate)).toMatchObject({
+      field: 'habits.form.describe',
+      proposed: 'habits.form.proposedByAstra',
+    })
+    expect(buildHabitAstraFallbackCopy(translate, 5)).toEqual({
+      unresolved: 'habits.form.unresolved',
+      limitMessage: 'habits.form.localReadLimit:{"allowance":5}',
+      readingLabel: 'habits.form.astraReading',
+      askLabel: 'habits.form.askAstra',
+      costLabel: 'habits.form.askAstraCost:{"allowance":5}',
+    })
+  })
+
+  it('centralizes day and quantity corrections', () => {
+    const calls: string[] = []
+    const fields: Record<string, unknown> = {}
+    const target = {
+      setRecurring: () => calls.push('recurring'),
+      setFlexible: () => calls.push('flexible'),
+      setGeneral: () => calls.push('general'),
+      setField: (field: string, value: unknown) => { fields[field] = value },
+    }
+
+    expect(applyHabitDayCorrection(false, target)).toBe(true)
+    expect(fields).toEqual({ frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(applyHabitQuantityCorrection(4, false, target)).toBe(true)
+    expect(fields).toEqual({ frequencyUnit: 'Week', frequencyQuantity: 4 })
+    expect(applyHabitDayCorrection(true, target)).toBe(false)
+    expect(applyHabitQuantityCorrection(2, true, target)).toBe(false)
+    expect(calls).toEqual(['recurring', 'flexible', 'general', 'general'])
+  })
+
+  it('releases only parser-owned fields', () => {
+    const ownership = { cadence: true, dueTime: false }
+    expect(releaseHabitPhraseOwnership(ownership, 'cadence')).toEqual({ cadence: false, dueTime: false })
+    expect(releaseHabitPhraseOwnership(ownership, 'dueTime')).toBe(ownership)
+  })
+
+  it('coordinates form corrections and proposal ownership', async () => {
+    const proposed = { setup: true, checklist: true, subHabits: true }
+    let proposal = EMPTY_HABIT_FORM_PROPOSAL
+    let ownership = { cadence: true, dueTime: true }
+    const fields = new Map<string, { value: unknown; validate?: boolean }>()
+    const setRecurring = vi.fn()
+    const setFlexible = vi.fn()
+    const setGeneral = vi.fn()
+    const toggleDay = vi.fn()
+    const controller = createHabitFormController({
+      action: async () => proposed,
+      atLimit: false,
+      lockedGeneral: false,
+      target: {
+        getOwnership: () => ownership,
+        setOwnership: (next) => { ownership = next },
+        updateProposal: (update) => { proposal = update(proposal) },
+        setOneTime: vi.fn(),
+        setRecurring,
+        setFlexible,
+        setGeneral,
+        setField: (field, value, validate) => fields.set(field, { value, validate }),
+        toggleDay,
+      },
+    })
+
+    await controller.askAstra()
+    expect(proposal).toBe(proposed)
+    expect(ownership).toEqual({ cadence: false, dueTime: false })
+
+    ownership = { cadence: true, dueTime: true }
+    controller.releaseDueTime()
+    expect(ownership).toEqual({ cadence: true, dueTime: false })
+    controller.readPhrase(true, {
+      cadence: null,
+      days: [],
+      frequencyQuantity: null,
+      dueTime: '15:00',
+      emoji: null,
+      consumed: [],
+    }, '')
+    expect(fields.get('dueTime')?.value).toBe('15:00')
+    controller.setDueTime('16:00')
+    expect(fields.get('dueTime')?.value).toBe('16:00')
+    controller.clearDueTime()
+    expect(fields.get('dueTime')?.value).toBe('')
+    controller.toggleDay('Monday')
+    expect(ownership.cadence).toBe(false)
+    expect(setRecurring).toHaveBeenCalledOnce()
+    expect(toggleDay).toHaveBeenCalledWith('Monday')
+    expect(fields.get('frequencyUnit')?.value).toBe('Day')
+
+    proposal = proposed
+    controller.setQuantity(4)
+    expect(setFlexible).toHaveBeenCalledOnce()
+    expect(fields.get('frequencyUnit')?.value).toBe('Week')
+    expect(fields.get('frequencyQuantity')?.value).toBe(4)
+    expect(proposal.setup).toBe(false)
+
+    proposal = proposed
+    controller.setEmoji('🌱')
+    expect(fields.get('emoji')?.value).toBe('🌱')
+    expect(proposal).toEqual({ setup: false, checklist: true, subHabits: true })
+    controller.resolveChecklistProposal()
+    controller.resolveSubHabitProposal()
+    expect(proposal).toEqual(EMPTY_HABIT_FORM_PROPOSAL)
+    proposal = proposed
+    controller.setChecklistItems([{ text: 'Warm up', isChecked: false }])
+    expect(fields.get('checklistItems')?.value).toEqual([
+      { text: 'Warm up', isChecked: false },
+    ])
+    expect(proposal.checklist).toBe(false)
+
+    proposal = proposed
+    controller.resolveSetupProposal()
+    expect(proposal.setup).toBe(false)
+    controller.setTitle('Read')
+    expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
+    expect(fields.get('title')).toEqual({ value: 'Read', validate: true })
+    controller.setReminderEnabled(true)
+    controller.setSlipAlertEnabled(true)
+    expect(fields.get('reminderEnabled')?.value).toBe(true)
+    expect(fields.get('slipAlertEnabled')?.value).toBe(true)
+    controller.clearProposal()
+    expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
+    expect(setGeneral).not.toHaveBeenCalled()
+  })
+
+  it('honors locked cadence and toggle overrides', async () => {
+    let proposal = { setup: true, checklist: true, subHabits: true }
+    const ownership = { cadence: false, dueTime: false }
+    const action = vi.fn(async () => proposal)
+    const onReminderEnabledChange = vi.fn()
+    const onSlipAlertEnabledChange = vi.fn()
+    const setGeneral = vi.fn()
+    const setField = vi.fn()
+    const toggleDay = vi.fn()
+    const controller = createHabitFormController({
+      action,
+      atLimit: true,
+      lockedGeneral: true,
+      onReminderEnabledChange,
+      onSlipAlertEnabledChange,
+      target: {
+        getOwnership: () => ownership,
+        setOwnership: vi.fn(),
+        updateProposal: (update) => { proposal = update(proposal) },
+        setOneTime: vi.fn(),
+        setRecurring: vi.fn(),
+        setFlexible: vi.fn(),
+        setGeneral,
+        setField,
+        toggleDay,
+      },
+    })
+
+    await controller.askAstra()
+    expect(action).not.toHaveBeenCalled()
+    expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
+    controller.toggleDay('Friday')
+    controller.setQuantity(2)
+    expect(setGeneral).toHaveBeenCalledTimes(2)
+    expect(toggleDay).not.toHaveBeenCalled()
+    controller.setReminderEnabled(true)
+    controller.setSlipAlertEnabled(false)
+    expect(onReminderEnabledChange).toHaveBeenCalledWith(true)
+    expect(onSlipAlertEnabledChange).toHaveBeenCalledWith(false)
+    expect(setField).not.toHaveBeenCalled()
   })
 
   it('validates reminder selection with due-time reminders', () => {

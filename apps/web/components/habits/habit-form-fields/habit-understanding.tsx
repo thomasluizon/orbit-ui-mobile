@@ -1,44 +1,11 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { HabitPhraseToken } from '@orbit/shared/utils'
+import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { Proposed } from '@/components/ui/proposed'
-
-interface DayOption {
-  value: string
-  label: string
-}
-
-interface HabitUnderstandingProps {
-  value: string
-  error?: string
-  emoji: string
-  days: string[]
-  dayOptions: DayOption[]
-  quantity: number
-  sentence: string | null
-  consumed: readonly HabitPhraseToken[]
-  proposed?: boolean
-  onValueChange: (value: string) => void
-  onEmojiSelect: (emoji: string) => void
-  onToggleDay: (day: string) => void
-  onQuantityChange: (quantity: number) => void
-  labels: {
-    field: string
-    placeholder: string
-    understood: string
-    understoodAstra: string
-    unresolved: string
-    days: string
-    less: string
-    more: string
-    count: string
-    proposed: string
-  }
-}
 
 export function HabitUnderstanding({
   value,
@@ -117,7 +84,7 @@ export function HabitUnderstanding({
               {sentence ?? labels.unresolved}
             </p>
 
-            <div role="group" aria-label={labels.days} className="flex" style={{ gap: 4 }}>
+            <fieldset aria-label={labels.days} className="flex" style={{ gap: 4 }}>
               {dayOptions.map((day) => {
                 const selected = days.includes(day.value)
                 return (
@@ -137,7 +104,7 @@ export function HabitUnderstanding({
                   </button>
                 )
               })}
-            </div>
+            </fieldset>
 
             <div className="flex items-center" style={{ gap: 8 }}>
               <button

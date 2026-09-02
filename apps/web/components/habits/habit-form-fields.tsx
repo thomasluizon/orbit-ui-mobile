@@ -5,17 +5,20 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
-import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitFormCommonProps } from '@orbit/shared/utils'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import {
-  applyHabitPhraseRead,
+  buildHabitAstraFallbackCopy,
+  buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
+  createHabitFormController,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
   formatHabitReminderLabel,
   formatLocaleDate,
   getFriendlyErrorMessage,
+  habitFeaturePlan,
   isFeatureEnabled,
   isHabitAstraLimitReached,
   readHabitPhrase,
@@ -50,30 +53,8 @@ import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
 
-interface HabitFormFieldsProps {
-  formHelpers: HabitFormHelpers
+interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   titleInputRef?: RefObject<HTMLInputElement | null>
-  tags: TagSelectionState
-  selectedGoalIds: string[]
-  atGoalLimit: boolean
-  onToggleGoal: (goalId: string) => void
-  reminderTimes: number[]
-  onReminderTimesChange: (times: number[]) => void
-  onReminderEnabledChange?: (nextEnabled: boolean) => void
-  onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
-  onResolveSubHabitProposalReady?: (resolve: () => void) => void
-  defaultExpanded?: boolean
-  lockedGeneral?: boolean | null
-  expandAdvancedSignal?: number
-  onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
-  isSuggesting?: boolean
-  readPhraseLocally?: boolean
-  startDate?: string | null
-  children?: ReactNode
-}
-
-function featurePlan(hasProAccess: boolean): 'pro' | 'free' {
-  return hasProAccess ? 'pro' : 'free'
 }
 
 interface AstraFallbackProps {
@@ -86,14 +67,6 @@ interface AstraFallbackProps {
   askLabel: string
   costLabel: string
   onAsk: () => void
-}
-
-async function askAstra(
-  action: HabitFormFieldsProps['onSuggestSetup'],
-  atLimit: boolean,
-): Promise<HabitFormProposal> {
-  if (!action || atLimit) return EMPTY_HABIT_FORM_PROPOSAL
-  return action()
 }
 
 function AstraFallback({
@@ -241,11 +214,11 @@ export function HabitFormFields({
   const checklistItems = watch('checklistItems') ?? []
   const isBadHabit = watch('isBadHabit') ?? false
   const slipAlertEnabled = watch('slipAlertEnabled') ?? false
-  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', featurePlan(hasProAccess))
+  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', habitFeaturePlan(hasProAccess))
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
-  const phraseOwnershipRef = useRef({ cadence: false, dueTime: false })
+  const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
   useExpandAdvancedSignal(expandAdvancedSignal, () => setDetailsOpen(true))
 
@@ -256,25 +229,6 @@ export function HabitFormFields({
   const [justToggledTagId, setJustToggledTagId] = useState('')
   const selectedTagIdSet = useMemo(() => new Set(tags.selectedTagIds), [tags.selectedTagIds])
   const localRead = useMemo(() => readHabitPhrase(title, locale), [locale, title])
-
-  useEffect(() => {
-    if (lastLocallyReadTitleRef.current === title) return
-    lastLocallyReadTitleRef.current = title
-    phraseOwnershipRef.current = applyHabitPhraseRead(
-      readPhraseLocally,
-      localRead,
-      emoji,
-      lockedGeneral,
-      phraseOwnershipRef.current,
-      {
-        setOneTime,
-        setRecurring,
-        setFlexible,
-        setGeneral,
-        setField: (field, value) => setValue(field, value as never, { shouldDirty: true }),
-      },
-    )
-  }, [emoji, localRead, lockedGeneral, readPhraseLocally, setFlexible, setGeneral, setOneTime, setRecurring, setValue, title])
 
   useEffect(() => {
     if (!dueTime && form.getValues('dueEndTime')) {
@@ -288,56 +242,47 @@ export function HabitFormFields({
   )
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
+  const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate), [translate])
+  const astraFallbackCopy = useMemo(
+    () => buildHabitAstraFallbackCopy(translate, allowance),
+    [allowance, translate],
+  )
 
-  const handleAskAstra = useCallback(async () => {
-    const nextProposal = await askAstra(onSuggestSetup, atMessageLimit)
-    if (nextProposal.setup) {
-      phraseOwnershipRef.current = { cadence: false, dueTime: false }
-    }
-    setProposal(nextProposal)
-  }, [atMessageLimit, onSuggestSetup])
+  const controller = useMemo(() => createHabitFormController({
+    action: onSuggestSetup,
+    atLimit: atMessageLimit,
+    lockedGeneral,
+    onReminderEnabledChange,
+    onSlipAlertEnabledChange,
+    target: {
+      getOwnership: () => phraseOwnership,
+      setOwnership: setPhraseOwnership,
+      updateProposal: (update) => setProposal(update),
+      setOneTime,
+      setRecurring,
+      setFlexible,
+      setGeneral,
+      setField: (field, value, validate = false) => setValue(
+        field,
+        value as never,
+        validate ? { shouldDirty: true, shouldValidate: true } : { shouldDirty: true },
+      ),
+      toggleDay,
+    },
+  }), [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay])
+
+  useEffect(() => {
+    if (lastLocallyReadTitleRef.current === title) return
+    lastLocallyReadTitleRef.current = title
+    controller.readPhrase(readPhraseLocally, localRead, emoji)
+  }, [controller, emoji, localRead, readPhraseLocally, title])
 
   useEffect(() => {
     if (!onResolveSubHabitProposalReady) return
     // react-doctor-disable-next-line no-prop-callback-in-effect -- the modal owns this editor; registering its resolver preserves section-specific proposal state https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    onResolveSubHabitProposalReady(() => setProposal((current) => ({ ...current, subHabits: false })))
+    onResolveSubHabitProposalReady(controller.resolveSubHabitProposal)
     return () => onResolveSubHabitProposalReady(() => {})
-  }, [onResolveSubHabitProposalReady])
-
-  const handleToggleDay = useCallback((day: string) => {
-    setProposal((current) => current.setup ? { ...current, setup: false } : current)
-    phraseOwnershipRef.current.cadence = false
-    if (lockedGeneral === true) {
-      setGeneral()
-      return
-    }
-    setRecurring()
-    setValue('frequencyUnit', 'Day', { shouldDirty: true })
-    setValue('frequencyQuantity', 1, { shouldDirty: true })
-    toggleDay(day)
-  }, [lockedGeneral, setGeneral, setRecurring, setValue, toggleDay])
-
-  const handleQuantityChange = useCallback((quantity: number) => {
-    setProposal((current) => current.setup ? { ...current, setup: false } : current)
-    phraseOwnershipRef.current.cadence = false
-    if (lockedGeneral === true) {
-      setGeneral()
-      return
-    }
-    setFlexible()
-    setValue('frequencyUnit', 'Week', { shouldDirty: true })
-    setValue('frequencyQuantity', quantity, { shouldDirty: true })
-  }, [lockedGeneral, setFlexible, setGeneral, setValue])
-
-  const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
-    if (onReminderEnabledChange) onReminderEnabledChange(nextEnabled)
-    else setValue('reminderEnabled', nextEnabled, { shouldDirty: true })
-  }, [onReminderEnabledChange, setValue])
-
-  const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
-    if (onSlipAlertEnabledChange) onSlipAlertEnabledChange(nextEnabled)
-    else setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
-  }, [onSlipAlertEnabledChange, setValue])
+  }, [controller, onResolveSubHabitProposalReady])
 
   function toggleTag(tagId: string) {
     if (!tags.selectedTagIds.includes(tagId)) {
@@ -387,39 +332,20 @@ export function HabitFormFields({
         consumed={localRead.consumed}
         proposed={proposal.setup}
         onValueChange={(value) => {
-          setProposal(EMPTY_HABIT_FORM_PROPOSAL)
-          setValue('title', value, { shouldDirty: true, shouldValidate: true })
+          controller.setTitle(value)
         }}
-        onEmojiSelect={(value) => {
-          setProposal((current) => current.setup ? { ...current, setup: false } : current)
-          setValue('emoji', value, { shouldDirty: true })
-        }}
-        onToggleDay={handleToggleDay}
-        onQuantityChange={handleQuantityChange}
-        labels={{
-          field: t('habits.form.describe'),
-          placeholder: t('habits.form.describePlaceholder'),
-          understood: t('habits.form.understood'),
-          understoodAstra: t('habits.form.understoodAstra'),
-          unresolved: t('habits.form.unresolved'),
-          days: t('habits.form.activeDays'),
-          less: t('habits.form.lessOften'),
-          more: t('habits.form.moreOften'),
-          count: t('habits.form.timesAWeek'),
-          proposed: t('habits.form.proposedByAstra'),
-        }}
+        onEmojiSelect={controller.setEmoji}
+        onToggleDay={controller.toggleDay}
+        onQuantityChange={controller.setQuantity}
+        labels={understandingLabels}
       />
 
       <AstraFallback
         visible={shouldShowHabitAstraFallback(title, sentence, onSuggestSetup, proposal)}
         atLimit={atMessageLimit}
         isSuggesting={isSuggesting}
-        unresolved={t('habits.form.unresolved')}
-        limitMessage={t('habits.form.localReadLimit', { allowance })}
-        readingLabel={t('habits.form.astraReading')}
-        askLabel={t('habits.form.askAstra')}
-        costLabel={t('habits.form.askAstraCost', { allowance })}
-        onAsk={() => void handleAskAstra()}
+        {...astraFallbackCopy}
+        onAsk={() => void controller.askAstra()}
       />
 
       <div className="flex flex-col" style={{ gap: 12 }}>
@@ -438,14 +364,8 @@ export function HabitFormFields({
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
                 value={dueTime as Time24 | ''}
-                onChange={(value) => {
-                  phraseOwnershipRef.current.dueTime = false
-                  setValue('dueTime', value, { shouldDirty: true })
-                }}
-                onClear={() => {
-                  phraseOwnershipRef.current.dueTime = false
-                  setValue('dueTime', '', { shouldDirty: true })
-                }}
+                onChange={controller.setDueTime}
+                onClear={controller.clearDueTime}
               />
             </section>
 
@@ -457,7 +377,7 @@ export function HabitFormFields({
                 reminderTimes={reminderTimes}
                 scheduledReminders={scheduledReminders}
                 onReminderTimesChange={onReminderTimesChange}
-                onToggle={() => handleReminderEnabledChange(!reminderEnabled)}
+                onToggle={() => controller.setReminderEnabled(!reminderEnabled)}
                 onSetScheduledReminders={(items) => setValue('scheduledReminders', items, { shouldDirty: true })}
                 onValidationError={showError}
                 t={t}
@@ -470,17 +390,11 @@ export function HabitFormFields({
                 <HabitChecklist
                   items={checklistItems}
                   editable
-                  onItemsChange={(items) => {
-                    setProposal((current) => ({ ...current, checklist: false }))
-                    setValue('checklistItems', items, { shouldDirty: true })
-                  }}
+                  onItemsChange={controller.setChecklistItems}
                 />
                 <ChecklistTemplates
                   items={checklistItems}
-                  onLoad={(items) => {
-                    setProposal((current) => ({ ...current, checklist: false }))
-                    setValue('checklistItems', items, { shouldDirty: true })
-                  }}
+                  onLoad={controller.setChecklistItems}
                 />
               </Proposed>
             </section>
@@ -504,7 +418,7 @@ export function HabitFormFields({
               <SlipAlertSection
                 hasProAccess={hasProAccess}
                 slipAlertEnabled={slipAlertEnabled}
-                onToggle={() => handleSlipAlertEnabledChange(!slipAlertEnabled)}
+                onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)}
                 t={t}
               />
             </section>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import type { HabitPhraseToken } from '@orbit/shared/utils'
+import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { Proposed } from '@/components/ui/proposed'
@@ -8,39 +8,6 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { createStyles as createFormStyles } from './styles'
-
-interface DayOption {
-  value: string
-  label: string
-}
-
-interface HabitUnderstandingProps {
-  value: string
-  error?: string
-  emoji: string
-  days: string[]
-  dayOptions: DayOption[]
-  quantity: number
-  sentence: string | null
-  consumed: readonly HabitPhraseToken[]
-  proposed?: boolean
-  onValueChange: (value: string) => void
-  onEmojiSelect: (emoji: string) => void
-  onToggleDay: (day: string) => void
-  onQuantityChange: (quantity: number) => void
-  labels: {
-    field: string
-    placeholder: string
-    understood: string
-    understoodAstra: string
-    unresolved: string
-    days: string
-    less: string
-    more: string
-    count: string
-    proposed: string
-  }
-}
 
 export function HabitUnderstanding({
   value,
