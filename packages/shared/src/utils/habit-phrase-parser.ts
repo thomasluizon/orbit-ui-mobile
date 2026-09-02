@@ -42,10 +42,10 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       { day: 'Friday', pattern: /\bsextas?(?:-feira)?\b/giu },
       { day: 'Saturday', pattern: /\bs[áa]bados?\b/giu },
     ],
-    daily: /\b(todo dia|todos os dias|diariamente|toda manh[ãa]|toda noite)\b/giu,
+    daily: /(?<!\p{L})(todo dia|todos os dias|diariamente|toda manh[ãa]|toda noite)(?!\p{L})/giu,
     count: /\b([1-7])\s*(?:vezes|x)\s*(?:(?:por|na)\s*)?semana\b/giu,
     clockWithSeparator: /\b([01]?\d|2[0-3]):([0-5]\d)\b/gu,
-    clockAfterAt: /(?<!\p{L})[àa]s\s+([01]?\d|2[0-3])(?:h([0-5]\d)?)?\b/giu,
+    clockAfterAt: /(?<!\p{L})[àa]s\s+([01]?\d|2[0-3])(?:h([0-5]\d)?|:([0-5]\d))?\b/giu,
   },
   en: {
     weekdays: [
@@ -100,7 +100,7 @@ function readTime(patterns: LocalePatterns, text: string): { value: string | nul
   const hours = match[1]?.padStart(2, '0')
   if (!hours) return { value: null, token: null }
   return {
-    value: `${hours}:${(match[2] ?? '00').padStart(2, '0')}`,
+    value: `${hours}:${(match.slice(2).find(Boolean) ?? '00').padStart(2, '0')}`,
     token: { ...toRange(match), kind: 'time' },
   }
 }

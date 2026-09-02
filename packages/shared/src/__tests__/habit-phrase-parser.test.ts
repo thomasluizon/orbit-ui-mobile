@@ -52,6 +52,28 @@ describe('readHabitPhrase', () => {
     expect(readHabitPhrase('Alongar todos os dias', 'pt-BR').cadence).toBe('daily')
   })
 
+  it('reads the complete Portuguese colon clock after at', () => {
+    expect(readHabitPhrase('às 8:30', 'pt-BR')).toEqual({
+      cadence: null,
+      days: [],
+      frequencyQuantity: null,
+      dueTime: '08:30',
+      emoji: null,
+      consumed: [{ start: 0, end: 7, kind: 'time' }],
+    })
+  })
+
+  it.each(['toda manhã', 'toda manha'])('reads the complete Portuguese daily phrase %s', (phrase) => {
+    expect(readHabitPhrase(phrase, 'pt-BR')).toEqual({
+      cadence: 'daily',
+      days: [],
+      frequencyQuantity: null,
+      dueTime: null,
+      emoji: null,
+      consumed: [{ start: 0, end: 10, kind: 'daily' }],
+    })
+  })
+
   it('leaves unsupported cadence and invalid times unresolved', () => {
     expect(readHabitPhrase('Drink more water when I can at 27:80', 'en')).toEqual({
       cadence: null,
