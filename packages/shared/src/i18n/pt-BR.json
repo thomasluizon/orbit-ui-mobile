@@ -1256,17 +1256,18 @@
       "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
       "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos",
-      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano."
+      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano.",
+      "actionFailed": "Não foi possível concluir. Tente de novo."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
       "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto"
     },
     "prompt": {
-      "eyebrow": "Você está com tudo",
       "streakTitle": "Sequência de {count} dias",
       "levelTitle": "Você chegou ao nível {level}",
       "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
+      "bodyFallback": "Convide um amigo para criar hábitos melhores com você.",
       "cta": "Convidar amigos",
       "later": "Agora não"
     },
@@ -1274,10 +1275,9 @@
   },
   "marketingConsent": {
     "prompt": {
-      "eyebrow": "Fique por dentro",
-      "title": "Novidades do produto por e-mail?",
+      "title": "Novidades do Orbit",
       "body": "Vamos enviar e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, e você pode cancelar quando quiser.",
-      "accept": "Sim, quero receber",
+      "accept": "Pode enviar",
       "decline": "Agora não"
     }
   },
@@ -1466,22 +1466,23 @@
   "trial": {
     "proBadge": "Período de teste",
     "banner": {
-      "trialEyebrow": "Teste Pro",
+      "freeLine": "Plano grátis",
       "daysLeft": "{days} dia restante | {days} dias restantes",
       "lastDay": "O teste acaba hoje",
-      "upgrade": "Upgrade"
+      "upgrade": "Ver Pro"
     },
     "expired": {
       "eyebrow": "Teste encerrado",
       "heading": "Seu teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
-      "aiChat": "50 mensagens de IA por dia",
-      "aiSummary": "Resumos diários da IA",
-      "subHabits": "Sub-hábitos",
-      "goals": "Análise de metas por IA",
-      "subscribe": "Assinar Pro",
-      "continueFree": "Continuar no plano grátis"
+      "astraCeiling": "50 mensagens da Astra por dia",
+      "calendarSync": "Sincronização do calendário",
+      "retrospective": "Retrospectiva periódica",
+      "proactiveAstra": "Astra proativa",
+      "savings": "Anual economiza {percent}%",
+      "subscribe": "Ver planos",
+      "continueFree": "Ficar grátis"
     }
   },
   "metrics": {
@@ -3025,6 +3026,7 @@
     "notMedicalAdvice": "A Astra é IA e pode errar. Isto não é aconselhamento médico ou profissional."
   },
   "milestoneShare": {
+    "title": "Compartilhar marco",
     "streakEyebrow": "Marco de sequência",
     "achievementEyebrow": "Conquista obtida",
     "streakTitle": "Sequência de {count} dias",

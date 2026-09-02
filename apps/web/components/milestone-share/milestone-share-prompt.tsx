@@ -111,6 +111,7 @@ export function MilestoneSharePrompt() {
       ref={sheetRef}
       open
       onClose={() => setVisibleKey(null)}
+      title={t('milestoneShare.title')}
     >
       <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
           <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />
@@ -120,7 +121,7 @@ export function MilestoneSharePrompt() {
               margin: 0,
               textAlign: 'center',
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 16,
               lineHeight: 1.5,
               color: 'var(--fg-2)',
             }}
@@ -129,13 +130,13 @@ export function MilestoneSharePrompt() {
           </p>
 
           {hasError && (
-            <p role="alert" style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad)' }}>
+            <p role="alert" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad)' }}>
               {t('milestoneShare.shareError')}
             </p>
           )}
 
           <div className="flex w-full flex-col" style={{ gap: 16, maxWidth: 360, marginInline: 'auto' }}>
-            <div className="flex w-full" style={{ gap: 10 }}>
+            <div className="flex w-full" style={{ gap: 8 }}>
               {canShareFiles && (
                 <PillButton
 

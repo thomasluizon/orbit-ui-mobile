@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
@@ -47,10 +46,7 @@ function LoadedShareCard({
 }: Readonly<LoadedShareCardProps>) {
   const { t } = useTranslation()
   return (
-    <Animated.View
-      entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
-      style={styles.cardBlock}
-    >
+    <View style={styles.cardBlock}>
       <View style={styles.cardWrap}>
         <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
       </View>
@@ -62,7 +58,7 @@ function LoadedShareCard({
       >
         {t('shareCard.share')}
       </PillButton>
-    </Animated.View>
+    </View>
   )
 }
 
@@ -170,7 +166,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     emptyText: {
       textAlign: 'center',
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -182,7 +178,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     errorText: {
       textAlign: 'center',
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusBad,
     },

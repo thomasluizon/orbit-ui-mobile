@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { TriangleAlert } from '@/components/ui/icons'
 import Link from 'next/link'
-import { Rubik } from 'next/font/google'
+import { Geist } from 'next/font/google'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import enMessages from '@orbit/shared/i18n/en.json'
 import ptMessages from '@orbit/shared/i18n/pt-BR.json'
@@ -12,10 +12,10 @@ import { PillButton } from '@/components/ui/pill-button'
 import { normalizeColorScheme, resolveWebThemeVariables } from '@/lib/theme-dom'
 import './globals.css'
 
-const rubik = Rubik({
+const geist = Geist({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-rubik',
+  weight: ['400', '500', '600'],
+  variable: '--font-geist',
   display: 'swap',
 })
 
@@ -125,7 +125,7 @@ export default function GlobalError({
   return (
     <html
       lang={locale}
-      className={`${theme} ${rubik.variable}`}
+      className={`${theme} ${geist.variable}`}
       style={resolveWebThemeVariables(scheme, theme)}
     >
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">

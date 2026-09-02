@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useMutation } from '@tanstack/react-query'
-import { Mail } from '@/components/ui/icons'
-import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -16,14 +13,6 @@ import { updateMarketingConsent } from '@/app/actions/profile'
 
 const SETTLE_DELAY_MS = 500
 
-function enterTransition(delayMs: number) {
-  return {
-    duration: motionDurations.base / 1000,
-    ease: motionEasings.enter,
-    delay: delayMs / 1000,
-  }
-}
-
 /**
  * One-time LGPD-lawful marketing-email consent nudge. Shows once onboarding is complete, the
  * armed slot holds a consent prompt, and no celebration is in flight — deliberately skipping the
@@ -33,7 +22,6 @@ function enterTransition(delayMs: number) {
  */
 export function MarketingConsentPrompt() {
   const t = useTranslations()
-  const prefersReducedMotion = useReducedMotion()
   const { profile, patchProfile, invalidate } = useProfile()
   const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
   const markEngagementPrompted = useReferralPromptStore(
@@ -93,74 +81,23 @@ export function MarketingConsentPrompt() {
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
     >
-      <LazyMotion features={domAnimation}>
-        <div
-          className="flex flex-col items-center text-center"
-          style={{ gap: 16, padding: '4px 0 4px' }}
-        >
-          <m.p
-            className="t-eyebrow"
-            style={{ margin: 0 }}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={enterTransition(70)}
-          >
-            {t('marketingConsent.prompt.eyebrow')}
-          </m.p>
-          <m.span
-            aria-hidden="true"
-            className="flex items-center justify-center rounded-full"
-            style={{
-              width: 64,
-              height: 64,
-              background: 'rgba(var(--primary-rgb), 0.15)',
-            }}
-            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={enterTransition(0)}
-          >
-            <Mail size={30} strokeWidth={1.8} color="var(--primary)" />
-          </m.span>
-          <m.p
-            style={{
-              margin: 0,
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              lineHeight: 1.5,
-              color: 'var(--fg-2)',
-            }}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={enterTransition(70)}
-          >
+        <div className="flex flex-col items-center gap-4 px-6 pb-6 text-center">
+          <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
             {t('marketingConsent.prompt.body')}
-          </m.p>
-          <m.div
-            className="flex w-full flex-col"
-            style={{ gap: 8, paddingTop: 4 }}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={enterTransition(140)}
-          >
-            <PillButton  onClick={() => answer(true)}>
+          </p>
+          <div className="flex w-full flex-col gap-2">
+            <PillButton onClick={() => answer(true)}>
               {t('marketingConsent.prompt.accept')}
             </PillButton>
             <button
               type="button"
               onClick={() => answer(false)}
-              className="w-full text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-              style={{
-                padding: '12px 0',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
+              className="touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-out hover:text-[var(--fg-1)] active:scale-[0.96]"
             >
               {t('marketingConsent.prompt.decline')}
             </button>
-          </m.div>
+          </div>
         </div>
-      </LazyMotion>
     </Sheet>) : null
   )
 }

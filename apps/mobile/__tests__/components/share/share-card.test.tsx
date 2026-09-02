@@ -37,7 +37,9 @@ describe('ShareCard (mobile)', () => {
   it('renders the branded capture target from a recap', () => {
     const tree = render({ recap: createMockRecap() })
     const roots = tree.root.findAll((node) => node.props?.testID === 'share-card')
+    const marks = tree.root.findAll((node) => node.props?.testID === 'orbit-mark-accent')
     expect(roots.length).toBeGreaterThan(0)
+    expect(marks.length).toBeGreaterThan(0)
   })
 
   it('renders the streak hero, formatted stats, top habits, and the scannable link', () => {

@@ -27,6 +27,10 @@ vi.mock('@/hooks/use-profile', () => ({
   useTrialExpired: () => mockTrialExpired,
 }))
 
+vi.mock('@/hooks/use-subscription-plans', () => ({
+  useSubscriptionPlans: () => ({ plans: { savingsPercent: 41 } }),
+}))
+
 vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
   useRouter: () => ({ push: mockPush }),
@@ -74,11 +78,18 @@ describe('TrialExpiredModal', () => {
   it('renders the paused feature rows', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    expect(screen.getByText('trial.expired.aiChat')).toBeInTheDocument()
-    expect(screen.queryByText('trial.expired.allColors')).not.toBeInTheDocument()
-    expect(screen.getByText('trial.expired.aiSummary')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.subHabits')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.goals')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.astraCeiling')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.calendarSync')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.retrospective')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.proactiveAstra')).toBeInTheDocument()
+    expect(screen.queryByText('trial.expired.subHabits')).not.toBeInTheDocument()
+    expect(screen.queryByText('trial.expired.goals')).not.toBeInTheDocument()
+  })
+
+  it('renders the annual saving from the plans payload', () => {
+    mockTrialExpired = true
+    render(<TrialExpiredModal />)
+    expect(screen.getByText('trial.expired.savings')).toBeInTheDocument()
   })
 
   it('renders the quiet subtitle copy', () => {

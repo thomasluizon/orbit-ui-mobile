@@ -68,6 +68,7 @@ import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import ChatScreen from '@/app/chat'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
+import { TrialBanner } from '@/components/ui/trial-banner'
 import {
   captureBuildEnabled,
   captureRequestProbeIdFromUrl,
@@ -284,6 +285,7 @@ function RootLayoutNav() {
         {showBottomNav ? (
           <Shell412
             {...todayConversation}
+            notice={<TrialBanner />}
             tabBar={<AppBottomTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />

@@ -67,6 +67,19 @@ vi.mock('@expo-google-fonts/roboto', () => ({
   Roboto_500Medium: 'Roboto_500Medium',
   Roboto_700Bold: 'Roboto_700Bold',
 }))
+vi.mock('@expo-google-fonts/geist', () => ({
+  Geist_400Regular: 'Geist_400Regular',
+  Geist_500Medium: 'Geist_500Medium',
+  Geist_600SemiBold: 'Geist_600SemiBold',
+}))
+vi.mock('@expo-google-fonts/geist-mono', () => ({
+  GeistMono_400Regular: 'GeistMono_400Regular',
+  GeistMono_500Medium: 'GeistMono_500Medium',
+}))
+vi.mock('@expo-google-fonts/space-grotesk', () => ({
+  SpaceGrotesk_500Medium: 'SpaceGrotesk_500Medium',
+  SpaceGrotesk_600SemiBold: 'SpaceGrotesk_600SemiBold',
+}))
 
 /**
  * A real QueryClient, so the real QueryClientProvider behaves normally; only the persistence
