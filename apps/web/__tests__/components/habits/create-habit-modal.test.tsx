@@ -18,6 +18,10 @@ const mockSetFlexible = vi.fn()
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
+const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
+  (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
+))
+const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -55,9 +59,9 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => true,
+  useHasProAccess: () => mockProfileState.hasProAccess,
   useProfile: () => ({
-    profile: { hasProAccess: true },
+    profile: { hasProAccess: mockProfileState.hasProAccess },
   }),
 }))
 
@@ -138,7 +142,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildCreateHabitRequest: vi.fn(() => ({})),
+  buildCreateHabitRequest: mockBuildCreateHabitRequest,
   buildSubHabitRequest: vi.fn(() => ({})),
 }))
 
@@ -206,6 +210,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('CreateHabitModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockProfileState.hasProAccess = true
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockResolvedValue({})
     mockValidateAll.mockReturnValue(null)
@@ -304,6 +309,21 @@ describe('CreateHabitModal', () => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
     })
     expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('omits nested sub-habits from a Free create request', async () => {
+    mockProfileState.hasProAccess = false
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.addSubHabit' }))
+    fireEvent.change(
+      screen.getByLabelText('habits.form.subHabitInputLabel({"index":1})'),
+      { target: { value: 'Warm up' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
   })
 
   it('keeps goal linking in the create request without a plan gate', async () => {

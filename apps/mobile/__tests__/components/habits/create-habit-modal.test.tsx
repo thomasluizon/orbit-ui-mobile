@@ -19,6 +19,10 @@ const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
 const mockValidateAll = vi.fn((): string | null => null)
 const mockPush = vi.fn()
+const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
+  (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
+))
+const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
@@ -51,8 +55,8 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => true,
-  useProfile: () => ({ profile: { hasProAccess: true } }),
+  useHasProAccess: () => mockProfileState.hasProAccess,
+  useProfile: () => ({ profile: { hasProAccess: mockProfileState.hasProAccess } }),
 }))
 
 vi.mock('@/hooks/use-config', () => ({
@@ -127,7 +131,7 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 }))
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildCreateHabitRequest: vi.fn(() => ({})),
+  buildCreateHabitRequest: mockBuildCreateHabitRequest,
   buildSubHabitRequest: vi.fn(() => ({})),
 }))
 
@@ -183,6 +187,7 @@ function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }
 describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockProfileState.hasProAccess = true
     mockCreateMutateAsync.mockReset()
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockReset()
@@ -332,6 +337,37 @@ await Promise.resolve()
     expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('omits nested sub-habits from a Free create request', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => field === 'title' ? 'Run' : field === 'checklistItems' ? [] : {})
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: null,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: ['Warm up'],
+      checklistItems: [],
+    })
+    const modal = <CreateHabitModal open onClose={vi.fn()} />
+    const tree = renderModal(modal)
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestSetup()
+    })
+    mockProfileState.hasProAccess = false
+    tree.updateModal(<CreateHabitModal open onClose={vi.fn()} />)
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      findSubmit(tree.root).props.onPress()
+    })
+
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
   })
 
   it('surfaces the validation error and does not create when the form is invalid', async () => {
