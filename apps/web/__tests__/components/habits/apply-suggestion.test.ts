@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
-import { applySuggestionChecklist, applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
+import { applySuggestionChecklist, applySuggestionSchedule, selectSuggestedSubHabitTitles } from '@/components/habits/create-habit-modal/apply-suggestion'
 
 describe('applySuggestionChecklist', () => {
+  it('proposes only sub-habit titles that fit after existing user values', () => {
+    const existingValues = Array.from({ length: 19 }, (_, index) => `Existing ${index}`)
+
+    expect(selectSuggestedSubHabitTitles(existingValues, ['First', 'Second'], true)).toEqual(['First'])
+    expect(selectSuggestedSubHabitTitles([...existingValues, 'Existing 19'], ['First'], true)).toEqual([])
+    expect(selectSuggestedSubHabitTitles(existingValues, ['First'], false)).toEqual([])
+  })
+
   it('caps an Astra checklist proposal at the shared limit', () => {
     const existing = Array.from({ length: 49 }, (_, index) => ({ text: `Item ${index}`, isChecked: false }))
     const setValue = vi.fn()

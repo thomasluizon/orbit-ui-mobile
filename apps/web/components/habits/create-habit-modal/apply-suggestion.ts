@@ -1,6 +1,6 @@
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { HabitFormSuggestionPatch } from '@orbit/shared/utils'
-import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
+import { MAX_CHECKLIST_ITEMS, MAX_SUB_HABITS } from '@orbit/shared/validation'
 
 type SuggestionScheduleTarget = Pick<
   HabitFormHelpers,
@@ -74,4 +74,14 @@ export function applySuggestionChecklist(
     shouldDirty: true,
   })
   return true
+}
+
+export function selectSuggestedSubHabitTitles(
+  existingValues: string[],
+  suggestedTitles: string[],
+  canUseSubHabits: boolean,
+): string[] {
+  if (!canUseSubHabits) return []
+  const occupiedSlots = existingValues.filter((value) => value.trim().length > 0).length
+  return suggestedTitles.slice(0, Math.max(0, MAX_SUB_HABITS - occupiedSlots))
 }

@@ -12,6 +12,7 @@ import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
   applySuggestionSchedule,
+  selectSuggestedSubHabitTitles,
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -43,7 +44,7 @@ import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
 } from '@/lib/habit-request-builders'
-import { MAX_GOALS_PER_HABIT, MAX_SUB_HABITS, habitFormSchema } from '@orbit/shared/validation'
+import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -375,12 +376,18 @@ export function CreateHabitModal({
 
       const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
 
-      const appliedSubHabits = canUseSubHabits && patch.subHabitTitles.length > 0
+      const filledSubHabits = subHabits.filter((entry) => entry.value.trim().length > 0)
+      const suggestedSubHabitTitles = selectSuggestedSubHabitTitles(
+        filledSubHabits.map((entry) => entry.value),
+        patch.subHabitTitles,
+        canUseSubHabits,
+      )
+      const appliedSubHabits = suggestedSubHabitTitles.length > 0
       if (appliedSubHabits) {
-        setSubHabits((prev) => [
-          ...prev.filter((entry) => entry.value.trim().length > 0),
-          ...patch.subHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
-        ].slice(0, MAX_SUB_HABITS))
+        setSubHabits([
+          ...filledSubHabits,
+          ...suggestedSubHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
+        ])
       }
 
       if (appliedChecklist || appliedSubHabits) {
@@ -407,7 +414,7 @@ export function CreateHabitModal({
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     }
-  }, [canUseSubHabits, formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+  }, [canUseSubHabits, formHelpers, i18n.language, showError, showInfo, showSuccess, subHabits, suggestion, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
