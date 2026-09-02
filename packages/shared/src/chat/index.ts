@@ -1,3 +1,4 @@
+export * from './action-chips'
 export * from './related-surfaces'
 export * from './sse-stream'
 
