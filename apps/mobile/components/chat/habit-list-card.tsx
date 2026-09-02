@@ -1,129 +1,62 @@
-import { useMemo } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { useState } from 'react'
+import { Pressable, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type {
-  HabitListCard as HabitListCardData,
-  HabitListCardStatus,
-} from '@orbit/shared/types/chat'
+import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
+import { formatAPIDate } from '@orbit/shared/utils'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { StatusRing } from '@/components/ui/status-ring'
+import { Button } from '@/components/ui/pill-button'
+import { useHabits, useLogHabit } from '@/hooks/use-habits'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const STATUS_LABEL_KEYS: Record<HabitListCardStatus, string | null> = {
-  today: 'chat.habitList.today',
-  overdue: 'chat.habitList.overdue',
-  general: 'chat.habitList.general',
-  none: null,
-}
-
-type AppTokens = ReturnType<typeof createTokensV2>
-
-function resolveAccent(tokens: AppTokens, status: HabitListCardStatus, isBadHabit: boolean): string {
-  if (isBadHabit || status === 'overdue') return tokens.statusBad
-  if (status === 'today') return tokens.primary
-  return tokens.fg3
-}
+const PAGE_SIZE = 3
 
 export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCardData }>) {
   const { t } = useTranslation()
+  const router = useRouter()
+  const logHabit = useLogHabit()
+  const [occurrenceDate] = useState(() => formatAPIDate(new Date()))
+  const occurrences = useHabits({
+    dateFrom: occurrenceDate,
+    dateTo: occurrenceDate,
+    includeGeneral: true,
+    includeOverdue: true,
+  })
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-
-  if (habitList.items.length === 0) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.empty}>{t('chat.habitList.empty')}</Text>
-      </View>
-    )
-  }
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const [shownCount, setShownCount] = useState(PAGE_SIZE)
+  const visibleItems = habitList.items.slice(0, shownCount)
+  const rows = visibleItems.map((item) => {
+    const occurrence = occurrences.data?.habitsById.get(item.id)
+    const logged = occurrence
+      ? item.isBadHabit ? occurrence.isLoggedInRange : occurrence.isCompleted
+      : false
+    return {
+      id: item.id,
+      label: (
+        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => router.push({ pathname: '/habits/[id]', params: { id: item.id } })} style={{ minHeight: 44, minWidth: 0, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 }}>
+          <View style={{ width: 32, height: 32, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View>
+          <Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text>
+        </Pressable>
+      ),
+      meta: item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
+      control: occurrence ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} onPress={() => {
+          logHabit.mutate({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
+        }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} />
+        </Pressable>
+      ) : undefined,
+    }
+  })
 
   return (
-    <View style={styles.card}>
-      {habitList.items.map((item, index) => {
-        const labelKey = STATUS_LABEL_KEYS[item.status]
-        const accent = resolveAccent(tokens, item.status, item.isBadHabit)
-        return (
-          <View
-            key={item.id}
-            style={[styles.row, index > 0 && styles.rowDivider, { paddingLeft: 14 + item.depth * 16 }]}
-          >
-            {item.emoji ? (
-              <Text style={styles.emoji}>{item.emoji}</Text>
-            ) : (
-              <View style={[styles.dot, { backgroundColor: accent }]} />
-            )}
-            <Text style={styles.title} numberOfLines={1}>
-              {item.title}
-            </Text>
-            {labelKey ? (
-              <View style={[styles.badge, { backgroundColor: `${accent}1f` }]}>
-                <Text style={[styles.badgeText, { color: accent }]}>{t(labelKey)}</Text>
-              </View>
-            ) : null}
-          </View>
-        )
-      })}
+    <View style={{ width: '100%', marginTop: 8 }}>
+      <BlockFrame state="resting" title={t('chat.habitList.title')} count={t('chat.habitList.count', { shown: visibleItems.length, total: habitList.items.length })} items={rows} actions={visibleItems.length < habitList.items.length ? (
+        <Button variant="ghost" size="sm" onClick={() => setShownCount((count) => count + PAGE_SIZE)}>{t('chat.habitList.more')}</Button>
+      ) : undefined} />
     </View>
   )
-}
-
-function createStyles(tokens: AppTokens) {
-  return StyleSheet.create({
-    card: {
-      marginTop: 8,
-      width: '100%',
-      borderRadius: 16,
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      overflow: 'hidden',
-    },
-    empty: {
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 10,
-      paddingRight: 14,
-    },
-    rowDivider: {
-      borderTopWidth: 1,
-      borderTopColor: tokens.hairline,
-    },
-    emoji: {
-      width: 18,
-      textAlign: 'center',
-      fontSize: 15,
-    },
-    dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 999,
-      marginHorizontal: 5,
-    },
-    title: {
-      flex: 1,
-      minWidth: 0,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg1,
-    },
-    badge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 999,
-    },
-    badgeText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 10,
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
-    },
-  })
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getAgentCapabilityLabelKey,
+  getAgentOperationLabelKey,
   getAgentPolicyReasonKey,
 } from '../utils/agent-pending-operation'
 
@@ -20,6 +21,19 @@ describe('getAgentCapabilityLabelKey', () => {
   it('returns null for capabilities without a localized label', () => {
     expect(getAgentCapabilityLabelKey('habits.read')).toBeNull()
     expect(getAgentCapabilityLabelKey('unknown.capability')).toBeNull()
+  })
+})
+
+describe('getAgentOperationLabelKey', () => {
+  it('maps operation symbols and capability ids to local copy', () => {
+    expect(getAgentOperationLabelKey('DeleteHabit')).toBe('chat.operation.source.deleteHabit')
+    expect(getAgentOperationLabelKey('habits.bulk.delete')).toBe(
+      'chat.pendingOp.capability.habits-bulk-delete',
+    )
+  })
+
+  it('returns null instead of exposing an unknown server symbol', () => {
+    expect(getAgentOperationLabelKey('UnknownPascalCaseOperation')).toBeNull()
   })
 })
 

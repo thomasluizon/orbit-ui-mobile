@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -55,6 +54,8 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -282,10 +283,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     setChildToDelete(null)
   }
   const openChild = (id: string) => router.push({ pathname: '/habits/[id]', params: { id, date: dateStr, parent: habitId, ...(fromToday ? { from: 'today' } : {}) } })
-  const askAstra = async () => {
+  const askAstra = () => {
     const key = habit?.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault'
-    await AsyncStorage.setItem('orbit-chat-draft', t(key, { title: habit?.title ?? '' }))
-    router.push('/chat')
+    useChatStore.getState().setDraft(t(key, { title: habit?.title ?? '' }))
+    useUIStore.getState().setAstraConversationOpen(true)
   }
 
   const appBar = <AppBar back title={t('habits.detail.screenTitle')} onBack={back} />
@@ -314,7 +315,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle>{shouldResetHabitChecklist(habit) ? <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.resetRule')}</Text> : null}</View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle></View>{children.map(({ habit: child, readOnly }) => <HabitRow key={child.id} habit={child} selectedDate={selectedDate} readOnly={readOnly} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} description={!hasPro ? t('habits.detail.addSubHabitFree') : undefined} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.linkedGoals')}</SectionTitle></View>{habit.linkedGoals?.length ? habit.linkedGoals.map((goal) => <ListRow key={goal.id} icon={<Calendar size={24} color={tokens.fg1} />} title={goal.title} onClick={() => router.push(`/goals/${goal.id}`)} />) : <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.noLinkedGoals')}</Text>}</Surface>
-      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><ListRow icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} description={atLimit ? t('habits.detail.askAstraLimit') : t(habit.checklistItems.length ? 'habits.detail.askAstraSubHabits' : 'habits.detail.askAstraDefault')} onClick={() => void askAstra()} /></Surface>
+      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><ListRow icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} description={atLimit ? t('habits.detail.askAstraLimit') : t(habit.checklistItems.length ? 'habits.detail.askAstraSubHabits' : 'habits.detail.askAstraDefault')} onClick={askAstra} /></Surface>
       </View>
       </View>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><View style={styles.disclosureTitle}><ListTree size={24} color={tokens.fg1} /><SectionTitle color={tokens.fg1}>{t('habits.detail.moreDetails')}</SectionTitle></View><ChevronDown size={24} color={tokens.fg3} style={{ transform: [{ rotate: detailsOpen ? '180deg' : '0deg' }] }} /></Pressable>{detailsOpen ? <View><ListRow title={t('habits.detail.schedule')} value={summary} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.description')} description={habit.description ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.reminders')} value={habit.reminderEnabled ? String(habit.reminderTimes.length + habit.scheduledReminders.length) : t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.endDate')} value={habit.endDate ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.slipAlert')} description={!hasPro ? t('habits.detail.slipAlertFree') : undefined} value={!hasPro ? t('habits.detail.proGate') : undefined} trailing={hasPro ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void patch({ slipAlertEnabled }) }} /> : undefined} onClick={!hasPro ? () => router.push('/upgrade') : undefined} /></View> : null}</Surface>

@@ -183,7 +183,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
             t('onboarding.flow.meetAstra.importPrompt'),
           )
         }
-        router.push('/chat')
+        router.push('/?astra=open')
       },
     }),
     [bulkCreateHabits, createHabit, logHabit, createGoal, queryClient, router, t],

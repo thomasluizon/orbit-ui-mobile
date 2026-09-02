@@ -10,7 +10,6 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
@@ -31,16 +30,13 @@ import {
   buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
   classifySendFailure,
-  findPremiumPolicyDenial,
   invalidateAgentQueries,
   selectActionInvalidations,
 } from '@orbit/shared/hooks'
 import {
   buildRecentChatHistory,
-  canAccessEntitlement,
   detectDefaultTimeFormat,
   getFriendlyErrorMessage,
-  resolveUpgradeEntitlementFromPolicyDenial,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
@@ -113,7 +109,6 @@ async function* streamTextChunks(
 export function useChatComposer() {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
 
@@ -181,8 +176,8 @@ export function useChatComposer() {
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
-  const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
-  const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
+  const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5)
+  const atMessageLimit = aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
   const attachments = useMemo(
     () => [
@@ -217,12 +212,6 @@ export function useChatComposer() {
     })
   }, [])
 
-  const shouldRouteToUpgrade = useCallback(
-    (resolution: { shouldUpgrade: boolean; requirement: 'pro' | 'yearlyPro' | null }) =>
-      resolution.shouldUpgrade && !canAccessEntitlement(profile, resolution.requirement),
-    [profile],
-  )
-
   const appendExecutionMessage = useCallback(async (response: AgentExecuteOperationResponse) => {
     addMessage({
       id: crypto.randomUUID(),
@@ -242,14 +231,7 @@ export function useChatComposer() {
     if (response.operation.status === 'Succeeded') {
       await invalidateAgentQueries(queryClient)
     }
-    if (response.policyDenial) {
-      const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(response.policyDenial)
-      if (shouldRouteToUpgrade(upgradeResolution)) {
-        setSendError(response.policyDenial.reason)
-        router.push('/upgrade')
-      }
-    }
-  }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade, t])
+  }, [addMessage, queryClient, scrollToBottom, t])
 
   const {
     confirmAndExecutePendingOperation,
@@ -279,17 +261,24 @@ export function useChatComposer() {
       reason: resolvedError,
     })
 
-    if (failure.kind === 'upgrade' && shouldRouteToUpgrade(failure.upgrade)) {
-      setSendError(t('chat.proGate.body'))
-      router.push('/upgrade')
-      return
-    }
-
     if (failure.kind === 'timeout') {
       setSendError(t('chat.timeoutError'))
       setLastFailedSend(failedAttempt)
     } else if (failure.kind === 'limit') {
-      setSendError(t('chat.limitReachedError'))
+      setSendError(null)
+      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+      if (draftMessageId) {
+        updateMessage(draftMessageId, { content: limitReason })
+      } else {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: limitReason,
+          timestamp: new Date(),
+        })
+      }
+      scrollToBottom()
+      return
     } else {
       setSendError(t('chat.sendError'))
       setLastFailedSend(failedAttempt)
@@ -306,7 +295,7 @@ export function useChatComposer() {
       })
     }
     scrollToBottom()
-  }, [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
+  }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
     setIsTyping(false)
@@ -338,19 +327,9 @@ export function useChatComposer() {
 
     scrollToBottom()
 
-    const premiumDenial = findPremiumPolicyDenial(response.policyDenials)
-    if (premiumDenial) {
-      const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(premiumDenial)
-      if (shouldRouteToUpgrade(upgradeResolution)) {
-        router.push('/upgrade')
-      }
-    }
-
-    if (!hasProAccess) {
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-        old ? { ...old, aiMessagesUsed: old.aiMessagesUsed + 1 } : old,
-      )
-    }
+    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+      old ? { ...old, aiMessagesUsed: old.aiMessagesUsed + 1 } : old,
+    )
 
     const invalidations = selectActionInvalidations(response.actions)
     if (invalidations.habits) {
@@ -366,8 +345,7 @@ export function useChatComposer() {
     if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, setStreamingMessageId, shouldRouteToUpgrade, updateMessage])
+  }, [addMessage, queryClient, scrollToBottom, setIsTyping, setStreamingMessageId, updateMessage])
 
   useEffect(() => {
     if (!draftHydrated) {
@@ -560,11 +538,26 @@ export function useChatComposer() {
           })
         : typedContent
       const sendState = useChatStore.getState()
-      if (
-        !hasComposerContent(typedContent, attachments) ||
-        sendState.isTyping ||
-        sendState.streamingMessageId !== null
-      ) return
+      if (!hasComposerContent(typedContent, attachments)) return
+      if (sendState.isTyping || sendState.streamingMessageId !== null) {
+        setSendError(t('shell.composer.busy.reason'))
+        return
+      }
+      if (!isOnline) {
+        setSendError(t('shell.composer.offline.reason'))
+        return
+      }
+      if (atMessageLimit) {
+        setSendError(null)
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: t('shell.composer.limit.reason', { allowance: aiMessagesLimit }),
+          timestamp: new Date(),
+        })
+        scrollToBottom()
+        return
+      }
 
       const attempted: AttemptedSend = {
         content: messageContent,
@@ -585,13 +578,18 @@ export function useChatComposer() {
     [
       clearImage,
       attachments,
+      addMessage,
+      aiMessagesLimit,
+      atMessageLimit,
       imagePreview,
       input,
+      isOnline,
       performSend,
       removeTextFile,
       selectedImage,
       selectedTextFile,
       setInput,
+      scrollToBottom,
       t,
     ],
   )
@@ -673,7 +671,14 @@ export function useChatComposer() {
         : { ...common, state: 'atLimit', limitReason }
     }
 
-    const state: 'idle' | 'sending' = isSending || !isOnline ? 'sending' : 'idle'
+    if (!isOnline) {
+      const limitReason = t('shell.composer.offline.reason')
+      return speechSupported
+        ? { ...common, state: 'offline', limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: 'offline', limitReason }
+    }
+
+    const state: 'idle' | 'sending' = isSending ? 'sending' : 'idle'
     return speechSupported
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state }

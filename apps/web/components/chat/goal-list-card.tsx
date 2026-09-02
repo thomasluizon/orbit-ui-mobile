@@ -1,110 +1,43 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { formatGoalMetricsDate } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { ProgressRing } from '@/components/ui/progress-ring'
+import { StatusRing } from '@/components/ui/status-ring'
+import { Button } from '@/components/ui/pill-button'
 
-function resolvePercentage(item: GoalListCardItem): number {
-  if (item.target <= 0) return 0
-  return Math.min(100, Math.max(0, Math.round((item.current / item.target) * 100)))
+function percentage(item: GoalListCardItem): number {
+  return item.target <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((item.current / item.target) * 100)))
 }
 
-export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData }>) {
+export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
   const t = useTranslations()
   const locale = useLocale()
-
+  const router = useRouter()
+  const items = goalList.items.map((item) => {
+    const value = percentage(item)
+    const progress = t('chat.goalList.progress', { current: item.current, target: item.target, unit: item.unit })
+    const deadline = item.deadline ? t('chat.goalList.deadline', { date: formatGoalMetricsDate(item.deadline, locale) }) : null
+    return {
+      id: item.id,
+      label: <button type="button" className="min-h-11 w-full truncate border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => onOpenGoal?.(item.id)}>{item.title}</button>,
+      meta: deadline ? `${progress} · ${deadline}` : progress,
+      control: value === 100
+        ? <StatusRing status="done" size={28} label={t('chat.goalList.done', { name: item.title })} />
+        : <ProgressRing value={value} size={28} label={t('chat.goalList.ring', { name: item.title })} />,
+    }
+  })
   return (
-    <div
-      data-slot="goal-list-card"
-      className="mt-2 w-full md:max-w-[65ch] overflow-hidden rounded-[16px]"
-      style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-    >
-      {goalList.items.length === 0 ? (
-        <p className="px-3.5 py-3 text-[13px]" style={{ color: 'var(--fg-3)' }}>
-          {t('chat.goalList.empty')}
-        </p>
-      ) : (
-        goalList.items.map((item, index) => {
-          const percentage = resolvePercentage(item)
-          return (
-            <div
-              key={item.id}
-              data-goal-item={item.id}
-              className="flex flex-col gap-1.5"
-              style={{
-                padding: '10px 14px',
-                boxShadow: index === 0 ? undefined : 'inset 0 1px 0 var(--hairline)',
-              }}
-            >
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="min-w-0 flex-1 truncate text-[13px]"
-                  style={{ color: 'var(--fg-1)' }}
-                >
-                  {item.title}
-                </span>
-                <span
-                  className="shrink-0 text-[11px]"
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 500,
-                    color: 'var(--fg-1)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {t('chat.goalList.percentage', { pct: percentage })}
-                </span>
-              </div>
-
-              <div
-                aria-hidden="true"
-                className="w-full overflow-hidden rounded-full"
-                style={{ height: 4, background: 'var(--hairline)' }}
-              >
-                <div
-                  style={{
-                    width: `${percentage}%`,
-                    height: '100%',
-                    borderRadius: 999,
-                    background: 'var(--primary)',
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span
-                  className="min-w-0 flex-1 truncate text-[11px]"
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--fg-3)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {t('chat.goalList.progress', {
-                    current: item.current,
-                    target: item.target,
-                    unit: item.unit,
-                  })}
-                </span>
-                {item.deadline && (
-                  <span
-                    className="shrink-0 text-[11px]"
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      color: 'var(--fg-3)',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {t('chat.goalList.deadline', {
-                      date: formatGoalMetricsDate(item.deadline, locale),
-                    })}
-                  </span>
-                )}
-              </div>
-            </div>
-          )
-        })
-      )}
+    <div className="mt-2 w-full md:max-w-[65ch]">
+      <BlockFrame state="resting" title={t('chat.goalList.title')} items={items} actions={(
+        <div className="flex flex-col items-start gap-3">
+          {items.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.goalList.empty')}</p> : null}
+          <Button variant="ghost" size="sm" onClick={() => router.push('/progress')}>{t('chat.goalList.progressLink')}</Button>
+        </div>
+      )} />
     </div>
   )
 }

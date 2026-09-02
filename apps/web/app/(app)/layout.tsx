@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { TrialBanner } from '@/components/ui/trial-banner'
@@ -48,9 +49,11 @@ import {
   useOnboardingHasPendingAnswers,
 } from '@/stores/onboarding-draft-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
-import ChatPage from '@/app/(chat)/chat/page'
+import { Composer } from '@/components/shell/composer'
+import { useChatComposer } from '@/hooks/use-chat-composer'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { CommandPaletteBackground } from '@/components/command/command-palette'
 import { TodayProvider } from './today-provider'
@@ -62,6 +65,11 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+
+const AstraConversation = dynamic(
+  () => import('@/components/chat/conversation').then((module) => module.AstraConversation),
+  { ssr: false },
+)
 
 export default function AppLayout({
   children,
@@ -114,6 +122,20 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
+  const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
+  const {
+    fileInputRef,
+    textFileInputRef,
+    handleFileSelect,
+    handleTextFileSelect,
+    ...chat
+  } = useChatComposer()
+
+  useEffect(() => {
+    if (searchParams.get('astra') !== 'open') return
+    setAstraConversationOpen(true)
+    router.replace(pathname)
+  }, [pathname, router, searchParams, setAstraConversationOpen])
 
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
@@ -187,8 +209,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       )
     }
     setRouteTransitionIntent('forward')
-    router.push('/chat')
-  }, [patchProfile, router, t])
+    setAstraConversationOpen(true)
+  }, [patchProfile, setAstraConversationOpen, t])
 
   const handleImportPromptOpenChange = useCallback(
     (open: boolean) => {
@@ -203,9 +225,15 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     <CommandPaletteBackground className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
       <DestinationShell
         onCreate={handleCreate}
-        composer={pathname === '/' ? <div id="today-composer-slot" /> : undefined}
-        conversation={pathname === '/' ? <ChatPage /> : undefined}
-        conversationOpen={pathname === '/' && astraConversationOpen}
+        composer={
+          <Composer
+            {...chat.composerProps}
+            onOpenConversation={() => setAstraConversationOpen(true)}
+            conversationLabel={t('todayAstra.openConversation')}
+          />
+        }
+        conversation={<AstraConversation chat={chat} />}
+        conversationOpen={astraConversationOpen}
         conversationLabel={t('todayAstra.openConversation')}
         notice={
           <>
@@ -218,6 +246,21 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           <div>{children}</div>
         </RouteTransitionShell>
       </DestinationShell>
+
+      <input
+        ref={textFileInputRef}
+        type="file"
+        accept={CHAT_TEXT_FILE_WEB_ACCEPT}
+        className="hidden"
+        onChange={(event) => void handleTextFileSelect(event)}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
 
       <BackToTop />
 

@@ -1,8 +1,6 @@
 import { useState, useCallback, useMemo, type ComponentProps } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -28,6 +26,8 @@ import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 interface GoalDetailDrawerProps {
   open: boolean
@@ -232,16 +232,15 @@ export function GoalDetailDrawer({
     }
   }, [closeDrawer, deleteGoalMut, goalId, showError, translate])
 
-  const router = useRouter()
   const handleAskAstra = useCallback(() => {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
-    void AsyncStorage.setItem('orbit-chat-draft', seed)
+    useChatStore.getState().setDraft(seed)
     closeSheet(() => {
       onClose()
-      router.push('/chat')
+      useUIStore.getState().setAstraConversationOpen(true)
     })
-  }, [closeSheet, goal, onClose, router, t])
+  }, [closeSheet, goal, onClose, t])
 
   const isActive = goal?.status === 'Active'
 

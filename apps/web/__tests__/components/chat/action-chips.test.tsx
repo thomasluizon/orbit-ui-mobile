@@ -1,220 +1,47 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { makeActionResult } from '@orbit/shared/test-support/chat-fixtures'
+import { ActionChips } from '@/components/chat/action-chips'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
 }))
-
-vi.mock('@/components/chat/conflict-warning', () => ({
-  ConflictWarning: () => <div data-testid="conflict-warning" />,
-}))
-
-import { ActionChips } from '@/components/chat/action-chips'
-import type { ActionResult } from '@orbit/shared/types/chat'
-
-function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
-  return {
-    type: 'LogHabit',
-    status: 'Success',
-    entityId: '1',
-    entityName: 'Meditate',
-    error: null,
-    field: null,
-    suggestedSubHabits: null,
-    conflictWarning: null,
-    ...overrides,
-  }
-}
 
 describe('ActionChips', () => {
-  it('renders action chips for each action', () => {
-    const actions = [
-      makeAction({ type: 'LogHabit', entityName: 'Meditate' }),
-      makeAction({ type: 'CreateHabit', entityName: 'Exercise' }),
-    ]
-    const { container } = render(<ActionChips actions={actions} />)
-    const chips = container.querySelectorAll('.animate-chip-in')
-    expect(chips).toHaveLength(2)
+  it('renders legacy results as one block and omits suggestions', () => {
+    render(<ActionChips actions={[makeActionResult(), makeActionResult({ status: 'Suggestion' })]} />)
+
+    expect(screen.getByRole('heading', { name: 'chat.action.changes' })).toBeInTheDocument()
+    expect(screen.getAllByText('status.done')).toHaveLength(1)
   })
 
-  it('skips Suggestion status actions', () => {
-    const actions = [
-      makeAction({ status: 'Suggestion' }),
-      makeAction({ status: 'Success' }),
-    ]
-    const { container } = render(<ActionChips actions={actions} />)
-    const chips = container.querySelectorAll('.animate-chip-in')
-    expect(chips).toHaveLength(1)
+  it('uses the frame failed state without exposing a server error', () => {
+    const { container } = render(<ActionChips actions={[makeActionResult({ status: 'Failed', error: 'database unavailable' })]} />)
+
+    expect(container.querySelector('[data-state="partiallyFailed"]')).toBeInTheDocument()
+    expect(screen.getByText('chat.operation.status.Failed')).toBeInTheDocument()
+    expect(screen.queryByText('database unavailable')).not.toBeInTheDocument()
   })
 
-  it('shows success styling for successful actions', () => {
-    const actions = [makeAction({ status: 'Success' })]
-    const { container } = render(<ActionChips actions={actions} />)
-    const chip = container.querySelector('[data-action-status="Success"]')
-    expect(chip).toBeInTheDocument()
+  it('opens a successful navigable result', () => {
+    const onChipClick = vi.fn()
+    render(<ActionChips actions={[makeActionResult()]} onChipClick={onChipClick} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.action.open' }))
+    expect(onChipClick).toHaveBeenCalledWith('habit-1', 'LogHabit')
   })
 
-  it('shows error styling for failed actions', () => {
-    const actions = [makeAction({ status: 'Failed', error: 'Something went wrong' })]
-    const { container } = render(<ActionChips actions={actions} />)
-    const chip = container.querySelector('[data-action-status="Failed"]')
-    expect(chip).toBeInTheDocument()
+  it('does not add a control for a destructive result', () => {
+    render(<ActionChips actions={[makeActionResult({ type: 'DeleteHabit' })]} onChipClick={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'chat.action.open' })).not.toBeInTheDocument()
   })
 
-  it('displays error message for failed actions', () => {
-    const actions = [makeAction({ status: 'Failed', error: 'Something went wrong' })]
-    render(<ActionChips actions={actions} />)
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
-  })
+  it('localizes unknown operation symbols instead of rendering them', () => {
+    render(<ActionChips actions={[makeActionResult({ type: 'UnexpectedServerSymbol' })]} />)
 
-  it('renders action label with entity name', () => {
-    const actions = [makeAction({ type: 'LogHabit', entityName: 'Meditate' })]
-    render(<ActionChips actions={actions} />)
-    expect(document.body.textContent).toContain('chat.action.logged')
-  })
-
-  it('handles unknown action types with fallback', () => {
-    const actions = [makeAction({ type: 'LogHabit', entityName: null })]
-    render(<ActionChips actions={actions} />)
-    expect(document.body.textContent).toContain('chat.unknownEntity')
-  })
-
-  it('renders localized labels for the new tag and reorder action types', () => {
-    const cases: Array<[string, string]> = [
-      ['CreateTag', 'chat.action.createdTag'],
-      ['UpdateTag', 'chat.action.updatedTag'],
-      ['DeleteTag', 'chat.action.deletedTag'],
-      ['ReorderGoals', 'chat.action.reorderedGoals'],
-      ['ReorderHabits', 'chat.action.reorderedHabits'],
-    ]
-    for (const [type, labelKey] of cases) {
-      const { unmount } = render(
-        <ActionChips actions={[makeAction({ type, entityName: 'Work' })]} />,
-      )
-      expect(document.body.textContent).toContain(labelKey)
-      expect(document.body.textContent).not.toContain(`${type}:`)
-      unmount()
-    }
-  })
-
-  it('renders conflict warning when present', () => {
-    const actions = [
-      makeAction({
-        conflictWarning: {
-          hasConflict: true,
-          conflictingHabits: [],
-          severity: 'HIGH',
-          recommendation: null,
-        },
-      }),
-    ]
-    render(<ActionChips actions={actions} />)
-    expect(screen.getByTestId('conflict-warning')).toBeInTheDocument()
-  })
-
-  it('does not render conflict warning when not present', () => {
-    const actions = [makeAction({ conflictWarning: null })]
-    render(<ActionChips actions={actions} />)
-    expect(screen.queryByTestId('conflict-warning')).not.toBeInTheDocument()
-  })
-
-  it('applies staggered animation delays', () => {
-    const actions = [
-      makeAction({ entityName: 'A' }),
-      makeAction({ entityName: 'B' }),
-      makeAction({ entityName: 'C' }),
-    ]
-    const { container } = render(<ActionChips actions={actions} />)
-    const chips = container.querySelectorAll('.animate-chip-in')
-    expect(chips[0]).toHaveStyle({ animationDelay: '0ms' })
-    expect(chips[1]).toHaveStyle({ animationDelay: '80ms' })
-    expect(chips[2]).toHaveStyle({ animationDelay: '160ms' })
-  })
-
-  describe('clickable chips', () => {
-    it('renders successful Create chip as a button when onChipClick is provided', () => {
-      const actions = [
-        makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-1' }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={() => {}} />)
-      expect(screen.getByRole('button')).toBeInTheDocument()
-    })
-
-    it('calls onChipClick with entityId and actionType on click', () => {
-      const onChipClick = vi.fn()
-      const actions = [
-        makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-42' }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={onChipClick} />)
-      fireEvent.click(screen.getByRole('button'))
-      expect(onChipClick).toHaveBeenCalledWith('h-42', 'CreateHabit')
-    })
-
-    it('renders successful goal chips as buttons and uses the goal action type', () => {
-      const onChipClick = vi.fn()
-      const actions = [
-        makeAction({ type: 'UpdateGoal', status: 'Success', entityId: 'g-42', entityName: 'Run a marathon' }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={onChipClick} />)
-      fireEvent.click(screen.getByRole('button'))
-      expect(onChipClick).toHaveBeenCalledWith('g-42', 'UpdateGoal')
-      expect(document.body.textContent).toContain('chat.action.updatedGoal')
-    })
-
-    it('renders Delete chip as non-interactive span even with handler', () => {
-      const actions = [
-        makeAction({ type: 'DeleteHabit', status: 'Success', entityId: 'h-1' }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={() => {}} />)
-      expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    })
-
-    it('renders tag mutation chips as non-interactive spans even with handler', () => {
-      for (const type of ['CreateTag', 'UpdateTag', 'DeleteTag']) {
-        const { unmount } = render(
-          <ActionChips
-            actions={[makeAction({ type, status: 'Success', entityId: 'tag-1' })]}
-            onChipClick={() => {}}
-          />,
-        )
-        expect(screen.queryByRole('button')).not.toBeInTheDocument()
-        unmount()
-      }
-    })
-
-    it('renders DeleteGoal chip as non-interactive span even with handler', () => {
-      const actions = [
-        makeAction({ type: 'DeleteGoal', status: 'Success', entityId: 'g-1' }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={() => {}} />)
-      expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    })
-
-    it('renders Failed chip as non-interactive span even with handler', () => {
-      const actions = [
-        makeAction({ type: 'CreateHabit', status: 'Failed', entityId: 'h-1', error: 'oops' }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={() => {}} />)
-      expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    })
-
-    it('renders chip with null entityId as non-interactive span', () => {
-      const actions = [
-        makeAction({ type: 'CreateHabit', status: 'Success', entityId: null }),
-      ]
-      render(<ActionChips actions={actions} onChipClick={() => {}} />)
-      expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    })
-
-    it('renders as non-interactive span when no handler is provided', () => {
-      const actions = [
-        makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-1' }),
-      ]
-      render(<ActionChips actions={actions} />)
-      expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    })
+    expect(screen.getByText('chat.action.completed')).toBeInTheDocument()
+    expect(screen.queryByText(/UnexpectedServerSymbol/)).not.toBeInTheDocument()
   })
 })

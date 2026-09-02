@@ -1,6 +1,8 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -89,7 +91,8 @@ describe('GoalDetailDrawer', () => {
     updateProgressMutateAsync.mockClear()
     deleteMutateAsync.mockClear()
     routerPush.mockClear()
-    localStorage.clear()
+    useChatStore.setState({ draft: '', draftHydrated: true })
+    useUIStore.setState({ astraConversationOpen: false })
   })
 
   it('renders nothing when closed', () => {
@@ -265,12 +268,13 @@ describe('GoalDetailDrawer', () => {
     })
   })
 
-  it('seeds an Astra chat draft and navigates when Ask Astra is used', () => {
+  it('seeds an Astra chat draft and opens the shell conversation', async () => {
     render(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
 
     fireEvent.click(screen.getByRole('button', { name: /goals\.detail\.askAstra/ }))
 
-    expect(routerPush).toHaveBeenCalledWith('/chat')
-    expect(localStorage.getItem('orbit-chat-draft')).toContain('goals.detail.askAstraSeedDefault')
+    expect(useChatStore.getState().draft).toContain('goals.detail.askAstraSeedDefault')
+    await waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
+    expect(routerPush).not.toHaveBeenCalled()
   })
 })

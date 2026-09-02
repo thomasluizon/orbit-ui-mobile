@@ -363,8 +363,11 @@ export {
 } from './profile-selectors'
 export {
   getAgentCapabilityLabelKey,
+  getAgentOperationLabelKey,
   getAgentPolicyReasonKey,
 } from './agent-pending-operation'
+export { coalesceAgentOperationOutcomes } from './agent-operation-outcomes'
+export type { AgentOperationOutcome } from './agent-operation-outcomes'
 export {
   calculateXpProgress,
   deriveGamificationProfileState,
@@ -443,6 +446,8 @@ export { initialsOf } from './name-initials'
 export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
+  getBreakdownCadenceKey,
+  nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'
 export {

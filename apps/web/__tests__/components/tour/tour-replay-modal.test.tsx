@@ -119,7 +119,7 @@ describe('TourReplayModal close path', () => {
     sheetTestControls.completeDismissal()
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
-    expect(mockPush).toHaveBeenCalledWith('/chat')
+    expect(mockPush).toHaveBeenCalledWith('/')
     expect(mockStartSectionReplay).toHaveBeenCalledWith('chat')
   })
 })

@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpRight } from '@/components/ui/icons'
+import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import type { ChatMessage } from '@orbit/shared/types/chat'
-import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import { getRelatedSurfaces, stripChatDirectives } from '@orbit/shared/chat'
-import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
+import type { MessageBubbleProps } from '@orbit/shared/chat'
+import {
+  getRelatedSurfaces,
+  partitionMessageActions,
+  stripChatDirectives,
+} from '@orbit/shared/chat'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
@@ -17,27 +19,7 @@ import { ClarificationCard } from './clarification-card'
 import { GoalListCard } from './goal-list-card'
 import { HabitListCard } from './habit-list-card'
 import { PendingOperationCard } from './pending-operation-card'
-
-interface MessageBubbleProps {
-  message: ChatMessage
-  animateEntry?: boolean
-  isStreaming?: boolean
-  onBreakdownConfirmed?: () => void
-  onActionChipClick?: (entityId: string, actionType: string) => void
-  onPendingOperationConfirmExecute?: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
-  onPendingOperationPrepareStepUp?: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>
-  onPendingOperationVerifyStepUp?: (
-    pendingOperationId: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
-  onUpgradeClick?: () => void
-}
+import { OperationOutcomes } from './operation-outcomes'
 
 export function MessageBubble({
   message,
@@ -48,51 +30,24 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
-  onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
   const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState(false)
 
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
     [message.relatedSurfaces],
   )
 
-  const suggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) => a.status === 'Suggestion' && a.suggestedSubHabits?.length,
-      ) ?? [],
-    [message.actions],
-  )
-
-  const clarificationActions = useMemo(
-    () =>
-      (message.actions ?? []).filter(
-        (a): a is typeof a & { clarificationRequest: NonNullable<typeof a.clarificationRequest> } =>
-          a.status === 'NeedsClarification' && a.clarificationRequest != null,
-      ),
-    [message.actions],
-  )
-
-  const hasUpgradeDenial = useMemo(
-    () =>
-      (message.policyDenials ?? []).some(
-        (denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
-      ),
-    [message.policyDenials],
-  )
-
-  const nonSuggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) =>
-          a.status !== 'Suggestion' &&
-          a.status !== 'NeedsClarification' &&
-          !(hasUpgradeDenial && a.status === 'Failed'),
-      ) ?? [],
-    [message.actions, hasUpgradeDenial],
+  const {
+    clarificationActions,
+    nonSuggestionActions,
+    suggestionActions,
+  } = useMemo(
+    () => partitionMessageActions(message.actions, message.policyDenials),
+    [message.actions, message.policyDenials],
   )
 
   function dismissBreakdown(key: string) {
@@ -100,11 +55,17 @@ export function MessageBubble({
   }
 
   const isUser = message.role === 'user'
+  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false)
+
+  async function copySourceText() {
+    await globalThis.navigator.clipboard.writeText(sourceText)
+    setCopied(true)
+  }
 
   return (
     <div
       className={`${animateEntry ? 'animate-msg-in ' : ''}flex ${isUser ? 'justify-end' : 'justify-start'}`}
-      style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
+      style={{ gap: 8, padding: '0 16px', marginBottom: 16 }}
     >
       {!isUser && (
         <div
@@ -158,12 +119,25 @@ export function MessageBubble({
           />
         </div>
 
+        <button
+          type="button"
+          onClick={() => void copySourceText()}
+          className="mt-1 flex min-h-11 items-center gap-2 border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-3)] transition-colors hover:text-[var(--fg-1)]"
+        >
+          {copied ? (
+            <Check size={16} strokeWidth={1.8} aria-hidden="true" />
+          ) : (
+            <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
+          )}
+          {copied ? t('chat.copied') : t('chat.copy')}
+        </button>
+
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />
         )}
 
         {!isUser && message.goalList && (
-          <GoalListCard goalList={message.goalList} />
+          <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, 'CreateGoal')} />
         )}
 
         {!isUser && relatedSurfaces.length > 0 && (
@@ -175,7 +149,7 @@ export function MessageBubble({
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
-                marginBottom: 6,
+                marginBottom: 4,
                 paddingLeft: 4,
               }}
             >
@@ -202,7 +176,7 @@ export function MessageBubble({
         )}
 
         {!isUser && suggestionActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
             {suggestionActions.map((action) => {
               const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
               return dismissedBreakdowns.has(actionKey) ? null : (
@@ -210,6 +184,7 @@ export function MessageBubble({
                   key={actionKey}
                   parentName={action.entityName || 'Habit'}
                   subHabits={action.suggestedSubHabits ?? []}
+                  warning={action.conflictWarning}
                   onConfirmed={() => onBreakdownConfirmed?.()}
                   onCancelled={() => dismissBreakdown(actionKey)}
                 />
@@ -219,7 +194,7 @@ export function MessageBubble({
         )}
 
         {!isUser && clarificationActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
             {clarificationActions.map((action) => (
               <ClarificationCard
                 key={action.clarificationRequest.operationId}
@@ -231,7 +206,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.pendingOperations && message.pendingOperations.length > 0 && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp && (
-          <div className="mt-3 w-full md:max-w-[65ch] space-y-3">
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
             {message.pendingOperations.map((pendingOperation) => (
               <PendingOperationCard
                 key={pendingOperation.id}
@@ -244,39 +219,9 @@ export function MessageBubble({
           </div>
         )}
 
-        {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
-          <div className="mt-3 w-full md:max-w-[65ch] space-y-2">
-            {message.policyDenials.map((denial) => {
-              const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(denial)
-
-              return (
-                <div
-                  key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  className="rounded-[16px] px-3 py-2"
-                  style={{
-                    background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
-                    boxShadow:
-                      'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 20%, transparent)',
-                  }}
-                >
-                  <p className="text-xs font-medium text-[var(--status-bad-text)]">
-                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.title') : denial.sourceName}
-                  </p>
-                  <p className="mt-1 text-[12px] text-[var(--status-bad-text)]">
-                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.body') : denial.reason}
-                  </p>
-                  {upgradeResolution.shouldUpgrade && onUpgradeClick && (
-                    <button
-                      type="button"
-                      onClick={onUpgradeClick}
-                      className="touch-target-y mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-hover)] active:scale-[0.96]"
-                    >
-                      {t('upgrade.subscribe')}
-                    </button>
-                  )}
-                </div>
-              )
-            })}
+        {!isUser && ((message.operations?.length ?? 0) > 0 || (message.policyDenials?.length ?? 0) > 0) && (
+          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
+            <OperationOutcomes operations={message.operations ?? []} denials={message.policyDenials ?? []} />
           </div>
         )}
       </div>

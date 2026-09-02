@@ -3,37 +3,32 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraMark } from '@/components/ui/astra-avatar'
-import { useChatComposer } from '@/hooks/use-chat-composer'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
-import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
-import { useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { Composer } from '@/components/shell/composer'
-import { ErrorState } from '@/components/ui/error-state'
+import { RefreshCw } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
 
-export default function ChatPage() {
+type ChatController = Omit<
+  ReturnType<typeof useChatComposer>,
+  'fileInputRef' | 'textFileInputRef' | 'handleFileSelect' | 'handleTextFileSelect'
+>
+
+export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const t = useTranslations()
   const router = useRouter()
-  const goBackOrFallback = useGoBackOrFallback()
-  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const close = useCallback(() => {
-    if (astraConversationOpen) setAstraConversationOpen(false)
-    else goBackOrFallback('/')
-  }, [astraConversationOpen, goBackOrFallback, setAstraConversationOpen])
+  const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
   const {
     chatContainerRef,
     messages,
     isTyping,
     streamingMessageId,
-    hasProAccess,
     showSuggestions,
     sendMessage,
     handleBreakdownConfirmed,
@@ -42,17 +37,13 @@ export default function ChatPage() {
     verifyStepUpForBubble,
     isOnline,
     sendError,
-    fileInputRef,
-    textFileInputRef,
-    handleFileSelect,
-    handleTextFileSelect,
+    canRetryLastSend,
+    retryLastSend,
     composerProps,
-  } = useChatComposer()
-  const registerShellScroller = useShellScrollerRegistration()
+  } = chat
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
-    registerShellScroller?.(element)
-  }, [chatContainerRef, registerShellScroller])
+  }, [chatContainerRef])
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
 
@@ -60,17 +51,13 @@ export default function ChatPage() {
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {
-      if (!hasProAccess) {
-        router.push('/upgrade')
-        return
-      }
       setSelectedGoalId(entityId)
       return
     }
 
     setSelectedGoalId(null)
     router.push(`/habits/${entityId}`)
-  }, [hasProAccess, router])
+  }, [router])
 
   const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedGoalId(null)
@@ -134,41 +121,30 @@ export default function ChatPage() {
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
-            onUpgradeClick={() => router.push('/upgrade')}
             onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
         ))}
 
-        {isTyping && <TypingIndicator />}
       </div>
 
       <div className="shrink-0">
-        {!isOnline ? (
-          <div className="px-4 pt-3">
-            <ErrorState message={t('chat.offline.description')} />
+        {sendError ? (
+          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad)]">
+            <p className="m-0">{sendError}</p>
+            {canRetryLastSend && isOnline ? (
+              <button
+                type="button"
+                onClick={() => void retryLastSend()}
+                className="orbit-link-action flex min-h-11 items-center gap-2 border-0 bg-transparent font-medium text-[var(--fg-2)]"
+              >
+                <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
+                {t('shell.composer.retry')}
+              </button>
+            ) : null}
           </div>
         ) : null}
-        {sendError ? (
-          <p role="alert" aria-live="assertive" className="m-0 px-4 pt-3 text-center text-sm text-[var(--status-bad)]">
-            {sendError}
-          </p>
-        ) : null}
-        <input
-          ref={textFileInputRef}
-          type="file"
-          accept={CHAT_TEXT_FILE_WEB_ACCEPT}
-          className="hidden"
-          onChange={(event) => void handleTextFileSelect(event)}
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={handleFileSelect}
-        />
         <Composer {...composerProps} />
       </div>
 

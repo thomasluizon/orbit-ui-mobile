@@ -74,7 +74,7 @@ export const TOUR_STEPS: TourStep[] = [
     titleKey: 'tour.chat.area.title',
     descriptionKey: 'tour.chat.area.description',
     placement: 'bottom',
-    route: '/chat',
+    route: '/',
   },
   {
     id: 'chat-input',
@@ -83,7 +83,7 @@ export const TOUR_STEPS: TourStep[] = [
     titleKey: 'tour.chat.input.title',
     descriptionKey: 'tour.chat.input.description',
     placement: 'top',
-    route: '/chat',
+    route: '/',
   },
   {
     id: 'chat-suggestions',
@@ -92,7 +92,7 @@ export const TOUR_STEPS: TourStep[] = [
     titleKey: 'tour.chat.suggestions.title',
     descriptionKey: 'tour.chat.suggestions.description',
     placement: 'top',
-    route: '/chat',
+    route: '/',
   },
   {
     id: 'chat-voice',
@@ -101,7 +101,7 @@ export const TOUR_STEPS: TourStep[] = [
     titleKey: 'tour.chat.voice.title',
     descriptionKey: 'tour.chat.voice.description',
     placement: 'top',
-    route: '/chat',
+    route: '/',
     proBadge: true,
   },
 
@@ -194,7 +194,7 @@ export const TOUR_STEPS: TourStep[] = [
     titleKey: 'tour.coachmarks.astra.title',
     descriptionKey: 'tour.coachmarks.astra.description',
     placement: 'top',
-    route: '/chat',
+    route: '/',
   },
 ]
 

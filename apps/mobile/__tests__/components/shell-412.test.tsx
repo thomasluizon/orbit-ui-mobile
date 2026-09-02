@@ -42,6 +42,28 @@ describe('Shell412 mobile', () => {
     expect(tree.root.findAll((node) => String(node.type) === 'SelectionTray')).toHaveLength(1)
   })
 
+  it('prefers a destination-owned selection tray over the persistent composer', async () => {
+    function Screen() {
+      useShellComposerSlot(true, React.createElement('SelectionTray'))
+      return React.createElement('Screen')
+    }
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Shell412
+          composer={React.createElement('AstraComposer')}
+          tabBar={React.createElement('TabBar')}
+        >
+          <Screen />
+        </Shell412>,
+      )
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node) => String(node.type) === 'SelectionTray')).toHaveLength(1)
+    expect(tree.root.findAll((node) => String(node.type) === 'AstraComposer')).toHaveLength(0)
+  })
+
   it('refreshes the Today composer tray when an image is selected and removed', async () => {
     let setImageSelected!: (selected: boolean) => void
 

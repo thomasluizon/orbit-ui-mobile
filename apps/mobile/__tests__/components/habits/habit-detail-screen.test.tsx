@@ -7,6 +7,8 @@ import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -378,6 +380,8 @@ describe('HabitDetailScreen', () => {
     mocks.history = []
     mocks.hasProAccess = true
     mocks.suggestion = null
+    useChatStore.setState({ draft: '', draftHydrated: true })
+    useUIStore.setState({ astraConversationOpen: false })
   })
 
   afterEach(() => {
@@ -918,11 +922,9 @@ describe('HabitDetailScreen', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.setStorage).toHaveBeenCalledWith(
-      'orbit-chat-draft',
-      'habits.detail.askAstraSeedDefault:{"title":"Read"}',
-    )
-    expect(mocks.routerPush).toHaveBeenCalledWith('/chat')
+    expect(useChatStore.getState().draft).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('sends free users from the slipping block to upgrade', () => {

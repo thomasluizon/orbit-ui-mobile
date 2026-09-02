@@ -50,6 +50,8 @@ import { useDeleteHabit, useLogHabit, useUpdateChecklist, useUpdateHabit } from 
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -302,8 +304,8 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   }
   const askAstra = () => {
     const seedKey = habit?.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault'
-    localStorage.setItem('orbit-chat-draft', t(seedKey, { title: habit?.title ?? '' }))
-    router.push('/chat')
+    useChatStore.getState().setDraft(t(seedKey, { title: habit?.title ?? '' }))
+    useUIStore.getState().setAstraConversationOpen(true)
   }
   const openChild = (childId: string) => router.push(`/habits/${childId}?date=${dateStr}&parent=${habitId}${fromToday ? '&from=today' : ''}`)
 

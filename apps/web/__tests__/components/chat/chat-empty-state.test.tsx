@@ -5,7 +5,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-import { ChatEmptyState } from '@/app/(chat)/chat/chat-empty-state'
+import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 
 describe('ChatEmptyState', () => {
   it('renders the empty-state title and prompt copy', () => {

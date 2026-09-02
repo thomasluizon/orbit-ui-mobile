@@ -2,43 +2,73 @@ import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
+import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { ArrowUpRight } from "@/components/ui/icons";
+import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
-import type { ChatMessage } from "@orbit/shared/types/chat";
-import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
-import { getRelatedSurfaces, stripChatDirectives } from "@orbit/shared/chat";
-import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
+import type { MessageBubbleProps } from "@orbit/shared/chat";
+import {
+  getRelatedSurfaces,
+  partitionMessageActions,
+  stripChatDirectives,
+} from "@orbit/shared/chat";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
 import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
+import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
-interface MessageBubbleProps {
-  message: ChatMessage;
-  animateEntry?: boolean;
-  isStreaming?: boolean;
-  onBreakdownConfirmed?: () => void;
-  onActionChipClick?: (entityId: string, actionType: string) => void;
-  onPendingOperationConfirmExecute?: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
-  onPendingOperationPrepareStepUp?: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>;
-  onPendingOperationVerifyStepUp?: (
-    pendingOperationId: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
-  onUpgradeClick?: () => void;
+function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
+  sourceText: string;
+  tokens: ReturnType<typeof createTokensV2>;
+  styles: ReturnType<typeof createStyles>;
+}>) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  async function copySourceText() {
+    await Clipboard.setStringAsync(sourceText);
+    setCopied(true);
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copied ? t("chat.copied") : t("chat.copy")}
+      onPress={() => void copySourceText()}
+      style={styles.copyControl}
+    >
+      {copied ? (
+        <Check size={16} strokeWidth={1.8} color={tokens.fg3} />
+      ) : (
+        <Copy size={16} strokeWidth={1.8} color={tokens.fg3} />
+      )}
+      <Text style={styles.copyText}>{copied ? t("chat.copied") : t("chat.copy")}</Text>
+    </Pressable>
+  );
+}
+
+function MessageDataLists({
+  message,
+  onActionChipClick,
+}: Readonly<Pick<MessageBubbleProps, "message" | "onActionChipClick">>) {
+  return (
+    <>
+      {message.habitList ? <HabitListCard habitList={message.habitList} /> : null}
+      {message.goalList ? (
+        <GoalListCard
+          goalList={message.goalList}
+          onOpenGoal={(id) => onActionChipClick?.(id, "CreateGoal")}
+        />
+      ) : null}
+    </>
+  );
 }
 
 export function MessageBubble({
@@ -50,7 +80,6 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
-  onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -65,41 +94,15 @@ export function MessageBubble({
   );
 
   const isUser = message.role === "user";
+  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false);
 
-  const suggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) => a.status === "Suggestion" && a.suggestedSubHabits?.length,
-      ) ?? [],
-    [message.actions],
-  );
-
-  const clarificationActions = useMemo(
-    () =>
-      (message.actions ?? []).filter(
-        (a): a is typeof a & { clarificationRequest: NonNullable<typeof a.clarificationRequest> } =>
-          a.status === "NeedsClarification" && a.clarificationRequest != null,
-      ),
-    [message.actions],
-  );
-
-  const hasUpgradeDenial = useMemo(
-    () =>
-      (message.policyDenials ?? []).some(
-        (denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
-      ),
-    [message.policyDenials],
-  );
-
-  const nonSuggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) =>
-          a.status !== "Suggestion" &&
-          a.status !== "NeedsClarification" &&
-          !(hasUpgradeDenial && a.status === "Failed"),
-      ) ?? [],
-    [message.actions, hasUpgradeDenial],
+  const {
+    clarificationActions,
+    nonSuggestionActions,
+    suggestionActions,
+  } = useMemo(
+    () => partitionMessageActions(message.actions, message.policyDenials),
+    [message.actions, message.policyDenials],
   );
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
@@ -145,12 +148,10 @@ export function MessageBubble({
           </Markdown>
         </View>
 
-        {!isUser && message.habitList ? (
-          <HabitListCard habitList={message.habitList} />
-        ) : null}
+        <MessageCopyControl sourceText={sourceText} styles={styles} tokens={tokens} />
 
-        {!isUser && message.goalList ? (
-          <GoalListCard goalList={message.goalList} />
+        {!isUser ? (
+          <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
         ) : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
@@ -196,6 +197,7 @@ export function MessageBubble({
                   key={actionKey}
                   parentName={action.entityName || "Habit"}
                   subHabits={action.suggestedSubHabits ?? []}
+                  warning={action.conflictWarning}
                   onConfirmed={() => onBreakdownConfirmed?.()}
                   onCancelled={() => dismissBreakdown(actionKey)}
                 />
@@ -235,53 +237,11 @@ export function MessageBubble({
             </View>
           )}
 
-        {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
+        {!isUser && ((message.operations?.length ?? 0) > 0 || (message.policyDenials?.length ?? 0) > 0) ? (
           <View style={styles.operationStack}>
-            {message.policyDenials.map((denial) => {
-              const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(
-                denial,
-              );
-
-              return (
-                <View
-                  key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  style={styles.denialCard}
-                >
-                  <Text style={styles.denialTitle}>
-                    {upgradeResolution.shouldUpgrade
-                      ? t("chat.proGate.title")
-                      : denial.sourceName}
-                  </Text>
-                  <Text style={styles.denialReason}>
-                    {upgradeResolution.shouldUpgrade
-                      ? t("chat.proGate.body")
-                      : denial.reason}
-                  </Text>
-                  {upgradeResolution.shouldUpgrade && onUpgradeClick ? (
-                    <Pressable
-                      onPress={onUpgradeClick}
-                      accessibilityRole="button"
-                      hitSlop={{ top: 6, bottom: 6 }}
-                      style={({ pressed }) => [
-                        styles.denialUpgrade,
-                        {
-                          backgroundColor: pressed
-                            ? tokens.primaryPressed
-                            : tokens.primary,
-                        },
-                        pressed ? styles.denialUpgradePressed : null,
-                      ]}
-                    >
-                      <Text style={styles.denialUpgradeText}>
-                        {t("upgrade.subscribe")}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              );
-            })}
+            <OperationOutcomes operations={message.operations ?? []} denials={message.policyDenials ?? []} />
           </View>
-        )}
+        ) : null}
       </View>
     </>
   );
@@ -313,7 +273,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       marginBottom: 16,
       paddingHorizontal: 16,
-      gap: 10,
+      gap: 8,
     },
     userContainer: {
       justifyContent: "flex-end",
@@ -349,7 +309,7 @@ function createStyles(tokens: AppTokens) {
       maxWidth: "100%",
       minWidth: 0,
       flexShrink: 1,
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
       paddingVertical: 12,
     },
     userBubble: {
@@ -376,6 +336,18 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
       marginBottom: 8,
     },
+    copyControl: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 8,
+    },
+    copyText: {
+      color: tokens.fg3,
+      fontFamily: "Geist_500Medium",
+      fontSize: 14,
+    },
 
     relatedContainer: {
       marginTop: 8,
@@ -385,7 +357,7 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
       color: tokens.fg3,
-      marginBottom: 6,
+      marginBottom: 4,
       paddingHorizontal: 4,
     },
     relatedChips: {
@@ -396,7 +368,7 @@ function createStyles(tokens: AppTokens) {
     relatedChip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
       minHeight: 44,
       paddingHorizontal: 16,
       borderRadius: 999,
@@ -420,41 +392,6 @@ function createStyles(tokens: AppTokens) {
       gap: 12,
       marginTop: 12,
       width: "100%",
-    },
-    denialCard: {
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: `${tokens.statusBad}33`,
-      backgroundColor: `${tokens.statusBad}14`,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      gap: 4,
-    },
-    denialTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      color: tokens.statusBadText,
-    },
-    denialReason: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-      lineHeight: 17,
-      color: tokens.statusBadText,
-    },
-    denialUpgrade: {
-      alignSelf: "flex-start",
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 999,
-      marginTop: 8,
-    },
-    denialUpgradePressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    denialUpgradeText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 12,
-      color: tokens.fgOnPrimary,
     },
   });
 }

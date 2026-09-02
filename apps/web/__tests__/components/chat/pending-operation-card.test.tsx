@@ -1,169 +1,83 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
-
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 
-function makePendingOperation(
-  overrides: Partial<PendingAgentOperation> = {},
-): PendingAgentOperation {
-  return {
-    id: 'pending-1',
-    capabilityId: 'habit.delete',
-    displayName: 'Delete habit',
-    summary: 'Delete Meditation habit',
-    riskClass: 'Destructive',
-    confirmationRequirement: 'FreshConfirmation',
-    expiresAtUtc: '2025-01-15T10:00:00Z',
-    ...overrides,
-  }
-}
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? <button type="button" onClick={onConfirm}>confirm-sheet</button> : null,
+}))
+vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
+vi.mock('@/components/ui/otp-input', () => ({
+  OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
+    <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />,
+}))
 
-function makeExecutionResponse(
-  status: AgentExecuteOperationResponse['operation']['status'],
-  overrides: Partial<AgentExecuteOperationResponse> = {},
-): AgentExecuteOperationResponse {
-  return {
-    operation: {
-      operationId: 'habit.delete',
-      sourceName: 'Delete habit',
-      riskClass: 'Destructive',
-      confirmationRequirement: 'FreshConfirmation',
-      status,
-      summary: 'Delete Meditation habit',
-      policyReason: status === 'Succeeded' ? null : 'missing_scope:delete_habits',
-      payload: null,
-    },
-    ...overrides,
-  }
-}
+const confirm = vi.fn()
+const prepareStepUp = vi.fn()
+const verifyStepUp = vi.fn()
 
 describe('PendingOperationCard', () => {
-  it('shows an error instead of success when execution returns a denied operation', async () => {
-    render(
-      <PendingOperationCard
-        pendingOperation={makePendingOperation()}
-        onConfirmExecute={vi.fn().mockResolvedValue({
-          ok: true,
-          response: makeExecutionResponse('Denied'),
-        })}
-        onPrepareStepUp={vi.fn()}
-        onVerifyStepUp={vi.fn()}
-      />,
-    )
+  beforeEach(() => {
+    confirm.mockReset()
+    prepareStepUp.mockReset()
+    verifyStepUp.mockReset()
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }))
+  it('states risk and requires a sheet before a destructive operation', async () => {
+    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
-    await waitFor(() => {
-      expect(screen.getByText('chat.sendError')).toBeInTheDocument()
+    expect(screen.getByText('chat.operation.risk.destructive')).toBeInTheDocument()
+    expect(screen.getByText('chat.operation.irreversible')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    expect(confirm).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-sheet' }))
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith('pending-1'))
+  })
+
+  it('hands step up to a sheet, verifies the code, and executes', async () => {
+    prepareStepUp.mockResolvedValue({
+      ok: true,
+      challengeId: 'challenge-1',
+      confirmationToken: 'confirmation-1',
     })
-
-    expect(screen.queryByText('missing_scope:delete_habits')).not.toBeInTheDocument()
-    expect(screen.queryByText('chat.pendingOp.confirmed')).not.toBeInTheDocument()
-  })
-
-  it('shows friendly copy for known policy reasons instead of the raw code', async () => {
-    render(
-      <PendingOperationCard
-        pendingOperation={makePendingOperation()}
-        onConfirmExecute={vi.fn().mockResolvedValue({
-          ok: true,
-          response: makeExecutionResponse('Denied', {
-            operation: {
-              ...makeExecutionResponse('Denied').operation,
-              policyReason: 'confirmation_required',
-            },
-          }),
-        })}
-        onPrepareStepUp={vi.fn()}
-        onVerifyStepUp={vi.fn()}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }))
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('chat.pendingOp.errors.confirmation_required'),
-      ).toBeInTheDocument()
+    verifyStepUp.mockResolvedValue({
+      ok: true,
+      response: { operation: { status: 'Succeeded' } },
     })
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ confirmationRequirement: 'StepUp', riskClass: 'High' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
-    expect(screen.queryByText('confirmation_required')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
+    await waitFor(() => expect(prepareStepUp).toHaveBeenCalledWith('pending-1'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'stepUp.codeLabel' }), {
+      target: { value: '123456' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'stepUp.confirm' }))
+
+    await waitFor(() => expect(verifyStepUp).toHaveBeenCalledWith(
+      'pending-1',
+      'challenge-1',
+      '123456',
+      'confirmation-1',
+    ))
+    expect(await screen.findByText('status.done')).toBeInTheDocument()
   })
 
-  it('localizes the capability title for confirmation-gated capabilities', () => {
-    render(
-      <PendingOperationCard
-        pendingOperation={makePendingOperation({ capabilityId: 'habits.bulk.write' })}
-        onConfirmExecute={vi.fn()}
-        onPrepareStepUp={vi.fn()}
-        onVerifyStepUp={vi.fn()}
-      />,
-    )
-
-    expect(
-      screen.getByText('chat.pendingOp.capability.habits-bulk-write'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Delete habit')).not.toBeInTheDocument()
-  })
-
-  it('dismisses the card without calling the mutation when Cancel is clicked', () => {
-    const onConfirmExecute = vi.fn()
-    render(
-      <PendingOperationCard
-        pendingOperation={makePendingOperation()}
-        onConfirmExecute={onConfirmExecute}
-        onPrepareStepUp={vi.fn()}
-        onVerifyStepUp={vi.fn()}
-      />,
-    )
-
+  it('cancels without executing', () => {
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-    fireEvent.transitionEnd(screen.getByTestId('pending-op-card'), { propertyName: 'opacity' })
-
-    expect(onConfirmExecute).not.toHaveBeenCalled()
-    expect(screen.queryByTestId('pending-op-card')).not.toBeInTheDocument()
+    expect(screen.queryByText('chat.operation.pendingTitle')).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
   })
 
-  it('shows an error instead of success when step-up verification returns a failed operation', async () => {
-    render(
-      <PendingOperationCard
-        pendingOperation={makePendingOperation({
-          confirmationRequirement: 'StepUp',
-          riskClass: 'High',
-        })}
-        onConfirmExecute={vi.fn()}
-        onPrepareStepUp={vi.fn().mockResolvedValue({
-          ok: true,
-          challengeId: 'challenge-1',
-          confirmationToken: 'confirm-token',
-        })}
-        onVerifyStepUp={vi.fn().mockResolvedValue({
-          ok: true,
-          response: makeExecutionResponse('Failed', {
-            operation: {
-              ...makeExecutionResponse('Failed').operation,
-              policyReason: 'verification_failed',
-            },
-          }),
-        })}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'auth.sendCode' }))
-    await screen.findByPlaceholderText('common.codePlaceholder')
-
-    fireEvent.change(screen.getByPlaceholderText('common.codePlaceholder'), { target: { value: '123456' } })
-    fireEvent.click(screen.getByRole('button', { name: 'auth.verify' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('chat.sendError')).toBeInTheDocument()
-    })
-
-    expect(screen.queryByText('verification_failed')).not.toBeInTheDocument()
+  it('does not mark a denied execution as done', async () => {
+    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Denied' } } })
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
   })
 })

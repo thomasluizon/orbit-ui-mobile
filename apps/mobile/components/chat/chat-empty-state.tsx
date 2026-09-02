@@ -3,7 +3,7 @@ import { View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AstraAvatar } from "@/components/ui/astra-avatar";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
-import type { ChatStyles } from "@/app/chat.styles";
+import type { ChatStyles } from "@/components/chat/conversation.styles";
 
 interface ChatEmptyStateProps {
   styles: ChatStyles;

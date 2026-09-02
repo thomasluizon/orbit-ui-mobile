@@ -3,6 +3,8 @@ import type { BreakdownEditableHabit } from '../utils/breakdown-suggestion'
 import {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
+  getBreakdownCadenceKey,
+  nextBreakdownCadence,
 } from '../utils/breakdown-suggestion'
 
 function makeEditableHabit(
@@ -36,6 +38,24 @@ describe('filterValidBreakdownHabits', () => {
     const habits = [{ ...makeEditableHabit(), id: 'row-1' }]
 
     expect(filterValidBreakdownHabits(habits)[0]?.id).toBe('row-1')
+  })
+})
+
+describe('breakdown cadences', () => {
+  it('labels every accepted cadence without folding it into daily', () => {
+    expect([null, 'Day', 'Week', 'Month', 'Year'].map((cadence) =>
+      getBreakdownCadenceKey(cadence as BreakdownEditableHabit['frequencyUnit']),
+    )).toEqual([
+      'habits.filter.oneTime',
+      'habits.filter.daily',
+      'habits.filter.weekly',
+      'habits.filter.monthly',
+      'habits.filter.yearly',
+    ])
+  })
+
+  it('cycles yearly proposals to one-time instead of daily', () => {
+    expect(nextBreakdownCadence('Year')).toBeNull()
   })
 })
 
