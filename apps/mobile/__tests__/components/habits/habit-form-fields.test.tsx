@@ -313,6 +313,34 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findByProps({ testID: 'checklist' }).parent?.props.testID).not.toBe('proposed-field')
   })
 
+  it('allows Astra again after the proposed phrase changes', async () => {
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Build a stronger routine' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} />)
+      await Promise.resolve()
+    })
+
+    let ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(onSuggestSetup).toHaveBeenCalledOnce()
+
+    await TestRenderer.act(async () => {
+      tree.root.findByType('HabitUnderstanding').props.onValueChange('Build a calmer routine')
+      await Promise.resolve()
+    })
+    ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(onSuggestSetup).toHaveBeenCalledTimes(2)
+  })
+
   it('marks only an Astra checklist proposal and resolves it when edited', async () => {
     const formHelpers = createFormHelpers({
       checklistItems: [{ text: 'Shoes', isChecked: false }],

@@ -388,7 +388,10 @@ export function HabitFormFields({
         sentence={sentence}
         consumed={localRead.consumed}
         proposed={proposal.setup}
-        onValueChange={(value) => setValue('title', value, { shouldDirty: true, shouldValidate: true })}
+        onValueChange={(value) => {
+          setProposal(EMPTY_HABIT_FORM_PROPOSAL)
+          setValue('title', value, { shouldDirty: true, shouldValidate: true })
+        }}
         onEmojiSelect={(value) => {
           setProposal(EMPTY_HABIT_FORM_PROPOSAL)
           setValue('emoji', value, { shouldDirty: true })

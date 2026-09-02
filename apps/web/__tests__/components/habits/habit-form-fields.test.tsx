@@ -320,6 +320,22 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.understood')).toBeDefined()
   })
 
+  it('allows Astra again after the proposed phrase changes', async () => {
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
+    renderForm(createFormHelpers({ title: 'Build a stronger routine' }), onSuggestSetup)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('habits.form.describe'), {
+      target: { value: 'Build a calmer routine' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+
+    await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledTimes(2))
+  })
+
   it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
     renderForm(
       createFormHelpers({
