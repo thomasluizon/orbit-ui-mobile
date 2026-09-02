@@ -62,6 +62,10 @@ function button(tree: TestTree, label: string): TestNode {
   )[0]!;
 }
 
+function resolvedStyle(node: TestNode, pressed: boolean): unknown[] {
+  return (node.props.style as (state: { pressed: boolean }) => unknown[])({ pressed });
+}
+
 function renderSelector(
   selectedEmoji = "",
   onSelect = vi.fn(),
@@ -90,12 +94,11 @@ describe("HabitEmojiSelector mobile", () => {
   it("filters, clears, and toggles a category in the picker", () => {
     const { tree } = renderSelector();
     const opener = button(tree, "habits.form.emojiOpenPicker");
-    (opener.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
+    expect(resolvedStyle(opener, true)).toContainEqual({
+      backgroundColor: tokens.bgHover,
+      transform: [{ scale: 0.96 }],
     });
-    (opener.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
+    expect(resolvedStyle(opener, false).at(-1)).toBeNull();
     press(opener);
 
     const search = tree.root.findAll((node) => node.type === "TextInput")[0]!;
@@ -115,14 +118,12 @@ describe("HabitEmojiSelector mobile", () => {
     expect(search.props.value).toBe("");
 
     const category = button(tree, firstCategory.labelKey);
-    (category.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
+    expect(resolvedStyle(category, true)).toContainEqual({
+      transform: [{ scale: 0.96 }],
     });
     press(category);
     expect(category.props.accessibilityState).toEqual({ selected: true });
-    (category.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
+    expect(resolvedStyle(category, false).at(-1)).toBeNull();
     press(category);
     expect(category.props.accessibilityState).toEqual({ selected: false });
 
@@ -146,19 +147,15 @@ describe("HabitEmojiSelector mobile", () => {
       `habits.form.emoji: ${firstEmoji}`,
     );
     expect(selectedOption.props.accessibilityState).toEqual({ selected: true });
-    (selectedOption.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
+    expect(resolvedStyle(selectedOption, true)).toContainEqual({
+      transform: [{ scale: 0.96 }],
     });
-    (selectedOption.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
+    expect(resolvedStyle(selectedOption, false).at(-1)).toBeNull();
     const remove = button(removal.tree, "habits.form.emojiRemove");
-    (remove.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
+    expect(resolvedStyle(remove, true)).toContainEqual({
+      transform: [{ scale: 0.96 }],
     });
-    (remove.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
+    expect(resolvedStyle(remove, false).at(-1)).toBeNull();
     press(remove);
     expect(removal.onSelect).toHaveBeenCalledWith("");
     expect(mockCloseSheet).toHaveBeenCalledTimes(2);
