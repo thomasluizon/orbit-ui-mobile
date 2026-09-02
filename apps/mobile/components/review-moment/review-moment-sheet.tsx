@@ -85,6 +85,11 @@ export function ReviewMomentSheet() {
   const variant: ReviewMomentKey | null = visibleKey
     ? parseReviewMomentKey(visibleKey)
     : null
+  const title = variant?.kind === 'streak'
+    ? t('reviewMoment.streakTitle', { count: variant.value })
+    : variant?.kind === 'level'
+      ? t('reviewMoment.levelTitle', { level: variant.value })
+      : ''
 
   function hideAndSnooze() {
     setVisibleKey(null)
@@ -106,15 +111,14 @@ export function ReviewMomentSheet() {
   }
 
   return (
-    variant !== null ? (<Sheet ref={sheetRef} open onClose={hideAndSnooze}>
+    variant !== null ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={hideAndSnooze}
+      title={title}
+    >
       <View style={styles.content}>
-          <AstraAvatar size={96} label={t('reviewMoment.eyebrow')} />
-          <Text style={styles.eyebrow}>{t('reviewMoment.eyebrow')}</Text>
-          <Text style={styles.title}>
-            {variant.kind === 'streak'
-              ? t('reviewMoment.streakTitle', { count: variant.value })
-              : t('reviewMoment.levelTitle', { level: variant.value })}
-          </Text>
+          <AstraAvatar size={48} label={t('reviewMoment.eyebrow')} />
           <Text style={styles.body}>
             {variant.kind === 'streak'
               ? t('reviewMoment.streakBody', { count: variant.value })
@@ -158,46 +162,32 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
       paddingHorizontal: 24,
-      paddingTop: 20,
-      paddingBottom: 28,
-      gap: 12,
+      paddingBottom: 24,
+      gap: 16,
       alignItems: 'center',
     },
-    eyebrow: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-    },
-    title: {
-      fontFamily: 'Inter_700Bold',
-      fontSize: 28,
-      letterSpacing: -0.56,
-      textAlign: 'center',
-      color: tokens.fg1,
-    },
     body: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      maxWidth: 420,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
     },
     actions: {
       alignSelf: 'stretch',
       gap: 8,
-      paddingTop: 12,
     },
     notNowButton: {
       alignItems: 'center',
-      paddingVertical: 12,
+      minHeight: 44,
+      justifyContent: 'center',
     },
     notNowButtonPressed: {
       transform: [{ scale: 0.98 }],
     },
     notNowText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg3,
     },
