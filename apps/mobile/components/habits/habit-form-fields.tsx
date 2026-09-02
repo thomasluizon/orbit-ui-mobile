@@ -11,6 +11,7 @@ import {
   formatLocaleDate,
   getFriendlyErrorMessage,
   HABIT_REMINDER_PRESETS,
+  isFeatureEnabled,
   readHabitPhrase,
   resolveSupportedLocale,
 } from '@orbit/shared/utils'
@@ -18,6 +19,7 @@ import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/val
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { DateField } from '@/components/ui/date-field'
@@ -29,6 +31,7 @@ import { TimeField } from '@/components/ui/time-field'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
+import { ProBadge } from '@/components/ui/pro-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
@@ -63,6 +66,10 @@ interface HabitFormFieldsProps {
   onUpgrade: () => void
   startDate?: string | null
   children?: ReactNode
+}
+
+function featurePlan(hasProAccess: boolean): 'pro' | 'free' {
+  return hasProAccess ? 'pro' : 'free'
 }
 
 interface AstraFallbackProps {
@@ -157,6 +164,37 @@ interface ReminderEditorsProps {
   t: (key: string) => string
 }
 
+interface SubHabitSectionProps {
+  canUseSubHabits: boolean
+  proposed: boolean
+  checklistItemCount: number
+  onUpgrade: () => void
+  children?: ReactNode
+  t: (key: string) => string
+}
+
+function SubHabitSection({
+  canUseSubHabits,
+  proposed,
+  checklistItemCount,
+  onUpgrade,
+  children,
+  t,
+}: Readonly<SubHabitSectionProps>) {
+  return (
+    <View>
+      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
+      {canUseSubHabits ? (
+        <Proposed proposed={proposed && checklistItemCount === 0 && !!children} scope="field" label={t('habits.form.proposed')}>
+          {children}
+        </Proposed>
+      ) : (
+        <ListRow title={t('habits.form.subHabits')} trailing={<ProBadge alwaysVisible />} onClick={onUpgrade} />
+      )}
+    </View>
+  )
+}
+
 function ReminderEditors({
   dueTime,
   reminderEnabled,
@@ -209,6 +247,7 @@ export function HabitFormFields({
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
+  const { config } = useConfig()
   const { profile } = useProfile()
   const { form, daysList, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { setValue, formState: { errors } } = form
@@ -228,6 +267,7 @@ export function HabitFormFields({
   const checklistItems = useWatch({ control: form.control, name: 'checklistItems' }) ?? []
   const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
   const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
+  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', featurePlan(hasProAccess))
   const displayedStartDate = resolveStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposed, setProposed] = useState(false)
@@ -436,12 +476,9 @@ export function HabitFormFields({
                 <ChecklistTemplates items={checklistItems} onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
               </Proposed>
             </View>
-            <View>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
-              <Proposed proposed={proposed && checklistItems.length === 0 && !!children} scope="field" label={t('habits.form.proposed')}>
-                {children}
-              </Proposed>
-            </View>
+            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposed} checklistItemCount={checklistItems.length} onUpgrade={onUpgrade} t={t}>
+              {children}
+            </SubHabitSection>
             <View style={styles.compactGroup}>
               <SectionLabel inset={false} top={0} bottom={0}>{t('habits.form.habitTypeAvoid')}</SectionLabel>
               <Switch label={t('habits.form.habitTypeAvoid')} checked={isBadHabit} onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })} />

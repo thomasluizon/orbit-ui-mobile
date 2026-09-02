@@ -55,9 +55,14 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => true,
   useProfile: () => ({
     profile: { hasProAccess: true },
   }),
+}))
+
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({

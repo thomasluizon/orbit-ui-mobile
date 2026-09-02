@@ -50,6 +50,15 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mockSuggestMutateAsync, isPending: false }),
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => true,
+  useProfile: () => ({ profile: { hasProAccess: true } }),
+}))
+
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+}))
+
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,

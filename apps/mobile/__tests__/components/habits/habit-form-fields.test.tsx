@@ -6,12 +6,15 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
-const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0 }))
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 
 vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+}))
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => false,
-  useProfile: () => ({ profile: { aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
+  useHasProAccess: () => mockProfileState.hasProAccess,
+  useProfile: () => ({ profile: { hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -44,6 +47,7 @@ describe('HabitFormFields mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
 
@@ -161,6 +165,19 @@ describe('HabitFormFields mobile', () => {
 
     expect(tree.root.findAll((node: any) => node.props?.testID === 'offset-reminders')).toHaveLength(1)
     expect(tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')).toHaveLength(1)
+  })
+
+  it('routes the free sub-habit row to upgrade', async () => {
+    const onUpgrade = vi.fn()
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={onUpgrade} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.subHabits').length > 0)[0]
+    TestRenderer.act(() => subHabitRow.props.onPress())
+    expect(onUpgrade).toHaveBeenCalledOnce()
   })
 
   it('keeps local corrections and details live at the Astra ceiling', async () => {

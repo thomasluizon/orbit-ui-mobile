@@ -6,17 +6,22 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
-const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0 }))
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
+const mockRouterPush = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
   useLocale: () => 'en',
 }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+}))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => false,
-  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC', aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
+  useHasProAccess: () => mockProfileState.hasProAccess,
+  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC', hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
@@ -100,6 +105,7 @@ describe('HabitFormFields', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
   })
 
   it('starts with one phrase field, closed details, and an immutable start date', () => {
@@ -189,6 +195,7 @@ describe('HabitFormFields', () => {
   })
 
   it('reveals the detail sections from the single disclosure', () => {
+    mockProfileState.hasProAccess = true
     renderForm(createFormHelpers({ title: 'Run' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     expect(screen.getByText('checklist-editor')).toBeDefined()
@@ -196,6 +203,14 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('goal-linking')).toBeDefined()
     expect(screen.getByText('date-field')).toBeDefined()
     expect(screen.getByText('slip-alert')).toBeDefined()
+  })
+
+  it('routes the free sub-habit row to upgrade while keeping goals available', () => {
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.subHabits/ }))
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByText('goal-linking')).toBeDefined()
   })
 
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', () => {

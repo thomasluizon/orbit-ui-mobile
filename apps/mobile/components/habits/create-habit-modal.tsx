@@ -20,6 +20,8 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
+import { useConfig } from '@/hooks/use-config'
+import { useHasProAccess } from '@/hooks/use-profile'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
@@ -29,6 +31,7 @@ import {
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
+  isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -113,9 +116,12 @@ export function CreateHabitModal({
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
+  const { config } = useConfig()
+  const hasProAccess = useHasProAccess()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
+  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', hasProAccess ? 'pro' : 'free')
 
   const formHelpers = useHabitForm({
     initialData: {
@@ -284,7 +290,7 @@ export function CreateHabitModal({
   const handleSubmit = useCallback(async () => {
     flushBufferedInputsRef.current()
 
-    const subHabitValues = subHabits.map((entry) => entry.value)
+    const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
     const error = formHelpers.validateAll({
       reminderTimes,
       selectedGoalIds,
@@ -335,6 +341,7 @@ export function CreateHabitModal({
     parentHabit,
     tags,
     selectedGoalIds,
+    canUseSubHabits,
     subHabits,
     reminderTimes,
     createHabit,
@@ -359,7 +366,7 @@ export function CreateHabitModal({
 
       const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
 
-      const appliedSubHabits = patch.subHabitTitles.length > 0
+      const appliedSubHabits = canUseSubHabits && patch.subHabitTitles.length > 0
       if (appliedSubHabits) {
         setSubHabits((prev) => [
           ...prev.filter((entry) => entry.value.trim().length > 0),
@@ -392,7 +399,7 @@ export function CreateHabitModal({
       )
       return false
     }
-  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+  }, [canUseSubHabits, formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
