@@ -16,7 +16,7 @@ export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
           </>
         )
         return item.onClick ? (
-          <button key={`${item.label}-${index}`} type="button" onClick={item.onClick} className="flex w-full cursor-pointer items-center border-0 bg-transparent px-4 text-left hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]" style={{ gap: 12, minHeight: 52, borderTop: index === 0 ? undefined : '1px solid var(--hairline)' }}>{content}</button>
+          <button key={`${item.label}-${index}`} type="button" onClick={item.onClick} className="flex w-full cursor-pointer items-center border-0 bg-transparent px-4 text-left hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]" style={{ gap: 12, minHeight: 52, borderTop: index === 0 ? undefined : '1px solid var(--hairline)' }}>{content}</button>
         ) : (
           <div key={`${item.label}-${index}`} className="flex items-center px-4" style={{ gap: 12, minHeight: 52, borderTop: index === 0 ? undefined : '1px solid var(--hairline)' }}>{content}</div>
         )

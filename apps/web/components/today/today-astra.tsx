@@ -53,7 +53,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             {line.text}{' '}
             <button
               type="button"
-              className="border-0 bg-transparent p-0 text-inherit underline underline-offset-4"
+              className="orbit-link-action orbit-link-action-persistent border-0 bg-transparent p-0 text-inherit"
               onClick={() => {
                 markRead.mutate(line.notificationId)
                 openConversation()

@@ -87,7 +87,12 @@ export function HabitRowTrailing({
               disabled={readOnly}
               accessibilityState={{ disabled: readOnly }}
               accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
-              style={styles.parentRingButton}
+              style={({ pressed }) => [
+                styles.parentRingButton,
+                pressed && !readOnly
+                  ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
+                  : null,
+              ]}
             >
               <ParentRing
                 done={childrenDone}
@@ -118,9 +123,9 @@ export function HabitRowTrailing({
             accessibilityState={{ disabled: readOnly }}
             style={({ pressed }) => [
               styles.menuButton,
-              pressed
+              pressed && !readOnly
                 ? {
-                    backgroundColor: tokens.bgElevPressed,
+                    backgroundColor: tokens.bgHover,
                     transform: [{ scale: 0.96 }],
                   }
                 : null,

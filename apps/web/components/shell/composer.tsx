@@ -47,7 +47,7 @@ function AttachmentTray({
             type="button"
             aria-label={words.remove(attachment.name)}
             onClick={() => onRemove(attachment.id)}
-            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
           >
             <X size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -69,7 +69,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
           key={suggestion.id}
           type="button"
           onClick={suggestion.onSelect}
-          className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+          className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         >
           {suggestion.icon}
           <span>{suggestion.label}</span>
@@ -128,7 +128,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           type="button"
           aria-label={props.conversationLabel}
           onClick={props.onOpenConversation}
-          className="flex size-12 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[color,transform] hover:text-[var(--fg-1)] active:scale-[0.96]"
+          className="flex size-12 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         >
           <AstraGlyph size={20} color="currentColor" />
         </button>
@@ -154,7 +154,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={props.attachWords.file}
             disabled={inputDisabled}
             onClick={props.onAttachFile}
-            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
           >
             <FileText size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -166,7 +166,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={props.attachWords.image}
             disabled={inputDisabled}
             onClick={props.onAttachImage}
-            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
           >
             <ImageIcon size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -179,7 +179,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={isRecording ? props.voiceWords.stop : props.voiceWords.start}
             disabled={voiceDisabled}
             onClick={props.onVoice}
-            className={`flex size-11 shrink-0 items-center justify-center border-0 transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
+            className={`flex size-11 shrink-0 items-center justify-center border-0 transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
           >
             {isRecording ? (
               <Square size={16} fill="currentColor" aria-hidden="true" />
@@ -198,7 +198,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         onClick={() => {
           if (canSend) props.onSend()
         }}
-        className={`flex size-12 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-well)] text-[var(--fg-4)]'}`}
+        className={`flex size-12 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,opacity,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-well)] text-[var(--fg-4)]'}`}
       >
         <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
       </button>
@@ -212,7 +212,7 @@ function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
     <button
       type="button"
       onClick={props.onRetry}
-      className="flex min-h-11 items-center justify-center gap-2 self-start border-0 bg-transparent text-sm font-medium text-[var(--fg-2)] underline underline-offset-4 transition-[color] duration-[var(--dur-fast)] hover:text-[var(--fg-1)]"
+      className="orbit-link-action flex min-h-11 items-center justify-center gap-2 self-start border-0 bg-transparent text-sm font-medium text-[var(--fg-2)] transition-[color] duration-[var(--dur-hover)] hover:text-[var(--fg-1)]"
     >
       <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
       <span>{props.words.retry}</span>

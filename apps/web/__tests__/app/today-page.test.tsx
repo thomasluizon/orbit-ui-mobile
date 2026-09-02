@@ -97,6 +97,16 @@ describe('Hoje date control', () => {
     expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled()
   })
 
+  it('keeps the date arrows on the control hover token and duration', () => {
+    render(<TodayDateControl {...baseProps} />)
+
+    for (const name of ['Previous day', 'Next day']) {
+      const className = screen.getByRole('button', { name }).className
+      expect(className).toContain('hover:bg-[var(--bg-hover)]')
+      expect(className).toContain('var(--dur-hover-control)')
+    }
+  })
+
   it('renders the resolved read-only boundary notice', () => {
     const view = {
       data: { isFetching: false, refetch: vi.fn() },

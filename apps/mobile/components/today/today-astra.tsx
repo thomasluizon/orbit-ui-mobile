@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -22,6 +22,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const [actionPressed, setActionPressed] = useState(false)
   const offline = useOffline()
   const { profile } = useProfile()
   const { notifications } = useNotifications()
@@ -44,7 +45,12 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
         {line.text}{' '}
         <Text
           accessibilityRole="link"
-          style={styles.action}
+          style={[
+            styles.action,
+            actionPressed ? { backgroundColor: tokens.bgHover, color: tokens.fg1 } : null,
+          ]}
+          onPressIn={() => setActionPressed(true)}
+          onPressOut={() => setActionPressed(false)}
           onPress={() => {
             markRead.mutate(line.notificationId)
             setConversationOpen(true)

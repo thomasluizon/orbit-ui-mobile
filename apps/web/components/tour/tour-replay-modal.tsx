@@ -129,7 +129,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                 <button
                   type="button"
                   onClick={() => handleReplaySection(section)}
-                  className="w-full flex items-center text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
+                  className="w-full flex items-center text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]"
                   style={{
                     appearance: 'none',
                     border: 0,

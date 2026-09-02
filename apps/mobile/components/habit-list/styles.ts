@@ -111,7 +111,7 @@ export function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     drillBackBtnPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     drillHeading: { flex: 1, minWidth: 0 },

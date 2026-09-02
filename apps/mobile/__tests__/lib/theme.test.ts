@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  blendElevOverCanvas,
   createSurfaces,
   createTokensV2,
   getRuntimeTheme,
@@ -62,28 +61,48 @@ describe('mobile theme runtime', () => {
   it('dark resolves the granted accent byte-exact', () => {
     const dark = createTokensV2('purple', 'dark')
 
-    expect(dark.bg).toBe('#020618')
-    expect(dark.fg1).toBe('#f8fafc')
-    expect(dark.fg2).toBe('#cad5e2')
-    expect(dark.fg3).toBe('#90a1b9')
-    expect(dark.fg4).toBe('#62748e')
-    expect(dark.bgElev).toBe('rgba(248, 250, 252, 0.06)')
+    expect(dark.bg).toBe('#09090B')
+    expect(dark.bgCard).toBe('rgba(250,250,250,0.04)')
+    expect(dark.bgField).toBe('rgba(250,250,250,0.06)')
+    expect(dark.bgWell).toBe('rgba(250,250,250,0.08)')
+    expect(dark.bgElev).toBe('#1C1C1E')
+    expect(dark.bgElev2).toBe('rgba(250,250,250,0.12)')
+    expect(dark.bgHover).toBe('rgba(250,250,250,0.14)')
+    expect(dark.bgSunk).toBe('rgba(0,0,0,0.28)')
+    expect(dark.hairline).toBe('rgba(255,255,255,0.08)')
+    expect(dark.borderControl).toBe('rgba(255,255,255,0.08)')
+    expect(dark.hairlineGhost).toBe('rgba(255,255,255,0.10)')
+    expect(dark.hairlineStrong).toBe('rgba(255,255,255,0.16)')
+    expect(dark.scrim).toBe('rgba(0,0,0,0.55)')
+    expect(dark.fg1).toBe('#F4F4F6')
+    expect(dark.fg2).toBe('#C9C9CC')
+    expect(dark.fg3).toBe('#8F8F93')
+    expect(dark.fg4).toBe('#5D5D60')
     expect(dark.primary).toBe('#C4530F')
-    expect(dark.primaryHover).toBe('#b74e12')
-    expect(dark.primaryPressed).toBe('#a24716')
-    expect(dark.primarySoft).toBe('#c85716')
+    expect(dark.primaryHover).toBe('#B74E12')
+    expect(dark.primaryPressed).toBe('#A24716')
+    expect(dark.primarySoft).toBe('#C85716')
     expect(dark.primaryDim).toBe('#261611')
-    expect(dark.fgOnPrimary).toBe('#ffffff')
+    expect(dark.primaryRgb).toBe('196,83,15')
+    expect(dark.fgOnPrimary).toBe('#FFFFFF')
+    expect(dark.statusDone).toBe('#F4F4F6')
+    expect(dark.statusEmpty).toBe('#5D5D60')
+    expect(dark.statusFrozen).toBe('#C9C9CC')
+    expect(dark.statusOverdue).toBe('#FE9A00')
+    expect(dark.statusBad).toBe('#FB2C36')
+    expect(dark.fgOnBad).toBe('#020618')
+    expect(dark.fgOnOverdue).toBe('#020618')
+    expect(dark.selectionBg).toBe('rgba(196,83,15,0.32)')
     expect(dark.gradientHeaderFrom).toBe('#22094f')
-    expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
+    expect(dark.gradientHeaderTo).toBe('rgba(9, 9, 11, 0)')
   })
 
   it('resolves every served scheme to the granted accent', () => {
     for (const scheme of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'] as const) {
       expect(createTokensV2(scheme, 'dark').primary).toBe('#C4530F')
       expect(createTokensV2(scheme, 'light').primary).toBe('#C4530F')
-      expect(createTokensV2(scheme, 'dark').fgOnPrimary).toBe('#ffffff')
-      expect(createTokensV2(scheme, 'light').fgOnPrimary).toBe('#ffffff')
+      expect(createTokensV2(scheme, 'dark').fgOnPrimary).toBe('#FFFFFF')
+      expect(createTokensV2(scheme, 'light').fgOnPrimary).toBe('#FFFFFF')
     }
   })
 
@@ -94,23 +113,47 @@ describe('mobile theme runtime', () => {
     expect(dark.statusOverdueText).toBe(dark.statusOverdue)
     expect(dark.statusBadText).toBe(dark.statusBad)
     expect(light.statusBadText).toBe(light.statusBad)
-    expect(light.statusOverdue).toBe('#e17100')
-    expect(light.statusOverdueText).toBe('#b45b00')
+    expect(light.statusOverdue).toBe('#946A00')
+    expect(light.statusOverdueText).toBe('#946A00')
     expect(dark.fgOnBad).toBe('#020618')
-    expect(light.fgOnBad).toBe('#ffffff')
+    expect(light.fgOnBad).toBe('#FFFFFF')
   })
 
   it('light uses the pale canvas and its granted accent variants', () => {
     const light = createTokensV2('purple', 'light')
 
-    expect(light.bg).toBe('#f8fafc')
-    expect(light.bgElev).toBe('rgb(255, 255, 255)')
-    expect(light.fg1).toBe('#0f172b')
+    expect(light.bg).toBe('#FAFAFA')
+    expect(light.bgCard).toBe('#FFFFFF')
+    expect(light.bgField).toBe('#FFFFFF')
+    expect(light.bgWell).toBe('rgba(9,9,11,0.04)')
+    expect(light.bgElev).toBe('#FFFFFF')
+    expect(light.bgElev2).toBe('#FFFFFF')
+    expect(light.bgHover).toBe('rgba(9,9,11,0.06)')
+    expect(light.bgSunk).toBe('rgba(9,9,11,0.04)')
+    expect(light.hairline).toBe('rgba(9,9,11,0.08)')
+    expect(light.borderControl).toBe('rgba(9,9,11,0.08)')
+    expect(light.hairlineGhost).toBe('rgba(9,9,11,0.10)')
+    expect(light.hairlineStrong).toBe('rgba(9,9,11,0.16)')
+    expect(light.scrim).toBe('rgba(0,0,0,0.55)')
+    expect(light.fg1).toBe('#1A1A1D')
+    expect(light.fg2).toBe('#424247')
+    expect(light.fg3).toBe('#68686D')
+    expect(light.fg4).toBe('#89898D')
     expect(light.primary).toBe('#C4530F')
-    expect(light.primaryHover).toBe('#b74e12')
-    expect(light.primaryPressed).toBe('#a24716')
-    expect(light.primarySoft).toBe('#c15109')
-    expect(light.primaryDim).toBe('#f4ddd3')
+    expect(light.primaryHover).toBe('#B74E12')
+    expect(light.primaryPressed).toBe('#A24716')
+    expect(light.primarySoft).toBe('#C15109')
+    expect(light.primaryDim).toBe('#F4DDD3')
+    expect(light.primaryRgb).toBe('196,83,15')
+    expect(light.fgOnPrimary).toBe('#FFFFFF')
+    expect(light.statusDone).toBe('#1A1A1D')
+    expect(light.statusEmpty).toBe('#89898D')
+    expect(light.statusFrozen).toBe('#424247')
+    expect(light.statusOverdue).toBe('#946A00')
+    expect(light.statusBad).toBe('#E7000B')
+    expect(light.fgOnBad).toBe('#FFFFFF')
+    expect(light.fgOnOverdue).toBe('#FFFFFF')
+    expect(light.selectionBg).toBe('rgba(196,83,15,0.18)')
     expect(light.bg).not.toBe(createTokensV2('purple', 'dark').bg)
   })
 
@@ -125,23 +168,22 @@ describe('mobile theme runtime', () => {
   it('derives primary tints from the granted accent channels', () => {
     const green = createTokensV2('green', 'dark')
 
-    expect(tintFromPrimary(green, 0.18)).toBe('rgba(196, 83, 15, 0.18)')
+    expect(tintFromPrimary(green, 0.18)).toBe('rgba(196,83,15,0.18)')
   })
 
-  it('pre-blends sheet surfaces to solid hexes on dark', () => {
+  it('uses the opaque overlay role for dark sheets', () => {
     const dark = createTokensV2('purple', 'dark')
     const darkSurfaces = createSurfaces('purple', 'dark')
 
-    expect(darkSurfaces.sheet.backgroundColor).toBe(blendElevOverCanvas(dark, 0.05))
-    expect(darkSurfaces.sheet.backgroundColor).toMatch(/^#[0-9a-f]{6}$/)
+    expect(darkSurfaces.sheet.backgroundColor).toBe(dark.bgElev)
     expect(darkSurfaces.elevated.backgroundColor).toBe(dark.bgElev)
   })
 
   it('uses opaque white sheet and card surfaces on light', () => {
     const lightSurfaces = createSurfaces('purple', 'light')
 
-    expect(lightSurfaces.sheet.backgroundColor).toBe('#ffffff')
-    expect(lightSurfaces.elevated.backgroundColor).toBe('rgb(255, 255, 255)')
+    expect(lightSurfaces.sheet.backgroundColor).toBe('#FFFFFF')
+    expect(lightSurfaces.elevated.backgroundColor).toBe('#FFFFFF')
   })
 
   it('keeps neutral text AA on every raised and tinted component surface', () => {

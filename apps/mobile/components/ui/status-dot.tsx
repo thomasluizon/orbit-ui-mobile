@@ -40,7 +40,7 @@ export function StatusDot({
     skip: tokens.fg3,
     overdue: tokens.statusOverdue,
     bad: tokens.statusBad,
-    frozen: tokens.statusFrozen,
+    frozen: tokens.fg2,
   }
   const color = colorMap[state]
 

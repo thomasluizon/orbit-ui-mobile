@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComposerProps } from '@orbit/shared/contracts/composer'
 import type { NotificationItem } from '@orbit/shared/types/notification'
+import { StyleSheet } from 'react-native'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useChatStore } from '@/stores/chat-store'
@@ -60,7 +61,14 @@ vi.mock('@/components/shell/composer', () => ({
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/lib/theme', () => ({
-  createTokensV2: () => ({ bg: '#111111', hairline: '#222222', fg2: '#eeeeee', fg3: '#aaaaaa' }),
+  createTokensV2: () => ({
+    bg: '#111111',
+    bgHover: '#333333',
+    hairline: '#222222',
+    fg1: '#ffffff',
+    fg2: '#eeeeee',
+    fg3: '#aaaaaa',
+  }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }),
@@ -122,6 +130,31 @@ describe('mobile Today Astra', () => {
       node.props.children === 'todayAstra.openConversation',
     )[0]
     if (!action) throw new Error('Proactive conversation action did not render')
+    expect(StyleSheet.flatten(action.props.style) as Record<string, unknown>).toMatchObject({
+      textDecorationLine: 'underline',
+    })
+    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
+    const onPressIn = action.props.onPressIn
+    if (typeof onPressIn !== 'function') throw new Error('Proactive action cannot receive press feedback')
+    await TestRenderer.act(async () => {
+      onPressIn()
+      await Promise.resolve()
+    })
+    const pressedAction = tree.root.findAll((node) =>
+      typeof node.props.onPress === 'function' &&
+      node.props.children === 'todayAstra.openConversation',
+    )[0]
+    if (!pressedAction) throw new Error('Pressed proactive action did not render')
+    expect((StyleSheet.flatten(pressedAction.props.style) as Record<string, unknown>)).toMatchObject({
+      backgroundColor: '#333333',
+      color: '#ffffff',
+    })
+    const onPressOut = pressedAction.props.onPressOut
+    if (typeof onPressOut !== 'function') throw new Error('Proactive action cannot release press feedback')
+    await TestRenderer.act(async () => {
+      onPressOut()
+      await Promise.resolve()
+    })
     await TestRenderer.act(async () => {
       ;(action.props.onPress as () => void)()
       await Promise.resolve()

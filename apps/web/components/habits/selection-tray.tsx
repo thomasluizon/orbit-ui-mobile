@@ -52,7 +52,7 @@ function BulkBtn({ icon: Icon, label, color, onClick, disabled = false }: Readon
       onClick={onClick}
       aria-label={label}
       disabled={disabled}
-      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${
+      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
         disabled
           ? 'opacity-45'
           : 'cursor-pointer hover:bg-[var(--bg-sunk)] active:scale-[0.96]'
@@ -137,7 +137,7 @@ export function SelectionTray({
         <button
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
-          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           style={SELECT_ALL_BUTTON_STYLE}
         >
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}

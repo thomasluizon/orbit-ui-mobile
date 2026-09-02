@@ -223,7 +223,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     cardPressed: {
       transform: [{ scale: 0.99 }],
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
       borderColor: tokens.hairlineStrong,
     },
 

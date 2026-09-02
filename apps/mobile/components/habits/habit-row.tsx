@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -134,7 +134,13 @@ function HabitRowStructuralColumn({
   if (selectMode) {
     return (
       <View style={styles.structuralColumn}>
-        <SelectCheck selected={selected} onPress={actions.onToggleSelection} accessibilityLabel={title} disabled={readOnly} />
+        <SelectCheck
+          selected={selected}
+          onPress={actions.onToggleSelection}
+          accessibilityLabel={title}
+          disabled={readOnly}
+          habitRowControl
+        />
       </View>
     )
   }
@@ -146,7 +152,12 @@ function HabitRowStructuralColumn({
       accessibilityRole="button"
       accessibilityLabel={expanded ? collapseLabel : expandLabel}
       accessibilityState={{ expanded }}
-      style={({ pressed }) => [styles.structuralColumn, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}
+      style={({ pressed }) => [
+        styles.structuralColumn,
+        pressed && !readOnly
+          ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
+          : null,
+      ]}
     >
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
@@ -162,6 +173,30 @@ function resolveTitleColor(
 ): string {
   if (done) return tokens.fg3
   return child ? tokens.fg2 : tokens.fg1
+}
+
+function resolveBodyPressAction(
+  readOnly: boolean,
+  selectMode: boolean,
+  actions: HabitRowActions,
+): (() => void) | undefined {
+  if (readOnly) return undefined
+  return selectMode ? actions.onToggleSelection : actions.onDetail
+}
+
+function useBodyPressFeedback(
+  readOnly: boolean,
+  tokens: ReturnType<typeof createTokensV2>,
+) {
+  const [pressed, setPressed] = useState(false)
+  return {
+    feedbackStyle:
+      pressed && !readOnly
+        ? { backgroundColor: tokens.bgHover, borderColor: tokens.hairlineStrong }
+        : null,
+    onPressIn: readOnly ? undefined : () => setPressed(true),
+    onPressOut: readOnly ? undefined : () => setPressed(false),
+  }
 }
 
 function buildRowStyle({
@@ -278,11 +313,8 @@ export function HabitRow({
     closeAnchoredMenu()
   }, [closeAnchoredMenu])
 
-  const handlePress = readOnly
-    ? undefined
-    : isSelectMode
-      ? actions.onToggleSelection
-      : actions.onDetail
+  const handlePress = resolveBodyPressAction(readOnly, isSelectMode, actions)
+  const bodyPressFeedback = useBodyPressFeedback(readOnly, tokens)
   const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
   const handleToggleStatus = () => {
     if (!readOnly) toggleStatusAction?.()
@@ -324,6 +356,7 @@ export function HabitRow({
         style={[
           styles.row,
           rowStyle,
+          bodyPressFeedback.feedbackStyle,
           style,
           readOnly ? styles.readOnly : null,
         ]}
@@ -343,6 +376,8 @@ export function HabitRow({
 
         <Pressable
           onPress={handlePress}
+          onPressIn={bodyPressFeedback.onPressIn}
+          onPressOut={bodyPressFeedback.onPressOut}
           onLongPress={readOnly || isSelectMode ? undefined : actions.onLongPressCard}
           disabled={readOnly}
           delayLongPress={500}
@@ -351,7 +386,7 @@ export function HabitRow({
           style={({ pressed }) => [
             styles.bodyButton,
             { paddingVertical: isChild ? 4 : 8 },
-            pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+            pressed ? styles.bodyButtonPressed : null,
           ]}
         >
           <HabitRowLeading

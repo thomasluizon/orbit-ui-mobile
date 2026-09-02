@@ -20,7 +20,7 @@ export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
         )
         const rowStyle = [styles.row, index === 0 ? null : { borderTopColor: tokens.hairline, borderTopWidth: StyleSheet.hairlineWidth }]
         return item.onClick ? (
-          <Pressable key={`${item.label}-${index}`} accessibilityRole="button" accessibilityLabel={item.label} onPress={item.onClick} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}>{content}</Pressable>
+          <Pressable key={`${item.label}-${index}`} accessibilityRole="button" accessibilityLabel={item.label} onPress={item.onClick} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover } : null]}>{content}</Pressable>
         ) : (
           <View key={`${item.label}-${index}`} style={rowStyle}>{content}</View>
         )
