@@ -143,7 +143,7 @@ export function PricingSection({
       {plans ? (
         <>
           <Pressable
-            accessibilityRole="link"
+            accessibilityRole="button"
             onPress={onRestore}
             disabled={isRestoring || !isOnline}
             accessibilityState={{ disabled: isRestoring || !isOnline }}

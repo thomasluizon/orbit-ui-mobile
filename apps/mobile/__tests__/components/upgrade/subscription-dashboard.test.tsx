@@ -536,14 +536,18 @@ describe('subscription dashboards (mobile)', () => {
     const restoring = renderPricing({ plans, isOnline: false, isRestoring: true })
     expect(renderedText(restoring)).not.toContain('upgrade.restorePurchase')
     const restoreButton = restoring.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
+      (node) => node.type === 'Pressable'
+        && node.props.accessibilityRole === 'button'
+        && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
     expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true })
 
     const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
     expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
     const offlineRestore = offlinePlans.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
+      (node) => node.type === 'Pressable'
+        && node.props.accessibilityRole === 'button'
+        && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
     expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
   })
