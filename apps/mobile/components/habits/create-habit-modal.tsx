@@ -26,11 +26,13 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
+  hasHabitFormProposal,
   isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
   toggleSelectedId,
@@ -136,6 +138,7 @@ export function CreateHabitModal({
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
   const flushBufferedInputsRef = useRef<() => void>(() => {})
+  const resolveSubHabitProposalRef = useRef<() => void>(() => {})
   const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState('[]')
   const [initialGoalIdsSnapshot, setInitialGoalIdsSnapshot] = useState('[]')
   const [initialSubHabitsSnapshot, setInitialSubHabitsSnapshot] = useState('[]')
@@ -355,7 +358,7 @@ export function CreateHabitModal({
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-    if (title.length === 0) return false
+    if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
 
     try {
       const patch = buildHabitFormPatchFromSuggestion(
@@ -378,26 +381,29 @@ export function CreateHabitModal({
         setExpandAdvancedSignal((value) => value + 1)
       }
 
-      const appliedAnything =
-        patch.emoji !== null ||
-        patch.frequencyUnit !== null ||
-        patch.days.length > 0 ||
-        patch.dueTime !== null ||
-        appliedChecklist ||
-        appliedSubHabits
+      const proposal = {
+        setup:
+          patch.emoji !== null ||
+          patch.frequencyUnit !== null ||
+          patch.days.length > 0 ||
+          patch.dueTime !== null,
+        checklist: appliedChecklist,
+        subHabits: appliedSubHabits,
+      }
+      const appliedAnything = hasHabitFormProposal(proposal)
       if (appliedAnything) {
         showSuccess(t('habits.form.aiSuggestApplied'))
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
-      return appliedAnything
+      return proposal
     } catch (error: unknown) {
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
-      return false
+      return EMPTY_HABIT_FORM_PROPOSAL
     }
   }, [canUseSubHabits, formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
 
@@ -405,17 +411,23 @@ export function CreateHabitModal({
   const submitDisabled = isPending || watchedTitle.trim().length === 0
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
+    resolveSubHabitProposalRef.current()
     setSubHabits((prev) =>
       prev.map((s) => (s.id === id ? { ...s, value } : s)),
     )
   }, [])
 
   const removeSubHabit = useCallback((id: string) => {
+    resolveSubHabitProposalRef.current()
     setSubHabits((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
   const addSubHabit = useCallback(() => {
+    resolveSubHabitProposalRef.current()
     setSubHabits((prev) => [...prev, createSubHabitEntry()])
+  }, [])
+  const handleResolveSubHabitProposalReady = useCallback((resolve: () => void) => {
+    resolveSubHabitProposalRef.current = resolve
   }, [])
   const sheetTitle = resolveCreateSheetTitle(isSubHabitMode, t)
   const lockedGeneral = parentHabit?.isGeneral ?? null
@@ -440,6 +452,7 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
+            onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
             isSuggesting={suggestion.isPending}

@@ -4,9 +4,11 @@ import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 import {
   applyHabitPhraseRead,
   buildHabitUnderstandingSentence,
+  EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
   formatLocaleDate,
   getFriendlyErrorMessage,
@@ -58,9 +60,10 @@ interface HabitFormFieldsProps {
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
   onFlushBufferedInputsReady?: (flush: () => void) => void
+  onResolveSubHabitProposalReady?: (resolve: () => void) => void
   defaultExpanded?: boolean
   expandAdvancedSignal?: number
-  onSuggestSetup?: () => boolean | Promise<boolean>
+  onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
   isSuggesting?: boolean
   readPhraseLocally?: boolean
   lockedGeneral?: boolean | null
@@ -93,8 +96,8 @@ function shouldShowAstraFallback(title: string, sentence: string | null, action:
 async function askAstra(
   action: HabitFormFieldsProps['onSuggestSetup'],
   atLimit: boolean,
-): Promise<boolean> {
-  if (!action || atLimit) return false
+): Promise<HabitFormProposal> {
+  if (!action || atLimit) return EMPTY_HABIT_FORM_PROPOSAL
   return action()
 }
 
@@ -226,6 +229,7 @@ export function HabitFormFields({
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
   onFlushBufferedInputsReady,
+  onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
   isSuggesting = false,
@@ -267,7 +271,7 @@ export function HabitFormFields({
   const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', featurePlan(hasProAccess))
   const displayedStartDate = resolveStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
-  const [proposed, setProposed] = useState(false)
+  const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
   const phraseOwnershipRef = useRef({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
   const [previousExpandSignal, setPreviousExpandSignal] = useState(expandAdvancedSignal)
@@ -325,11 +329,18 @@ export function HabitFormFields({
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
 
   const handleAskAstra = useCallback(async () => {
-    setProposed(await askAstra(onSuggestSetup, atMessageLimit))
+    setProposal(await askAstra(onSuggestSetup, atMessageLimit))
   }, [atMessageLimit, onSuggestSetup])
 
+  useEffect(() => {
+    if (!onResolveSubHabitProposalReady) return
+    // react-doctor-disable-next-line no-prop-callback-in-effect -- the modal owns this editor; registering its resolver preserves section-specific proposal state https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    onResolveSubHabitProposalReady(() => setProposal((current) => ({ ...current, subHabits: false })))
+    return () => onResolveSubHabitProposalReady(() => {})
+  }, [onResolveSubHabitProposalReady])
+
   const handleToggleDay = useCallback((day: string) => {
-    setProposed(false)
+    setProposal(EMPTY_HABIT_FORM_PROPOSAL)
     phraseOwnershipRef.current.cadence = false
     if (lockedGeneral === true) {
       setGeneral()
@@ -342,7 +353,7 @@ export function HabitFormFields({
   }, [lockedGeneral, setGeneral, setRecurring, setValue, toggleDay])
 
   const handleQuantityChange = useCallback((quantity: number) => {
-    setProposed(false)
+    setProposal(EMPTY_HABIT_FORM_PROPOSAL)
     phraseOwnershipRef.current.cadence = false
     if (lockedGeneral === true) {
       setGeneral()
@@ -401,10 +412,10 @@ export function HabitFormFields({
         quantity={frequencyQuantity}
         sentence={sentence}
         consumed={localRead.consumed}
-        proposed={proposed}
+        proposed={proposal.setup}
         onValueChange={(value) => setValue('title', value, { shouldDirty: true, shouldValidate: true })}
         onEmojiSelect={(value) => {
-          setProposed(false)
+          setProposal(EMPTY_HABIT_FORM_PROPOSAL)
           setValue('emoji', value, { shouldDirty: true })
         }}
         onToggleDay={handleToggleDay}
@@ -419,7 +430,7 @@ export function HabitFormFields({
       />
 
       <AstraFallback
-        visible={shouldShowAstraFallback(title, sentence, onSuggestSetup, proposed)}
+        visible={shouldShowAstraFallback(title, sentence, onSuggestSetup, proposal.setup || proposal.checklist || proposal.subHabits)}
         atLimit={atMessageLimit}
         isSuggesting={isSuggesting}
         unresolved={t('habits.form.unresolved')}
@@ -468,12 +479,18 @@ export function HabitFormFields({
             </View>
             <View>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
-              <Proposed proposed={proposed && checklistItems.length > 0} scope="field" label={t('habits.form.proposed')}>
-                <HabitChecklist items={checklistItems} editable onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
-                <ChecklistTemplates items={checklistItems} onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
+              <Proposed proposed={proposal.checklist} scope="field" label={t('habits.form.proposed')}>
+                <HabitChecklist items={checklistItems} editable onItemsChange={(items) => {
+                  setProposal((current) => ({ ...current, checklist: false }))
+                  setValue('checklistItems', items, { shouldDirty: true })
+                }} />
+                <ChecklistTemplates items={checklistItems} onLoad={(items) => {
+                  setProposal((current) => ({ ...current, checklist: false }))
+                  setValue('checklistItems', items, { shouldDirty: true })
+                }} />
               </Proposed>
             </View>
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposed} checklistItemCount={checklistItems.length} onUpgrade={onUpgrade} t={t}>
+            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits} checklistItemCount={checklistItems.length} onUpgrade={onUpgrade} t={t}>
               {children}
             </SubHabitSection>
             <View style={styles.compactGroup}>

@@ -24,11 +24,13 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
+  hasHabitFormProposal,
   isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
   toggleSelectedId,
@@ -112,6 +114,7 @@ export function CreateHabitModal({
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
+  const resolveSubHabitProposalRef = useRef<() => void>(() => {})
   const [initialSnapshot, setInitialSnapshot] = useState({
     tagIds: '[]',
     goalIds: '[]',
@@ -260,7 +263,7 @@ export function CreateHabitModal({
   const handleSuggest = useCallback(
     async () => {
       const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-      if (title.length === 0) return false
+      if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
       try {
         const patch = buildHabitFormPatchFromSuggestion(
           await suggestion.mutateAsync({ title, language: locale }),
@@ -282,26 +285,29 @@ export function CreateHabitModal({
           setExpandAdvancedSignal((value) => value + 1)
         }
 
-        const appliedAnything =
-          patch.emoji !== null ||
-          patch.frequencyUnit !== null ||
-          patch.days.length > 0 ||
-          patch.dueTime !== null ||
-          appliedChecklist ||
-          appliedSubHabits
+        const proposal = {
+          setup:
+            patch.emoji !== null ||
+            patch.frequencyUnit !== null ||
+            patch.days.length > 0 ||
+            patch.dueTime !== null,
+          checklist: appliedChecklist,
+          subHabits: appliedSubHabits,
+        }
+        const appliedAnything = hasHabitFormProposal(proposal)
         if (appliedAnything) {
           showSuccess(t('habits.form.aiSuggestApplied'))
         } else {
           showInfo(t('habits.form.aiSuggestEmpty'))
         }
-        return appliedAnything
+        return proposal
       } catch (error: unknown) {
         showError(
           extractBackendErrorCode(error) === 'PAY_GATE'
             ? t('habits.form.aiSuggestLimitReached')
             : t('habits.form.aiSuggestError'),
         )
-        return false
+        return EMPTY_HABIT_FORM_PROPOSAL
       }
     },
     [canUseSubHabits, formHelpers, locale, showError, showInfo, showSuccess, suggestion, t],
@@ -310,11 +316,21 @@ export function CreateHabitModal({
   const isPending = createHabit.isPending || createSubHabit.isPending
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
+    resolveSubHabitProposalRef.current()
     setSubHabits((prev) => prev.map((s) => s.id === id ? { ...s, value } : s))
   }, [])
 
   const removeSubHabit = useCallback((id: string) => {
+    resolveSubHabitProposalRef.current()
     setSubHabits((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
+  const addSubHabit = useCallback(() => {
+    resolveSubHabitProposalRef.current()
+    setSubHabits((prev) => [...prev, createSubHabitEntry()])
+  }, [])
+  const handleResolveSubHabitProposalReady = useCallback((resolve: () => void) => {
+    resolveSubHabitProposalRef.current = resolve
   }, [])
 
   function renderCreateSheet() {
@@ -358,6 +374,7 @@ export function CreateHabitModal({
             onToggleGoal={toggleGoal}
             reminderTimes={reminderTimes}
             onReminderTimesChange={setReminderTimes}
+            onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             onReminderEnabledChange={handleReminderEnabledChange}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
@@ -370,9 +387,7 @@ export function CreateHabitModal({
                 subHabits={subHabits}
                 onUpdateSubHabit={updateSubHabitValue}
                 onRemoveSubHabit={removeSubHabit}
-                onAddSubHabit={() =>
-                  setSubHabits((prev) => [...prev, createSubHabitEntry()])
-                }
+                onAddSubHabit={addSubHabit}
               />
             ) : null}
           </HabitFormFields>

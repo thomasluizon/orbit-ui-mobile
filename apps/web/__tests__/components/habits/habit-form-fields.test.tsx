@@ -1,13 +1,17 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
+const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false }
+const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
+const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -35,7 +39,11 @@ vi.mock('@/hooks/use-tags', () => ({
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({
   HabitEmojiSelector: ({ onSelect }: { onSelect: (emoji: string) => void }) => <button type="button" onClick={() => onSelect('🏃')}>emoji</button>,
 }))
-vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => <div>checklist-editor</div> }))
+vi.mock('@/components/habits/habit-checklist', () => ({
+  HabitChecklist: ({ onItemsChange }: { onItemsChange?: (items: Array<{ text: string; isChecked: boolean }>) => void }) => (
+    <button type="button" onClick={() => onItemsChange?.([{ text: 'Edited', isChecked: false }])}>checklist-editor</button>
+  ),
+}))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => <div>checklist-templates</div> }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => <div>goal-linking</div> }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => <div>offset-reminders</div> }))
@@ -84,15 +92,16 @@ function createTags(): TagSelectionState {
 
 function renderForm(
   formHelpers = createFormHelpers(),
-  onSuggestSetup?: () => boolean | Promise<boolean>,
+  onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>,
   defaultExpanded = false,
   readPhraseLocally = false,
   lockedGeneral: boolean | null = null,
+  onResolveSubHabitProposalReady?: (resolve: () => void) => void,
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const buildForm = () => (
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>
@@ -222,7 +231,7 @@ describe('HabitFormFields', () => {
 
   it('keeps every local control live when the Astra allowance is exhausted', () => {
     mockProfileState.aiMessagesUsed = 5
-    const onSuggestSetup = vi.fn(() => true)
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
     renderForm(formHelpers, onSuggestSetup)
 
@@ -240,7 +249,7 @@ describe('HabitFormFields', () => {
   it('disables Astra at the Pro allowance too', () => {
     mockProfileState.hasProAccess = true
     mockProfileState.aiMessagesUsed = 5
-    renderForm(createFormHelpers({ title: 'Run' }), vi.fn(() => true))
+    renderForm(createFormHelpers({ title: 'Run' }), vi.fn(() => SETUP_PROPOSAL))
 
     expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBeDisabled()
   })
@@ -250,7 +259,7 @@ describe('HabitFormFields', () => {
     ['stepper', () => fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))],
     ['emoji', () => fireEvent.click(screen.getByRole('button', { name: 'emoji' }))],
   ])('resolves a proposed setup on the first %s correction', async (_kind, correct) => {
-    renderForm(createFormHelpers({ title: 'Run', frequencyQuantity: 3 }), async () => true)
+    renderForm(createFormHelpers({ title: 'Run', frequencyQuantity: 3 }), async () => SETUP_PROPOSAL)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
     await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
@@ -260,24 +269,57 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.understood')).toBeDefined()
   })
 
-  it('marks an Astra checklist proposal until a correction is made', async () => {
+  it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
     renderForm(
       createFormHelpers({
         title: 'Run',
         frequencyQuantity: 3,
         checklistItems: [{ text: 'Shoes', isChecked: false }],
       }),
-      () => true,
+      () => SETUP_PROPOSAL,
       true,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => {
-      expect(screen.getAllByRole('group', { name: 'habits.form.proposed' })).toHaveLength(1)
-    })
+    await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
+    expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()
+  })
+
+  it('marks only an Astra checklist proposal and resolves it when edited', async () => {
+    renderForm(
+      createFormHelpers({
+        title: 'Run',
+        frequencyQuantity: 3,
+        checklistItems: [{ text: 'Shoes', isChecked: false }],
+      }),
+      () => CHECKLIST_PROPOSAL,
+      true,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('checklist-editor').closest('[data-proposed]')).not.toBeNull())
     expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
-    expect(screen.queryByRole('group', { name: 'habits.form.proposed' })).toBeNull()
+    fireEvent.click(screen.getByText('checklist-editor'))
+    expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()
+  })
+
+  it('resolves a proposed sub-habit section when its parent editor changes it', async () => {
+    mockProfileState.hasProAccess = true
+    let resolveProposal = () => {}
+    renderForm(
+      createFormHelpers({ title: 'Run' }),
+      () => SUB_HABIT_PROPOSAL,
+      true,
+      false,
+      null,
+      (resolve) => { resolveProposal = resolve },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
+
+    act(() => resolveProposal())
+    expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).toBeNull()
   })
 })

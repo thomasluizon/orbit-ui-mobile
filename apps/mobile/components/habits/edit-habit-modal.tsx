@@ -24,9 +24,11 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  hasHabitFormProposal,
   rebaseSelectedIds,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -343,7 +345,7 @@ export function EditHabitModal({
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-    if (title.length === 0) return false
+    if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
 
     try {
       const patch = buildHabitFormPatchFromSuggestion(
@@ -354,25 +356,29 @@ export function EditHabitModal({
 
       const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
 
-      const appliedAnything =
-        patch.emoji !== null ||
-        patch.frequencyUnit !== null ||
-        patch.days.length > 0 ||
-        patch.dueTime !== null ||
-        appliedChecklist
+      const proposal = {
+        setup:
+          patch.emoji !== null ||
+          patch.frequencyUnit !== null ||
+          patch.days.length > 0 ||
+          patch.dueTime !== null,
+        checklist: appliedChecklist,
+        subHabits: false,
+      }
+      const appliedAnything = hasHabitFormProposal(proposal)
       if (appliedAnything) {
         showSuccess(t('habits.form.aiSuggestApplied'))
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
-      return appliedAnything
+      return proposal
     } catch (error: unknown) {
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
-      return false
+      return EMPTY_HABIT_FORM_PROPOSAL
     }
   }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
 

@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
+const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false }
+const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
+const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
 
 vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
 vi.mock('@/hooks/use-config', () => ({
@@ -22,7 +26,7 @@ vi.mock('@/hooks/use-tags', () => ({
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-understanding', () => ({ HabitUnderstanding: (props: Record<string, unknown>) => React.createElement('HabitUnderstanding', props) }))
-vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => React.createElement('View', { testID: 'checklist' }) }))
+vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: (props: Record<string, unknown>) => React.createElement('View', { ...props, testID: 'checklist' }) }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => React.createElement('View') }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => React.createElement('View', { testID: 'offset-reminders' }) }))
@@ -182,7 +186,7 @@ describe('HabitFormFields mobile', () => {
 
   it('keeps local corrections and details live at the Astra ceiling', async () => {
     mockProfileState.aiMessagesUsed = 5
-    const onSuggestSetup = vi.fn(() => true)
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     const formHelpers = createFormHelpers()
     let tree: any
     await TestRenderer.act(async () => {
@@ -211,7 +215,7 @@ describe('HabitFormFields mobile', () => {
     mockProfileState.aiMessagesUsed = 5
     let tree: any
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn(() => true)} />)
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn(() => SETUP_PROPOSAL)} />)
       await Promise.resolve()
     })
 
@@ -219,13 +223,31 @@ describe('HabitFormFields mobile', () => {
     expect(ask.props.disabled).toBe(true)
   })
 
-  it('marks an Astra checklist proposal until a correction is made', async () => {
+  it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
     const formHelpers = createFormHelpers({
       checklistItems: [{ text: 'Shoes', isChecked: false }],
     })
     let tree: any
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => true} defaultExpanded />)
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => SETUP_PROPOSAL} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree.root.findByProps({ testID: 'checklist' }).parent?.props.testID).not.toBe('proposed-field')
+  })
+
+  it('marks only an Astra checklist proposal and resolves it when edited', async () => {
+    const formHelpers = createFormHelpers({
+      checklistItems: [{ text: 'Shoes', isChecked: false }],
+    })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => CHECKLIST_PROPOSAL} defaultExpanded />)
       await Promise.resolve()
     })
 
@@ -237,8 +259,43 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')).toHaveLength(0)
 
-    const understanding = tree.root.findByType('HabitUnderstanding')
-    TestRenderer.act(() => understanding.props.onQuantityChange(4))
+    TestRenderer.act(() => tree.root.findByProps({ testID: 'checklist' }).props.onItemsChange([{ text: 'Edited', isChecked: false }]))
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
+  })
+
+  it('resolves a proposed sub-habit section when its parent editor changes it', async () => {
+    mockProfileState.hasProAccess = true
+    let resolveProposal = () => {}
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={createFormHelpers()}
+          tags={createTags()}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          onSuggestSetup={() => SUB_HABIT_PROPOSAL}
+          onResolveSubHabitProposalReady={(resolve) => { resolveProposal = resolve }}
+          defaultExpanded
+        >
+          {React.createElement('View', { testID: 'sub-habit-editor' })}
+        </HabitFormFields>,
+      )
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length).toBeGreaterThan(0)
+
+    TestRenderer.act(() => resolveProposal())
     expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
   })
 })
