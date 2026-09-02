@@ -41,26 +41,37 @@ function makeRenderers(record: RenderRecord): PendingOperationCardRenderers {
   return {
     blockFrame: (props) => {
       record.blockFrame = props
-      return null
+      return React.createElement(
+        'section',
+        { 'data-sentinel': 'card' },
+        props.actions,
+      )
     },
     button: (spec) => {
       record.buttons.push(spec)
-      return null
+      return React.createElement('button', {
+        'data-sentinel': `button:${spec.label}`,
+        key: spec.label,
+      })
     },
     confirmSheet: (props) => {
       record.confirmSheet = props
-      return null
+      return React.createElement('div', { 'data-sentinel': 'confirmation' })
     },
-    risk: (label) => label,
+    risk: (label) => React.createElement('span', { 'data-sentinel': 'risk' }, label),
     stepUp: (props) => {
       record.stepUp = props
-      return null
+      return React.createElement('button', { 'data-sentinel': 'step-up' })
     },
     verification: (props) => {
       record.verification = props
-      return null
+      return React.createElement('div', { 'data-sentinel': 'verification' })
     },
   }
+}
+
+function sentinelCount(renderer: ReactTestRenderer, sentinel: string): number {
+  return renderer.root.findAllByProps({ 'data-sentinel': sentinel }).length
 }
 
 async function renderCard(
@@ -137,8 +148,9 @@ describe('SharedPendingOperationCard', () => {
     failed.renderer.unmount()
 
     const dismissed = await renderCard()
+    expect(sentinelCount(dismissed.renderer, 'card')).toBe(1)
     act(() => dismissed.record.buttons[0]?.onClick())
-    expect(dismissed.renderer.toJSON()).toBeNull()
+    expect(sentinelCount(dismissed.renderer, 'card')).toBe(0)
     dismissed.renderer.unmount()
   })
 
@@ -166,11 +178,13 @@ describe('SharedPendingOperationCard', () => {
         confirmationToken: 'confirmation-1',
       },
     })
+    expect(sentinelCount(card.renderer, 'card')).toBe(1)
+    expect(sentinelCount(card.renderer, 'verification')).toBe(1)
 
     const verification = card.record.verification
-    card.record.verification = undefined
     act(() => verification?.onClose())
-    expect(card.record.verification).toBeUndefined()
+    expect(sentinelCount(card.renderer, 'card')).toBe(1)
+    expect(sentinelCount(card.renderer, 'verification')).toBe(0)
 
     await act(async () => card.record.stepUp?.onAction())
     act(() => card.record.verification?.onCompleted('done'))
