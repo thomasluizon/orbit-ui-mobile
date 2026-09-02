@@ -95,6 +95,20 @@ describe('ChecklistTemplates', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
+  it('saves a named template from the Enter key', () => {
+    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
+    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    fireEvent.change(input, { target: { value: 'Morning' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mockCreate).toHaveBeenCalledWith(
+      { name: 'Morning', items: ['Step 1'] },
+      expect.any(Object),
+    )
+  })
+
   it('shows an error toast when create fails', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)

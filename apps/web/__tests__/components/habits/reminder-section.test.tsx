@@ -129,4 +129,18 @@ describe('ReminderSection', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(props.onReminderTimesChange).toHaveBeenCalledWith([3])
   })
+
+  it('does not add a duplicate custom reminder', () => {
+    const props = renderSection({ reminderTimes: [60] })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+      target: { value: '1' },
+    })
+    fireEvent.change(screen.getByLabelText('habits.form.reminderCustom'), {
+      target: { value: 'hours' },
+    })
+    fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
 })

@@ -161,4 +161,17 @@ describe('ReminderSection', () => {
     press(tree, confirm!)
     expect(onReminderTimesChange).not.toHaveBeenCalled()
   })
+
+  it('does not add a duplicate custom reminder', () => {
+    const { tree, onReminderTimesChange } = renderSection({ reminderTimes: [30] })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
+    const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
+    TestRenderer.act(() => {
+      ;(input.props as { onChangeText: (value: string) => void }).onChangeText('30')
+    })
+    const confirm = buttons(tree).find((node) => node.props.accessibilityLabel === 'common.add')
+    press(tree, confirm!)
+    expect(onReminderTimesChange).not.toHaveBeenCalled()
+  })
 })

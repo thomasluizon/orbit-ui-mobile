@@ -102,4 +102,18 @@ describe('readHabitPhrase', () => {
     ])
     expect(segmentHabitPhrase('', [])).toEqual([])
   })
+
+  it('segments adjacent tokens and preserves unresolved trailing text', () => {
+    expect(segmentHabitPhrase('daily later', [
+      { start: 0, end: 5, kind: 'daily' },
+      { start: 5, end: 6, kind: 'daily' },
+    ])).toEqual([
+      { text: 'daily', consumed: true },
+      { text: ' ', consumed: true },
+      { text: 'later', consumed: false },
+    ])
+    expect(segmentHabitPhrase('unresolved', [])).toEqual([
+      { text: 'unresolved', consumed: false },
+    ])
+  })
 })
