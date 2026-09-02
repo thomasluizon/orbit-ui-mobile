@@ -8,7 +8,11 @@ import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
-import { getRelatedSurfaces, stripChatDirectives } from "@orbit/shared/chat";
+import {
+  getRelatedSurfaces,
+  partitionMessageActions,
+  stripChatDirectives,
+} from "@orbit/shared/chat";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
@@ -116,32 +120,11 @@ export function MessageBubble({
   const isUser = message.role === "user";
   const sourceText = isUser ? message.content : stripChatDirectives(message.content, false);
 
-  const suggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) => a.status === "Suggestion" && a.suggestedSubHabits?.length,
-      ) ?? [],
-    [message.actions],
-  );
-
-  const clarificationActions = useMemo(
-    () =>
-      (message.actions ?? []).filter(
-        (a): a is typeof a & { clarificationRequest: NonNullable<typeof a.clarificationRequest> } =>
-          a.status === "NeedsClarification" && a.clarificationRequest != null,
-      ),
-    [message.actions],
-  );
-
-  const nonSuggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) =>
-          a.status !== "Suggestion" &&
-          a.status !== "NeedsClarification",
-      ) ?? [],
-    [message.actions],
-  );
+  const {
+    clarificationActions,
+    nonSuggestionActions,
+    suggestionActions,
+  } = useMemo(() => partitionMessageActions(message.actions), [message.actions]);
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
     [message.relatedSurfaces],

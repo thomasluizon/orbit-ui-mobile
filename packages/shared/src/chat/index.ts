@@ -1,4 +1,5 @@
 export * from './action-chips'
+export * from './message-actions'
 export * from './pending-operation-card'
 export * from './related-surfaces'
 export * from './sse-stream'

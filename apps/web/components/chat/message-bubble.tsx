@@ -6,7 +6,11 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import { getRelatedSurfaces, stripChatDirectives } from '@orbit/shared/chat'
+import {
+  getRelatedSurfaces,
+  partitionMessageActions,
+  stripChatDirectives,
+} from '@orbit/shared/chat'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
@@ -61,32 +65,11 @@ export function MessageBubble({
     [message.relatedSurfaces],
   )
 
-  const suggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) => a.status === 'Suggestion' && a.suggestedSubHabits?.length,
-      ) ?? [],
-    [message.actions],
-  )
-
-  const clarificationActions = useMemo(
-    () =>
-      (message.actions ?? []).filter(
-        (a): a is typeof a & { clarificationRequest: NonNullable<typeof a.clarificationRequest> } =>
-          a.status === 'NeedsClarification' && a.clarificationRequest != null,
-      ),
-    [message.actions],
-  )
-
-  const nonSuggestionActions = useMemo(
-    () =>
-      message.actions?.filter(
-        (a) =>
-          a.status !== 'Suggestion' &&
-          a.status !== 'NeedsClarification',
-      ) ?? [],
-    [message.actions],
-  )
+  const {
+    clarificationActions,
+    nonSuggestionActions,
+    suggestionActions,
+  } = useMemo(() => partitionMessageActions(message.actions), [message.actions])
 
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns((prev) => new Set([...prev, key]))

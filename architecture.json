@@ -24330,6 +24330,7 @@
         "packages/shared/src/__tests__/action-chips.test.ts",
         "packages/shared/src/__tests__/chat.test.ts",
         "packages/shared/src/__tests__/habit-list-directive.test.ts",
+        "packages/shared/src/__tests__/message-actions.test.ts",
         "packages/shared/src/__tests__/pending-operation-card.test.ts",
         "packages/shared/src/__tests__/related-surfaces.test.ts",
         "packages/shared/src/__tests__/sse-stream.test.ts"
@@ -24618,6 +24619,7 @@
         "packages/shared/src/__tests__/habit-suggestion.test.ts",
         "packages/shared/src/__tests__/habit-utils.test.ts",
         "packages/shared/src/__tests__/habit-visibility.test.ts",
+        "packages/shared/src/__tests__/message-actions.test.ts",
         "packages/shared/src/__tests__/notification-cache.test.ts",
         "packages/shared/src/__tests__/pending-operation-card-state.test.ts",
         "packages/shared/src/__tests__/progress.test.ts",
