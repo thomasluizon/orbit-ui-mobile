@@ -50,5 +50,5 @@ export function MonthGrid({ weekdayLabels = [], children, gap = 8, label }: Read
 const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   cellSlot: { flex: 1, alignItems: 'center' },
-  weekday: { fontFamily: 'RobotoMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'] },
+  weekday: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'] },
 })

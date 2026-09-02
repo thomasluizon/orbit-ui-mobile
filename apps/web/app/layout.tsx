@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import { Suspense, type CSSProperties } from 'react'
-import { Rubik, Inter, Roboto } from 'next/font/google'
+import { Geist, Geist_Mono, Space_Grotesk } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Bell, Check, X } from '@/components/ui/icons'
@@ -13,24 +13,24 @@ import { NavigationHistoryTracker } from '@/components/navigation/navigation-his
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import './globals.css'
 
-const rubik = Rubik({
+const geist = Geist({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-rubik',
+  weight: ['400', '500', '600'],
+  variable: '--font-geist',
   display: 'swap',
 })
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-inter',
+  weight: ['500', '600'],
+  variable: '--font-space-grotesk',
   display: 'swap',
 })
 
-const roboto = Roboto({
+const geistMono = Geist_Mono({
   subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-roboto',
+  weight: ['400', '500'],
+  variable: '--font-geist-mono',
   display: 'swap',
 })
 
@@ -141,7 +141,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`dark scheme-purple ${rubik.variable} ${inter.variable} ${roboto.variable}`}
+      className={`dark scheme-purple ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
       style={defaultThemeStyle}
       suppressHydrationWarning
     >

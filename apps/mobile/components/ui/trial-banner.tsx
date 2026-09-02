@@ -116,7 +116,7 @@ function createStyles(tokens: AppTokensV2) {
     label: {
       color: tokens.fg2,
       flex: 1,
-      fontFamily: 'RobotoMono_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
       lineHeight: 16,

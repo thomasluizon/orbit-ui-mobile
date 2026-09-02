@@ -154,7 +154,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     eyebrow: {
       marginTop: 16,
-      fontFamily: 'RobotoMono_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,
@@ -254,7 +254,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     shortLink: {
       marginTop: 4,
-      fontFamily: 'RobotoMono_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       color: tokens.fg3,

@@ -251,7 +251,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     linkText: {
       flex: 1,
-      fontFamily: 'RobotoMono_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 16,
       fontVariant: ['tabular-nums'],
       color: tokens.fg1,

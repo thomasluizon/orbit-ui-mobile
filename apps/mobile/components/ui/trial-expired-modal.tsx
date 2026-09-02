@@ -124,7 +124,7 @@ function createStyles() {
       lineHeight: 24,
     },
     paused: {
-      fontFamily: 'RobotoMono_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
     },
     actions: {

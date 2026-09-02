@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: 'Geist_600SemiBold', fontSize: 28, lineHeight: 32 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 }, compactTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
   streak: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 60, fontVariant: ['tabular-nums'], lineHeight: 64 },
-  copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'RobotoMono_400Regular', fontSize: 12, lineHeight: 16 },
+  copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
