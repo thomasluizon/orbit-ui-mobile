@@ -48,6 +48,7 @@ export function HabitChecklist({
 }: Readonly<HabitChecklistProps>) {
   const t = useTranslations()
   const newItemInputId = useId()
+  const dndContextId = useId()
   const [newItemText, setNewItemText] = useState('')
 
   const checkedCount = items.filter((i) => i.isChecked).length
@@ -166,6 +167,7 @@ export function HabitChecklist({
 
       {editable ? (
         <DndContext
+          id={dndContextId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
