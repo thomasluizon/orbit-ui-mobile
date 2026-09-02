@@ -175,13 +175,6 @@ module.exports = defineConfig([
       "local/no-side-stripe-border": "error",
       "local/no-unjustified-disable": "error",
 
-      // Staged at `warn`: bundle 5 (#539) de-decorates both platforms — it deletes the glow
-      // and gradient tokens and their call sites (LinearGradient here, GradientTop on web) —
-      // and flips these to `error` in the same PR.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      // Wired on mobile only, each a platform adapter (#36 parity criterion):
-      //   mobile-supabase-lazy, no-gorhom-sheet, no-draggable-onscroll -> a React
-      //   Native client, library and gesture concern with no web counterpart.
       "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
     },

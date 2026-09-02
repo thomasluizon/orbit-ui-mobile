@@ -433,7 +433,7 @@ export function CalendarTimeGrid({
                   data-date={column.dateStr}
                   className="flex flex-col"
                   style={{
-                    gap: 3,
+                    gap: 4,
                     minHeight: 34,
                     padding: '6px 3px',
                     borderLeft: '1px solid var(--hairline)',
@@ -506,7 +506,7 @@ export function CalendarTimeGrid({
                   >
                     <span
                       className="shrink-0 rounded-full"
-                      style={{ width: 7, height: 7, marginLeft: -3, background: 'var(--primary)' }}
+                      style={{ width: 7, height: 7, marginLeft: -4, background: 'var(--primary)' }}
                     />
                     <span style={{ height: 1.5, flex: 1, background: 'var(--primary)' }} />
                   </div>

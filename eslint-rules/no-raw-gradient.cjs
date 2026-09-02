@@ -19,6 +19,10 @@
  * a geometry primitive, not decoration (the sanctioned ring sweep is built this
  * way). A gradient inside a mask-valued style property is not reported.
  *
+ * OPAQUE CARD exemption: a uniform `--bg-card` image over a `--bg` base resolves
+ * the translucent card token to an opaque pinned pane. Both layers must live in
+ * the same style object and match the semantic tokens exactly.
+ *
  * SCOPE LIMIT: ESLint sees only TS/TSX here, so gradients declared in
  * `app/globals.css` are NOT covered by this rule — the token deletion in bundle 5
  * is what removes those, and no lint gate re-guards the stylesheet.
@@ -29,9 +33,16 @@ const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementNam
 const GRADIENT_TOKEN_RE = /--gradient-header|\bgradientHeader\b|\bgradientHeaderFrom\b/
 const GRADIENT_FUNCTION_RE = /(?:repeating-)?(?:linear|radial|conic)-gradient\s*\(/
 const GRADIENT_CLASS_RE = /(?:^|\s|:)(bg-gradient-to-[trbl]{1,2}|bg-linear-(?:to-[trbl]{1,2}|\d+|\[[^\]]+\]))(?:\s|$)/
-const GRADIENT_ELEMENTS = new Set(['LinearGradient', 'GradientTop', 'RadialGradient'])
+const GRADIENT_ELEMENTS = new Set([
+  'GradientTop',
+  'LinearGradient',
+  'RadialGradient',
+  'linearGradient',
+  'radialGradient',
+])
 const GRADIENT_MODULES = new Set(['expo-linear-gradient', 'react-native-linear-gradient'])
 const MASK_KEY_RE = /mask/i
+const OPAQUE_CARD_LAYER = 'linear-gradient(var(--bg-card), var(--bg-card))'
 
 module.exports = {
   meta: {
@@ -66,6 +77,27 @@ module.exports = {
       return false
     }
 
+    function isOpaqueCardLayer(node, value) {
+      if (value !== OPAQUE_CARD_LAYER) return false
+      const property = node.parent
+      if (property?.type !== 'Property' || getPropertyKeyName(property) !== 'backgroundImage') {
+        return false
+      }
+      const styleObject = property.parent
+      if (styleObject?.type !== 'ObjectExpression') return false
+      return styleObject.properties.some(
+        (candidate) =>
+          candidate.type === 'Property' &&
+          getPropertyKeyName(candidate) === 'backgroundColor' &&
+          candidate.value.type === 'Literal' &&
+          candidate.value.value === 'var(--bg)',
+      )
+    }
+
+    function isFunctionalGradient(node, value) {
+      return isInsideMaskProperty(node) || isOpaqueCardLayer(node, value)
+    }
+
     function reportSource(node, moduleName) {
       if (GRADIENT_MODULES.has(moduleName)) {
         context.report({ node, messageId: 'noGradientImport', data: { module: moduleName } })
@@ -83,7 +115,7 @@ module.exports = {
           context.report({ node, messageId: 'noGradientToken', data: { token: tokenMatch[0] } })
           return
         }
-        if (GRADIENT_FUNCTION_RE.test(node.value) && !isInsideMaskProperty(node)) {
+        if (GRADIENT_FUNCTION_RE.test(node.value) && !isFunctionalGradient(node, node.value)) {
           context.report({ node, messageId: 'noGradientFunction' })
         }
       },
@@ -94,7 +126,7 @@ module.exports = {
           context.report({ node, messageId: 'noGradientToken', data: { token: tokenMatch[0] } })
           return
         }
-        if (GRADIENT_FUNCTION_RE.test(text) && !isInsideMaskProperty(node)) {
+        if (GRADIENT_FUNCTION_RE.test(text) && !isFunctionalGradient(node, text)) {
           context.report({ node, messageId: 'noGradientFunction' })
         }
       },

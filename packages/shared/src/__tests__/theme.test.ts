@@ -41,10 +41,6 @@ describe('color schemes', () => {
       expect(schemes[name].fgOnPrimary).toEqual({ dark: '#FFFFFF', light: '#FFFFFF' })
     })
 
-    it(`${name}: keeps the header wash for #381`, () => {
-      expect(schemes[name].gradientHeaderFrom.dark).toMatch(/^#[0-9a-f]{6}$/)
-      expect(schemes[name].gradientHeaderFrom.light).toMatch(/^#[0-9a-f]{6}$/)
-    })
   }
 })
 

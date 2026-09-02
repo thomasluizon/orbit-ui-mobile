@@ -776,9 +776,6 @@
   "components/wrapped/wrapped-player.tsx": {
     "local/icon-size-grid": {
       "count": 2
-    },
-    "local/no-raw-gradient": {
-      "count": 1
     }
   }
 }

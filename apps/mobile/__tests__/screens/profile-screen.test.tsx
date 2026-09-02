@@ -258,7 +258,6 @@ vi.mock('react-native-svg', () => ({
   default: () => null,
   Path: () => null,
   Defs: () => null,
-  LinearGradient: () => null,
   Stop: () => null,
   Rect: () => null,
 }))
