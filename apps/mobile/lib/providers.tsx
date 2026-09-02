@@ -35,7 +35,6 @@ import {
 import {
   GeistMono_400Regular,
   GeistMono_500Medium,
-  GeistMono_600SemiBold,
 } from '@expo-google-fonts/geist-mono'
 import {
   SpaceGrotesk_500Medium,
@@ -161,7 +160,6 @@ function AuthInitializer({
     Geist_600SemiBold,
     GeistMono_400Regular,
     GeistMono_500Medium,
-    GeistMono_600SemiBold,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
   })

@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   text: {
-    fontFamily: 'GeistMono_600SemiBold',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.72,
     textTransform: 'uppercase',

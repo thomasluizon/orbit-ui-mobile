@@ -75,7 +75,6 @@ vi.mock('@expo-google-fonts/geist', () => ({
 vi.mock('@expo-google-fonts/geist-mono', () => ({
   GeistMono_400Regular: 'GeistMono_400Regular',
   GeistMono_500Medium: 'GeistMono_500Medium',
-  GeistMono_600SemiBold: 'GeistMono_600SemiBold',
 }))
 vi.mock('@expo-google-fonts/space-grotesk', () => ({
   SpaceGrotesk_500Medium: 'SpaceGrotesk_500Medium',
