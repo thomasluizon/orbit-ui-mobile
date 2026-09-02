@@ -74,11 +74,15 @@ function createTags(): TagSelectionState {
   }
 }
 
-function renderForm(formHelpers = createFormHelpers(), onSuggestSetup?: () => boolean | Promise<boolean>) {
+function renderForm(
+  formHelpers = createFormHelpers(),
+  onSuggestSetup?: () => boolean | Promise<boolean>,
+  defaultExpanded = false,
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>,
@@ -155,5 +159,25 @@ describe('HabitFormFields', () => {
     correct()
 
     expect(screen.getByText('habits.form.understood')).toBeDefined()
+  })
+
+  it('marks an Astra checklist proposal until a correction is made', async () => {
+    renderForm(
+      createFormHelpers({
+        title: 'Run',
+        frequencyQuantity: 3,
+        checklistItems: [{ text: 'Shoes', isChecked: false }],
+      }),
+      () => true,
+      true,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => {
+      expect(screen.getAllByRole('group', { name: 'habits.form.proposed' })).toHaveLength(1)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(screen.queryByRole('group', { name: 'habits.form.proposed' })).toBeNull()
   })
 })

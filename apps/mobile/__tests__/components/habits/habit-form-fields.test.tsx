@@ -24,8 +24,8 @@ vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: 
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => React.createElement('View') }))
 
-function createFormHelpers(): HabitFormHelpers {
-  const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false }
+function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
+  const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false, ...overrides }
   return {
     form: { control: { values }, getValues: vi.fn((field: string) => values[field]), setValue: vi.fn(), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false, showDayPicker: false, showEndDate: true,
@@ -87,5 +87,27 @@ describe('HabitFormFields mobile', () => {
     TestRenderer.act(() => details.props.onPress())
     expect(tree.root.findAll((node: any) => node.props?.testID === 'checklist')).toHaveLength(1)
     expect(onSuggestSetup).not.toHaveBeenCalled()
+  })
+
+  it('marks an Astra checklist proposal until a correction is made', async () => {
+    const formHelpers = createFormHelpers({
+      checklistItems: [{ text: 'Shoes', isChecked: false }],
+    })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => true} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length).toBeGreaterThan(0)
+
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    TestRenderer.act(() => understanding.props.onQuantityChange(4))
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
   })
 })

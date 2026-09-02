@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
+import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
@@ -443,20 +444,24 @@ export function HabitFormFields({
 
             <section>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
-              <HabitChecklist
-                items={checklistItems}
-                editable
-                onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
-              />
-              <ChecklistTemplates
-                items={checklistItems}
-                onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
-              />
+              <Proposed proposed={proposed && checklistItems.length > 0} scope="field" label={t('habits.form.proposed')}>
+                <HabitChecklist
+                  items={checklistItems}
+                  editable
+                  onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
+                />
+                <ChecklistTemplates
+                  items={checklistItems}
+                  onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
+                />
+              </Proposed>
             </section>
 
             <section>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
-              {children}
+              <Proposed proposed={proposed && checklistItems.length === 0 && !!children} scope="field" label={t('habits.form.proposed')}>
+                {children}
+              </Proposed>
             </section>
 
             <section className="flex flex-col" style={{ gap: 8 }}>

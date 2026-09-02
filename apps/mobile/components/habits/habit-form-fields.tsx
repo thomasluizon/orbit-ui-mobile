@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
+import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
@@ -434,10 +435,17 @@ export function HabitFormFields({
             </View>
             <View>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
-              <HabitChecklist items={checklistItems} editable onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
-              <ChecklistTemplates items={checklistItems} onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
+              <Proposed proposed={proposed && checklistItems.length > 0} scope="field" label={t('habits.form.proposed')}>
+                <HabitChecklist items={checklistItems} editable onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
+                <ChecklistTemplates items={checklistItems} onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })} />
+              </Proposed>
             </View>
-            <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>{children}</View>
+            <View>
+              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
+              <Proposed proposed={proposed && checklistItems.length === 0 && !!children} scope="field" label={t('habits.form.proposed')}>
+                {children}
+              </Proposed>
+            </View>
             <View style={styles.compactGroup}>
               <SectionLabel inset={false} top={0} bottom={0}>{t('habits.form.habitTypeAvoid')}</SectionLabel>
               <Switch label={t('habits.form.habitTypeAvoid')} checked={isBadHabit} onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })} />
