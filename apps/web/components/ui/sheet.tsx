@@ -99,7 +99,7 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<WebSh
       onOpenChange={(nextOpen: boolean) => {
         if (!nextOpen && onClose) requestClose()
       }}
-      onOpenChangeComplete={(nextOpen) => {
+      onOpenChangeComplete={(nextOpen: boolean) => {
         if (!nextOpen) {
           setModalFocusOwnerActive(false)
           runExit()

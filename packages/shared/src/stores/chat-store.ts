@@ -10,6 +10,7 @@ export interface ChatStoreState {
   isTyping: boolean
   streamingMessageId: string | null
   draft: string
+  draftRevision: number
   draftHydrated: boolean
   addMessage: (message: ChatMessage) => void
   updateMessage: (id: string, patch: Partial<Omit<ChatMessage, 'id'>>) => void
@@ -26,6 +27,7 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
     isTyping: false,
     streamingMessageId: null,
     draft: '',
+    draftRevision: 0,
     draftHydrated: false,
 
     addMessage: (message) =>
@@ -51,6 +53,7 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
     setStreamingMessageId: (value) => set({ streamingMessageId: value }),
     setDraft: (value) => set((state) => ({
       draft: typeof value === 'function' ? value(state.draft) : value,
+      draftRevision: state.draftRevision + 1,
     })),
     hydrateDraft: (storedDraft) => set((state) => ({
       draft: state.draft || storedDraft || '',
