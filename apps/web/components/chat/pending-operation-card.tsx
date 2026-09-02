@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import {
+  buildPendingOperationCardLabels,
   SharedPendingOperationCard,
   type PendingOperationCardAdapterProps,
   type PendingOperationCardRenderers,
@@ -10,7 +11,6 @@ import {
 import {
   usePendingOperationStepUpVerification,
 } from '@orbit/shared/hooks'
-import { getAgentCapabilityLabelKey } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -69,7 +69,6 @@ export function PendingOperationCard({
   onVerifyStepUp,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
-  const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
 
   return <SharedPendingOperationCard
     pendingOperation={pendingOperation}
@@ -77,20 +76,6 @@ export function PendingOperationCard({
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
     render={pendingOperationRenderers}
-    labels={{
-      approve: t('chat.operation.approve'),
-      cancel: t('common.cancel'),
-      confirm: t('chat.operation.confirm'),
-      confirmBody: t('chat.operation.confirmBody'),
-      confirmNote: t('chat.operation.confirmNote'),
-      confirmTitle: t('chat.operation.confirmTitle'),
-      irreversible: t('chat.operation.irreversible'),
-      name: capabilityKey ? t(capabilityKey) : t('chat.operation.unknown'),
-      pending: t('chat.operation.pending'),
-      pendingTitle: t('chat.operation.pendingTitle'),
-      risk: t(`chat.operation.risk.${pendingOperation.riskClass.toLowerCase()}`),
-      stepUpAction: t('chat.operation.stepUpAction'),
-      stepUpMessage: t('chat.operation.stepUpMessage'),
-    }}
+    labels={buildPendingOperationCardLabels(pendingOperation, t)}
   />
 }
