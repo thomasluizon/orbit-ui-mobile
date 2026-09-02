@@ -676,13 +676,6 @@ button {
   }
 }
 
-/* Chat AI waiting orb */
-.orbit-ring {
-  background: conic-gradient(from 0deg, var(--primary), transparent 40%, var(--primary));
-  -webkit-mask: radial-gradient(transparent 58%, black 60%);
-  mask: radial-gradient(transparent 58%, black 60%);
-}
-
 @keyframes orbit-pulse {
   0%, 100% { opacity: 0.7; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.1); }

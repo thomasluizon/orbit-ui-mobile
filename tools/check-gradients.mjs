@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: check-gradients.mjs [--root <repository>]
 
   Fails when app source contains a decorative CSS gradient, a retired header
-  gradient symbol, or a LinearGradient outside the explicit functional allowlist.
+  gradient symbol, or a gradient rendering primitive.
 
   --root <repository>  scan this repository instead of the script's repository
   --help, -h           print this usage and exit 0
@@ -18,13 +18,6 @@ const SOURCE_EXTENSIONS = new Set([".cjs", ".css", ".js", ".jsx", ".mjs", ".ts",
 const SKIPPED_DIRECTORIES = new Set([".expo", ".next", "coverage", "dist", "node_modules"])
 
 const allowlist = new Map([
-  [
-    "apps/web/app/globals.css",
-    {
-      gradientLine: /^\s*(?:-webkit-)?mask:\s*radial-gradient\(transparent 58%, black 60%\);\s*$/,
-      reason: "The radial mask cuts out the ring center and paints no color.",
-    },
-  ],
   [
     "apps/web/components/calendar/calendar-agenda-view.tsx",
     {
@@ -39,21 +32,6 @@ const allowlist = new Map([
       gradientLine:
         /^\s*'repeating-linear-gradient\(to bottom, var\(--hairline\) 0, var\(--hairline\) 1px, transparent 1px, transparent '\s*\+\s*$/,
       reason: "The repeating gradient draws the time grid's structural hour hairlines.",
-    },
-  ],
-  [
-    "apps/mobile/app/(tabs)/calendar/_components/calendar-loading-bar.tsx",
-    {
-      linearGradientIdentifier: true,
-      expoImport: true,
-      reason: "The moving loading indicator communicates progress rather than decorating a surface.",
-    },
-  ],
-  [
-    "apps/mobile/test-mocks/react-native-svg.ts",
-    {
-      linearGradientIdentifier: true,
-      reason: "The test-only SVG export paints no application surface.",
     },
   ],
 ])
@@ -105,23 +83,22 @@ function isAllowedGradientLine(path, line) {
 
 function inspectFile(repositoryRoot, file) {
   const path = normalizedRelativePath(repositoryRoot, file)
-  const allowance = allowlist.get(path)
   const violations = []
   const lines = readFileSync(file, "utf8").split(/\r?\n/)
 
   lines.forEach((line, index) => {
     const lineNumber = index + 1
-    if (/(?:repeating-)?(?:linear|radial)-gradient\s*\(/i.test(line) && !isAllowedGradientLine(path, line)) {
+    if (/(?:repeating-)?(?:linear|radial|conic)-gradient\s*\(/i.test(line) && !isAllowedGradientLine(path, line)) {
       violations.push(`${path}:${lineNumber}: decorative gradient function`)
     }
     if (/\b(?:GradientTop|gradientHeader(?:From|To)?)\b|--gradient-header\b/.test(line)) {
       violations.push(`${path}:${lineNumber}: retired header gradient symbol`)
     }
-    if (/\bLinearGradient\b/.test(line) && !path.includes("/__tests__/") && !allowance?.linearGradientIdentifier) {
-      violations.push(`${path}:${lineNumber}: LinearGradient outside the functional allowlist`)
+    for (const match of line.matchAll(/\b(?:LinearGradient|RadialGradient)\b/g)) {
+      violations.push(`${path}:${lineNumber}: ${match[0]} rendering primitive`)
     }
-    if (/\b(?:from\s*|import\s*\(\s*|require\(\s*)["']expo-linear-gradient["']/.test(line) && !allowance?.expoImport) {
-      violations.push(`${path}:${lineNumber}: expo-linear-gradient import outside the loading indicator`)
+    if (/\b(?:from\s*|import\s*\(\s*|require\(\s*)["']expo-linear-gradient["']/.test(line)) {
+      violations.push(`${path}:${lineNumber}: expo-linear-gradient import`)
     }
   })
 

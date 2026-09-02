@@ -27,48 +27,67 @@ export const cases = () => {
     { status: 0, stdout: /Gradient guard passed/ },
   )
 
-  const webWash = stageRepository("web-wash", {
-    "apps/web/page.tsx": "export const wash = 'linear-gradient(red, transparent)'\n",
-  })
-  check(
-    "check-gradients.mjs",
-    "rejects a web linear gradient",
-    ["--root", webWash],
-    { status: 1, stderr: /apps\/web\/page\.tsx:1: decorative gradient function/ },
-  )
+  for (const gradientFunction of [
+    "linear-gradient",
+    "radial-gradient",
+    "conic-gradient",
+    "repeating-linear-gradient",
+    "repeating-radial-gradient",
+    "repeating-conic-gradient",
+  ]) {
+    const repository = stageRepository(gradientFunction, {
+      "apps/web/page.tsx": `export const wash = '${gradientFunction}(red, transparent)'\n`,
+    })
+    check(
+      "check-gradients.mjs",
+      `rejects ${gradientFunction}`,
+      ["--root", repository],
+      { status: 1, stderr: /apps\/web\/page\.tsx:1: decorative gradient function/ },
+    )
+  }
 
-  const mobileWash = stageRepository("mobile-wash", {
-    "apps/mobile/screen.tsx": "export const wash = 'radial-gradient(red, transparent)'\n",
-  })
-  check(
-    "check-gradients.mjs",
-    "rejects a mobile radial gradient",
-    ["--root", mobileWash],
-    { status: 1, stderr: /apps\/mobile\/screen\.tsx:1: decorative gradient function/ },
-  )
+  for (const primitive of ["LinearGradient", "RadialGradient"]) {
+    const repository = stageRepository(primitive, {
+      "apps/mobile/screen.tsx":
+        `import { ${primitive} } from 'react-native-svg'\nexport const Screen = ${primitive}\n`,
+    })
+    check(
+      "check-gradients.mjs",
+      `rejects ${primitive}`,
+      ["--root", repository],
+      { status: 1, stderr: new RegExp(`${primitive} rendering primitive`) },
+    )
+  }
 
   const expoImport = stageRepository("expo-import", {
     "apps/mobile/screen.tsx": "import { LinearGradient } from 'expo-linear-gradient'\nexport const Screen = LinearGradient\n",
   })
   check(
     "check-gradients.mjs",
-    "rejects expo LinearGradient outside the loading indicator",
+    "rejects the retired expo gradient package",
     ["--root", expoImport],
-    { status: 1, stderr: /expo-linear-gradient import outside the loading indicator/ },
+    { status: 1, stderr: /expo-linear-gradient import/ },
   )
 
-  const functional = stageRepository("functional", {
-    "apps/web/app/globals.css": ".ring {\n  mask: radial-gradient(transparent 58%, black 60%);\n}\n",
+  const agendaHairlines = stageRepository("agenda-hairlines", {
     "apps/web/components/calendar/calendar-agenda-view.tsx":
       "export const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
-    "apps/mobile/app/(tabs)/calendar/_components/calendar-loading-bar.tsx":
-      "import { LinearGradient } from 'expo-linear-gradient'\nexport const CalendarLoadingBar = LinearGradient\n",
-    "apps/mobile/test-mocks/react-native-svg.ts": "export const LinearGradient = () => null\n",
   })
   check(
     "check-gradients.mjs",
-    "accepts the explicit functional allowlist",
-    ["--root", functional],
+    "accepts the agenda hairline allowance",
+    ["--root", agendaHairlines],
+    { status: 0, stdout: /Gradient guard passed/ },
+  )
+
+  const timeGridHairlines = stageRepository("time-grid-hairlines", {
+    "apps/web/components/calendar/calendar-time-grid.tsx":
+      "export const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
+  })
+  check(
+    "check-gradients.mjs",
+    "accepts the time grid hairline allowance",
+    ["--root", timeGridHairlines],
     { status: 0, stdout: /Gradient guard passed/ },
   )
 }
