@@ -1,0 +1,72 @@
+import { describe, expect, it } from 'vitest'
+import { readHabitPhrase } from '../utils/habit-phrase-parser'
+
+describe('readHabitPhrase', () => {
+  it('gives fixed weekdays precedence over a weekly count', () => {
+    const read = readHabitPhrase('Run 3 times a week on Monday and Thursday at 08:00', 'en')
+    expect(read).toMatchObject({
+      cadence: 'fixed',
+      days: ['Monday', 'Thursday'],
+      frequencyQuantity: null,
+      dueTime: '08:00',
+      emoji: '🏃',
+    })
+    expect(read.consumed.map((token) => token.kind)).toEqual(['weekday', 'weekday', 'time'])
+  })
+
+  it('gives a weekly count precedence over a daily phrase', () => {
+    const read = readHabitPhrase('Read every day, 3 times a week', 'en')
+    expect(read.cadence).toBe('flexible')
+    expect(read.frequencyQuantity).toBe(3)
+    expect(read.consumed.map((token) => token.kind)).toEqual(['count'])
+  })
+
+  it('does not read the count in three times a week as an hour', () => {
+    expect(readHabitPhrase('Run 3 times a week', 'en')).toMatchObject({
+      cadence: 'flexible',
+      frequencyQuantity: 3,
+      dueTime: null,
+    })
+  })
+
+  it('reads a bare daily phrase and a separated clock time', () => {
+    expect(readHabitPhrase('Stretch every morning 7:05', 'en')).toMatchObject({
+      cadence: 'daily',
+      dueTime: '07:05',
+      emoji: '🧘',
+    })
+  })
+
+  it('reads Portuguese weekdays, daily phrases, counts and times', () => {
+    expect(readHabitPhrase('Ler toda segunda e quinta às 8h30', 'pt-BR')).toMatchObject({
+      cadence: 'fixed',
+      days: ['Monday', 'Thursday'],
+      dueTime: '08:30',
+      emoji: '📖',
+    })
+    expect(readHabitPhrase('Beber água 2 vezes por semana', 'pt-BR')).toMatchObject({
+      cadence: 'flexible',
+      frequencyQuantity: 2,
+      emoji: '💧',
+    })
+    expect(readHabitPhrase('Alongar todos os dias', 'pt-BR').cadence).toBe('daily')
+  })
+
+  it('leaves unsupported cadence and invalid times unresolved', () => {
+    expect(readHabitPhrase('Drink more water when I can at 27:80', 'en')).toEqual({
+      cadence: null,
+      days: [],
+      frequencyQuantity: null,
+      dueTime: null,
+      emoji: '💧',
+      consumed: [],
+    })
+    expect(readHabitPhrase('Run 9 times a week', 'en').cadence).toBeNull()
+  })
+
+  it('reads a time only with a separator or after at', () => {
+    expect(readHabitPhrase('Read daily at 8', 'en').dueTime).toBe('08:00')
+    expect(readHabitPhrase('Read daily 8', 'en').dueTime).toBeNull()
+    expect(readHabitPhrase('Ler diariamente as 9', 'pt-BR').dueTime).toBe('09:00')
+  })
+})
