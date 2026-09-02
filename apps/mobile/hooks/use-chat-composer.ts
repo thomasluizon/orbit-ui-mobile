@@ -52,8 +52,12 @@ import { useChatStore } from "@/stores/chat-store";
 
 interface AttemptedSend {
   content: string;
+  draftContent: string;
   image: ImagePicker.ImagePickerAsset | null;
   preview: string | null;
+  restoreDraftOnFailure: boolean;
+  clearDraftOnSuccess: boolean;
+  restoredDraftRevision: number | null;
 }
 
 interface SelectedChatTextFile {
@@ -382,6 +386,15 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       draftMessageId: string | null,
     ) => {
       setIsTyping(false);
+      let failedAttempt = attempted;
+      if (attempted.restoreDraftOnFailure) {
+        setInput(attempted.draftContent);
+        failedAttempt = {
+          ...attempted,
+          restoreDraftOnFailure: false,
+          restoredDraftRevision: useChatStore.getState().draftRevision,
+        };
+      }
       const resolvedError = failureInput.error.trim() || t("chat.sendError");
       const failure = classifySendFailure({
         status: failureInput.status,
@@ -397,12 +410,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       if (failure.kind === "timeout") {
         setSendError(t("chat.timeoutError"));
-        setLastFailedSend(attempted);
+        setLastFailedSend(failedAttempt);
       } else if (failure.kind === "limit") {
         setSendError(t("chat.limitReachedError"));
       } else {
         setSendError(t("chat.sendError"));
-        setLastFailedSend(attempted);
+        setLastFailedSend(failedAttempt);
       }
 
       if (draftMessageId) {
@@ -417,7 +430,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       }
       scrollToBottom();
     },
-    [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
+    [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
   );
 
   const applyFinalResponse = useCallback(
@@ -572,7 +585,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
             attempted,
             draftMessageId,
           );
-          return;
+          return false;
         }
 
         const outcome = await consumeChatSseStream(
@@ -591,7 +604,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
         if (outcome.kind === "final") {
           await applyFinalResponse(outcome.response, draftMessageId);
-          return;
+          return true;
         }
         if (outcome.kind === "error") {
           handleFailedSend(
@@ -599,13 +612,14 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
             attempted,
             draftMessageId,
           );
-          return;
+          return false;
         }
         handleFailedSend(
           { status: null, error: t("chat.sendError"), code: null },
           attempted,
           draftMessageId,
         );
+        return false;
       } catch (err: unknown) {
         handleFailedSend(
           {
@@ -616,6 +630,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           attempted,
           draftMessageId,
         );
+        return false;
       } finally {
         clearTimeout(idleTimer);
         if (useChatStore.getState().streamingMessageId === draftMessageId) {
@@ -657,7 +672,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       setIsTyping(true);
       scrollToBottom();
 
-      await runStreamingSend(attempted);
+      return runStreamingSend(attempted);
     },
     [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   );
@@ -685,8 +700,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       const attempted: AttemptedSend = {
         content: messageContent,
+        draftContent: typedContent,
         image: selectedImage,
         preview: imagePreview,
+        restoreDraftOnFailure: content === undefined,
+        clearDraftOnSuccess: content === undefined,
+        restoredDraftRevision: null,
       };
 
       setInput("");
@@ -717,8 +736,18 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       setSendError(offlineTitle);
       return;
     }
-    await performSend(lastFailedSend, true);
-  }, [isOnline, lastFailedSend, offlineTitle, performSend]);
+    const attempted = lastFailedSend;
+    const succeeded = await performSend(attempted, true);
+    if (
+      succeeded &&
+      attempted.clearDraftOnSuccess &&
+      attempted.restoredDraftRevision !== null &&
+      useChatStore.getState().draftRevision === attempted.restoredDraftRevision
+    ) {
+      setInput("");
+      void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
+    }
+  }, [isOnline, lastFailedSend, offlineTitle, performSend, setInput]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
 
