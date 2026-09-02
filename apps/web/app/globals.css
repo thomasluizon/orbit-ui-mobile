@@ -971,7 +971,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background: var(--bg-hover);
   }
 
-  [data-habit-row-control]:hover {
+  [data-habit-row-control]:not(:disabled):not([aria-disabled="true"]):hover {
     background: var(--bg-hover);
   }
 
@@ -980,7 +980,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background: var(--primary-hover);
   }
 
-  .habit-panel:hover:not(:has([data-habit-row-control]:hover)) {
+  .habit-panel:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover) {
     background: var(--bg-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }

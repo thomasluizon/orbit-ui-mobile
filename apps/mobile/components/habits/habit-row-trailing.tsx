@@ -123,7 +123,7 @@ export function HabitRowTrailing({
             accessibilityState={{ disabled: readOnly }}
             style={({ pressed }) => [
               styles.menuButton,
-              pressed
+              pressed && !readOnly
                 ? {
                     backgroundColor: tokens.bgHover,
                     transform: [{ scale: 0.96 }],

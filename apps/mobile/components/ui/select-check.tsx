@@ -41,6 +41,7 @@ interface SelectCheckProps {
   onPress?: () => void
   accessibilityLabel?: string
   disabled?: boolean
+  habitRowControl?: boolean
 }
 
 export function SelectCheck({
@@ -49,6 +50,7 @@ export function SelectCheck({
   onPress,
   accessibilityLabel,
   disabled = false,
+  habitRowControl = false,
 }: Readonly<SelectCheckProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -62,12 +64,15 @@ export function SelectCheck({
       accessibilityLabel={accessibilityLabel ?? t('common.select')}
       accessibilityState={{ checked: selected, disabled }}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      style={{
+      style={({ pressed }) => ({
         width: size,
         height: size,
+        borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
-      }}
+        backgroundColor: habitRowControl && pressed && !disabled ? tokens.bgHover : 'transparent',
+        transform: [{ scale: habitRowControl && pressed && !disabled ? 0.96 : 1 }],
+      })}
     >
       <RadioGlyph selected={selected} size={size} tokens={tokens} />
     </Pressable>

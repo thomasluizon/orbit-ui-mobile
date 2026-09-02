@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -8,6 +9,41 @@ import { resolve } from 'node:path'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 import { HabitRow } from '@/components/habits/habit-row'
+
+const styleElement = document.createElement('style')
+styleElement.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+document.head.append(styleElement)
+
+function renderRowInPanel(row: ReactNode): HTMLElement {
+  render(<div className="habit-panel">{row}</div>)
+  return document.querySelector('.habit-panel')!
+}
+
+function matchingHabitHoverBackgrounds(element: Element): string[] {
+  const backgrounds: string[] = []
+
+  function visitRules(rules: CSSRuleList): void {
+    for (const rule of Array.from(rules)) {
+      const styleRule = rule as CSSStyleRule
+      if (typeof styleRule.selectorText === 'string') {
+        if (
+          styleRule.selectorText.includes('data-habit-row') &&
+          element.matches(styleRule.selectorText)
+        ) {
+          const background = styleRule.style.getPropertyValue('background')
+          if (background) backgrounds.push(background)
+        }
+      } else if ('cssRules' in rule) {
+        visitRules((rule as CSSGroupingRule).cssRules)
+      }
+    }
+  }
+
+  for (const stylesheet of Array.from(document.styleSheets)) {
+    visitRules(stylesheet.cssRules)
+  }
+  return backgrounds
+}
 
 describe('HabitRow canonical content', () => {
   it('renders title and meta, not descriptions or tags', () => {
@@ -39,8 +75,8 @@ describe('HabitRow canonical content', () => {
 })
 
 describe('HabitRow check circle accessible name', () => {
-  it('marks only the ring and menu as control-owned hover targets', () => {
-    render(
+  it('lights the panel only while the enabled body is hovered', () => {
+    const panel = renderRowInPanel(
       <HabitRow
         habit={createMockHabit({ title: 'Meditate' })}
         actions={{ onDetail: vi.fn(), onEdit: vi.fn() }}
@@ -49,18 +85,78 @@ describe('HabitRow check circle accessible name', () => {
 
     const body = screen.getByRole('button', { name: 'Meditate' })
     const ring = screen.getByTestId('habit-status-toggle')
-    const menu = screen.getByRole('button', { name: 'habits.actions.more' })
     expect(body).toHaveAttribute('data-habit-row-body')
     expect(body).not.toHaveAttribute('data-habit-row-control')
-    expect(ring).toHaveAttribute('data-habit-row-control', 'ring')
-    expect(menu).toHaveAttribute('data-habit-row-control', 'menu')
+    fireEvent.mouseOver(body)
+    expect(matchingHabitHoverBackgrounds(panel)).toEqual(['var(--bg-hover)'])
+    expect(matchingHabitHoverBackgrounds(ring)).toEqual([])
+  })
 
-    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-      .replaceAll('\r\n', '\n')
-    expect(stylesheet).toContain(
-      '[data-habit-row-control]:hover {\n    background: var(--bg-hover);',
+  it('lights an enabled ring locally without lighting the panel', () => {
+    const panel = renderRowInPanel(
+      <HabitRow habit={createMockHabit({ title: 'Meditate' })} actions={{ onDetail: vi.fn() }} />,
     )
-    expect(stylesheet).not.toContain('[data-habit-row-body]:hover')
+    const ring = screen.getByTestId('habit-status-toggle')
+
+    fireEvent.mouseOver(ring)
+
+    expect(ring).toHaveAttribute('data-habit-row-control', 'ring')
+    expect(matchingHabitHoverBackgrounds(ring)).toEqual(['var(--bg-hover)'])
+    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+  })
+
+  it('lights an enabled disclosure control locally without lighting the panel', () => {
+    const panel = renderRowInPanel(
+      <HabitRow
+        habit={createMockHabit({ title: 'Meditate' })}
+        hasChildren
+        actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn() }}
+      />,
+    )
+    const disclosure = screen.getByRole('button', { name: 'common.expand' })
+
+    fireEvent.mouseOver(disclosure)
+
+    expect(disclosure).toHaveAttribute('data-habit-row-control', 'disclosure')
+    expect(matchingHabitHoverBackgrounds(disclosure)).toEqual(['var(--bg-hover)'])
+    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+  })
+
+  it('lights an enabled selection control locally without lighting the panel', () => {
+    const panel = renderRowInPanel(
+      <HabitRow
+        habit={createMockHabit({ title: 'Meditate' })}
+        selectMode
+        actions={{ onDetail: vi.fn(), onToggleSelection: vi.fn() }}
+      />,
+    )
+    const selection = document.querySelector('[data-habit-row-control="selection"]')!
+
+    fireEvent.mouseOver(selection)
+
+    expect(selection).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(matchingHabitHoverBackgrounds(selection)).toEqual(['var(--bg-hover)'])
+    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+  })
+
+  it('shows no hover feedback anywhere on a read-only row', () => {
+    const panel = renderRowInPanel(
+      <HabitRow
+        habit={createMockHabit({ title: 'Meditate' })}
+        readOnly
+        hasChildren
+        childProgress={{ done: 0, total: 1 }}
+        actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn(), onEdit: vi.fn() }}
+      />,
+    )
+    const row = screen.getByTestId('habit-row')
+
+    for (const target of [row, ...Array.from(row.querySelectorAll('button'))]) {
+      fireEvent.mouseOver(target)
+      expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+      expect(matchingHabitHoverBackgrounds(target)).toEqual([])
+      fireEvent.mouseOut(target)
+    }
   })
 
   it('makes every read-only descendant inert for keyboard and synthetic activation', async () => {
