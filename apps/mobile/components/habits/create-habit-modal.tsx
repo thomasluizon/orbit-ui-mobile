@@ -381,7 +381,7 @@ export function CreateHabitModal({
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-    if (title.length === 0) return
+    if (title.length === 0) return false
 
     try {
       const patch = buildHabitFormPatchFromSuggestion(
@@ -416,12 +416,14 @@ export function CreateHabitModal({
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
+      return appliedAnything
     } catch (error: unknown) {
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+      return false
     }
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [formHelpers, hasProAccess, i18n.language, showError, showInfo, showSuccess, suggestion, t])
@@ -466,7 +468,7 @@ export function CreateHabitModal({
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
             expandAdvancedSignal={expandAdvancedSignal}
-            onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+            onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
             isSuggesting={suggestion.isPending}
             readPhraseLocally
             lockedGeneral={lockedGeneral}

@@ -30,6 +30,7 @@ interface HabitUnderstandingProps {
     field: string
     placeholder: string
     understood: string
+    understoodAstra: string
     unresolved: string
     days: string
     less: string
@@ -109,7 +110,7 @@ export function HabitUnderstanding({
                 onSelect={onEmojiSelect}
                 wellSize={46}
               />
-              <span className="text-xs text-[var(--fg-3)]">{labels.understood}</span>
+              <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
             </div>
 
             <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">

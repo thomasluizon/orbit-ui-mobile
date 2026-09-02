@@ -17,7 +17,7 @@ import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/val
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useHasProAccess } from '@/hooks/use-profile'
+import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
@@ -25,6 +25,9 @@ import { ListRow } from '@/components/ui/list-row'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
@@ -52,7 +55,7 @@ interface HabitFormFieldsProps {
   onFlushBufferedInputsReady?: (flush: () => void) => void
   defaultExpanded?: boolean
   expandAdvancedSignal?: number
-  onSuggestSetup?: () => void
+  onSuggestSetup?: () => boolean | Promise<boolean>
   isSuggesting?: boolean
   readPhraseLocally?: boolean
   lockedGeneral?: boolean | null
@@ -82,6 +85,69 @@ function applyLocalRead(
   }
   if (read.dueTime) setValue('dueTime', read.dueTime, { shouldDirty: true })
   if (read.emoji && !emoji) setValue('emoji', read.emoji, { shouldDirty: true })
+}
+
+interface AstraFallbackProps {
+  visible: boolean
+  atLimit: boolean
+  isSuggesting: boolean
+  unresolved: string
+  limitMessage: string
+  readingLabel: string
+  askLabel: string
+  costLabel: string
+  onAsk: () => void
+  tokens: AppTokens
+}
+
+function shouldShowAstraFallback(title: string, sentence: string | null, action: unknown): boolean {
+  return title.trim().length > 0 && sentence === null && typeof action === 'function'
+}
+
+async function askAstra(
+  action: HabitFormFieldsProps['onSuggestSetup'],
+  atLimit: boolean,
+): Promise<boolean> {
+  if (!action || atLimit) return false
+  return action()
+}
+
+function isAtMessageLimit(hasProAccess: boolean, used: number, allowance: number): boolean {
+  return !hasProAccess && used >= allowance
+}
+
+function AstraFallback({
+  visible,
+  atLimit,
+  isSuggesting,
+  unresolved,
+  limitMessage,
+  readingLabel,
+  askLabel,
+  costLabel,
+  onAsk,
+  tokens,
+}: Readonly<AstraFallbackProps>) {
+  if (!visible) return null
+  return (
+    <View style={{ gap: 12 }}>
+      {atLimit ? (
+        <CapacityNotice message={limitMessage} />
+      ) : (
+        <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontSize: 14, lineHeight: 22 }}>
+          {unresolved}
+        </Text>
+      )}
+      {isSuggesting ? (
+        <Skeleton variant="settings" label={readingLabel} />
+      ) : (
+        <View style={{ alignItems: 'flex-start', gap: 8 }}>
+          <PillButton variant="secondary" disabled={atLimit} onClick={onAsk}>{askLabel}</PillButton>
+          {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
+        </View>
+      )}
+    </View>
+  )
 }
 
 function reminderLabel(minutes: number, t: (key: string) => string): string {
@@ -163,6 +229,8 @@ export function HabitFormFields({
   hasScheduledReminders = false,
   onFlushBufferedInputsReady,
   expandAdvancedSignal = 0,
+  onSuggestSetup,
+  isSuggesting = false,
   readPhraseLocally = false,
   onUpgrade,
   children,
@@ -175,6 +243,7 @@ export function HabitFormFields({
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
+  const { profile } = useProfile()
   const { form, daysList, toggleDay, setRecurring, setFlexible } = formHelpers
   const { setValue, formState: { errors } } = form
   const title = coalesceFormText(useWatch({ control: form.control, name: 'title' }))
@@ -194,6 +263,7 @@ export function HabitFormFields({
   const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
   const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [proposed, setProposed] = useState(false)
   const [previousExpandSignal, setPreviousExpandSignal] = useState(expandAdvancedSignal)
   if (expandAdvancedSignal !== previousExpandSignal) {
     setPreviousExpandSignal(expandAdvancedSignal)
@@ -230,8 +300,15 @@ export function HabitFormFields({
     () => buildUnderstandingSentence(days, daysList, isFlexible, !!frequencyUnit, frequencyQuantity, translate),
     [days, daysList, frequencyQuantity, frequencyUnit, isFlexible, translate],
   )
+  const allowance = profile?.aiMessagesLimit ?? 5
+  const atMessageLimit = isAtMessageLimit(hasProAccess, profile?.aiMessagesUsed ?? 0, allowance)
+
+  const handleAskAstra = useCallback(async () => {
+    setProposed(await askAstra(onSuggestSetup, atMessageLimit))
+  }, [atMessageLimit, onSuggestSetup])
 
   const handleToggleDay = useCallback((day: string) => {
+    setProposed(false)
     setRecurring()
     setValue('frequencyUnit', 'Day', { shouldDirty: true })
     setValue('frequencyQuantity', 1, { shouldDirty: true })
@@ -239,6 +316,7 @@ export function HabitFormFields({
   }, [setRecurring, setValue, toggleDay])
 
   const handleQuantityChange = useCallback((quantity: number) => {
+    setProposed(false)
     setFlexible()
     setValue('frequencyUnit', 'Week', { shouldDirty: true })
     setValue('frequencyQuantity', quantity, { shouldDirty: true })
@@ -292,17 +370,34 @@ export function HabitFormFields({
         quantity={frequencyQuantity}
         sentence={sentence}
         consumed={localRead.consumed}
+        proposed={proposed}
         onValueChange={(value) => setValue('title', value, { shouldDirty: true, shouldValidate: true })}
-        onEmojiSelect={(value) => setValue('emoji', value, { shouldDirty: true })}
+        onEmojiSelect={(value) => {
+          setProposed(false)
+          setValue('emoji', value, { shouldDirty: true })
+        }}
         onToggleDay={handleToggleDay}
         onQuantityChange={handleQuantityChange}
         labels={{
           field: t('habits.form.describe'), placeholder: t('habits.form.describePlaceholder'),
-          understood: t('habits.form.understood'), unresolved: t('habits.form.unresolved'),
+          understood: t('habits.form.understood'), understoodAstra: t('habits.form.understoodAstra'), unresolved: t('habits.form.unresolved'),
           days: t('habits.form.activeDays'), less: t('habits.form.lessOften'),
           more: t('habits.form.moreOften'), count: t('habits.form.timesAWeek'),
           proposed: t('habits.form.proposedByAstra'),
         }}
+      />
+
+      <AstraFallback
+        visible={shouldShowAstraFallback(title, sentence, onSuggestSetup)}
+        atLimit={atMessageLimit}
+        isSuggesting={isSuggesting}
+        unresolved={t('habits.form.unresolved')}
+        limitMessage={t('habits.form.localReadLimit', { allowance })}
+        readingLabel={t('habits.form.astraReading')}
+        askLabel={t('habits.form.askAstra')}
+        costLabel={t('habits.form.askAstraCost', { allowance })}
+        onAsk={() => void handleAskAstra()}
+        tokens={tokens}
       />
 
       <View style={styles.disclosure}>

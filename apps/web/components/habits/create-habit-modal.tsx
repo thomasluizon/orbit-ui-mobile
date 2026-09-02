@@ -285,7 +285,7 @@ export function CreateHabitModal({
   const handleSuggest = useCallback(
     async () => {
       const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-      if (title.length === 0) return
+      if (title.length === 0) return false
       try {
         const patch = buildHabitFormPatchFromSuggestion(
           await suggestion.mutateAsync({ title, language: locale }),
@@ -319,12 +319,14 @@ export function CreateHabitModal({
         } else {
           showInfo(t('habits.form.aiSuggestEmpty'))
         }
+        return appliedAnything
       } catch (error: unknown) {
         showError(
           extractBackendErrorCode(error) === 'PAY_GATE'
             ? t('habits.form.aiSuggestLimitReached')
             : t('habits.form.aiSuggestError'),
         )
+        return false
       }
     },
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -384,7 +386,7 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
             expandAdvancedSignal={expandAdvancedSignal}
-            onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+            onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
             isSuggesting={suggestion.isPending}
             readPhraseLocally
             lockedGeneral={parentHabit?.isGeneral ?? null}

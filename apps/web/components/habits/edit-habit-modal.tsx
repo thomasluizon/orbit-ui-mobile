@@ -308,7 +308,7 @@ export function EditHabitModal({
 
   const handleSuggest = useCallback(async () => {
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-    if (title.length === 0) return
+    if (title.length === 0) return false
     try {
       const patch = buildHabitFormPatchFromSuggestion(
         await suggestion.mutateAsync({ title, language: locale }),
@@ -329,12 +329,14 @@ export function EditHabitModal({
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
+      return appliedAnything
     } catch (error: unknown) {
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+      return false
     }
   }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
 
@@ -390,7 +392,7 @@ export function EditHabitModal({
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
               hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
-              onSuggestSetup={() => void handleSuggest()}
+              onSuggestSetup={handleSuggest}
               isSuggesting={suggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}
               defaultExpanded

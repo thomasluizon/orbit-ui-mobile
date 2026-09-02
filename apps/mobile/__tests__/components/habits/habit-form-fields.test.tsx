@@ -8,7 +8,10 @@ const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
 
 vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
-vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => false }))
+vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => false,
+  useProfile: () => ({ profile: { aiMessagesUsed: 0, aiMessagesLimit: 5 } }),
+}))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),

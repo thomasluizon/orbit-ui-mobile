@@ -32,6 +32,7 @@ interface HabitUnderstandingProps {
     field: string
     placeholder: string
     understood: string
+    understoodAstra: string
     unresolved: string
     days: string
     less: string
@@ -107,7 +108,7 @@ export function HabitUnderstanding({
                 wellSize={46}
                 onSelect={onEmojiSelect}
               />
-              <Text style={styles.meta}>{labels.understood}</Text>
+              <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>
 
             <Text style={styles.sentence}>{sentence ?? labels.unresolved}</Text>
