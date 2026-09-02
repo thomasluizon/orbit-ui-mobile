@@ -3334,15 +3334,7 @@
       },
       {
         "from": "packages/shared/src/chat",
-        "to": "packages/shared/src/hooks"
-      },
-      {
-        "from": "packages/shared/src/chat",
         "to": "packages/shared/src/types"
-      },
-      {
-        "from": "packages/shared/src/chat",
-        "to": "packages/shared/src/utils"
       },
       {
         "from": "packages/shared/src/hooks",
