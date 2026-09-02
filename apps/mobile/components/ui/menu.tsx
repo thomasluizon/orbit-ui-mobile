@@ -11,7 +11,11 @@ import {
 } from 'react-native'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { getAnchoredMenuPosition, getFallbackAnchorRect, type MenuAnchorRect } from '@/lib/anchored-menu'
+import {
+  getFallbackPopoverAnchorRect,
+  getPopoverPosition,
+  type PopoverAnchorRect,
+} from '@/lib/popover-positioner'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -66,7 +70,7 @@ export function Menu({
     [currentScheme, currentTheme],
   )
   const { width, height } = useWindowDimensions()
-  const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null)
+  const [anchorRect, setAnchorRect] = useState<PopoverAnchorRect | null>(null)
   const sheetPresentation =
     presentation === 'sheet' || (presentation === 'auto' && width < (wideFrom ?? DEFAULT_WIDE_FROM))
   const orderedItems = useMemo(() => orderMenuItems(items), [items])
@@ -88,12 +92,12 @@ export function Menu({
   }
 
   const estimatedHeight = Math.min(orderedItems.length * 48 + 16, height - 16)
-  const position = getAnchoredMenuPosition({
-    anchorRect: anchorRect ?? getFallbackAnchorRect(width),
+  const position = getPopoverPosition({
+    anchorRect: anchorRect ?? getFallbackPopoverAnchorRect(width),
     viewportWidth: width,
     viewportHeight: height,
-    menuWidth: PANEL_WIDTH,
-    menuHeight: estimatedHeight,
+    popoverWidth: PANEL_WIDTH,
+    popoverHeight: estimatedHeight,
   })
 
   return (
