@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   detail: null as HabitDetail | null,
+  detailLoading: false,
+  detailError: false,
+  refetch: vi.fn(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
   update: vi.fn(),
@@ -18,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   routerBack: vi.fn(),
   routerPush: vi.fn(),
+  routerReplace: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
   suggestion: null as null | {
@@ -38,11 +42,11 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: vi.fn() }),
+  useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
 }))
 
 vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitDetail: () => ({ data: mocks.detail, isLoading: false, isError: false, refetch: vi.fn() }),
+  useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
   useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
@@ -88,9 +92,11 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     ? <button type="button" data-testid={`confirm-${title}`} onClick={onConfirm}>{title}</button>
     : null,
 }))
-vi.mock('@/components/ui/error-state', () => ({ ErrorState: () => null }))
+vi.mock('@/components/ui/error-state', () => ({
+  ErrorState: ({ message, action }: { message: string; action: React.ReactNode }) => <div role="alert">{message}{action}</div>,
+}))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => null }))
+vi.mock('@/components/ui/skeleton', () => ({ Skeleton: ({ label }: { label: string }) => <div>{label}</div> }))
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => (
     <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={() => onChange(!checked)} />
@@ -121,25 +127,34 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
   ),
 }))
 vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: ({ onToggle }: { onToggle: (index: number) => void }) => <button type="button" onClick={() => onToggle(0)}>toggle-checklist</button>,
+  HabitChecklist: ({ onToggle, onClear }: { onToggle: (index: number) => void; onClear: () => void }) => (
+    <div>
+      <button type="button" onClick={() => onToggle(0)}>toggle-checklist</button>
+      <button type="button" onClick={onClear}>clear-checklist</button>
+    </div>
+  ),
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => <button type="button" aria-label={label} data-logged={logged} onClick={onPress}>{label}</button>,
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, readOnly, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => (
-    <button
-      type="button"
-      data-testid={`child-${habit.id}`}
-      data-state={state}
-      data-can-log={canLog}
-      data-read-only={readOnly}
-      aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
-      onClick={state === 'done' ? actions.onUnlog : actions.onLog}
-    >
-      {habit.title}
-    </button>
+  HabitRow: ({ habit, state, canLog, readOnly, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+    <div>
+      <button
+        type="button"
+        data-testid={`child-${habit.id}`}
+        data-state={state}
+        data-can-log={canLog}
+        data-read-only={readOnly}
+        aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
+        onClick={state === 'done' ? actions.onUnlog : actions.onLog}
+      >
+        {habit.title}
+      </button>
+      <button type="button" aria-label={`open-${habit.id}`} onClick={actions.onDetail} />
+      <button type="button" aria-label={`delete-${habit.id}`} onClick={actions.onDelete} />
+    </div>
   ),
 }))
 
@@ -215,11 +230,24 @@ function makeLoggedGeneralChild(): NormalizedHabit {
   }
 }
 
+function makeScopedParent(): NormalizedHabit {
+  return {
+    ...makeScopedChild('2026-08-28'),
+    id: 'habit-1',
+    title: 'Read',
+    parentId: null,
+    tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
+    linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
+  }
+}
+
 describe('HabitDetailScreen', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
     mocks.detail = makeDetail()
+    mocks.detailLoading = false
+    mocks.detailError = false
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
@@ -238,15 +266,71 @@ describe('HabitDetailScreen', () => {
     mocks.checklist.mockReset()
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
+    mocks.refetch.mockReset()
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
     mocks.history = []
     mocks.hasProAccess = true
     mocks.suggestion = null
+    localStorage.clear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('shows loading feedback and a retry action after a load failure', () => {
+    mocks.detailLoading = true
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+
+    expect(screen.getAllByText('habits.detail.loading')).toHaveLength(3)
+
+    mocks.detailLoading = false
+    mocks.detailError = true
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.loadError')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
+    expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('shows authoritative tags and linked goals and opens the selected goal', () => {
+    mocks.scopedHabits.set('habit-1', makeScopedParent())
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    expect(screen.getByText('Focus')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Read more books' }))
+
+    expect(mocks.routerPush).toHaveBeenCalledWith('/goals/goal-1')
+  })
+
+  it('restores an empty rename and returns to the selected day', async () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Read' }))
+    const input = screen.getByRole('textbox', { name: 'rename' })
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.blur(input)
+    await act(async () => Promise.resolve())
+
+    expect(screen.queryByRole('textbox', { name: 'rename' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Read' })).toBeInTheDocument()
+    expect(mocks.update).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
+  })
+
+  it('moves to an older history month and explains unavailable history', () => {
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2025-01-01T12:00:00Z' }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    const previousMonth = screen.getByRole('button', { name: 'previousMonth' })
+    for (let index = 0; index < 13; index += 1) fireEvent.click(previousMonth)
+
+    expect(screen.getByText('July 2025')).toBeInTheDocument()
+    expect(screen.getByText('olderHistoryUnavailable')).toBeInTheDocument()
   })
 
   it('pops child then parent history back to Today without duplicating the parent', () => {
@@ -437,6 +521,73 @@ describe('HabitDetailScreen', () => {
     await act(async () => { await Promise.resolve() })
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.checklistError')
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+  })
+
+  it('offers to log the habit after its last checklist item is completed', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.checklist).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      items: [{ text: 'First', isChecked: true }],
+    })
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28' })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+  })
+
+  it('clears a checklist only after confirmation', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'clear-checklist' }))
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistClearTitle'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [] })
+    expect(screen.queryByTestId('confirm-habits.checklistClearTitle')).not.toBeInTheDocument()
+  })
+
+  it('deletes a sub habit without leaving the parent detail', async () => {
+    mocks.deleteHabit.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'delete-child-1' }))
+    fireEvent.click(screen.getByTestId('confirm-habits.deleteConfirmTitle'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.deleteHabit).toHaveBeenCalledWith('child-1')
+    expect(screen.queryByTestId('confirm-habits.deleteConfirmTitle')).not.toBeInTheDocument()
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('deletes the habit and returns to the selected day', async () => {
+    mocks.deleteHabit.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.delete' }))
+    fireEvent.click(screen.getByTestId('confirm-habits.deleteConfirmTitle'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.deleteHabit).toHaveBeenCalledWith('habit-1')
+    expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
+  })
+
+  it('opens Astra with a draft grounded in the current habit', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.askAstra' }))
+
+    expect(localStorage.getItem('orbit-chat-draft')).toBe('habits.detail.askAstraSeedDefault')
+    expect(mocks.routerPush).toHaveBeenCalledWith('/chat')
   })
 
   it('keeps delete confirmation open and reports a delete failure', async () => {

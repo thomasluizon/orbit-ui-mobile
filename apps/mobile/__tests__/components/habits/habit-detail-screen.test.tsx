@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   detail: null as HabitDetail | null,
+  detailLoading: false,
+  detailError: false,
+  refetch: vi.fn(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
   update: vi.fn(),
@@ -22,6 +25,8 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   routerBack: vi.fn(),
   routerPush: vi.fn(),
+  routerReplace: vi.fn(),
+  setStorage: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
   suggestion: null as null | {
@@ -43,10 +48,10 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 vi.mock('expo-router', () => ({
-  useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: vi.fn() }),
+  useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitDetail: () => ({ data: mocks.detail, isLoading: false, isError: false, refetch: vi.fn() }),
+  useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
   useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
@@ -140,6 +145,9 @@ vi.mock('expo-sqlite', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: offlineMocks.apiClient }))
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: { setItem: mocks.setStorage },
+}))
 vi.mock('@/lib/offline-runtime', () => ({
   getCurrentConnectivity: () => Promise.resolve(offlineMocks.isOnline()),
 }))
@@ -190,9 +198,13 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, onConfirm })
     : null,
 }))
-vi.mock('@/components/ui/error-state', () => ({ ErrorState: () => null }))
+vi.mock('@/components/ui/error-state', () => ({
+  ErrorState: ({ message, action }: { message: string; action: React.ReactNode }) => React.createElement('ErrorState', { testID: 'load-error', message }, action),
+}))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children) }))
-vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => null }))
+vi.mock('@/components/ui/skeleton', () => ({
+  Skeleton: ({ label }: { label: string }) => React.createElement('Skeleton', { label }),
+}))
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) => React.createElement('Switch', { testID: 'slip-alert-switch', checked, onChange }),
 }))
@@ -209,7 +221,7 @@ vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({ title, trailing, onClick }: { title: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('PillButton', { onClick }, children),
+  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, onClick }, children),
 }))
 vi.mock('@/components/ui/stat-tile', () => ({
   StatTile: ({ label, value }: { label: string; value: string }) => React.createElement('StatTile', { testID: `stat-${label}`, value }),
@@ -226,7 +238,7 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
   EditHabitModal: (props: { open: boolean; relationshipFieldsLoaded: boolean }) => React.createElement('EditHabitModal', props),
 }))
 vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: ({ onToggle }: { onToggle: (index: number) => void }) => React.createElement('HabitChecklist', { testID: 'habit-checklist', onToggle }),
+  HabitChecklist: ({ onToggle, onClear }: { onToggle: (index: number) => void; onClear: () => void }) => React.createElement('HabitChecklist', { testID: 'habit-checklist', onToggle, onClear }),
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-form-fields/styles', () => ({ createStyles: () => ({}) }))
@@ -316,6 +328,17 @@ function makeLoggedGeneralChild(): NormalizedHabit {
   }
 }
 
+function makeScopedParent(): NormalizedHabit {
+  return {
+    ...makeScopedChild('2026-08-28'),
+    id: 'habit-1',
+    title: 'Read',
+    parentId: null,
+    tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
+    linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
+  }
+}
+
 describe('HabitDetailScreen', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -324,6 +347,8 @@ describe('HabitDetailScreen', () => {
     offlineMocks.serverLoggedHabits.clear()
     offlineMocks.setOnline(false)
     mocks.detail = makeDetail()
+    mocks.detailLoading = false
+    mocks.detailError = false
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
@@ -342,8 +367,12 @@ describe('HabitDetailScreen', () => {
     mocks.checklist.mockReset()
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
+    mocks.refetch.mockReset()
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
+    mocks.setStorage.mockReset()
+    mocks.setStorage.mockResolvedValue(undefined)
     mocks.history = []
     mocks.hasProAccess = true
     mocks.suggestion = null
@@ -351,6 +380,94 @@ describe('HabitDetailScreen', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('shows loading feedback and a retry action after a load failure', () => {
+    mocks.detailLoading = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
+    })
+
+    expect(tree!.root.findAllByType('Skeleton').map((node: { props: { label: string } }) => node.props.label)).toEqual([
+      'habits.detail.loading',
+      'habits.detail.loading',
+      'habits.detail.loading',
+    ])
+
+    mocks.detailLoading = false
+    mocks.detailError = true
+    TestRenderer.act(() => {
+      tree!.update(<HabitDetailScreen habitId="habit-1" />)
+    })
+
+    expect(tree!.root.findByProps({ testID: 'load-error' }).props.message).toBe('habits.detail.loadError')
+    TestRenderer.act(() => {
+      tree!.root.findByType('PillButton').props.onClick()
+    })
+    expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('shows authoritative tags and linked goals and opens the selected goal', () => {
+    mocks.scopedHabits.set('habit-1', makeScopedParent())
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    expect(tree!.root.findAll((node: { props: { children?: unknown } }) => node.props.children === 'FOCUS').length).toBeGreaterThan(0)
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ title: 'Read more books' }).props.onClick()
+    })
+
+    expect(mocks.routerPush).toHaveBeenCalledWith('/goals/goal-1')
+  })
+
+  it('restores an empty rename and returns to the selected day', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+    })
+    const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
+    TestRenderer.act(() => {
+      input.props.onChangeText('   ')
+    })
+    await TestRenderer.act(async () => {
+      input.props.onBlur()
+      await Promise.resolve()
+    })
+
+    expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBeUndefined()
+    expect(mocks.update).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ testID: 'screen-back' }).props.onBack()
+    })
+    expect(mocks.routerReplace).toHaveBeenCalledWith({
+      pathname: '/(tabs)',
+      params: { date: '2026-08-28' },
+    })
+  })
+
+  it('moves to an older history month and explains unavailable history', () => {
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2025-01-01T12:00:00Z' }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    const previousMonth = tree!.root.findAllByType('PillButton')
+      .find((node: { props: { label?: string } }) => node.props.label === 'habits.detail.previousMonth')
+    TestRenderer.act(() => {
+      for (let index = 0; index < 13; index += 1) previousMonth!.props.onClick()
+    })
+
+    expect(tree!.root.findAll((node: { props: { children?: unknown } }) => node.props.children === 'July 2025').length).toBeGreaterThan(0)
+    expect(tree!.root.findAll((node: { props: { children?: unknown } }) => node.props.children === 'habits.detail.olderHistoryUnavailable').length).toBeGreaterThan(0)
   })
 
   it('pops child then parent history back to Today without duplicating the parent', () => {
@@ -656,6 +773,133 @@ describe('HabitDetailScreen', () => {
 
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.checklistError')
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+  })
+
+  it('offers to log the habit after its last checklist item is completed', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+
+    expect(mocks.checklist).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      items: [{ text: 'First', isChecked: true }],
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(mocks.log).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log',
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+  })
+
+  it('clears a checklist only after confirmation', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onClear()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistClearTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [] })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistClearTitle' })).toHaveLength(0)
+  })
+
+  it('deletes a sub habit without leaving the parent detail', async () => {
+    mocks.deleteHabit.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onDelete()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.deleteConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(mocks.deleteHabit).toHaveBeenCalledWith('child-1')
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.deleteConfirmTitle' })).toHaveLength(0)
+    expect(mocks.routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('deletes the habit and returns to the selected day', async () => {
+    mocks.deleteHabit.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ title: 'habits.detail.delete' }).props.onClick()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.deleteConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(mocks.deleteHabit).toHaveBeenCalledWith('habit-1')
+    expect(mocks.routerReplace).toHaveBeenCalledWith({
+      pathname: '/(tabs)',
+      params: { date: '2026-08-28' },
+    })
+  })
+
+  it('opens Astra with a draft grounded in the current habit', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ title: 'habits.detail.askAstra' }).props.onClick()
+      await Promise.resolve()
+    })
+
+    expect(mocks.setStorage).toHaveBeenCalledWith(
+      'orbit-chat-draft',
+      'habits.detail.askAstraSeedDefault',
+    )
+    expect(mocks.routerPush).toHaveBeenCalledWith('/chat')
+  })
+
+  it('sends free users from the slipping block to upgrade', () => {
+    mocks.hasProAccess = false
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    TestRenderer.act(() => {
+      tree!.root.findByProps({ title: 'habits.detail.slipping' }).props.onClick()
+    })
+
+    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
   })
 
   it('keeps delete confirmation open and reports a delete failure', async () => {
