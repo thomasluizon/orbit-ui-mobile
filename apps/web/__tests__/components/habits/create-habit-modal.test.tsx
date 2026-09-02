@@ -143,9 +143,11 @@ vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onToggleGoal,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onToggleGoal: (goalId: string) => void
   }) => (
     <div data-testid="habit-form-fields">
       {onSuggestSetup && (
@@ -153,6 +155,9 @@ vi.mock('./habit-form-fields', () => ({
           suggest
         </button>
       )}
+      <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
+        goal
+      </button>
       {children}
     </div>
   ),
@@ -162,9 +167,11 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onToggleGoal,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onToggleGoal: (goalId: string) => void
   }) => (
     <div data-testid="habit-form-fields">
       {onSuggestSetup && (
@@ -172,6 +179,9 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
           suggest
         </button>
       )}
+      <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
+        goal
+      </button>
       {children}
     </div>
   ),
@@ -287,6 +297,21 @@ describe('CreateHabitModal', () => {
 
     await waitFor(() => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('keeps goal linking in the create request without a plan gate', async () => {
+    renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByTestId('goal-trigger'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => {
+      expect(mockValidateAll).toHaveBeenCalledWith(expect.objectContaining({
+        selectedGoalIds: ['goal-free'],
+      }))
     })
   })
 

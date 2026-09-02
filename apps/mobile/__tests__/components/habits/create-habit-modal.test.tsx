@@ -19,7 +19,6 @@ const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
 const mockValidateAll = vi.fn((): string | null => null)
 const mockPush = vi.fn()
-let mockHasProAccess = false
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
@@ -49,10 +48,6 @@ vi.mock('@orbit/shared/validation', async (importOriginal) => {
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mockSuggestMutateAsync, isPending: false }),
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { hasProAccess: mockHasProAccess } }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -140,10 +135,6 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     React.createElement('HabitFormFields', props, props.children),
 }))
 
-vi.mock('@/components/ui/pro-badge', () => ({
-  ProBadge: () => React.createElement('ProBadge', { testID: 'pro-badge' }),
-}))
-
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: Record<string, unknown>) =>
     React.createElement('TextInput', props),
@@ -183,7 +174,6 @@ function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }
 describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockHasProAccess = false
     mockCreateMutateAsync.mockReset()
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockReset()
@@ -225,7 +215,6 @@ describe('CreateHabitModal (mobile)', () => {
   })
 
   it('uses the sub-habit title and hides the sub-habit section in sub-habit mode', () => {
-    mockHasProAccess = true
     const parentHabit = createMockHabit({ id: 'parent-1', title: 'Parent' })
     const tree = renderModal(
       <CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />,
@@ -234,13 +223,12 @@ describe('CreateHabitModal (mobile)', () => {
     expect(hasText(tree.root, 'habits.form.subHabits')).toBe(false)
   })
 
-  it('shows the sub-habit section with a ProBadge for non-pro users not in sub-habit mode', () => {
-    mockHasProAccess = false
+  it('shows the ungated sub-habit editor in habit mode', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(hasText(tree.root, 'habits.form.subHabits')).toBe(true)
     expect(
       tree.root.findAll((node: any) => node.props?.testID === 'pro-badge'),
-    ).toHaveLength(1)
+    ).toHaveLength(0)
   })
 
   const findSubmit = (root: {
@@ -282,7 +270,6 @@ describe('CreateHabitModal (mobile)', () => {
   })
 
   it('applies due time, flexible cadence, and a checklist from an AI suggestion', async () => {
-    mockHasProAccess = true
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
@@ -366,8 +353,7 @@ await Promise.resolve()
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('closes and redirects non-pro users out of sub-habit mode', () => {
-    mockHasProAccess = false
+  it('keeps sub-habit creation available without routing to upgrade', () => {
     const onClose = vi.fn()
     const parentHabit = createMockHabit({ id: 'p-1', title: 'Parent' })
 
@@ -375,13 +361,12 @@ await Promise.resolve()
       <CreateHabitModal open onClose={onClose} parentHabit={parentHabit} />,
     )
 
-    expect(onClose).toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
-    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(hasText(tree.root, 'habits.createSubHabit')).toBe(true)
   })
 
   it('notifies when an AI suggestion applied nothing', async () => {
-    mockHasProAccess = true
     mockGetValues.mockImplementation((field?: unknown) =>
       field === 'title' ? 'Swim' : field === 'checklistItems' ? [] : {},
     )
@@ -411,7 +396,6 @@ await Promise.resolve()
   })
 
   it('surfaces an error when the AI suggestion request fails', async () => {
-    mockHasProAccess = true
     mockGetValues.mockImplementation((field?: unknown) =>
       field === 'title' ? 'Swim' : {},
     )

@@ -2,7 +2,6 @@
 
 import { Trash2, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { ProBadge } from '@/components/ui/pro-badge'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'
 
 export interface SubHabitEntry {
@@ -12,50 +11,18 @@ export interface SubHabitEntry {
 
 interface SubHabitEditorProps {
   subHabits: SubHabitEntry[]
-  hasProAccess: boolean
   onUpdateSubHabit: (id: string, value: string) => void
   onRemoveSubHabit: (id: string) => void
   onAddSubHabit: () => void
-  onUpgrade: () => void
 }
 
 export function SubHabitEditor({
   subHabits,
-  hasProAccess,
   onUpdateSubHabit,
   onRemoveSubHabit,
   onAddSubHabit,
-  onUpgrade,
 }: Readonly<SubHabitEditorProps>) {
   const t = useTranslations()
-
-  if (!hasProAccess) {
-    return (
-      <div className="space-y-2.5 pt-1">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="form-label !mb-0">
-                {t('habits.form.subHabits')}
-              </span>
-              <ProBadge />
-            </div>
-            <p className="text-xs text-[var(--fg-3)] leading-relaxed">
-              {t('upgrade.features.subHabits.tooltip')}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="flex min-h-11 shrink-0 items-center text-[var(--fg-1)] hover:text-[var(--fg-2)] transition-colors duration-[var(--dur-fast)]"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
-            onClick={onUpgrade}
-          >
-            {t('upgrade.subscribe')}
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-2.5 pt-1">
