@@ -50,12 +50,12 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
     >
       {isFrozen ? (
         <Svg width={12} height={14} viewBox="0 0 12 14" fill="none">
-          <Line x1={6} y1={0} x2={6} y2={14} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={2} y1={2} x2={6} y2={6} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={10} y1={2} x2={6} y2={6} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={2} y1={12} x2={6} y2={8} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={10} y1={12} x2={6} y2={8} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={0} y1={7} x2={12} y2={7} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={6} y1={0} x2={6} y2={14} stroke={tokens.fg2} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={2} y1={2} x2={6} y2={6} stroke={tokens.fg2} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={10} y1={2} x2={6} y2={6} stroke={tokens.fg2} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={2} y1={12} x2={6} y2={8} stroke={tokens.fg2} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={10} y1={12} x2={6} y2={8} stroke={tokens.fg2} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={0} y1={7} x2={12} y2={7} stroke={tokens.fg2} strokeWidth={1.6} strokeLinecap="round" />
         </Svg>
       ) : (
         <Text

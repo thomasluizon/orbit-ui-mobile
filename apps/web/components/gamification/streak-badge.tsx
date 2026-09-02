@@ -41,7 +41,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           height="14"
           viewBox="0 0 12 14"
           fill="none"
-          stroke="var(--status-frozen)"
+          stroke="var(--fg-2)"
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"

@@ -75,7 +75,7 @@ export function TodayDateControl({
       {!isTodaySelected ? (
         <button
           type="button"
-          className="min-h-11 appearance-none border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-1)] underline underline-offset-4"
+          className="orbit-link-action min-h-11 appearance-none border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-2)]"
           onClick={onGoToToday}
         >
           {todayLabel}

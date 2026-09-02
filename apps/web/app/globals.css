@@ -93,7 +93,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--fg-2);
-  transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
 }
 
 .orbit-sheet-close:focus-visible,
@@ -167,7 +167,7 @@
   color: var(--fg-1);
   font: 500 14px/1.4 var(--font-sans);
   text-align: start;
-  transition: background-color var(--dur-fast) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
+  transition: background-color var(--dur-hover) var(--ease-standard), color var(--dur-hover) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
 }
 
 .orbit-menu-item[data-destructive] {
@@ -206,7 +206,7 @@
 @media (hover: hover) and (pointer: fine) {
   .orbit-sheet-close:hover,
   .orbit-menu-item:hover:not(:disabled) {
-    background: var(--bg-elev-pressed);
+    background: var(--bg-hover);
     color: var(--fg-1);
   }
 }
@@ -254,7 +254,6 @@
   --color-bg-well: var(--bg-well);
   --color-bg-elev: var(--bg-elev);
   --color-bg-elev-2: var(--bg-elev-2);
-  --color-bg-elev-pressed: var(--bg-elev-pressed);
   --color-bg-sheet: var(--bg-sheet);
   --color-bg-sunk: var(--bg-sunk);
   --color-primary-soft: var(--primary-soft);
@@ -273,7 +272,6 @@
   --color-status-empty: var(--status-empty);
   --color-status-overdue: var(--status-overdue);
   --color-status-bad: var(--status-bad);
-  --color-status-frozen: var(--status-frozen);
   --color-status-overdue-text: var(--status-overdue-text);
   --color-status-bad-text: var(--status-bad-text);
 
@@ -431,35 +429,6 @@
    Alpha surfaces are scheme-independent constants.
    ═══════════════════════════════════════════════════════ */
 :root.dark, .dark {
-  --bg:              oklch(0.1298 calc(0.0425 * var(--chroma-scale-bg)) var(--hue));
-  --bg-card:         rgba(248, 250, 252, 0.04);
-  --bg-field:        rgba(248, 250, 252, 0.05);
-  --bg-well:         rgba(248, 250, 252, 0.06);
-  --bg-elev:         rgba(248, 250, 252, 0.06);
-  --bg-elev-2:       rgba(248, 250, 252, 0.10);
-  --bg-elev-pressed: rgba(248, 250, 252, 0.10);
-  --bg-sheet:        color-mix(in srgb, var(--bg) 95%, rgb(248, 250, 252));
-  --bg-sunk:         rgba(0, 0, 0, 0.28);
-  --hairline:        rgba(248, 250, 252, 0.10);
-  --hairline-strong: rgba(248, 250, 252, 0.18);
-
-  --fg-1: oklch(0.9842 calc(0.0034 * var(--chroma-scale-fg)) calc(var(--hue) - 17.2746));
-  --fg-2: oklch(0.8686 calc(0.0216 * var(--chroma-scale-fg)) calc(var(--hue) - 12.6185));
-  --fg-3: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
-  --fg-4: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
-
-  --status-done:    var(--fg-1);
-  --status-empty:   rgba(248, 250, 252, 0.22);
-  --status-overdue: #fe9a00;
-  --status-bad:     #fb2c36;
-  --status-frozen:  #00d3f3;
-  --status-overdue-text: #fe9a00;
-  --status-bad-text:     #fb2c36;
-  --fg-on-bad:           #020618;
-  --fg-on-overdue:       #020618;
-
-  --selection-bg: rgba(var(--primary-rgb), 0.32);
-
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.28);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -474,35 +443,6 @@
    ink-alpha hairlines. Ships with every phase.
    ═══════════════════════════════════════════════════════ */
 :root.light, .light {
-  --bg:              oklch(0.9842 calc(0.0034 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2746));
-  --bg-card:         rgb(255, 255, 255);
-  --bg-field:        var(--bg-sunk);
-  --bg-well:         var(--bg-sunk);
-  --bg-elev:         rgb(255, 255, 255);
-  --bg-elev-2:       rgb(255, 255, 255);
-  --bg-elev-pressed: oklch(0.9683 calc(0.0069 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2366));
-  --bg-sheet:        rgb(255, 255, 255);
-  --bg-sunk:         oklch(0.9683 calc(0.0069 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2366));
-  --hairline:        rgba(2, 6, 24, 0.08);
-  --hairline-strong: rgba(2, 6, 24, 0.16);
-
-  --fg-1: oklch(0.2084 calc(0.0417 * var(--chroma-scale-fg)) calc(var(--hue) + 1.227));
-  --fg-2: oklch(0.3717 calc(0.0449 * var(--chroma-scale-fg)) calc(var(--hue) - 7.7086));
-  --fg-3: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
-  --fg-4: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
-
-  --status-done:    var(--fg-1);
-  --status-empty:   rgba(2, 6, 24, 0.18);
-  --status-overdue: #e17100;
-  --status-bad:     #e7000b;
-  --status-frozen:  #0092b8;
-  --status-overdue-text: #b45b00;
-  --status-bad-text:     #e7000b;
-  --fg-on-bad:           #ffffff;
-  --fg-on-overdue:       #020618;
-
-  --selection-bg: rgba(var(--primary-rgb), 0.18);
-
   --shadow-sm: 0 1px 2px rgba(2, 6, 24, 0.06);
   --shadow-md: 0 4px 16px rgba(2, 6, 24, 0.08);
   --shadow-lg: 0 12px 40px rgba(2, 6, 24, 0.12);
@@ -967,8 +907,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   justify-content: center;
   color: var(--fg-1);
   transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    color var(--dur-fast) var(--ease-standard),
+    background-color var(--dur-hover-control) var(--ease-standard),
+    color var(--dur-hover-control) var(--ease-standard),
     transform var(--dur-fast) var(--ease-standard);
 }
 .icon-btn::after {
@@ -977,12 +917,65 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   inset: -2px;
   border-radius: inherit;
 }
-.icon-btn:hover { background: var(--bg-elev); }
-
 .icon-btn:active { transform: scale(0.96); }
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }
-.icon-btn-well:hover { background: var(--bg-elev-2); }
+
+.habit-panel {
+  margin-inline: 16px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--bg-card);
+  box-shadow: inset 0 0 0 1px var(--hairline-ghost);
+  transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-index-dropdown) - 1);
+  background: var(--scrim);
+}
+
+.orbit-link-action {
+  position: relative;
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-link-action::after {
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  content: '';
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-hover) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover,
+  .icon-btn-well:hover {
+    background: var(--bg-hover);
+  }
+
+  .habit-panel:hover:not(:has(button:hover, a:hover, [role="button"]:hover)) {
+    background: var(--bg-hover);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  }
+
+  .orbit-link-action:hover {
+    color: var(--fg-1);
+  }
+
+  .orbit-link-action:hover::after {
+    transform: scaleX(1);
+  }
+}
 
 /* Kit chip: pill control (Astra action chips, filters, view switcher) */
 .chip {

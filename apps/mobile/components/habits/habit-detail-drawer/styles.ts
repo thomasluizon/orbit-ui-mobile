@@ -66,7 +66,7 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderBottomColor: tokens.hairline,
     },
     descriptionRowPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.99 }],
     },
     description: {
@@ -92,7 +92,7 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginTop: 8,
     },
     askAstraPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.99 }],
     },
     askAstraContent: {

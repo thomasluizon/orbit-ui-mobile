@@ -173,7 +173,7 @@ function TimeEntry({
           styles.inputRow,
           {
             backgroundColor: tokens.bgField,
-            borderColor: error ? tokens.statusBad : focused ? tokens.primary : tokens.hairline,
+            borderColor: error ? tokens.statusBad : focused ? tokens.primary : tokens.borderControl,
             borderWidth: error || focused ? 2 : 1,
           },
           disabled ? styles.disabled : null,

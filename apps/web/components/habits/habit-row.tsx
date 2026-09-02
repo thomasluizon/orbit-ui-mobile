@@ -127,7 +127,7 @@ function HabitRowStructuralColumn({
       disabled={readOnly}
       aria-label={expanded ? collapseLabel : expandLabel}
       aria-expanded={expanded}
-      className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+      className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
     >
       <ChevronDown
         size={20}
@@ -229,7 +229,7 @@ export function HabitRow({
         type="button"
         onClick={handleRowClick}
         disabled={readOnly}
-        className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+        className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         style={{ gap: 12, paddingBlock: isChild ? 4 : 8 }}
       >
         <HabitRowLeading

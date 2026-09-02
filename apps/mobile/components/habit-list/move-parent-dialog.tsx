@@ -277,7 +277,7 @@ function createStyles(tokens: AppTokensV2) {
       opacity: 0.5,
     },
     moveOptionPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
     },
     moveOptionHeader: {
       flexDirection: 'row',

@@ -1,8 +1,6 @@
 import {
-  alphaSurfaces,
   motionEasings,
-  resolveDarkNeutrals,
-  resolveLightNeutrals,
+  neutralColors,
   schemes,
   selectionAlpha,
   statusConstants,
@@ -100,13 +98,15 @@ export interface AppTokensV2 {
   bgWell: string
   bgElev: string
   bgElev2: string
-  /** Press/active lift from `bgElev` (elev-2 alpha on dark, sunk on light). */
-  bgElevPressed: string
+  bgHover: string
   /** Solid sheet/dialog panel — elev alpha pre-blended over the canvas. */
   bgSheet: string
   bgSunk: string
   hairline: string
+  borderControl: string
+  hairlineGhost: string
   hairlineStrong: string
+  scrim: string
   fg1: string
   fg2: string
   fg3: string
@@ -126,7 +126,6 @@ export interface AppTokensV2 {
   statusEmpty: string
   statusOverdue: string
   statusBad: string
-  statusFrozen: string
   /** AA text variant of `statusOverdue` — use for status-colored text. */
   statusOverdueText: string
   /** AA text variant of `statusBad` — use for status-colored text. */
@@ -175,69 +174,30 @@ export function createTokensV2(
 ): AppTokensV2 {
   const accent = schemes[colorScheme].accent[themeMode]
   const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
-  const alpha = alphaSurfaces[themeMode]
+  const neutral = neutralColors[themeMode]
   const status = statusConstants[themeMode]
+  // WHY: Keep the scheme wash until #381 removes the header gradient. https://github.com/thomasluizon/orbit-ui-mobile/issues/381
   const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
-
-  if (themeMode === 'light') {
-    const neutrals = resolveLightNeutrals(colorScheme)
-    const [r, g, b] = hexChannels(neutrals.bg)
-    return {
-      bg: neutrals.bg,
-      bgCard: alpha.bgCard,
-      bgField: neutrals.bgSunk,
-      bgWell: neutrals.bgSunk,
-      bgElev: alpha.bgElev,
-      bgElev2: alpha.bgElev2,
-      bgElevPressed: neutrals.bgSunk,
-      bgSheet: '#ffffff',
-      bgSunk: neutrals.bgSunk,
-      hairline: alpha.hairline,
-      hairlineStrong: alpha.hairlineStrong,
-      fg1: neutrals.fg1,
-      fg2: neutrals.fg2,
-      fg3: neutrals.fg3,
-      fg4: neutrals.fg4,
-      fgOnPrimary,
-      primary: accent.primary,
-      primaryHover: accent.primaryHover,
-      primaryPressed: accent.primaryPressed,
-      primaryRgb: accent.primaryRgb,
-      primarySoft: accent.primarySoft,
-      primaryDim: accent.primaryDim,
-      gradientHeaderFrom: gradientFrom,
-      gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
-      statusDone: neutrals.fg1,
-      statusEmpty: alpha.statusEmpty,
-      statusOverdue: status.overdue,
-      statusBad: status.bad,
-      statusFrozen: status.frozen,
-      statusOverdueText: status.overdueText,
-      statusBadText: status.badText,
-      fgOnBad: status.fgOnBad,
-      fgOnOverdue: '#020618',
-      selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
-    }
-  }
-
-  const neutrals = resolveDarkNeutrals(colorScheme)
-  const [r, g, b] = hexChannels(neutrals.bg)
+  const [r, g, b] = hexChannels(neutral.bg)
   return {
-    bg: neutrals.bg,
-    bgCard: alpha.bgCard,
-    bgField: alpha.bgField ?? 'rgba(248, 250, 252, 0.05)',
-    bgWell: alpha.bgElev,
-    bgElev: alpha.bgElev,
-    bgElev2: alpha.bgElev2,
-    bgElevPressed: alpha.bgElev2,
-    bgSheet: blendWhiteOverHex(neutrals.bg, 0.05),
-    bgSunk: alpha.bgSunk ?? 'rgba(0, 0, 0, 0.28)',
-    hairline: alpha.hairline,
-    hairlineStrong: alpha.hairlineStrong,
-    fg1: neutrals.fg1,
-    fg2: neutrals.fg2,
-    fg3: neutrals.fg3,
-    fg4: neutrals.fg4,
+    bg: neutral.bg,
+    bgCard: neutral.bgCard,
+    bgField: neutral.bgField,
+    bgWell: neutral.bgWell,
+    bgElev: neutral.bgElev,
+    bgElev2: neutral.bgElev2,
+    bgHover: neutral.bgHover,
+    bgSheet: neutral.bgElev,
+    bgSunk: neutral.bgSunk,
+    hairline: neutral.hairline,
+    borderControl: neutral.borderControl,
+    hairlineGhost: neutral.hairlineGhost,
+    hairlineStrong: neutral.hairlineStrong,
+    scrim: neutral.scrim,
+    fg1: neutral.fg1,
+    fg2: neutral.fg2,
+    fg3: neutral.fg3,
+    fg4: neutral.fg4,
     fgOnPrimary,
     primary: accent.primary,
     primaryHover: accent.primaryHover,
@@ -247,16 +207,15 @@ export function createTokensV2(
     primaryDim: accent.primaryDim,
     gradientHeaderFrom: gradientFrom,
     gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
-    statusDone: neutrals.fg1,
-    statusEmpty: alpha.statusEmpty,
+    statusDone: neutral.fg1,
+    statusEmpty: neutral.fg4,
     statusOverdue: status.overdue,
     statusBad: status.bad,
-    statusFrozen: status.frozen,
     statusOverdueText: status.overdueText,
     statusBadText: status.badText,
     fgOnBad: status.fgOnBad,
-    fgOnOverdue: '#020618',
-    selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
+    fgOnOverdue: status.fgOnOverdue,
+    selectionBg: `rgba(${accent.primaryRgb},${selectionAlpha[themeMode]})`,
   }
 }
 
@@ -266,7 +225,7 @@ export const tokens = new Proxy({} as AppTokensV2, {
 
 /** rgba() tint of the scheme primary at the given alpha (handoff tint ladder). */
 export function tintFromPrimary(appTokens: AppTokensV2, alpha: number): string {
-  return `rgba(${appTokens.primaryRgb}, ${alpha})`
+  return `rgba(${appTokens.primaryRgb},${alpha})`
 }
 
 /** Solid hex equal to the primary tint alpha-composited over the canvas. */
@@ -397,7 +356,7 @@ export function createSurfaces(
       elevation: 0,
     },
     overlay: {
-      backgroundColor: blendElevOverCanvas(appTokens, 0.1),
+      backgroundColor: appTokens.bgElev,
       borderColor: appTokens.hairlineStrong,
       shadow: shadows.md,
       elevation: 4,

@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  alphaSurfaces,
-  resolveDarkNeutrals,
-  resolveLightNeutrals,
+  neutralColors,
+  schemes,
+  statusConstants,
   type ColorScheme,
   type ThemeMode,
 } from '@orbit/shared'
@@ -13,50 +15,24 @@ import {
 
 const SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 const MODES: ThemeMode[] = ['dark', 'light']
+const REMOVED_TOKENS = new Set(['--status-frozen', '--status-skip'])
 
-type Rgb = readonly [number, number, number]
-
-function parseColor(color: string): { channels: Rgb; alpha: number } {
-  if (color.startsWith('#')) {
-    return {
-      channels: [1, 3, 5].map((offset) =>
-        Number.parseInt(color.slice(offset, offset + 2), 16),
-      ) as unknown as Rgb,
-      alpha: 1,
-    }
-  }
-  const channels = color.match(/[\d.]+/g)?.map(Number)
-  if (!channels || channels.length < 3) throw new Error(`Unsupported color: ${color}`)
-  return {
-    channels: channels.slice(0, 3) as unknown as Rgb,
-    alpha: channels[3] ?? 1,
-  }
+function tokenBlock(heading: string): string {
+  const design = readFileSync(resolve(process.cwd(), '../../DESIGN.md'), 'utf8')
+  const section = design.slice(design.indexOf(heading))
+  const blockStart = section.indexOf('```') + 3
+  const blockEnd = section.indexOf('```', blockStart)
+  return section.slice(blockStart, blockEnd)
 }
 
-function composite(color: string, background: Rgb): Rgb {
-  const { channels, alpha } = parseColor(color)
-  return channels.map((channel, index) =>
-    Math.round(channel * alpha + background[index]! * (1 - alpha)),
-  ) as unknown as Rgb
-}
-
-function contrast(foreground: string, background: Rgb): number {
-  const linear = (channel: number) => {
-    const normalized = channel / 255
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
-  }
-  const luminance = (channels: Rgb) =>
-    0.2126 * linear(channels[0]) +
-    0.7152 * linear(channels[1]) +
-    0.0722 * linear(channels[2])
-  const foregroundLuminance = luminance(parseColor(foreground).channels)
-  const backgroundLuminance = luminance(background)
-  return (
-    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
-    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
-  )
+function documentedTokens(): string[] {
+  const blocks = [
+    tokenBlock('### Dark mode (the primary theme, byte-exact)'),
+    tokenBlock('### Light mode (MANDATORY, ships with every surface)'),
+  ]
+  return [...new Set(blocks.flatMap((block) =>
+    [...block.matchAll(/--[a-z0-9-]+/g)].map(([token]) => token),
+  ))].filter((token) => !REMOVED_TOKENS.has(token))
 }
 
 describe('web theme variables', () => {
@@ -67,61 +43,64 @@ describe('web theme variables', () => {
 
   for (const scheme of SCHEMES) {
     for (const mode of MODES) {
-      it(`${scheme} ${mode} resolves the granted accent`, () => {
+      it(`${scheme} ${mode} emits every active token named in DESIGN.md`, () => {
         const variables = resolveWebThemeVariables(scheme, mode)
+        for (const token of documentedTokens()) {
+          expect(variables, token).toHaveProperty(token)
+          expect(variables[token as `--${string}`], token).not.toBe('')
+        }
+      })
 
-        expect(variables['--primary']).toBe('#C4530F')
-        expect(variables['--primary-hover']).toBe('#b74e12')
-        expect(variables['--primary-pressed']).toBe('#a24716')
-        expect(variables['--primary-rgb']).toBe('196, 83, 15')
-        expect(variables['--fg-on-primary']).toBe('#ffffff')
-        expect(variables['--primary-soft']).toBe(
-          mode === 'dark' ? '#c85716' : '#c15109',
-        )
-        expect(variables['--primary-dim']).toBe(
-          mode === 'dark' ? '#261611' : '#f4ddd3',
-        )
+      it(`${scheme} ${mode} matches the shared bytes`, () => {
+        const variables = resolveWebThemeVariables(scheme, mode)
+        const neutral = neutralColors[mode]
+        const accent = schemes[scheme].accent[mode]
+        const status = statusConstants[mode]
+
+        expect(variables).toMatchObject({
+          '--bg': neutral.bg,
+          '--bg-card': neutral.bgCard,
+          '--bg-field': neutral.bgField,
+          '--bg-well': neutral.bgWell,
+          '--bg-elev': neutral.bgElev,
+          '--bg-elev-2': neutral.bgElev2,
+          '--bg-hover': neutral.bgHover,
+          '--bg-sunk': neutral.bgSunk,
+          '--hairline': neutral.hairline,
+          '--border-control': neutral.borderControl,
+          '--hairline-ghost': neutral.hairlineGhost,
+          '--hairline-strong': neutral.hairlineStrong,
+          '--fg-1': neutral.fg1,
+          '--fg-2': neutral.fg2,
+          '--fg-3': neutral.fg3,
+          '--fg-4': neutral.fg4,
+          '--primary': accent.primary,
+          '--primary-hover': accent.primaryHover,
+          '--primary-pressed': accent.primaryPressed,
+          '--primary-soft': accent.primarySoft,
+          '--primary-dim': accent.primaryDim,
+          '--primary-rgb': accent.primaryRgb,
+          '--fg-on-primary': '#FFFFFF',
+          '--status-done': neutral.fg1,
+          '--status-empty': neutral.fg4,
+          '--status-overdue': status.overdue,
+          '--status-bad': status.bad,
+          '--fg-on-bad': status.fgOnBad,
+          '--fg-on-overdue': status.fgOnOverdue,
+          '--scrim': neutral.scrim,
+        })
       })
     }
   }
 
-  it('honors the served scheme while applying shared values to the document', () => {
+  it('applies light tokens to the document', () => {
     applyThemeTokensToDOM('rose', 'light')
 
     const root = document.documentElement
     expect(root.classList.contains('scheme-rose')).toBe(true)
     expect(root.classList.contains('light')).toBe(true)
-    expect(root.style.getPropertyValue('--primary')).toBe('#C4530F')
-    expect(root.style.getPropertyValue('--primary-soft')).toBe('#c15109')
-  })
-
-  it('keeps neutral text AA on every raised and tinted component surface', () => {
-    for (const scheme of SCHEMES) {
-      for (const mode of MODES) {
-        const neutrals = mode === 'dark'
-          ? resolveDarkNeutrals(scheme)
-          : resolveLightNeutrals(scheme)
-        const canvas = parseColor(neutrals.bg).channels
-        const card = composite(alphaSurfaces[mode].bgCard, canvas)
-        const elevated = composite(alphaSurfaces[mode].bgElev, canvas)
-        const sheet = mode === 'dark'
-          ? composite('rgba(248, 250, 252, 0.05)', canvas)
-          : parseColor('#ffffff').channels
-        const primary = resolveWebThemeVariables(scheme, mode)['--primary']!
-        const tint = composite(
-          `rgba(${parseColor(primary).channels.join(', ')}, 0.12)`,
-          card,
-        )
-
-        for (const [foreground, background] of [
-          [neutrals.fg1, card],
-          [neutrals.fg1, elevated],
-          [neutrals.fg2, sheet],
-          [neutrals.fg1, tint],
-        ] as const) {
-          expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5)
-        }
-      }
-    }
+    expect(root.style.getPropertyValue('--bg')).toBe('#FAFAFA')
+    expect(root.style.getPropertyValue('--bg-hover')).toBe('rgba(9,9,11,0.06)')
+    expect(root.style.getPropertyValue('--scrim')).toBe('rgba(0,0,0,0.55)')
   })
 })

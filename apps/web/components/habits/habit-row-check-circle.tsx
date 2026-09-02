@@ -36,7 +36,7 @@ export function CheckCircle({ state, onToggle, disabled, ariaLabel, size = 30 }:
       }}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`appearance-none border-0 bg-transparent shrink-0 flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[160ms] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
       <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>

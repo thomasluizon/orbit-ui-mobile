@@ -98,7 +98,7 @@ export function Menu({
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: tokens.scrim }]}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no"
@@ -171,7 +171,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
         style={({ pressed }) => [
           styles.item,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
-          pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
           disabled ? styles.disabled : null,
         ]}
       >

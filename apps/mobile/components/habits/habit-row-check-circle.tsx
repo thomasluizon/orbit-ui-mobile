@@ -62,7 +62,7 @@ export function CheckCircle({
           borderRadius: 999,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: pressed && !disabled ? tokens.bgElevPressed : 'transparent',
+          backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
           opacity: disabled ? 0.4 : pressedOpacity,
           transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
         }

@@ -132,14 +132,6 @@ function DeferredMoveParentOverlay(
   return props.open ? <MoveParentOverlay {...props} /> : null
 }
 
-const HABIT_PANEL_STYLE = {
-  marginInline: 16,
-  overflow: 'hidden',
-  borderRadius: 20,
-  background: 'var(--bg-card)',
-  boxShadow: 'inset 0 0 0 1px var(--hairline-ghost, var(--hairline))',
-} as const
-
 interface HabitListProps {
   ref?: Ref<HabitListHandle>
   view?: 'today' | 'all' | 'general'
@@ -1235,7 +1227,7 @@ export function HabitList({
             <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
               <div className="flex flex-col" style={{ gap: 12 }}>
                 {group.habits.map((habit) => (
-                  <div key={habit.id} style={HABIT_PANEL_STYLE}>
+                  <div key={habit.id} className="habit-panel">
                     {renderHabitCard(
                       habit,
                       0,
@@ -1266,7 +1258,7 @@ export function HabitList({
           >
             <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
               {activeDragPanels.map((panel) => (
-                <div key={panel[0]?.id} style={HABIT_PANEL_STYLE}>
+                <div key={panel[0]?.id} className="habit-panel">
                   {panel.map((item) => (
                     <SortableHabitItem key={item.id} id={item.id}>
                       {renderHabitCard(
@@ -1289,7 +1281,7 @@ export function HabitList({
     return (
       <div className="flex flex-col" style={{ gap: 12 }}>
         {dragPanels.map((panel) => (
-          <div key={panel[0]?.id} style={HABIT_PANEL_STYLE}>
+          <div key={panel[0]?.id} className="habit-panel">
             {panel.map((item) => renderHabitCard(
               item.habit,
               item.depth,

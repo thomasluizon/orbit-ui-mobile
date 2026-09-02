@@ -87,7 +87,7 @@ function FrameRow(props: FrameRowProps) {
             onPress={() => onEditItem(item.id)}
             style={({ pressed }) => [
               styles.iconButton,
-              { backgroundColor: pressed ? tokens.bgElevPressed : 'transparent' },
+              { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
             ]}
           >
             <Pencil accessible={false} color={tokens.fg2} size={20} strokeWidth={1.5} />
@@ -182,7 +182,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
           onPress={frameProps.onRefresh}
           style={({ pressed }) => [
             styles.refreshButton,
-            { backgroundColor: pressed ? tokens.bgElevPressed : 'transparent' },
+            { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
           ]}
         >
           <RefreshCw accessible={false} color={tokens.fg1} size={20} strokeWidth={1.5} />

@@ -423,7 +423,7 @@ export function McpConnectionInstructions({ t }: Readonly<{ t: TranslationFn }>)
     <div className="px-5 space-y-3 border-t border-[var(--hairline)] pt-4 md:border-t-0 md:pt-6">
       <button
         type="button"
-        className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
+        className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]"
         style={{ padding: '4px 0' }}
         onClick={() => setInstructionsToggled(!instructionsOpen)}
         aria-expanded={instructionsOpen}

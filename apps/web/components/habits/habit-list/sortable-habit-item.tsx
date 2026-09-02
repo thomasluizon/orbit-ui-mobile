@@ -27,7 +27,7 @@ export function SortableHabitItem({
     transition,
     opacity: isItemDragging ? 0.5 : 1,
     position: 'relative' as const,
-    zIndex: isItemDragging ? 50 : 'auto',
+    zIndex: isItemDragging ? 1 : 'auto',
   }
 
   return (

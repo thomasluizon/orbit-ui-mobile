@@ -6,7 +6,7 @@ import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[#B74E12] enabled:active:scale-[0.96]',
+    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:scale-[0.96]',
   secondary:
     'bg-[var(--fg-1)] text-[var(--bg)] enabled:hover:opacity-90 enabled:active:scale-[0.96] enabled:active:opacity-85',
   ghost:
@@ -43,7 +43,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={[
-        'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],
       ]
         .filter(Boolean)

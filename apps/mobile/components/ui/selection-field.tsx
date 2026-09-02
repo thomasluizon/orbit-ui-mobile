@@ -33,7 +33,7 @@ export function SelectionField({ value, onChange, options, label }: Readonly<Sel
         accessibilityRole="button"
         style={({ pressed }) => [
           styles.trigger,
-          { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
+          { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
           pressed ? styles.pressed : null,
         ]}
       >

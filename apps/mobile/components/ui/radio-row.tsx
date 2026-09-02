@@ -34,7 +34,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   return disabled ? (
     <View accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
   ) : (
-    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onSelect} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgElevPressed, transform: [{ scale: 0.99 }] } : null]}>{content}</Pressable>
+    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onSelect} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}>{content}</Pressable>
   )
 }
 

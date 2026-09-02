@@ -28,10 +28,10 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || !onClick ? (
         <View style={styles.body}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}>{body}</Pressable>
+        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
       )}
       {action ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.control, pressed ? { backgroundColor: tokens.bgElevPressed, transform: [{ scale: 0.96 }] } : null]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
         </Pressable>
       ) : null}

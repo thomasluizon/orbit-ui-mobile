@@ -1,8 +1,9 @@
 import {
   motionDurations,
-  resolveDarkNeutrals,
-  resolveLightNeutrals,
+  neutralColors,
+  selectionAlpha,
   schemes,
+  statusConstants,
   type ColorScheme,
   type ThemeMode,
 } from '@orbit/shared'
@@ -28,9 +29,7 @@ export function normalizeColorScheme(value: string | null | undefined): ColorSch
 
 /** Resolved canvas hex for the scheme/mode (drives meta theme-color). */
 export function canvasColor(scheme: ColorScheme, theme: ThemeMode): string {
-  return theme === 'light'
-    ? resolveLightNeutrals(scheme).bg
-    : resolveDarkNeutrals(scheme).bg
+  return neutralColors[theme].bg
 }
 
 export function resolveWebThemeVariables(
@@ -39,18 +38,44 @@ export function resolveWebThemeVariables(
 ): Record<`--${string}`, string> {
   const definition = schemes[scheme]
   const accent = definition.accent[theme]
+  const neutral = neutralColors[theme]
+  const status = statusConstants[theme]
 
   return {
+    '--bg': neutral.bg,
+    '--bg-card': neutral.bgCard,
+    '--bg-field': neutral.bgField,
+    '--bg-well': neutral.bgWell,
+    '--bg-elev': neutral.bgElev,
+    '--bg-elev-2': neutral.bgElev2,
+    '--bg-hover': neutral.bgHover,
+    '--bg-sheet': neutral.bgElev,
+    '--bg-sunk': neutral.bgSunk,
+    '--hairline': neutral.hairline,
+    '--border-control': neutral.borderControl,
+    '--hairline-ghost': neutral.hairlineGhost,
+    '--hairline-strong': neutral.hairlineStrong,
+    '--fg-1': neutral.fg1,
+    '--fg-2': neutral.fg2,
+    '--fg-3': neutral.fg3,
+    '--fg-4': neutral.fg4,
     '--primary': accent.primary,
     '--primary-hover': accent.primaryHover,
     '--primary-pressed': accent.primaryPressed,
     '--primary-soft': accent.primarySoft,
     '--primary-dim': accent.primaryDim,
     '--primary-rgb': accent.primaryRgb,
-    '--hue': String(definition.neutralHue),
-    '--chroma-scale-bg': String(definition.chromaScaleBg),
-    '--chroma-scale-fg': String(definition.chromaScaleFg),
     '--fg-on-primary': definition.fgOnPrimary[theme],
+    '--status-done': neutral.fg1,
+    '--status-empty': neutral.fg4,
+    '--status-overdue': status.overdue,
+    '--status-bad': status.bad,
+    '--status-overdue-text': status.overdueText,
+    '--status-bad-text': status.badText,
+    '--fg-on-bad': status.fgOnBad,
+    '--fg-on-overdue': status.fgOnOverdue,
+    '--selection-bg': `rgba(${accent.primaryRgb},${selectionAlpha[theme]})`,
+    '--scrim': neutral.scrim,
   }
 }
 

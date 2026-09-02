@@ -146,7 +146,7 @@ function HabitRowStructuralColumn({
       accessibilityRole="button"
       accessibilityLabel={expanded ? collapseLabel : expandLabel}
       accessibilityState={{ expanded }}
-      style={({ pressed }) => [styles.structuralColumn, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}
+      style={({ pressed }) => [styles.structuralColumn, pressed ? { backgroundColor: tokens.bgHover } : null]}
     >
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
@@ -351,7 +351,7 @@ export function HabitRow({
           style={({ pressed }) => [
             styles.bodyButton,
             { paddingVertical: isChild ? 4 : 8 },
-            pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+            pressed ? { backgroundColor: tokens.bgHover } : null,
           ]}
         >
           <HabitRowLeading

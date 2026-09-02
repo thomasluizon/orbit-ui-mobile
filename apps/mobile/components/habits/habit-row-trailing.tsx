@@ -120,7 +120,7 @@ export function HabitRowTrailing({
               styles.menuButton,
               pressed
                 ? {
-                    backgroundColor: tokens.bgElevPressed,
+                    backgroundColor: tokens.bgHover,
                     transform: [{ scale: 0.96 }],
                   }
                 : null,

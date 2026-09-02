@@ -123,7 +123,7 @@ export function HabitRowTrailing({
                 parentAction?.()
               }}
               disabled={readOnly}
-              className="appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center cursor-pointer rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+              className="appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center cursor-pointer rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
             >
               <ParentRing
                 done={childProgress?.done ?? 0}
@@ -156,7 +156,7 @@ export function HabitRowTrailing({
               if (readOnly) return
               setMenuOpen((current) => !current)
             }}
-            className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
             style={{ width: 44, height: 44, cursor: 'pointer' }}
           >
             <MoreVertical size={20} strokeWidth={1.8} />
