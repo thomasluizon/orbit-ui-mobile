@@ -32,7 +32,10 @@ interface MessageBubbleProps {
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
   onPendingOperationPrepareStepUp?: (
     pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>;
+  ) => Promise<
+    | { ok: true; challengeId: string; confirmationToken: string }
+    | { ok: false; error?: string }
+  >;
   onPendingOperationVerifyStepUp?: (
     pendingOperationId: string,
     challengeId: string,

@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TextInput, View } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 
@@ -8,6 +9,18 @@ const TestRenderer = require('react-test-renderer')
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
     open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
+}))
+vi.mock('@/components/ui/sheet', () => ({
+  useSheetHost: () => ({
+    sheetRef: { current: null },
+    closeSheet: (exitAction?: () => void) => exitAction?.(),
+  }),
+  Sheet: ({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) =>
+    <View>{children}{actions}</View>,
+}))
+vi.mock('@/components/ui/otp-input', () => ({
+  OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
+    <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
 }))
 
 function operation(overrides: Partial<PendingAgentOperation> = {}): PendingAgentOperation {
@@ -76,9 +89,17 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onConfirmExecute).toHaveBeenCalledWith('pending-1')
   })
 
-  it('hands step up off without rendering a credential field', async () => {
+  it('hands step up to a sheet, verifies the code, and executes', async () => {
     const { tree, handlers } = renderCard({ confirmationRequirement: 'StepUp', riskClass: 'High' })
-    handlers.onPrepareStepUp.mockResolvedValue({ ok: true })
+    handlers.onPrepareStepUp.mockResolvedValue({
+      ok: true,
+      challengeId: 'challenge-1',
+      confirmationToken: 'confirmation-1',
+    })
+    handlers.onVerifyStepUp.mockResolvedValue({
+      ok: true,
+      response: { operation: { status: 'Succeeded' } },
+    })
 
     expect(tree.root.findAll((node: any) => typeof node.props?.onChangeText === 'function')).toHaveLength(0)
     await TestRenderer.act(async () => {
@@ -86,6 +107,19 @@ describe('PendingOperationCard (mobile)', () => {
       await Promise.resolve()
     })
     expect(handlers.onPrepareStepUp).toHaveBeenCalledWith('pending-1')
+    const codeInput = tree.root.findByProps({ accessibilityLabel: 'stepUp.codeLabel' })
+    TestRenderer.act(() => codeInput.props.onChangeText('123456'))
+    await TestRenderer.act(async () => {
+      press(tree, 'stepUp.confirm').props.onPress()
+      await Promise.resolve()
+    })
+    expect(handlers.onVerifyStepUp).toHaveBeenCalledWith(
+      'pending-1',
+      'challenge-1',
+      '123456',
+      'confirmation-1',
+    )
+    expect(text(tree.toJSON())).toContain('status.done')
   })
 
   it('cancels without executing', () => {

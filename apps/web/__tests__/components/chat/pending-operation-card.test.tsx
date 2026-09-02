@@ -8,6 +8,18 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
     open ? <button type="button" onClick={onConfirm}>confirm-sheet</button> : null,
 }))
+vi.mock('@/components/ui/sheet', () => ({
+  useSheetHost: () => ({
+    sheetRef: { current: null },
+    closeSheet: (exitAction?: () => void) => exitAction?.(),
+  }),
+  Sheet: ({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) =>
+    <section aria-label="step-up-sheet">{children}{actions}</section>,
+}))
+vi.mock('@/components/ui/otp-input', () => ({
+  OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
+    <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />,
+}))
 
 const confirm = vi.fn()
 const prepareStepUp = vi.fn()
@@ -46,13 +58,33 @@ describe('PendingOperationCard', () => {
     await waitFor(() => expect(confirm).toHaveBeenCalledWith('pending-1'))
   })
 
-  it('hands step up off without rendering a credential field', async () => {
-    prepareStepUp.mockResolvedValue({ ok: true })
+  it('hands step up to a sheet, verifies the code, and executes', async () => {
+    prepareStepUp.mockResolvedValue({
+      ok: true,
+      challengeId: 'challenge-1',
+      confirmationToken: 'confirmation-1',
+    })
+    verifyStepUp.mockResolvedValue({
+      ok: true,
+      response: { operation: { status: 'Succeeded' } },
+    })
     render(<PendingOperationCard pendingOperation={operation({ confirmationRequirement: 'StepUp', riskClass: 'High' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
     await waitFor(() => expect(prepareStepUp).toHaveBeenCalledWith('pending-1'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'stepUp.codeLabel' }), {
+      target: { value: '123456' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'stepUp.confirm' }))
+
+    await waitFor(() => expect(verifyStepUp).toHaveBeenCalledWith(
+      'pending-1',
+      'challenge-1',
+      '123456',
+      'confirmation-1',
+    ))
+    expect(await screen.findByText('status.done')).toBeInTheDocument()
   })
 
   it('cancels without executing', () => {
