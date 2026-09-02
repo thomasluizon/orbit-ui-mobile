@@ -12,6 +12,7 @@ const mockRouterPush = vi.hoisted(() => vi.fn())
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
 const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
+const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true }
 
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
@@ -334,6 +335,20 @@ describe('HabitFormFields', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
 
     await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledTimes(2))
+  })
+
+  it('preserves breakdown proposals when correcting proposed setup', async () => {
+    mockProfileState.hasProAccess = true
+    renderForm(createFormHelpers({ title: 'Build a stronger routine' }), () => COMBINED_PROPOSAL, true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(3))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+
+    expect(document.querySelectorAll('[data-proposed]')).toHaveLength(2)
+    expect(screen.getByText('checklist-editor').closest('[data-proposed]')).not.toBeNull()
+    expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull()
   })
 
   it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {

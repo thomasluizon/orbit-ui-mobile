@@ -11,6 +11,7 @@ const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: fa
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
 const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
+const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true }
 
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
@@ -339,6 +340,32 @@ describe('HabitFormFields mobile', () => {
     })
 
     expect(onSuggestSetup).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves breakdown proposals when correcting proposed setup', async () => {
+    mockProfileState.hasProAccess = true
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields formHelpers={createFormHelpers({ title: 'Build a stronger routine' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => COMBINED_PROPOSAL} defaultExpanded>
+          {React.createElement('View', { testID: 'sub-habit-editor' })}
+        </HabitFormFields>,
+      )
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(true)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(4)
+
+    TestRenderer.act(() => tree.root.findByType('HabitUnderstanding').props.onToggleDay('Monday'))
+
+    expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(false)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(4)
   })
 
   it('marks only an Astra checklist proposal and resolves it when edited', async () => {

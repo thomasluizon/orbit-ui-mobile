@@ -326,7 +326,7 @@ export function HabitFormFields({
   }, [onResolveSubHabitProposalReady])
 
   const handleToggleDay = useCallback((day: string) => {
-    setProposal(EMPTY_HABIT_FORM_PROPOSAL)
+    setProposal((current) => current.setup ? { ...current, setup: false } : current)
     phraseOwnershipRef.current.cadence = false
     if (lockedGeneral === true) {
       setGeneral()
@@ -339,7 +339,7 @@ export function HabitFormFields({
   }, [lockedGeneral, setGeneral, setRecurring, setValue, toggleDay])
 
   const handleQuantityChange = useCallback((quantity: number) => {
-    setProposal(EMPTY_HABIT_FORM_PROPOSAL)
+    setProposal((current) => current.setup ? { ...current, setup: false } : current)
     phraseOwnershipRef.current.cadence = false
     if (lockedGeneral === true) {
       setGeneral()
@@ -404,7 +404,7 @@ export function HabitFormFields({
           setValue('title', value, { shouldDirty: true, shouldValidate: true })
         }}
         onEmojiSelect={(value) => {
-          setProposal(EMPTY_HABIT_FORM_PROPOSAL)
+          setProposal((current) => current.setup ? { ...current, setup: false } : current)
           setValue('emoji', value, { shouldDirty: true })
         }}
         onToggleDay={handleToggleDay}
