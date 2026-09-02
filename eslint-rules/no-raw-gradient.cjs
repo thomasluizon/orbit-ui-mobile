@@ -33,7 +33,13 @@ const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementNam
 const GRADIENT_TOKEN_RE = /--gradient-header|\bgradientHeader\b|\bgradientHeaderFrom\b/
 const GRADIENT_FUNCTION_RE = /(?:repeating-)?(?:linear|radial|conic)-gradient\s*\(/
 const GRADIENT_CLASS_RE = /(?:^|\s|:)(bg-gradient-to-[trbl]{1,2}|bg-linear-(?:to-[trbl]{1,2}|\d+|\[[^\]]+\]))(?:\s|$)/
-const GRADIENT_ELEMENTS = new Set(['LinearGradient', 'GradientTop', 'RadialGradient'])
+const GRADIENT_ELEMENTS = new Set([
+  'GradientTop',
+  'LinearGradient',
+  'RadialGradient',
+  'linearGradient',
+  'radialGradient',
+])
 const GRADIENT_MODULES = new Set(['expo-linear-gradient', 'react-native-linear-gradient'])
 const MASK_KEY_RE = /mask/i
 const OPAQUE_CARD_LAYER = 'linear-gradient(var(--bg-card), var(--bg-card))'

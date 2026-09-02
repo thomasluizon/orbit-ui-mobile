@@ -103,6 +103,8 @@ ruleTester.run('no-raw-gradient', rule('no-raw-gradient'), {
     { code: 'const pane = { backgroundColor: "var(--bg-card)", backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }', errors: [{ messageId: 'noGradientFunction' }] },
     { code: '<div className="bg-gradient-to-b from-black" />', errors: [{ messageId: 'noGradientClass' }] },
     { code: '<LinearGradient colors={c} />', errors: [{ messageId: 'noGradientElement' }] },
+    { code: '<linearGradient id="wash" />', errors: [{ messageId: 'noGradientElement' }] },
+    { code: '<radialGradient id="wash" />', errors: [{ messageId: 'noGradientElement' }] },
     { code: 'import { LinearGradient } from "expo-linear-gradient"', errors: [{ messageId: 'noGradientImport' }] },
   ],
 })

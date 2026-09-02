@@ -98,7 +98,7 @@ function inspectFile(repositoryRoot, file) {
     if (/\b(?:GradientTop|gradientHeader(?:From|To)?)\b|--gradient-header\b/.test(line)) {
       violations.push(`${path}:${lineNumber}: retired header gradient symbol`)
     }
-    for (const match of line.matchAll(/\b(?:LinearGradient|RadialGradient)\b/g)) {
+    for (const match of line.matchAll(/\b(?:LinearGradient|RadialGradient|linearGradient|radialGradient)\b/g)) {
       violations.push(`${path}:${lineNumber}: ${match[0]} rendering primitive`)
     }
     if (/\b(?:from\s*|import\s*\(\s*|require\(\s*)["']expo-linear-gradient["']/.test(line)) {

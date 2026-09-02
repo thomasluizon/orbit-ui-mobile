@@ -59,6 +59,19 @@ export const cases = () => {
     )
   }
 
+  for (const primitive of ["linearGradient", "radialGradient"]) {
+    const repository = stageRepository(primitive, {
+      "apps/web/page.tsx":
+        `export const Page = () => <svg><${primitive} id="wash" /></svg>\n`,
+    })
+    check(
+      "check-gradients.mjs",
+      `rejects intrinsic ${primitive}`,
+      ["--root", repository],
+      { status: 1, stderr: new RegExp(`${primitive} rendering primitive`) },
+    )
+  }
+
   const expoImport = stageRepository("expo-import", {
     "apps/mobile/screen.tsx": "import { LinearGradient } from 'expo-linear-gradient'\nexport const Screen = LinearGradient\n",
   })
