@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Modal, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { usePathname, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   getOnboardingDisplayStep,
@@ -32,6 +32,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 import {
   createStyles,
   type OnboardingFlowStyles,
@@ -262,7 +263,7 @@ function OnboardingFooter({
 export function OnboardingFlow() {
   const { t } = useTranslation()
   const router = useRouter()
-  const pathname = usePathname()
+  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
   const insets = useSafeAreaInsets()
   const actions = useOnboardingActions()
   const isLive = useOnboardingIsLive()
@@ -392,7 +393,7 @@ export function OnboardingFlow() {
     if (hasPrev) goPrev()
   }
 
-  if (pathname.startsWith('/chat')) return null
+  if (astraConversationOpen) return null
 
   return (
     <Modal

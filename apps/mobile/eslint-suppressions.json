@@ -183,58 +183,10 @@
       "count": 2
     }
   },
-  "components/chat/action-chips.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/chat/breakdown-habit-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/chat/breakdown-suggestion.styles.ts": {
-    "local/spacing-scale": {
-      "count": 11
-    }
-  },
-  "components/chat/breakdown-suggestion.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    }
-  },
-  "components/chat/clarification-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/chat/conflict-warning.tsx": {
     "local/icon-size-grid": {
       "count": 1
     },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/chat/goal-list-card.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "components/chat/habit-list-card.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "components/chat/pending-operation-card.tsx": {
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "components/chat/typing-indicator.tsx": {
     "local/spacing-scale": {
       "count": 3
     }
@@ -441,11 +393,6 @@
   "components/habits/reschedule-sheet.tsx": {
     "local/spacing-scale": {
       "count": 12
-    }
-  },
-  "components/message-bubble.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/navigation/notification-bell.styles.ts": {

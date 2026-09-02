@@ -1,276 +1,116 @@
-import { describe, expect, it, vi } from 'vitest'
-import type { PendingAgentOperation } from '@orbit/shared/types'
-
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TextInput } from 'react-native'
+import type { PendingAgentOperation } from '@orbit/shared/types/ai'
+import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 
-const colorProxy: any = new Proxy(
-  {},
-  {
-    get: (_target, prop) => {
-      if (prop === 'white') return '#ffffff'
-      return '#111111'
-    },
-  },
-)
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
+}))
+vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
+vi.mock('@/components/ui/otp-input', () => ({
+  OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
+    <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
 }))
 
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({
-    colors: colorProxy,
-    shadows: { sm: {} },
-    currentScheme: 'purple',
-    currentTheme: 'dark',
-  }),
-}))
-
-vi.mock('@/lib/theme', () => ({
-  radius: { xl: 20, full: 9999, md: 12, lg: 16, sm: 8 },
-  shadows: { sm: {} },
-  createTokensV2: () => new Proxy({}, {
-    get: (_target, prop) => {
-      if (prop === 'fgOnPrimary') return '#ffffff'
-      return '#111111'
-    },
-  }),
-  tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
-}))
-
-vi.mock('@/components/ui/icons', () => {
-  const React = require('react')
-  return {
-    ShieldAlert: (props: any) => React.createElement('ShieldAlert', props),
+function renderCard(overrides: Partial<PendingAgentOperation> = {}) {
+  const handlers = {
+    onConfirmExecute: vi.fn(),
+    onPrepareStepUp: vi.fn(),
+    onVerifyStepUp: vi.fn(),
   }
-})
-
-function makePendingOperation(
-  overrides: Partial<PendingAgentOperation> = {},
-): PendingAgentOperation {
-  return {
-    id: 'pending-1',
-    capabilityId: 'habit.delete',
-    displayName: 'Delete habit',
-    summary: 'Delete Meditation habit',
-    riskClass: 'Destructive',
-    confirmationRequirement: 'FreshConfirmation',
-    expiresAtUtc: '2025-01-15T10:00:00Z',
-    ...overrides,
-  }
-}
-
-function findPressables(root: any) {
-  return root.findAll(
-    (node: any) =>
-      node.props &&
-      typeof node.props.onPress === 'function' &&
-      typeof node.type !== 'string',
-  )
-}
-
-function findTexts(root: any, text: string) {
-  return root.findAll((node: any) => {
-    const children = node.props?.children
-    if (typeof children === 'string') {
-      return children === text
-    }
-
-    return Array.isArray(children) && children.includes(text)
+  let tree: any
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(overrides)} {...handlers} />)
   })
+  return { tree, handlers }
 }
 
-function flattenText(node: unknown): string {
-  if (node == null) return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(flattenText).join('')
-  if (typeof node === 'object' && 'props' in node) {
-    return flattenText((node as { props: { children?: unknown } }).props.children)
-  }
-  return ''
+function press(tree: any, label: string) {
+  return tree.root.findAll((node: any) =>
+    typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes(label),
+  )[0]
 }
+
+beforeEach(() => vi.clearAllMocks())
 
 describe('PendingOperationCard (mobile)', () => {
-  it('calls confirm handler for fresh confirmations', async () => {
-    const onConfirmExecute = vi.fn().mockResolvedValue({ ok: true })
-    let tree: any
-
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PendingOperationCard
-          pendingOperation={makePendingOperation()}
-          onConfirmExecute={onConfirmExecute}
-          onPrepareStepUp={vi.fn()}
-          onVerifyStepUp={vi.fn()}
-        />,
-      )
+  it('states risk and requires confirmation before a destructive operation', async () => {
+    const { tree, handlers } = renderCard()
+    handlers.onConfirmExecute.mockResolvedValue({
+      ok: true,
+      response: { operation: { status: 'Succeeded' } },
     })
 
-    const [button] = findPressables(tree.root)
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.risk.destructive')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.irreversible')
+    TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
     await TestRenderer.act(async () => {
-      await button.props.onPress()
+      tree.root.findByType('ConfirmSheet').props.onConfirm()
+      await Promise.resolve()
     })
-
-    expect(onConfirmExecute).toHaveBeenCalledWith('pending-1')
+    expect(handlers.onConfirmExecute).toHaveBeenCalledWith('pending-1')
   })
 
-  it('dismisses the card without calling the mutation when Cancel is pressed', async () => {
-    const onConfirmExecute = vi.fn()
-    let tree: any
-
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PendingOperationCard
-          pendingOperation={makePendingOperation()}
-          onConfirmExecute={onConfirmExecute}
-          onPrepareStepUp={vi.fn()}
-          onVerifyStepUp={vi.fn()}
-        />,
-      )
-    })
-
-    const [cancelButton] = tree.root.findAll(
-      (node: any) =>
-        flattenText(node.props?.children) === 'common.cancel' &&
-        typeof node.props?.onPress === 'function',
-    )
-
-    await TestRenderer.act(() => {
-      cancelButton.props.onPress()
-    })
-
-    expect(onConfirmExecute).not.toHaveBeenCalled()
-    expect(findPressables(tree.root)).toHaveLength(0)
-  })
-
-  it('starts step-up flow when required', async () => {
-    const onPrepareStepUp = vi.fn().mockResolvedValue({
+  it('hands step up to a sheet, verifies the code, and executes', async () => {
+    const { tree, handlers } = renderCard({ confirmationRequirement: 'StepUp', riskClass: 'High' })
+    handlers.onPrepareStepUp.mockResolvedValue({
       ok: true,
       challengeId: 'challenge-1',
-      confirmationToken: 'confirm-token',
+      confirmationToken: 'confirmation-1',
     })
-    let tree: any
-
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PendingOperationCard
-          pendingOperation={makePendingOperation({ confirmationRequirement: 'StepUp', riskClass: 'High' })}
-          onConfirmExecute={vi.fn()}
-          onPrepareStepUp={onPrepareStepUp}
-          onVerifyStepUp={vi.fn()}
-        />,
-      )
-    })
-
-    const [button] = findPressables(tree.root)
-    await TestRenderer.act(async () => {
-      await button.props.onPress()
-    })
-
-    expect(onPrepareStepUp).toHaveBeenCalledWith('pending-1')
-    expect(tree.root.findAllByProps({ placeholder: 'common.codePlaceholder' }).length).toBeGreaterThan(0)
-  })
-
-  it('does not show success when execution returns a denied operation', async () => {
-    const onConfirmExecute = vi.fn().mockResolvedValue({
+    handlers.onVerifyStepUp.mockResolvedValue({
       ok: true,
-      response: {
-        operation: {
-          operationId: 'habit.delete',
-          sourceName: 'Delete habit',
-          riskClass: 'Destructive',
-          confirmationRequirement: 'FreshConfirmation',
-          status: 'Denied',
-          summary: 'Delete Meditation habit',
-          policyReason: 'missing_scope:delete_habits',
-          payload: null,
-        },
-      },
-    })
-    let tree: any
-
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PendingOperationCard
-          pendingOperation={makePendingOperation()}
-          onConfirmExecute={onConfirmExecute}
-          onPrepareStepUp={vi.fn()}
-          onVerifyStepUp={vi.fn()}
-        />,
-      )
+      response: { operation: { status: 'Succeeded' } },
     })
 
-    const [button] = findPressables(tree.root)
+    expect(tree.root.findAll((node: any) => typeof node.props?.onChangeText === 'function')).toHaveLength(0)
     await TestRenderer.act(async () => {
-      await button.props.onPress()
+      press(tree, 'chat.operation.stepUpAction').props.onPress()
+      await Promise.resolve()
     })
-
-    expect(findTexts(tree.root, 'missing_scope:delete_habits')).toHaveLength(0)
-    expect(findTexts(tree.root, 'chat.sendError').length).toBeGreaterThan(0)
-    expect(findTexts(tree.root, 'chat.pendingOp.confirmed')).toHaveLength(0)
+    expect(handlers.onPrepareStepUp).toHaveBeenCalledWith('pending-1')
+    const codeInput = tree.root.findByProps({ accessibilityLabel: 'stepUp.codeLabel' })
+    TestRenderer.act(() => codeInput.props.onChangeText('123456'))
+    await TestRenderer.act(async () => {
+      press(tree, 'stepUp.confirm').props.onPress()
+      await Promise.resolve()
+    })
+    expect(handlers.onVerifyStepUp).toHaveBeenCalledWith(
+      'pending-1',
+      'challenge-1',
+      '123456',
+      'confirmation-1',
+    )
+    expect(renderedText(tree.toJSON())).toContain('status.done')
   })
 
-  it('shows friendly copy for known policy reasons instead of the raw code', async () => {
-    const onConfirmExecute = vi.fn().mockResolvedValue({
+  it('cancels without executing', () => {
+    const { tree, handlers } = renderCard()
+    TestRenderer.act(() => press(tree, 'common.cancel').props.onPress())
+
+    expect(tree.toJSON()).toBeNull()
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('does not mark a denied execution as done', async () => {
+    const { tree, handlers } = renderCard({ riskClass: 'Low', confirmationRequirement: 'None' })
+    handlers.onConfirmExecute.mockResolvedValue({
       ok: true,
-      response: {
-        operation: {
-          operationId: 'habit.delete',
-          sourceName: 'Delete habit',
-          riskClass: 'Destructive',
-          confirmationRequirement: 'FreshConfirmation',
-          status: 'Denied',
-          summary: 'Delete Meditation habit',
-          policyReason: 'confirmation_required',
-          payload: null,
-        },
-      },
+      response: { operation: { status: 'Denied' } },
     })
-    let tree: any
-
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PendingOperationCard
-          pendingOperation={makePendingOperation()}
-          onConfirmExecute={onConfirmExecute}
-          onPrepareStepUp={vi.fn()}
-          onVerifyStepUp={vi.fn()}
-        />,
-      )
-    })
-
-    const [button] = findPressables(tree.root)
     await TestRenderer.act(async () => {
-      await button.props.onPress()
+      press(tree, 'chat.operation.approve').props.onPress()
+      await Promise.resolve()
     })
 
-    expect(findTexts(tree.root, 'confirmation_required')).toHaveLength(0)
-    expect(
-      findTexts(tree.root, 'chat.pendingOp.errors.confirmation_required').length,
-    ).toBeGreaterThan(0)
-  })
-
-  it('localizes the capability title for confirmation-gated capabilities', async () => {
-    let tree: any
-
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PendingOperationCard
-          pendingOperation={makePendingOperation({ capabilityId: 'habits.bulk.write' })}
-          onConfirmExecute={vi.fn()}
-          onPrepareStepUp={vi.fn()}
-          onVerifyStepUp={vi.fn()}
-        />,
-      )
-    })
-
-    expect(
-      findTexts(tree.root, 'chat.pendingOp.capability.habits-bulk-write').length,
-    ).toBeGreaterThan(0)
-    expect(findTexts(tree.root, 'Delete habit')).toHaveLength(0)
+    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).not.toContain('status.done')
   })
 })

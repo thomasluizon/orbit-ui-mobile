@@ -1595,13 +1595,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   title={currentView === 'today' ? t('habits.emptyState') : t(getHabitEmptyStateKey(currentView))}
                   description={currentView === 'today' ? t('habits.noHabitsBody') : getEmptyHabitsMessage(currentView, t)}
           askAstraLabel={t('habits.askAstra')}
-          onAskAstra={() => router.push('/chat')}
+          onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
           onAction={onCreatePress}
           variant="primary"
         />
       ),
-      [onCreatePress, router, t],
+      [onCreatePress, t],
     )
 
     const listHeaderComponent = useMemo(

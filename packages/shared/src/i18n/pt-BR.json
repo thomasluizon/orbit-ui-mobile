@@ -221,7 +221,13 @@
         "remove": "Remover {name}"
       },
       "limit": {
-        "reason": "A cota de {allowance} mensagens de hoje foi usada."
+        "reason": "A cota de {allowance} mensagens para a Astra de hoje foi usada. Listas, registro de hábitos e entrada por voz continuam funcionando sem usar a Astra."
+      },
+      "busy": {
+        "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
+      },
+      "offline": {
+        "reason": "A Astra precisa de conexão. Reconecte-se e tente de novo. O registro de hábitos continua funcionando offline."
       }
     }
   },
@@ -757,7 +763,7 @@
       "linkedGoals": "Metas vinculadas",
       "noLinkedGoals": "Nenhuma meta vinculada",
       "askAstra": "Perguntar à Astra",
-      "askAstraLimit": "O limite diário da Astra foi atingido. Ele reinicia à meia-noite local. O Pro aumenta esse limite.",
+      "askAstraLimit": "As mensagens de hoje para a Astra foram usadas. Sua lista de hábitos e os registros continuam funcionando.",
       "moreDetails": "Mais detalhes",
       "schedule": "Agenda",
       "time": "Horário",
@@ -1045,6 +1051,8 @@
       "title": "Como foi seu dia?"
     },
     "placeholder": "Pergunte à Astra",
+    "copy": "Copiar",
+    "copied": "Copiado",
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
     "removeImage": "Remover imagem",
@@ -1063,14 +1071,9 @@
     "fileAttached": "Arquivo anexado \"{name}\":",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
-    "limitReachedError": "Você atingiu o limite de mensagens de IA de hoje.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
-    "proGate": {
-      "title": "Recurso Pro",
-      "body": "Esta ação é do Orbit Pro. Faça upgrade para usá-la."
-    },
     "suggestion": {
       "prompt": "Posso resumir, planejar ou te ajudar a ajustar um hábito.",
       "meditated": "Meditei hoje",
@@ -1078,6 +1081,9 @@
       "groceries": "Preciso fazer compras amanhã"
     },
     "action": {
+      "changes": "Alterações",
+      "completed": "A Astra atualizou o Orbit",
+      "open": "Abrir",
       "created": "Criou {name}",
       "logged": "Registrou {name}",
       "updated": "Atualizou {name}",
@@ -1127,16 +1133,99 @@
       "planWeek": "Planejar minha semana"
     },
     "habitList": {
+      "title": "Hábitos de hoje",
+      "count": "{shown} de {total}",
+      "open": "Abrir {name}",
+      "log": "Registrar {name}",
+      "unlog": "Desfazer o registro de {name}",
+      "logged": "Feito",
+      "pending": "Pendente",
+      "more": "Mostrar mais",
       "today": "Hoje",
       "overdue": "Atrasado",
       "general": "Geral",
       "empty": "Nenhum hábito para mostrar"
     },
     "goalList": {
+      "title": "Suas metas",
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Prazo {date}",
-      "empty": "Nenhuma meta para mostrar"
+      "empty": "Nenhuma meta ainda. Uma meta nasce de um hábito, ou de um pedido aqui.",
+      "done": "{name} foi concluída",
+      "ring": "Progresso de {name}",
+      "progressLink": "Ver no Progresso"
+    },
+    "preview": {
+      "proposed": "Proposto pelo Astra",
+      "editItem": "Editar item",
+      "editName": "Editar {name}",
+      "approve": "Aprovar",
+      "edit": "Editar",
+      "reject": "Rejeitar",
+      "rejected": "{name} foi rejeitado. Nada foi salvo."
+    },
+    "breakdown": {
+      "title": "Dividir {name}",
+      "frequency": "Frequência de {name}, toque para mudar",
+      "conflict": "Já existe um hábito chamado {name}.",
+      "confirmNote": "A aprovação cria todos os hábitos propostos de uma vez.",
+      "confirmTitle": "Criar estes hábitos?",
+      "confirmBody": "Isso adiciona todos os hábitos propostos em {name}.",
+      "confirm": "Criar hábitos"
+    },
+    "batch": {
+      "retry": "Tentar os {count} que faltaram"
+    },
+    "operation": {
+      "unknown": "Operação do Astra",
+      "pendingTitle": "Aguardando confirmação",
+      "pending": "Nada mudou ainda",
+      "irreversible": "Definitivo",
+      "confirmNote": "Apagar não pode ser desfeito, então aprovar pede uma confirmação.",
+      "approve": "Aprovar",
+      "confirmTitle": "Aprovar esta mudança?",
+      "confirmBody": "Esta mudança não pode ser desfeita.",
+      "confirm": "Aprovar",
+      "stepUpMessage": "Confirme a identidade no aparelho antes de continuar.",
+      "stepUpAction": "Confirmar identidade",
+      "openProfile": "Abrir Perfil",
+      "risk": {
+        "low": "Risco baixo",
+        "destructive": "Destrutivo",
+        "high": "Risco alto"
+      },
+      "outcome": {
+        "PendingConfirmation": "Aguardando confirmação",
+        "Denied": "Não disponível",
+        "UnsupportedByPolicy": "Só no Perfil",
+        "Succeeded": "Concluído",
+        "Failed": "Alguns itens não foram salvos"
+      },
+      "status": {
+        "PendingConfirmation": "Nada mudou ainda",
+        "Denied": "Esta conta não pode fazer isso",
+        "UnsupportedByPolicy": "Gerencie isto no Perfil",
+        "Succeeded": "Feito",
+        "Failed": "Não foi salvo"
+      },
+      "source": {
+        "createHabit": "Criar hábito",
+        "logHabit": "Registrar hábito",
+        "updateHabit": "Atualizar hábito",
+        "deleteHabit": "Apagar hábito",
+        "skipHabit": "Pular hábito",
+        "bulkLogHabits": "Registrar hábitos",
+        "bulkSkipHabits": "Pular hábitos",
+        "createSubHabit": "Criar sub-hábito",
+        "moveHabit": "Mover hábito",
+        "createGoal": "Criar meta",
+        "updateGoal": "Atualizar meta",
+        "deleteGoal": "Apagar meta",
+        "updateGoalProgress": "Atualizar progresso da meta",
+        "updateGoalStatus": "Atualizar status da meta",
+        "linkHabitsToGoal": "Vincular hábitos à meta"
+      }
     }
   },
   "profile": {

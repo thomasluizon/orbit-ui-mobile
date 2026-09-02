@@ -42,4 +42,14 @@ describe('getRelatedSurfaces', () => {
       expect(RELATED_SURFACE_ROUTES[id]?.labelKey).toMatch(/^chat\.related\.surface\./)
     }
   })
+
+  it('keeps subscription help on Profile without opening an upgrade pitch', () => {
+    expect(RELATED_SURFACE_ROUTES.subscriptions).toMatchObject({
+      webRoute: '/profile',
+      mobileRoute: '/profile',
+    })
+    expect(Object.values(RELATED_SURFACE_ROUTES).some((surface) =>
+      surface.webRoute === '/upgrade' || surface.mobileRoute === '/upgrade'
+    )).toBe(false)
+  })
 })

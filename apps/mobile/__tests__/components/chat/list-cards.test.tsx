@@ -1,0 +1,107 @@
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Pressable, Text, View } from 'react-native'
+import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
+import {
+  goalListCardFixture as goals,
+  habitListCardFixture as habits,
+} from '@orbit/shared/test-support/chat-fixtures'
+import { GoalListCard } from '@/components/chat/goal-list-card'
+import { HabitListCard } from '@/components/chat/habit-list-card'
+import { renderedText } from '../../support/react-test-renderer'
+
+const TestRenderer = require('react-test-renderer')
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  mutate: vi.fn(),
+  occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
+}))
+
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
+  useLogHabit: () => ({ mutate: mocks.mutate }),
+}))
+vi.mock('@/components/ui/status-ring', () => ({ StatusRing: () => <Text>Status</Text> }))
+vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <Text>Progress</Text> }))
+vi.mock('@/components/ui/pill-button', () => ({
+  Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
+    <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable>,
+}))
+vi.mock('@/components/ui/block-frame', () => ({
+  BlockFrame: ({ title, count, items, actions }: BlockFrameProps) => <View>
+    <Text>{title}</Text>
+    <Text>{count}</Text>
+    {items.map((item) => <View key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}
+    {actions}
+  </View>,
+}))
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
+  return { ...actual, createTokensV2: () => new Proxy({}, { get: () => '#111111' }) }
+})
+
+function render(element: React.ReactElement) {
+  let tree: any
+  TestRenderer.act(() => { tree = TestRenderer.create(element) })
+  return tree
+}
+
+describe('Astra list cards on mobile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.occurrencesById.clear()
+    for (const item of habits.items) {
+      mocks.occurrencesById.set(item.id, { isCompleted: false, isLoggedInRange: false })
+    }
+  })
+
+  it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
+    const tree = render(<HabitListCard habitList={habits} />)
+    expect(renderedText(tree.toJSON())).toContain('chat.habitList.count')
+    expect(renderedText(tree.toJSON())).toContain('3')
+
+    const open = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.open:{"name":"Water"}' })
+    TestRenderer.act(() => open.props.onPress())
+    expect(mocks.push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-1' } })
+
+    const log = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.log:{"name":"Water"}' })
+    TestRenderer.act(() => log.props.onPress())
+    expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
+
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.habitList.more'))[0]
+    TestRenderer.act(() => more.props.onPress())
+    expect(renderedText(tree.toJSON())).toContain('4')
+  })
+
+  it('announces unlog for an already-completed occurrence', () => {
+    mocks.occurrencesById.set('habit-1', { isCompleted: true, isLoggedInRange: true })
+    const tree = render(<HabitListCard habitList={habits} />)
+
+    const unlog = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.unlog:{"name":"Water"}' })
+    TestRenderer.act(() => unlog.props.onPress())
+    expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'unlog' }))
+  })
+
+  it('withholds the toggle when the occurrence is not authoritative', () => {
+    mocks.occurrencesById.delete('habit-1')
+    const tree = render(<HabitListCard habitList={habits} />)
+
+    expect(tree.root.findAll((node: any) =>
+      String(node.props?.accessibilityLabel).includes('chat.habitList.log') &&
+      String(node.props?.accessibilityLabel).includes('Water'),
+    )).toHaveLength(0)
+  })
+
+  it('opens a goal row in place and routes the progress action', () => {
+    const onOpenGoal = vi.fn()
+    const tree = render(<GoalListCard goalList={goals} onOpenGoal={onOpenGoal} />)
+    const goal = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('Run 10 km'))[0]
+    TestRenderer.act(() => goal.props.onPress())
+    expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
+
+    const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
+    TestRenderer.act(() => progress.props.onPress())
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+})

@@ -16,6 +16,32 @@ export interface BreakdownEditableHabit {
   checklistItems: ChecklistItem[] | null
 }
 
+const BREAKDOWN_CADENCES: readonly (FrequencyUnit | null)[] = [
+  null,
+  'Day',
+  'Week',
+  'Month',
+  'Year',
+]
+
+export function getBreakdownCadenceKey(frequencyUnit: FrequencyUnit | null): string {
+  if (frequencyUnit === null) return 'habits.filter.oneTime'
+  const suffixes: Record<FrequencyUnit, string> = {
+    Day: 'daily',
+    Week: 'weekly',
+    Month: 'monthly',
+    Year: 'yearly',
+  }
+  return `habits.filter.${suffixes[frequencyUnit]}`
+}
+
+export function nextBreakdownCadence(
+  current: FrequencyUnit | null,
+): FrequencyUnit | null {
+  const index = BREAKDOWN_CADENCES.indexOf(current)
+  return BREAKDOWN_CADENCES[(index + 1) % BREAKDOWN_CADENCES.length] ?? null
+}
+
 /** Keeps only breakdown rows whose title is non-empty after trimming. */
 export function filterValidBreakdownHabits<T extends BreakdownEditableHabit>(
   habits: readonly T[],

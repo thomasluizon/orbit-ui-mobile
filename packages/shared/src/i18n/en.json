@@ -221,7 +221,13 @@
         "remove": "Remove {name}"
       },
       "limit": {
-        "reason": "Today's allowance of {allowance} messages is used."
+        "reason": "Today's allowance of {allowance} Astra messages is used. Lists, habit logging, and voice input still work without using Astra."
+      },
+      "busy": {
+        "reason": "Astra is still answering. Wait for this response before sending another message."
+      },
+      "offline": {
+        "reason": "Astra needs a connection. Reconnect and try again. Habit logging still works offline."
       }
     }
   },
@@ -757,7 +763,7 @@
       "linkedGoals": "Linked goals",
       "noLinkedGoals": "No linked goals",
       "askAstra": "Ask Astra",
-      "askAstraLimit": "Daily Astra limit reached. It resets at local midnight. Pro raises it.",
+      "askAstraLimit": "Today's Astra messages have been used. Your habit list and logging still work.",
       "moreDetails": "More details",
       "schedule": "Schedule",
       "time": "Time",
@@ -1045,6 +1051,8 @@
       "title": "How did the day land?"
     },
     "placeholder": "Ask Astra",
+    "copy": "Copy",
+    "copied": "Copied",
     "attachImage": "Attach image",
     "send": "Send message",
     "removeImage": "Remove image",
@@ -1063,14 +1071,9 @@
     "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
-    "limitReachedError": "You've reached today's AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
-    "proGate": {
-      "title": "Pro feature",
-      "body": "This action needs Orbit Pro. Upgrade to use it."
-    },
     "suggestion": {
       "prompt": "I can recap, plan, or help you adjust a habit.",
       "meditated": "I meditated today",
@@ -1078,6 +1081,9 @@
       "groceries": "I need to buy groceries tomorrow"
     },
     "action": {
+      "changes": "Changes",
+      "completed": "Astra updated Orbit",
+      "open": "Open",
       "created": "Created {name}",
       "logged": "Logged {name}",
       "updated": "Updated {name}",
@@ -1127,16 +1133,99 @@
       "planWeek": "Plan my week"
     },
     "habitList": {
+      "title": "Today's habits",
+      "count": "{shown} of {total}",
+      "open": "Open {name}",
+      "log": "Log {name}",
+      "unlog": "Undo the log for {name}",
+      "logged": "Done",
+      "pending": "Pending",
+      "more": "Show more",
       "today": "Today",
       "overdue": "Overdue",
       "general": "General",
       "empty": "No habits to show"
     },
     "goalList": {
+      "title": "Your goals",
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Due {date}",
-      "empty": "No goals to show"
+      "empty": "No goals yet. A goal starts from a habit, or from an ask right here.",
+      "done": "{name} is done",
+      "ring": "Progress of {name}",
+      "progressLink": "See it on Progress"
+    },
+    "preview": {
+      "proposed": "Proposed by Astra",
+      "editItem": "Edit item",
+      "editName": "Edit {name}",
+      "approve": "Approve",
+      "edit": "Edit",
+      "reject": "Reject",
+      "rejected": "{name} was rejected. Nothing was saved."
+    },
+    "breakdown": {
+      "title": "Split {name}",
+      "frequency": "Frequency of {name}, tap to change",
+      "conflict": "A habit called {name} already exists.",
+      "confirmNote": "Approving creates every proposed habit at once.",
+      "confirmTitle": "Create these habits?",
+      "confirmBody": "This adds every proposed habit under {name}.",
+      "confirm": "Create habits"
+    },
+    "batch": {
+      "retry": "Retry the {count} that failed"
+    },
+    "operation": {
+      "unknown": "Astra operation",
+      "pendingTitle": "Awaiting confirmation",
+      "pending": "Nothing has changed yet",
+      "irreversible": "Permanent",
+      "confirmNote": "Deleting cannot be undone, so approval asks for confirmation.",
+      "approve": "Approve",
+      "confirmTitle": "Approve this change?",
+      "confirmBody": "This change cannot be undone.",
+      "confirm": "Approve",
+      "stepUpMessage": "Confirm your identity on the device before this can continue.",
+      "stepUpAction": "Confirm identity",
+      "openProfile": "Open Profile",
+      "risk": {
+        "low": "Low risk",
+        "destructive": "Destructive",
+        "high": "High risk"
+      },
+      "outcome": {
+        "PendingConfirmation": "Awaiting confirmation",
+        "Denied": "Not available",
+        "UnsupportedByPolicy": "Profile only",
+        "Succeeded": "Done",
+        "Failed": "Some items did not save"
+      },
+      "status": {
+        "PendingConfirmation": "Nothing has changed yet",
+        "Denied": "This account cannot do that",
+        "UnsupportedByPolicy": "Manage this in Profile",
+        "Succeeded": "Done",
+        "Failed": "Did not save"
+      },
+      "source": {
+        "createHabit": "Create habit",
+        "logHabit": "Log habit",
+        "updateHabit": "Update habit",
+        "deleteHabit": "Delete habit",
+        "skipHabit": "Skip habit",
+        "bulkLogHabits": "Log habits",
+        "bulkSkipHabits": "Skip habits",
+        "createSubHabit": "Create sub-habit",
+        "moveHabit": "Move habit",
+        "createGoal": "Create goal",
+        "updateGoal": "Update goal",
+        "deleteGoal": "Delete goal",
+        "updateGoalProgress": "Update goal progress",
+        "updateGoalStatus": "Update goal status",
+        "linkHabitsToGoal": "Link habits to goal"
+      }
     }
   },
   "profile": {

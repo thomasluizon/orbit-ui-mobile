@@ -1,287 +1,34 @@
-import { useState, useMemo } from 'react'
-import {
-  View,
-  Text,
-  Pressable,
-} from 'react-native'
-import { Check, Plus } from '@/components/ui/icons'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import {
-  buildBreakdownCreateRequest,
-  createClientId,
-  filterValidBreakdownHabits,
-} from '@orbit/shared/utils'
+import { useBreakdownSuggestionState } from '@orbit/shared/hooks'
+import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
+import { getBreakdownCadenceKey } from '@orbit/shared/utils'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Button } from '@/components/ui/pill-button'
+import { AlertTriangle } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
-import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { plural } from '@/lib/plural'
-import {
-  BreakdownHabitRow,
-  type EditableHabit,
-} from './breakdown-habit-row'
-import {
-  createStyles,
-  type AppTokens,
-  type BreakdownStyles,
-} from './breakdown-suggestion.styles'
 
-interface BreakdownSuggestionProps {
-  parentName: string
-  subHabits: SuggestedSubHabit[]
-  onConfirmed: () => void
-  onCancelled: () => void
-}
-
-function createEditableHabitId() {
-  return createClientId('editable-habit')
-}
-
-function createEditableHabit(source?: SuggestedSubHabit): EditableHabit {
-  return {
-    id: createEditableHabitId(),
-    title: source?.title ?? '',
-    description: source?.description ?? '',
-    frequencyUnit: source?.frequencyUnit ?? null,
-    frequencyQuantity: source?.frequencyQuantity ?? null,
-    days: source?.days ?? null,
-    isBadHabit: source?.isBadHabit ?? false,
-    dueDate: source?.dueDate ?? null,
-    checklistItems: source?.checklistItems ?? null,
-  }
-}
-
-interface BreakdownSuccessCardProps {
-  tokens: AppTokens
-  styles: BreakdownStyles
-  parentName: string
-  createdCount: number
-  createAsParent: boolean
-}
-
-function BreakdownSuccessCard({
-  tokens,
-  styles,
-  parentName,
-  createdCount,
-  createAsParent,
-}: Readonly<BreakdownSuccessCardProps>) {
+export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const { t } = useTranslation()
-  return (
-    <View style={styles.card}>
-      <View style={styles.successRow}>
-        <View style={styles.successIcon}>
-          <Check size={14} color={tokens.statusDone} />
-        </View>
-        <Text style={styles.successText}>
-          {createAsParent
-            ? plural(
-                t('habits.breakdown.createAsParentSuccess', {
-                  name: parentName,
-                  n: createdCount,
-                }),
-                createdCount,
-              )
-            : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-interface BreakdownActionsProps {
-  tokens: AppTokens
-  styles: BreakdownStyles
-  createAsParent: boolean
-  createError: string
-  validCount: number
-  isSubmitting: boolean
-  onAddHabit: () => void
-  onToggleCreateAsParent: () => void
-  onConfirm: () => void
-  onCancel: () => void
-}
-
-function BreakdownActions({
-  tokens,
-  styles,
-  createAsParent,
-  createError,
-  validCount,
-  isSubmitting,
-  onAddHabit,
-  onToggleCreateAsParent,
-  onConfirm,
-  onCancel,
-}: Readonly<BreakdownActionsProps>) {
-  const { t } = useTranslation()
-  return (
-    <>
-      <Pressable
-        style={({ pressed }) => [styles.addBtn, pressed && styles.controlPressed]}
-        accessibilityRole="button"
-        accessibilityLabel={t('habits.breakdown.addHabit')}
-        onPress={onAddHabit}
-      >
-        <Plus size={14} color={tokens.primary} />
-        <Text style={styles.addBtnText}>{t('habits.breakdown.addHabit')}</Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [styles.checkboxRow, pressed && styles.controlPressed]}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: createAsParent }}
-        accessibilityLabel={t('habits.breakdown.createAsParent')}
-        onPress={onToggleCreateAsParent}
-      >
-        <View
-          style={[
-            styles.checkbox,
-            createAsParent && styles.checkboxActive,
-          ]}
-        >
-          {createAsParent && <Check size={10} color={tokens.fgOnPrimary} />}
-        </View>
-        <Text style={styles.checkboxLabel}>
-          {t('habits.breakdown.createAsParent')}
-        </Text>
-      </Pressable>
-
-      {createError !== '' && (
-        <Text style={styles.errorText}>{createError}</Text>
-      )}
-
-      <View style={styles.actions}>
-        <PillButton
-
-          disabled={validCount === 0 || isSubmitting}
-          onClick={onConfirm}
-
-        >
-          {plural(t('habits.breakdown.createCount', { n: validCount }), validCount)}
-        </PillButton>
-        <PillButton
-          variant="ghost"
-
-          disabled={isSubmitting}
-          onClick={onCancel}
-        >
-          {t('common.cancel')}
-        </PillButton>
-      </View>
-    </>
-  )
-}
-
-export function BreakdownSuggestion({
-  parentName,
-  subHabits,
-  onConfirmed,
-  onCancelled,
-}: Readonly<BreakdownSuggestionProps>) {
-  const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
   const bulkCreate = useBulkCreateHabits()
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-
-  const [habits, setHabits] = useState<EditableHabit[]>(() =>
-    subHabits.map((h) => createEditableHabit(h)),
-  )
-
-  const [isCreated, setIsCreated] = useState(false)
-  const [createdCount, setCreatedCount] = useState(0)
-  const [createAsParent, setCreateAsParent] = useState(false)
-  const [createError, setCreateError] = useState('')
-
-  const validHabits = useMemo(
-    () => filterValidBreakdownHabits(habits),
-    [habits],
-  )
-
-  function updateHabit(index: number, patch: Partial<EditableHabit>) {
-    setHabits((prev) => prev.map((h, i) => (i === index ? { ...h, ...patch } : h)))
-  }
-
-  function removeHabit(index: number) {
-    setHabits((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function addHabit() {
-    setHabits((prev) => [...prev, createEditableHabit()])
-  }
-
-  async function handleConfirm() {
-    if (validHabits.length === 0) return
-    setCreateError('')
-
-    try {
-      await bulkCreate.mutateAsync(
-        buildBreakdownCreateRequest(validHabits, parentName, createAsParent),
-      )
-      setCreatedCount(validHabits.length)
-      setIsCreated(true)
-      onConfirmed()
-    } catch (err: unknown) {
-      setCreateError(
-        process.env.NODE_ENV === 'development' && err instanceof Error
-          ? err.message
-          : t('errors.bulkCreateHabits'),
-      )
-    }
-  }
-
-  const isSubmitting = bulkCreate.isPending
-
-  if (isCreated) {
-    return (
-      <BreakdownSuccessCard
-        tokens={tokens}
-        styles={styles}
-        parentName={parentName}
-        createdCount={createdCount}
-        createAsParent={createAsParent}
-      />
-    )
-  }
-
-  return (
-    <View style={styles.card}>
-      <Text style={styles.headerText}>
-        {t('habits.breakdown.breakInto', { name: parentName })}
-      </Text>
-
-      <View style={styles.habitsList}>
-        {habits.map((habit, index) => (
-          <BreakdownHabitRow
-            key={habit.id}
-            habit={habit}
-            tokens={tokens}
-            styles={styles}
-            onUpdate={(patch) => updateHabit(index, patch)}
-            onRemove={() => removeHabit(index)}
-          />
-        ))}
-      </View>
-
-      <BreakdownActions
-        tokens={tokens}
-        styles={styles}
-        createAsParent={createAsParent}
-        createError={createError}
-        validCount={validHabits.length}
-        isSubmitting={isSubmitting}
-        onAddHabit={addHabit}
-        onToggleCreateAsParent={() => setCreateAsParent((prev) => !prev)}
-        onConfirm={() => {
-          void handleConfirm()
-        }}
-        onCancel={onCancelled}
-      />
-    </View>
-  )
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const card = useBreakdownSuggestionState({ subHabits, parentName, onBulkCreate: bulkCreate.mutateAsync, onConfirmed })
+  if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
+  const rows = card.habits.map((habit) => ({
+    id: habit.id,
+    label: card.editingId === habit.id ? <TextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: 44, color: tokens.fg1, backgroundColor: tokens.bgField }} /> : habit.title,
+    meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
+    status: card.results[habit.id],
+    proposed: card.results[habit.id] == null,
+    irreversible: card.results[habit.id] == null,
+    control: card.results[habit.id] == null ? <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: 40, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable> : undefined,
+  }))
+  return <><BlockFrame state={bulkCreate.isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+    {warning?.hasConflict ? <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} color={tokens.statusOverdue} /><Text style={{ color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
+    {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={card.reject}>{t('chat.preview.reject')}</Button></>}
+  </View>} /><ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} /></>
 }

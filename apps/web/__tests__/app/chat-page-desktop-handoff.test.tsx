@@ -7,6 +7,7 @@ type SuggestionHandler = (suggestion: string) => void
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  setOpen: vi.fn(),
   goBack: vi.fn(),
   onActionChipClick: null as ActionChipHandler | null,
   onSuggestion: null as SuggestionHandler | null,
@@ -49,7 +50,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setOpen }),
+}))
 vi.mock('@/components/ui/app-bar', () => ({
   AppBar: ({ onBack }: { onBack: () => void }) => <button onClick={onBack}>back sentinel</button>,
 }))
@@ -59,7 +63,7 @@ vi.mock('@/components/chat/message-bubble', () => ({
     return null
   },
 }))
-vi.mock('@/app/(chat)/chat/chat-empty-state', () => ({
+vi.mock('@/components/chat/chat-empty-state', () => ({
   ChatEmptyState: ({ onSelectSuggestion }: { onSelectSuggestion: SuggestionHandler }) => {
     mocks.onSuggestion = onSelectSuggestion
     return <div data-testid="empty-state" />
@@ -79,13 +83,18 @@ vi.mock('@/components/chat/typing-indicator', () => ({
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
-import ChatPage from '@/app/(chat)/chat/page'
+import { AstraConversation } from '@/components/chat/conversation'
+import { useChatComposer } from '@/hooks/use-chat-composer'
+
+function ChatPage() {
+  return <AstraConversation chat={useChatComposer()} />
+}
 const goalActionType = [...CHAT_GOAL_ACTION_TYPES][0] as string
 
 describe('ChatPage', () => {
   beforeEach(() => {
     mocks.push.mockClear()
-    mocks.goBack.mockClear()
+    mocks.setOpen.mockClear()
     mocks.onActionChipClick = null
     mocks.onSuggestion = null
     mocks.composer.messages = []
@@ -96,7 +105,7 @@ describe('ChatPage', () => {
     mocks.composer.sendError = null
   })
 
-  it('keeps chat as a full page instead of redirecting into shell chrome', () => {
+  it('renders as shell conversation content without route navigation', () => {
     render(<ChatPage />)
 
     expect(mocks.push).not.toHaveBeenCalled()
@@ -123,19 +132,19 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'back sentinel' }))
 
-    expect(mocks.goBack).toHaveBeenCalledWith('/')
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
   })
 
-  it('renders offline, transport-error, and typing feedback together', () => {
+  it('marks the feed busy without adding a typing animation', () => {
     mocks.composer.isOnline = false
     mocks.composer.sendError = 'send failed sentinel'
     mocks.composer.isTyping = true
 
     render(<ChatPage />)
 
-    expect(screen.getByText('chat.offline.description')).toBeInTheDocument()
-    expect(screen.getByText('send failed sentinel')).toHaveAttribute('role', 'alert')
-    expect(screen.getByTestId('typing-indicator')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
+    expect(screen.getByRole('log', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
   })
 
   it('goes back on Escape when no text is being edited', () => {
@@ -145,7 +154,7 @@ describe('ChatPage', () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     })
 
-    expect(mocks.goBack).toHaveBeenCalledWith('/')
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
   })
 
   it('does not go back on Escape while a textarea holds text', () => {
@@ -158,7 +167,7 @@ describe('ChatPage', () => {
       textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     })
 
-    expect(mocks.goBack).not.toHaveBeenCalled()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
     textarea.remove()
   })
 
@@ -172,7 +181,7 @@ describe('ChatPage', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     })
 
-    expect(mocks.goBack).not.toHaveBeenCalled()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
     input.remove()
   })
 
@@ -188,19 +197,19 @@ describe('ChatPage', () => {
       editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     })
 
-    expect(mocks.goBack).not.toHaveBeenCalled()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
     editor.remove()
   })
 
-  it('routes a goal action chip to upgrade when the user lacks pro access', () => {
+  it('opens a goal action without an Astra paywall route', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     mocks.composer.hasProAccess = false
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('goal-1', goalActionType))
 
-    expect(mocks.push).toHaveBeenCalledWith('/upgrade')
-    expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
+    expect(mocks.push).not.toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByTestId('goal-drawer')).toHaveTextContent('goal-1')
   })
 
   it('opens the goal drawer for a goal action chip when pro', () => {

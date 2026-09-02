@@ -51,7 +51,7 @@ export function ChatEmptyState({ onSelectSuggestion }: Readonly<ChatEmptyStatePr
             fontFamily: 'var(--font-sans)',
             // react-doctor-disable-next-line no-tiny-text -- intentional AI-disclosure fine print (legal caption), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             fontSize: 11,
-            color: 'var(--fg-3)',
+            color: 'var(--fg-4)',
             maxWidth: 300,
             lineHeight: 1.4,
             marginTop: 4,

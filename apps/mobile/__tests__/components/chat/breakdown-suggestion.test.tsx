@@ -1,15 +1,24 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
+import type { BulkCreateResponse } from '@orbit/shared/types/habit'
+import type { ConflictWarning } from '@orbit/shared/types/chat'
+import {
+  breakdownSubHabits as subHabits,
+  makeBulkCreateResponse,
+} from '@orbit/shared/test-support/chat-fixtures'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
+import { renderedText } from '../../support/react-test-renderer'
 
-const bulkCreateMock = vi.fn().mockResolvedValue(undefined)
+const TestRenderer = require('react-test-renderer')
+const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
-  useBulkCreateHabits: () => ({
-    mutateAsync: bulkCreateMock,
-    isPending: false,
-  }),
+  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
+}))
+
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
 }))
 
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -17,134 +26,145 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   return {
     ...actual,
     createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-    tintFromPrimary: () => 'rgba(127,70,247,0.1)',
   }
 })
-
-vi.mock('@/components/ui/icons', () => {
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props)
-  return {
-    Check: createIcon('Check'),
-    X: createIcon('X'),
-    Plus: createIcon('Plus'),
-  }
-})
-
-const TestRenderer = require('react-test-renderer')
-
-const subHabits: SuggestedSubHabit[] = [
-  { title: 'Push-ups', description: '3 sets of 10' },
-  { title: 'Squats', description: '3 sets of 15' },
-]
 
 const defaultProps = {
-  parentName: 'Exercise',
+  parentName: 'House routine',
   subHabits,
   onConfirmed: vi.fn(),
   onCancelled: vi.fn(),
 }
 
-function renderBreakdown() {
-  let tree: { root: { findAll: (predicate: (node: { props?: Record<string, unknown>; type?: unknown }) => boolean) => { props: Record<string, unknown> }[] } } | undefined
+function renderBreakdown(warning?: ConflictWarning) {
+  let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(<BreakdownSuggestion {...defaultProps} />)
+    tree = TestRenderer.create(<BreakdownSuggestion {...defaultProps} warning={warning} />)
   })
-  if (!tree) throw new Error('failed to render')
   return tree
 }
 
-function findByAccessibilityLabel(tree: ReturnType<typeof renderBreakdown>, label: string) {
-  return tree.root.findAll(
-    (node) => node.props?.accessibilityLabel === label,
-  )
-}
-
-function findInputByAccessibilityLabel(tree: ReturnType<typeof renderBreakdown>, label: string) {
-  return tree.root.findAll(
-    (node) =>
-      node.props?.accessibilityLabel === label &&
-      typeof node.props.onChangeText === 'function',
-  )
-}
-
-function collectText(children: unknown): string {
-  if (children == null || typeof children === 'boolean') return ''
-  if (typeof children === 'string' || typeof children === 'number') {
-    return String(children)
-  }
-  if (Array.isArray(children)) {
-    return children.map(collectText).join(' ')
-  }
-  if (typeof children === 'object' && 'props' in (children as { props?: unknown })) {
-    return collectText((children as { props: { children?: unknown } }).props.children)
-  }
-  return ''
-}
-
-function pressableContainingText(
-  tree: ReturnType<typeof renderBreakdown>,
-  needle: string,
-) {
-  return tree.root
-    .findAll(
-      (node) =>
-        typeof node.props?.onPress === 'function' && typeof node.type !== 'string',
-    )
-    .find((node) => collectText(node.props.children).includes(needle))
+function press(tree: any, label: string) {
+  return tree.root.findAll((node: any) =>
+    typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes(label),
+  )[0]
 }
 
 beforeEach(() => {
-  defaultProps.onConfirmed.mockClear()
-  defaultProps.onCancelled.mockClear()
-  bulkCreateMock.mockReset()
-  bulkCreateMock.mockResolvedValue(undefined)
+  bulkCreate.mockReset()
+  defaultProps.onConfirmed.mockReset()
 })
 
 describe('BreakdownSuggestion (mobile)', () => {
-  it('labels each remove button with the habit name for screen readers', () => {
+  it('withholds the batch until the approval sheet is confirmed', async () => {
+    bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success']))
     const tree = renderBreakdown()
-    expect(
-      findByAccessibilityLabel(tree, 'habits.breakdown.removeHabit:{"name":"Push-ups"}').length,
-    ).toBeGreaterThanOrEqual(1)
-  })
 
-  it('reveals the frequency-quantity editor only after a recurrence unit is chosen', () => {
-    const tree = renderBreakdown()
-    expect(
-      findInputByAccessibilityLabel(tree, 'habits.breakdown.frequencyQuantityLabel'),
-    ).toHaveLength(0)
-
-    const chipWithWeekly = pressableContainingText(tree, 'habits.filter.weekly')
-    expect(chipWithWeekly).toBeDefined()
+    expect(bulkCreate).not.toHaveBeenCalled()
     TestRenderer.act(() => {
-      ;(chipWithWeekly!.props.onPress as () => void)()
+      press(tree, 'chat.preview.approve').props.onPress()
+    })
+    expect(bulkCreate).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      tree.root.findByType('ConfirmSheet').props.onConfirm()
+      await Promise.resolve()
     })
 
-    expect(
-      findInputByAccessibilityLabel(tree, 'habits.breakdown.frequencyQuantityLabel').length,
-    ).toBeGreaterThanOrEqual(1)
+    expect(bulkCreate).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the friendly i18n fallback instead of a raw Error message on failure', async () => {
-    bulkCreateMock.mockRejectedValue(new Error('ECONNREFUSED 127.0.0.1:5432'))
+  it('collapses a rejected preview in place', () => {
+    const tree = renderBreakdown()
+    TestRenderer.act(() => press(tree, 'chat.preview.reject').props.onPress())
+
+    expect(renderedText(tree.toJSON())).toContain('chat.preview.rejected')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.preview.approve')
+  })
+
+  it('edits one row and changes its cadence', () => {
+    const tree = renderBreakdown()
+    const edit = tree.root.findAll((node: any) =>
+      node.props?.accessibilityLabel === 'chat.preview.editItem',
+    )[0]
+    TestRenderer.act(() => edit.props.onPress())
+    const input = tree.root.findAll((node: any) =>
+      typeof node.props?.onChangeText === 'function' &&
+      String(node.props?.accessibilityLabel).includes('chat.preview.editName'),
+    )[0]
+    TestRenderer.act(() => input.props.onChangeText('Kitchen dishes'))
+    expect(input.props.value).toBe('Kitchen dishes')
+
+    const cadence = tree.root.findAll((node: any) =>
+      String(node.props?.accessibilityLabel).includes('chat.breakdown.frequency') &&
+      String(node.props?.accessibilityLabel).includes('Kitchen dishes'),
+    )[0]
+    expect(renderedText(cadence.props.children)).toContain('habits.filter.daily')
+    TestRenderer.act(() => cadence.props.onPress())
+    expect(renderedText(cadence.props.children)).toContain('habits.filter.weekly')
+  })
+
+  it('preserves yearly and one-time proposal cadences', () => {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<BreakdownSuggestion
+        {...defaultProps}
+        subHabits={[
+          { title: 'Year review', frequencyUnit: 'Year' },
+          { title: 'File taxes', frequencyUnit: null },
+        ]}
+      />)
+    })
+    const yearly = tree.root.findAll((node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      String(node.props?.accessibilityLabel).includes('Year review'),
+    )[0]
+    const oneTime = tree.root.findAll((node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      String(node.props?.accessibilityLabel).includes('File taxes'),
+    )[0]
+
+    expect(renderedText(yearly.props.children)).toContain('habits.filter.yearly')
+    expect(renderedText(oneTime.props.children)).toContain('habits.filter.oneTime')
+    TestRenderer.act(() => yearly.props.onPress())
+    const updatedYearly = tree.root.findAll((node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      String(node.props?.accessibilityLabel).includes('Year review'),
+    )[0]
+    expect(renderedText(updatedYearly.props.children)).toContain('habits.filter.oneTime')
+  })
+
+  it('names a colliding habit', () => {
+    const warning: ConflictWarning = {
+      hasConflict: true,
+      conflictingHabits: [{ habitId: 'habit-1', habitTitle: 'Dishes', conflictDescription: 'Monday' }],
+      severity: 'HIGH',
+    }
+    const tree = renderBreakdown(warning)
+
+    expect(renderedText(tree.toJSON())).toContain('chat.breakdown.conflict')
+    expect(renderedText(tree.toJSON())).toContain('Dishes')
+  })
+
+  it('retries only failed rows', async () => {
+    bulkCreate
+      .mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Failed']))
+      .mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
     const tree = renderBreakdown()
 
-    const submit = pressableContainingText(tree, 'habits.breakdown.createCount')
-    expect(submit).toBeDefined()
+    TestRenderer.act(() => {
+      press(tree, 'chat.preview.approve').props.onPress()
+    })
     await TestRenderer.act(async () => {
-      ;(submit!.props.onPress as () => void)()
+      tree.root.findByType('ConfirmSheet').props.onConfirm()
       await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      press(tree, 'chat.batch.retry').props.onPress()
       await Promise.resolve()
     })
 
-    const errorNodes = tree.root.findAll((node) =>
-      collectText(node.props?.children).includes('errors.bulkCreateHabits'),
-    )
-    expect(errorNodes.length).toBeGreaterThanOrEqual(1)
-    const rawNodes = tree.root.findAll((node) =>
-      collectText(node.props?.children).includes('ECONNREFUSED'),
-    )
-    expect(rawNodes).toHaveLength(0)
+    expect(bulkCreate).toHaveBeenCalledTimes(2)
+    expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Laundry' }] })
   })
 })

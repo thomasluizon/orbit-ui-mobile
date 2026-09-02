@@ -10,7 +10,7 @@ import { ShellComposerSlotProvider, useShellComposerHost } from './shell-compose
 export function Shell412(props: Readonly<Shell412Props>) {
   const registeredComposer = useShellComposerHost()
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? (props.composer ?? registeredComposer.content) : props.action
+  const pinnedSlot = navigationEnabled ? (registeredComposer.content ?? props.composer) : props.action
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const hasBottomChrome = navigationEnabled || props.notice !== undefined || pinnedSlot !== undefined
   const insets = useSafeAreaInsets()

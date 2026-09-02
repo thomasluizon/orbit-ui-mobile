@@ -285,6 +285,7 @@ describe('Composer (mobile)', () => {
       { id: 'image-id', kind: 'image' as const, name: 'walk.png' },
     ]
     const tree = await renderComposer(props({ onAttachFile: vi.fn(), attachWords, attachments, onAttachRemove }))
+    expect(tree.root.findByProps({ testID: 'composer-attachment-tray' }).props.accessible).toBe(false)
     expect(textValues(tree.root)).toEqual(expect.arrayContaining(['notes.txt', 'walk.png']))
     expect(byLabel(tree.root, attachWords.remove('notes.txt'))).toHaveLength(1)
     pressControl(byLabel(tree.root, attachWords.remove('walk.png'))[0])

@@ -9,6 +9,8 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
   pathname: '/',
+  conversationOpen: false,
+  setConversationOpen: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -33,6 +35,16 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
     selector: (store: { hasPendingAnswers: () => boolean }) => unknown,
   ) => selector({ hasPendingAnswers: () => false }),
 }))
+
+vi.mock('@/stores/ui-store', () => {
+  const state = () => ({
+    astraConversationOpen: mocks.conversationOpen,
+    setAstraConversationOpen: mocks.setConversationOpen,
+  })
+  const useUIStore = (selector: (value: ReturnType<typeof state>) => unknown) => selector(state())
+  useUIStore.getState = state
+  return { useUIStore }
+})
 
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
@@ -94,6 +106,8 @@ function baseProfile(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   mocks.profile = undefined
   mocks.pathname = '/'
+  mocks.conversationOpen = false
+  mocks.setConversationOpen.mockClear()
 })
 
 describe('AstraImportPrompt gating', () => {
@@ -117,9 +131,9 @@ describe('AstraImportPrompt gating', () => {
     expect(sheetCount(renderPrompt())).toBe(0)
   })
 
-  it('stays hidden on the chat route', () => {
+  it('stays hidden while the conversation is open', () => {
     mocks.profile = baseProfile()
-    mocks.pathname = '/chat'
+    mocks.conversationOpen = true
     expect(sheetCount(renderPrompt())).toBe(0)
   })
 })

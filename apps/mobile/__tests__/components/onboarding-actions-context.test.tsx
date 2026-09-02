@@ -212,7 +212,7 @@ describe('onboarding action provider factories', () => {
         expect.any(String),
         'onboarding.flow.meetAstra.importPrompt',
       )
-      expect(mocks.replace).toHaveBeenCalledWith('/chat')
+      expect(mocks.replace).toHaveBeenCalledWith('/')
     })
   })
 })
