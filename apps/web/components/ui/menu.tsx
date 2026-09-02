@@ -10,12 +10,16 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Popover } from '@base-ui/react/popover'
+import dynamic from 'next/dynamic'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { PopoverPositioner } from '@/components/ui/popover-positioner'
+
+const AnchoredPopover = dynamic(
+  () => import('@/components/ui/popover-positioner').then((module) => module.AnchoredPopover),
+  { ssr: false },
+)
 
 const DEFAULT_WIDE_FROM = 900
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
@@ -232,31 +236,21 @@ export function Menu({
   if (!portalTarget) return null
 
   return createPortal(
-    <Popover.Root open modal={false}>
-      <Popover.Portal>
-        <div className="orbit-menu-catcher" aria-hidden="true" />
-        <PopoverPositioner align={align} anchorRef={anchorRef}>
-          <Popover.Popup
-            ref={panelRef}
-            role="menu"
-            aria-label={title}
-            className="orbit-menu-panel"
-            data-positioned=""
-            initialFocus
-            finalFocus={false}
-            onKeyDown={handleMenuKeyDown}
-          >
-            <MenuItems
-              items={items}
-              onActivate={(id) => {
-                onSelect?.(id)
-                onClose?.()
-              }}
-            />
-          </Popover.Popup>
-        </PopoverPositioner>
-      </Popover.Portal>
-    </Popover.Root>,
+    <AnchoredPopover
+      align={align}
+      anchorRef={anchorRef}
+      panelRef={panelRef}
+      title={title}
+      onKeyDown={handleMenuKeyDown}
+    >
+      <MenuItems
+        items={items}
+        onActivate={(id) => {
+          onSelect?.(id)
+          onClose?.()
+        }}
+      />
+    </AnchoredPopover>,
     portalTarget,
   )
 }
