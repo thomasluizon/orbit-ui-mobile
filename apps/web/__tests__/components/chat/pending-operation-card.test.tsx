@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { PendingAgentOperation } from '@orbit/shared/types/ai'
+import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -18,19 +18,6 @@ const confirm = vi.fn()
 const prepareStepUp = vi.fn()
 const verifyStepUp = vi.fn()
 
-function operation(overrides: Partial<PendingAgentOperation> = {}): PendingAgentOperation {
-  return {
-    id: 'pending-1',
-    capabilityId: 'habits.delete',
-    displayName: 'DeleteHabit',
-    summary: 'raw server summary',
-    riskClass: 'Destructive',
-    confirmationRequirement: 'FreshConfirmation',
-    expiresAtUtc: '2026-09-02T12:00:00Z',
-    ...overrides,
-  }
-}
-
 describe('PendingOperationCard', () => {
   beforeEach(() => {
     confirm.mockReset()
@@ -40,7 +27,7 @@ describe('PendingOperationCard', () => {
 
   it('states risk and requires a sheet before a destructive operation', async () => {
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
-    render(<PendingOperationCard pendingOperation={operation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(screen.getByText('chat.operation.risk.destructive')).toBeInTheDocument()
     expect(screen.getByText('chat.operation.irreversible')).toBeInTheDocument()
@@ -61,7 +48,7 @@ describe('PendingOperationCard', () => {
       ok: true,
       response: { operation: { status: 'Succeeded' } },
     })
-    render(<PendingOperationCard pendingOperation={operation({ confirmationRequirement: 'StepUp', riskClass: 'High' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ confirmationRequirement: 'StepUp', riskClass: 'High' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
@@ -81,7 +68,7 @@ describe('PendingOperationCard', () => {
   })
 
   it('cancels without executing', () => {
-    render(<PendingOperationCard pendingOperation={operation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     expect(screen.queryByText('chat.operation.pendingTitle')).not.toBeInTheDocument()
     expect(confirm).not.toHaveBeenCalled()
@@ -89,7 +76,7 @@ describe('PendingOperationCard', () => {
 
   it('does not mark a denied execution as done', async () => {
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Denied' } } })
-    render(<PendingOperationCard pendingOperation={operation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
   })

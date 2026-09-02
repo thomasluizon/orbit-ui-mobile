@@ -19,6 +19,7 @@
     "./theme": "./src/theme/index.ts",
     "./api": "./src/api/index.ts",
     "./query": "./src/query/index.ts",
+    "./test-support/chat-fixtures": "./src/test-support/chat-fixtures.ts",
     "./validation": "./src/validation/index.ts"
   },
   "scripts": {

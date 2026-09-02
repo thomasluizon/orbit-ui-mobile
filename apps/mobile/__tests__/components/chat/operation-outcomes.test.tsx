@@ -2,7 +2,10 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
-import type { AgentOperationResult, AgentPolicyDenial } from '@orbit/shared/types/ai'
+import {
+  agentPolicyDenialFixture as denial,
+  makeAgentOperationResult,
+} from '@orbit/shared/test-support/chat-fixtures'
 import { OperationOutcomes } from '@/components/chat/operation-outcomes'
 import { renderedText } from '../../support/react-test-renderer'
 
@@ -22,25 +25,6 @@ vi.mock('@/components/ui/block-frame', () => ({
   </View>,
 }))
 
-function operation(status: AgentOperationResult['status'], index: number): AgentOperationResult {
-  return {
-    operationId: `operation-${index}`,
-    sourceName: 'CreateHabit',
-    riskClass: status === 'Failed' ? 'Destructive' : 'Low',
-    confirmationRequirement: 'None',
-    status,
-    targetName: `Habit ${index}`,
-  }
-}
-
-const denial: AgentPolicyDenial = {
-  operationId: 'policy-1',
-  sourceName: 'DeleteAccount',
-  riskClass: 'High',
-  confirmationRequirement: 'StepUp',
-  reason: 'Profile only',
-}
-
 describe('OperationOutcomes on mobile', () => {
   beforeEach(() => push.mockReset())
 
@@ -48,10 +32,10 @@ describe('OperationOutcomes on mobile', () => {
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(<OperationOutcomes operations={[
-        operation('Succeeded', 1),
-        operation('Failed', 2),
-        operation('Denied', 3),
-        operation('PendingConfirmation', 4),
+        makeAgentOperationResult('Succeeded', 1),
+        makeAgentOperationResult('Failed', 2),
+        makeAgentOperationResult('Denied', 3),
+        makeAgentOperationResult('PendingConfirmation', 4),
       ]} denials={[denial]} />)
     })
 
@@ -68,7 +52,7 @@ describe('OperationOutcomes on mobile', () => {
 
   it('renders one policy outcome when the API returns a denial twice', () => {
     let tree: any
-    const deniedOperation = { ...operation('Denied', 1), operationId: denial.operationId }
+    const deniedOperation = { ...makeAgentOperationResult('Denied', 1), operationId: denial.operationId }
     TestRenderer.act(() => {
       tree = TestRenderer.create(<OperationOutcomes operations={[deniedOperation]} denials={[denial]} />)
     })

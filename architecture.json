@@ -2694,6 +2694,10 @@
       },
       {
         "from": "apps/web/__tests__",
+        "to": "packages/shared/src/test-support"
+      },
+      {
+        "from": "apps/web/__tests__",
         "to": "packages/shared/src/theme"
       },
       {
@@ -2993,6 +2997,10 @@
       {
         "from": "apps/mobile/__tests__",
         "to": "packages/shared/src/stores"
+      },
+      {
+        "from": "apps/mobile/__tests__",
+        "to": "packages/shared/src/test-support"
       },
       {
         "from": "apps/mobile/__tests__",
@@ -3310,6 +3318,10 @@
       },
       {
         "from": "packages/shared/src/__tests__",
+        "to": "packages/shared/src/test-support"
+      },
+      {
+        "from": "packages/shared/src/__tests__",
         "to": "packages/shared/src/theme"
       },
       {
@@ -3367,6 +3379,10 @@
       {
         "from": "packages/shared/src/stores",
         "to": "packages/shared/src/utils"
+      },
+      {
+        "from": "packages/shared/src/test-support",
+        "to": "packages/shared/src/types"
       },
       {
         "from": "packages/shared/src/tour",
@@ -24406,6 +24422,19 @@
         "packages/shared/src/__tests__/ui-store-actions.test.ts",
         "packages/shared/src/__tests__/ui-store.test.ts"
       ],
+      "packages/shared/src/test-support": [
+        "apps/mobile/__tests__/components/chat/action-chips.test.tsx",
+        "apps/mobile/__tests__/components/chat/breakdown-suggestion.test.tsx",
+        "apps/mobile/__tests__/components/chat/list-cards.test.tsx",
+        "apps/mobile/__tests__/components/chat/operation-outcomes.test.tsx",
+        "apps/mobile/__tests__/components/chat/pending-operation-card.test.tsx",
+        "apps/web/__tests__/components/chat/action-chips.test.tsx",
+        "apps/web/__tests__/components/chat/breakdown-suggestion.test.tsx",
+        "apps/web/__tests__/components/chat/list-cards.test.tsx",
+        "apps/web/__tests__/components/chat/operation-outcomes.test.tsx",
+        "apps/web/__tests__/components/chat/pending-operation-card.test.tsx",
+        "packages/shared/src/__tests__/action-chips.test.ts"
+      ],
       "packages/shared/src/theme": [
         "apps/mobile/__tests__/lib/motion.test.ts",
         "apps/mobile/__tests__/lib/orbit-widget.test.ts",
@@ -24429,8 +24458,6 @@
         "apps/mobile/__tests__/components/chat/action-chips.test.tsx",
         "apps/mobile/__tests__/components/chat/breakdown-suggestion.test.tsx",
         "apps/mobile/__tests__/components/chat/clarification-card.test.tsx",
-        "apps/mobile/__tests__/components/chat/list-cards.test.tsx",
-        "apps/mobile/__tests__/components/chat/operation-outcomes.test.tsx",
         "apps/mobile/__tests__/components/chat/pending-operation-card.test.tsx",
         "apps/mobile/__tests__/components/create-api-key-modal.test.tsx",
         "apps/mobile/__tests__/components/goal-card.test.tsx",
@@ -24504,14 +24531,10 @@
         "apps/web/__tests__/components/calendar/calendar-range-view.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-time-grid.test.tsx",
         "apps/web/__tests__/components/calendar/use-agenda-day.test.ts",
-        "apps/web/__tests__/components/chat/action-chips.test.tsx",
         "apps/web/__tests__/components/chat/breakdown-suggestion.test.tsx",
         "apps/web/__tests__/components/chat/clarification-card.test.tsx",
         "apps/web/__tests__/components/chat/conflict-warning.test.tsx",
-        "apps/web/__tests__/components/chat/list-cards.test.tsx",
         "apps/web/__tests__/components/chat/message-bubble.test.tsx",
-        "apps/web/__tests__/components/chat/operation-outcomes.test.tsx",
-        "apps/web/__tests__/components/chat/pending-operation-card.test.tsx",
         "apps/web/__tests__/components/command/build-command-habit-list.test.ts",
         "apps/web/__tests__/components/command/command-palette.test.tsx",
         "apps/web/__tests__/components/goals/edit-goal-modal.test.tsx",
@@ -24561,7 +24584,6 @@
         "apps/web/__tests__/stores/auth-store.test.ts",
         "apps/web/__tests__/stores/chat-store.test.ts",
         "apps/web/__tests__/stores/onboarding-draft-store.test.ts",
-        "packages/shared/src/__tests__/action-chips.test.ts",
         "packages/shared/src/__tests__/agent-operation-outcomes.test.ts",
         "packages/shared/src/__tests__/calendar-entries.test.ts",
         "packages/shared/src/__tests__/calendar-month.test.ts",

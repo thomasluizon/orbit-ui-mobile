@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
+import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
 
@@ -17,19 +18,6 @@ vi.mock('@/components/ui/otp-input', () => ({
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
 }))
 
-function operation(overrides: Partial<PendingAgentOperation> = {}): PendingAgentOperation {
-  return {
-    id: 'pending-1',
-    capabilityId: 'habits.delete',
-    displayName: 'DeleteHabit',
-    summary: 'raw server summary',
-    riskClass: 'Destructive',
-    confirmationRequirement: 'FreshConfirmation',
-    expiresAtUtc: '2026-09-02T12:00:00Z',
-    ...overrides,
-  }
-}
-
 function renderCard(overrides: Partial<PendingAgentOperation> = {}) {
   const handlers = {
     onConfirmExecute: vi.fn(),
@@ -38,7 +26,7 @@ function renderCard(overrides: Partial<PendingAgentOperation> = {}) {
   }
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(<PendingOperationCard pendingOperation={operation(overrides)} {...handlers} />)
+    tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(overrides)} {...handlers} />)
   })
   return { tree, handlers }
 }

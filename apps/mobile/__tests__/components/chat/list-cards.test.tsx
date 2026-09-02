@@ -2,7 +2,10 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
-import type { GoalListCard as GoalListData, HabitListCard as HabitListData } from '@orbit/shared/types/chat'
+import {
+  goalListCardFixture as goals,
+  habitListCardFixture as habits,
+} from '@orbit/shared/test-support/chat-fixtures'
 import { GoalListCard } from '@/components/chat/goal-list-card'
 import { HabitListCard } from '@/components/chat/habit-list-card'
 import { renderedText } from '../../support/react-test-renderer'
@@ -37,21 +40,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/theme')>()
   return { ...actual, createTokensV2: () => new Proxy({}, { get: () => '#111111' }) }
 })
-
-const habits: HabitListData = {
-  scope: 'today',
-  items: ['Water', 'Walk', 'Read', 'Stretch'].map((title, index) => ({
-    id: `habit-${index + 1}`,
-    title,
-    depth: 0,
-    isBadHabit: false,
-    status: 'today',
-  })),
-}
-
-const goals: GoalListData = {
-  items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km' }],
-}
 
 function render(element: React.ReactElement) {
   let tree: any

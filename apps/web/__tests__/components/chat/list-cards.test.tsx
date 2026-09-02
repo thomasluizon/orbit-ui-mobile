@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
-import type { GoalListCard as GoalListData, HabitListCard as HabitListData } from '@orbit/shared/types/chat'
+import {
+  goalListCardFixture as goals,
+  habitListCardFixture as habits,
+} from '@orbit/shared/test-support/chat-fixtures'
 import { GoalListCard } from '@/components/chat/goal-list-card'
 import { HabitListCard } from '@/components/chat/habit-list-card'
 
@@ -31,21 +34,6 @@ vi.mock('@/components/ui/block-frame', () => ({
     {actions}
   </section>,
 }))
-
-const habits: HabitListData = {
-  scope: 'today',
-  items: ['Water', 'Walk', 'Read', 'Stretch'].map((title, index) => ({
-    id: `habit-${index + 1}`,
-    title,
-    depth: 0,
-    isBadHabit: false,
-    status: 'today',
-  })),
-}
-
-const goals: GoalListData = {
-  items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km' }],
-}
 
 describe('Astra list cards on web', () => {
   beforeEach(() => {

@@ -1,23 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { ActionResult } from '../types/chat'
+import { makeActionResult } from '../test-support/chat-fixtures'
 import { buildActionChipsModel } from '../chat/action-chips'
-
-function action(overrides: Partial<ActionResult> = {}): ActionResult {
-  return {
-    type: 'LogHabit',
-    status: 'Success',
-    entityId: 'habit-1',
-    entityName: 'Meditate',
-    ...overrides,
-  }
-}
 
 describe('buildActionChipsModel', () => {
   it('omits suggestions and describes visible result state', () => {
     const model = buildActionChipsModel([
-      action(),
-      action({ status: 'Suggestion' }),
-      action({ status: 'Failed', entityId: 'habit-2' }),
+      makeActionResult(),
+      makeActionResult({ status: 'Suggestion' }),
+      makeActionResult({ status: 'Failed', entityId: 'habit-2' }),
     ], true)
 
     expect(model.state).toBe('partiallyFailed')
@@ -27,9 +17,9 @@ describe('buildActionChipsModel', () => {
 
   it('exposes navigation only for successful safe results with a target', () => {
     const model = buildActionChipsModel([
-      action(),
-      action({ type: 'DeleteHabit' }),
-      action({ entityId: null }),
+      makeActionResult(),
+      makeActionResult({ type: 'DeleteHabit' }),
+      makeActionResult({ entityId: null }),
     ], true)
 
     expect(model.rows.map((row) => row.navigation.navigable)).toEqual([true, false, false])
@@ -37,7 +27,7 @@ describe('buildActionChipsModel', () => {
 
   it('keeps unknown symbols out of the translation key and collects conflicts', () => {
     const model = buildActionChipsModel([
-      action({
+      makeActionResult({
         type: 'UnexpectedServerSymbol',
         conflictWarning: {
           hasConflict: true,

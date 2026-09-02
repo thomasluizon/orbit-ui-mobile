@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
-import type { AgentOperationResult, AgentPolicyDenial } from '@orbit/shared/types/ai'
+import {
+  agentPolicyDenialFixture as denial,
+  makeAgentOperationResult,
+} from '@orbit/shared/test-support/chat-fixtures'
 import { OperationOutcomes } from '@/components/chat/operation-outcomes'
 
 const push = vi.fn()
@@ -16,34 +19,15 @@ vi.mock('@/components/ui/block-frame', () => ({
   </section>,
 }))
 
-function operation(status: AgentOperationResult['status'], index: number): AgentOperationResult {
-  return {
-    operationId: `operation-${index}`,
-    sourceName: 'CreateHabit',
-    riskClass: status === 'Failed' ? 'Destructive' : 'Low',
-    confirmationRequirement: 'None',
-    status,
-    targetName: `Habit ${index}`,
-  }
-}
-
-const denial: AgentPolicyDenial = {
-  operationId: 'policy-1',
-  sourceName: 'DeleteAccount',
-  riskClass: 'High',
-  confirmationRequirement: 'StepUp',
-  reason: 'Profile only',
-}
-
 describe('OperationOutcomes on web', () => {
   beforeEach(() => push.mockReset())
 
   it('renders localized typed outcomes and keeps policy recovery on Profile', () => {
     render(<OperationOutcomes operations={[
-      operation('Succeeded', 1),
-      operation('Failed', 2),
-      operation('Denied', 3),
-      operation('PendingConfirmation', 4),
+      makeAgentOperationResult('Succeeded', 1),
+      makeAgentOperationResult('Failed', 2),
+      makeAgentOperationResult('Denied', 3),
+      makeAgentOperationResult('PendingConfirmation', 4),
     ]} denials={[denial]} />)
 
     for (const status of ['Succeeded', 'Failed', 'Denied', 'PendingConfirmation', 'UnsupportedByPolicy']) {
@@ -56,7 +40,7 @@ describe('OperationOutcomes on web', () => {
   })
 
   it('renders one policy outcome when the API returns a denial twice', () => {
-    const deniedOperation = { ...operation('Denied', 1), operationId: denial.operationId }
+    const deniedOperation = { ...makeAgentOperationResult('Denied', 1), operationId: denial.operationId }
     render(<OperationOutcomes operations={[deniedOperation]} denials={[denial]} />)
 
     expect(screen.getAllByText('chat.operation.outcome.UnsupportedByPolicy')).toHaveLength(1)

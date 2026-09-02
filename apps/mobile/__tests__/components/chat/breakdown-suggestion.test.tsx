@@ -1,7 +1,11 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BulkCreateResponse } from '@orbit/shared/types/habit'
-import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
+import type { ConflictWarning } from '@orbit/shared/types/chat'
+import {
+  breakdownSubHabits as subHabits,
+  makeBulkCreateResponse,
+} from '@orbit/shared/test-support/chat-fixtures'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { renderedText } from '../../support/react-test-renderer'
 
@@ -25,29 +29,11 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-const subHabits: SuggestedSubHabit[] = [
-  { title: 'Dishes', description: '', frequencyUnit: 'Day' },
-  { title: 'Laundry', description: '', frequencyUnit: 'Week' },
-]
-
 const defaultProps = {
   parentName: 'House routine',
   subHabits,
   onConfirmed: vi.fn(),
   onCancelled: vi.fn(),
-}
-
-function response(statuses: ('Success' | 'Failed')[]): BulkCreateResponse {
-  return {
-    results: statuses.map((status, index) => ({
-      index,
-      status,
-      habitId: status === 'Success' ? `habit-${index}` : null,
-      title: subHabits[index]?.title ?? null,
-      error: status === 'Failed' ? 'failed' : null,
-      field: null,
-    })),
-  }
 }
 
 function renderBreakdown(warning?: ConflictWarning) {
@@ -71,7 +57,7 @@ beforeEach(() => {
 
 describe('BreakdownSuggestion (mobile)', () => {
   it('withholds the batch until the approval sheet is confirmed', async () => {
-    bulkCreate.mockResolvedValue(response(['Success', 'Success']))
+    bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success']))
     const tree = renderBreakdown()
 
     expect(bulkCreate).not.toHaveBeenCalled()
@@ -162,8 +148,8 @@ describe('BreakdownSuggestion (mobile)', () => {
 
   it('retries only failed rows', async () => {
     bulkCreate
-      .mockResolvedValueOnce(response(['Success', 'Failed']))
-      .mockResolvedValueOnce(response(['Success']))
+      .mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Failed']))
+      .mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
     const tree = renderBreakdown()
 
     TestRenderer.act(() => {
