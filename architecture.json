@@ -23477,6 +23477,7 @@
         "packages/shared/src/__tests__/habit-optimistic-tree.test.ts",
         "packages/shared/src/__tests__/habit-optimistic.property.test.ts",
         "packages/shared/src/__tests__/habit-optimistic.test.ts",
+        "packages/shared/src/__tests__/habit-phrase-parser.test.ts",
         "packages/shared/src/__tests__/habit-picker-filter.test.ts",
         "packages/shared/src/__tests__/habit-picker.test.ts",
         "packages/shared/src/__tests__/habit-query-buckets.test.ts",
