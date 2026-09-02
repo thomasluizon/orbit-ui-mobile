@@ -8,7 +8,7 @@ import { useProfile, useTrialDaysLeft } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { toAnimatedEasing } from '@/lib/motion'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { resolveTrialBannerColors } from '@/components/ui/trial-banner-colors'
 
@@ -24,6 +24,7 @@ export function TrialBanner() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
   const [dismissed, setDismissed] = useState(false)
   const opacity = useMemo(() => new Animated.Value(1), [])
   const translateY = opacity.interpolate({
@@ -59,10 +60,14 @@ export function TrialBanner() {
 
   return (
     <Animated.View
+      testID="trial-banner"
       style={[
         styles.container,
         bannerColors.container,
-        { opacity, transform: [{ translateY }] },
+        {
+          opacity,
+          transform: [{ translateY: prefersReducedMotion ? 0 : translateY }],
+        },
       ]}
       accessibilityRole="summary"
       accessibilityLiveRegion="polite"
