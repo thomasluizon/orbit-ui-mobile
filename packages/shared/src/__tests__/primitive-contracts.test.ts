@@ -13,7 +13,6 @@ import type {
   BadgeProps,
   ColumnsProps,
   InfoCardProps,
-  PlanCardProps,
   ProgressBarProps,
   ProgressRingProps,
   StatTileProps,
@@ -22,7 +21,6 @@ import type {
 interface PrimitiveContractMap {
   StatTileProps: StatTileProps
   ColumnsProps: ColumnsProps
-  PlanCardProps: PlanCardProps
   InfoCardProps: InfoCardProps
   ProgressRingProps: ProgressRingProps
   ProgressBarProps: ProgressBarProps
@@ -38,7 +36,6 @@ interface PrimitiveContractMap {
 const CONTRACT_NAMES = [
   'StatTileProps',
   'ColumnsProps',
-  'PlanCardProps',
   'InfoCardProps',
   'ProgressRingProps',
   'ProgressBarProps',

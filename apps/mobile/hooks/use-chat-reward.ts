@@ -20,7 +20,7 @@ interface UseChatRewardOptions {
 /**
  * Mobile-only rewarded-ad flow for the chat composer: shows an AdMob rewarded
  * ad and, on completion, claims bonus AI messages from the backend and patches
- * the cached profile limit. No web counterpart — ads are mobile-only.
+ * the cached profile limit. No web counterpart exists because ads are mobile-only.
  */
 export function useChatReward({ onBeforeWatch }: UseChatRewardOptions = {}) {
   const { t } = useTranslation();

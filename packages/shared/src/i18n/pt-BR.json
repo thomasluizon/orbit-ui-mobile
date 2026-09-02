@@ -1911,144 +1911,70 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
-    "categories": {
-      "habits": "Hábitos",
-      "ai": "Recursos de IA",
-      "insights": "Análises",
-      "personalization": "Personalização"
-    },
     "features": {
-      "habits": {
-        "label": "Hábitos",
-        "free": "Até 1000",
-        "pro": "Até 1000",
-        "tooltip": "Crie e acompanhe hábitos diários, semanais ou mensais. Em qualquer plano, dá para ter até 1000 hábitos ativos."
-      },
-      "ai": {
-        "label": "Chat com IA",
-        "free": "5 msgs/dia",
-        "pro": "50 msgs/dia",
-        "tooltip": "Converse com um coach de IA que cria hábitos, registra conclusões, analisa o progresso, sugere como dividir um hábito e dá conselhos personalizados."
-      },
       "subHabits": {
-        "label": "Sub-hábitos",
-        "free": "Não",
-        "pro": "Ilimitados",
         "tooltip": "Divida hábitos complexos em etapas menores. Os sub-hábitos ficam dentro de um hábito principal, para organizar melhor."
-      },
-      "goals": {
-        "label": "Análise de metas por IA",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "As metas são grátis em qualquer plano: crie metas de longo prazo e ligue hábitos a elas para acompanhar um progresso mensurável. O Pro adiciona a análise por IA, que lê uma meta e aponta o que está funcionando e o que precisa de atenção."
-      },
-      "summary": {
-        "label": "Resumo diário",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Receba um resumo diário feito pela IA sobre seus hábitos, suas sequências e o que precisa de atenção hoje."
-      },
-      "apiKeys": {
-        "label": "Chaves de API",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Crie chaves de API para conectar o Orbit a ferramentas de desenvolvedor e a integrações MCP externas."
-      },
-      "retrospective": {
-        "label": "Retrospectiva",
-        "free": "Não",
-        "pro": "Anual",
-        "tooltip": "A IA analisa seus hábitos ao longo de semanas, meses ou trimestres para revelar padrões, conquistas e pontos a melhorar."
-      },
-      "streaks": {
-        "label": "Sequência atual e recorde"
-      },
-      "xpLevels": {
-        "label": "XP e níveis"
-      },
-      "streakFreeze": {
-        "label": "Congelamento de sequência"
-      },
-      "achievements": {
-        "label": "Conquistas e XP",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Ganhe XP ao concluir hábitos, suba de nível e ganhe conquistas que celebram sua constância e seus marcos."
-      },
-      "slipAlerts": {
-        "label": "Alertas de deslize",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Para os maus hábitos, a IA percebe os seus padrões de recaída e manda mensagens de incentivo antes dos horários mais arriscados."
-      },
-      "proactiveCheckins": {
-        "label": "Check-ins proativos",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Quando você fica para trás, a Astra manda um push personalizado para te trazer de volta aos trilhos, mesmo que você esqueça de abrir o app."
-      },
-      "calendarImport": {
-        "label": "Google Calendar",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Importe eventos do Google Calendar como hábitos com um toque. Mantenha suas rotinas e o seu calendário em sincronia."
-      },
-      "adFree": {
-        "label": "Sem anúncios",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Tire todos os anúncios do app para acompanhar seus hábitos sem distração."
       }
     },
     "convert": {
-      "promise": "Tudo o que o Orbit faz, em um plano só.",
-      "trialEyebrow": "Teste Pro",
-      "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
-      "trialLastDay": "Teste Pro · último dia",
-      "trialHeading": "Mantenha seus recursos Pro",
+      "promise": "O plano muda o Astra, nunca os seus hábitos e registros.",
+      "trialEyebrow": "Seu teste Pro está ativo",
+      "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
+      "trialLastDay": "Último dia do teste",
+      "trialHeading": "As 50 por dia ficam, ou voltam a ser 5.",
       "trialCta": "Manter o Pro",
-      "freeEyebrow": "Plano grátis",
-      "freeHeading": "Seu teste Pro acabou",
+      "freeEyebrow": "Você está no plano grátis",
+      "freeHeading": "Dez vezes mais Astra.",
       "freeCta": "Assinar Pro",
-      "trustLine": "Nenhum cartão foi cobrado, você voltou ao plano grátis automaticamente.",
-      "cancelAnytime": "Cancele quando quiser",
-      "stayFree": "Continuar grátis"
+      "trustLine": "Sem fidelidade, e nenhum cartão fica guardado no Orbit.",
+      "cancelAnytime": "Cancele quando quiser.",
+      "handOff": "O pagamento acontece com nosso provedor. O Orbit nunca guarda os dados do seu cartão.",
+      "stayFree": "Continuar no plano grátis",
+      "allowanceLabel": "Cota diária do Astra",
+      "freeAllowance": "5",
+      "proAllowance": "50",
+      "perDay": "mensagens por dia",
+      "allowanceNote": "As 5 do plano grátis dão para registrar o dia e pedir um ajuste. As 50 dão para reorganizar a semana quantas vezes precisar."
     },
-    "matrix": {
-      "title": "Compare todos os recursos",
-      "included": "Incluído",
-      "notIncluded": "Não incluído",
-      "yearlyTag": "Anual"
+    "outcomes": {
+      "label": "O que muda com o Pro",
+      "calendar": {
+        "title": "A sua agenda ao lado dos hábitos",
+        "body": "Sincronizar com o Google Calendar mostra os seus compromissos junto do dia."
+      },
+      "retrospective": {
+        "title": "A retrospectiva do período",
+        "body": "O Astra fecha a semana e o mês com o que aconteceu e o que mudar."
+      },
+      "noticing": {
+        "title": "O Astra percebe sem você pedir",
+        "body": "Ele avisa quando algo escapa em vez de esperar você abrir o app."
+      }
     },
     "plans": {
-      "free": {
-        "note": "Mantenha sequências, XP e congelamento, sempre de graça."
+      "intervalLabel": "Como pagar",
+      "interval": {
+        "monthly": "Mensal",
+        "annual": "Anual"
       },
       "monthly": {
-        "name": "Pro Mensal",
-        "period": "/mês",
-        "cta": "Assinar",
-        "note": "Cobrado mensalmente"
+        "name": "Mensal",
+        "period": " por mês"
       },
       "yearly": {
-        "name": "Pro Anual",
-        "period": "/ano",
-        "heroLine": "Tudo do Pro Mensal, mais a Retrospectiva IA.",
-        "billedSave": "Cobrado {price}/ano, economize {amount} por ano"
+        "name": "Anual",
+        "period": " por ano",
+        "heroLine": "O jeito mais barato de ter o Astra o ano inteiro.",
+        "equivalent": "Sai a {price} por mês, {percent}% menos que o mensal."
       },
-      "proFeatures": {
-        "unlimited": "Sub-hábitos e sincronização com calendário",
-        "ai": "50 mensagens de IA por dia",
-        "goals": "Análise de metas por IA e resumos diários",
-        "retrospective": "Retrospectiva IA"
-      },
-      "savePercent": "Economize {percent}%",
+      "recommended": "Recomendado",
+      "cta": "Assinar",
+      "checkoutLabel": "Assinar {interval}",
       "coupon": {
-        "discountBadge": "{percent}% de desconto",
-        "appliedNote": "Desconto de indicação aplicado"
+        "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },
-      "equivalent": "{price}/mês",
-      "renewalNote": "A assinatura é renovada automaticamente. Cancele quando quiser, com pelo menos 24h de antecedência, para evitar cobranças futuras.",
+      "renewalNote": "A assinatura renova automaticamente no fim de cada período.",
+      "loading": "Buscando os valores",
       "error": "Não foi possível carregar os preços",
       "retry": "Tentar de novo"
     },

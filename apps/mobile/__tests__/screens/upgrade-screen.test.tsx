@@ -148,9 +148,6 @@ vi.mock('@/components/upgrade/play-billing-dashboard', () => ({
 vi.mock('@/components/upgrade/pricing-section', () => ({
   PricingSection: (props: Record<string, unknown>) => React.createElement('PricingSection', props),
 }))
-vi.mock('@/components/upgrade/pricing-footer', () => ({
-  PricingFooter: (props: Record<string, unknown>) => React.createElement('PricingFooter', props),
-}))
 
 async function renderScreen() {
   let tree: { root: TestNode } | undefined
@@ -188,10 +185,9 @@ describe('UpgradeScreen', () => {
     mocks.playBilling.errorKey = ''
   })
 
-  it('shows the pricing section and footer for a free user', async () => {
+  it('shows the pricing section for a free user', async () => {
     const tree = await renderScreen()
     expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
-    expect(findByType(tree.root, 'PricingFooter')).toBeTruthy()
   })
 
   it.each([
@@ -204,7 +200,6 @@ describe('UpgradeScreen', () => {
     expect(
       tree.root.findAll((node) => node.props.children === label || node.props.label === label).length,
     ).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.type === 'PricingFooter')).toHaveLength(0)
   })
 
   it.each([
@@ -261,25 +256,25 @@ describe('UpgradeScreen', () => {
     },
   )
 
-  it('starts a purchase through the footer checkout', async () => {
+  it('starts a purchase through the pricing section', async () => {
     const tree = await renderScreen()
-    const footer = findByType(tree.root, 'PricingFooter')
+    const section = findByType(tree.root, 'PricingSection')
     await TestRenderer.act(async () => {
-      ;(footer.props.onCheckout as (i: string) => void)('yearly')
+      ;(section.props.onCheckout as (i: string) => void)('yearly')
       await Promise.resolve()
     })
     expect(mocks.playBilling.clearError).toHaveBeenCalledTimes(1)
     expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
   })
 
-  it('switches the selected interval and echoes the new price', async () => {
+  it('switches the selected interval', async () => {
     const tree = await renderScreen()
     const section = findByType(tree.root, 'PricingSection')
     await TestRenderer.act(async () => {
       ;(section.props.onSelectInterval as (i: string) => void)('monthly')
       await Promise.resolve()
     })
-    expect(findByType(tree.root, 'PricingFooter').props.selectedInterval).toBe('monthly')
+    expect(findByType(tree.root, 'PricingSection').props.selectedInterval).toBe('monthly')
   })
 
   it('routes back to the fallback when the user stays free', async () => {
@@ -349,7 +344,6 @@ describe('UpgradeScreen', () => {
     } else {
       expect(section.props.trialDaysLeft).toBeNull()
     }
-    expect(tree.root.findAll((node) => node.type === 'PricingFooter')).toHaveLength(0)
     await TestRenderer.act(async () => {
       ;(section.props.onRestore as () => void)()
       ;(section.props.onRetryPlans as () => void)()
@@ -401,21 +395,21 @@ describe('UpgradeScreen', () => {
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      ;(findByType(tree!.root, 'PricingFooter').props.onCheckout as (i: string) => void)('monthly')
+      ;(findByType(tree!.root, 'PricingSection').props.onCheckout as (i: string) => void)('monthly')
       await Promise.resolve()
     })
-    expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBe('monthly')
+    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBe('monthly')
 
     mocks.playBilling.isProcessing = true
     await TestRenderer.act(() => {
       tree!.update(<UpgradeScreen />)
     })
-    expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBe('monthly')
+    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBe('monthly')
 
     mocks.playBilling.isProcessing = false
     await TestRenderer.act(() => {
       tree!.update(<UpgradeScreen />)
     })
-    expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBeNull()
+    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBeNull()
   })
 })

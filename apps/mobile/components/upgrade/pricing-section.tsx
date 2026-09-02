@@ -1,44 +1,17 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import {
-  AlertTriangle,
-  BarChart3,
-  Flame,
-  MessageSquare,
-  Palette,
-  ShieldCheck,
-  Tag,
-} from '@/components/ui/icons'
-import {
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
-} from '@orbit/shared/utils/upgrade'
-import type { UpgradeIconKey } from '@orbit/shared/utils/upgrade'
+import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { PlanComparisonCards } from './plan-comparison-cards'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 
-const iconByKey: Record<UpgradeIconKey, typeof Flame> = {
-  flame: Flame,
-  messageSquare: MessageSquare,
-  palette: Palette,
-  shieldCheck: ShieldCheck,
-  barChart3: BarChart3,
-}
-
-const MARQUEE = [...UPGRADE_PRO_FEATURES, ...UPGRADE_YEARLY_EXTRA_FEATURES]
-
-function sectionEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(index * 40)
-    .reduceMotion(ReduceMotion.System)
-}
+const OUTCOMES = [
+  { key: 'calendar', Icon: Calendar },
+  { key: 'retrospective', Icon: FileText },
+  { key: 'noticing', Icon: Eye },
+] as const
 
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section aggregator: each boolean is an independent upgrade-screen UI-state flag (plans loading/error, online, ...) owned by the upgrade screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function PricingSection({
@@ -51,10 +24,14 @@ export function PricingSection({
   selectedInterval,
   onSelectInterval,
   onStayFree,
+  monthlyOffer,
   yearlyOffer,
   monthlyDisplayPrice,
   yearlyDisplayPrice,
-  isReferralPricing,
+  checkoutLoading,
+  checkoutError,
+  checkoutDisabled,
+  onCheckout,
   isRestoring,
   onRestore,
   onRetryPlans,
@@ -70,10 +47,14 @@ export function PricingSection({
   selectedInterval: SubscriptionInterval
   onSelectInterval: (interval: SubscriptionInterval) => void
   onStayFree: () => void
+  monthlyOffer: PlayOffer | null
   yearlyOffer: PlayOffer | null
   monthlyDisplayPrice?: string
   yearlyDisplayPrice?: string
-  isReferralPricing: boolean
+  checkoutLoading: SubscriptionInterval | null
+  checkoutError: string
+  checkoutDisabled: boolean
+  onCheckout: (interval: SubscriptionInterval) => void
   isRestoring: boolean
   onRestore: () => void
   onRetryPlans: () => void
@@ -84,7 +65,7 @@ export function PricingSection({
   const trialEyebrow =
     trialDaysLeft === null
       ? t('upgrade.convert.trialEyebrow')
-      : trialDaysLeft === 0
+      : trialDaysLeft <= 1
       ? t('upgrade.convert.trialLastDay')
       : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
   const eyebrow = trialActive ? trialEyebrow : t('upgrade.convert.freeEyebrow')
@@ -92,88 +73,75 @@ export function PricingSection({
 
   return (
     <>
-      <Animated.View entering={sectionEntrance(0)}>
-        <Text style={[styles.convertEyebrow, { color: tokens.primarySoft }]}>{eyebrow}</Text>
-        <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
+      <View style={styles.convertHeader}>
+        <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
+        <Text accessibilityRole="header" style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
         {!trialActive ? (
           <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
         ) : null}
-      </Animated.View>
+      </View>
 
-      {isLoadingPlans ? (
-        <View style={{ marginTop: 18 }}>
-          {[0, 1].map((index) => (
-            <Skeleton key={index} variant="stat-tile" label={t('common.loading')} />
-          ))}
+      <View style={styles.allowanceSection}>
+        <View
+          style={[
+            styles.allowanceCard,
+            { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+          ]}
+        >
+          <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.allowanceDivider, { backgroundColor: tokens.hairline }]} />
+          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
         </View>
-      ) : null}
+        <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
+      </View>
 
-      {isPlansError && !plans && !isLoadingPlans && isOnline ? (
-        <View style={styles.padBlock}>
-          <AlertTriangle size={26} strokeWidth={1.8} color={tokens.fg3} />
-          <Text style={[styles.noticeText, { color: tokens.fg2 }]}>{t('upgrade.plans.error')}</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onRetryPlans}
-            hitSlop={{ top: 6, bottom: 6 }}
-            style={({ pressed }) => [
-              styles.actionChip,
-              { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
-              pressed ? styles.pressedScale : null,
-            ]}
-          >
-            <Text style={[styles.link, { color: tokens.fg1 }]}>{t('upgrade.plans.retry')}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <View accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
+        {OUTCOMES.map(({ key, Icon }) => (
+          <View key={key} style={styles.outcomeRow}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.outcomeIcon}
+            >
+              <Icon size={20} strokeWidth={1.8} color={tokens.fg3} />
+            </View>
+            <View style={styles.outcomeCopy}>
+              <Text accessibilityRole="header" style={[styles.outcomeTitle, { color: tokens.fg1 }]}>
+                {t(`upgrade.outcomes.${key}.title`)}
+              </Text>
+              <Text style={[styles.outcomeBody, { color: tokens.fg3 }]}>
+                {t(`upgrade.outcomes.${key}.body`)}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View>
+        <PlanSelection
+          plans={plans}
+          isLoading={isLoadingPlans}
+          isError={isPlansError}
+          isOnline={isOnline}
+          monthlyOffer={monthlyOffer}
+          yearlyOffer={yearlyOffer}
+          monthlyPrice={monthlyDisplayPrice}
+          yearlyPrice={yearlyDisplayPrice}
+          selectedInterval={selectedInterval}
+          checkoutLoading={checkoutLoading}
+          checkoutError={checkoutError}
+          checkoutDisabled={checkoutDisabled}
+          onSelectInterval={onSelectInterval}
+          onCheckout={onCheckout}
+          onRetry={onRetryPlans}
+          t={t}
+          tokens={tokens}
+        />
+      </View>
 
       {plans ? (
         <>
-          <Animated.View entering={sectionEntrance(1)}>
-            <PlanSelection
-              plans={plans}
-              yearlyOffer={yearlyOffer}
-              monthlyPrice={monthlyDisplayPrice}
-              yearlyPrice={yearlyDisplayPrice}
-              selectedInterval={selectedInterval}
-              onSelectInterval={onSelectInterval}
-              onStayFree={onStayFree}
-              t={t}
-              tokens={tokens}
-            />
-          </Animated.View>
-
-          {isReferralPricing ? (
-            <View style={[styles.couponRow, { alignSelf: 'center', marginTop: 2 }]}>
-              <Tag size={13} strokeWidth={1.8} color={tokens.statusDone} />
-              <Text style={[styles.couponNote, { color: tokens.statusDone }]}>
-                {t('upgrade.plans.coupon.appliedNote')}
-              </Text>
-            </View>
-          ) : null}
-
-          <Animated.View style={styles.marqueePad} entering={sectionEntrance(2)}>
-            {MARQUEE.map((feature) => {
-              const Icon = iconByKey[feature.iconKey]
-              return (
-                <View key={feature.key} style={styles.marqueeRow}>
-                  <View style={styles.marqueeIcon}>
-                    <Icon size={20} strokeWidth={1.8} color={tokens.primary} />
-                  </View>
-                  <Text style={[styles.marqueeText, { color: tokens.fg1 }]}>
-                    {t(`upgrade.plans.proFeatures.${feature.key}`)}
-                  </Text>
-                  {feature.key === 'retrospective' ? (
-                    <Badge >{t('upgrade.matrix.yearlyTag')}</Badge>
-                  ) : null}
-                </View>
-              )
-            })}
-          </Animated.View>
-
-          <PlanComparisonCards t={t} tokens={tokens} />
-
           <Pressable
             accessibilityRole="button"
             onPress={onRestore}
@@ -181,8 +149,7 @@ export function PricingSection({
             accessibilityState={{ disabled: isRestoring || !isOnline }}
             hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [
-              styles.actionChip,
-              { alignSelf: 'center', marginTop: 20, backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
+              styles.restoreAction,
               pressed ? styles.pressedScale : null,
             ]}
           >
@@ -192,8 +159,52 @@ export function PricingSection({
               <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
             )}
           </Pressable>
+          <View style={styles.reassurance}>
+            <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
+              {t('upgrade.convert.cancelAnytime')}
+            </Text>
+            <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
+              {t('upgrade.plans.renewalNote')}
+            </Text>
+            <Text style={[styles.handoffNote, { color: tokens.fg3 }]}>
+              {t('upgrade.convert.handOff')}
+            </Text>
+            <Pressable
+              accessibilityRole="link"
+              onPress={onStayFree}
+              disabled={checkoutLoading !== null}
+              accessibilityState={{ disabled: checkoutLoading !== null }}
+              style={({ pressed }) => [styles.freeLink, pressed ? styles.pressedScale : null]}
+            >
+              <Text style={[styles.freeLinkText, { color: tokens.fg1 }]}>
+                {t('upgrade.convert.stayFree')}
+              </Text>
+            </Pressable>
+          </View>
         </>
       ) : null}
     </>
+  )
+}
+
+function Allowance({
+  amount,
+  label,
+  perDay,
+  color,
+  mutedColor,
+}: Readonly<{
+  amount: string
+  label: string
+  perDay: string
+  color: string
+  mutedColor: string
+}>) {
+  return (
+    <View style={styles.allowanceColumn}>
+      <Text style={[styles.allowanceLabel, { color: mutedColor }]}>{label}</Text>
+      <Text style={[styles.allowanceAmount, { color }]}>{amount}</Text>
+      <Text style={[styles.allowancePerDay, { color: mutedColor }]}>{perDay}</Text>
+    </View>
   )
 }

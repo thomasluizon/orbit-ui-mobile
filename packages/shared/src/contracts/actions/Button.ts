@@ -22,6 +22,8 @@ interface ButtonBase {
 /** The ordinary button: its visible text is its accessible name. */
 export interface LabelledButtonProps extends ButtonBase {
   children: string
+  /** Optional fuller name when nearby context is not part of the control's accessible name. */
+  accessibleName?: string
   iconOnly?: never
   label?: never
 }
@@ -31,6 +33,7 @@ export interface IconOnlyButtonProps extends ButtonBase {
   children: ReactNode
   iconOnly: true
   label: string
+  accessibleName?: never
 }
 
 /** Discriminated on `iconOnly`: a nameless icon-only button does not compile. */
