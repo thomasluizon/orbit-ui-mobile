@@ -1,5 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
@@ -12,10 +13,12 @@ const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
   composer: {
     flatListRef: { current: null },
-    messages: [],
+    messages: [] as ChatMessage[],
     isTyping: false,
-    streamingMessageId: null,
+    streamingMessageId: null as string | null,
     sendError: null as string | null,
+    canRetryLastSend: false,
+    retryLastSend: vi.fn(),
     speechError: null as string | null,
     composerProps: {
       words: {
@@ -69,13 +72,19 @@ vi.mock('@/components/shell/composer', () => ({
     React.createElement('Composer', props, props.limitRecovery),
 }))
 vi.mock('@/components/chat/chat-empty-state', () => ({
-  ChatEmptyState: React.forwardRef(() => React.createElement('ChatEmptyState')),
+  ChatEmptyState: React.forwardRef((props) => React.createElement('ChatEmptyState', props)),
 }))
-vi.mock('@/components/message-bubble', () => ({ MessageBubble: () => null }))
+vi.mock('@/components/message-bubble', () => ({
+  MessageBubble: (props: Record<string, unknown>) => React.createElement('MessageBubble', props),
+}))
 vi.mock('@/components/chat/typing-indicator', () => ({ TypingIndicator: () => null }))
-vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({
+  GoalDetailDrawer: (props: Record<string, unknown>) => React.createElement('GoalDetailDrawer', props),
+}))
 vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
-vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('@/components/ui/app-bar', () => ({
+  AppBar: (props: Record<string, unknown>) => React.createElement('AppBar', props),
+}))
 vi.mock('@/components/ui/astra-avatar', () => ({ AstraMark: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
 vi.mock('@/components/ui/pill-button', () => ({
@@ -91,7 +100,14 @@ vi.mock('@/components/ui/pill-button', () => ({
     ),
 }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareFlatList: () => null,
+  KeyboardAwareFlatList: (props: {
+    data: ChatMessage[]
+    renderItem: (entry: { item: ChatMessage }) => React.ReactNode
+  }) => React.createElement(
+    'KeyboardAwareFlatList',
+    props,
+    props.data.map((item) => React.createElement(React.Fragment, { key: item.id }, props.renderItem({ item }))),
+  ),
 }))
 vi.mock('@/components/chat/conversation.styles', () => ({
   createStyles: () => new Proxy({}, { get: () => ({}) }),
@@ -132,11 +148,29 @@ function press(node: TestNode | undefined) {
   node.props.onPress()
 }
 
+function findByType(root: TestNode, type: string): TestNode | undefined {
+  return root.findAll((node) => node.type === type)[0]
+}
+
+function nodeText(node: unknown): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(nodeText).join(' ')
+  if (typeof node === 'object' && 'props' in node) {
+    return nodeText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
 describe('ChatScreen composer recoveries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.composer.sendError = null
+    mocks.composer.canRetryLastSend = false
+    mocks.composer.messages = []
+    mocks.composer.showSuggestions = true
     mocks.composer.speechError = null
+    mocks.composer.streamingMessageId = null
   })
 
   it('keeps the at-limit composer free of rewarded recovery', async () => {
@@ -165,6 +199,88 @@ describe('ChatScreen composer recoveries', () => {
     const tree = await renderScreen()
 
     expect(findByLabel(tree.root, 'common.openSettings')).toBeUndefined()
+  })
+
+  it('sends the selected empty-state suggestion', async () => {
+    const tree = await renderScreen()
+    const emptyState = findByType(tree.root, 'ChatEmptyState')
+
+    TestRenderer.act(() => {
+      const selectSuggestion = emptyState?.props.onSelectSuggestion as ((value: string) => void)
+      selectSuggestion('Plan my morning')
+    })
+
+    expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Plan my morning')
+  })
+
+  it('renders the feed and routes goal and habit actions', async () => {
+    mocks.composer.showSuggestions = false
+    mocks.composer.streamingMessageId = 'message-1'
+    mocks.composer.messages = [{
+      id: 'message-1',
+      role: 'ai',
+      content: 'Choose an action',
+      timestamp: new Date('2026-09-02T08:00:00Z'),
+    }]
+    const tree = await renderScreen()
+    const bubble = findByType(tree.root, 'MessageBubble')
+
+    expect(bubble?.props.animateEntry).toBe(false)
+    expect(bubble?.props.isStreaming).toBe(true)
+    TestRenderer.act(() => {
+      const selectAction = bubble?.props.onActionChipClick as ((id: string, type: string) => void)
+      selectAction('goal-1', 'CreateGoal')
+    })
+
+    const goalDrawer = findByType(tree.root, 'GoalDetailDrawer')
+    expect(goalDrawer?.props).toMatchObject({ goalId: 'goal-1', open: true })
+    TestRenderer.act(() => {
+      const closeDrawer = goalDrawer?.props.onClose as (() => void)
+      closeDrawer()
+    })
+    expect(findByType(tree.root, 'GoalDetailDrawer')?.props.open).toBe(false)
+
+    TestRenderer.act(() => {
+      const selectAction = bubble?.props.onActionChipClick as ((id: string, type: string) => void)
+      selectAction('habit-1', 'LogHabit')
+    })
+    expect(mocks.router.push).toHaveBeenCalledWith({
+      pathname: '/habits/[id]',
+      params: { id: 'habit-1' },
+    })
+
+    const feed = findByType(tree.root, 'KeyboardAwareFlatList')
+    expect(feed?.props.accessibilityState).toEqual({ busy: false })
+    TestRenderer.act(() => {
+      const contentChanged = feed?.props.onContentSizeChange as (() => void)
+      contentChanged()
+    })
+    expect(mocks.composer.scrollToBottom).toHaveBeenCalledOnce()
+  })
+
+  it('retries a failed send inline', async () => {
+    mocks.composer.sendError = 'chat.sendError'
+    mocks.composer.canRetryLastSend = true
+    const tree = await renderScreen()
+    const retry = tree.root.findAll((node) =>
+      typeof node.props.onPress === 'function' && nodeText(node).includes('shell.composer.retry'),
+    )[0]
+
+    TestRenderer.act(() => press(retry))
+
+    expect(mocks.composer.retryLastSend).toHaveBeenCalledOnce()
+  })
+
+  it('closes from the conversation header', async () => {
+    const tree = await renderScreen()
+    const appBar = findByType(tree.root, 'AppBar')
+
+    TestRenderer.act(() => {
+      const close = appBar?.props.onBack as (() => void)
+      close()
+    })
+
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
   })
 
   afterEach(async () => {
