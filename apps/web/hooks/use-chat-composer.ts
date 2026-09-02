@@ -56,6 +56,7 @@ interface AttemptedSend {
   preview: string | null
   restoreDraftOnFailure: boolean
   clearDraftOnSuccess: boolean
+  restoredDraftRevision: number | null
 }
 
 interface StreamSendFailure {
@@ -262,11 +263,14 @@ export function useChatComposer() {
     draftMessageId: string | null,
   ) => {
     setIsTyping(false)
-    const failedAttempt = attempted.restoreDraftOnFailure
-      ? { ...attempted, restoreDraftOnFailure: false }
-      : attempted
+    let failedAttempt = attempted
     if (attempted.restoreDraftOnFailure) {
       setInput(attempted.draftContent)
+      failedAttempt = {
+        ...attempted,
+        restoreDraftOnFailure: false,
+        restoredDraftRevision: useChatStore.getState().draftRevision,
+      }
     }
     const resolvedError = failureInput.error.trim() || t('chat.sendError')
     const failure = classifySendFailure({
@@ -569,6 +573,7 @@ export function useChatComposer() {
         preview: imagePreview,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
+        restoredDraftRevision: null,
       }
 
       setInput('')
@@ -599,7 +604,8 @@ export function useChatComposer() {
     if (
       succeeded &&
       attempted.clearDraftOnSuccess &&
-      useChatStore.getState().draft === attempted.draftContent
+      attempted.restoredDraftRevision !== null &&
+      useChatStore.getState().draftRevision === attempted.restoredDraftRevision
     ) {
       setInput('')
       globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)

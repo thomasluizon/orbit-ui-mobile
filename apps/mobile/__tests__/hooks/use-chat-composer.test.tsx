@@ -510,6 +510,94 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.value).toBe('')
   })
 
+  it('keeps a same-valued newer edit while a successful retry finishes invalidating', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse({
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      }))))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    TestRenderer.act(() => {
+      retryPromise = composer.current.retryLastSend()
+    })
+    await vi.waitFor(() => expect(composer.current.isSending).toBe(false))
+    TestRenderer.act(() => composer.current.setInput('log water'))
+
+    await TestRenderer.act(async () => {
+      resolveInvalidations()
+      await retryPromise
+    })
+
+    expect(composer.current.composerProps.value).toBe('log water')
+  })
+
+  it('keeps a same-valued draft restored by a fast repeat send failure', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse({
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      }))))
+      .mockResolvedValueOnce(sseStreamResponse(
+        frame('{"type":"error","status":500,"error":"boom again"}'),
+      ))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    TestRenderer.act(() => {
+      retryPromise = composer.current.retryLastSend()
+    })
+    await vi.waitFor(() => expect(composer.current.isSending).toBe(false))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+    expect(composer.current.composerProps.value).toBe('log water')
+
+    await TestRenderer.act(async () => {
+      resolveInvalidations()
+      await retryPromise
+    })
+
+    expect(composer.current.composerProps.value).toBe('log water')
+  })
+
   it('keeps a newer draft edit when an in-flight retry fails', async () => {
     const retryStream = controlledSseStreamResponse()
     mocks.openChatStream

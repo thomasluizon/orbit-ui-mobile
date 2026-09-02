@@ -392,6 +392,94 @@ describe('web useChatComposer streaming send', () => {
     expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
   })
 
+  it('keeps a same-valued newer edit while a successful retry finishes invalidating', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.fetch
+      .mockResolvedValueOnce(sseResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      }))))
+    const { result } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('log water'))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    act(() => {
+      retryPromise = result.current.retryLastSend()
+    })
+    await waitFor(() => expect(result.current.isSending).toBe(false))
+    act(() => result.current.setInput('log water'))
+
+    await act(async () => {
+      resolveInvalidations()
+      await retryPromise
+    })
+
+    expect(result.current.composerProps.value).toBe('log water')
+  })
+
+  it('keeps a same-valued draft restored by a fast repeat send failure', async () => {
+    let resolveInvalidations!: () => void
+    const invalidations = new Promise<void>((resolve) => {
+      resolveInvalidations = resolve
+    })
+    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.fetch
+      .mockResolvedValueOnce(sseResponse(
+        frame('{"type":"error","status":500,"error":"boom"}'),
+      ))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({
+        operations: [{
+          operationId: 'operation-1',
+          sourceName: 'CreateHabit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          status: 'Succeeded',
+        }],
+      }))))
+      .mockResolvedValueOnce(sseResponse(
+        frame('{"type":"error","status":500,"error":"boom again"}'),
+      ))
+    const { result } = renderHook(() => useChatComposer())
+
+    act(() => result.current.setInput('log water'))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    let retryPromise!: Promise<void>
+    act(() => {
+      retryPromise = result.current.retryLastSend()
+    })
+    await waitFor(() => expect(result.current.isSending).toBe(false))
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+    expect(result.current.composerProps.value).toBe('log water')
+
+    await act(async () => {
+      resolveInvalidations()
+      await retryPromise
+    })
+
+    expect(result.current.composerProps.value).toBe('log water')
+  })
+
   it('keeps a newer draft edit when an in-flight retry fails', async () => {
     const retryStream = controlledSseResponse()
     mocks.fetch
