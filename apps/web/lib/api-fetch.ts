@@ -20,6 +20,10 @@ import type { ZodType } from 'zod'
 
 type TranslateFn = (key: string) => string
 
+export interface ApiFetchBehavior {
+  handlesError?: boolean
+}
+
 let _translate: TranslateFn | null = null
 
 /**
@@ -63,6 +67,25 @@ export class ApiError extends Error {
     this.status = status
     this.data = data
   }
+}
+
+const reportedApiErrors = new WeakSet<ApiError>()
+
+export function reportApiError(error: unknown): void {
+  if (!(error instanceof ApiError) || reportedApiErrors.has(error)) return
+  if (error.status === 401 || error.status === 426) return
+  if (
+    error.status === 403 &&
+    extractBackendErrorCode({ data: error.data }) === 'PAY_GATE'
+  ) {
+    return
+  }
+
+  reportedApiErrors.add(error)
+  toast.error(getToastTitle(error.status), {
+    description: extractBackendError({ data: error.data }) || undefined,
+    duration: 5000,
+  })
 }
 
 async function getStatusError(
@@ -110,6 +133,7 @@ export async function apiFetch<T>(
   url: string,
   options?: RequestInit,
   schema?: ZodType<T>,
+  behavior?: ApiFetchBehavior,
 ): Promise<T> {
   const headers = new Headers(options?.headers)
   for (const [key, value] of Object.entries(buildClientTimeZoneHeaders())) {
@@ -131,15 +155,11 @@ export async function apiFetch<T>(
     }
 
     const backendMsg = extractBackendError({ data: body })
+    const error = new ApiError(status, backendMsg || getToastTitle(status), body)
 
-    const title = getToastTitle(status)
+    if (!behavior?.handlesError) reportApiError(error)
 
-    toast.error(title, {
-      description: backendMsg || undefined,
-      duration: 5000,
-    })
-
-    throw new ApiError(status, backendMsg || title, body)
+    throw error
   }
 
   return validateApiResponse(await res.json(), schema, url)
@@ -149,6 +169,10 @@ export async function apiFetch<T>(
  * Convenience wrapper for GET requests matching the old fetchJson pattern. An optional Zod
  * `schema` is forwarded to {@link apiFetch} to validate the response at the trust boundary.
  */
-export function fetchJson<T>(url: string, schema?: ZodType<T>): Promise<T> {
-  return apiFetch<T>(url, undefined, schema)
+export function fetchJson<T>(
+  url: string,
+  schema?: ZodType<T>,
+  behavior?: ApiFetchBehavior,
+): Promise<T> {
+  return apiFetch<T>(url, undefined, schema, behavior)
 }

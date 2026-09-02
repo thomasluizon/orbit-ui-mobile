@@ -11,7 +11,12 @@ import {
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
-export function useSubscriptionPlans() {
+interface SubscriptionPlansQueryOptions {
+  enabled?: boolean
+  handlesError?: boolean
+}
+
+export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}) {
   const plansUrl = (() => {
     const timeZone = getClientTimeZone()
     return timeZone
@@ -22,6 +27,7 @@ export function useSubscriptionPlans() {
   const query = useQuery({
     queryKey: subscriptionKeys.plans(),
     queryFn: () => apiClient<SubscriptionPlans>(plansUrl),
+    enabled: options.enabled,
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
     refetchOnMount: 'always',
   })

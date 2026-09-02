@@ -23490,6 +23490,7 @@
         "apps/mobile/__tests__/hooks/use-onboarding-flush.test.tsx",
         "apps/mobile/__tests__/hooks/use-reschedule-suggestion.test.ts",
         "apps/mobile/__tests__/hooks/use-resolve-clarification.test.tsx",
+        "apps/mobile/__tests__/hooks/use-subscription-plans.test.tsx",
         "apps/mobile/__tests__/hooks/use-tags-restore.test.ts",
         "apps/mobile/__tests__/hooks/use-tags.test.ts",
         "apps/mobile/__tests__/hooks/use-timezone-auto-sync.test.tsx",

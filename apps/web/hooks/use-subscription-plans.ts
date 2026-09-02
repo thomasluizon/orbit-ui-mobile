@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { subscriptionKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -11,9 +11,14 @@ import {
   getClientTimeZone,
   monthlyEquivalent,
 } from '@orbit/shared/utils'
-import { fetchJson } from '@/lib/api-fetch'
+import { fetchJson, reportApiError } from '@/lib/api-fetch'
 
-export function useSubscriptionPlans() {
+interface SubscriptionPlansQueryOptions {
+  enabled?: boolean
+  handlesError?: boolean
+}
+
+export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}) {
   const plansUrl = (() => {
     const timeZone = getClientTimeZone()
     return timeZone
@@ -23,10 +28,19 @@ export function useSubscriptionPlans() {
 
   const query = useQuery({
     queryKey: subscriptionKeys.plans(),
-    queryFn: () => fetchJson<SubscriptionPlans>(plansUrl),
+    queryFn: () => fetchJson<SubscriptionPlans>(plansUrl, undefined, {
+      handlesError: true,
+    }),
+    enabled: options.enabled,
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
     refetchOnMount: 'always',
   })
+
+  useEffect(() => {
+    if (!options.handlesError && query.error && query.isFetchedAfterMount) {
+      reportApiError(query.error)
+    }
+  }, [options.handlesError, query.error, query.isFetchedAfterMount])
 
   const plans = query.data ?? null
 
