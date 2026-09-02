@@ -136,6 +136,22 @@ export interface HabitFormProposal {
   subHabitItems: number
 }
 
+export interface HabitFormSuggestionRevision {
+  advance: () => number
+  isCurrent: (revision: number) => boolean
+}
+
+export function createHabitFormSuggestionRevision(): HabitFormSuggestionRevision {
+  let currentRevision = 0
+  return {
+    advance: () => {
+      currentRevision += 1
+      return currentRevision
+    },
+    isCurrent: (revision) => revision === currentRevision,
+  }
+}
+
 export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   formHelpers: FormHelpers
   tags: TagState
@@ -146,11 +162,12 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
+  onSuggestionContextChange?: () => void
   onResolveSubHabitProposalReady?: (resolve: () => void) => void
   defaultExpanded?: boolean
   lockedGeneral?: boolean | null
   expandAdvancedSignal?: number
-  onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
+  onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
   isSuggesting?: boolean
   readPhraseLocally?: boolean
   startDate?: string | null
@@ -216,7 +233,7 @@ export function habitFeaturePlan(hasProAccess: boolean): 'pro' | 'free' {
 export async function requestHabitFormProposal(
   action: HabitFormCommonProps<unknown, unknown, unknown>['onSuggestSetup'],
   atLimit: boolean,
-): Promise<HabitFormProposal> {
+): Promise<HabitFormProposal | null> {
   if (!action || atLimit) return EMPTY_HABIT_FORM_PROPOSAL
   return action()
 }
@@ -278,6 +295,7 @@ export interface HabitFormControllerOptions {
   lockedGeneral: boolean | null
   onReminderEnabledChange?: (enabled: boolean) => void
   onSlipAlertEnabledChange?: (enabled: boolean) => void
+  onSuggestionContextChange?: () => void
   target: HabitFormControllerTarget
 }
 
@@ -306,6 +324,7 @@ export function createHabitFormController({
   lockedGeneral,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
+  onSuggestionContextChange,
   target,
 }: HabitFormControllerOptions): HabitFormController {
   const resolveSection = (section: 'setup' | 'checklist' | 'subHabits') => {
@@ -318,6 +337,7 @@ export function createHabitFormController({
   return {
     askAstra: async (): Promise<void> => {
       const proposal = await requestHabitFormProposal(action, atLimit)
+      if (!proposal) return
       if (proposal.setup) target.setOwnership({ cadence: false, dueTime: false })
       target.updateProposal(() => proposal)
     },
@@ -357,6 +377,7 @@ export function createHabitFormController({
       else target.setField('slipAlertEnabled', enabled)
     },
     setTitle: (title: string): void => {
+      onSuggestionContextChange?.()
       target.updateProposal(() => EMPTY_HABIT_FORM_PROPOSAL)
       target.setField('title', title, true)
     },

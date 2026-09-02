@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
@@ -30,6 +30,7 @@ import {
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
@@ -132,6 +133,11 @@ export function CreateHabitModal({
       dueDate: initialDate ?? formatAPIDate(new Date()),
     },
   })
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
+  const suggestionSessionId = open ? (parentHabit?.id ?? 'root') : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [suggestionRevision, suggestionSessionId])
 
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
@@ -372,10 +378,13 @@ export function CreateHabitModal({
     flushBufferedInputsRef.current()
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
     if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+    const requestRevision = suggestionRevision.advance()
 
     try {
+      const response = await suggestion.mutateAsync({ title, language: i18n.language })
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: i18n.language }),
+        response,
       )
 
       const appliedSetup = applySuggestionSchedule(patch, formHelpers)
@@ -416,6 +425,7 @@ export function CreateHabitModal({
       }
       return proposal
     } catch (error: unknown) {
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
@@ -423,7 +433,7 @@ export function CreateHabitModal({
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     }
-  }, [canUseSubHabits, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, t])
+  }, [canUseSubHabits, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRevision, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
@@ -469,6 +479,7 @@ export function CreateHabitModal({
             reminderTimes={reminderTimes}
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
+            onSuggestionContextChange={suggestionRevision.advance}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
             onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             expandAdvancedSignal={expandAdvancedSignal}

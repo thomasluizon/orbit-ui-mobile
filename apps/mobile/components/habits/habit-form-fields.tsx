@@ -188,6 +188,7 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
+  onSuggestionContextChange,
   onFlushBufferedInputsReady,
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
@@ -281,6 +282,7 @@ export function HabitFormFields({
     () => createHabitFormController({
       onSlipAlertEnabledChange,
       onReminderEnabledChange,
+      onSuggestionContextChange,
       lockedGeneral,
       atLimit: atMessageLimit,
       action: onSuggestSetup,
@@ -299,7 +301,7 @@ export function HabitFormFields({
         },
       },
     }),
-    [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
+    [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
   )
 
   useEffect(() => {

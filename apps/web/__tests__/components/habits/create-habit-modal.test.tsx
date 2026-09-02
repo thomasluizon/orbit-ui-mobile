@@ -26,7 +26,8 @@ const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
 ))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockHabitFormFieldsState = vi.hoisted(() => ({
-  onSuggestSetup: undefined as undefined | (() => HabitFormProposal | Promise<HabitFormProposal>),
+  onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
+  onSuggestionContextChange: undefined as undefined | (() => void),
 }))
 
 vi.mock('next-intl', () => ({
@@ -158,13 +159,16 @@ vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestionContextChange,
     onToggleGoal,
   }: {
     children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
-    onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
+    onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestionContextChange?: () => void
     onToggleGoal: (goalId: string) => void
   }) => {
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
     return (
       <div data-testid="habit-form-fields">
         {onSuggestSetup && (
@@ -185,13 +189,16 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestionContextChange,
     onToggleGoal,
   }: {
     children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
-    onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
+    onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestionContextChange?: () => void
     onToggleGoal: (goalId: string) => void
   }) => {
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
     return (
       <div data-testid="habit-form-fields">
         {onSuggestSetup && (
@@ -488,7 +495,7 @@ describe('CreateHabitModal', () => {
     })
 
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    let proposal: HabitFormProposal | undefined
+    let proposal: HabitFormProposal | null | undefined
     await act(async () => {
       proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
     })
@@ -525,7 +532,7 @@ describe('CreateHabitModal', () => {
     })
 
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    let proposal: HabitFormProposal | undefined
+    let proposal: HabitFormProposal | null | undefined
     await act(async () => {
       proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
     })
@@ -551,7 +558,7 @@ describe('CreateHabitModal', () => {
 
     const onSuggestSetup = mockHabitFormFieldsState.onSuggestSetup
     if (!onSuggestSetup) throw new Error('Expected the suggestion handler')
-    let proposalPromise!: Promise<HabitFormProposal>
+    let proposalPromise!: Promise<HabitFormProposal | null>
     act(() => {
       proposalPromise = Promise.resolve(onSuggestSetup())
     })
@@ -561,7 +568,7 @@ describe('CreateHabitModal', () => {
       { target: { value: 'Edited while pending' } },
     )
 
-    let proposal: HabitFormProposal | undefined
+    let proposal: HabitFormProposal | null | undefined
     await act(async () => {
       resolveSuggestion({
         emoji: null,
@@ -580,5 +587,53 @@ describe('CreateHabitModal', () => {
     expect(screen.getByDisplayValue('Edited while pending')).toBeDefined()
     expect(screen.getByDisplayValue('Suggested stretch')).toBeDefined()
     expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
+  })
+
+  it('ignores a pending Astra suggestion after the title changes', async () => {
+    let title = 'Run'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    const onSuggestSetup = mockHabitFormFieldsState.onSuggestSetup
+    if (!onSuggestSetup) throw new Error('Expected the suggestion handler')
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    act(() => {
+      proposalPromise = Promise.resolve(onSuggestSetup())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Walk'
+    act(() => mockHabitFormFieldsState.onSuggestionContextChange?.())
+
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏃',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: ['Old step'],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(screen.queryByDisplayValue('Old step')).not.toBeInTheDocument()
   })
 })

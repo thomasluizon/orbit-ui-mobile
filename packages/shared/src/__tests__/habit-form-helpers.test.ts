@@ -14,6 +14,7 @@ import {
   buildHabitUnderstandingSentence,
   clearHabitFormProposalSection,
   createHabitFormController,
+  createHabitFormSuggestionRevision,
   formatHabitReminderLabel,
   formatHabitTimeInput,
   getHabitFormFlags,
@@ -463,6 +464,38 @@ describe('habit form helpers', () => {
     const ownership = { cadence: true, dueTime: false }
     expect(releaseHabitPhraseOwnership(ownership, 'cadence')).toEqual({ cadence: false, dueTime: false })
     expect(releaseHabitPhraseOwnership(ownership, 'dueTime')).toBe(ownership)
+  })
+
+  it('keeps suggestion revisions monotonic and leaves obsolete proposal state untouched', async () => {
+    const revision = createHabitFormSuggestionRevision()
+    const requestRevision = revision.advance()
+    expect(revision.isCurrent(requestRevision)).toBe(true)
+    expect(revision.advance()).toBe(requestRevision + 1)
+    expect(revision.isCurrent(requestRevision)).toBe(false)
+
+    const updateProposal = vi.fn()
+    const setOwnership = vi.fn()
+    const controller = createHabitFormController({
+      action: async () => null,
+      atLimit: false,
+      lockedGeneral: false,
+      target: {
+        getOwnership: () => ({ cadence: true, dueTime: true }),
+        setOwnership,
+        updateProposal,
+        setOneTime: vi.fn(),
+        setRecurring: vi.fn(),
+        setFlexible: vi.fn(),
+        setGeneral: vi.fn(),
+        setField: vi.fn(),
+        toggleDay: vi.fn(),
+      },
+    })
+
+    await controller.askAstra()
+
+    expect(setOwnership).not.toHaveBeenCalled()
+    expect(updateProposal).not.toHaveBeenCalled()
   })
 
   it('coordinates form corrections and proposal ownership', async () => {

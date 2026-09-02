@@ -24,6 +24,7 @@ import {
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
   hasHabitFormProposal,
@@ -85,6 +86,7 @@ export function EditHabitModal({
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const tags = useTagSelection()
   const relationshipFieldsTouchedRef = useRef({
     goalIds: false,
@@ -169,6 +171,9 @@ export function EditHabitModal({
   }, [detailError, showError, translate])
 
   const sessionHabitId = open && habit ? habit.id : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [sessionHabitId, suggestionRevision])
   const sessionDetailId = habitDetail?.id ?? null
   const previousSessionRef = useRef<{
     habitId: string | null
@@ -311,9 +316,12 @@ export function EditHabitModal({
   const handleSuggest = useCallback(async () => {
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
     if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+    const requestRevision = suggestionRevision.advance()
     try {
+      const response = await suggestion.mutateAsync({ title, language: locale })
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: locale }),
+        response,
       )
 
       const appliedSetup = applySuggestionSchedule(patch, formHelpers)
@@ -336,6 +344,7 @@ export function EditHabitModal({
       }
       return proposal
     } catch (error: unknown) {
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
@@ -343,7 +352,7 @@ export function EditHabitModal({
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     }
-  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
+  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, suggestionRevision, t])
 
   function renderEditSheet() {
     if (!open) return null
@@ -396,6 +405,7 @@ export function EditHabitModal({
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
+              onSuggestionContextChange={suggestionRevision.advance}
               onSuggestSetup={handleSuggest}
               isSuggesting={suggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}

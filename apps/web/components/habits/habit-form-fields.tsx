@@ -182,6 +182,7 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
+  onSuggestionContextChange,
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
@@ -263,6 +264,7 @@ export function HabitFormFields({
     lockedGeneral,
     onReminderEnabledChange,
     onSlipAlertEnabledChange,
+    onSuggestionContextChange,
     target: {
       getOwnership: () => phraseOwnership,
       setOwnership: setPhraseOwnership,
@@ -278,7 +280,7 @@ export function HabitFormFields({
       ),
       toggleDay,
     },
-  }), [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay])
+  }), [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay])
 
   useEffect(() => {
     if (lastLocallyReadTitleRef.current === title) return

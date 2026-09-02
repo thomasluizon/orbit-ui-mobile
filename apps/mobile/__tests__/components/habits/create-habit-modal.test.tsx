@@ -410,6 +410,54 @@ describe('CreateHabitModal (mobile)', () => {
     expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
   })
 
+  it('ignores a pending Astra suggestion after the title changes', async () => {
+    let title = 'Run'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    TestRenderer.act(() => {
+      proposalPromise = formFields.props.onSuggestSetup()
+    })
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Walk'
+    TestRenderer.act(() => formFields.props.onSuggestionContextChange())
+
+    let proposal: HabitFormProposal | null | undefined
+    await TestRenderer.act(async () => {
+      resolveSuggestion({
+        emoji: '🏃',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: ['Old step'],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockSetValue).not.toHaveBeenCalled()
+    const editor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
+    expect(editor.props.subHabits).toEqual([])
+  })
+
   it('creates the habit and closes on a successful submit', async () => {
     const onClose = vi.fn()
     const tree = renderModal(<CreateHabitModal open onClose={onClose} />)

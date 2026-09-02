@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useId, useRef } from 'react'
+import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -29,6 +29,7 @@ import {
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
@@ -150,6 +151,11 @@ export function CreateHabitModal({
     isDirty,
     onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
+  const suggestionSessionId = open ? (parentHabit?.id ?? 'root') : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [suggestionRevision, suggestionSessionId])
   const navigateToUpgrade = useCallback(() => {
     closeSheet(() => {
       onOpenChange(false)
@@ -283,9 +289,12 @@ export function CreateHabitModal({
     async () => {
       const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
       if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+      const requestRevision = suggestionRevision.advance()
       try {
+        const response = await suggestion.mutateAsync({ title, language: locale })
+        if (!suggestionRevision.isCurrent(requestRevision)) return null
         const patch = buildHabitFormPatchFromSuggestion(
-          await suggestion.mutateAsync({ title, language: locale }),
+          response,
         )
 
         const appliedSetup = applySuggestionSchedule(patch, formHelpers)
@@ -326,6 +335,7 @@ export function CreateHabitModal({
         }
         return proposal
       } catch (error: unknown) {
+        if (!suggestionRevision.isCurrent(requestRevision)) return null
         showError(
           extractBackendErrorCode(error) === 'PAY_GATE'
             ? t('habits.form.aiSuggestLimitReached')
@@ -334,7 +344,7 @@ export function CreateHabitModal({
         return EMPTY_HABIT_FORM_PROPOSAL
       }
     },
-    [canUseSubHabits, formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, t],
+    [canUseSubHabits, formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRevision, t],
   )
 
   const isPending = createHabit.isPending || createSubHabit.isPending
@@ -400,6 +410,7 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             onReminderEnabledChange={handleReminderEnabledChange}
+            onSuggestionContextChange={suggestionRevision.advance}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
             isSuggesting={suggestion.isPending}
