@@ -12,7 +12,11 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const fraction = props.scheduled && props.done !== undefined ? Math.max(0, Math.min(1, props.done / props.scheduled)) : 0.5
-  const fill = outcome === 'full' ? tokens.fg1 : outcome === 'not-scheduled' ? tokens.bgWell : 'transparent'
+  const fill = outcome === 'full'
+    ? tokens.fg1
+    : outcome === 'not-scheduled' || outcome === 'unavailable'
+      ? tokens.bgWell
+      : 'transparent'
   const borderColor = outcome === 'future' ? tokens.hairlineStrong : outcome === 'none' ? tokens.fg4 : 'transparent'
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 

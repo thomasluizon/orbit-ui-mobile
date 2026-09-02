@@ -208,10 +208,6 @@ vi.mock('@/components/habits/habit-row', () => ({
   ),
 }))
 
-vi.mock('@/components/habits/habit-detail-drawer', () => ({
-  HabitDetailDrawer: () => null,
-}))
-
 vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: () => null,
 }))

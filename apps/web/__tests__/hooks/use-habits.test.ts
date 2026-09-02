@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+import type { HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -128,6 +128,15 @@ function makeScheduleChild(overrides: Partial<HabitScheduleChild> = {}): HabitSc
     isLoggedInRange: false,
     instances: [{ date: '2025-01-15', status: 'Pending', logId: null }],
     searchMatches: null,
+    ...overrides,
+  }
+}
+
+function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
+  const habit = makeScheduleItem()
+  return {
+    ...habit,
+    children: [],
     ...overrides,
   }
 }
@@ -343,7 +352,9 @@ describe('useLogHabit', () => {
       currentStreak: 1,
     })
 
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
@@ -356,6 +367,8 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', {
       date: '2025-01-15',
     })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
   })
 
   it('optimistically completes before query cancellation resolves', async () => {
@@ -559,6 +572,26 @@ describe('useDeleteHabit', () => {
     })
 
     await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1'))
+  })
+
+  it('removes a deleted child from the mounted parent detail tree', async () => {
+    const { deleteHabit } = await import('@/app/actions/habits')
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.detail('parent-1'), makeDetail({
+      id: 'parent-1',
+      children: [makeScheduleChild({ id: 'child-1' })],
+    }))
+    const { result } = renderHook(() => useDeleteHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync('child-1')
+    })
+
+    expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail('parent-1'))?.children)
+      .toEqual([])
   })
 })
 
@@ -1202,7 +1235,9 @@ describe('useCreateSubHabit', () => {
     const mockedCreateSubHabit = vi.mocked(createSubHabit)
     mockedCreateSubHabit.mockResolvedValue(undefined)
 
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.detail('h-1'), makeDetail({ id: 'h-1' }))
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useCreateSubHabit(), { wrapper })
 
     await act(async () => {
@@ -1213,6 +1248,8 @@ describe('useCreateSubHabit', () => {
     })
 
     expect(mockedCreateSubHabit).toHaveBeenCalledWith('h-1', { title: 'Warmup' })
+    expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail('h-1'))?.children[0])
+      .toMatchObject({ title: 'Warmup' })
   })
 })
 

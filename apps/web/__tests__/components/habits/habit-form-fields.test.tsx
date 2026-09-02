@@ -1485,7 +1485,51 @@ describe('HabitFormFields', () => {
     )
     expect(screen.queryByText('common.proBadge')).not.toBeInTheDocument()
     expect(screen.getByText('habits.form.slipAlertDescription')).toBeDefined()
-    expect(screen.getByRole('switch', { name: 'habits.form.slipAlert' })).toBeDefined()
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.slipAlert' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith(
+      'slipAlertEnabled',
+      true,
+      { shouldDirty: true },
+    )
+  })
+
+  it('reports a slip alert toggle to the edit relationship authority', () => {
+    mockHasProAccess = true
+    const onSlipAlertEnabledChange = vi.fn()
+    const formHelpers = createMockFormHelpers({ isGeneral: false })
+    formHelpers.form.watch = vi.fn((field: string) => {
+      const defaults: Record<string, unknown> = {
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: '',
+        dueEndTime: '',
+        endDate: '',
+        isBadHabit: true,
+        reminderEnabled: false,
+        slipAlertEnabled: false,
+        checklistItems: [],
+        scheduledReminders: [],
+      }
+      return defaults[field] ?? ''
+    }) as unknown as typeof formHelpers.form.watch
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSlipAlertEnabledChange={onSlipAlertEnabledChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.slipAlert' }))
+
+    expect(onSlipAlertEnabledChange).toHaveBeenCalledWith(true)
   })
 
 

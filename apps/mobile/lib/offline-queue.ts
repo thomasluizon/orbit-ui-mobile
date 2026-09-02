@@ -203,6 +203,20 @@ export function findUnfinalizedFirstWrite(
   ) ?? null
 }
 
+export function waitForFirstWriteFinalization(
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): Promise<void> {
+  if (!findUnfinalizedFirstWrite(mutation)) return Promise.resolve()
+
+  return new Promise((resolve) => {
+    const unsubscribe = subscribeQueueCount(() => {
+      if (findUnfinalizedFirstWrite(mutation)) return
+      unsubscribe()
+      resolve()
+    })
+  })
+}
+
 function mergePayload(existing: unknown, incoming: unknown): unknown {
   if (
     existing &&

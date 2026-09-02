@@ -4,6 +4,7 @@ import {
   computeParentSettlementDecision,
   computeParentPromptProgress,
 } from '../utils/habit-list-progress'
+import { rebaseSelectedIds } from '../utils/habits'
 import { createMockHabit } from './factories'
 import type { NormalizedHabit } from '../types/habit'
 
@@ -83,6 +84,16 @@ function makeGetChildren(
 }
 
 const scheduledToday = (habit: NormalizedHabit) => habit.scheduledDates.includes(TODAY)
+
+describe('rebaseSelectedIds', () => {
+  it('replays additions and removals onto authoritative selections', () => {
+    expect(rebaseSelectedIds(
+      ['persisted', 'added-by-authority', 'removed-locally'],
+      ['removed-locally'],
+      ['added-locally'],
+    )).toEqual(['persisted', 'added-by-authority', 'added-locally'])
+  })
+})
 
 describe('computeParentSettlementDecision', () => {
   const parent = createMockHabit({

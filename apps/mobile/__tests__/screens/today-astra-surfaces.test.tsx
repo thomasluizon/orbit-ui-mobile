@@ -7,6 +7,7 @@ import { useUIStore } from '@/stores/ui-store'
 const mocks = vi.hoisted(() => ({
   habit: { id: 'habit-1', parentId: null, title: 'Walk' } as NormalizedHabit,
   habitListProps: null as Record<string, unknown> | null,
+  routerPush: vi.fn(),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -17,6 +18,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: mocks.routerPush }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     React.useEffect(callback, [callback])
   },
@@ -104,6 +106,7 @@ function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
 describe('mobile Today Astra owned surfaces', () => {
   beforeEach(() => {
     mocks.habitListProps = null
+    mocks.routerPush.mockReset()
     useUIStore.setState({
       showCreateModal: false,
       isSelectMode: false,
@@ -113,7 +116,6 @@ describe('mobile Today Astra owned surfaces', () => {
 
   it.each([
     ['create', (props: Record<string, unknown>) => (props.onCreatePress as () => void)()],
-    ['detail', (props: Record<string, unknown>) => (props.onDetailHabit as (habit: NormalizedHabit) => void)(mocks.habit)],
     ['edit', (props: Record<string, unknown>) => (props.onEditHabit as (habit: NormalizedHabit) => void)(mocks.habit)],
   ])('stands down while the %s surface is open', async (_surface, openSurface) => {
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -129,5 +131,25 @@ describe('mobile Today Astra owned surfaces', () => {
     })
 
     expect(isSuppressed(tree)).toBe(true)
+  })
+
+  it('routes detail into the habit flow instead of opening a Today surface', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    await TestRenderer.act(async () => {
+      const openDetail = (mocks.habitListProps?.onDetailHabit as (habit: NormalizedHabit) => void)
+      openDetail(mocks.habit)
+      await Promise.resolve()
+    })
+
+    expect(mocks.routerPush).toHaveBeenCalledWith({
+      pathname: '/habits/[id]',
+      params: { id: 'habit-1', date: '2026-08-29', from: 'today' },
+    })
+    expect(isSuppressed(tree)).toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { parseAPIDate, formatAPIDate, nowDate } from '../utils/dates'
+import { parseAPIDate, formatAPIDate, nowDate, resolveHabitDetailRouteDate } from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
 import {
@@ -75,6 +75,23 @@ describe('formatAPIDate', () => {
   it('handles first day of year', () => {
     const date = new Date(2025, 0, 1)
     expect(formatAPIDate(date)).toBe('2025-01-01')
+  })
+})
+
+describe('resolveHabitDetailRouteDate', () => {
+  const today = new Date(2026, 7, 30)
+
+  it('preserves one valid API date', () => {
+    expect(resolveHabitDetailRouteDate('2026-08-29', today)).toBe('2026-08-29')
+  })
+
+  it.each([
+    'bad',
+    '2026-02-30',
+    ['2026-08-28', '2026-08-29'],
+    [],
+  ])('falls back for malformed or repeated route input %#', (value) => {
+    expect(resolveHabitDetailRouteDate(value, today)).toBe('2026-08-30')
   })
 })
 

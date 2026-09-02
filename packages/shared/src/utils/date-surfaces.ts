@@ -7,7 +7,7 @@ import type {
 } from '../contracts/dates'
 
 export function resolveDayCellOutcome({ outcome, done, scheduled }: DayCellProps): DayOutcome {
-  if (outcome === 'future') return 'future'
+  if (outcome === 'future' || outcome === 'unavailable') return outcome
   if (scheduled === 0) return 'not-scheduled'
   if (done !== undefined && scheduled !== undefined && scheduled > 0) {
     if (done <= 0) return 'none'
@@ -22,7 +22,11 @@ export function buildDayCellAccessibleName(
   outcome: DayOutcome,
   includeReadOnly = !props.loggable,
 ): string {
-  const outcomeWord = outcome === 'not-scheduled' ? props.words.notScheduled : props.words[outcome]
+  const outcomeWord = outcome === 'not-scheduled'
+    ? props.words.notScheduled
+    : outcome === 'unavailable'
+      ? props.words.unavailable ?? props.words.notScheduled
+      : props.words[outcome]
   const parts = [`${props.label ?? props.day}, ${outcomeWord}`]
   if (props.done !== undefined && props.scheduled !== undefined && props.scheduled > 0) {
     parts[0] += ` ${props.done} ${props.words.of} ${props.scheduled}`

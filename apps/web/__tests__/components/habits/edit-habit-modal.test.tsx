@@ -9,6 +9,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 const mockUpdateMutateAsync = vi.fn()
 const mockSuggestMutateAsync = vi.fn()
 const mockFormReset = vi.fn()
+const mockFormResetField = vi.fn()
 const mockFormSetValue = vi.fn()
 const mockFormGetValues = vi.fn()
 const mockFormWatch = vi.fn()
@@ -19,6 +20,8 @@ const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
+const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]): Record<string, unknown> => ({ goalIds: args[4] })))
+const mockAssignTagsMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -52,11 +55,12 @@ vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
     form: {
       reset: mockFormReset,
+      resetField: mockFormResetField,
       setValue: mockFormSetValue,
       getValues: mockFormGetValues,
       watch: mockFormWatch,
       register: mockFormRegister,
-      formState: { isValid: true },
+      formState: { isValid: true, isDirty: false, dirtyFields: {} },
     },
     isOneTime: false,
     isGeneral: false,
@@ -95,7 +99,7 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 
 vi.mock('@/hooks/use-tags', () => ({
   useAssignTags: () => ({
-    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    mutateAsync: mockAssignTagsMutateAsync,
     isPending: false,
   }),
 }))
@@ -125,7 +129,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildUpdateHabitRequest: vi.fn(() => ({})),
+  buildUpdateHabitRequest: mockBuildUpdateHabitRequest,
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -135,13 +139,20 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     children,
     onSuggestSetup,
     lockedGeneral,
+    onToggleGoal,
+    selectedGoalIds,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
     lockedGeneral?: boolean | null
+    onToggleGoal?: (goalId: string) => void
+    selectedGoalIds?: string[]
   }) => (
     <div data-testid="habit-form-fields">
       <span data-testid="habit-form-fields-locked-general">{String(lockedGeneral)}</span>
+      <span data-testid="goal-selection">{JSON.stringify(selectedGoalIds)}</span>
+      {onToggleGoal && <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-1')}>goal</button>}
+      {onToggleGoal && <button type="button" data-testid="second-goal-trigger" onClick={() => onToggleGoal('goal-2')}>second goal</button>}
       {onSuggestSetup && (
         <button
           type="button"
@@ -243,6 +254,86 @@ describe('EditHabitModal', () => {
 
     await waitFor(() => {
       expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('sends the goal list from the explicit goal action', async () => {
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+
+    fireEvent.click(screen.getByTestId('goal-trigger'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => {
+      expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+        habitId: 'h-1',
+        data: { goalIds: ['goal-1'] },
+      })
+    })
+  })
+
+  it('omits relationship writes when an unrelated field is saved before authority loads', async () => {
+    mockBuildUpdateHabitRequest.mockReturnValueOnce({
+      title: 'Exercise daily',
+      goalIds: [],
+      slipAlertEnabled: false,
+    })
+    renderWithProviders(
+      <EditHabitModal
+        open
+        onOpenChange={vi.fn()}
+        habit={createMockHabit({ tags: [], linkedGoals: [], slipAlertEnabled: false })}
+        relationshipFieldsLoaded={false}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalledOnce())
+    expect(mockUpdateMutateAsync.mock.calls[0]![0].data).toEqual({ title: 'Exercise daily' })
+    expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('replays a pre-authority goal action onto authoritative goals', async () => {
+    const onOpenChange = vi.fn()
+    const initialHabit = createMockHabit({ id: 'h-1', linkedGoals: [] })
+    const authoritativeHabit = createMockHabit({
+      id: 'h-1',
+      linkedGoals: [{ id: 'goal-1', title: 'Feel better' }],
+    })
+    const queryClient = new QueryClient()
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <EditHabitModal
+          open
+          onOpenChange={onOpenChange}
+          habit={initialHabit}
+          relationshipFieldsLoaded={false}
+        />
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByTestId('second-goal-trigger'))
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <EditHabitModal
+          open
+          onOpenChange={onOpenChange}
+          habit={authoritativeHabit}
+          relationshipFieldsLoaded
+        />
+      </QueryClientProvider>,
+    )
+    expect(screen.getByTestId('goal-selection')).toHaveTextContent('["goal-1","goal-2"]')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => {
+      expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+        habitId: 'h-1',
+        data: { goalIds: ['goal-1', 'goal-2'] },
+      })
     })
   })
 

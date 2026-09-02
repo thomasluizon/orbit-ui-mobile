@@ -1,6 +1,28 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
-export { parseAPIDate, formatAPIDate } from './dates'
+export { parseAPIDate, formatAPIDate, resolveHabitDetailRouteDate } from './dates'
+export {
+  buildHabitHistoryMonth,
+  appendHabitDetailChild,
+  buildHabitDetailChildDateModel,
+  buildHabitDetailUpdateRequest,
+  buildHabitStripModel,
+  canNavigateHabitHistoryBack,
+  canNavigateHabitHistoryForward,
+  getHabitHistoryLog,
+  getHabitStartDate,
+  habitHistoryCutoff,
+  isHabitHistoryMonthLoaded,
+  isHabitCompletedOnDate,
+  isHabitSlipping,
+  parseHabitHistoryDate,
+  removeHabitDetailChild,
+  shouldResetHabitChecklist,
+  shouldShowHabitMetrics,
+  type HabitHistoryDay,
+  type HabitDetailChildDateModel,
+  type HabitStripModel,
+} from './habit-detail-flow'
 export { buildCalendarMonthModel } from './calendar-month'
 export {
   buildDayCellAccessibleName,
@@ -367,6 +389,7 @@ export type {
 export {
   buildCalendarDayMap,
   buildUnresolvedBulkFailures,
+  rebaseSelectedIds,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,

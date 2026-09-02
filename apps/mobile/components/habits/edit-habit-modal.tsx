@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useWatch } from 'react-hook-form'
 import { useRouter } from 'expo-router'
@@ -27,6 +27,7 @@ import {
   coalesceFormText,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  rebaseSelectedIds,
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -38,6 +39,7 @@ interface EditHabitModalProps {
   onClose: () => void
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
+  relationshipFieldsLoaded?: boolean
   /** The habit's parent's `isGeneral`, when it has a parent, from the caller's loaded habit map. */
   parentIsGeneral?: boolean | null
 }
@@ -70,6 +72,7 @@ export function EditHabitModal({
   onClose,
   habit,
   onSaved,
+  relationshipFieldsLoaded = true,
   parentIsGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const { t, i18n } = useTranslation()
@@ -86,6 +89,30 @@ export function EditHabitModal({
 
   const formHelpers = useHabitForm()
   const tags = useTagSelection()
+  const relationshipFieldsTouchedRef = useRef({
+    goalIds: false,
+    tagIds: false,
+    slipAlertEnabled: false,
+  })
+  const trackedTags = useMemo(() => ({
+    ...tags,
+    toggleTag: (tagId: string) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      tags.toggleTag(tagId)
+    },
+    createAndSelectTag: async (...args: Parameters<typeof tags.createAndSelectTag>) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      await tags.createAndSelectTag(...args)
+    },
+    acceptSuggestedTag: async (...args: Parameters<typeof tags.acceptSuggestedTag>) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      await tags.acceptSuggestedTag(...args)
+    },
+    deleteTag: async (...args: Parameters<typeof tags.deleteTag>) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      await tags.deleteTag(...args)
+    },
+  }), [tags])
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [originalEndDate, setOriginalEndDate] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
@@ -93,6 +120,10 @@ export function EditHabitModal({
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
+  const relationshipFieldsHydratedRef = useRef(false)
+  const relationshipSelectionBaselineRef = useRef({ goalIds: [] as string[], tagIds: [] as string[] })
+  const relationshipSessionHabitIdRef = useRef<string | null>(null)
+  const previousRelationshipFieldsLoadedRef = useRef(relationshipFieldsLoaded)
   const previousSessionRef = useRef<{
     habitId: string | null
     detailId: string | null
@@ -131,8 +162,14 @@ export function EditHabitModal({
   const lockedGeneral = childrenIsGeneral ?? parentIsGeneral ?? null
 
   const toggleGoal = useCallback((goalId: string) => {
+    relationshipFieldsTouchedRef.current.goalIds = true
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
+
+  const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
+    relationshipFieldsTouchedRef.current.slipAlertEnabled = true
+    formHelpers.form.setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
+  }, [formHelpers.form])
 
   const handleBufferedInputsReady = useCallback((flush: () => void) => {
     flushBufferedInputsRef.current = flush
@@ -153,6 +190,51 @@ export function EditHabitModal({
 
   const sessionHabitId = open && habit ? habit.id : null
   const sessionDetailId = habitDetail?.id ?? null
+  useLayoutEffect(() => {
+    if (sessionHabitId !== relationshipSessionHabitIdRef.current) {
+      relationshipSessionHabitIdRef.current = sessionHabitId
+      previousRelationshipFieldsLoadedRef.current = relationshipFieldsLoaded
+      relationshipFieldsTouchedRef.current = {
+        goalIds: false,
+        tagIds: false,
+        slipAlertEnabled: false,
+      }
+      relationshipSelectionBaselineRef.current = { goalIds: [], tagIds: [] }
+      return
+    }
+
+    const relationshipAuthorityArrived =
+      !previousRelationshipFieldsLoadedRef.current && relationshipFieldsLoaded
+    previousRelationshipFieldsLoadedRef.current = relationshipFieldsLoaded
+    if (!relationshipAuthorityArrived || !open || !habit) return
+
+    const prefill = buildEditHabitFormState(habit, habitDetail)
+    const touched = relationshipFieldsTouchedRef.current
+    const baseline = relationshipSelectionBaselineRef.current
+    const authoritativeTagIds = prefill.selectedTagIds
+    const authoritativeGoalIds = prefill.selectedGoalIds
+    const rebasedTagIds = touched.tagIds
+      ? rebaseSelectedIds(authoritativeTagIds, baseline.tagIds, tags.selectedTagIds)
+      : authoritativeTagIds
+    tags.resetTags(rebasedTagIds)
+    setSelectedGoalIds((currentGoalIds) => {
+      if (!touched.goalIds) return authoritativeGoalIds
+      return rebaseSelectedIds(authoritativeGoalIds, baseline.goalIds, currentGoalIds)
+    })
+    setInitialTagIds(JSON.stringify([...authoritativeTagIds].sort((a, b) => a.localeCompare(b))))
+    setInitialGoalIds(JSON.stringify([...authoritativeGoalIds].sort((a, b) => a.localeCompare(b))))
+    relationshipSelectionBaselineRef.current = {
+      goalIds: authoritativeGoalIds,
+      tagIds: authoritativeTagIds,
+    }
+    if (!touched.slipAlertEnabled) {
+      formHelpers.form.resetField('slipAlertEnabled', {
+        defaultValue: prefill.formValues.slipAlertEnabled,
+      })
+    }
+    relationshipFieldsHydratedRef.current = true
+  }, [formHelpers.form, habit, habitDetail, open, relationshipFieldsLoaded, sessionHabitId, tags])
+
   useEffect(() => {
     const previousSession = previousSessionRef.current
     if (
@@ -162,19 +244,34 @@ export function EditHabitModal({
 
     const habitChanged = sessionHabitId !== previousSession.habitId
     previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
-    if (!open || !habit || (!habitChanged && formHelpers.form.formState.isDirty)) return
+    if (!open || !habit) return
+    if (!habitChanged && formHelpers.form.formState.isDirty) return
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
-    formHelpers.form.reset(prefill.formValues)
+    const touched = relationshipFieldsTouchedRef.current
+    const formValues = touched.slipAlertEnabled
+      ? {
+          ...prefill.formValues,
+          slipAlertEnabled: formHelpers.form.getValues('slipAlertEnabled'),
+        }
+      : prefill.formValues
+    formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
-    tags.resetTags(prefill.selectedTagIds)
-    setSelectedGoalIds(prefill.selectedGoalIds)
-    setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
-    setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
+    if (!touched.tagIds) {
+      tags.resetTags(prefill.selectedTagIds)
+      relationshipSelectionBaselineRef.current.tagIds = prefill.selectedTagIds
+      setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
+    }
+    if (!touched.goalIds) {
+      setSelectedGoalIds(prefill.selectedGoalIds)
+      relationshipSelectionBaselineRef.current.goalIds = prefill.selectedGoalIds
+      setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
+    }
     setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    relationshipFieldsHydratedRef.current = relationshipFieldsLoaded
     applyHabitFormMode(prefill.mode, formHelpers)
-  }, [formHelpers, habit, habitDetail, open, sessionDetailId, sessionHabitId, tags])
+  }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return
@@ -198,13 +295,21 @@ export function EditHabitModal({
       selectedGoalIds,
       habit.scheduledReminders.length > 0,
     )
+    const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
+    const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
+    const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
+
+    if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
+    if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      await assignTags.mutateAsync({
-        habitId: habit.id,
-        tagIds: tags.selectedTagIds,
-      })
+      if (relationshipFieldsHydratedRef.current || tagIdsChanged) {
+        await assignTags.mutateAsync({
+          habitId: habit.id,
+          tagIds: tags.selectedTagIds,
+        })
+      }
       closeSheet(onClose)
       await onSaved?.()
     } catch (error: unknown) {
@@ -220,6 +325,8 @@ export function EditHabitModal({
   }, [
     habit,
     formHelpers,
+    initialGoalIds,
+    initialTagIds,
     originalEndDate,
     selectedGoalIds,
     reminderTimes,
@@ -295,12 +402,13 @@ export function EditHabitModal({
           >
             <HabitFormFields
               formHelpers={formHelpers}
-              tags={tags}
+              tags={trackedTags}
               selectedGoalIds={selectedGoalIds}
               atGoalLimit={atGoalLimit}
               onToggleGoal={toggleGoal}
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
+              onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
               hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
               onSuggestSetup={() => void handleSuggest()}

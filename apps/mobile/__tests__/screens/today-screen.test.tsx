@@ -16,6 +16,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 
 const mocks = vi.hoisted(() => ({
   logHabitMutateAsync: vi.fn(),
+  routerPush: vi.fn(),
   focusCallback: null as null | (() => void | (() => void)),
   clearSelection: vi.fn(),
   composerEnabled: [] as boolean[],
@@ -34,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: mocks.routerPush }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     mocks.focusCallback = callback
   },

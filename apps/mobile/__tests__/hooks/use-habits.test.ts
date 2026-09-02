@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import { buildHabitHistoryMonth, isHabitCompletedOnDate } from '@orbit/shared/utils'
+import type { ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
 
 import {
@@ -234,6 +236,10 @@ type HabitSnapshotContext = {
   previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 }
 
+type LogHabitSnapshotContext = HabitSnapshotContext & {
+  previousLogs: HabitLog[] | undefined
+}
+
 type BulkLogOutcome = {
   results: {
     index: number
@@ -317,6 +323,15 @@ function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleCh
   }
 }
 
+function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
+  const habit = makeHabit()
+  return {
+    ...habit,
+    children: [],
+    ...overrides,
+  }
+}
+
 function seedHabitState(habits: HabitScheduleItem[], count = habits.length): void {
   mocks.state.entries = [
     { key: habitKeys.list({}), value: habits },
@@ -390,6 +405,141 @@ describe('mobile habit hooks', () => {
         dedupeKey: 'habit-toggle:habit-1:2026-08-29',
       }),
     }))
+  })
+
+  it.each([
+    ['log', false],
+    ['unlog', true],
+  ] as const)('keeps mounted dated detail state optimistic after a queued %s', async (intent, initiallyLogged) => {
+    const date = '2025-01-15'
+    const initialLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    const datedHabit = makeHabit({
+      dueDate: date,
+      scheduledDates: [date],
+      isCompleted: initiallyLogged,
+      isLoggedInRange: initiallyLogged,
+      instances: [{
+        date,
+        status: initiallyLogged ? 'Completed' : 'Pending',
+        logId: initiallyLogged ? initialLog.id : null,
+      }],
+    })
+    const undatedHabit = makeHabit({ ...datedHabit })
+    const otherDateHabit = makeHabit({ ...datedHabit })
+    mocks.state.entries = [
+      { key: habitKeys.list({}), value: [undatedHabit] },
+      {
+        key: habitKeys.list({ dateFrom: date, dateTo: date }),
+        value: [datedHabit],
+      },
+      {
+        key: habitKeys.list({ dateFrom: '2025-01-16', dateTo: '2025-01-16' }),
+        value: [otherDateHabit],
+      },
+      { key: habitKeys.logs('habit-1'), value: initiallyLogged ? [initialLog] : [] },
+      { key: habitKeys.count(), value: 1 },
+      { key: tagKeys.lists(), value: [] },
+      { key: goalKeys.lists(), value: [] },
+    ]
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent }
+
+    const context = await mutation.onMutate?.(variables)
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+    mutation.onSettled?.(response, null, variables, context)
+
+    expect(response).toEqual({ queued: true, queuedMutationId: 'mutation-1' })
+    const logs = mocks.queryClient.getQueryData(habitKeys.logs('habit-1')) as HabitLog[]
+    const completed = intent === 'log'
+    expect(isHabitCompletedOnDate(datedHabit, logs, date)).toBe(completed)
+    expect(buildHabitHistoryMonth(
+      datedHabit,
+      logs,
+      new Date(2025, 0, 15),
+      new Date(2025, 0, 31),
+      0,
+    ).find((day) => day.dateStr === date)).toMatchObject({
+      outcome: completed ? 'full' : 'none',
+      loggedAt: completed ? expect.any(String) : null,
+    })
+
+    const selectedDateList = mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: date, dateTo: date }),
+    ) as HabitScheduleItem[]
+    expect(selectedDateList[0]).toMatchObject({
+      isCompleted: completed,
+      isLoggedInRange: completed,
+      instances: [{
+        date,
+        status: completed ? 'Completed' : 'Pending',
+        logId: completed ? `optimistic-log:habit-1:${date}` : null,
+      }],
+    })
+    expect(mocks.queryClient.getQueryData(habitKeys.list({}))).toEqual([undatedHabit])
+    expect(mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: '2025-01-16', dateTo: '2025-01-16' }),
+    )).toEqual([otherDateHabit])
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('restores every cache patched by a failed dated log mutation', async () => {
+    const date = '2025-01-15'
+    const initialLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    const completedHabit = makeHabit({
+      dueDate: date,
+      scheduledDates: [date],
+      isCompleted: true,
+      isLoggedInRange: true,
+      instances: [{ date, status: 'Completed', logId: initialLog.id }],
+    })
+    mocks.state.entries = [
+      { key: habitKeys.list({}), value: [completedHabit] },
+      {
+        key: habitKeys.list({ dateFrom: date, dateTo: date }),
+        value: [completedHabit],
+      },
+      {
+        key: habitKeys.list({ dateFrom: '2025-01-01', dateTo: '2025-01-31' }),
+        value: [completedHabit],
+      },
+      { key: habitKeys.logs('habit-1'), value: [initialLog] },
+    ]
+    const before = structuredClone(mocks.state.entries)
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent: 'unlog' as const }
+
+    const context = await mutation.onMutate?.(variables)
+    expect(mocks.queryClient.getQueryData(habitKeys.logs('habit-1'))).toEqual([])
+    expect(mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: date, dateTo: date }),
+    )).toEqual([expect.objectContaining({ isCompleted: false, isLoggedInRange: false })])
+    expect(mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: '2025-01-01', dateTo: '2025-01-31' }),
+    )).toEqual([expect.objectContaining({ isCompleted: false, isLoggedInRange: false })])
+
+    mutation.onError?.(new Error('request failed'), variables, context)
+
+    expect(mocks.state.entries).toEqual(before)
   })
 
   it('tracks every confirmed bulk completion and no requested item before confirmation', async () => {
@@ -725,6 +875,10 @@ describe('mobile habit hooks', () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false }),
     ], 1)
+    mocks.queryClient.setQueryData(
+      habitKeys.detail('offline-parent-1'),
+      makeDetail({ id: 'offline-parent-1', title: 'Parent' }),
+    )
 
     const mutation = useCreateSubHabit() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
@@ -760,6 +914,10 @@ describe('mobile habit hooks', () => {
       dueDate: '2025-01-01',
       instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('offline-parent-1')) as HabitDetail)
+        .children[0],
+    ).toMatchObject({ id: 'offline-habit-child-1', title: 'Warmup' })
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
       mutation: expect.objectContaining({
         type: 'createSubHabit',
@@ -979,7 +1137,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it('reconciles a completion without refetching response-backed or AI summary families', () => {
+  it('refreshes mounted detail data after an explicit-date completion', () => {
     seedHabitState([makeHabit({ id: 'habit-1' })])
     const mutation = useLogHabit() as unknown as MutationConfig<
       LogHabitResponse,
@@ -995,11 +1153,17 @@ describe('mobile habit hooks', () => {
     mutation.onSettled?.(
       response,
       null,
-      { habitId: 'habit-1', intent: 'log' },
+      { habitId: 'habit-1', intent: 'log', date: '2025-01-15' },
       undefined,
     )
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.logs('habit-1'),
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.metrics('habit-1'),
+    })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
@@ -1261,6 +1425,34 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(getCount()).toBe(2)
+  })
+
+  it('removes a queued child from the mounted detail tree and restores it on failure', async () => {
+    seedHabitState([
+      makeHabit({ id: 'parent-1', children: [makeChild({ id: 'child-1' })] }),
+    ], 2)
+    const originalDetail = makeDetail({
+      id: 'parent-1',
+      children: [makeChild({ id: 'child-1' })],
+    })
+    mocks.queryClient.setQueryData(habitKeys.detail('parent-1'), originalDetail)
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      unknown,
+      string,
+      HabitSnapshotContext & {
+        previousDetails: readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+      }
+    >
+
+    const context = await mutation.onMutate?.('child-1')
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('parent-1')) as HabitDetail).children,
+    ).toEqual([])
+
+    mutation.onError?.(new Error('Delete failed'), 'child-1', context)
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('parent-1')) as HabitDetail).children,
+    ).toHaveLength(1)
   })
 
   it('inserts an optimistic duplicate with an incremented count and rolls back on failure', async () => {

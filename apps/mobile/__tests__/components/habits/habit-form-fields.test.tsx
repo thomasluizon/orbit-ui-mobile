@@ -813,4 +813,87 @@ await Promise.resolve()
       shouldDirty: true,
     })
   })
+
+  it('reports a Pro slip alert toggle to the edit relationship authority', async () => {
+    mockHasProAccess = true
+    const onSlipAlertEnabledChange = vi.fn()
+    const formHelpers = createMockFormHelpers({
+      isBadHabit: true,
+      slipAlertEnabled: false,
+    })
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={createMockTags()}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          onSlipAlertEnabledChange={onSlipAlertEnabledChange}
+          defaultExpanded
+        />,
+      )
+      await Promise.resolve()
+    })
+
+    const slipAlert = tree.root
+      .findAllByProps({ accessibilityLabel: 'habits.form.slipAlert' })
+      .find((node: any) => typeof node.props.onPress === 'function')
+    await TestRenderer.act(async () => {
+      slipAlert.props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(onSlipAlertEnabledChange).toHaveBeenCalledWith(true)
+    expect(formHelpers.form.setValue).not.toHaveBeenCalledWith(
+      'slipAlertEnabled',
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('stores a Pro slip alert toggle in the form when no authority callback is present', async () => {
+    mockHasProAccess = true
+    const formHelpers = createMockFormHelpers({
+      isBadHabit: true,
+      slipAlertEnabled: false,
+    })
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={createMockTags()}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          defaultExpanded
+        />,
+      )
+      await Promise.resolve()
+    })
+
+    const slipAlert = tree.root
+      .findAllByProps({ accessibilityLabel: 'habits.form.slipAlert' })
+      .find((node: any) => typeof node.props.onPress === 'function')
+    await TestRenderer.act(async () => {
+      slipAlert.props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith(
+      'slipAlertEnabled',
+      true,
+      { shouldDirty: true },
+    )
+  })
 })

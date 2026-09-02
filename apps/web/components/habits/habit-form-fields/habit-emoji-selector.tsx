@@ -7,9 +7,10 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 interface HabitEmojiSelectorProps {
   selectedEmoji: string
   onSelect: (emoji: string) => void
+  wellSize?: number
 }
 
-export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSelectorProps>) {
+export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
@@ -46,10 +47,10 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
         type="button"
         className="grid shrink-0 cursor-pointer place-items-center border-0 transition-[box-shadow,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: 14,
-          fontSize: 26,
+          width: wellSize,
+          height: wellSize,
+          borderRadius: 'var(--r-well)',
+          fontSize: wellSize === 76 ? 34 : 26,
           background: 'var(--bg-well)',
         }}
         onClick={() => setPickerOpen(true)}

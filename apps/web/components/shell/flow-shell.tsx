@@ -10,11 +10,12 @@ interface FlowShellProps {
   nav?: false
   action?: ReactNode
   children: ReactNode
-  mode?: 'card' | 'full'
+  header?: ReactNode
+  mode?: 'card' | 'detail' | 'full'
   notice?: ReactNode
 }
 
-export function FlowShell({ action, children, mode = 'card', notice }: Readonly<FlowShellProps>) {
+export function FlowShell({ action, children, header, mode = 'card', notice }: Readonly<FlowShellProps>) {
   const wide = useIsWideDesktop()
   if (mode === 'full') {
     return (
@@ -30,15 +31,20 @@ export function FlowShell({ action, children, mode = 'card', notice }: Readonly<
     )
   }
 
+  const detail = mode === 'detail'
   const content = (
     <div
       data-shell="flow"
       data-flow-mode="card"
       data-nav={false}
-      className="mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 md:justify-center md:px-0"
+      className={detail
+        ? 'mx-auto flex min-h-full w-full max-w-[740px] flex-col px-4 py-6'
+        : 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 md:justify-center md:px-0'}
     >
       <div
-        className="flex flex-col md:rounded-[20px] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline)]"
+        className={detail
+          ? 'flex flex-col'
+          : 'flex flex-col md:rounded-[20px] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline)]'}
         style={{ gap: 24 }}
       >
         {children}
@@ -56,14 +62,14 @@ export function FlowShell({ action, children, mode = 'card', notice }: Readonly<
 
   if (wide) {
     return (
-      <ShellWide nav={false} action={pinnedAction} notice={notice}>
+      <ShellWide nav={false} action={pinnedAction} header={header} notice={notice}>
         {content}
       </ShellWide>
     )
   }
 
   return (
-    <Shell412 nav={false} action={pinnedAction} notice={notice}>
+    <Shell412 nav={false} action={pinnedAction} header={header} notice={notice}>
       {content}
     </Shell412>
   )

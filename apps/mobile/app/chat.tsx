@@ -15,8 +15,6 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { habitDetailToNormalized } from "@orbit/shared/utils";
-import { useHabitDetail } from "@/hooks/use-habits";
 import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 import { useChatComposer } from "@/hooks/use-chat-composer";
 import { useChatReward } from "@/hooks/use-chat-reward";
@@ -25,7 +23,6 @@ import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
-import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { ErrorState } from "@/components/ui/error-state";
@@ -133,7 +130,6 @@ export default function ChatScreen() {
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [keyboardInset, setKeyboardInset] = useState(0);
-  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
 
@@ -155,12 +151,6 @@ export default function ChatScreen() {
     };
   }, [insets.bottom]);
 
-  const habitDetailQuery = useHabitDetail(selectedHabitId);
-  const detailHabit = useMemo(
-    () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
-    [habitDetailQuery.data],
-  );
-
   const handleActionChipClick = useCallback(
     (entityId: string, actionType: string) => {
       if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {
@@ -168,21 +158,16 @@ export default function ChatScreen() {
           router.push("/upgrade");
           return;
         }
-        setSelectedHabitId(null);
         setSelectedGoalId(entityId);
         setGoalDrawerOpen(true);
         return;
       }
 
       setGoalDrawerOpen(false);
-      setSelectedHabitId(entityId);
+      router.push({ pathname: "/habits/[id]", params: { id: entityId } });
     },
     [hasProAccess, router],
   );
-
-  const handleDrawerClose = useCallback(() => {
-    setSelectedHabitId(null);
-  }, []);
 
   /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
      down its presented TrueSheet mid-dismissal, which wedges every later RN
@@ -343,11 +328,6 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      <HabitDetailDrawer
-        open={!!selectedHabitId}
-        onClose={handleDrawerClose}
-        habit={detailHabit}
-      />
       {selectedGoalId && (
         <GoalDetailDrawer
           open={goalDrawerOpen}
