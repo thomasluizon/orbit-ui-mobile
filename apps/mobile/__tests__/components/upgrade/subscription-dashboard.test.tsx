@@ -457,7 +457,9 @@ describe('subscription dashboards (mobile)', () => {
     expect(text).toContain('upgrade.convert.handOff')
     expect(text).toContain('upgrade.convert.stayFree')
     expect(
-      tree.root.findByProps({ children: 'upgrade.convert.freeHeading' }).props.accessibilityRole,
+      tree.root.findAll(
+        (node) => node.props.children === 'upgrade.convert.freeHeading',
+      )[0]?.props.accessibilityRole,
     ).toBe('header')
     expect(tree.root.findAll(
       (node) => node.type === 'View'
