@@ -63,7 +63,7 @@ export function HabitEmojiSelector({
           { width: wellSize, height: wellSize, borderRadius: 12 },
           pressed
             ? {
-                backgroundColor: tokens.bgElevPressed,
+                backgroundColor: tokens.bgHover,
                 transform: [{ scale: 0.96 }],
               }
             : null,

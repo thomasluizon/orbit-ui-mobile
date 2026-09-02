@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
 
@@ -36,6 +37,9 @@ describe('Menu (mobile)', () => {
     })
     expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(1)
+    const sheet = tree.root.findAll((node: any) => node.type?.name === 'TrueSheet')[0]
+    if (!sheet) throw new Error('Sheet presentation did not render its native backdrop')
+    expect(sheet.props.dimmed).toBe(true)
   })
 
   it('uses the anchored presentation when explicitly selected and reports one id', async () => {
@@ -69,5 +73,10 @@ describe('Menu (mobile)', () => {
     expect(onSelect).toHaveBeenCalledWith('edit')
     expect(onSelect.mock.calls[0]).toHaveLength(1)
     expect(onClose).toHaveBeenCalledTimes(1)
+    const catcher = tree.root.findAll((node: any) => (
+      node.type === 'Pressable' && node.props.accessibilityElementsHidden === true
+    ))[0]
+    if (!catcher) throw new Error('Anchored menu catcher did not render')
+    expect(StyleSheet.flatten(catcher.props.style).backgroundColor).toBe('transparent')
   })
 })

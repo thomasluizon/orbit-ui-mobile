@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
+import { StyleSheet } from 'react-native'
 import {
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -80,6 +81,136 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('presses the whole card from the body and only the ring from the ring control', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          hasChildren
+          childrenDone={0}
+          childrenTotal={1}
+          actions={{ onLog: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    const ring = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' &&
+        typeof node.props.style === 'function',
+    )[0]
+
+    TestRenderer.act(() => body.props.onPressIn())
+    const pressedCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+    const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(pressedCard.borderColor).toBe('rgba(255,255,255,0.16)')
+    expect(restingRing.backgroundColor).toBeUndefined()
+
+    TestRenderer.act(() => body.props.onPressOut())
+    const restingCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+    const pressedRing = StyleSheet.flatten(ring.props.style({ pressed: true })) as Record<string, unknown>
+    expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    expect(pressedRing.backgroundColor).toBe('rgba(250,250,250,0.14)')
+  })
+
+  it('presses the disclosure control without painting the card', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          hasChildren
+          actions={{ onToggleExpand: vi.fn() }}
+        />,
+      )
+    })
+
+    const disclosure = renderer!.root.findByProps({ accessibilityLabel: 'common.expand' })
+    const pressedDisclosure = StyleSheet.flatten(
+      disclosure.props.style({ pressed: true }),
+    ) as Record<string, unknown>
+    const restingCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+
+    expect(pressedDisclosure.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+  })
+
+  it('presses the selection control without painting the card', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          isSelectMode
+          actions={{ onToggleSelection: vi.fn() }}
+        />,
+      )
+    })
+
+    const selection = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === 'Meditate' && typeof node.props.style === 'function',
+    )[0]
+    const pressedSelection = StyleSheet.flatten(
+      selection.props.style({ pressed: true }),
+    ) as Record<string, unknown>
+    const restingCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+
+    expect(pressedSelection.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+  })
+
+  it('paints nothing when any read-only target is pressed', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          readOnly
+          hasChildren
+          childrenDone={0}
+          childrenTotal={1}
+          actions={{ onDetail: vi.fn(), onLog: vi.fn(), onToggleExpand: vi.fn(), onEdit: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    const controlLabels = [
+      'common.expand',
+      'habits.statusDot.empty, habits.logHabit: Meditate, 0/1',
+      'habits.actions.more',
+    ]
+    const card = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+
+    expect(body.props.onPressIn).toBeUndefined()
+    expect(card.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    for (const label of controlLabels) {
+      const control = renderer!.root.findByProps({ accessibilityLabel: label })
+      const pressedStyle = StyleSheet.flatten(
+        control.props.style({ pressed: true }),
+      ) as Record<string, unknown>
+      expect(pressedStyle.backgroundColor).not.toBe('rgba(250,250,250,0.14)')
+    }
+  })
+
   it('makes every read-only descendant disabled and guards its actions', () => {
     const onDetail = vi.fn()
     const onLog = vi.fn()

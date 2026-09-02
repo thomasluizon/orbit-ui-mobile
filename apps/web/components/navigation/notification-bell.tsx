@@ -78,7 +78,7 @@ function NotificationRow({
         y: -6,
         transition: { duration: 0.16, ease: [0.2, 0, 0, 1] },
       }}
-      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
+      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]"
       style={{
         gap: 12,
         padding: '14px 16px',

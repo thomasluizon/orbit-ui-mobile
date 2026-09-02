@@ -59,7 +59,10 @@ export function TodayDateControl({
         accessibilityRole="button"
         accessibilityLabel={previousLabel}
         onPress={onGoToPreviousDay}
-        style={styles.iconButton}
+        style={({ pressed }) => [
+          styles.iconButton,
+          pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+        ]}
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
@@ -68,7 +71,14 @@ export function TodayDateControl({
         <Text numberOfLines={1} style={[styles.numericDate, { color: tokens.fg3 }]}>{numericDate}</Text>
       </View>
       {!isTodaySelected ? (
-        <Pressable accessibilityRole="button" onPress={onGoToToday} style={styles.todayButton}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onGoToToday}
+          style={({ pressed }) => [
+            styles.todayButton,
+            pressed ? { backgroundColor: tokens.bgHover } : null,
+          ]}
+        >
           <Text style={[styles.todayText, { color: tokens.fg1 }]}>{todayLabel}</Text>
         </Pressable>
       ) : null}
@@ -78,7 +88,13 @@ export function TodayDateControl({
         accessibilityState={{ disabled: nextDisabled }}
         disabled={nextDisabled}
         onPress={onGoToNextDay}
-        style={[styles.iconButton, nextDisabled ? styles.disabled : null]}
+        style={({ pressed }) => [
+          styles.iconButton,
+          pressed && !nextDisabled
+            ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
+            : null,
+          nextDisabled ? styles.disabled : null,
+        ]}
       >
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
@@ -88,7 +104,10 @@ export function TodayDateControl({
           accessibilityLabel={moreLabel}
           accessibilityState={{ expanded: menu.visible }}
           onPress={menu.toggle}
-          style={styles.iconButton}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+          ]}
         >
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
@@ -125,6 +144,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     alignItems: 'center',
+    borderRadius: 22,
     height: 44,
     justifyContent: 'center',
     width: 44,
@@ -143,6 +163,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   todayButton: {
+    borderRadius: 8,
     justifyContent: 'center',
     minHeight: 44,
     paddingHorizontal: 8,
