@@ -100,7 +100,12 @@ describe('upgrade utils', () => {
         )
       }
       expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.matrix')).toBeUndefined()
-      expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.features')).toBeUndefined()
+      expect(
+        getMessageValue(
+          locale as Record<string, unknown>,
+          'upgrade.features.subHabits.tooltip',
+        ),
+      ).toEqual(expect.any(String))
     }
     expect(en.upgrade.plans.renewalNote).toBe(
       'The subscription renews automatically at the end of each period.',

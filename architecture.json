@@ -3862,6 +3862,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -4326,6 +4327,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -4845,6 +4847,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -5316,6 +5319,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -5828,6 +5832,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -6339,6 +6344,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -6891,6 +6897,7 @@
           "undo.goalDeleted",
           "undo.habitDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -7444,6 +7451,7 @@
           "undo.goalDeleted",
           "undo.habitDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -7928,6 +7936,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -8480,6 +8489,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -9019,6 +9029,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -9483,6 +9494,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -9947,6 +9959,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -10422,6 +10435,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow"
@@ -10948,6 +10962,7 @@
           "upgrade.convert.trialHeading",
           "upgrade.convert.trialLastDay",
           "upgrade.convert.trustLine",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.free",
           "upgrade.outcomes.label",
           "upgrade.plans.checkoutLabel",
@@ -11440,6 +11455,7 @@
           "undo.action",
           "undo.goalDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "welcome.backMessage",
           "welcome.eyebrow",
@@ -13193,6 +13209,7 @@
           "undo.goalDeleted",
           "undo.habitDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "versionUpdate.description",
           "versionUpdate.laterCta",
@@ -17383,6 +17400,7 @@
           "undo.goalDeleted",
           "undo.habitDeleted",
           "undo.tagDeleted",
+          "upgrade.features.subHabits.tooltip",
           "upgrade.subscribe",
           "versionUpdate.description",
           "versionUpdate.laterCta",

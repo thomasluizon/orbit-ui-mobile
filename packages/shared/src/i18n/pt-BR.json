@@ -1900,6 +1900,11 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
+    "features": {
+      "subHabits": {
+        "tooltip": "Divida hábitos complexos em etapas menores. Os sub-hábitos ficam dentro de um hábito principal, para organizar melhor."
+      }
+    },
     "convert": {
       "promise": "O plano muda o Astra, nunca os seus hábitos e registros.",
       "trialEyebrow": "Seu teste Pro está ativo",

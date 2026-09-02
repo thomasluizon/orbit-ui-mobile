@@ -1900,6 +1900,11 @@
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
+    "features": {
+      "subHabits": {
+        "tooltip": "Break complex habits into smaller steps. Sub-habits nest under a parent habit for better organization."
+      }
+    },
     "convert": {
       "promise": "The plan changes Astra, never your habits and logs.",
       "trialEyebrow": "Your Pro trial is active",
