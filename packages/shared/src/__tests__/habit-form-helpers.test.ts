@@ -283,24 +283,28 @@ describe('habit form helpers', () => {
     {
       locale: 'en',
       messages: en.habits.form,
-      month: 'Once a month',
-      monthAt: 'Once a month at 08:00',
-      year: 'Once a year',
-      yearAt: 'Once a year at 08:00',
-      pluralMonth: '2 times a month',
-      pluralYear: '2 times a year',
+      month: 'Every month',
+      monthAt: 'Every month at 08:00',
+      year: 'Every year',
+      yearAt: 'Every year at 08:00',
+      pluralMonth: 'Every 2 months',
+      pluralMonthAt: 'Every 2 months at 08:00',
+      pluralYear: 'Every 2 years',
+      pluralYearAt: 'Every 2 years at 08:00',
     },
     {
       locale: 'pt-BR',
       messages: ptBR.habits.form,
-      month: 'Uma vez por mês',
-      monthAt: 'Uma vez por mês às 08:00',
-      year: 'Uma vez por ano',
-      yearAt: 'Uma vez por ano às 08:00',
-      pluralMonth: '2 vezes por mês',
-      pluralYear: '2 vezes por ano',
+      month: 'Todo mês',
+      monthAt: 'Todo mês às 08:00',
+      year: 'Todo ano',
+      yearAt: 'Todo ano às 08:00',
+      pluralMonth: 'A cada 2 meses',
+      pluralMonthAt: 'A cada 2 meses às 08:00',
+      pluralYear: 'A cada 2 anos',
+      pluralYearAt: 'A cada 2 anos às 08:00',
     },
-  ])('formats singular Month and Year schedules in $locale', ({
+  ])('formats recurring Month and Year intervals in $locale', ({
     locale,
     messages,
     month,
@@ -308,7 +312,9 @@ describe('habit form helpers', () => {
     year,
     yearAt,
     pluralMonth,
+    pluralMonthAt,
     pluralYear,
+    pluralYearAt,
   }) => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const message = messages[key.replace('habits.form.', '') as keyof typeof messages]
@@ -328,8 +334,59 @@ describe('habit form helpers', () => {
       .toBe(yearAt)
     expect(buildHabitUnderstandingSentence([], [], false, 'Month', 2, '', locale, translate))
       .toBe(pluralMonth)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Month', 2, '08:00', locale, translate))
+      .toBe(pluralMonthAt)
     expect(buildHabitUnderstandingSentence([], [], false, 'Year', 2, '', locale, translate))
       .toBe(pluralYear)
+    expect(buildHabitUnderstandingSentence([], [], false, 'Year', 2, '08:00', locale, translate))
+      .toBe(pluralYearAt)
+  })
+
+  it.each([
+    {
+      locale: 'en',
+      messages: en.habits.form,
+      month: 'Once a month',
+      monthAt: 'Once a month at 08:00',
+      pluralMonth: '2 times a month',
+      year: 'Once a year',
+      yearAt: 'Once a year at 08:00',
+      pluralYear: '2 times a year',
+    },
+    {
+      locale: 'pt-BR',
+      messages: ptBR.habits.form,
+      month: 'Uma vez por mês',
+      monthAt: 'Uma vez por mês às 08:00',
+      pluralMonth: '2 vezes por mês',
+      year: 'Uma vez por ano',
+      yearAt: 'Uma vez por ano às 08:00',
+      pluralYear: '2 vezes por ano',
+    },
+  ])('formats flexible Month and Year targets in $locale', ({
+    locale,
+    messages,
+    month,
+    monthAt,
+    pluralMonth,
+    year,
+    yearAt,
+    pluralYear,
+  }) => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = messages[key.replace('habits.form.', '') as keyof typeof messages]
+      return Object.entries(values ?? {}).reduce(
+        (result, [name, value]) => result.replace(`{${name}}`, String(value)),
+        message,
+      )
+    }
+
+    expect(buildHabitUnderstandingSentence([], [], true, 'Month', 1, '', locale, translate)).toBe(month)
+    expect(buildHabitUnderstandingSentence([], [], true, 'Month', 1, '08:00', locale, translate)).toBe(monthAt)
+    expect(buildHabitUnderstandingSentence([], [], true, 'Month', 2, '', locale, translate)).toBe(pluralMonth)
+    expect(buildHabitUnderstandingSentence([], [], true, 'Year', 1, '', locale, translate)).toBe(year)
+    expect(buildHabitUnderstandingSentence([], [], true, 'Year', 1, '08:00', locale, translate)).toBe(yearAt)
+    expect(buildHabitUnderstandingSentence([], [], true, 'Year', 2, '', locale, translate)).toBe(pluralYear)
   })
 
   it('tracks proposal visibility, Astra limits, start dates, and reminder labels', () => {

@@ -489,7 +489,20 @@ export function buildHabitAstraFallbackCopy(
   }
 }
 
-function getHabitIntervalUnderstandingKey(
+function getHabitRecurringIntervalUnderstandingKey(
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+): string | null {
+  if (frequencyUnit === 'Month') {
+    return quantity === 1 ? 'habits.form.understoodEveryMonth' : 'habits.form.understoodEveryNMonths'
+  }
+  if (frequencyUnit === 'Year') {
+    return quantity === 1 ? 'habits.form.understoodEveryYear' : 'habits.form.understoodEveryNYears'
+  }
+  return null
+}
+
+function getHabitFlexibleIntervalUnderstandingKey(
   frequencyUnit: FrequencyUnit | null | undefined,
   quantity: number,
 ): string | null {
@@ -514,7 +527,9 @@ export function buildHabitUnderstandingSentence(
 ): string | null {
   let key: string
   let values: Record<string, string | number> = {}
-  const intervalKey = getHabitIntervalUnderstandingKey(frequencyUnit, quantity)
+  const intervalKey = isFlexible
+    ? getHabitFlexibleIntervalUnderstandingKey(frequencyUnit, quantity)
+    : getHabitRecurringIntervalUnderstandingKey(frequencyUnit, quantity)
   if (days.length > 0) {
     const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label)
     const listLocale = locale === 'en' ? 'en-GB' : locale
