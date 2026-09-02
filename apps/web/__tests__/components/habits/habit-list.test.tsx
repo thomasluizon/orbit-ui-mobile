@@ -430,6 +430,19 @@ describe('HabitList', () => {
     expect(screen.getByText('Read')).toBeDefined()
   })
 
+  it('keeps the habit panel hover on the surface token and surface duration', () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    const panel = screen.getByTestId('habit-card-h-1').closest('.habit-panel')
+    expect(panel).not.toBeNull()
+    expect(panel?.className).toContain('hover:bg-[var(--bg-hover)]')
+    expect(panel?.className).toContain('duration-[var(--dur-hover)]')
+  })
+
   it('targets the featured demo habit for the card tour steps', () => {
     const meditation = createMockHabit({
       id: 'tour-habit-1',

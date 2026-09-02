@@ -151,6 +151,9 @@ interface HabitListProps {
   onSurfaceOpenChange?: (open: boolean) => void
 }
 
+const HABIT_PANEL_CLASS_NAME =
+  'habit-panel transition-[background-color,box-shadow] duration-[var(--dur-hover)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
+
 function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 'one-time' {
   if (habit?.frequencyUnit === null) return 'one-time'
   return habit?.isFlexible ? 'flexible' : 'recurring'
@@ -1227,7 +1230,7 @@ export function HabitList({
             <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
               <div className="flex flex-col" style={{ gap: 12 }}>
                 {group.habits.map((habit) => (
-                  <div key={habit.id} className="habit-panel">
+                  <div key={habit.id} className={HABIT_PANEL_CLASS_NAME}>
                     {renderHabitCard(
                       habit,
                       0,
@@ -1258,7 +1261,7 @@ export function HabitList({
           >
             <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
               {activeDragPanels.map((panel) => (
-                <div key={panel[0]?.id} className="habit-panel">
+                <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
                   {panel.map((item) => (
                     <SortableHabitItem key={item.id} id={item.id}>
                       {renderHabitCard(
@@ -1281,7 +1284,7 @@ export function HabitList({
     return (
       <div className="flex flex-col" style={{ gap: 12 }}>
         {dragPanels.map((panel) => (
-          <div key={panel[0]?.id} className="habit-panel">
+          <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
             {panel.map((item) => renderHabitCard(
               item.habit,
               item.depth,

@@ -4,6 +4,9 @@ import { useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, MoreVertical } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 
+const DATE_ICON_BUTTON_CLASS_NAME =
+  'icon-btn touch-target shrink-0 hover:bg-[var(--bg-hover)] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-fast)]'
+
 export interface TodayDateControlProps {
   dayName: string
   numericDate: string
@@ -63,7 +66,7 @@ export function TodayDateControl({
       <button
         type="button"
         aria-label={previousLabel}
-        className="icon-btn touch-target shrink-0"
+        className={DATE_ICON_BUTTON_CLASS_NAME}
         onClick={onGoToPreviousDay}
       >
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -85,7 +88,7 @@ export function TodayDateControl({
         type="button"
         aria-label={nextLabel}
         disabled={nextDisabled}
-        className="icon-btn touch-target shrink-0 disabled:cursor-default disabled:opacity-50"
+        className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`}
         onClick={onGoToNextDay}
       >
         <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -95,7 +98,7 @@ export function TodayDateControl({
         type="button"
         aria-label={moreLabel}
         aria-expanded={menuOpen}
-        className="icon-btn touch-target shrink-0"
+        className={DATE_ICON_BUTTON_CLASS_NAME}
         onClick={() => setMenuOpen((open) => !open)}
       >
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />

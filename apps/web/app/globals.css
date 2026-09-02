@@ -968,6 +968,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
+  .habit-panel:hover:has(button:hover, a:hover, [role="button"]:hover) {
+    background: var(--bg-card);
+    box-shadow: inset 0 0 0 1px var(--hairline-ghost);
+  }
+
   .orbit-link-action:hover {
     color: var(--fg-1);
   }
