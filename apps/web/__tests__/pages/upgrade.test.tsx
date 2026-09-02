@@ -202,6 +202,8 @@ describe('UpgradePage', () => {
     expect(screen.getByText('upgrade.convert.proAllowance')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.allowanceNote')).toBeInTheDocument()
     expect(screen.getByLabelText('upgrade.outcomes.label').children).toHaveLength(3)
+    expect(document.body.textContent).toContain('upgrade.convert.cancelAnytime')
+    expect(document.body.textContent).toContain('upgrade.plans.renewalNote')
     expect(document.body.textContent).not.toContain('upgrade.features.')
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })
@@ -225,6 +227,7 @@ describe('UpgradePage', () => {
     mockProfile = { ...mockProfile, isTrialActive: false }
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(document.body.textContent).toContain('upgrade.convert.promise')
     expect(document.body.textContent).toContain('upgrade.convert.trustLine')
   })
 
@@ -240,6 +243,7 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.convert.trialHeading')
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
     expect(document.body.textContent).not.toContain('upgrade.convert.trustLine')
+    expect(document.body.textContent).toContain('upgrade.convert.promise')
   })
 
   it('uses the last day eyebrow instead of a count of one', () => {

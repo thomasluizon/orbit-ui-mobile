@@ -1910,8 +1910,8 @@
       "freeEyebrow": "You are on the free plan",
       "freeHeading": "Ten times more Astra.",
       "freeCta": "Get Pro",
-      "trustLine": "No card was ever taken, you dropped to Free automatically.",
-      "cancelAnytime": "Cancel anytime",
+      "trustLine": "No lock-in, and no card is ever stored in Orbit.",
+      "cancelAnytime": "Cancel whenever you like.",
       "stayFree": "Stay free",
       "allowanceLabel": "Daily Astra allowance",
       "freeAllowance": "5",
@@ -1955,7 +1955,7 @@
       "coupon": {
         "line": "With your coupon, {percent}% off the first charge."
       },
-      "renewalNote": "Your subscription renews automatically. Cancel anytime, at least 24 hours before renewal, to avoid future charges.",
+      "renewalNote": "The subscription renews itself at the end of the period, and you can turn that off in the portal.",
       "loading": "Fetching the amounts",
       "error": "Couldn't load pricing",
       "retry": "Try again"

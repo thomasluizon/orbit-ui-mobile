@@ -147,6 +147,14 @@ export function PricingSection({
 
       {plans ? (
         <>
+          <View style={styles.reassurance}>
+            <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
+              {t('upgrade.convert.cancelAnytime')}
+            </Text>
+            <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
+              {t('upgrade.plans.renewalNote')}
+            </Text>
+          </View>
           <Pressable
             accessibilityRole="button"
             onPress={onRestore}

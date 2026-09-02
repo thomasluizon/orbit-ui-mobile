@@ -1910,8 +1910,8 @@
       "freeEyebrow": "Você está no plano grátis",
       "freeHeading": "Dez vezes mais Astra.",
       "freeCta": "Assinar Pro",
-      "trustLine": "Nenhum cartão foi cobrado, você voltou ao plano grátis automaticamente.",
-      "cancelAnytime": "Cancele quando quiser",
+      "trustLine": "Sem fidelidade, e nenhum cartão fica guardado no Orbit.",
+      "cancelAnytime": "Cancele quando quiser.",
       "stayFree": "Continuar grátis",
       "allowanceLabel": "Cota diária do Astra",
       "freeAllowance": "5",
@@ -1955,7 +1955,7 @@
       "coupon": {
         "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },
-      "renewalNote": "A assinatura é renovada automaticamente. Cancele quando quiser, com pelo menos 24h de antecedência, para evitar cobranças futuras.",
+      "renewalNote": "A assinatura renova sozinha no fim do período, e dá para desligar isso no portal.",
       "loading": "Buscando os valores",
       "error": "Não foi possível carregar os preços",
       "retry": "Tentar de novo"

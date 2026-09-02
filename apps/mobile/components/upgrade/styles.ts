@@ -287,11 +287,23 @@ export const styles = StyleSheet.create({
     fontSize: 12,
   },
   renewalNote: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
     marginHorizontal: 4,
+  },
+  reassurance: {
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  reassurancePrimary: {
+    fontFamily: 'Geist_500Medium',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   restoreLink: {
     fontFamily: 'Rubik_500Medium',

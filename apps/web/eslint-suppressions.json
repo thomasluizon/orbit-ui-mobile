@@ -1052,11 +1052,6 @@
       "count": 2
     }
   },
-  "components/upgrade/pricing-section.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/upgrade/usage-stats.tsx": {
     "local/spacing-scale": {
       "count": 2

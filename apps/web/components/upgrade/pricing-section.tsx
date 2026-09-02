@@ -120,19 +120,16 @@ export function PricingSection({
 
       {plans ? (
         <>
-          <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 20 }}>
+          <div className="mt-6 flex flex-col items-center gap-2">
             {checkoutError ? (
-              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
+              <p className="text-center text-xs text-[var(--status-bad)]">
                 {checkoutError}
               </p>
             ) : null}
-            <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--fg-2)' }}>
+            <p className="text-center text-[13px] font-medium text-[var(--fg-2)]">
               {t('upgrade.convert.cancelAnytime')}
             </p>
-            <p
-              className="text-center"
-              style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-3)', maxWidth: '52ch' }}
-            >
+            <p className="max-w-[52ch] text-center text-xs leading-[1.5] text-[var(--fg-3)]">
               {t('upgrade.plans.renewalNote')}
             </p>
           </div>
