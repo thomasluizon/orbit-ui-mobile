@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act, within } from '@testing-library/react'
+import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
+import { renderToString } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -241,29 +242,15 @@ vi.mock('@/components/habits/log-habit-modal', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  closestCenter: vi.fn(),
-  KeyboardSensor: vi.fn(),
-  PointerSensor: vi.fn(),
-  TouchSensor: vi.fn(),
-  useSensor: () => ({}),
-  useSensors: () => [],
-}))
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
 
-vi.mock('@dnd-kit/sortable', () => ({
-  SortableContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  sortableKeyboardCoordinates: vi.fn(),
-  useSortable: () => ({
-    attributes: {},
-    listeners: {},
-    setNodeRef: vi.fn(),
-    transform: null,
-    transition: null,
-    isDragging: false,
-  }),
-  verticalListSortingStrategy: vi.fn(),
-}))
+  return {
+    ...actual,
+    useSensor: () => ({}),
+    useSensors: () => [],
+  }
+})
 
 vi.mock('@dnd-kit/utilities', () => ({
   CSS: {
@@ -296,6 +283,20 @@ function renderWithProviders(ui: React.ReactElement) {
       )
     },
   }
+}
+
+function createHabitListTree(queryClient: QueryClient) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <HabitList filters={defaultFilters} />
+    </QueryClientProvider>
+  )
+}
+
+function getSortableDescriptions(container: HTMLElement): string[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('[aria-roledescription="sortable"]'),
+  ).map((row) => row.getAttribute('aria-describedby') ?? '')
 }
 
 async function confirmVisibleSheet(title: string, confirmLabel: string) {
@@ -354,6 +355,41 @@ describe('HabitList', () => {
     )
     expect(screen.getByText('habits.emptyState')).toBeDefined()
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
+  })
+
+  it('keeps sortable descriptions stable through hydration', async () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    const serverHtml = renderToString(
+      createHabitListTree(new QueryClient()),
+    )
+    const container = document.createElement('div')
+    container.innerHTML = serverHtml
+    document.body.append(container)
+    const serverDescriptions = getSortableDescriptions(container)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const result = render(
+        createHabitListTree(new QueryClient()),
+        { container, hydrate: true },
+      )
+
+      await waitFor(() => {
+        for (const descriptionId of getSortableDescriptions(container)) {
+          expect(container.querySelector(`[id="${descriptionId}"]`)).toBeInTheDocument()
+        }
+      })
+
+      expect(serverDescriptions).not.toEqual([])
+      expect(getSortableDescriptions(container)).toEqual(serverDescriptions)
+      expect(consoleError).not.toHaveBeenCalled()
+      result.unmount()
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {
