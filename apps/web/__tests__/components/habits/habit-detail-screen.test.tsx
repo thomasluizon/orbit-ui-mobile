@@ -36,9 +36,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: () => (key: string, values?: Record<string, string>) => key === 'loggedAt'
-    ? `${values?.date}, logged at ${values?.time}`
-    : key,
+  useTranslations: () => (key: string, values?: Record<string, string>) => {
+    if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
+    if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+    return key
+  },
 }))
 
 vi.mock('next/navigation', () => ({
@@ -549,9 +551,12 @@ describe('HabitDetailScreen', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'clear-checklist' }))
+    expect(mocks.checklist).not.toHaveBeenCalled()
+
     fireEvent.click(screen.getByTestId('confirm-habits.checklistClearTitle'))
     await act(async () => Promise.resolve())
 
+    expect(mocks.checklist).toHaveBeenCalledOnce()
     expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [] })
     expect(screen.queryByTestId('confirm-habits.checklistClearTitle')).not.toBeInTheDocument()
   })
@@ -586,7 +591,7 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.askAstra' }))
 
-    expect(localStorage.getItem('orbit-chat-draft')).toBe('habits.detail.askAstraSeedDefault')
+    expect(localStorage.getItem('orbit-chat-draft')).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
     expect(mocks.routerPush).toHaveBeenCalledWith('/chat')
   })
 

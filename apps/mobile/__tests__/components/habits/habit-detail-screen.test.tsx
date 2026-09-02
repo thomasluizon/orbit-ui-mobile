@@ -41,9 +41,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, values?: Record<string, string>) => key === 'habits.detail.loggedAt'
-      ? `${values?.date}, logged at ${values?.time}`
-      : key,
+    t: (key: string, values?: Record<string, string>) => {
+      if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
+      if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+      return key
+    },
     i18n: { language: 'en' },
   }),
 }))
@@ -817,11 +819,14 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree!.root.findByProps({ testID: 'habit-checklist' }).props.onClear()
     })
+    expect(mocks.checklist).not.toHaveBeenCalled()
+
     await TestRenderer.act(async () => {
       tree!.root.findByProps({ testID: 'confirm-habits.checklistClearTitle' }).props.onConfirm()
       await Promise.resolve()
     })
 
+    expect(mocks.checklist).toHaveBeenCalledOnce()
     expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [] })
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistClearTitle' })).toHaveLength(0)
   })
@@ -881,7 +886,7 @@ describe('HabitDetailScreen', () => {
 
     expect(mocks.setStorage).toHaveBeenCalledWith(
       'orbit-chat-draft',
-      'habits.detail.askAstraSeedDefault',
+      'habits.detail.askAstraSeedDefault:{"title":"Read"}',
     )
     expect(mocks.routerPush).toHaveBeenCalledWith('/chat')
   })
