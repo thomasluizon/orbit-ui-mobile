@@ -73,4 +73,14 @@ describe('OperationOutcomes on mobile', () => {
     TestRenderer.act(() => profile.props.onPress())
     expect(push).toHaveBeenCalledWith('/profile')
   })
+
+  it('renders one policy outcome when the API returns a denial twice', () => {
+    let tree: any
+    const deniedOperation = { ...operation('Denied', 1), operationId: denial.operationId }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<OperationOutcomes operations={[deniedOperation]} denials={[denial]} />)
+    })
+
+    expect(text(tree.toJSON()).match(/chat\.operation\.outcome\.UnsupportedByPolicy/g)).toHaveLength(1)
+  })
 })

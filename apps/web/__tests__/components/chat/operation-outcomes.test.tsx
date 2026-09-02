@@ -54,4 +54,12 @@ describe('OperationOutcomes on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.openProfile' }))
     expect(push).toHaveBeenCalledWith('/profile')
   })
+
+  it('renders one policy outcome when the API returns a denial twice', () => {
+    const deniedOperation = { ...operation('Denied', 1), operationId: denial.operationId }
+    render(<OperationOutcomes operations={[deniedOperation]} denials={[denial]} />)
+
+    expect(screen.getAllByText('chat.operation.outcome.UnsupportedByPolicy')).toHaveLength(1)
+    expect(screen.getAllByText('chat.operation.status.UnsupportedByPolicy')).toHaveLength(1)
+  })
 })
