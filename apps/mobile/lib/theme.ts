@@ -120,8 +120,6 @@ export interface AppTokensV2 {
   /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string
   primaryDim: string
-  gradientHeaderFrom: string
-  gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
   statusFrozen: string
@@ -177,9 +175,6 @@ export function createTokensV2(
   const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
   const neutral = neutralColors[themeMode]
   const status = statusConstants[themeMode]
-  // WHY: Keep the scheme wash until #381 removes the header gradient. https://github.com/thomasluizon/orbit-ui-mobile/issues/381
-  const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
-  const [r, g, b] = hexChannels(neutral.bg)
   return {
     bg: neutral.bg,
     bgCard: neutral.bgCard,
@@ -206,8 +201,6 @@ export function createTokensV2(
     primaryRgb: accent.primaryRgb,
     primarySoft: accent.primarySoft,
     primaryDim: accent.primaryDim,
-    gradientHeaderFrom: gradientFrom,
-    gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: neutral.fg1,
     statusEmpty: neutral.fg4,
     statusFrozen: neutral.fg2,

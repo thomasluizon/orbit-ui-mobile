@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
+import { neutralColors } from '@orbit/shared/theme'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -11,6 +12,8 @@ vi.mock('next-intl', () => ({
 
 import { CalendarTimeGrid, type TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+
+const pinnedCardLayer = ['linear-gradient', '(var(--bg-card), var(--bg-card))'].join('')
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -53,6 +56,40 @@ function renderGrid(
       isLoading={isLoading}
     />,
   )
+}
+
+function compositeCardOverCanvas(card: string, canvas: string): string {
+  if (card.startsWith('#')) return card.toUpperCase()
+
+  const channels = card.match(/^rgba\((\d+),(\d+),(\d+),(\d+(?:\.\d+)?)\)$/)
+  if (!channels) throw new Error(`Unsupported card color: ${card}`)
+
+  const canvasChannels = [1, 3, 5].map((offset) => Number.parseInt(canvas.slice(offset, offset + 2), 16))
+  const alpha = Number(channels[4])
+  const blended = channels.slice(1, 4).map((channel, index) => {
+    const canvasChannel = canvasChannels[index]
+    if (canvasChannel === undefined) throw new Error('Missing canvas channel')
+    return Math.round(Number(channel) * alpha + canvasChannel * (1 - alpha))
+  })
+  return `#${blended.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`.toUpperCase()
+}
+
+function resolvePinnedPane(
+  pane: HTMLElement,
+  colors: { bg: string; bgCard: string },
+): string {
+  const canvasToken = pane.style.backgroundColor.match(/^var\((--[\w-]+)\)$/)?.[1]
+  const cardToken = pane.style.backgroundImage.match(
+    /^linear-gradient\(var\((--[\w-]+)\), var\(\1\)\)$/,
+  )?.[1]
+  const tokens: Record<string, string> = {
+    '--bg': colors.bg,
+    '--bg-card': colors.bgCard,
+  }
+  if (!canvasToken || !cardToken || !tokens[canvasToken] || !tokens[cardToken]) {
+    throw new Error('Pinned pane does not use the expected semantic layers')
+  }
+  return compositeCardOverCanvas(tokens[cardToken], tokens[canvasToken])
 }
 
 describe('CalendarTimeGrid', () => {
@@ -126,12 +163,22 @@ describe('CalendarTimeGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
   })
 
-  it('gives the pinned all-day band an opaque backdrop so scrolled hours never bleed through', () => {
+  it('resolves the pinned pane to the card surface in both modes', () => {
     const col = column(2025, 5, 16)
     renderGrid([col], new Map())
 
     const band = screen.getByTestId('time-grid-all-day-band')
-    expect(band.getAttribute('style')).toContain('var(--bg)')
+    expect(band).toHaveStyle({
+      backgroundColor: 'var(--bg)',
+      backgroundImage: pinnedCardLayer,
+    })
+
+    for (const [mode, expected] of [['dark', '#131315'], ['light', '#FFFFFF']] as const) {
+      const colors = neutralColors[mode]
+      const card = compositeCardOverCanvas(colors.bgCard, colors.bg)
+      expect(resolvePinnedPane(band, colors)).toBe(card)
+      expect(card).toBe(expected)
+    }
   })
 
   it('labels the +N overflow chip with a localized count for screen readers', () => {

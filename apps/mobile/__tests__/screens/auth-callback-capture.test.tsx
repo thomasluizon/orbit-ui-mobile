@@ -66,7 +66,6 @@ vi.mock('@/lib/theme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children }: { children?: React.ReactNode }) => children,
 }))
