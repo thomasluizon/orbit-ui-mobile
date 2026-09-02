@@ -149,7 +149,6 @@ interface ReminderEditorsProps {
 interface SubHabitSectionProps {
   canUseSubHabits: boolean
   proposed: boolean
-  checklistItemCount: number
   onUpgrade: () => void
   children?: ReactNode
   t: (key: string) => string
@@ -158,7 +157,6 @@ interface SubHabitSectionProps {
 function SubHabitSection({
   canUseSubHabits,
   proposed,
-  checklistItemCount,
   onUpgrade,
   children,
   t,
@@ -167,7 +165,7 @@ function SubHabitSection({
     <View>
       <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
       {canUseSubHabits ? (
-        <Proposed proposed={proposed && checklistItemCount === 0 && !!children} scope="field" label={t('habits.form.proposed')}>
+        <Proposed proposed={proposed && !!children} scope="field" label={t('habits.form.proposed')}>
           {children}
         </Proposed>
       ) : (
@@ -479,7 +477,7 @@ export function HabitFormFields({
                 }} />
               </Proposed>
             </View>
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits} checklistItemCount={checklistItems.length} onUpgrade={onUpgrade} t={t}>
+            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits} onUpgrade={onUpgrade} t={t}>
               {children}
             </SubHabitSection>
             <View style={styles.compactGroup}>

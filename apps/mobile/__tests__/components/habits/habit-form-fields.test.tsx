@@ -344,10 +344,15 @@ describe('HabitFormFields mobile', () => {
 
   it('preserves breakdown proposals when correcting proposed setup', async () => {
     mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ title: 'Build a stronger routine' })
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <HabitFormFields formHelpers={createFormHelpers({ title: 'Build a stronger routine' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => COMBINED_PROPOSAL} defaultExpanded>
+        <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => {
+          controlValues.checklistItems = [{ text: 'Prepare', isChecked: false }]
+          return COMBINED_PROPOSAL
+        }} defaultExpanded>
           {React.createElement('View', { testID: 'sub-habit-editor' })}
         </HabitFormFields>,
       )

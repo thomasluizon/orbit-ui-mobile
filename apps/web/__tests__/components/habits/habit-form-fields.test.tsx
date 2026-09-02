@@ -339,7 +339,11 @@ describe('HabitFormFields', () => {
 
   it('preserves breakdown proposals when correcting proposed setup', async () => {
     mockProfileState.hasProAccess = true
-    renderForm(createFormHelpers({ title: 'Build a stronger routine' }), () => COMBINED_PROPOSAL, true)
+    const formHelpers = createFormHelpers({ title: 'Build a stronger routine' })
+    renderForm(formHelpers, () => {
+      formHelpers.testValues.checklistItems = [{ text: 'Prepare', isChecked: false }]
+      return COMBINED_PROPOSAL
+    }, true)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
     await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(3))
