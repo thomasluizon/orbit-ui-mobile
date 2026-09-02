@@ -87,14 +87,27 @@ export function HabitEmojiSelector({
       >
         <View style={styles.emojiSheetContent}>
             <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
-            <BottomSheetAppTextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t("habits.form.emojiSearchPlaceholder")}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <BottomSheetAppTextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t("habits.form.emojiSearchPlaceholder")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
+                style={{ flex: 1 }}
+              />
+              {query ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("habits.form.emojiClearSearch")}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                  onPress={() => setQuery('')}
+                >
+                  <X size={20} color={tokens.fg2} strokeWidth={1.8} />
+                </Pressable>
+              ) : null}
+            </View>
 
             {selectedEmoji ? (
               <Pressable
