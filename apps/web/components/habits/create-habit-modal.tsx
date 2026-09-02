@@ -37,6 +37,7 @@ import {
   resolveAutoManagedReminderEnabled,
   toggleSelectedId,
 } from '@orbit/shared/utils'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
@@ -304,7 +305,7 @@ export function CreateHabitModal({
           setExpandAdvancedSignal((value) => value + 1)
         }
 
-        const proposal = {
+        const proposal: HabitFormProposal = {
           setup: appliedSetup,
           checklist: appliedChecklist,
           subHabits: appliedSubHabits,

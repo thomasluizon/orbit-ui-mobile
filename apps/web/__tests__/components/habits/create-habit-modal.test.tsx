@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 
 
 const mockCreateMutateAsync = vi.fn()
@@ -23,6 +24,9 @@ const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
+const mockHabitFormFieldsState = vi.hoisted(() => ({
+  onSuggestSetup: undefined as undefined | (() => HabitFormProposal | Promise<HabitFormProposal>),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -156,21 +160,24 @@ vi.mock('./habit-form-fields', () => ({
     onToggleGoal,
   }: {
     children?: React.ReactNode
-    onSuggestSetup?: () => void
+    onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
     onToggleGoal: (goalId: string) => void
-  }) => (
-    <div data-testid="habit-form-fields">
-      {onSuggestSetup && (
-        <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
-          suggest
+  }) => {
+    mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    return (
+      <div data-testid="habit-form-fields">
+        {onSuggestSetup && (
+          <button type="button" data-testid="suggest-trigger" onClick={() => { void onSuggestSetup() }}>
+            suggest
+          </button>
+        )}
+        <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
+          goal
         </button>
-      )}
-      <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
-        goal
-      </button>
-      {children}
-    </div>
-  ),
+        {children}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
@@ -180,21 +187,24 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     onToggleGoal,
   }: {
     children?: React.ReactNode
-    onSuggestSetup?: () => void
+    onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>
     onToggleGoal: (goalId: string) => void
-  }) => (
-    <div data-testid="habit-form-fields">
-      {onSuggestSetup && (
-        <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
-          suggest
+  }) => {
+    mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    return (
+      <div data-testid="habit-form-fields">
+        {onSuggestSetup && (
+          <button type="button" data-testid="suggest-trigger" onClick={() => { void onSuggestSetup() }}>
+            suggest
+          </button>
+        )}
+        <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
+          goal
         </button>
-      )}
-      <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
-        goal
-      </button>
-      {children}
-    </div>
-  ),
+        {children}
+      </div>
+    )
+  },
 }))
 
 
@@ -211,6 +221,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('CreateHabitModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHabitFormFieldsState.onSuggestSetup = undefined
     mockProfileState.hasProAccess = true
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockResolvedValue({})
@@ -476,11 +487,12 @@ describe('CreateHabitModal', () => {
     })
 
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByTestId('suggest-trigger'))
-
-    await waitFor(() => {
-      expect(mockSetFlexible).toHaveBeenCalled()
+    let proposal: HabitFormProposal | undefined
+    await act(async () => {
+      proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
     })
+
+    expect(mockSetFlexible).toHaveBeenCalled()
     expect(mockFormSetValue).toHaveBeenCalledWith('dueTime', '07:00', { shouldDirty: true })
     expect(mockFormSetValue).toHaveBeenCalledWith(
       'checklistItems',
@@ -490,5 +502,34 @@ describe('CreateHabitModal', () => {
       ],
       { shouldDirty: true },
     )
+    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false })
+  })
+
+  it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return [{ text: 'Shoes', isChecked: false }]
+      return undefined
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏃',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    let proposal: HabitFormProposal | undefined
+    await act(async () => {
+      proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
+    })
+
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false })
+    expect(mockFormSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
   })
 })

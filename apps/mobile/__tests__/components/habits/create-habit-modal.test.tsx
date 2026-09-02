@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 
@@ -306,8 +307,9 @@ describe('CreateHabitModal (mobile)', () => {
       (node: any) => node.type === 'HabitFormFields',
     )[0]
 
+    let proposal: HabitFormProposal | undefined
     await TestRenderer.act(async () => {
-      await formFields.props.onSuggestSetup()
+      proposal = await formFields.props.onSuggestSetup()
     })
 
     expect(mockSetFlexible).toHaveBeenCalled()
@@ -322,6 +324,36 @@ describe('CreateHabitModal (mobile)', () => {
       ],
       { shouldDirty: true },
     )
+    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false })
+  })
+
+  it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return [{ text: 'Shoes', isChecked: false }]
+      return undefined
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏃',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+    let proposal: HabitFormProposal | undefined
+    await TestRenderer.act(async () => {
+      proposal = await formFields.props.onSuggestSetup()
+    })
+
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false })
+    expect(mockSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
   })
 
   it('creates the habit and closes on a successful submit', async () => {
