@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
@@ -13,7 +14,6 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
@@ -62,6 +62,10 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+
+const CreateHabitModal = dynamic(() =>
+  import('@/components/habits/create-habit-modal').then((module) => module.CreateHabitModal),
+)
 
 export default function AppLayout({
   children,
