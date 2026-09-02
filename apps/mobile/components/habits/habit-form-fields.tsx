@@ -12,6 +12,7 @@ import {
   getFriendlyErrorMessage,
   HABIT_REMINDER_PRESETS,
   isFeatureEnabled,
+  isHabitAstraLimitReached,
   readHabitPhrase,
   resolveSupportedLocale,
 } from '@orbit/shared/utils'
@@ -95,10 +96,6 @@ async function askAstra(
 ): Promise<boolean> {
   if (!action || atLimit) return false
   return action()
-}
-
-function isAtMessageLimit(hasProAccess: boolean, used: number, allowance: number): boolean {
-  return !hasProAccess && used >= allowance
 }
 
 function resolveStartDate(startDate: string | null | undefined, dueDate: string): string | null {
@@ -325,7 +322,7 @@ export function HabitFormFields({
     [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, translate],
   )
   const allowance = profile?.aiMessagesLimit ?? 5
-  const atMessageLimit = isAtMessageLimit(hasProAccess, profile?.aiMessagesUsed ?? 0, allowance)
+  const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
 
   const handleAskAstra = useCallback(async () => {
     setProposed(await askAstra(onSuggestSetup, atMessageLimit))

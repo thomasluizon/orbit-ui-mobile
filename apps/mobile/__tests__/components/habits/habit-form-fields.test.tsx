@@ -206,6 +206,19 @@ describe('HabitFormFields mobile', () => {
     expect(onSuggestSetup).not.toHaveBeenCalled()
   })
 
+  it('disables Astra at the Pro allowance too', async () => {
+    mockProfileState.hasProAccess = true
+    mockProfileState.aiMessagesUsed = 5
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn(() => true)} />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    expect(ask.props.disabled).toBe(true)
+  })
+
   it('marks an Astra checklist proposal until a correction is made', async () => {
     const formHelpers = createFormHelpers({
       checklistItems: [{ text: 'Shoes', isChecked: false }],

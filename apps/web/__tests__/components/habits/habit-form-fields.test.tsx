@@ -237,6 +237,14 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('checklist-editor')).toBeDefined()
   })
 
+  it('disables Astra at the Pro allowance too', () => {
+    mockProfileState.hasProAccess = true
+    mockProfileState.aiMessagesUsed = 5
+    renderForm(createFormHelpers({ title: 'Run' }), vi.fn(() => true))
+
+    expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBeDisabled()
+  })
+
   it.each([
     ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
     ['stepper', () => fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))],
