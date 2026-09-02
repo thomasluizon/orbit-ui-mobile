@@ -111,6 +111,11 @@ describe('ReminderSection', () => {
       (node) => node.props.accessibilityLabel === 'habits.form.removeReminder',
     )
     expect(removeButton!.props.disabled).toBe(true)
+    expect(
+      tree.root.findAll(
+        (node) => node.type === 'Text' && node.props.children === 'habits.form.reminderLastRequired',
+      ),
+    ).toHaveLength(1)
   })
 
   it('adds a preset reminder and keeps the list sorted descending', () => {

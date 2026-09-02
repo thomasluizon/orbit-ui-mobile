@@ -652,6 +652,7 @@
       "checklistItemTooLong": "Cada item do checklist pode ter no máximo 500 caracteres",
       "removeEndDate": "Remover data de término",
       "removeReminder": "Remover lembrete",
+      "reminderLastRequired": "O último lembrete fica. Para nenhum, desligue os lembretes.",
       "removeScheduledReminder": "Remover lembrete agendado",
       "removeSubHabit": "Remover sub-hábito",
       "editTag": "Editar tag",

@@ -652,6 +652,7 @@
       "checklistItemTooLong": "Checklist items must be 500 characters or fewer",
       "removeEndDate": "Remove end date",
       "removeReminder": "Remove reminder",
+      "reminderLastRequired": "The last reminder stays. For none, turn reminders off.",
       "removeScheduledReminder": "Remove scheduled reminder",
       "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",

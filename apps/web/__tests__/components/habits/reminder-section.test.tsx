@@ -67,6 +67,7 @@ describe('ReminderSection', () => {
   it('disables removal when only one reminder remains', () => {
     renderSection({ reminderTimes: [15] })
     expect(screen.getByLabelText('habits.form.removeReminder')).toBeDisabled()
+    expect(screen.getByText('habits.form.reminderLastRequired')).toBeDefined()
   })
 
   it('toggles reminders through the switch', () => {

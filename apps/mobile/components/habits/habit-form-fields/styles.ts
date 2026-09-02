@@ -59,6 +59,11 @@ export function createSectionStyles(tokens: AppTokens) {
       fontSize: 12,
       color: tokens.fg1,
     },
+    hintText: {
+      fontFamily: "Rubik_400Regular",
+      fontSize: 13,
+      color: tokens.fg3,
+    },
     addButton: {
       flexDirection: "row",
       alignItems: "center",
