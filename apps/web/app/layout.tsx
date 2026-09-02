@@ -8,7 +8,7 @@ import { Bell, Check, X } from '@/components/ui/icons'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
+import { neutralColors } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import './globals.css'
@@ -38,7 +38,7 @@ const schemeNames = Array.from(VALID_COLOR_SCHEMES)
 const canvasByScheme = Object.fromEntries(
   schemeNames.map((scheme) => [
     scheme,
-    { dark: resolveDarkNeutrals(scheme).bg, light: resolveLightNeutrals(scheme).bg },
+    { dark: neutralColors.dark.bg, light: neutralColors.light.bg },
   ]),
 )
 const variablesByScheme = Object.fromEntries(
@@ -88,8 +88,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: resolveLightNeutrals('purple').bg },
-    { media: '(prefers-color-scheme: dark)', color: resolveDarkNeutrals('purple').bg },
+    { media: '(prefers-color-scheme: light)', color: neutralColors.light.bg },
+    { media: '(prefers-color-scheme: dark)', color: neutralColors.dark.bg },
   ],
 }
 

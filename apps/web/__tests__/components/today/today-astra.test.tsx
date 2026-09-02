@@ -114,7 +114,9 @@ describe('web Today Astra', () => {
     renderTodayAstra()
 
     expect(screen.getByText(/Check in/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation' }))
+    const action = screen.getByRole('button', { name: 'todayAstra.openConversation' })
+    expect(action).toHaveClass('orbit-link-action-persistent')
+    fireEvent.click(action)
     expect(mocks.markRead).toHaveBeenCalledWith('check-in')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })

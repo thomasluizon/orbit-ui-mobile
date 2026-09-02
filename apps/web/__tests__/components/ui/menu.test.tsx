@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { createRef, useEffect, useRef, useState } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -57,6 +59,38 @@ describe('Menu', () => {
     expect(onSelect).toHaveBeenCalledWith('edit')
     expect(onSelect.mock.calls[0]).toHaveLength(1)
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the wide catcher transparent and the sheet backdrop on the scrim token', async () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+    const anchorRef = createRef<HTMLButtonElement>()
+    const { rerender } = render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu
+          open
+          presentation="anchored"
+          anchorRef={anchorRef}
+          title="Habit actions"
+          items={items}
+        />
+      </>,
+    )
+
+    await screen.findByRole('menu')
+    expect(document.querySelector('.orbit-menu-catcher')).toBeInTheDocument()
+    expect(stylesheet).toContain(
+      '.orbit-menu-catcher {\n  position: fixed;\n  inset: 0;\n  z-index: calc(var(--z-index-dropdown) - 1);\n  background: transparent;',
+    )
+
+    rerender(<Menu open presentation="sheet" title="Habit actions" items={items} />)
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(document.querySelector('.orbit-sheet-backdrop')).toBeInTheDocument()
+    expect(stylesheet).toContain(
+      '.orbit-sheet-backdrop {\n  position: fixed;\n  inset: 0;\n  background: var(--scrim);',
+    )
   })
 
   it('renders nothing when it is closed or has no items', () => {

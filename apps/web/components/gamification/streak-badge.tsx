@@ -12,7 +12,7 @@ interface StreakBadgeProps {
 /**
  * Kit streak entry point — 40px circled button (inset hairline-strong ring,
  * translucent well) with the 🔥 flame emoji and a tabular count. Frozen state
- * swaps the flame for a snowflake stroked in status-frozen. Tapping navigates
+ * swaps the flame for a snowflake stroked in the second foreground neutral. Tapping navigates
  * to the streak page.
  */
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
@@ -41,7 +41,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           height="14"
           viewBox="0 0 12 14"
           fill="none"
-          stroke="var(--status-frozen)"
+          stroke="var(--fg-2)"
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"

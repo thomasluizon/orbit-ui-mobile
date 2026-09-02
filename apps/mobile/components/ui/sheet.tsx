@@ -9,6 +9,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const MAX_HEIGHT_RATIO = 0.85
+// WHY: TrueSheet 3.11.3 exposes only `dimmed` and hardcodes Android dim opacity to 0.50. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDimView.kt#L38
+const TRUE_SHEET_DIMMED = true
 
 export interface SheetHandle {
   /**
@@ -129,7 +131,7 @@ export function Sheet({
       backgroundColor={tokens.bgSheet}
       cornerRadius={28}
       detents={['auto', MAX_HEIGHT_RATIO]}
-      dimmed
+      dimmed={TRUE_SHEET_DIMMED}
       dismissible={onClose != null}
       footer={footer}
       grabber

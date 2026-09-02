@@ -25,6 +25,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  bodyButtonPressed: {
+    transform: [{ scale: 0.96 }],
+  },
   emojiWell: {
     alignItems: 'center',
     justifyContent: 'center',
