@@ -139,6 +139,7 @@ Core tracker. Caps in `AppConstants.cs` (e.g. sub-habits max 20, depth max 5, ta
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
 | Create habits | Name, description, frequency; via form or Astra | Free; the 1000 top-level ceiling is an abuse guard on every plan | Both | — |
+| Habit detail | Dedicated flow for logging, checklist editing, metrics, history, reminders, linked goals, schedule editing, and Astra guidance | Free; reschedule, add sub-habit, and slip alert actions require Pro | Both | — |
 | AI habit setup suggestion | "Suggest with AI" from the create or edit modal fills emoji, cadence, due time, and checklist from the habit name (create also proposes sub-habits) | Free; AI usage metered, over-limit blocked server-side (no client Pro-gate) | Both | — |
 | Frequencies & scheduling | Daily, weekly-on-days, monthly, yearly | Free | Both | — |
 | Flexible habits | Complete X times per week/month, no fixed days | Free | Both | — |

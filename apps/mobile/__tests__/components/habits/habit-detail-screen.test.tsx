@@ -220,7 +220,7 @@ vi.mock('@/components/ui/icons', () => ({
   Trash2: () => null,
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, trailing, onClick }: { title: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, onClick }, trailing),
+  ListRow: ({ title, value, trailing, onClick }: { title: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, value, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, onClick }, children),
@@ -705,6 +705,40 @@ describe('HabitDetailScreen', () => {
     const editor = tree!.root.findByType('EditHabitModal')
     expect(editor.props.open).toBe(true)
     expect(editor.props.relationshipFieldsLoaded).toBe(false)
+  })
+
+  it('shows reminder copy and count between description and end date and opens the editor', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    const reminderRow = tree!.root.findByProps({ title: 'habits.detail.reminders' })
+    expect(reminderRow.props.value).toBe('habits.detail.noValue')
+    const detailRows = tree!.root.findAllByType('ListRow')
+    const detailTitles = detailRows.map((row: { props: { title: string } }) => row.props.title)
+    expect(detailTitles.indexOf('habits.detail.description')).toBeLessThan(
+      detailTitles.indexOf('habits.detail.reminders'),
+    )
+    expect(detailTitles.indexOf('habits.detail.reminders')).toBeLessThan(
+      detailTitles.indexOf('habits.detail.endDate'),
+    )
+
+    TestRenderer.act(() => reminderRow.props.onClick())
+    expect(tree!.root.findByType('EditHabitModal').props.open).toBe(true)
+
+    mocks.detail = {
+      ...makeDetail(),
+      reminderEnabled: true,
+      reminderTimes: [10, 30],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    TestRenderer.act(() => {
+      tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    expect(tree!.root.findByProps({ title: 'habits.detail.reminders' }).props.value).toBe('3')
   })
 
   it('sends slip alert state only from the explicit switch action', () => {

@@ -105,9 +105,9 @@ vi.mock('@/components/ui/switch', () => ({
   ),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, trailing, onClick }: { title: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
-    ? <button type="button" onClick={onClick}>{title}{trailing}</button>
-    : <div>{title}{trailing}</div>,
+  ListRow: ({ title, value, trailing, onClick }: { title: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
+    ? <button type="button" data-testid={`list-row-${title}`} data-value={value} onClick={onClick}>{title}{trailing}</button>
+    : <div data-testid={`list-row-${title}`} data-value={value}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
@@ -476,6 +476,33 @@ describe('HabitDetailScreen', () => {
       'data-relationship-fields-loaded',
       'false',
     )
+  })
+
+  it('shows reminder copy and count between description and end date and opens the editor', () => {
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    const reminderRow = screen.getByTestId('list-row-habits.detail.reminders')
+    expect(reminderRow).toHaveAttribute('data-value', 'habits.detail.noValue')
+    const detailRows = Array.from(reminderRow.parentElement!.children)
+    expect(detailRows.indexOf(screen.getByTestId('list-row-habits.detail.description'))).toBeLessThan(
+      detailRows.indexOf(reminderRow),
+    )
+    expect(detailRows.indexOf(reminderRow)).toBeLessThan(
+      detailRows.indexOf(screen.getByTestId('list-row-habits.detail.endDate')),
+    )
+
+    fireEvent.click(reminderRow)
+    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute('data-open', 'true')
+
+    mocks.detail = {
+      ...makeDetail(),
+      reminderEnabled: true,
+      reminderTimes: [10, 30],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', '3')
   })
 
   it('sends slip alert state only from the explicit switch action', () => {
