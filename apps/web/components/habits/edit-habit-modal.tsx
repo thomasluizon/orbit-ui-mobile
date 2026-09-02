@@ -316,16 +316,12 @@ export function EditHabitModal({
         await suggestion.mutateAsync({ title, language: locale }),
       )
 
-      applySuggestionSchedule(patch, formHelpers)
+      const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
       const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
 
       const proposal = {
-        setup:
-          patch.emoji !== null ||
-          patch.frequencyUnit !== null ||
-          patch.days.length > 0 ||
-          patch.dueTime !== null,
+        setup: appliedSetup,
         checklist: appliedChecklist,
         subHabits: false,
       }
