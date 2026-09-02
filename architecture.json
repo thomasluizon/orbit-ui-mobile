@@ -24301,6 +24301,7 @@
         "apps/mobile/__tests__/lib/orbit-widget.test.ts",
         "apps/mobile/__tests__/lib/queued-api-mutation.test.ts",
         "apps/mobile/__tests__/screens/calendar-views.test.tsx",
+        "apps/mobile/__tests__/screens/chat-screen.test.tsx",
         "apps/mobile/__tests__/screens/today-astra-surfaces.test.tsx",
         "apps/mobile/__tests__/screens/today-bulk-actions.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
