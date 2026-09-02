@@ -78,11 +78,12 @@ function renderForm(
   formHelpers = createFormHelpers(),
   onSuggestSetup?: () => boolean | Promise<boolean>,
   defaultExpanded = false,
+  readPhraseLocally = false,
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>,
@@ -117,6 +118,14 @@ describe('HabitFormFields', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
+  })
+
+  it('clears a stale schedule when the current phrase is unresolved', async () => {
+    const formHelpers = createFormHelpers({ title: 'Drink water when I can', dueTime: '08:00' })
+    renderForm(formHelpers, undefined, false, true)
+
+    await waitFor(() => expect(formHelpers.setOneTime).toHaveBeenCalledOnce())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
   })
 
   it('reveals the detail sections from the single disclosure', () => {

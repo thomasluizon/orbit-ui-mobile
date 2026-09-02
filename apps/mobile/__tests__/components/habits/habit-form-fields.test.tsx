@@ -63,6 +63,17 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
+  it('clears a stale schedule when the current phrase is unresolved', async () => {
+    const formHelpers = createFormHelpers({ title: 'Drink water when I can', dueTime: '08:00' })
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />)
+      await Promise.resolve()
+    })
+
+    expect(formHelpers.setOneTime).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+  })
+
   it('keeps local corrections and details live at the Astra ceiling', async () => {
     mockProfileState.aiMessagesUsed = 5
     const onSuggestSetup = vi.fn(() => true)

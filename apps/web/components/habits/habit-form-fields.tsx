@@ -66,11 +66,17 @@ function applyLocalRead(
   enabled: boolean,
   read: HabitPhraseRead,
   emoji: string,
+  setOneTime: HabitFormHelpers['setOneTime'],
   setFlexible: HabitFormHelpers['setFlexible'],
   setRecurring: HabitFormHelpers['setRecurring'],
   setValue: HabitFormHelpers['form']['setValue'],
 ) {
-  if (!enabled || !read.cadence) return
+  if (!enabled) return
+  setValue('dueTime', read.dueTime ?? '', { shouldDirty: true })
+  if (!read.cadence) {
+    setOneTime()
+    return
+  }
   if (read.cadence === 'flexible') {
     setFlexible()
     setValue('frequencyUnit', 'Week', { shouldDirty: true })
@@ -82,7 +88,6 @@ function applyLocalRead(
     setValue('frequencyQuantity', 1, { shouldDirty: true })
     setValue('days', read.days, { shouldDirty: true })
   }
-  if (read.dueTime) setValue('dueTime', read.dueTime, { shouldDirty: true })
   if (read.emoji && !emoji) setValue('emoji', read.emoji, { shouldDirty: true })
 }
 
@@ -248,7 +253,7 @@ export function HabitFormFields({
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
   const { profile } = useProfile()
-  const { form, daysList, toggleDay, setRecurring, setFlexible } = formHelpers
+  const { form, daysList, toggleDay, setOneTime, setRecurring, setFlexible } = formHelpers
   const { watch, setValue, formState: { errors } } = form
   const title = coalesceFormText(watch('title'))
   const emoji = watch('emoji') ?? ''
@@ -280,8 +285,8 @@ export function HabitFormFields({
   const localRead = useMemo(() => readHabitPhrase(title, locale), [locale, title])
 
   useEffect(() => {
-    applyLocalRead(readPhraseLocally, localRead, emoji, setFlexible, setRecurring, setValue)
-  }, [emoji, localRead, readPhraseLocally, setFlexible, setRecurring, setValue])
+    applyLocalRead(readPhraseLocally, localRead, emoji, setOneTime, setFlexible, setRecurring, setValue)
+  }, [emoji, localRead, readPhraseLocally, setFlexible, setOneTime, setRecurring, setValue])
 
   useEffect(() => {
     if (!dueTime && form.getValues('dueEndTime')) {
