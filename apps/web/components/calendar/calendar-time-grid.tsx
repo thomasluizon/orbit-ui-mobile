@@ -34,6 +34,7 @@ function splitAllDay(allDay: CalendarDayEntry[]): {
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg)',
+  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
 export interface TimeGridColumn {

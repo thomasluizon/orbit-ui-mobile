@@ -69,25 +69,25 @@ export const cases = () => {
     { status: 1, stderr: /expo-linear-gradient import/ },
   )
 
-  const agendaHairlines = stageRepository("agenda-hairlines", {
+  const agendaFunctional = stageRepository("agenda-functional", {
     "apps/web/components/calendar/calendar-agenda-view.tsx":
-      "export const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
+      "export const pane = {\n  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',\n}\nexport const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
   })
   check(
     "check-gradients.mjs",
-    "accepts the agenda hairline allowance",
-    ["--root", agendaHairlines],
+    "accepts the agenda functional allowances",
+    ["--root", agendaFunctional],
     { status: 0, stdout: /Gradient guard passed/ },
   )
 
-  const timeGridHairlines = stageRepository("time-grid-hairlines", {
+  const timeGridFunctional = stageRepository("time-grid-functional", {
     "apps/web/components/calendar/calendar-time-grid.tsx":
-      "export const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
+      "export const pane = {\n  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',\n}\nexport const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
   })
   check(
     "check-gradients.mjs",
-    "accepts the time grid hairline allowance",
-    ["--root", timeGridHairlines],
+    "accepts the time grid functional allowances",
+    ["--root", timeGridFunctional],
     { status: 0, stdout: /Gradient guard passed/ },
   )
 }

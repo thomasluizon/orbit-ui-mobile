@@ -21,17 +21,21 @@ const allowlist = new Map([
   [
     "apps/web/components/calendar/calendar-agenda-view.tsx",
     {
-      gradientLine:
+      gradientLines: [
+        /^\s*backgroundImage:\s*'linear-gradient\(var\(--bg-card\), var\(--bg-card\)\)',\s*$/,
         /^\s*'repeating-linear-gradient\(to bottom, var\(--hairline\) 0, var\(--hairline\) 1px, transparent 1px, transparent '\s*\+\s*$/,
-      reason: "The repeating gradient draws the agenda's structural hour hairlines.",
+      ],
+      reason: "The flat card layer makes pinned panes opaque, and the repeating gradient draws structural hour hairlines.",
     },
   ],
   [
     "apps/web/components/calendar/calendar-time-grid.tsx",
     {
-      gradientLine:
+      gradientLines: [
+        /^\s*backgroundImage:\s*'linear-gradient\(var\(--bg-card\), var\(--bg-card\)\)',\s*$/,
         /^\s*'repeating-linear-gradient\(to bottom, var\(--hairline\) 0, var\(--hairline\) 1px, transparent 1px, transparent '\s*\+\s*$/,
-      reason: "The repeating gradient draws the time grid's structural hour hairlines.",
+      ],
+      reason: "The flat card layer makes pinned panes opaque, and the repeating gradient draws structural hour hairlines.",
     },
   ],
 ])
@@ -78,7 +82,7 @@ function normalizedRelativePath(repositoryRoot, file) {
 }
 
 function isAllowedGradientLine(path, line) {
-  return allowlist.get(path)?.gradientLine?.test(line) ?? false
+  return allowlist.get(path)?.gradientLines?.some((pattern) => pattern.test(line)) ?? false
 }
 
 function inspectFile(repositoryRoot, file) {

@@ -48,6 +48,7 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg)',
+  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
 function currentMinutes(): number {
