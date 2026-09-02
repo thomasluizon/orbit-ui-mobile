@@ -18,6 +18,7 @@ export function Button({
   disabled = false,
   loading = false,
   children,
+  accessibleName,
   iconOnly,
   label,
 }: Readonly<ButtonProps>) {
@@ -66,7 +67,7 @@ export function Button({
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
       accessibilityRole="button"
-      accessibilityLabel={iconOnly ? label : undefined}
+      accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
