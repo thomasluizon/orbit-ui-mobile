@@ -207,6 +207,7 @@ export function HabitFormFields({
   onSuggestSetup,
   isSuggesting = false,
   readPhraseLocally = false,
+  lockedGeneral = null,
   startDate,
   defaultExpanded = false,
   children,
@@ -220,7 +221,7 @@ export function HabitFormFields({
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
   const { profile } = useProfile()
-  const { form, daysList, toggleDay, setOneTime, setRecurring, setFlexible } = formHelpers
+  const { form, daysList, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { watch, setValue, formState: { errors } } = form
   const title = coalesceFormText(watch('title'))
   const emoji = watch('emoji') ?? ''
@@ -260,17 +261,17 @@ export function HabitFormFields({
       readPhraseLocally,
       localRead,
       emoji,
-      null,
+      lockedGeneral,
       phraseOwnershipRef.current,
       {
         setOneTime,
         setRecurring,
         setFlexible,
-        setGeneral: formHelpers.setGeneral,
+        setGeneral,
         setField: (field, value) => setValue(field, value as never, { shouldDirty: true }),
       },
     )
-  }, [emoji, formHelpers.setGeneral, localRead, readPhraseLocally, setFlexible, setOneTime, setRecurring, setValue, title])
+  }, [emoji, localRead, lockedGeneral, readPhraseLocally, setFlexible, setGeneral, setOneTime, setRecurring, setValue, title])
 
   useEffect(() => {
     if (!dueTime && form.getValues('dueEndTime')) {
@@ -292,19 +293,27 @@ export function HabitFormFields({
   const handleToggleDay = useCallback((day: string) => {
     setProposed(false)
     phraseOwnershipRef.current.cadence = false
+    if (lockedGeneral === true) {
+      setGeneral()
+      return
+    }
     setRecurring()
     setValue('frequencyUnit', 'Day', { shouldDirty: true })
     setValue('frequencyQuantity', 1, { shouldDirty: true })
     toggleDay(day)
-  }, [setRecurring, setValue, toggleDay])
+  }, [lockedGeneral, setGeneral, setRecurring, setValue, toggleDay])
 
   const handleQuantityChange = useCallback((quantity: number) => {
     setProposed(false)
     phraseOwnershipRef.current.cadence = false
+    if (lockedGeneral === true) {
+      setGeneral()
+      return
+    }
     setFlexible()
     setValue('frequencyUnit', 'Week', { shouldDirty: true })
     setValue('frequencyQuantity', quantity, { shouldDirty: true })
-  }, [setFlexible, setValue])
+  }, [lockedGeneral, setFlexible, setGeneral, setValue])
 
   const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
     if (onReminderEnabledChange) onReminderEnabledChange(nextEnabled)

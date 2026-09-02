@@ -82,11 +82,12 @@ function renderForm(
   onSuggestSetup?: () => boolean | Promise<boolean>,
   defaultExpanded = false,
   readPhraseLocally = false,
+  lockedGeneral: boolean | null = null,
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const buildForm = () => (
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>
@@ -154,6 +155,20 @@ describe('HabitFormFields', () => {
     await waitFor(() => {
       expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
     })
+  })
+
+  it('preserves a locked General schedule through local reads and both corrections', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday', isGeneral: true })
+    renderForm(formHelpers, undefined, false, true, true)
+
+    await waitFor(() => expect(formHelpers.setGeneral).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+
+    expect(formHelpers.setGeneral).toHaveBeenCalledTimes(3)
+    expect(formHelpers.setRecurring).not.toHaveBeenCalled()
+    expect(formHelpers.setFlexible).not.toHaveBeenCalled()
+    expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
   it('reveals the detail sections from the single disclosure', () => {

@@ -108,6 +108,27 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
   })
 
+  it('preserves a locked General schedule through local reads and both corrections', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday', isGeneral: true })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally lockedGeneral />)
+      await Promise.resolve()
+    })
+
+    expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    TestRenderer.act(() => {
+      understanding.props.onToggleDay('Monday')
+      understanding.props.onQuantityChange(4)
+    })
+
+    expect(formHelpers.setGeneral).toHaveBeenCalledTimes(3)
+    expect(formHelpers.setRecurring).not.toHaveBeenCalled()
+    expect(formHelpers.setFlexible).not.toHaveBeenCalled()
+    expect(formHelpers.toggleDay).not.toHaveBeenCalled()
+  })
+
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', async () => {
     const formHelpers = createFormHelpers({ dueTime: '08:00' })
     let tree: any
