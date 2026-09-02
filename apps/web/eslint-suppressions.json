@@ -645,36 +645,6 @@
       "count": 4
     }
   },
-  "components/habits/habit-form-fields.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/no-space-x-y": {
-      "count": 13
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/habits/habit-form-fields/color-swatches.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/habits/habit-form-fields/frequency-type-cards.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "components/habits/habit-form-fields/habit-emoji-selector.tsx": {
     "local/icon-size-grid": {
       "count": 2

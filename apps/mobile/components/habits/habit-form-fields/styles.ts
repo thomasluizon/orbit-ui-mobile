@@ -544,6 +544,11 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
+    tagChipSelected: {
+      backgroundColor: tokens.primaryDim,
+      borderWidth: 1.5,
+      borderColor: tokens.primary,
+    },
     tagChipMain: {
       flexDirection: "row",
       alignItems: "center",
@@ -551,11 +556,6 @@ export function createStyles(tokens: AppTokens) {
       paddingLeft: 12,
       paddingRight: 4,
       paddingVertical: 8,
-    },
-    tagDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
     },
     tagChipText: {
       fontFamily: "Rubik_500Medium",
