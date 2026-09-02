@@ -74,8 +74,6 @@ describe('mobile theme runtime', () => {
     expect(dark.primarySoft).toBe('#c85716')
     expect(dark.primaryDim).toBe('#261611')
     expect(dark.fgOnPrimary).toBe('#ffffff')
-    expect(dark.gradientHeaderFrom).toBe('#22094f')
-    expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
   })
 
   it('resolves every served scheme to the granted accent', () => {

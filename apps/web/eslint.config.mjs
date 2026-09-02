@@ -143,20 +143,6 @@ export default [
       "local/require-dialog-title": "error",
       "local/will-change-discipline": "error",
 
-      // Staged at `warn`: current code violates these, and the fix is not this bundle's.
-      // Bundle 5 (#539) de-decorates the UI — it deletes the glow/gradient tokens and their
-      // ~46 call sites — and flips these two to `error` in the same PR. `error` today would
-      // fail CI on code that is only waiting its turn.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      // Wired on web only, each for a platform reason (#36 parity criterion):
-      //   no-calc-percentage-width, no-gradient-text, no-user-scalable-no -> CSS or
-      //     viewport-meta constructs React Native does not have.
-      //   no-dead-href, no-placeholder-alt, require-dialog-title -> <a href>, <img alt>
-      //     and <dialog>, none of which exist in React Native.
-      //   react19-api -> the rule scopes itself to Next.js 16 / React 19 spellings.
-      //   no-nested-component-definition -> mobile bans the same thing through
-      //     react-hooks/static-components, which web does not wire. Same ban, one
-      //     mechanism per platform, not a parity gap.
       "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
 

@@ -120,8 +120,6 @@ export interface AppTokensV2 {
   /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string
   primaryDim: string
-  gradientHeaderFrom: string
-  gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
   statusOverdue: string
@@ -177,11 +175,8 @@ export function createTokensV2(
   const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
   const alpha = alphaSurfaces[themeMode]
   const status = statusConstants[themeMode]
-  const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
-
   if (themeMode === 'light') {
     const neutrals = resolveLightNeutrals(colorScheme)
-    const [r, g, b] = hexChannels(neutrals.bg)
     return {
       bg: neutrals.bg,
       bgCard: alpha.bgCard,
@@ -205,8 +200,6 @@ export function createTokensV2(
       primaryRgb: accent.primaryRgb,
       primarySoft: accent.primarySoft,
       primaryDim: accent.primaryDim,
-      gradientHeaderFrom: gradientFrom,
-      gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: neutrals.fg1,
       statusEmpty: alpha.statusEmpty,
       statusOverdue: status.overdue,
@@ -221,7 +214,6 @@ export function createTokensV2(
   }
 
   const neutrals = resolveDarkNeutrals(colorScheme)
-  const [r, g, b] = hexChannels(neutrals.bg)
   return {
     bg: neutrals.bg,
     bgCard: alpha.bgCard,
@@ -245,8 +237,6 @@ export function createTokensV2(
     primaryRgb: accent.primaryRgb,
     primarySoft: accent.primarySoft,
     primaryDim: accent.primaryDim,
-    gradientHeaderFrom: gradientFrom,
-    gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: neutrals.fg1,
     statusEmpty: alpha.statusEmpty,
     statusOverdue: status.overdue,

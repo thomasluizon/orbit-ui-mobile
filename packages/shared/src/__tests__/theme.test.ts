@@ -56,10 +56,6 @@ describe('color schemes', () => {
       }
     })
 
-    it(`${name}: gradient header stops are valid hexes`, () => {
-      expect(schemes[name].gradientHeaderFrom.dark).toMatch(HEX)
-      expect(schemes[name].gradientHeaderFrom.light).toMatch(HEX)
-    })
   }
 })
 describe('fg-on-primary (scheme x mode AA resolution)', () => {
@@ -118,11 +114,6 @@ describe('neutral ramp resolution', () => {
       fg3: '#62748e',
       fg4: '#90a1b9',
     })
-  })
-
-  it('purple gradient header stops equal the handoff literals', () => {
-    expect(schemes.purple.gradientHeaderFrom.dark).toBe('#22094f')
-    expect(schemes.purple.gradientHeaderFrom.light).toBe('#e9d4ff')
   })
 
   for (const name of ALL_SCHEMES) {
