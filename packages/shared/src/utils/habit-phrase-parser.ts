@@ -18,6 +18,11 @@ export interface HabitPhraseRead {
   consumed: HabitPhraseToken[]
 }
 
+export interface HabitPhraseSegment {
+  text: string
+  consumed: boolean
+}
+
 interface LocalePatterns {
   weekdays: Array<{ day: string; pattern: RegExp }>
   daily: RegExp
@@ -139,4 +144,20 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
     emoji: EMOJI_HINTS.find(({ pattern }) => pattern.test(text))?.emoji ?? null,
     consumed,
   }
+}
+
+export function segmentHabitPhrase(
+  text: string,
+  consumed: readonly HabitPhraseToken[],
+): HabitPhraseSegment[] {
+  if (text.length === 0) return []
+  const segments: HabitPhraseSegment[] = []
+  let cursor = 0
+  for (const token of consumed) {
+    if (token.start > cursor) segments.push({ text: text.slice(cursor, token.start), consumed: false })
+    segments.push({ text: text.slice(token.start, token.end), consumed: true })
+    cursor = token.end
+  }
+  if (cursor < text.length) segments.push({ text: text.slice(cursor), consumed: false })
+  return segments
 }

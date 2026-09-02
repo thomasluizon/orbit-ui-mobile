@@ -1,5 +1,8 @@
 'use client'
 
+import { useMemo } from 'react'
+import type { HabitPhraseToken } from '@orbit/shared/utils'
+import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { Proposed } from '@/components/ui/proposed'
@@ -17,6 +20,7 @@ interface HabitUnderstandingProps {
   dayOptions: DayOption[]
   quantity: number
   sentence: string | null
+  consumed: readonly HabitPhraseToken[]
   proposed?: boolean
   onValueChange: (value: string) => void
   onEmojiSelect: (emoji: string) => void
@@ -43,6 +47,7 @@ export function HabitUnderstanding({
   dayOptions,
   quantity,
   sentence,
+  consumed,
   proposed = false,
   onValueChange,
   onEmojiSelect,
@@ -51,22 +56,39 @@ export function HabitUnderstanding({
   labels,
 }: Readonly<HabitUnderstandingProps>) {
   const hasValue = value.trim().length > 0
+  const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
         <label htmlFor="habit-phrase" className="form-label">{labels.field}</label>
-        <textarea
-          id="habit-phrase"
-          value={value}
-          rows={3}
-          maxLength={200}
-          placeholder={labels.placeholder}
-          aria-invalid={!!error}
-          aria-describedby={error ? 'habit-phrase-error' : undefined}
-          className="min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-[var(--bg-field)] p-4 text-base leading-[1.45] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] placeholder:text-[var(--fg-4)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
-          onChange={(event) => onValueChange(event.target.value)}
-        />
+        <div className="relative rounded-[12px] focus-within:shadow-[inset_0_0_0_2px_var(--primary)]">
+          <p
+            aria-hidden="true"
+            className="min-h-[92px] w-full whitespace-pre-wrap break-words rounded-[12px] bg-[var(--bg-field)] p-4 text-start text-base leading-[1.45] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)]"
+          >
+            {hasValue ? segments.map((segment, index) => segment.consumed ? (
+              <span
+                key={`${segment.text}-${index}`}
+                data-consumed="true"
+                className="rounded-[8px] bg-[var(--bg-well)] shadow-[inset_0_-2px_0_var(--hairline-strong)]"
+              >
+                {segment.text}
+              </span>
+            ) : segment.text) : <span className="text-[var(--fg-4)]">{labels.placeholder}</span>}
+          </p>
+          <textarea
+            id="habit-phrase"
+            value={value}
+            rows={3}
+            maxLength={200}
+            spellCheck={false}
+            aria-invalid={!!error}
+            aria-describedby={error ? 'habit-phrase-error' : undefined}
+            className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-transparent caret-[var(--fg-1)]"
+            onChange={(event) => onValueChange(event.target.value)}
+          />
+        </div>
         {error ? (
           <p id="habit-phrase-error" role="alert" className="text-sm text-[var(--status-bad)]">
             {error}

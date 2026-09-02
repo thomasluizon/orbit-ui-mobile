@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import type { HabitPhraseToken } from '@orbit/shared/utils'
+import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, radius } from '@/lib/theme'
@@ -20,6 +22,7 @@ interface HabitUnderstandingProps {
   dayOptions: DayOption[]
   quantity: number
   sentence: string | null
+  consumed: readonly HabitPhraseToken[]
   proposed?: boolean
   onValueChange: (value: string) => void
   onEmojiSelect: (emoji: string) => void
@@ -46,6 +49,7 @@ export function HabitUnderstanding({
   dayOptions,
   quantity,
   sentence,
+  consumed,
   proposed = false,
   onValueChange,
   onEmojiSelect,
@@ -61,22 +65,32 @@ export function HabitUnderstanding({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const hasValue = value.trim().length > 0
+  const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   return (
     <View style={styles.container}>
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{labels.field}</Text>
-        <TextInput
-          value={value}
-          multiline
-          maxLength={200}
-          placeholder={labels.placeholder}
-          placeholderTextColor={tokens.fg4}
-          accessibilityLabel={labels.field}
-          accessibilityState={{ disabled: false }}
-          style={styles.input}
-          onChangeText={onValueChange}
-        />
+        <View style={styles.inputLayer}>
+          <Text aria-hidden style={styles.inputMirror}>
+            {hasValue ? segments.map((segment, index) => (
+              <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
+                {segment.text}
+              </Text>
+            )) : <Text style={styles.placeholder}>{labels.placeholder}</Text>}
+          </Text>
+          <TextInput
+            value={value}
+            multiline
+            maxLength={200}
+            spellCheck={false}
+            accessibilityLabel={labels.field}
+            accessibilityState={{ disabled: false }}
+            selectionColor={tokens.primary}
+            style={styles.input}
+            onChangeText={onValueChange}
+          />
+        </View>
         {error ? (
           <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
         ) : null}
@@ -156,19 +170,41 @@ function createStyles(tokens: AppTokens) {
     container: { gap: 24 },
     fieldGroup: { gap: 8 },
     label: { color: tokens.fg2, fontFamily: 'Rubik_500Medium', fontSize: 14 },
-    input: {
+    inputLayer: {
       minHeight: 92,
       borderRadius: radius.md,
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
+    },
+    inputMirror: {
+      minHeight: 90,
       color: tokens.fg1,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
+      lineHeight: 23,
+      padding: 16,
+    },
+    input: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      minHeight: 90,
+      color: 'transparent',
       fontFamily: 'Rubik_400Regular',
       fontSize: 16,
       lineHeight: 23,
       padding: 16,
       textAlignVertical: 'top',
     },
+    consumed: {
+      backgroundColor: tokens.bgWell,
+      textDecorationLine: 'underline',
+      textDecorationColor: tokens.hairlineStrong,
+    },
+    placeholder: { color: tokens.fg4 },
     error: { color: tokens.statusBad, fontFamily: 'Rubik_400Regular', fontSize: 14 },
     preview: {
       gap: 16,

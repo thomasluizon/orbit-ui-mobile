@@ -4,7 +4,15 @@ import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
-import { coalesceFormText, formatLocaleDate, getFriendlyErrorMessage, HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
+import type { HabitPhraseRead } from '@orbit/shared/utils'
+import {
+  coalesceFormText,
+  formatLocaleDate,
+  getFriendlyErrorMessage,
+  HABIT_REMINDER_PRESETS,
+  readHabitPhrase,
+  resolveSupportedLocale,
+} from '@orbit/shared/utils'
 import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -46,9 +54,34 @@ interface HabitFormFieldsProps {
   expandAdvancedSignal?: number
   onSuggestSetup?: () => void
   isSuggesting?: boolean
+  readPhraseLocally?: boolean
   lockedGeneral?: boolean | null
   onUpgrade: () => void
   children?: ReactNode
+}
+
+function applyLocalRead(
+  enabled: boolean,
+  read: HabitPhraseRead,
+  emoji: string,
+  setFlexible: HabitFormHelpers['setFlexible'],
+  setRecurring: HabitFormHelpers['setRecurring'],
+  setValue: HabitFormHelpers['form']['setValue'],
+) {
+  if (!enabled || !read.cadence) return
+  if (read.cadence === 'flexible') {
+    setFlexible()
+    setValue('frequencyUnit', 'Week', { shouldDirty: true })
+    setValue('frequencyQuantity', read.frequencyQuantity, { shouldDirty: true })
+    setValue('days', [], { shouldDirty: true })
+  } else {
+    setRecurring()
+    setValue('frequencyUnit', 'Day', { shouldDirty: true })
+    setValue('frequencyQuantity', 1, { shouldDirty: true })
+    setValue('days', read.days, { shouldDirty: true })
+  }
+  if (read.dueTime) setValue('dueTime', read.dueTime, { shouldDirty: true })
+  if (read.emoji && !emoji) setValue('emoji', read.emoji, { shouldDirty: true })
 }
 
 function reminderLabel(minutes: number, t: (key: string) => string): string {
@@ -130,6 +163,7 @@ export function HabitFormFields({
   hasScheduledReminders = false,
   onFlushBufferedInputsReady,
   expandAdvancedSignal = 0,
+  readPhraseLocally = false,
   onUpgrade,
   children,
 }: Readonly<HabitFormFieldsProps>) {
@@ -172,6 +206,14 @@ export function HabitFormFields({
   const deleteTag = useDeleteTag()
   const selectedTagIdSet = useMemo(() => new Set(tags.selectedTagIds), [tags.selectedTagIds])
   const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
+  const localRead = useMemo(
+    () => readHabitPhrase(title, resolveSupportedLocale(i18n.language)),
+    [i18n.language, title],
+  )
+
+  useEffect(() => {
+    applyLocalRead(readPhraseLocally, localRead, emoji, setFlexible, setRecurring, setValue)
+  }, [emoji, localRead, readPhraseLocally, setFlexible, setRecurring, setValue])
 
   useEffect(() => {
     if (!onFlushBufferedInputsReady) return
@@ -249,6 +291,7 @@ export function HabitFormFields({
         dayOptions={daysList}
         quantity={frequencyQuantity}
         sentence={sentence}
+        consumed={localRead.consumed}
         onValueChange={(value) => setValue('title', value, { shouldDirty: true, shouldValidate: true })}
         onEmojiSelect={(value) => setValue('emoji', value, { shouldDirty: true })}
         onToggleDay={handleToggleDay}

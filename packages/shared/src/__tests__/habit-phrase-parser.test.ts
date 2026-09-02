@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readHabitPhrase } from '../utils/habit-phrase-parser'
+import { readHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
 
 describe('readHabitPhrase', () => {
   it('gives fixed weekdays precedence over a weekly count', () => {
@@ -68,5 +68,16 @@ describe('readHabitPhrase', () => {
     expect(readHabitPhrase('Read daily at 8', 'en').dueTime).toBe('08:00')
     expect(readHabitPhrase('Read daily 8', 'en').dueTime).toBeNull()
     expect(readHabitPhrase('Ler diariamente as 9', 'pt-BR').dueTime).toBe('09:00')
+  })
+
+  it('segments consumed words without changing the original text', () => {
+    const text = 'Run Monday at 08:00'
+    const segments = segmentHabitPhrase(text, readHabitPhrase(text, 'en').consumed)
+    expect(segments.map((segment) => segment.text).join('')).toBe(text)
+    expect(segments.filter((segment) => segment.consumed).map((segment) => segment.text)).toEqual([
+      'Monday',
+      'at 08:00',
+    ])
+    expect(segmentHabitPhrase('', [])).toEqual([])
   })
 })

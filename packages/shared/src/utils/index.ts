@@ -118,10 +118,11 @@ export {
   HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
-export { readHabitPhrase } from './habit-phrase-parser'
+export { readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
 export type {
   HabitPhraseCadence,
   HabitPhraseRead,
+  HabitPhraseSegment,
   HabitPhraseToken,
   HabitPhraseTokenKind,
 } from './habit-phrase-parser'
