@@ -176,7 +176,7 @@ export function applyHabitPhraseRead(
   if (read.cadence === 'flexible') {
     target.setFlexible()
     target.setField('frequencyUnit', 'Week')
-    target.setField('frequencyQuantity', read.frequencyQuantity)
+    target.setField('frequencyQuantity', read.frequencyQuantity!)
     target.setField('days', [])
     return
   }
