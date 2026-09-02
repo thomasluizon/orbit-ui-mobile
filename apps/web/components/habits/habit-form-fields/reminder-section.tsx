@@ -99,6 +99,11 @@ export function ReminderSection({
               </span>
             ))}
           </div>
+          {reminderTimes.length === 1 ? (
+            <p className="text-xs leading-[1.5] text-[var(--fg-3)]">
+              {t('habits.form.reminderLastRequired')}
+            </p>
+          ) : null}
 
           <div className="relative">
             <button

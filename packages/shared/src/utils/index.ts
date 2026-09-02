@@ -118,6 +118,14 @@ export {
   HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
+export { readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
+export type {
+  HabitPhraseCadence,
+  HabitPhraseRead,
+  HabitPhraseSegment,
+  HabitPhraseToken,
+  HabitPhraseTokenKind,
+} from './habit-phrase-parser'
 export {
   applyHabitFormMode,
   buildEditHabitFormState,
@@ -137,18 +145,45 @@ export type {
 } from './habit-form-state'
 export {
   buildHabitDaysList,
+  buildHabitAstraFallbackCopy,
   buildHabitFormPatchFromSuggestion,
+  buildHabitUnderstandingLabels,
+  buildHabitUnderstandingSentence,
+  clearHabitFormProposalSection,
+  createHabitFormController,
+  createHabitFormSuggestionRevision,
+  EMPTY_HABIT_FORM_PROPOSAL,
+  applyHabitDayCorrection,
+  applyHabitPhraseRead,
+  applyHabitQuantityCorrection,
+  formatHabitReminderLabel,
   buildHabitFrequencyUnits,
   coalesceFormText,
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
   getHabitFormFlags,
+  habitFeaturePlan,
+  hasHabitFormProposal,
+  isHabitAstraLimitReached,
   normalizeHabitFormData,
+  releaseHabitPhraseOwnership,
+  requestHabitFormProposal,
+  resolveHabitStartDate,
+  shouldShowHabitAstraFallback,
   isValidHabitTimeInput,
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
+  HabitDayOption,
   HabitFormSuggestionPatch,
+  HabitFormCommonProps,
+  HabitFormController,
+  HabitFormControllerOptions,
+  HabitFormProposal,
+  HabitFormSuggestionRevision,
+  HabitPhraseFormOwnership,
+  HabitUnderstandingLabels,
+  HabitUnderstandingProps,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'

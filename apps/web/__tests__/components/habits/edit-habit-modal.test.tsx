@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 
 
 const mockUpdateMutateAsync = vi.fn()
@@ -22,6 +24,10 @@ const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
 const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]): Record<string, unknown> => ({ goalIds: args[4] })))
 const mockAssignTagsMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+const mockHabitFormFieldsState = vi.hoisted(() => ({
+  onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
+  onSuggestionContextChange: undefined as undefined | (() => void),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -138,33 +144,40 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestionContextChange,
     lockedGeneral,
     onToggleGoal,
     selectedGoalIds,
+    startDate,
   }: {
     children?: React.ReactNode
-    onSuggestSetup?: () => void
+    onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestionContextChange?: () => void
     lockedGeneral?: boolean | null
     onToggleGoal?: (goalId: string) => void
     selectedGoalIds?: string[]
-  }) => (
-    <div data-testid="habit-form-fields">
+    startDate?: string | null
+  }) => {
+    mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
+    return <div data-testid="habit-form-fields">
       <span data-testid="habit-form-fields-locked-general">{String(lockedGeneral)}</span>
       <span data-testid="goal-selection">{JSON.stringify(selectedGoalIds)}</span>
+      <span data-testid="start-date">{startDate}</span>
       {onToggleGoal && <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-1')}>goal</button>}
       {onToggleGoal && <button type="button" data-testid="second-goal-trigger" onClick={() => onToggleGoal('goal-2')}>second goal</button>}
       {onSuggestSetup && (
         <button
           type="button"
           data-testid="suggest-trigger"
-          onClick={() => onSuggestSetup()}
+          onClick={() => { void onSuggestSetup() }}
         >
           suggest
         </button>
       )}
       {children}
     </div>
-  ),
+  },
 }))
 
 
@@ -235,6 +248,14 @@ describe('EditHabitModal', () => {
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
     expect(screen.getByText('habits.form.editDescription')).toBeDefined()
+  })
+
+  it('passes the immutable creation timestamp as the start date', () => {
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+
+    expect(screen.getByTestId('start-date').textContent).toBe(defaultHabit.createdAtUtc)
   })
 
   it('renders cancel and save buttons', () => {
@@ -462,6 +483,9 @@ describe('EditHabitModal', () => {
     mockFormGetValues.mockImplementation((field?: string) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
       return { title: 'Swim', checklistItems: [] }
     })
     mockSuggestMutateAsync.mockResolvedValue({
@@ -503,16 +527,69 @@ describe('EditHabitModal', () => {
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
   })
 
+  it('ignores a pending Astra suggestion after the title changes', async () => {
+    let title = 'Swim'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    const onSuggestSetup = mockHabitFormFieldsState.onSuggestSetup
+    if (!onSuggestSetup) throw new Error('Expected the suggestion handler')
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    act(() => {
+      proposalPromise = Promise.resolve(onSuggestSetup())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Cycle'
+    act(() => mockHabitFormFieldsState.onSuggestionContextChange?.())
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: [],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+  })
+
   it('shows the empty toast when the AI suggestion applies nothing', async () => {
     mockFormGetValues.mockImplementation((field?: string) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
       return { title: 'Swim', checklistItems: [] }
     })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
-      frequencyUnit: null,
-      frequencyQuantity: null,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
       days: [],
       isFlexible: false,
       flexibleTarget: null,

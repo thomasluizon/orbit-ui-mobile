@@ -22,9 +22,12 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  hasHabitFormProposal,
   rebaseSelectedIds,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -83,6 +86,7 @@ export function EditHabitModal({
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const tags = useTagSelection()
   const relationshipFieldsTouchedRef = useRef({
     goalIds: false,
@@ -167,6 +171,9 @@ export function EditHabitModal({
   }, [detailError, showError, translate])
 
   const sessionHabitId = open && habit ? habit.id : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [sessionHabitId, suggestionRevision])
   const sessionDetailId = habitDetail?.id ?? null
   const previousSessionRef = useRef<{
     habitId: string | null
@@ -308,35 +315,44 @@ export function EditHabitModal({
 
   const handleSuggest = useCallback(async () => {
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-    if (title.length === 0) return
+    if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+    const requestRevision = suggestionRevision.advance()
     try {
+      const response = await suggestion.mutateAsync({ title, language: locale })
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: locale }),
+        response,
       )
 
-      applySuggestionSchedule(patch, formHelpers)
+      const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
-      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklistItems = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklist = appliedChecklistItems > 0
 
-      const appliedAnything =
-        patch.emoji !== null ||
-        patch.frequencyUnit !== null ||
-        patch.days.length > 0 ||
-        patch.dueTime !== null ||
-        appliedChecklist
+      const proposal = {
+        setup: appliedSetup,
+        checklist: appliedChecklist,
+        subHabits: false,
+        checklistItems: appliedChecklistItems,
+        subHabitItems: 0,
+      }
+      const appliedAnything = hasHabitFormProposal(proposal)
       if (appliedAnything) {
         showSuccess(t('habits.form.aiSuggestApplied'))
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
+      return proposal
     } catch (error: unknown) {
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+      return EMPTY_HABIT_FORM_PROPOSAL
     }
-  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
+  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, suggestionRevision, t])
 
   function renderEditSheet() {
     if (!open) return null
@@ -389,11 +405,12 @@ export function EditHabitModal({
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
-              hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
-              onSuggestSetup={() => void handleSuggest()}
+              onSuggestionContextChange={suggestionRevision.advance}
+              onSuggestSetup={handleSuggest}
               isSuggesting={suggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}
               defaultExpanded
+              startDate={habit?.createdAtUtc ?? null}
             />
           </fieldset>
         </form>

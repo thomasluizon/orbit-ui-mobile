@@ -1,6 +1,8 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 
@@ -210,6 +212,13 @@ describe('EditHabitModal (mobile)', () => {
     expect(findSaveButton(tree)?.props.disabled).toBe(false)
   })
 
+  it('passes the immutable creation timestamp as the start date', async () => {
+    const tree = await renderModal()
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+
+    expect(findFormFields(tree).props.startDate).toBe(habit.createdAtUtc)
+  })
+
   it('sends the goal list from the explicit goal action', async () => {
     const tree = await renderModal()
 
@@ -292,6 +301,9 @@ describe('EditHabitModal (mobile)', () => {
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
       return {}
     })
     mockSuggestMutateAsync.mockResolvedValue({
@@ -330,16 +342,67 @@ describe('EditHabitModal (mobile)', () => {
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
   })
 
+  it('ignores a pending Astra suggestion after the title changes', async () => {
+    let title = 'Swim'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    const tree = await renderModal()
+    const formFields = findFormFields(tree)
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    TestRenderer.act(() => {
+      proposalPromise = formFields.props.onSuggestSetup()
+    })
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Cycle'
+    TestRenderer.act(() => formFields.props.onSuggestionContextChange())
+
+    let proposal: HabitFormProposal | null | undefined
+    await TestRenderer.act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: [],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+  })
+
   it('shows the empty toast when the AI suggestion applies nothing', async () => {
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
       return {}
     })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
-      frequencyUnit: null,
-      frequencyQuantity: null,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
       days: [],
       isFlexible: false,
       flexibleTarget: null,

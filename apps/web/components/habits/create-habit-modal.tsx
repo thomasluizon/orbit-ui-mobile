@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useId, useRef } from 'react'
+import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -11,6 +11,7 @@ import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
   applySuggestionSchedule,
+  selectSuggestedSubHabitTitles,
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -19,19 +20,25 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
-import { useProfile } from '@/hooks/use-profile'
+import { useConfig } from '@/hooks/use-config'
+import { useHasProAccess } from '@/hooks/use-profile'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
+  hasHabitFormProposal,
+  isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
   toggleSelectedId,
 } from '@orbit/shared/utils'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
@@ -88,14 +95,15 @@ export function CreateHabitModal({
     [t],
   )
   const locale = useLocale()
-  const { profile } = useProfile()
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
+  const { config } = useConfig()
+  const hasProAccess = useHasProAccess()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
-  const hasProAccess = profile?.hasProAccess ?? false
   const activeView = useUIStore((s) => s.activeView)
+  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', hasProAccess ? 'pro' : 'free')
 
   const formHelpers = useHabitForm({
     initialData: {
@@ -106,10 +114,16 @@ export function CreateHabitModal({
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
+  const subHabitsRef = useRef<SubHabitEntry[]>([])
+  const replaceSubHabits = useCallback((nextSubHabits: SubHabitEntry[]) => {
+    subHabitsRef.current = nextSubHabits
+    setSubHabits(nextSubHabits)
+  }, [])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
+  const resolveSubHabitProposalRef = useRef<() => void>(() => {})
   const [initialSnapshot, setInitialSnapshot] = useState({
     tagIds: '[]',
     goalIds: '[]',
@@ -137,21 +151,21 @@ export function CreateHabitModal({
     isDirty,
     onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
+  const suggestionSessionId = open ? (parentHabit?.id ?? 'root') : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [suggestionRevision, suggestionSessionId])
+  const navigateToUpgrade = useCallback(() => {
+    closeSheet(() => {
+      onOpenChange(false)
+      router.push('/upgrade')
+    })
+  }, [closeSheet, onOpenChange, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
-
-  useEffect(() => {
-    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
-
-    // react-doctor-disable-next-line no-prop-callback-in-effect -- pro-access gate, not a render-sync of local state: closes the modal only when a non-pro user opens sub-habit mode, then redirects to /upgrade https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    closeSheet(() => {
-      onOpenChange(false)
-      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- gate depends on client-fetched profile.hasProAccess (useProfile); there is no server-side signal to redirect on https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      router.push('/upgrade')
-    })
-  }, [closeSheet, isSubHabitMode, onOpenChange, open, profile, router])
 
   const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
@@ -170,7 +184,7 @@ export function CreateHabitModal({
       formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
       tags.resetTags()
       setSelectedGoalIds([])
-      setSubHabits([])
+      replaceSubHabits([])
       setReminderTimes([0, 15])
 
       let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
@@ -198,13 +212,7 @@ export function CreateHabitModal({
       })
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [open])
-
-  const [previousHasProAccess, setPreviousHasProAccess] = useState(hasProAccess)
-  if (hasProAccess !== previousHasProAccess) {
-    setPreviousHasProAccess(hasProAccess)
-    if (!hasProAccess && subHabits.length > 0) setSubHabits([])
-  }
+  }, [open, replaceSubHabits])
 
   useEffect(() => {
     if (!open) return
@@ -236,19 +244,15 @@ export function CreateHabitModal({
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
 
-      if (isSubHabitMode && !hasProAccess) {
-        closeSheet(() => {
-          onOpenChange(false)
-          router.push('/upgrade')
-        })
+      if (isSubHabitMode && !canUseSubHabits) {
+        navigateToUpgrade()
         return
       }
 
-      const permittedGoalIds = hasProAccess ? selectedGoalIds : []
-      const subHabitValues = hasProAccess ? subHabits.map((entry) => entry.value) : []
+      const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
       const error = formHelpers.validateAll({
         reminderTimes,
-        selectedGoalIds: permittedGoalIds,
+        selectedGoalIds,
         selectedTagIds: tags.selectedTagIds,
         subHabits: subHabitValues,
       })
@@ -263,7 +267,7 @@ export function CreateHabitModal({
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
           await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
-          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, permittedGoalIds, subHabitValues)
+          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
         closeSheet(() => onOpenChange(false))
@@ -278,28 +282,37 @@ export function CreateHabitModal({
         )
       }
     },
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [closeSheet, createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
+    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isSubHabitMode, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
     async () => {
       const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-      if (title.length === 0) return
+      if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+      const requestRevision = suggestionRevision.advance()
       try {
+        const response = await suggestion.mutateAsync({ title, language: locale })
+        if (!suggestionRevision.isCurrent(requestRevision)) return null
         const patch = buildHabitFormPatchFromSuggestion(
-          await suggestion.mutateAsync({ title, language: locale }),
+          response,
         )
 
-        applySuggestionSchedule(patch, formHelpers)
+        const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
-        const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+        const appliedChecklistItems = applySuggestionChecklist(patch, formHelpers.form)
+        const appliedChecklist = appliedChecklistItems > 0
 
-        const appliedSubHabits = hasProAccess && patch.subHabitTitles.length > 0
+        const filledSubHabits = subHabitsRef.current.filter((entry) => entry.value.trim().length > 0)
+        const suggestedSubHabitTitles = selectSuggestedSubHabitTitles(
+          filledSubHabits.map((entry) => entry.value),
+          patch.subHabitTitles,
+          canUseSubHabits,
+        )
+        const appliedSubHabits = suggestedSubHabitTitles.length > 0
         if (appliedSubHabits) {
-          setSubHabits((prev) => [
-            ...prev.filter((entry) => entry.value.trim().length > 0),
-            ...patch.subHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
+          replaceSubHabits([
+            ...filledSubHabits,
+            ...suggestedSubHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
           ])
         }
 
@@ -307,38 +320,51 @@ export function CreateHabitModal({
           setExpandAdvancedSignal((value) => value + 1)
         }
 
-        const appliedAnything =
-          patch.emoji !== null ||
-          patch.frequencyUnit !== null ||
-          patch.days.length > 0 ||
-          patch.dueTime !== null ||
-          appliedChecklist ||
-          appliedSubHabits
+        const proposal: HabitFormProposal = {
+          setup: appliedSetup,
+          checklist: appliedChecklist,
+          subHabits: appliedSubHabits,
+          checklistItems: appliedChecklistItems,
+          subHabitItems: suggestedSubHabitTitles.length,
+        }
+        const appliedAnything = hasHabitFormProposal(proposal)
         if (appliedAnything) {
           showSuccess(t('habits.form.aiSuggestApplied'))
         } else {
           showInfo(t('habits.form.aiSuggestEmpty'))
         }
+        return proposal
       } catch (error: unknown) {
+        if (!suggestionRevision.isCurrent(requestRevision)) return null
         showError(
           extractBackendErrorCode(error) === 'PAY_GATE'
             ? t('habits.form.aiSuggestLimitReached')
             : t('habits.form.aiSuggestError'),
         )
+        return EMPTY_HABIT_FORM_PROPOSAL
       }
     },
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [formHelpers, hasProAccess, locale, showError, showInfo, showSuccess, suggestion, t],
+    [canUseSubHabits, formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRevision, t],
   )
 
   const isPending = createHabit.isPending || createSubHabit.isPending
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
-    setSubHabits((prev) => prev.map((s) => s.id === id ? { ...s, value } : s))
-  }, [])
+    resolveSubHabitProposalRef.current()
+    replaceSubHabits(subHabitsRef.current.map((subHabit) => subHabit.id === id ? { ...subHabit, value } : subHabit))
+  }, [replaceSubHabits])
 
   const removeSubHabit = useCallback((id: string) => {
-    setSubHabits((prev) => prev.filter((s) => s.id !== id))
+    resolveSubHabitProposalRef.current()
+    replaceSubHabits(subHabitsRef.current.filter((subHabit) => subHabit.id !== id))
+  }, [replaceSubHabits])
+
+  const addSubHabit = useCallback(() => {
+    resolveSubHabitProposalRef.current()
+    replaceSubHabits([...subHabitsRef.current, createSubHabitEntry()])
+  }, [replaceSubHabits])
+  const handleResolveSubHabitProposalReady = useCallback((resolve: () => void) => {
+    resolveSubHabitProposalRef.current = resolve
   }, [])
 
   function renderCreateSheet() {
@@ -382,22 +408,22 @@ export function CreateHabitModal({
             onToggleGoal={toggleGoal}
             reminderTimes={reminderTimes}
             onReminderTimesChange={setReminderTimes}
+            onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             onReminderEnabledChange={handleReminderEnabledChange}
+            onSuggestionContextChange={suggestionRevision.advance}
             expandAdvancedSignal={expandAdvancedSignal}
-            onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+            onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
             isSuggesting={suggestion.isPending}
+            readPhraseLocally
             lockedGeneral={parentHabit?.isGeneral ?? null}
           >
-            {!isSubHabitMode ? (
+            {(proposedItemCount) => !isSubHabitMode ? (
               <SubHabitEditor
                 subHabits={subHabits}
-                hasProAccess={hasProAccess}
+                proposedItemCount={proposedItemCount}
                 onUpdateSubHabit={updateSubHabitValue}
                 onRemoveSubHabit={removeSubHabit}
-                onAddSubHabit={() =>
-                  setSubHabits((prev) => [...prev, createSubHabitEntry()])
-                }
-                onUpgrade={() => router.push('/upgrade')}
+                onAddSubHabit={addSubHabit}
               />
             ) : null}
           </HabitFormFields>

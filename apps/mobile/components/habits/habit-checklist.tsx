@@ -8,11 +8,13 @@ import {
 import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { CheckRow } from '@/components/ui/check-row'
+import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -20,6 +22,7 @@ interface HabitChecklistProps {
   interactive?: boolean
   /** Editable mode: user can add/remove/reorder items */
   editable?: boolean
+  proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
@@ -38,6 +41,7 @@ interface EditableChecklistItemProps {
   onMoveDown: () => void
   isFirst: boolean
   isLast: boolean
+  duplicateDisabled: boolean
   styles: ReturnType<typeof createStyles>
   tokens: AppTokens
 }
@@ -52,6 +56,7 @@ function EditableChecklistItem({
   onMoveDown,
   isFirst,
   isLast,
+  duplicateDisabled,
   styles,
   tokens,
 }: Readonly<EditableChecklistItemProps>) {
@@ -123,9 +128,11 @@ function EditableChecklistItem({
         accessibilityLabel={t('habits.form.duplicateChecklistItem')}
         style={({ pressed }) => [
           styles.itemAction,
+          duplicateDisabled ? { opacity: 0.35 } : null,
           pressed ? { opacity: 0.7 } : null,
         ]}
         onPress={handleDuplicate}
+        disabled={duplicateDisabled}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
@@ -201,6 +208,7 @@ interface ChecklistAddRowProps {
   onAdd: () => void
   styles: ReturnType<typeof createStyles>
   tokens: AppTokens
+  disabled: boolean
 }
 
 function ChecklistAddRow({
@@ -209,6 +217,7 @@ function ChecklistAddRow({
   onAdd,
   styles,
   tokens,
+  disabled,
 }: Readonly<ChecklistAddRowProps>) {
   const { t } = useTranslation()
   return (
@@ -218,6 +227,7 @@ function ChecklistAddRow({
         placeholder={t('habits.form.checklistPlaceholder')}
         placeholderTextColor={tokens.fg3}
         style={styles.addItemInput}
+        editable={!disabled}
         onChangeText={onChangeText}
         onSubmitEditing={onAdd}
         returnKeyType="done"
@@ -227,10 +237,10 @@ function ChecklistAddRow({
         accessibilityLabel={t('common.add')}
         style={({ pressed }) => [
           styles.addItemButton,
-          !value.trim() && styles.addItemButtonDisabled,
+          (disabled || !value.trim()) && styles.addItemButtonDisabled,
           pressed && !!value.trim() ? { opacity: 0.7 } : null,
         ]}
-        disabled={!value.trim()}
+        disabled={disabled || !value.trim()}
         onPress={onAdd}
       >
         <Plus size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
@@ -243,6 +253,7 @@ export function HabitChecklist({
   items,
   interactive = false,
   editable = false,
+  proposedItemCount = 0,
   onItemsChange,
   onToggle,
   onReset,
@@ -258,15 +269,16 @@ export function HabitChecklist({
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const checkedCount = items.filter((i) => i.isChecked).length
+  const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
   const editableItemKeys = items.map((_, index) => `checklist-${index}`)
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
-    if (!text) return
+    if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
     setNewItemText('')
-  }, [items, newItemText, onItemsChange])
+  }, [atItemLimit, items, newItemText, onItemsChange])
 
   const removeItem = useCallback(
     (index: number) => {
@@ -287,13 +299,13 @@ export function HabitChecklist({
   const duplicateItem = useCallback(
     (index: number) => {
       const item = items[index]
-      if (!item) return
+      if (!item || atItemLimit) return
       const clone: ChecklistItem = { text: item.text, isChecked: false }
       const next = [...items]
       next.splice(index + 1, 0, clone)
       onItemsChange?.(next)
     },
-    [items, onItemsChange],
+    [atItemLimit, items, onItemsChange],
   )
 
   const moveItem = useCallback(
@@ -366,20 +378,27 @@ export function HabitChecklist({
       {editable ? (
         <View style={styles.itemsList}>
           {items.map((item, index) => (
-            <EditableChecklistItem
+            <Proposed
               key={editableItemKeys[index]}
-              text={item.text}
-              index={index}
-              onUpdateText={updateItemText}
-              onDuplicate={duplicateItem}
-              onRemove={removeItem}
-              onMoveUp={() => moveItem(index, index - 1)}
-              onMoveDown={() => moveItem(index, index + 1)}
-              isFirst={index === 0}
-              isLast={index === items.length - 1}
-              styles={styles}
-              tokens={tokens}
-            />
+              proposed={index >= items.length - proposedItemCount}
+              scope="row"
+              label={t('habits.form.proposed')}
+            >
+              <EditableChecklistItem
+                text={item.text}
+                index={index}
+                onUpdateText={updateItemText}
+                onDuplicate={duplicateItem}
+                onRemove={removeItem}
+                onMoveUp={() => moveItem(index, index - 1)}
+                onMoveDown={() => moveItem(index, index + 1)}
+                isFirst={index === 0}
+                isLast={index === items.length - 1}
+                duplicateDisabled={atItemLimit}
+                styles={styles}
+                tokens={tokens}
+              />
+            </Proposed>
           ))}
         </View>
       ) : (
@@ -421,8 +440,14 @@ export function HabitChecklist({
           onAdd={addItem}
           styles={styles}
           tokens={tokens}
+          disabled={atItemLimit}
         />
       )}
+      {editable && atItemLimit ? (
+        <Text accessibilityRole="text" style={styles.limitText}>
+          {t('habits.form.checklistItemLimit')}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -457,6 +482,11 @@ function createStyles(tokens: AppTokens) {
     fontFamily: 'Rubik_500Medium',
     fontSize: 12,
     color: tokens.statusBadText,
+  },
+  limitText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    color: tokens.fg3,
   },
   clearRow: {
     alignItems: 'flex-end',

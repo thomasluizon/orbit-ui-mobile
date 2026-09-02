@@ -91,14 +91,26 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
         </div>
 
         <div className="space-y-3 p-4">
-          <input
-            // react-doctor-disable-next-line no-autofocus -- emoji search field inside a user-invoked picker overlay; the user explicitly opened the picker to search, so focusing the search box on open is the intended interaction https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('habits.form.emojiSearchPlaceholder')}
-            className="form-input"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              // react-doctor-disable-next-line no-autofocus -- emoji search field inside a user-invoked picker overlay; the user explicitly opened the picker to search, so focusing the search box on open is the intended interaction https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('habits.form.emojiSearchPlaceholder')}
+              className="form-input min-w-0 flex-1"
+            />
+            {query ? (
+              <button
+                type="button"
+                className="grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]"
+                aria-label={t('habits.form.emojiClearSearch')}
+                onClick={() => setQuery('')}
+              >
+                <X size={20} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
           {selectedEmoji && (
             <button
               type="button"

@@ -24,9 +24,12 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  hasHabitFormProposal,
   rebaseSelectedIds,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -88,6 +91,7 @@ export function EditHabitModal({
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const tags = useTagSelection()
   const relationshipFieldsTouchedRef = useRef({
     goalIds: false,
@@ -189,6 +193,9 @@ export function EditHabitModal({
   }, [detailError, showError, translate])
 
   const sessionHabitId = open && habit ? habit.id : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [sessionHabitId, suggestionRevision])
   const sessionDetailId = habitDetail?.id ?? null
   useLayoutEffect(() => {
     if (sessionHabitId !== relationshipSessionHabitIdRef.current) {
@@ -343,36 +350,45 @@ export function EditHabitModal({
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
     const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
-    if (title.length === 0) return
+    if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+    const requestRevision = suggestionRevision.advance()
 
     try {
+      const response = await suggestion.mutateAsync({ title, language: i18n.language })
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: i18n.language }),
+        response,
       )
 
-      applySuggestionSchedule(patch, formHelpers)
+      const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
-      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklistItems = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklist = appliedChecklistItems > 0
 
-      const appliedAnything =
-        patch.emoji !== null ||
-        patch.frequencyUnit !== null ||
-        patch.days.length > 0 ||
-        patch.dueTime !== null ||
-        appliedChecklist
+      const proposal = {
+        setup: appliedSetup,
+        checklist: appliedChecklist,
+        subHabits: false,
+        checklistItems: appliedChecklistItems,
+        subHabitItems: 0,
+      }
+      const appliedAnything = hasHabitFormProposal(proposal)
       if (appliedAnything) {
         showSuccess(t('habits.form.aiSuggestApplied'))
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
+      return proposal
     } catch (error: unknown) {
+      if (!suggestionRevision.isCurrent(requestRevision)) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+      return EMPTY_HABIT_FORM_PROPOSAL
     }
-  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, suggestionRevision, t])
 
   const watchedTitle = coalesceFormText(
     useWatch({
@@ -409,13 +425,14 @@ export function EditHabitModal({
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
-              hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
+              onSuggestionContextChange={suggestionRevision.advance}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
-              onSuggestSetup={() => void handleSuggest()}
+              onSuggestSetup={handleSuggest}
               isSuggesting={suggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
               onUpgrade={navigateToUpgrade}
+              startDate={habit?.createdAtUtc ?? null}
             />
           </View>
         </View>

@@ -28,6 +28,10 @@ vi.mock('@/hooks/use-app-toast', () => ({
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 
+function openTemplates() {
+  fireEvent.click(screen.getByText('habits.form.templates'))
+}
+
 describe('ChecklistTemplates', () => {
   beforeEach(() => {
     mockTemplates.mockReturnValue({ data: [] })
@@ -40,17 +44,20 @@ describe('ChecklistTemplates', () => {
   it('shows save button when items are present', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
     expect(screen.getByText('habits.form.saveAsTemplate')).toBeInTheDocument()
   })
 
   it('does not show save button when no items', () => {
     render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
+    openTemplates()
     expect(screen.queryByText('habits.form.saveAsTemplate')).not.toBeInTheDocument()
   })
 
   it('shows save form when save button clicked', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
     fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toBeInTheDocument()
   })
@@ -58,6 +65,7 @@ describe('ChecklistTemplates', () => {
   it('calls createTemplate mutation with the typed name and items', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
     fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
@@ -77,6 +85,7 @@ describe('ChecklistTemplates', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     mockIsPending = true
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
     fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
@@ -86,9 +95,24 @@ describe('ChecklistTemplates', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
+  it('saves a named template from the Enter key', () => {
+    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
+    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    fireEvent.change(input, { target: { value: 'Morning' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mockCreate).toHaveBeenCalledWith(
+      { name: 'Morning', items: ['Step 1'] },
+      expect.any(Object),
+    )
+  })
+
   it('shows an error toast when create fails', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
     fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
     fireEvent.change(
@@ -105,6 +129,7 @@ describe('ChecklistTemplates', () => {
   it('closes the form via onSuccess after a successful save', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
     fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
@@ -130,6 +155,7 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={onLoad} />,
     )
 
+    openTemplates()
     fireEvent.click(screen.getByText('Workout'))
     expect(onLoad).toHaveBeenCalledWith([
       { text: 'Warmup', isChecked: false },
@@ -146,6 +172,7 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
     )
 
+    openTemplates()
     fireEvent.click(screen.getByLabelText('common.delete: Workout'))
     expect(mockDelete).toHaveBeenCalledWith(
       'tmpl1',
@@ -162,6 +189,7 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
     )
 
+    openTemplates()
     fireEvent.click(screen.getByLabelText('common.delete: Workout'))
     const onError = mockDelete.mock.calls[0]![1].onError as () => void
     onError()

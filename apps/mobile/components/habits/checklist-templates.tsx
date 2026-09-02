@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Plus, X } from '@/components/ui/icons'
+import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -18,6 +18,8 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { ListRow } from '@/components/ui/list-row'
+import { Sheet } from '@/components/ui/sheet'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -41,13 +43,9 @@ export function ChecklistTemplates({
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
+  const [open, setOpen] = useState(false)
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
-
-  const isDeletingThisTemplate = useCallback(
-    (id: string) => deleteTemplate.isPending && deleteTemplate.variables === id,
-    [deleteTemplate.isPending, deleteTemplate.variables],
-  )
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
@@ -71,6 +69,7 @@ export function ChecklistTemplates({
     const template = templates.find((entry) => entry.id === id)
     if (!template) return
     onLoad(applyChecklistTemplate(template))
+    setOpen(false)
   }, [onLoad, templates])
 
   const handleDelete = useCallback((id: string) => {
@@ -81,71 +80,27 @@ export function ChecklistTemplates({
     })
   }, [deleteTemplate, showError, t])
 
-  if (items.length === 0 && templates.length === 0 && !showSave) {
-    return null
-  }
-
   return (
-    <View style={styles.container}>
-      <View style={styles.actionsRow}>
-        {items.length > 0 && !showSave ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.saveChip,
-              pressed ? { opacity: 0.8 } : null,
-            ]}
-            onPress={() => setShowSave(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('habits.form.saveAsTemplate')}
-            accessibilityHint={t('habits.form.templateNamePlaceholder')}
-          >
-            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
-            <Text style={styles.saveChipText}>{t('habits.form.saveAsTemplate')}</Text>
-          </Pressable>
-        ) : null}
-
-        {templates.length > 0 ? (
-          <View style={styles.templatesWrap}>
-            <Text style={styles.templatesLabel}>{t('habits.form.templates')}:</Text>
-            <View style={styles.chipsRow}>
-              {templates.map((template) => (
-                <View key={template.id} style={styles.chip}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.chipLoadButton,
-                      pressed ? { opacity: 0.8 } : null,
-                    ]}
-                    onPress={() => handleLoad(template.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={template.name}
-                    accessibilityHint={t('habits.form.templates')}
-                  >
-                    <Text style={styles.chipText}>{template.name}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityLabel={t('common.delete')}
-                    accessibilityRole="button"
-                    accessibilityHint={template.name}
-                    accessibilityState={{ disabled: isDeletingThisTemplate(template.id) }}
-                    style={({ pressed }) => [
-                      styles.chipDeleteButton,
-                      isDeletingThisTemplate(template.id) && styles.chipDeleteButtonDisabled,
-                      pressed ? { opacity: 0.8 } : null,
-                    ]}
-                    onPress={() => handleDelete(template.id)}
-                    disabled={isDeletingThisTemplate(template.id)}
-                  >
-                    <X size={13} color={tokens.fg3} strokeWidth={1.8} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-      </View>
-
-      {showSave ? (
-        <View style={styles.saveRow}>
+    <>
+      <ListRow
+        icon="template"
+        title={t('habits.form.templates')}
+        value={templates.length > 0 ? String(templates.length) : undefined}
+        onClick={() => setOpen(true)}
+      />
+      {open ? (
+        <Sheet open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+          <View style={styles.container}>
+            {items.length > 0 && !showSave ? (
+              <ListRow
+                icon="device-floppy"
+                title={t('habits.form.saveAsTemplate')}
+                chevron={false}
+                onClick={() => setShowSave(true)}
+              />
+            ) : null}
+            {showSave ? (
+              <View style={styles.saveRow}>
           <BottomSheetAppTextInput
             value={templateName}
             placeholder={t('habits.form.templateNamePlaceholder')}
@@ -184,82 +139,35 @@ export function ChecklistTemplates({
           >
             <X size={16} color={tokens.fg3} strokeWidth={1.8} />
           </Pressable>
-        </View>
+              </View>
+            ) : null}
+            {templates.map((template) => (
+              <ListRow
+                key={template.id}
+                icon="template"
+                title={template.name}
+                description={t('habits.form.templateItemCount', { count: template.items.length })}
+                chevron={false}
+                action={{
+                  icon: 'trash',
+                  label: `${t('common.delete')}: ${template.name}`,
+                  danger: true,
+                  onPress: () => handleDelete(template.id),
+                }}
+                onClick={() => handleLoad(template.id)}
+              />
+            ))}
+          </View>
+        </Sheet>
       ) : null}
-    </View>
+    </>
   )
 }
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      gap: 10,
-    },
-    actionsRow: {
-      gap: 8,
-    },
-    saveChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 7,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-    },
-    saveChipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-    templatesWrap: {
-      gap: 6,
-    },
-    templatesLabel: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      color: tokens.fg3,
-      textTransform: 'uppercase',
-      letterSpacing: 0.96,
-    },
-    chipsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-      overflow: 'hidden',
-    },
-    chipLoadButton: {
-      minHeight: 36,
-      justifyContent: 'center',
-      paddingLeft: 12,
-      paddingVertical: 7,
-      paddingRight: 5,
-    },
-    chipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-    chipDeleteButton: {
-      minHeight: 36,
-      justifyContent: 'center',
-      paddingLeft: 3,
-      paddingRight: 10,
-      paddingVertical: 7,
-    },
-    chipDeleteButtonDisabled: {
-      opacity: 0.5,
+      gap: 4,
     },
     saveRow: {
       flexDirection: 'row',

@@ -2,8 +2,11 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -19,7 +22,10 @@ const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
 const mockValidateAll = vi.fn((): string | null => null)
 const mockPush = vi.fn()
-let mockHasProAccess = false
+const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
+  (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
+))
+const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
@@ -52,7 +58,12 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { hasProAccess: mockHasProAccess } }),
+  useHasProAccess: () => mockProfileState.hasProAccess,
+  useProfile: () => ({ profile: { hasProAccess: mockProfileState.hasProAccess } }),
+}))
+
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -123,7 +134,7 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 }))
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildCreateHabitRequest: vi.fn(() => ({})),
+  buildCreateHabitRequest: mockBuildCreateHabitRequest,
   buildSubHabitRequest: vi.fn(() => ({})),
 }))
 
@@ -136,12 +147,12 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
-  HabitFormFields: (props: { children?: React.ReactNode }) =>
-    React.createElement('HabitFormFields', props, props.children),
-}))
-
-vi.mock('@/components/ui/pro-badge', () => ({
-  ProBadge: () => React.createElement('ProBadge', { testID: 'pro-badge' }),
+  HabitFormFields: (props: { children?: React.ReactNode | ((proposedItems: number) => React.ReactNode) }) =>
+    React.createElement(
+      'HabitFormFields',
+      props,
+      typeof props.children === 'function' ? props.children(0) : props.children,
+    ),
 }))
 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
@@ -183,7 +194,7 @@ function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }
 describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockHasProAccess = false
+    mockProfileState.hasProAccess = true
     mockCreateMutateAsync.mockReset()
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockReset()
@@ -225,7 +236,6 @@ describe('CreateHabitModal (mobile)', () => {
   })
 
   it('uses the sub-habit title and hides the sub-habit section in sub-habit mode', () => {
-    mockHasProAccess = true
     const parentHabit = createMockHabit({ id: 'parent-1', title: 'Parent' })
     const tree = renderModal(
       <CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />,
@@ -234,13 +244,12 @@ describe('CreateHabitModal (mobile)', () => {
     expect(hasText(tree.root, 'habits.form.subHabits')).toBe(false)
   })
 
-  it('shows the sub-habit section with a ProBadge for non-pro users not in sub-habit mode', () => {
-    mockHasProAccess = false
+  it('shows the ungated sub-habit editor in habit mode', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(hasText(tree.root, 'habits.form.subHabits')).toBe(true)
     expect(
       tree.root.findAll((node: any) => node.props?.testID === 'pro-badge'),
-    ).toHaveLength(1)
+    ).toHaveLength(0)
   })
 
   const findSubmit = (root: {
@@ -282,7 +291,6 @@ describe('CreateHabitModal (mobile)', () => {
   })
 
   it('applies due time, flexible cadence, and a checklist from an AI suggestion', async () => {
-    mockHasProAccess = true
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
       if (field === 'checklistItems') return []
@@ -305,8 +313,9 @@ describe('CreateHabitModal (mobile)', () => {
       (node: any) => node.type === 'HabitFormFields',
     )[0]
 
+    let proposal: HabitFormProposal | undefined
     await TestRenderer.act(async () => {
-      await formFields.props.onSuggestSetup()
+      proposal = await formFields.props.onSuggestSetup()
     })
 
     expect(mockSetFlexible).toHaveBeenCalled()
@@ -321,6 +330,132 @@ describe('CreateHabitModal (mobile)', () => {
       ],
       { shouldDirty: true },
     )
+    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false, checklistItems: 2, subHabitItems: 0 })
+  })
+
+  it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return [{ text: 'Shoes', isChecked: false }]
+      return undefined
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏃',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+    let proposal: HabitFormProposal | undefined
+    await TestRenderer.act(async () => {
+      proposal = await formFields.props.onSuggestSetup()
+    })
+
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 })
+    expect(mockSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
+  })
+
+  it('preserves a sub-habit edit made while an Astra suggestion is pending', async () => {
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    TestRenderer.act(() => {
+      tree.root.findAll((node: any) => node.type === SubHabitEditor)[0].props.onAddSubHabit()
+    })
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+    let proposalPromise!: Promise<HabitFormProposal>
+    TestRenderer.act(() => {
+      proposalPromise = formFields.props.onSuggestSetup()
+    })
+    const editor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
+    TestRenderer.act(() => {
+      editor.props.onUpdateSubHabit(editor.props.subHabits[0].id, 'Edited while pending')
+    })
+
+    let proposal: HabitFormProposal | undefined
+    await TestRenderer.act(async () => {
+      resolveSuggestion({
+        emoji: null,
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: ['Suggested stretch'],
+        checklistItems: [],
+      })
+      proposal = await proposalPromise
+    })
+
+    const latestEditor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
+    expect(latestEditor.props.subHabits.map((subHabit: { value: string }) => subHabit.value))
+      .toEqual(['Edited while pending', 'Suggested stretch'])
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
+  })
+
+  it('ignores a pending Astra suggestion after the title changes', async () => {
+    let title = 'Run'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    TestRenderer.act(() => {
+      proposalPromise = formFields.props.onSuggestSetup()
+    })
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Walk'
+    TestRenderer.act(() => formFields.props.onSuggestionContextChange())
+
+    let proposal: HabitFormProposal | null | undefined
+    await TestRenderer.act(async () => {
+      resolveSuggestion({
+        emoji: '🏃',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: ['Old step'],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockSetValue).not.toHaveBeenCalled()
+    const editor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
+    expect(editor.props.subHabits).toEqual([])
   })
 
   it('creates the habit and closes on a successful submit', async () => {
@@ -333,8 +468,61 @@ await Promise.resolve()
     })
 
     expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('omits nested sub-habits from a Free create request', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => field === 'title' ? 'Run' : field === 'checklistItems' ? [] : {})
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: null,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: ['Warm up'],
+      checklistItems: [],
+    })
+    const modal = <CreateHabitModal open onClose={vi.fn()} />
+    const tree = renderModal(modal)
+    const formFields = tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestSetup()
+    })
+    mockProfileState.hasProAccess = false
+    tree.updateModal(<CreateHabitModal open onClose={vi.fn()} />)
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      findSubmit(tree.root).props.onPress()
+    })
+
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+  })
+
+  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+    mockProfileState.hasProAccess = false
+    const onClose = vi.fn()
+    const tree = renderModal(
+      <CreateHabitModal
+        open
+        onClose={onClose}
+        parentHabit={createMockHabit({ id: 'parent-1' })}
+      />,
+    )
+
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('surfaces the validation error and does not create when the form is invalid', async () => {
@@ -366,8 +554,7 @@ await Promise.resolve()
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('closes and redirects non-pro users out of sub-habit mode', () => {
-    mockHasProAccess = false
+  it('keeps sub-habit creation available without routing to upgrade', () => {
     const onClose = vi.fn()
     const parentHabit = createMockHabit({ id: 'p-1', title: 'Parent' })
 
@@ -375,20 +562,23 @@ await Promise.resolve()
       <CreateHabitModal open onClose={onClose} parentHabit={parentHabit} />,
     )
 
-    expect(onClose).toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
-    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(hasText(tree.root, 'habits.createSubHabit')).toBe(true)
   })
 
   it('notifies when an AI suggestion applied nothing', async () => {
-    mockHasProAccess = true
-    mockGetValues.mockImplementation((field?: unknown) =>
-      field === 'title' ? 'Swim' : field === 'checklistItems' ? [] : {},
-    )
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems' || field === 'days') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      return {}
+    })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
-      frequencyUnit: null,
-      frequencyQuantity: null,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
       days: [],
       isFlexible: false,
       flexibleTarget: null,
@@ -411,7 +601,6 @@ await Promise.resolve()
   })
 
   it('surfaces an error when the AI suggestion request fails', async () => {
-    mockHasProAccess = true
     mockGetValues.mockImplementation((field?: unknown) =>
       field === 'title' ? 'Swim' : {},
     )

@@ -1,899 +1,518 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatHabitTimeInput } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
-
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
-
 const useWatchMock = vi.fn()
-const suggestMutateAsyncMock = vi.fn()
-let mockHasProAccess = false
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
+const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
+const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
+const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 }
+const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
 
-vi.mock('react-hook-form', () => ({
-  useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
-    useWatchMock(args),
-}))
-
-vi.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    back: vi.fn(),
-  }),
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => mockHasProAccess,
-}))
-
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({
-    showError: vi.fn(),
-  }),
-}))
-
-vi.mock('@/hooks/use-tags', () => ({
-  useTags: () => ({ tags: [] }),
-  useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
-  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
-  useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
-  useSuggestTags: () => ({ isPending: false, mutateAsync: suggestMutateAsyncMock }),
-}))
-
-vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: () => React.createElement('View', { testID: 'habit-checklist' }),
-}))
-
-vi.mock('@/components/habits/checklist-templates', () => ({
-  ChecklistTemplates: () => React.createElement('View', { testID: 'checklist-templates' }),
-}))
-
-vi.mock('@/components/habits/goal-linking-field', () => ({
-  GoalLinkingField: () => React.createElement('View', { testID: 'goal-linking-field' }),
-}))
-
-vi.mock('@/components/ui/selection-field', () => ({
-  SelectionField: () => React.createElement('View'),
-}))
-
-vi.mock('@/components/ui/time-field', () => ({
-  TimeField: (props: Record<string, unknown>) => React.createElement('TimeField', props),
-}))
-
-vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
-  BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
-}))
-
-vi.mock('@/components/ui/pro-badge', () => ({
-  ProBadge: () => React.createElement('View'),
-}))
-
-type MockControl = {
-  values: Record<string, unknown>
+const testTranslations: Record<string, string> = {
+  'habits.form.understoodDaily': 'Every day',
+  'habits.form.understoodDailyAt': 'Every day at {time}',
+  'habits.form.understoodDayAt': 'Every {days} at {time}',
+  'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+  'habits.form.understoodTime': 'At {time}',
 }
 
-function createMockFormHelpers(
-  valueOverrides?: Partial<Record<string, unknown>>,
-  overrides?: Partial<HabitFormHelpers>,
-): HabitFormHelpers {
-  const values: Record<string, unknown> = {
-    title: 'Read',
-    description: '',
-    frequencyUnit: 'Day',
-    frequencyQuantity: 1,
-    days: [],
-    dueDate: '2025-01-01',
-    dueTime: '',
-    dueEndTime: '',
-    endDate: '',
-    isBadHabit: false,
-    reminderEnabled: false,
-    slipAlertEnabled: false,
-    checklistItems: [],
-    scheduledReminders: [],
-    ...valueOverrides,
-  }
-
-  const control: MockControl = { values }
-  const setValue = vi.fn((field: string, value: unknown) => {
-    values[field] = value
-  })
-
-  return {
-    form: {
-      control,
-      setValue,
-      formState: { errors: {} },
-    } as unknown as HabitFormHelpers['form'],
-    isOneTime: false,
-    isGeneral: false,
-    isFlexible: false,
-    isRecurring: true,
-    showDayPicker: false,
-    showEndDate: true,
-    daysList: [
-      { value: 'Monday', label: 'Mon' },
-      { value: 'Tuesday', label: 'Tue' },
-      { value: 'Wednesday', label: 'Wed' },
-      { value: 'Thursday', label: 'Thu' },
-      { value: 'Friday', label: 'Fri' },
-      { value: 'Saturday', label: 'Sat' },
-      { value: 'Sunday', label: 'Sun' },
-    ],
-    frequencyUnits: [
-      { value: 'Day', label: 'Day' },
-      { value: 'Week', label: 'Week' },
-      { value: 'Month', label: 'Month' },
-    ],
-    setOneTime: vi.fn(),
-    setRecurring: vi.fn(),
-    setFlexible: vi.fn(),
-    setGeneral: vi.fn(),
-    toggleDay: vi.fn(),
-    formatTimeInput: formatHabitTimeInput,
-    formatEndTimeInput: formatHabitTimeInput,
-    validateAll: vi.fn(() => null),
-    ...overrides,
-  }
-}
-
-function createMockTags(overrides?: Partial<TagSelectionState>): TagSelectionState {
-  return {
-    selectedTagIds: [],
-    atTagLimit: false,
-    tagValidationErrorKey: null,
-    toggleTag: vi.fn(),
-    resetTags: vi.fn(),
-    showNewTag: false,
-    setShowNewTag: vi.fn(),
-    newTagName: '',
-    setNewTagName: vi.fn(),
-    newTagColor: '#C4530F',
-    setNewTagColor: vi.fn(),
-    tagColors: ['#C4530F', '#dc2626', '#047857'] as readonly string[],
-    createAndSelectTag: vi.fn(),
-    acceptSuggestedTag: vi.fn(),
-    editingTagId: null,
-    editTagName: '',
-    setEditTagName: vi.fn(),
-    editTagColor: '#C4530F',
-    setEditTagColor: vi.fn(),
-    startEditTag: vi.fn(),
-    saveEditTag: vi.fn(),
-    cancelEditTag: vi.fn(),
-    deleteTag: vi.fn(),
-    ...overrides,
-  }
-}
-
-function findTimePickers(root: { findAll: (predicate: (node: any) => boolean) => any[] }) {
-  return root.findAll(
-    (node: any) =>
-      node.type === 'TimeField',
+function translateTestValue(key: string, values?: Record<string, unknown>): string {
+  const template = testTranslations[key]
+  if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
+  return Object.entries(values ?? {}).reduce(
+    (message, [name, value]) => message.replace(`{${name}}`, String(value)),
+    template,
   )
 }
 
-describe('HabitFormFields (mobile)', () => {
+vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: 'en' } }) }))
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+}))
+vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => mockProfileState.hasProAccess,
+  useProfile: () => ({ profile: { hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/hooks/use-tags', () => ({
+  useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}))
+vi.mock('@/components/habits/habit-form-fields/habit-understanding', () => ({ HabitUnderstanding: (props: Record<string, unknown>) => React.createElement('HabitUnderstanding', props) }))
+vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: (props: Record<string, unknown>) => React.createElement('View', { ...props, testID: 'checklist' }) }))
+vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => React.createElement('View') }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => React.createElement('View', { testID: 'offset-reminders' }) }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => React.createElement('View', { testID: 'scheduled-reminders' }) }))
+vi.mock('@/components/ui/time-field', () => ({ TimeField: (props: Record<string, unknown>) => React.createElement('TimeField', props) }))
+vi.mock('@/components/ui/date-field', () => ({ DateField: (props: Record<string, unknown>) => React.createElement('DateField', { ...props, testID: 'date-field' }) }))
+
+function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
+  const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false, ...overrides }
+  return {
+    form: { control: { values }, getValues: vi.fn((field: string) => values[field]), setValue: vi.fn((field: string, value: unknown) => { values[field] = value }), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
+    isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false, showDayPicker: false, showEndDate: true,
+    daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
+    frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(), formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),
+  }
+}
+
+function createTags(): TagSelectionState {
+  return { selectedTagIds: [], atTagLimit: false, tagValidationErrorKey: null, toggleTag: vi.fn(), resetTags: vi.fn(), showNewTag: false, setShowNewTag: vi.fn(), newTagName: '', setNewTagName: vi.fn(), newTagColor: '#C4530F', setNewTagColor: vi.fn(), tagColors: [], createAndSelectTag: vi.fn(), acceptSuggestedTag: vi.fn(), editingTagId: null, editTagName: '', setEditTagName: vi.fn(), editTagColor: '#C4530F', setEditTagColor: vi.fn(), startEditTag: vi.fn(), saveEditTag: vi.fn(), cancelEditTag: vi.fn(), deleteTag: vi.fn() }
+}
+
+describe('HabitFormFields mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockHasProAccess = false
-    useWatchMock.mockImplementation(
-      ({ control, name }: { control: MockControl; name: string }) => control.values[name],
-    )
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
+    useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
 
-  it('formats dueTime as hh:mm while typing and updates form state immediately', async () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
+  it('uses the understanding-first composition and wires both correction modes', async () => {
+    const formHelpers = createFormHelpers()
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
+      await Promise.resolve()
     })
-
-    const dueTimePicker = findTimePickers(tree.root).find(
-      (node: any) => node.props.label === 'habits.form.dueTime',
-    )
-
-    expect(dueTimePicker).toBeTruthy()
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      dueTimePicker.props.onChange('15:58')
-    })
-
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:58', {
-      shouldDirty: true,
-    })
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    expect(understanding.props.value).toBe('Run')
+    expect(understanding.props.labels.field).toBe('habits.form.describe')
+    understanding.props.onToggleDay('Monday')
+    expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+    understanding.props.onQuantityChange(4)
+    expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('formats dueEndTime as hh:mm while typing', async () => {
-    const formHelpers = createMockFormHelpers({ dueTime: '09:00' })
-    const tags = createMockTags()
+  it('states daily, timed daily, timed fixed-day, and timed flexible schedules exactly', async () => {
+    const formHelpers = createFormHelpers({ frequencyUnit: 'Day', frequencyQuantity: 1 })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-          defaultExpanded
-        />,
-      )
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
     })
 
-    const dueEndTimePicker = findTimePickers(tree.root).find(
-      (node: any) => node.props.label === 'habits.form.dueEndTime',
-    )
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day')
 
-    expect(dueEndTimePicker).toBeTruthy()
-
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    controlValues.dueTime = '07:00'
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      dueEndTimePicker.props.onChange('22:15')
+      tree.update(renderNode())
+      await Promise.resolve()
     })
 
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '22:15', {
-      shouldDirty: true,
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day at 07:00')
+
+    controlValues.days = ['Monday']
+    controlValues.dueTime = '08:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
     })
+
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every Mon at 08:00')
+
+    controlValues.days = []
+    controlValues.isFlexible = true
+    controlValues.frequencyUnit = 'Week'
+    controlValues.frequencyQuantity = 3
+    controlValues.dueTime = '09:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('3 times a week, any day at 09:00')
+
+    controlValues.isFlexible = false
+    controlValues.frequencyUnit = null
+    controlValues.dueTime = '15:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('At 15:00')
   })
 
-  it('opens a searchable emoji picker from the whole emoji field', async () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    let tree: any
-
+  it('applies a time-only local phrase without inventing a cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Dentist at 15:00' })
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />)
+      await Promise.resolve()
     })
 
-    const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      emojiTrigger.props.onPress()
-    })
-
-    const searchInput = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiSearchPlaceholder' })
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      searchInput.props.onChangeText('run')
-    })
-
-    const runEmoji = tree.root.findByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      runEmoji.props.onPress()
-    })
-
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', {
-      shouldDirty: true,
-    })
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
   })
 
-  it('filters emojis by category when tapping a category chip', async () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
+  it('reconciles parser-owned fields across phrase changes without clearing a manual cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
     })
 
-    const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
+    expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
 
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    TestRenderer.act(() => understanding.props.onQuantityChange(4))
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    controlValues.title = 'Run'
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      emojiTrigger.props.onPress()
+      tree.update(renderNode())
+      await Promise.resolve()
     })
 
-    const natureCategory = tree.root
-      .findAllByProps({ accessibilityLabel: 'habits.form.emojiCategoryNature' })
-      .find((node: any) => typeof node.props.onPress === 'function')
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
 
-    expect(natureCategory).toBeTruthy()
-
+    controlValues.title = 'Dentist at 15:00'
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      natureCategory!.props.onPress()
+      tree.update(renderNode())
+      await Promise.resolve()
     })
-
-    expect(tree.root.findByProps({ accessibilityLabel: 'habits.form.emoji: 🌱' })).toBeTruthy()
-    expect(tree.root.findAllByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })).toHaveLength(0)
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
   })
 
-  it('clears the selected emoji from the picker remove button', async () => {
-    const formHelpers = createMockFormHelpers({ emoji: '🏃' })
-    const tags = createMockTags()
+  it('preserves a locked General schedule through local reads and both corrections', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday', isGeneral: true })
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally lockedGeneral />)
+      await Promise.resolve()
     })
 
-    const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      emojiTrigger.props.onPress()
+    expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    TestRenderer.act(() => {
+      understanding.props.onToggleDay('Monday')
+      understanding.props.onQuantityChange(4)
     })
 
-    const removeButton = tree.root
-      .findAllByProps({ accessibilityLabel: 'habits.form.emojiRemove' })
-      .find((node: any) => typeof node.props.onPress === 'function')
-
-    expect(removeButton).toBeTruthy()
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      removeButton!.props.onPress()
-    })
-
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', {
-      shouldDirty: true,
-    })
+    expect(formHelpers.setGeneral).toHaveBeenCalledTimes(3)
+    expect(formHelpers.setRecurring).not.toHaveBeenCalled()
+    expect(formHelpers.setFlexible).not.toHaveBeenCalled()
+    expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
-  it('keeps goal linking available for free users', async () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
+  it('preserves an Astra schedule across the next title edit', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    const onSuggestSetup = vi.fn(() => {
+      controlValues.frequencyUnit = 'Week'
+      controlValues.frequencyQuantity = 3
+      controlValues.dueTime = '07:00'
+      return SETUP_PROPOSAL
+    })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} readPhraseLocally />
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-          defaultExpanded
-        />,
-      )
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
     })
 
-    expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(1)
+    controlValues.title = 'Build a stronger routine'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    controlValues.days = []
+    controlValues.frequencyUnit = null
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+
+    vi.mocked(formHelpers.form.setValue).mockClear()
+    vi.mocked(formHelpers.setOneTime).mockClear()
+    controlValues.title = 'Build a calmer routine'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+    expect(formHelpers.form.setValue).not.toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
   })
 
-  it('shows goal linking for pro users', async () => {
-    mockHasProAccess = true
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
+  it('nests fixed clock reminders under the offset reminder switch for a timed habit', async () => {
+    const formHelpers = createFormHelpers({ dueTime: '08:00' })
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-          defaultExpanded
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
     })
 
-    expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'offset-reminders')).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')).toHaveLength(1)
   })
 
-  it('renders all field sections without crashing', async () => {
-    const formHelpers = createMockFormHelpers({ dueTime: '09:00' })
-    const tags = createMockTags()
+  it('hides slip alerts for a positive habit', async () => {
+    mockProfileState.hasProAccess = true
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[30]}
-          onReminderTimesChange={vi.fn()}
-          defaultExpanded
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isBadHabit: false })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
     })
 
-    const hasText = (value: string) =>
-      tree.root.findAll(
-        (node: any) => node.type === 'Text' && node.props.children === value,
-      ).length > 0
-
-    expect(tree.root.findByProps({ accessibilityLabel: 'habits.form.title' })).toBeTruthy()
-    expect(hasText('habits.form.recurring')).toBe(true)
-    expect(hasText('habits.form.reminder')).toBe(true)
-    expect(hasText('habits.form.tags')).toBe(true)
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.slipAlert')).toHaveLength(0)
   })
 
-  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', async () => {
-    const formHelpers = createMockFormHelpers({
-      dueTime: '09:00',
-      reminderEnabled: true,
-      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
-    })
-    const tags = createMockTags()
+  it('hides slip alerts after switching a bad habit back to positive', async () => {
+    mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ isBadHabit: true })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[15]}
-          onReminderTimesChange={vi.fn()}
-          hasScheduledReminders
-          defaultExpanded
-        />,
-      )
+      tree = TestRenderer.create(renderNode())
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.slipAlert')).toHaveLength(1)
+
+    const habitTypeSwitch = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.habitTypeAvoid')[0]
+    TestRenderer.act(() => habitTypeSwitch.props.onPress())
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
     })
 
-    const hasText = (value: string) =>
-      tree.root.findAll(
-        (node: any) => node.type === 'Text' && node.props.children === value,
-      ).length > 0
-
-    expect(hasText('habits.form.reminder')).toBe(true)
-    expect(hasText('habits.form.scheduledReminder')).toBe(true)
-    expect(
-      tree.root.findAllByProps({
-        accessibilityLabel: 'habits.form.scheduledReminder',
-      }),
-    ).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'habits.form.slipAlert')).toHaveLength(0)
   })
 
-  it('hides the scheduled reminder section for a plain due-timed habit', async () => {
-    const formHelpers = createMockFormHelpers({
-      dueTime: '09:00',
-      reminderEnabled: true,
-      scheduledReminders: [],
-    })
-    const tags = createMockTags()
+  it.each([
+    { mode: 'one-time', isOneTime: true, isGeneral: false },
+    { mode: 'General', isOneTime: false, isGeneral: true },
+  ])('hides the end date for $mode habits', async ({ isOneTime, isGeneral }) => {
+    const formHelpers = createFormHelpers()
+    Object.assign(formHelpers, { isOneTime, isGeneral, showEndDate: false })
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[15]}
-          onReminderTimesChange={vi.fn()}
-          defaultExpanded
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
     })
 
-    const hasText = (value: string) =>
-      tree.root.findAll(
-        (node: any) => node.type === 'Text' && node.props.children === value,
-      ).length > 0
-
-    expect(hasText('habits.form.reminder')).toBe(true)
-    expect(hasText('habits.form.scheduledReminder')).toBe(false)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'date-field')).toHaveLength(0)
   })
 
-  it('advances the frequency carousel to the next card when the next arrow is pressed', async () => {
-    const setFlexible = vi.fn()
-    const formHelpers = createMockFormHelpers(undefined, { setFlexible })
-    const tags = createMockTags()
+  it('clears a prefilled end time when the exact time changes', async () => {
+    const formHelpers = createFormHelpers({ dueTime: '08:00', dueEndTime: '09:00' })
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
     })
 
-    const nextArrow = tree.root.findByProps({ accessibilityLabel: 'common.next' })
+    TestRenderer.act(() => tree.root.findByType('TimeField').props.onChange('10:00'))
 
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      nextArrow.props.onPress()
-    })
-
-    expect(setFlexible).toHaveBeenCalled()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '10:00', { shouldDirty: true })
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '', { shouldDirty: true })
   })
 
-  it('moves the frequency carousel to the previous card when the previous arrow is pressed', async () => {
-    const setOneTime = vi.fn()
-    const formHelpers = createMockFormHelpers(undefined, { setOneTime })
-    const tags = createMockTags()
+  it('routes the free sub-habit row to upgrade', async () => {
+    const onUpgrade = vi.fn()
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={onUpgrade} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
     })
 
-    const previousArrow = tree.root.findByProps({ accessibilityLabel: 'common.previous' })
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      previousArrow.props.onPress()
-    })
-
-    expect(setOneTime).toHaveBeenCalled()
+    const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.subHabits').length > 0)[0]
+    TestRenderer.act(() => subHabitRow.props.onPress())
+    expect(onUpgrade).toHaveBeenCalledOnce()
   })
 
-  it('selects the tapped frequency card instead of re-applying the active one', async () => {
-    const setOneTime = vi.fn()
-    const formHelpers = createMockFormHelpers(undefined, { setOneTime })
-    const tags = createMockTags()
+  it('keeps local corrections and details live at the Astra ceiling', async () => {
+    mockProfileState.aiMessagesUsed = 5
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
+    const formHelpers = createFormHelpers()
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} />)
+      await Promise.resolve()
     })
 
-    const oneTimeCard = tree.root.findByProps({
-      accessibilityLabel: 'habits.form.oneTimeTask',
-    })
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    expect(ask.props.disabled).toBe(true)
+    expect(ask.props.accessibilityState.disabled).toBe(true)
 
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      oneTimeCard.props.onPress()
-    })
+    const understanding = tree.root.findByType('HabitUnderstanding')
+    understanding.props.onToggleDay('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
 
-    expect(setOneTime).toHaveBeenCalled()
-  })
-
-  it('commits the title to the form as it is typed so the shared schema gates submit', async () => {
-    const formHelpers = createMockFormHelpers({ title: '' })
-    const tags = createMockTags()
-    let tree: any
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
-    })
-
-    const titleInput = tree.root.findAll(
-      (node: any) =>
-        node.type === 'TextInput' &&
-        node.props.accessibilityLabel === 'habits.form.title',
+    const details = tree.root.findAll(
+      (node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.moreDetails').length > 0,
     )[0]
-    expect(titleInput).toBeTruthy()
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      titleInput.props.onChangeText('Read a book')
-    })
-    expect(formHelpers.form.setValue).toHaveBeenLastCalledWith('title', 'Read a book', {
-      shouldDirty: true,
-    })
+    TestRenderer.act(() => details.props.onPress())
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'checklist')).toHaveLength(1)
+    expect(onSuggestSetup).not.toHaveBeenCalled()
   })
 
-  it('suggests tags and accepts an existing suggestion as the real tag', async () => {
-    suggestMutateAsyncMock.mockResolvedValue({
-      tags: [
-        { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
-        { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
-      ],
-    })
-    const acceptSuggestedTag = vi.fn()
-    const formHelpers = createMockFormHelpers({ title: 'Morning run' })
-    const tags = createMockTags({ acceptSuggestedTag })
+  it('disables Astra at the Pro allowance too', async () => {
+    mockProfileState.hasProAccess = true
+    mockProfileState.aiMessagesUsed = 5
     let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn(() => SETUP_PROPOSAL)} />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    expect(ask.props.disabled).toBe(true)
+  })
+
+  it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
+    const formHelpers = createFormHelpers({
+      checklistItems: [{ text: 'Shoes', isChecked: false }],
+    })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => SETUP_PROPOSAL} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree.root.findByProps({ testID: 'checklist' }).parent?.props.testID).not.toBe('proposed-field')
+  })
+
+  it('allows Astra again after the proposed phrase changes', async () => {
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Build a stronger routine' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} />)
+      await Promise.resolve()
+    })
+
+    let ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(onSuggestSetup).toHaveBeenCalledOnce()
 
     await TestRenderer.act(async () => {
-await Promise.resolve()
+      tree.root.findByType('HabitUnderstanding').props.onValueChange('Build a calmer routine')
+      await Promise.resolve()
+    })
+    ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(onSuggestSetup).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves breakdown proposals when correcting proposed setup', async () => {
+    mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ title: 'Build a stronger routine' })
+    const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    let tree: any
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
+        <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => {
+          controlValues.checklistItems = [{ text: 'Prepare', isChecked: false }]
+          return COMBINED_PROPOSAL
+        }} defaultExpanded>
+          {React.createElement('View', { testID: 'sub-habit-editor' })}
+        </HabitFormFields>,
       )
+      await Promise.resolve()
     })
 
-    const suggestButton = tree.root.findByProps({
-      accessibilityLabel: 'habits.form.suggestTags',
-    })
-
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
     await TestRenderer.act(async () => {
-      await suggestButton.props.onPress()
+      ask.props.onPress()
+      await Promise.resolve()
     })
+    expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(true)
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
+    const proposedBreakdownCount = tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length
+    expect(proposedBreakdownCount).toBeGreaterThan(0)
 
-    const healthChip = tree.root.findByProps({ accessibilityLabel: 'Health' })
+    TestRenderer.act(() => tree.root.findByType('HabitUnderstanding').props.onToggleDay('Monday'))
 
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      healthChip.props.onPress()
-    })
-
-    expect(acceptSuggestedTag).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Health', isExisting: true, id: 'tag-1' }),
-      expect.any(Function),
-    )
+    expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(false)
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(proposedBreakdownCount)
   })
 
-  it('shows the empty state when no tag suggestions are returned', async () => {
-    suggestMutateAsyncMock.mockResolvedValue({ tags: [] })
-    const formHelpers = createMockFormHelpers({ title: 'Morning run' })
-    const tags = createMockTags()
+  it('marks only an Astra checklist proposal and resolves it when edited', async () => {
+    const formHelpers = createFormHelpers({
+      checklistItems: [{ text: 'Shoes', isChecked: false }],
+    })
     let tree: any
-
     await TestRenderer.act(async () => {
-await Promise.resolve()
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => CHECKLIST_PROPOSAL} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    await TestRenderer.act(async () => {
+      ask.props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')).toHaveLength(0)
+
+    TestRenderer.act(() => tree.root.findByProps({ testID: 'checklist' }).props.onItemsChange([{ text: 'Edited', isChecked: false }]))
+    expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(0)
+  })
+
+  it('resolves a proposed sub-habit section when its parent editor changes it', async () => {
+    mockProfileState.hasProAccess = true
+    let resolveProposal = () => {}
+    let tree: any
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
+          formHelpers={createFormHelpers()}
+          tags={createTags()}
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
           onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
-        />,
-      )
-    })
-
-    const suggestButton = tree.root.findByProps({
-      accessibilityLabel: 'habits.form.suggestTags',
-    })
-
-    await TestRenderer.act(async () => {
-      await suggestButton.props.onPress()
-    })
-
-    const emptyState = tree.root.findAll(
-      (node: any) =>
-        node.type === 'Text' &&
-        node.props.children === 'habits.form.noTagSuggestions',
-    )
-    expect(emptyState).toHaveLength(1)
-  })
-
-  it('sets isBadHabit from the habit type segmented toggle', async () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    let tree: any
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
+          onSuggestSetup={() => SUB_HABIT_PROPOSAL}
+          onResolveSubHabitProposalReady={(resolve) => { resolveProposal = resolve }}
           defaultExpanded
-        />,
-      )
-    })
-
-    const avoidSegment = tree.root
-      .findAllByProps({ accessibilityLabel: 'habits.form.habitTypeAvoid' })
-      .find((node: any) => typeof node.props.onPress === 'function')
-
-    expect(avoidSegment).toBeTruthy()
-
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      avoidSegment!.props.onPress()
-    })
-
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('isBadHabit', true, {
-      shouldDirty: true,
-    })
-  })
-
-  it('reports a Pro slip alert toggle to the edit relationship authority', async () => {
-    mockHasProAccess = true
-    const onSlipAlertEnabledChange = vi.fn()
-    const formHelpers = createMockFormHelpers({
-      isBadHabit: true,
-      slipAlertEnabled: false,
-    })
-    let tree: any
-
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={createMockTags()}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-          onSlipAlertEnabledChange={onSlipAlertEnabledChange}
-          defaultExpanded
-        />,
+        >
+          {React.createElement('View', { testID: 'sub-habit-editor' })}
+        </HabitFormFields>,
       )
       await Promise.resolve()
     })
 
-    const slipAlert = tree.root
-      .findAllByProps({ accessibilityLabel: 'habits.form.slipAlert' })
-      .find((node: any) => typeof node.props.onPress === 'function')
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
     await TestRenderer.act(async () => {
-      slipAlert.props.onPress()
+      ask.props.onPress()
       await Promise.resolve()
     })
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length).toBeGreaterThan(0)
 
-    expect(onSlipAlertEnabledChange).toHaveBeenCalledWith(true)
-    expect(formHelpers.form.setValue).not.toHaveBeenCalledWith(
-      'slipAlertEnabled',
-      expect.anything(),
-      expect.anything(),
-    )
-  })
-
-  it('stores a Pro slip alert toggle in the form when no authority callback is present', async () => {
-    mockHasProAccess = true
-    const formHelpers = createMockFormHelpers({
-      isBadHabit: true,
-      slipAlertEnabled: false,
-    })
-    let tree: any
-
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={createMockTags()}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          onUpgrade={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-          defaultExpanded
-        />,
-      )
-      await Promise.resolve()
-    })
-
-    const slipAlert = tree.root
-      .findAllByProps({ accessibilityLabel: 'habits.form.slipAlert' })
-      .find((node: any) => typeof node.props.onPress === 'function')
-    await TestRenderer.act(async () => {
-      slipAlert.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith(
-      'slipAlertEnabled',
-      true,
-      { shouldDirty: true },
-    )
+    TestRenderer.act(() => resolveProposal())
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
   })
 })

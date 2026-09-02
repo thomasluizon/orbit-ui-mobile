@@ -315,11 +315,8 @@
     }
   },
   "components/habits/checklist-templates.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
     "local/spacing-scale": {
-      "count": 11
+      "count": 1
     }
   },
   "components/habits/create-habit-modal.tsx": {
@@ -368,24 +365,6 @@
       "count": 2
     }
   },
-  "components/habits/habit-form-fields.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    }
-  },
-  "components/habits/habit-form-fields/advanced-section.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/habits/habit-form-fields/frequency-type-cards.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    }
-  },
   "components/habits/habit-form-fields/habit-emoji-selector.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -409,14 +388,6 @@
   "components/habits/habit-form-fields/styles.ts": {
     "local/spacing-scale": {
       "count": 29
-    }
-  },
-  "components/habits/habit-form-fields/tags-section.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
     }
   },
   "components/habits/reschedule-sheet.tsx": {

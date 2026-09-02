@@ -3,8 +3,8 @@ import { Plus, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-import { ProBadge } from '@/components/ui/pro-badge'
 import type { createTokensV2 } from '@/lib/theme'
+import { Proposed } from '@/components/ui/proposed'
 
 export interface SubHabitEntry {
   id: string
@@ -13,20 +13,15 @@ export interface SubHabitEntry {
 
 interface SubHabitEditorProps {
   subHabits: SubHabitEntry[]
-  hasProAccess: boolean
+  proposedItemCount?: number
   onUpdateSubHabit: (id: string, value: string) => void
   onRemoveSubHabit: (id: string) => void
   onAddSubHabit: () => void
-  onUpgrade: () => void
   tokens: ReturnType<typeof createTokensV2>
   styles: {
     subHabitsSection: object
     subHabitsHeader: object
-    subHabitsUpsellHeader: object
-    subHabitsHeaderLeft: object
     fieldLabel: object
-    subHabitsHint: object
-    subHabitsUpgradeText: object
     subHabitsList: object
     subHabitRow: object
     subHabitIndex: object
@@ -39,46 +34,14 @@ interface SubHabitEditorProps {
 
 export function SubHabitEditor({
   subHabits,
-  hasProAccess,
+  proposedItemCount = 0,
   onUpdateSubHabit,
   onRemoveSubHabit,
   onAddSubHabit,
-  onUpgrade,
   tokens,
   styles,
 }: Readonly<SubHabitEditorProps>) {
   const { t } = useTranslation()
-
-  if (!hasProAccess) {
-    return (
-      <View style={styles.subHabitsSection}>
-        <View style={styles.subHabitsUpsellHeader}>
-          <View style={styles.subHabitsHeaderLeft}>
-            <View style={styles.subHabitsHeader}>
-              <Text style={styles.fieldLabel}>{t('habits.form.subHabits')}</Text>
-              <ProBadge alwaysVisible />
-            </View>
-            <Text style={styles.subHabitsHint}>
-              {t('upgrade.features.subHabits.tooltip')}
-            </Text>
-          </View>
-          <Pressable
-            onPress={onUpgrade}
-            hitSlop={{ top: 13, bottom: 13, left: 8, right: 8 }}
-            style={({ pressed }) =>
-              pressed ? { transform: [{ scale: 0.96 }] } : null
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t('upgrade.subscribe')}
-          >
-            <Text style={styles.subHabitsUpgradeText}>
-              {t('upgrade.subscribe')}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    )
-  }
 
   return (
     <View style={styles.subHabitsSection}>
@@ -88,7 +51,8 @@ export function SubHabitEditor({
       {subHabits.length > 0 ? (
         <View style={styles.subHabitsList}>
           {subHabits.map((entry, index) => (
-            <View key={entry.id} style={styles.subHabitRow}>
+            <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.form.proposed')}>
+            <View style={styles.subHabitRow}>
               <Text style={styles.subHabitIndex}>{index + 1}</Text>
               <BottomSheetAppTextInput
                 value={entry.value}
@@ -119,6 +83,7 @@ export function SubHabitEditor({
                 <Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} />
               </Pressable>
             </View>
+            </Proposed>
           ))}
         </View>
       ) : null}

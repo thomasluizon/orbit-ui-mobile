@@ -101,6 +101,11 @@ export function ReminderSection({
               </View>
             ))}
           </View>
+          {reminderTimes.length === 1 ? (
+            <Text style={sectionStyles.hintText}>
+              {t("habits.form.reminderLastRequired")}
+            </Text>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [
