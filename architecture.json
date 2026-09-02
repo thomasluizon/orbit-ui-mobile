@@ -24142,6 +24142,7 @@
         "packages/shared/src/__tests__/chat-composer-core.test.ts",
         "packages/shared/src/__tests__/date-format-core.test.ts",
         "packages/shared/src/__tests__/dismiss-guard-core.test.ts",
+        "packages/shared/src/__tests__/pending-operation-card-state.test.ts",
         "packages/shared/src/__tests__/tag-selection-core.test.ts"
       ],
       "packages/shared/src/i18n": [
@@ -24388,6 +24389,7 @@
         "packages/shared/src/__tests__/habit-utils.test.ts",
         "packages/shared/src/__tests__/habit-visibility.test.ts",
         "packages/shared/src/__tests__/notification-cache.test.ts",
+        "packages/shared/src/__tests__/pending-operation-card-state.test.ts",
         "packages/shared/src/__tests__/progress.test.ts",
         "packages/shared/src/__tests__/subscription-screen.test.ts",
         "packages/shared/src/__tests__/tag-cache.test.ts",
