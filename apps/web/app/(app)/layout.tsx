@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { TrialBanner } from '@/components/ui/trial-banner'
@@ -51,7 +52,6 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
-import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
@@ -65,6 +65,11 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+
+const AstraConversation = dynamic(
+  () => import('@/components/chat/conversation').then((module) => module.AstraConversation),
+  { ssr: false },
+)
 
 export default function AppLayout({
   children,

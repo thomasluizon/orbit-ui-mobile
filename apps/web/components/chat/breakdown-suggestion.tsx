@@ -36,7 +36,9 @@ function toDraftHabit(habit: SuggestedSubHabit, index: number): DraftHabit {
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const t = useTranslations()
   const bulkCreate = useBulkCreateHabits()
-  const [habits, setHabits] = useState<DraftHabit[]>(() => subHabits.map(toDraftHabit))
+  const [habits, setHabits] = useState<DraftHabit[]>(() =>
+    subHabits.map((habit, index) => toDraftHabit(habit, index)),
+  )
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)

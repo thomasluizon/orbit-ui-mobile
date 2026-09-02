@@ -34,7 +34,9 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const bulkCreate = useBulkCreateHabits()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const [habits, setHabits] = useState<DraftHabit[]>(() => subHabits.map(toDraftHabit))
+  const [habits, setHabits] = useState<DraftHabit[]>(() =>
+    subHabits.map((habit, index) => toDraftHabit(habit, index)),
+  )
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
