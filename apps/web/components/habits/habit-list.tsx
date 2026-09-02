@@ -787,6 +787,7 @@ export function HabitList({
       settlementData.selectedDateStr,
     )
     if (mode) {
+      confirmedResolutions.clearWhenIdle = false
       if (!promptedParentIdsRef.current.has(parent.id)) {
         promptedParentIdsRef.current.add(parent.id)
         setParentPromptQueue((current) => enqueueParentPrompt(current, {

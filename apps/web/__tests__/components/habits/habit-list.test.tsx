@@ -2297,6 +2297,75 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentB.id, date: TODAY })
   })
 
+  it('keeps a cascaded grandparent confirmation actionable after stale settlement data', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: grandparent.id,
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const loggedChild = createMockHabit({
+      id: 'logged-child',
+      parentId: parent.id,
+      isCompleted: true,
+      scheduledDates: [TODAY],
+    })
+    const skippedChild = createMockHabit({
+      id: 'skipped-child',
+      parentId: parent.id,
+      scheduledDates: [TODAY],
+    })
+    for (const habit of [grandparent, parent, loggedChild, skippedChild]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(grandparent.id, [parent.id])
+    mockHabitsData.childrenByParent.set(parent.id, [loggedChild.id, skippedChild.id])
+    mockHabitsData.topLevelHabits = [grandparent]
+
+    let resolveParentMutation!: () => void
+    const pendingParentMutation = new Promise<void>((resolve) => {
+      resolveParentMutation = resolve
+    })
+    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => (
+      habitId === parent.id ? pendingParentMutation : Promise.resolve()
+    ))
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId(`skip-${skippedChild.id}`))
+      await Promise.resolve()
+    })
+    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent"})'))
+      .toBeDefined()
+
+    fireEvent.click(within(
+      screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
+    ).getByRole('button', { name: 'habits.autoLogParentConfirm' }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    mockHabitsDataUpdatedAt += 1
+    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+
+    await act(async () => {
+      resolveParentMutation()
+      await pendingParentMutation
+      await Promise.resolve()
+    })
+
+    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Grandparent"})'))
+      .toBeDefined()
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: grandparent.id, date: TODAY })
+  })
+
   it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
     const parent = createMockHabit({
       id: 'parent',

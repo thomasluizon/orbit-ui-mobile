@@ -2470,6 +2470,94 @@ describe('HabitList', () => {
     })
   })
 
+  it('keeps a cascaded grandparent confirmation actionable after stale settlement data', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: grandparent.id,
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const loggedChild = createMockHabit({
+      id: 'logged-child',
+      parentId: parent.id,
+      isCompleted: true,
+      scheduledDates: [TODAY],
+    })
+    const skippedChild = createMockHabit({
+      id: 'skipped-child',
+      parentId: parent.id,
+      scheduledDates: [TODAY],
+    })
+    seedHabits([grandparent, parent, loggedChild, skippedChild])
+
+    let resolveParentMutation!: () => void
+    const pendingParentMutation = new Promise<void>((resolve) => {
+      resolveParentMutation = resolve
+    })
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => (
+      habitId === parent.id ? pendingParentMutation : Promise.resolve()
+    ))
+    const renderList = () => (
+      <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    )
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList())
+    })
+
+    await TestRenderer.act(async () => {
+      const skippedRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: { props: { habit: NormalizedHabit } }) => (
+          node.props.habit.id === skippedChild.id
+        ))
+      skippedRow?.props.actions.onSkip()
+      await Promise.resolve()
+    })
+    let [confirmation] = confirmationSheets(tree, 'habits.autoLogParentTitle')
+    expect(flattenRenderedText(confirmation)).toContain(
+      'habits.autoLogParentMessage({"name":"Parent"})',
+    )
+
+    TestRenderer.act(() => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+    })
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
+    })
+
+    await TestRenderer.act(async () => {
+      resolveParentMutation()
+      await pendingParentMutation
+      await Promise.resolve()
+    })
+
+    ;[confirmation] = confirmationSheets(tree, 'habits.autoLogParentTitle')
+    expect(flattenRenderedText(confirmation)).toContain(
+      'habits.autoLogParentMessage({"name":"Grandparent"})',
+    )
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: grandparent.id,
+      date: TODAY,
+      intent: 'log',
+    })
+  })
+
   it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
     const parent = createMockHabit({
       id: 'parent',

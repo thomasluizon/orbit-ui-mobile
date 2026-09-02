@@ -887,6 +887,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           settlementData.selectedDateStr,
         )
         if (mode) {
+          confirmedResolutions.clearWhenIdle = false
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
             setParentPromptQueue((current) => enqueueParentPrompt(current, {
