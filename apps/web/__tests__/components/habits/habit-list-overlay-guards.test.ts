@@ -62,6 +62,6 @@ describe('habit list overlay caller guards', () => {
     expect(caller).not.toMatch(/overflow-(?:y-)?(?:auto|scroll)/)
     expect(sheet.indexOf('orbit-sheet-title')).toBeLessThan(sheet.indexOf('data-slot="sheet-body"'))
     expect(habitList).not.toContain('skipConfirmTitle')
-    expect(habitList).toContain('await skipHabit.mutateAsync({ habitId, date: selectedDateStr })')
+    expect(habitList).toContain('await skipHabit.mutateAsync({ habitId, date })')
   })
 })

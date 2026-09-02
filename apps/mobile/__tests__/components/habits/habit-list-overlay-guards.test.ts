@@ -62,6 +62,6 @@ describe('habit list overlay caller guards', () => {
     expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
     expect(sheet.indexOf('const header =')).toBeLessThan(sheet.indexOf('<KeyboardAwareSheetScrollView'))
     expect(habitList).not.toContain('skipConfirmTitle')
-    expect(habitList).toContain('await skipMutation.mutateAsync({ habitId, date: selectedDateStr })')
+    expect(habitList).toContain('await skipMutation.mutateAsync({ habitId, date })')
   })
 })
