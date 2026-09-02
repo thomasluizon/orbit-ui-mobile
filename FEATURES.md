@@ -2,7 +2,7 @@
 
 > **At a glance** - the single code-derived, gating- and platform-aware map of every Orbit capability.
 > - Downstream copy (Play listing, landing page, QA matrix) derives its rows from here, so nothing is undersold.
-> - Gating: Free / Trial (7-day, full Pro except Retrospective) / Pro / Yearly-Pro, computed from `User` flags in `PayGateService.cs`.
+> - Gating: Free / Trial (7-day, full Pro) / Pro / Yearly-Pro, computed from `User` flags in `PayGateService.cs`.
 > - Free limits: 5 AI messages per day. Habits are not a paid axis: the 1000 ceiling is an abuse guard, identical on every plan. Both = web + mobile (Expo, Android-only), with no iOS app.
 > - Headline surfaces: Astra (61 AI tools), the MCP server (79 tools / 15 classes), sharing and referrals, the core tracker.
 > - Read the whole doc before writing store, marketing, or QA copy.
@@ -14,9 +14,9 @@ The single, code-derived, gating- and platform-aware map of everything Orbit doe
 **Gating vocabulary.** Tiers are computed from `User` flags in `orbit-api/src/Orbit.Application/Common/PayGateService.cs`, not an enum:
 
 - **Free** — no Pro, no active trial.
-- **Trial** — a 7-day grant set at signup with no card; grants full `HasProAccess` (everything Pro), **except** the Retrospective, which stays Yearly-Pro-only.
-- **Pro** — monthly, yearly, or lifetime purchase (Play Billing on mobile, Stripe on web).
-- **Yearly-Pro** — the yearly plan; a super-set that additionally unlocks the AI Retrospective.
+- **Trial** — a 7-day grant set at signup with no card; grants full `HasProAccess`, including the AI Retrospective.
+- **Pro** — monthly, yearly, or lifetime purchase (Play Billing on mobile, Stripe on web); `HasProAccess` includes the AI Retrospective.
+- **Yearly-Pro** — the yearly billing interval; it carries the same `HasProAccess` entitlements as every other Pro interval.
 
 **Limits (source: the live `AppConfigs` rows).** The AI
 meter is **daily** and resets at the user's local midnight: **5** messages a day free, **50** a day on
@@ -80,7 +80,7 @@ Astra is the in-app assistant on the chat surface (web `/chat`, mobile `chat`). 
 | Tool breadth — checklist templates | 3 tools: get, create, delete reusable templates | Free | Both | — |
 | Tool breadth — notifications | 3 tools: get, update, delete reminders | Free | Both | — |
 | Tool breadth — calendar | 2 tools: calendar overview, manage Google Calendar sync | Pro (calendar is Pro) | Both | — |
-| Tool breadth — summary & retrospective | 2 tools: daily summary, retrospective | Pro / Yearly-Pro | Both | — |
+| Tool breadth — summary & retrospective | 2 tools: daily summary, retrospective | Pro (active trial included) | Both | — |
 | Tool breadth — referrals | 2 tools: referral overview, referral code | Free | Both | — |
 | Tool breadth — subscriptions | 2 tools: subscription overview, manage subscription | Free | Both | — |
 | Tool breadth — API keys | 2 tools: get, manage keys | Pro (API keys are Pro) | Both | — |
@@ -243,10 +243,10 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
 | Free tier | 5 AI msgs/day, goals, core tracking, gamification, milestone sharing, referrals | Free | Both | — |
-| 7-day trial | Full Pro access (except Retrospective); set at signup, no card | Trial | Both | — |
+| 7-day trial | Full Pro access, including Retrospective; set at signup, no card | Trial | Both | — |
 | Orbit Pro | 50 AI msgs/day, sub-habits, calendar, daily summary, AI goal review, API keys/MCP, AI memory, proactive check-ins, slip alerts | Pro | Both | — |
-| Yearly Pro | Everything in Pro **plus** the AI Retrospective | Yearly-Pro | Both | — |
-| AI Retrospective | AI analysis over week/month/quarter/year | **Yearly-Pro only** | Both | — |
+| Yearly Pro | Everything in Pro, billed yearly | Yearly-Pro | Both | — |
+| AI Retrospective | AI analysis over week/month/quarter/year | Pro (active trial included) | Both | — |
 | Purchase — mobile | Play Billing (native verify + RTDN); backend is source of truth | — | Mobile | — |
 | Purchase — web | Stripe checkout | — | Web | — |
 | Rewarded ads | +5 AI messages per rewarded ad, cap 3/day | Free non-trial only | Both | Pro/trial never see ads |
