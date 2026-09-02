@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => ({
     bufferFirstLog: vi.fn(),
     bufferGoal: vi.fn(),
     bufferWeekStartDay: vi.fn(),
-    bufferColorScheme: vi.fn(),
     markOnboardingLocallyDone: vi.fn(),
   },
   createHabitMutateAsync: vi.fn(() => Promise.resolve({ id: 'server-id' })),
@@ -28,7 +27,6 @@ const mocks = vi.hoisted(() => ({
   createGoalMutateAsync: vi.fn(() => Promise.resolve({ id: 'goal-id' })),
   performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   patchProfile: vi.fn(),
-  applyScheme: vi.fn(),
   setItem: vi.fn(() => Promise.resolve(undefined)),
   setQueryData: vi.fn(),
 }))
@@ -68,10 +66,6 @@ vi.mock('@/hooks/use-goals', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ patchProfile: mocks.patchProfile }),
-}))
-
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ applyScheme: mocks.applyScheme }),
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
@@ -144,13 +138,10 @@ describe('onboarding action provider factories', () => {
       habits: [{ title: 'Walk', tags: ['movement'] }],
     })
 
-    await actions.setColorScheme('blue')
-    expect(mocks.applyScheme).toHaveBeenCalledWith('blue')
-
     expect(actions.onImport).toBeTypeOf('function')
   })
 
-  it('buffers goals and color scheme in pre-auth mode', async () => {
+  it('buffers goals in pre-auth mode', async () => {
     const actions = captureActions(useBufferOnboardingActions)
 
     await actions.createGoal({ title: 'Ship', targetValue: 1, unit: 'app' })
@@ -159,9 +150,6 @@ describe('onboarding action provider factories', () => {
       targetValue: 1,
       unit: 'app',
     })
-
-    await actions.setColorScheme('amber')
-    expect(mocks.draftState.bufferColorScheme).toHaveBeenCalledWith('amber')
   })
 
   it('logs, creates goals, and queues the week-start day in live mode', async () => {
@@ -235,7 +223,6 @@ const stubActions: OnboardingActions = {
   logHabit: vi.fn(() => Promise.resolve()),
   createGoal: vi.fn(() => Promise.resolve()),
   setWeekStartDay: vi.fn(() => Promise.resolve()),
-  setColorScheme: vi.fn(() => Promise.resolve()),
   finishOnboarding: vi.fn(() => Promise.resolve()),
 }
 

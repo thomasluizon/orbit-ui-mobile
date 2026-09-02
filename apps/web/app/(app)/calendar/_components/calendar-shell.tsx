@@ -90,7 +90,7 @@ export function CalendarHeader({
               fontSize: 17,
               fontWeight: 500,
               fontVariantNumeric: 'tabular-nums',
-              color: isYearOpen ? 'var(--primary)' : 'var(--fg-1)',
+              color: 'var(--fg-1)',
             }}
           >
             {year}

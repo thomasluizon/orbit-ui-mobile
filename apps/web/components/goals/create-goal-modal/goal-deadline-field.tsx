@@ -48,7 +48,7 @@ export function GoalDeadlineField({
         ) : (
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 13,

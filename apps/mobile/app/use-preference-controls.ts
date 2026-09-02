@@ -1,29 +1,24 @@
 import { useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { habitKeys } from '@orbit/shared/query'
-import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   parseShowGeneralOnTodayPreference,
   resolveSystemLocale,
 } from '@orbit/shared/utils'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { PreferencePicker } from '@/components/profile/preferences-sections'
 
-/** `closePicker` runs its action only once the picker sheet has finished dismissing. */
-export function usePreferenceControls(closePicker: (exitAction?: () => void) => void) {
+export function usePreferenceControls() {
   const { i18n } = useTranslation()
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
-  const { applyScheme, applyTheme, currentTheme, currentScheme } = useAppTheme()
+  const { applyTheme, currentTheme, currentScheme } = useAppTheme()
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
 
@@ -87,17 +82,6 @@ export function usePreferenceControls(closePicker: (exitAction?: () => void) => 
     },
   })
 
-  function handleSchemeChange(scheme: ColorScheme) {
-    if (!profile?.hasProAccess && scheme !== 'purple') {
-      closePicker(() => {
-        setActivePicker(null)
-        router.push(buildUpgradeHref('/preferences'))
-      })
-      return
-    }
-    applyScheme(scheme)
-  }
-
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
     applyTheme(mode)
@@ -137,7 +121,6 @@ export function usePreferenceControls(closePicker: (exitAction?: () => void) => 
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleSchemeChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
     weekStartMutation,

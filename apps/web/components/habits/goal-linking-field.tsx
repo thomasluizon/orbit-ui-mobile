@@ -63,7 +63,7 @@ export function GoalLinkingField({
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 11,
-                    color: isSelected ? 'var(--primary-soft)' : 'var(--fg-3)',
+                    color: isSelected ? 'var(--fg-1)' : 'var(--fg-3)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >

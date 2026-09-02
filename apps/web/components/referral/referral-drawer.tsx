@@ -107,7 +107,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                   background: 'rgba(var(--primary-rgb), 0.15)',
                 }}
               >
-                <Gift size={30} strokeWidth={1.8} color="var(--primary-soft)" />
+                <Gift size={30} strokeWidth={1.8} color="var(--primary)" />
               </span>
             </div>
 

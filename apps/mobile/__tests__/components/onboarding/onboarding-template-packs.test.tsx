@@ -38,7 +38,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
       bgCard: '#111',
       hairline: '#222',
       hairlineStrong: '#333',
-      primary: '#7f46f7',
+      primary: '#C4530F',
       primarySoft: '#a07cff',
       fgOnPrimary: '#fff',
       fg1: '#fff',

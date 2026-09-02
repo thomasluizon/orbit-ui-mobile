@@ -175,7 +175,7 @@ function createStyles(tokens: AppTokensV2) {
     streakText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      color: tokens.primary,
+      color: tokens.primarySoft,
     },
   })
 }

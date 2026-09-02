@@ -15,7 +15,6 @@ import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/prefe
 const pickerTitles: Record<PreferencePicker, string> = {
   language: 'Language',
   theme: 'Theme',
-  scheme: 'Color',
   weekStart: 'Week start',
 }
 
@@ -25,7 +24,6 @@ function baseProps() {
     mounted: true,
     selectedLanguage: 'en',
     currentTheme: 'dark' as const,
-    currentScheme: 'purple' as const,
     weekStartDay: 1,
     themeModeOptions: [
       { value: 'light' as const, label: 'Light' },
@@ -40,7 +38,6 @@ function baseProps() {
     onClose: vi.fn(),
     onLanguageChange: vi.fn(),
     onThemeModeChange: vi.fn(),
-    onSchemeChange: vi.fn(),
     onWeekStartChange: vi.fn(),
   }
 }
@@ -68,21 +65,6 @@ describe('PreferencePickerSheet', () => {
     render(<PreferencePickerSheet {...props} />)
     fireEvent.click(screen.getByText('Dark'))
     expect(props.onThemeModeChange).toHaveBeenCalledWith('dark')
-  })
-
-  it('renders color scheme options and fires onSchemeChange without closing', () => {
-    const props = { ...baseProps(), activePicker: 'scheme' as const }
-    render(<PreferencePickerSheet {...props} />)
-    fireEvent.click(screen.getByText('preferences.colorBlue'))
-    expect(props.onSchemeChange).toHaveBeenCalledWith('blue')
-    expect(props.onClose).not.toHaveBeenCalled()
-  })
-
-  it('shows a done footer for the scheme picker that closes on click', () => {
-    const props = { ...baseProps(), activePicker: 'scheme' as const }
-    render(<PreferencePickerSheet {...props} />)
-    fireEvent.click(screen.getByText('common.done'))
-    expect(props.onClose).toHaveBeenCalled()
   })
 
   it('renders week-start options and fires onWeekStartChange on select', () => {

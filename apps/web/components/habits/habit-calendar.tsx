@@ -130,7 +130,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         <button
           type="button"
           aria-label={`${monthLabel}, ${t('dates.goToToday')}`}
-          className="capitalize appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-colors"
+          className="capitalize appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--fg-2)] transition-colors"
           style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500 }}
           onClick={goToToday}
         >

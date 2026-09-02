@@ -243,7 +243,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 |---|---|---|---|---|
 | Free tier | 5 AI msgs/day, goals, core tracking, gamification, milestone sharing, referrals | Free | Both | — |
 | 7-day trial | Full Pro access (except Retrospective); set at signup, no card | Trial | Both | — |
-| Orbit Pro | 50 AI msgs/day, sub-habits, calendar, daily summary, AI goal review, API keys/MCP, AI memory, proactive check-ins, slip alerts, all color schemes | Pro | Both | — |
+| Orbit Pro | 50 AI msgs/day, sub-habits, calendar, daily summary, AI goal review, API keys/MCP, AI memory, proactive check-ins, slip alerts | Pro | Both | — |
 | Yearly Pro | Everything in Pro **plus** the AI Retrospective | Yearly-Pro | Both | — |
 | AI Retrospective | AI analysis over week/month/quarter/year | **Yearly-Pro only** | Both | — |
 | Purchase — mobile | Play Billing (native verify + RTDN); backend is source of truth | — | Mobile | — |

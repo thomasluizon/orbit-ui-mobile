@@ -9,6 +9,7 @@ import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import enMessages from '@orbit/shared/i18n/en.json'
 import ptMessages from '@orbit/shared/i18n/pt-BR.json'
 import { PillButton } from '@/components/ui/pill-button'
+import { normalizeColorScheme, resolveWebThemeVariables } from '@/lib/theme-dom'
 import './globals.css'
 
 const rubik = Rubik({
@@ -26,7 +27,7 @@ function readCookie(name: string): string | null {
   return value !== undefined ? decodeURIComponent(value) : null
 }
 
-const DEFAULT_CLIENT_PREFS = 'en|dark scheme-purple'
+const DEFAULT_CLIENT_PREFS = 'en|dark|purple'
 
 const emptySubscribe = () => () => {}
 
@@ -47,7 +48,7 @@ function readClientPrefs(): string {
   const schemeCookie = readCookie('orbit_color_scheme')
   const scheme =
     schemeCookie && SCHEME_NAMES.has(schemeCookie) ? schemeCookie : 'purple'
-  return `${locale}|${theme} scheme-${scheme}`
+  return `${locale}|${theme}|${scheme}`
 }
 
 function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
@@ -83,7 +84,7 @@ function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
           </div>
           <Link
             href="/"
-            className="inline-flex items-center justify-center gap-[9px] rounded-full px-[26px] py-[14px] text-[16px] font-medium text-[var(--fg-1)] no-underline shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 rounded-full px-[26px] py-[14px] text-[16px] font-medium text-[var(--fg-1)] no-underline shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
             style={{
               marginTop: 12,
               fontFamily: 'var(--font-sans)',
@@ -111,7 +112,9 @@ export default function GlobalError({
     readClientPrefs,
     () => DEFAULT_CLIENT_PREFS,
   )
-  const [locale = 'en', htmlClass = 'dark scheme-purple'] = clientPrefs.split('|')
+  const [locale = 'en', themeValue = 'dark', schemeValue = 'purple'] = clientPrefs.split('|')
+  const theme = themeValue === 'light' ? 'light' : 'dark'
+  const scheme = normalizeColorScheme(schemeValue)
 
   useEffect(() => {
     Sentry.captureException(error)
@@ -120,7 +123,11 @@ export default function GlobalError({
   const messages = locale === 'pt-BR' ? ptMessages : enMessages
 
   return (
-    <html lang={locale} className={`${htmlClass} ${rubik.variable}`}>
+    <html
+      lang={locale}
+      className={`${theme} ${rubik.variable}`}
+      style={resolveWebThemeVariables(scheme, theme)}
+    >
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <GlobalErrorBody reset={reset} />

@@ -20,7 +20,7 @@ export function SupportSuccessState() {
         }}
         aria-hidden="true"
       >
-        <Check size={34} strokeWidth={1.8} color="var(--primary-soft)" />
+        <Check size={34} strokeWidth={1.8} color="var(--primary)" />
       </span>
       <span
         style={{

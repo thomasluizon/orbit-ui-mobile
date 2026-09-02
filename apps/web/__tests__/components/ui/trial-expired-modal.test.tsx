@@ -75,7 +75,7 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     expect(screen.getByText('trial.expired.aiChat')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.allColors')).toBeInTheDocument()
+    expect(screen.queryByText('trial.expired.allColors')).not.toBeInTheDocument()
     expect(screen.getByText('trial.expired.aiSummary')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.subHabits')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.goals')).toBeInTheDocument()

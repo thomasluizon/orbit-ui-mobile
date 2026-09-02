@@ -19,7 +19,6 @@ const PAUSED_FEATURES = [
   'trial.expired.aiChat',
   'trial.expired.goals',
   'trial.expired.aiSummary',
-  'trial.expired.allColors',
 ] as const
 
 /**
@@ -123,7 +122,7 @@ export function TrialExpiredModal() {
             contentContainerStyle={styles.scrollContent}
           >
             <View style={styles.heroDisc}>
-              <Crown size={30} strokeWidth={1.8} color={tokens.primarySoft} />
+              <Crown size={30} strokeWidth={1.8} color={tokens.primary} />
             </View>
             <Text style={styles.heading}>{t('trial.expired.heading')}</Text>
             <Text style={styles.subtitle}>{t('trial.expired.subtitleQuiet')}</Text>

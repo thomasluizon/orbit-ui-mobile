@@ -112,7 +112,7 @@ export function MarketingConsentPrompt() {
           {t('marketingConsent.prompt.eyebrow')}
         </Animated.Text>
         <Animated.View entering={enterAnimation(0)} style={styles.heroDisc}>
-          <Mail size={30} strokeWidth={1.8} color={tokens.primarySoft} />
+          <Mail size={30} strokeWidth={1.8} color={tokens.primary} />
         </Animated.View>
         <Animated.Text entering={enterAnimation(70)} style={styles.body}>
           {t('marketingConsent.prompt.body')}

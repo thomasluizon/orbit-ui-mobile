@@ -120,7 +120,7 @@ export function ReferralPrompt() {
             {t('referral.prompt.eyebrow')}
           </Animated.Text>
           <Animated.View entering={enterAnimation(0)} style={styles.heroDisc}>
-            <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
+            <Gift size={30} strokeWidth={1.8} color={tokens.primary} />
           </Animated.View>
           <Animated.Text entering={enterAnimation(70)} style={styles.body}>
             {t('referral.prompt.body', { discount })}

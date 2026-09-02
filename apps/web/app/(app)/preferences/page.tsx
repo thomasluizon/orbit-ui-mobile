@@ -21,14 +21,12 @@ export default function PreferencesPage() {
   const mounted = useIsClient()
   const {
     profile,
-    currentScheme,
     currentTheme,
     activePicker,
     setActivePicker,
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleSchemeChange,
     handleThemeModeChange,
     toggleShowGeneral,
     weekStartMutation,
@@ -50,11 +48,10 @@ export default function PreferencesPage() {
     { value: 'light', label: t('preferences.themeModeLight') },
   ]
 
-  const { languageLabel, themeLabel, schemeLabel, schemeColor, weekStartLabel } =
+  const { languageLabel, themeLabel, weekStartLabel } =
     derivePreferenceLabels(t, {
       selectedLanguage,
       currentTheme,
-      currentScheme,
       weekStartDay: profile?.weekStartDay,
       themeModeOptions,
       weekStartOptions,
@@ -63,13 +60,11 @@ export default function PreferencesPage() {
   const pickerTitles: Record<PreferencePicker, string> = {
     language: t('profile.language.title'),
     theme: t('preferences.themeMode'),
-    scheme: t('profile.colorScheme.title'),
     weekStart: t('settings.weekStartDay.title'),
   }
 
   const pickerDescriptions: Partial<Record<PreferencePicker, string>> = {
     language: t('profile.language.description'),
-    scheme: t('profile.colorScheme.description'),
     weekStart: t('settings.weekStartDay.description'),
   }
 
@@ -90,9 +85,7 @@ export default function PreferencesPage() {
           mounted={mounted}
           languageLabel={languageLabel}
           themeLabel={themeLabel}
-          schemeLabel={schemeLabel}
           weekStartLabel={weekStartLabel}
-          schemeColor={schemeColor}
           showGeneralOnToday={showGeneralOnToday}
           onOpenPicker={setActivePicker}
           onToggleShowGeneral={toggleShowGeneral}
@@ -111,7 +104,6 @@ export default function PreferencesPage() {
           mounted={mounted}
           selectedLanguage={selectedLanguage}
           currentTheme={currentTheme}
-          currentScheme={currentScheme}
           weekStartDay={profile?.weekStartDay}
           themeModeOptions={themeModeOptions}
           weekStartOptions={weekStartOptions}
@@ -120,7 +112,6 @@ export default function PreferencesPage() {
           onClose={closePicker}
           onLanguageChange={(locale) => void handleLanguageChange(locale)}
           onThemeModeChange={handleThemeModeChange}
-          onSchemeChange={handleSchemeChange}
           onWeekStartChange={(day) => weekStartMutation.mutate(day)}
         />
       </div>

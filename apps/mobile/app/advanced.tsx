@@ -68,7 +68,7 @@ function McpUpgradeChip({
         hitSlop={8}
       >
         <Lock size={14} color={tokens.primary} strokeWidth={1.8} />
-        <Text style={[styles.actionLink, { color: tokens.primary }]}>
+        <Text style={[styles.actionLink, { color: tokens.fg1 }]}>
           {label}
         </Text>
       </Pressable>

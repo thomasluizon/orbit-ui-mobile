@@ -87,9 +87,9 @@ vi.mock('@/hooks/use-tag-selection', () => ({
     setShowNewTag: vi.fn(),
     newTagName: '',
     setNewTagName: vi.fn(),
-    newTagColor: '#7f46f7',
+    newTagColor: '#C4530F',
     setNewTagColor: vi.fn(),
-    tagColors: ['#7f46f7'],
+    tagColors: ['#C4530F'],
   }),
 }))
 

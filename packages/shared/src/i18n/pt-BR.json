@@ -1070,10 +1070,6 @@
       "title": "Idioma",
       "description": "Escolha seu idioma"
     },
-    "colorScheme": {
-      "title": "Cor do tema",
-      "description": "Escolha sua cor de destaque"
-    },
     "aiSummary": {
       "title": "Resumo diário",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
@@ -1150,7 +1146,7 @@
       "deleteOnboarding": "O progresso da introdução (o fluxo de boas-vindas volta a aparecer)",
       "preserveAccount": "Sua conta (e-mail, nome, senha)",
       "preserveSubscription": "O status da assinatura Pro",
-      "preservePreferences": "Tema, cor de destaque, idioma e fuso horário",
+      "preservePreferences": "Tema, idioma e fuso horário",
       "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
       "confirmLabel": "Confirmação",
       "confirmPlaceholder": "ORBIT",
@@ -1423,7 +1419,6 @@
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
       "aiChat": "50 mensagens de IA por dia",
-      "allColors": "Todos os 6 temas",
       "aiSummary": "Resumos diários da IA",
       "subHabits": "Sub-hábitos",
       "goals": "Análise de metas por IA",
@@ -1570,8 +1565,7 @@
       "welcome": {
         "title": "Boas-vindas ao Orbit",
         "subtitle": "Vamos deixar tudo do seu jeito e criar seu primeiro hábito.",
-        "weekStart": "Quando sua semana começa?",
-        "colorScheme": "Escolha sua cor"
+        "weekStart": "Quando sua semana começa?"
       },
       "saveYourPlan": {
         "title": "Salve seu plano",
@@ -1813,8 +1807,6 @@
         "referralsDesc": "Compartilhe seu link de convite pessoal para trazer amigos ao Orbit. Quando eles entram e continuam firmes, as indicações ajudam a comunidade a crescer -- seu link fica no seu Perfil."
       },
       "settingsSection": {
-        "colorSchemeTitle": "Cor do tema",
-        "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). O app inteiro se adapta: fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
         "languageTitle": "Idioma",
         "languageDesc": "Alterne entre inglês e português. O app, as respostas da IA e os e-mails se adaptam ao idioma escolhido.",
         "aiSummaryTitle": "Resumo diário da IA",
@@ -1826,7 +1818,7 @@
         "pushNotificationsTitle": "Notificações push",
         "pushNotificationsDesc": "Ative ou desative as notificações push nas Configurações. Use o botão 'Enviar notificação de teste' para conferir se estão funcionando. Os lembretes chegam como notificações push, com base no horário de cada hábito.",
         "subscriptionTitle": "Assinatura e Pro",
-        "subscriptionDesc": "O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário, a análise de metas por IA e todos os temas.",
+        "subscriptionDesc": "O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário e a análise de metas por IA.",
         "weekStartDayTitle": "Início da semana",
         "weekStartDayDesc": "Escolha se a sua semana começa na segunda ou no domingo. Isso vale para todos os calendários, seletores de dias e exibições de frequência semanal no app.",
         "showGeneralTodayTitle": "Mostrar gerais no Hoje",
@@ -1881,12 +1873,6 @@
         "free": "Não",
         "pro": "Incluso",
         "tooltip": "As metas são grátis em qualquer plano: crie metas de longo prazo e ligue hábitos a elas para acompanhar um progresso mensurável. O Pro adiciona a análise por IA, que lê uma meta e aponta o que está funcionando e o que precisa de atenção."
-      },
-      "colors": {
-        "label": "Temas",
-        "free": "1 tema",
-        "pro": "Todos os 6 temas",
-        "tooltip": "Personalize o Orbit com 6 cores de tema: roxo, azul, verde, rosa, laranja e ciano. No plano grátis, você usa o tema roxo padrão."
       },
       "summary": {
         "label": "Resumo diário",
@@ -1986,7 +1972,6 @@
         "unlimited": "Sub-hábitos e sincronização com calendário",
         "ai": "50 mensagens de IA por dia",
         "goals": "Análise de metas por IA e resumos diários",
-        "themes": "Todos os 6 temas",
         "retrospective": "Retrospectiva IA"
       },
       "savePercent": "Economize {percent}%",
@@ -2710,12 +2695,6 @@
   "preferences": {
     "title": "Preferências",
     "general": "Geral",
-    "colorBlue": "Tema azul",
-    "colorCyan": "Tema ciano",
-    "colorGreen": "Tema verde",
-    "colorOrange": "Tema laranja",
-    "colorPurple": "Tema roxo",
-    "colorRose": "Tema rosa",
     "themeMode": "Aparência",
     "themeModeLight": "Claro",
     "themeModeDark": "Escuro"
@@ -2947,7 +2926,7 @@
       },
       "preferences": {
         "title": "Preferências",
-        "description": "Deixe tudo do seu jeito: idioma, cor do tema, fuso horário, dia de início da semana, notificações push e mais."
+        "description": "Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais."
       },
       "subscription": {
         "title": "Assinatura",

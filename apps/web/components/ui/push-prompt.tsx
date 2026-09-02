@@ -135,7 +135,7 @@ export function PushPrompt() {
               width: 44,
               height: 44,
               background: 'rgba(var(--primary-rgb), 0.15)',
-              color: 'var(--primary-soft)',
+              color: 'var(--primary)',
             }}
           >
             <Bell size={22} strokeWidth={1.8} />

@@ -52,9 +52,7 @@ export const motionDurations = {
   toast: 220,
   theme: 220,
   celebration: 560,
-  creationGlow: 1200,
   completePop: 500,
-  completeGlow: 800,
   completeSpark: 600,
   listStagger: 36,
 } as const
@@ -93,7 +91,6 @@ export const orbitalMotion = {
     reducedPeakScale: 1.04,
     flashOpacity: 0.24,
     reducedFlashOpacity: 0.12,
-    glowScale: 1.4,
   },
 } as const
 

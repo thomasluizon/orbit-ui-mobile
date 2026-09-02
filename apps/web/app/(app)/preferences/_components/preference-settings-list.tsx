@@ -1,11 +1,10 @@
 'use client'
 
-import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
+import { Calendar, Languages, Moon } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
-import { ProBadge } from '@/components/ui/pro-badge'
 import type { PreferencePicker } from './preference-picker-sheet'
 import {
   PushNotificationSection,
@@ -13,23 +12,11 @@ import {
 } from './push-notification-section'
 import { MarketingConsentSection } from './marketing-consent-section'
 
-function SchemeDot({ color }: Readonly<{ color: string }>) {
-  return (
-    <span
-      aria-hidden="true"
-      className="rounded-full shrink-0"
-      style={{ width: 12, height: 12, background: color }}
-    />
-  )
-}
-
 interface PreferenceSettingsListProps {
   mounted: boolean
   languageLabel?: string
   themeLabel?: string
-  schemeLabel?: string
   weekStartLabel?: string
-  schemeColor?: string
   showGeneralOnToday: boolean
   onOpenPicker: (picker: PreferencePicker) => void
   onToggleShowGeneral: () => void
@@ -40,9 +27,7 @@ export function PreferenceSettingsList({
   mounted,
   languageLabel,
   themeLabel,
-  schemeLabel,
   weekStartLabel,
-  schemeColor,
   showGeneralOnToday,
   onOpenPicker,
   onToggleShowGeneral,
@@ -69,16 +54,6 @@ export function PreferenceSettingsList({
             onClick={() => onOpenPicker('theme')}
             divider={false}
           />
-          <SettingsRow
-            icon={Palette}
-            label={t('profile.colorScheme.title')}
-            value={mounted ? schemeLabel : undefined}
-            onClick={() => onOpenPicker('scheme')}
-            divider={false}
-          >
-            {mounted && schemeColor ? <SchemeDot color={schemeColor} /> : null}
-            <ProBadge />
-          </SettingsRow>
           <SettingsRow
             icon={Calendar}
             label={t('settings.weekStartDay.title')}

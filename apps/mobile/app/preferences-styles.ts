@@ -7,12 +7,6 @@ export const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
-  schemeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
   statusBlock: {
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -52,9 +46,5 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19.6,
     marginBottom: 12,
-  },
-  sheetFooter: {
-    paddingTop: 16,
-    paddingBottom: 4,
   },
 })

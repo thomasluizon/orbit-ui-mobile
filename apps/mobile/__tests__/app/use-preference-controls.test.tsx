@@ -13,8 +13,6 @@ const mocks = vi.hoisted(() => ({
   patchProfile: vi.fn(),
   changeLanguage: vi.fn(),
   language: 'en',
-  routerPush: vi.fn(),
-  applyScheme: vi.fn(),
   applyTheme: vi.fn(),
   performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   invalidateQueries: vi.fn(async () => {}),
@@ -38,10 +36,6 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: mocks.routerPush }),
-}))
-
 vi.mock('@tanstack/react-query', () => ({
   useMutation: vi.fn((config: unknown) => config),
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
@@ -57,7 +51,6 @@ vi.mock('@/lib/queued-api-mutation', () => ({
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
-    applyScheme: mocks.applyScheme,
     applyTheme: mocks.applyTheme,
     currentTheme: 'dark',
     currentScheme: 'purple',
@@ -71,27 +64,10 @@ interface RenderedControls {
   rerender: () => Promise<void>
 }
 
-/** Stands in for the sheet: it holds the exit action until the test dismisses. */
-function createPickerSheetStub() {
-  let pendingExitAction: (() => void) | null = null
-  return {
-    closePicker(exitAction?: () => void) {
-      pendingExitAction = exitAction ?? null
-    },
-    dismiss() {
-      const exitAction = pendingExitAction
-      pendingExitAction = null
-      exitAction?.()
-    },
-  }
-}
-
-async function renderControls(
-  sheet = createPickerSheetStub(),
-): Promise<RenderedControls> {
+async function renderControls(): Promise<RenderedControls> {
   const ref: { current: PreferenceControls | null } = { current: null }
   function Harness() {
-    ref.current = usePreferenceControls((exitAction) => sheet.closePicker(exitAction))
+    ref.current = usePreferenceControls()
     return null
   }
   let root: { update: (element: React.ReactElement) => void }
@@ -141,8 +117,6 @@ describe('usePreferenceControls', () => {
     mocks.language = 'en'
     mocks.patchProfile.mockClear()
     mocks.changeLanguage.mockClear()
-    mocks.routerPush.mockClear()
-    mocks.applyScheme.mockClear()
     mocks.applyTheme.mockClear()
     mocks.performQueuedApiMutation.mockReset()
     mocks.performQueuedApiMutation.mockResolvedValue(undefined)
@@ -243,50 +217,6 @@ describe('usePreferenceControls', () => {
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
-  })
-
-  it('routes a free user to upgrade only after the picker sheet dismisses', async () => {
-    mocks.profile = makeProfile({ hasProAccess: false })
-    const sheet = createPickerSheetStub()
-    const hook = await renderControls(sheet)
-
-    TestRenderer.act(() => {
-      hook.current.handleSchemeChange('blue')
-    })
-
-    expect(mocks.routerPush).not.toHaveBeenCalled()
-    expect(mocks.applyScheme).not.toHaveBeenCalled()
-
-    TestRenderer.act(() => {
-      sheet.dismiss()
-    })
-
-    expect(mocks.routerPush).toHaveBeenCalledTimes(1)
-    expect(mocks.applyScheme).not.toHaveBeenCalled()
-  })
-
-  it('applies a scheme for a pro user without routing to upgrade', async () => {
-    mocks.profile = makeProfile({ hasProAccess: true })
-    const hook = await renderControls()
-
-    TestRenderer.act(() => {
-      hook.current.handleSchemeChange('blue')
-    })
-
-    expect(mocks.applyScheme).toHaveBeenCalledWith('blue')
-    expect(mocks.routerPush).not.toHaveBeenCalled()
-  })
-
-  it('lets a free user keep the default purple scheme', async () => {
-    mocks.profile = makeProfile({ hasProAccess: false })
-    const hook = await renderControls()
-
-    TestRenderer.act(() => {
-      hook.current.handleSchemeChange('purple')
-    })
-
-    expect(mocks.applyScheme).toHaveBeenCalledWith('purple')
-    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('applies a theme change only when the mode actually differs', async () => {

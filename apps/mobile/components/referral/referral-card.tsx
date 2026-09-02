@@ -47,7 +47,7 @@ export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>)
             { backgroundColor: tintFromPrimary(tokens, 0.15) },
           ]}
         >
-          <UserPlus size={22} strokeWidth={1.8} color={tokens.primarySoft} />
+          <UserPlus size={22} strokeWidth={1.8} color={tokens.primary} />
         </View>
         <View style={styles.body}>
           <Text style={[styles.title, { color: tokens.fg1 }]}>

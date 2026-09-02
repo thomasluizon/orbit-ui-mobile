@@ -1,5 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
@@ -84,11 +85,14 @@ describe('ReminderSection', () => {
 
   it('renders a chip per reminder time using the label formatter', () => {
     const { tree } = renderSection({ reminderTimes: [60, 30] })
-    const chipTexts = tree.root
-      .findAll((node) => node.type === 'Text')
-      .map((node) => node.props.children)
+    const textNodes = tree.root.findAll((node) => node.type === 'Text')
+    const chipTexts = textNodes.map((node) => node.props.children)
     expect(chipTexts).toContain('60m')
     expect(chipTexts).toContain('30m')
+    const firstChipStyle = StyleSheet.flatten(
+      textNodes.find((node) => node.props.children === '60m')!.props.style,
+    ) as { color?: string }
+    expect(firstChipStyle.color).toBe(tokens.fg1)
   })
 
   it('removes a reminder when multiple remain', () => {

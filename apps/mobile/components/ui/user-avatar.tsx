@@ -25,7 +25,7 @@ export function UserAvatar({ name, size = 44 }: Readonly<UserAvatarProps>) {
         },
       ]}
     >
-      <Text style={[styles.initials, { color: tokens.primary, fontSize: Math.round(size * 0.4) }]}>
+      <Text style={[styles.initials, { color: tokens.fg1, fontSize: Math.round(size * 0.4) }]}>
         {initialsOf(name)}
       </Text>
     </View>

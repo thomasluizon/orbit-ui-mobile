@@ -107,7 +107,7 @@ export function HabitListEmptyState({
           <button
             type="button"
             onClick={onAction}
-            className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+            className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary-soft)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
             style={SECONDARY_ACTION_STYLE}
           >
             {actionLabel}

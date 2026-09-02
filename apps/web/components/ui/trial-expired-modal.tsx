@@ -16,7 +16,6 @@ const PAUSED_FEATURES = [
   'trial.expired.aiChat',
   'trial.expired.goals',
   'trial.expired.aiSummary',
-  'trial.expired.allColors',
 ] as const
 
 export function TrialExpiredModal() {
@@ -80,7 +79,7 @@ export function TrialExpiredModal() {
             background: 'rgba(var(--primary-rgb), 0.16)',
           }}
         >
-          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary-soft)]" />
+          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary)]" />
         </div>
         <p
           style={{
