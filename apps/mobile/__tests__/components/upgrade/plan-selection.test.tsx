@@ -132,6 +132,11 @@ describe('PlanSelection (mobile)', () => {
         node.type === 'Pressable' && String(node.props.testID).startsWith('button-'),
     )
 
+    expect(actions.map((action: { props: { accessibilityLabel?: string } }) =>
+      action.props.accessibilityLabel)).toEqual([
+      `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
+      `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.monthly.name' })}`,
+    ])
     TestRenderer.act(() => actions[0].props.onPress())
     TestRenderer.act(() => actions[1].props.onPress())
     expect(onCheckout).toHaveBeenNthCalledWith(1, 'yearly')

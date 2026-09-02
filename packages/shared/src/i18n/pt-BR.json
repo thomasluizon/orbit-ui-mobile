@@ -1953,6 +1953,7 @@
       },
       "recommended": "Recomendado",
       "cta": "Assinar",
+      "checkoutLabel": "Assinar {interval}",
       "coupon": {
         "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },

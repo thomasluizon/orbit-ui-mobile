@@ -128,8 +128,16 @@ describe('PlanSelection', () => {
     const onCheckout = vi.fn()
     renderSelection({ onCheckout })
 
-    const actions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
+    const actions = [
+      screen.getByRole('button', {
+        name: `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
+      }),
+      screen.getByRole('button', {
+        name: `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.monthly.name' })}`,
+      }),
+    ]
     expect(actions).toHaveLength(2)
+    expect(actions.every((action) => action.textContent === 'upgrade.plans.cta')).toBe(true)
     fireEvent.click(actions[0]!)
     fireEvent.click(actions[1]!)
     expect(onCheckout).toHaveBeenNthCalledWith(1, 'yearly')
@@ -140,7 +148,7 @@ describe('PlanSelection', () => {
     const onCheckout = vi.fn()
     renderSelection({ checkoutLoading: 'yearly', onCheckout })
 
-    const paidActions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
+    const paidActions = screen.getAllByRole('button', { name: /upgrade\.plans\.checkoutLabel/ })
     expect(paidActions.every((action) => action.hasAttribute('disabled'))).toBe(true)
     expect(paidActions[0]).toHaveAttribute('aria-busy', 'true')
     expect(onCheckout).not.toHaveBeenCalled()

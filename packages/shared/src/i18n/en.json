@@ -1953,6 +1953,7 @@
       },
       "recommended": "Recommended",
       "cta": "Subscribe",
+      "checkoutLabel": "Subscribe {interval}",
       "coupon": {
         "line": "With your coupon, {percent}% off the first charge."
       },
