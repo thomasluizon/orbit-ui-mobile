@@ -10,6 +10,7 @@ import {
 } from '@orbit/shared'
 import {
   applyThemeTokensToDOM,
+  canvasColor,
   resolveWebThemeVariables,
 } from '@/lib/theme-dom'
 
@@ -39,6 +40,7 @@ describe('web theme variables', () => {
   afterEach(() => {
     document.documentElement.className = ''
     document.documentElement.removeAttribute('style')
+    document.head.innerHTML = ''
   })
 
   for (const scheme of SCHEMES) {
@@ -94,6 +96,10 @@ describe('web theme variables', () => {
   }
 
   it('applies light tokens to the document', () => {
+    document.head.innerHTML = [
+      '<meta name="theme-color" content="">',
+      '<meta name="apple-mobile-web-app-status-bar-style" content="">',
+    ].join('')
     applyThemeTokensToDOM('rose', 'light')
 
     const root = document.documentElement
@@ -102,5 +108,41 @@ describe('web theme variables', () => {
     expect(root.style.getPropertyValue('--bg')).toBe('#FAFAFA')
     expect(root.style.getPropertyValue('--bg-hover')).toBe('rgba(9,9,11,0.06)')
     expect(root.style.getPropertyValue('--scrim')).toBe('rgba(0,0,0,0.55)')
+    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute(
+      'content',
+      canvasColor('rose', 'light'),
+    )
+    expect(document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'))
+      .toHaveAttribute('content', 'default')
+  })
+
+  it('publishes the Hoje hover roles and durations to stylesheet consumers', () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+
+    expect(stylesheet).toContain(
+      '.icon-btn {\n  appearance: none;',
+    )
+    expect(stylesheet).toContain(
+      'background-color var(--dur-hover-control) var(--ease-standard)',
+    )
+    expect(stylesheet).toContain(
+      '.icon-btn:hover,\n  .icon-btn-well:hover {\n    background: var(--bg-hover);',
+    )
+    expect(stylesheet).toContain(
+      '.orbit-menu-item:hover:not(:disabled) {\n    background: var(--bg-hover);',
+    )
+    expect(stylesheet).toContain(
+      'button[data-variant="primary"]:enabled:hover,\n  [data-fab]:hover {\n    background: var(--primary-hover);',
+    )
+    expect(stylesheet).toContain(
+      '.orbit-link-action::after {',
+    )
+    expect(stylesheet).toContain(
+      'transform-origin: left;\n  transition: transform var(--dur-hover) var(--ease-standard);',
+    )
+    expect(stylesheet).toContain(
+      '.orbit-link-action:hover::after {\n    transform: scaleX(1);',
+    )
   })
 })

@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -37,6 +39,30 @@ describe('HabitRow canonical content', () => {
 })
 
 describe('HabitRow check circle accessible name', () => {
+  it('marks only the ring and menu as control-owned hover targets', () => {
+    render(
+      <HabitRow
+        habit={createMockHabit({ title: 'Meditate' })}
+        actions={{ onDetail: vi.fn(), onEdit: vi.fn() }}
+      />,
+    )
+
+    const body = screen.getByRole('button', { name: 'Meditate' })
+    const ring = screen.getByTestId('habit-status-toggle')
+    const menu = screen.getByRole('button', { name: 'habits.actions.more' })
+    expect(body).toHaveAttribute('data-habit-row-body')
+    expect(body).not.toHaveAttribute('data-habit-row-control')
+    expect(ring).toHaveAttribute('data-habit-row-control', 'ring')
+    expect(menu).toHaveAttribute('data-habit-row-control', 'menu')
+
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+    expect(stylesheet).toContain(
+      '[data-habit-row-control]:hover {\n    background: var(--bg-hover);',
+    )
+    expect(stylesheet).not.toContain('[data-habit-row-body]:hover')
+  })
+
   it('makes every read-only descendant inert for keyboard and synthetic activation', async () => {
     const user = userEvent.setup()
     const onDetail = vi.fn()

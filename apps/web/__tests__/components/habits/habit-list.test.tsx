@@ -6,6 +6,8 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
@@ -430,7 +432,7 @@ describe('HabitList', () => {
     expect(screen.getByText('Read')).toBeDefined()
   })
 
-  it('keeps the habit panel hover on the surface token and surface duration', () => {
+  it('routes body hover to the whole panel and ring hover to the ring alone', () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set(habit.id, habit)
     mockHabitsData.topLevelHabits = [habit]
@@ -439,8 +441,12 @@ describe('HabitList', () => {
 
     const panel = screen.getByTestId('habit-card-h-1').closest('.habit-panel')
     expect(panel).not.toBeNull()
-    expect(panel?.className).toContain('hover:bg-[var(--bg-hover)]')
-    expect(panel?.className).toContain('duration-[var(--dur-hover)]')
+
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+    expect(stylesheet).toContain(
+      '.habit-panel:hover:not(:has([data-habit-row-control]:hover)) {\n    background: var(--bg-hover);\n    box-shadow: inset 0 0 0 1px var(--hairline-strong);',
+    )
   })
 
   it('targets the featured demo habit for the card tour steps', () => {

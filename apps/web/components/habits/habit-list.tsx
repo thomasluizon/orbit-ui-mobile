@@ -151,8 +151,7 @@ interface HabitListProps {
   onSurfaceOpenChange?: (open: boolean) => void
 }
 
-const HABIT_PANEL_CLASS_NAME =
-  'habit-panel transition-[background-color,box-shadow] duration-[var(--dur-hover)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
+const HABIT_PANEL_CLASS_NAME = 'habit-panel'
 
 function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 'one-time' {
   if (habit?.frequencyUnit === null) return 'one-time'

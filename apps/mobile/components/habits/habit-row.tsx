@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -221,6 +221,7 @@ export function HabitRow({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { displayTime } = useTimeFormat()
+  const [bodyPressed, setBodyPressed] = useState(false)
 
   const isChild = depth === 1
   const todayStr = formatAPIDate(new Date())
@@ -324,6 +325,9 @@ export function HabitRow({
         style={[
           styles.row,
           rowStyle,
+          bodyPressed
+            ? { backgroundColor: tokens.bgHover, borderColor: tokens.hairlineStrong }
+            : null,
           style,
           readOnly ? styles.readOnly : null,
         ]}
@@ -343,6 +347,8 @@ export function HabitRow({
 
         <Pressable
           onPress={handlePress}
+          onPressIn={() => setBodyPressed(true)}
+          onPressOut={() => setBodyPressed(false)}
           onLongPress={readOnly || isSelectMode ? undefined : actions.onLongPressCard}
           disabled={readOnly}
           delayLongPress={500}
@@ -351,7 +357,7 @@ export function HabitRow({
           style={({ pressed }) => [
             styles.bodyButton,
             { paddingVertical: isChild ? 4 : 8 },
-            pressed ? { backgroundColor: tokens.bgHover } : null,
+            pressed ? styles.bodyButtonPressed : null,
           ]}
         >
           <HabitRowLeading

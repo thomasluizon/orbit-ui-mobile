@@ -6,7 +6,7 @@ import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:scale-[0.96]',
+    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:active:scale-[0.96]',
   secondary:
     'bg-[var(--fg-1)] text-[var(--bg)] enabled:hover:opacity-90 enabled:active:scale-[0.96] enabled:active:opacity-85',
   ghost:

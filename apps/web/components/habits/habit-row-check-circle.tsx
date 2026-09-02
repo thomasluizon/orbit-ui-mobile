@@ -29,6 +29,7 @@ export function CheckCircle({ state, onToggle, disabled, ariaLabel, size = 30 }:
     <button
       type="button"
       data-testid="habit-status-toggle"
+      data-habit-row-control="ring"
       onClick={(event) => {
         event.stopPropagation()
         if (disabled) return
@@ -36,7 +37,7 @@ export function CheckCircle({ state, onToggle, disabled, ariaLabel, size = 30 }:
       }}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`appearance-none border-0 bg-transparent shrink-0 flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
       <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>

@@ -87,7 +87,12 @@ export function HabitRowTrailing({
               disabled={readOnly}
               accessibilityState={{ disabled: readOnly }}
               accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
-              style={styles.parentRingButton}
+              style={({ pressed }) => [
+                styles.parentRingButton,
+                pressed && !readOnly
+                  ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
+                  : null,
+              ]}
             >
               <ParentRing
                 done={childrenDone}
