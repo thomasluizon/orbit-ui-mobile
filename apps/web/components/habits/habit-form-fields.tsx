@@ -57,6 +57,7 @@ interface HabitFormFieldsProps {
   onSuggestSetup?: () => boolean | Promise<boolean>
   isSuggesting?: boolean
   readPhraseLocally?: boolean
+  startDate?: string | null
   children?: ReactNode
 }
 
@@ -110,6 +111,10 @@ async function askAstra(
 
 function isAtMessageLimit(hasProAccess: boolean, used: number, allowance: number): boolean {
   return !hasProAccess && used >= allowance
+}
+
+function resolveStartDate(startDate: string | null | undefined, dueDate: string): string | null {
+  return startDate === undefined ? dueDate : startDate
 }
 
 function AstraFallback({
@@ -229,6 +234,8 @@ export function HabitFormFields({
   onSuggestSetup,
   isSuggesting = false,
   readPhraseLocally = false,
+  startDate,
+  defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -258,7 +265,8 @@ export function HabitFormFields({
   const checklistItems = watch('checklistItems') ?? []
   const isBadHabit = watch('isBadHabit') ?? false
   const slipAlertEnabled = watch('slipAlertEnabled') ?? false
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  const displayedStartDate = resolveStartDate(startDate, dueDate)
+  const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposed, setProposed] = useState(false)
   useExpandAdvancedSignal(expandAdvancedSignal, () => setDetailsOpen(true))
 
@@ -557,10 +565,10 @@ export function HabitFormFields({
         ) : null}
       </div>
 
-      {dueDate ? (
+      {displayedStartDate ? (
         <section className="flex flex-col" style={{ gap: 4 }}>
           <span className="text-xs text-[var(--fg-3)]">{t('habits.form.startDate')}</span>
-          <span className="text-[17px] text-[var(--fg-1)]">{formatLocaleDate(dueDate)}</span>
+          <span className="text-[17px] text-[var(--fg-1)]">{formatLocaleDate(displayedStartDate, locale)}</span>
           <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.startDateReason')}</span>
         </section>
       ) : null}

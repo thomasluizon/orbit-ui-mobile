@@ -210,6 +210,13 @@ describe('EditHabitModal (mobile)', () => {
     expect(findSaveButton(tree)?.props.disabled).toBe(false)
   })
 
+  it('passes the immutable creation timestamp as the start date', async () => {
+    const tree = await renderModal()
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+
+    expect(findFormFields(tree).props.startDate).toBe(habit.createdAtUtc)
+  })
+
   it('sends the goal list from the explicit goal action', async () => {
     const tree = await renderModal()
 

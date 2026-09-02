@@ -141,16 +141,19 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     lockedGeneral,
     onToggleGoal,
     selectedGoalIds,
+    startDate,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
     lockedGeneral?: boolean | null
     onToggleGoal?: (goalId: string) => void
     selectedGoalIds?: string[]
+    startDate?: string | null
   }) => (
     <div data-testid="habit-form-fields">
       <span data-testid="habit-form-fields-locked-general">{String(lockedGeneral)}</span>
       <span data-testid="goal-selection">{JSON.stringify(selectedGoalIds)}</span>
+      <span data-testid="start-date">{startDate}</span>
       {onToggleGoal && <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-1')}>goal</button>}
       {onToggleGoal && <button type="button" data-testid="second-goal-trigger" onClick={() => onToggleGoal('goal-2')}>second goal</button>}
       {onSuggestSetup && (
@@ -235,6 +238,14 @@ describe('EditHabitModal', () => {
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
     expect(screen.getByText('habits.form.editDescription')).toBeDefined()
+  })
+
+  it('passes the immutable creation timestamp as the start date', () => {
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+
+    expect(screen.getByTestId('start-date').textContent).toBe(defaultHabit.createdAtUtc)
   })
 
   it('renders cancel and save buttons', () => {

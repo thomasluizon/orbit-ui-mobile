@@ -396,6 +396,7 @@ export function EditHabitModal({
               isSuggesting={suggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}
               defaultExpanded
+              startDate={habit?.createdAtUtc ?? null}
             />
           </fieldset>
         </form>

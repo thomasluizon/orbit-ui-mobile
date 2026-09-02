@@ -418,6 +418,7 @@ export function EditHabitModal({
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
               onUpgrade={navigateToUpgrade}
+              startDate={habit?.createdAtUtc ?? null}
             />
           </View>
         </View>

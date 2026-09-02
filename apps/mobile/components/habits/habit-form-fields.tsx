@@ -60,6 +60,7 @@ interface HabitFormFieldsProps {
   readPhraseLocally?: boolean
   lockedGeneral?: boolean | null
   onUpgrade: () => void
+  startDate?: string | null
   children?: ReactNode
 }
 
@@ -114,6 +115,10 @@ async function askAstra(
 
 function isAtMessageLimit(hasProAccess: boolean, used: number, allowance: number): boolean {
   return !hasProAccess && used >= allowance
+}
+
+function resolveStartDate(startDate: string | null | undefined, dueDate: string): string | null {
+  return startDate === undefined ? dueDate : startDate
 }
 
 function AstraFallback({
@@ -233,6 +238,8 @@ export function HabitFormFields({
   isSuggesting = false,
   readPhraseLocally = false,
   onUpgrade,
+  startDate,
+  defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t, i18n } = useTranslation()
@@ -262,7 +269,8 @@ export function HabitFormFields({
   const checklistItems = useWatch({ control: form.control, name: 'checklistItems' }) ?? []
   const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
   const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  const displayedStartDate = resolveStartDate(startDate, dueDate)
+  const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposed, setProposed] = useState(false)
   const [previousExpandSignal, setPreviousExpandSignal] = useState(expandAdvancedSignal)
   if (expandAdvancedSignal !== previousExpandSignal) {
@@ -456,7 +464,7 @@ export function HabitFormFields({
         ) : null}
       </View>
 
-      {dueDate ? <View style={styles.startDate}><Text style={styles.meta}>{t('habits.form.startDate')}</Text><Text style={styles.startDateValue}>{formatLocaleDate(dueDate, i18n.language)}</Text><Text style={styles.hint}>{t('habits.form.startDateReason')}</Text></View> : null}
+      {displayedStartDate ? <View style={styles.startDate}><Text style={styles.meta}>{t('habits.form.startDate')}</Text><Text style={styles.startDateValue}>{formatLocaleDate(displayedStartDate, i18n.language)}</Text><Text style={styles.hint}>{t('habits.form.startDateReason')}</Text></View> : null}
     </View>
   )
 }
