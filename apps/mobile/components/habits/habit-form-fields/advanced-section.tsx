@@ -30,6 +30,7 @@ interface AdvancedSectionProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onToggleReminder: (nextEnabled: boolean) => void;
+  onSlipAlertEnabledChange?: (nextEnabled: boolean) => void;
   hasScheduledReminders: boolean;
   onValidationError: (message: string) => void;
   selectedGoalIds: string[];
@@ -52,6 +53,7 @@ export function AdvancedSection({
   reminderTimes,
   onReminderTimesChange,
   onToggleReminder,
+  onSlipAlertEnabledChange,
   hasScheduledReminders,
   onValidationError,
   selectedGoalIds,
@@ -282,11 +284,14 @@ export function AdvancedSection({
           tokens={tokens}
           hasProAccess={hasProAccess}
           slipAlertEnabled={slipAlertEnabled}
-          onToggle={() =>
-            setValue("slipAlertEnabled", !slipAlertEnabled, {
-              shouldDirty: true,
-            })
-          }
+          onToggle={() => {
+            const nextEnabled = !slipAlertEnabled;
+            if (onSlipAlertEnabledChange) {
+              onSlipAlertEnabledChange(nextEnabled);
+              return;
+            }
+            setValue("slipAlertEnabled", nextEnabled, { shouldDirty: true });
+          }}
           onUpgrade={onUpgrade}
         />
       )}

@@ -34,6 +34,7 @@ const cellWords: DayCellWords = {
   partial: 'partial',
   full: 'full',
   notScheduled: 'not scheduled',
+  unavailable: 'not loaded',
   future: 'upcoming',
   of: 'of',
   today: 'today',
@@ -102,6 +103,11 @@ describe('DayCell', () => {
     const futureCell = future.root.findByProps({ testID: 'day-cell-future' })
     expect(futureCell.props.accessibilityRole).toBe('image')
     expect(futureCell.props.accessibilityLabel).toBe('March 13, upcoming, selected, read only')
+
+    const unavailable = render(<DayCell day={13} label="March 13" words={cellWords} outcome="unavailable" />)
+    expect(unavailable.root.findByProps({ testID: 'day-cell-unavailable' }).props.accessibilityLabel).toBe(
+      'March 13, not loaded, read only',
+    )
 
     const unscheduled = render(<DayCell day={14} label="March 14" words={cellWords} scheduled={0} />)
     expect(unscheduled.root.findByProps({ testID: 'day-cell-not-scheduled' }).props.accessibilityLabel).toBe(

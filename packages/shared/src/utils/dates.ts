@@ -26,3 +26,16 @@ export function parseAPIDate(dateStr: string): Date {
 export function formatAPIDate(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
+
+export function resolveHabitDetailRouteDate(
+  value: string | readonly string[] | null | undefined,
+  today = new Date(),
+): string {
+  const fallback = formatAPIDate(today)
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback
+  try {
+    return formatAPIDate(parseAPIDate(value)) === value ? value : fallback
+  } catch {
+    return fallback
+  }
+}

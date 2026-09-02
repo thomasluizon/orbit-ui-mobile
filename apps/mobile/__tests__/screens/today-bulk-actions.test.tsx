@@ -92,6 +92,7 @@ vi.mock('react-native-safe-area-context', () => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     React.useEffect(callback, [callback])
   },

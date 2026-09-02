@@ -13,7 +13,11 @@ export function ListRow(props: Readonly<ListRowProps>) {
   const titleColor = danger ? tokens.statusBad : tokens.fg1
   const body: ReactNode = (
     <>
-      {icon ? <View style={styles.iconSlot}><Icon name={icon} size={24} color={titleColor} /></View> : null}
+      {icon ? (
+        <View style={styles.iconSlot}>
+          {typeof icon === 'string' ? <Icon name={icon} size={24} color={titleColor} /> : icon}
+        </View>
+      ) : null}
       <View style={styles.textBlock}>
         <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
         {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}

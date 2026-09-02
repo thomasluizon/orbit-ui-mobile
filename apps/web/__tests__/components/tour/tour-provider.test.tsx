@@ -49,14 +49,9 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-vi.mock('@/hooks/use-habits', () => ({
-  useHabitDetail: () => ({ data: undefined }),
-}))
-
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
-vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),

@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { plural } from "@/lib/plural";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
-import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
@@ -13,10 +12,6 @@ interface TodayModalsProps {
   showCreateModal: boolean;
   onCloseCreateModal: () => void;
   createInitialDate: string | null;
-  detailHabit: NormalizedHabit | null;
-  selectedDate: string;
-  onCloseDetail: () => void;
-  onHabitLogged: (habitId: string) => void;
   editHabit: NormalizedHabit | null;
   editHabitParentIsGeneral: boolean | null;
   onCloseEdit: () => void;
@@ -32,7 +27,7 @@ interface TodayModalsProps {
 }
 
 /**
- * Renders the Today screen's overlay layer: the create/edit/detail habit
+ * Renders the Today screen's overlay layer: the create/edit habit
  * surfaces, the bulk-action confirm dialogs, the create-goal modal,
  * and the referral drawer. Presentational, extracted from TodayScreen unchanged.
  */
@@ -41,10 +36,6 @@ export function TodayModals({
   showCreateModal,
   onCloseCreateModal,
   createInitialDate,
-  detailHabit,
-  selectedDate,
-  onCloseDetail,
-  onHabitLogged,
   editHabit,
   editHabitParentIsGeneral,
   onCloseEdit,
@@ -66,14 +57,6 @@ export function TodayModals({
         open={showCreateModal}
         onClose={onCloseCreateModal}
         initialDate={createInitialDate}
-      />
-
-      <HabitDetailDrawer
-        open={!!detailHabit}
-        onClose={onCloseDetail}
-        habit={detailHabit}
-        selectedDate={selectedDate}
-        onLogged={onHabitLogged}
       />
 
       <EditHabitModal

@@ -8,7 +8,7 @@ export interface ListRowAction {
 }
 
 export interface ListRowBase {
-  icon?: string
+  icon?: string | ReactNode
   title: string
   description?: string
   value?: string

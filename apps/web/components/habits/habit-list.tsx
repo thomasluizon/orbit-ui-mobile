@@ -80,9 +80,6 @@ import {
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
-const HabitDetailDrawer = dynamic(() =>
-  import('./habit-detail-drawer').then((module) => module.HabitDetailDrawer),
-)
 const CreateHabitModal = dynamic(() =>
   import('./create-habit-modal').then((module) => module.CreateHabitModal),
 )
@@ -98,10 +95,6 @@ const HabitListConfirmDialogs = dynamic(() =>
 const MoveParentOverlay = dynamic(() =>
   import('./habit-list/move-parent-overlay').then((module) => module.MoveParentOverlay),
 )
-
-function DeferredHabitDetailDrawer(props: Readonly<ComponentProps<typeof HabitDetailDrawer>>) {
-  return props.open ? <HabitDetailDrawer {...props} /> : null
-}
 
 function DeferredEditHabitModal(props: Readonly<ComponentProps<typeof EditHabitModal>>) {
   return props.open ? <EditHabitModal {...props} /> : null
@@ -626,8 +619,6 @@ export function HabitList({
 
   const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
 
-  const [showDetailDrawer, setShowDetailDrawer] = useState(false)
-  const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [habitToEdit, setHabitToEdit] = useState<NormalizedHabit | null>(null)
   const [editModalOnSaved, setEditModalOnSaved] = useState<(() => void | Promise<void>) | null>(null)
@@ -648,7 +639,6 @@ export function HabitList({
 
   const surfaceOpen = Boolean(
     drill.currentParent ||
-    showDetailDrawer ||
     showEditModal ||
     showSubHabitModal ||
     showRescheduleSheet ||
@@ -894,8 +884,7 @@ export function HabitList({
   }
 
   function openDetail(habit: NormalizedHabit) {
-    setSelectedHabit(habit)
-    setShowDetailDrawer(true)
+    router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
   }
 
   const handleEditModalOpenChange = useCallback((open: boolean) => {
@@ -1305,14 +1294,6 @@ export function HabitList({
   return (
     <div data-tour="tour-habit-list" ref={listContainerRef}>
       {renderMainContent()}
-
-      <DeferredHabitDetailDrawer
-        open={showDetailDrawer}
-        onOpenChange={setShowDetailDrawer}
-        habit={selectedHabit}
-        selectedDate={selectedDateStr}
-        onLogged={(habitId) => handleLogged(habitId, true)}
-      />
 
       <DeferredEditHabitModal
         open={showEditModal}

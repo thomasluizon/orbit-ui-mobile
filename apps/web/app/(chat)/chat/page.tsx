@@ -1,20 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
-import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { Composer } from '@/components/shell/composer'
 import { ErrorState } from '@/components/ui/error-state'
@@ -59,13 +56,7 @@ export default function ChatPage() {
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
 
-  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
-  const habitDetailQuery = useHabitDetail(selectedHabitId)
-  const selectedHabit = useMemo(
-    () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
-    [habitDetailQuery.data],
-  )
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {
@@ -73,18 +64,13 @@ export default function ChatPage() {
         router.push('/upgrade')
         return
       }
-      setSelectedHabitId(null)
       setSelectedGoalId(entityId)
       return
     }
 
     setSelectedGoalId(null)
-    setSelectedHabitId(entityId)
+    router.push(`/habits/${entityId}`)
   }, [hasProAccess, router])
-
-  const handleDrawerOpenChange = useCallback((open: boolean) => {
-    if (!open) setSelectedHabitId(null)
-  }, [])
 
   const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedGoalId(null)
@@ -186,11 +172,6 @@ export default function ChatPage() {
         <Composer {...composerProps} />
       </div>
 
-      <HabitDetailDrawer
-        open={!!selectedHabitId}
-        onOpenChange={handleDrawerOpenChange}
-        habit={selectedHabit}
-      />
       {selectedGoalId && (
         <GoalDetailDrawer
           open={!!selectedGoalId}

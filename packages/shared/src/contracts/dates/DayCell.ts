@@ -1,10 +1,11 @@
-export type DayOutcome = 'none' | 'partial' | 'full' | 'not-scheduled' | 'future'
+export type DayOutcome = 'none' | 'partial' | 'full' | 'not-scheduled' | 'future' | 'unavailable'
 
 export interface DayCellWords {
   none: string
   partial: string
   full: string
   notScheduled: string
+  unavailable?: string
   future: string
   of: string
   today: string
@@ -26,7 +27,7 @@ interface DayCellBase {
 
 export interface LoggableDayCellProps extends DayCellBase {
   loggable: true
-  outcome?: Exclude<DayOutcome, 'future'>
+  outcome?: Exclude<DayOutcome, 'future' | 'unavailable'>
   onPress: () => void
 }
 

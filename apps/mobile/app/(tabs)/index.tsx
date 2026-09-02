@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   getTodayBoundary,
@@ -9,7 +9,6 @@ import {
 } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
-import { useAdMob } from '@/hooks/use-ad-mob'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
@@ -35,15 +34,14 @@ function getBoundaryMessageKey(
 
 export default function TodayScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { showInterstitialIfDue } = useAdMob()
   const date = useTodayDate()
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
-  const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
@@ -99,13 +97,12 @@ export default function TodayScreen() {
   )
 
   useEffect(() => {
-    const hidden = isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen ||
+    const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
       habitsQuery.isLoading || (habitsQuery.isError && !habitsQuery.data) ||
       Boolean(habitsQuery.data && habitsById.size === 0)
     setTodayFabHidden(hidden)
     return () => setTodayFabHidden(false)
   }, [
-    detailHabit,
     editHabit,
     habitsById.size,
     habitsQuery.data,
@@ -142,12 +139,6 @@ export default function TodayScreen() {
     ),
   )
 
-  const handleHabitLogged = useCallback((habitId: string) => {
-    habitListRef.current?.markRecentlyCompleted(habitId)
-    habitListRef.current?.checkAndPromptParentLog(habitId)
-    void showInterstitialIfDue()
-  }, [showInterstitialIfDue])
-
   const listHeader = (
     <>
       <TodayDateControl
@@ -183,7 +174,7 @@ export default function TodayScreen() {
       {todayFocused ? (
         <TodayAstra
           isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || detailHabit !== null || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
         />
       ) : null}
     </>
@@ -202,7 +193,10 @@ export default function TodayScreen() {
         listHeader={listHeader}
         onCreatePress={() => setShowCreateModal(true)}
         onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
-        onDetailHabit={setDetailHabit}
+        onDetailHabit={(habit) => router.push({
+          pathname: '/habits/[id]',
+          params: { id: habit.id, date: date.dateStr, from: 'today' },
+        })}
         onEditHabit={(habit, onSaved) => {
           setEditHabit(habit)
           setEditHabitOnSaved(() => onSaved ?? null)
@@ -216,10 +210,6 @@ export default function TodayScreen() {
         showCreateModal={showCreateModal}
         onCloseCreateModal={() => setShowCreateModal(false)}
         createInitialDate={date.dateStr}
-        detailHabit={detailHabit}
-        selectedDate={date.dateStr}
-        onCloseDetail={() => setDetailHabit(null)}
-        onHabitLogged={handleHabitLogged}
         editHabit={editHabit}
         editHabitParentIsGeneral={editHabit?.parentId ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null) : null}
         onCloseEdit={() => {
