@@ -22490,6 +22490,7 @@
         "apps/mobile/__tests__/components/habits/habit-detail-sections.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-form-fields/habit-emoji-selector.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-form-fields/habit-tag-chip.test.tsx",
+        "apps/mobile/__tests__/components/habits/habit-form-fields/habit-understanding.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-form-fields/reminder-section.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-form-fields/scheduled-reminder-section.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-list.test.tsx",

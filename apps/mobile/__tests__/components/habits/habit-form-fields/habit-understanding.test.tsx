@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { HabitUnderstanding } from "@/components/habits/habit-form-fields/habit-understanding";
+import { createTokensV2 } from "@/lib/theme";
 
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({ currentScheme: "orange", currentTheme: "light" }),
@@ -38,6 +39,7 @@ interface TestRendererApi {
 }
 
 const TestRenderer: TestRendererApi = require("react-test-renderer");
+const tokens = createTokensV2("orange", "light");
 
 const labels = {
   field: "Describe the habit",
@@ -145,6 +147,14 @@ describe("HabitUnderstanding mobile", () => {
           node.props.selectedEmoji === "🏃",
       ),
     ).toHaveLength(1);
+    const consumedMonday = tree.root.findAll(
+      (node) => node.type === "Text" && node.props.children === "Monday",
+    )[0]!;
+    expect(consumedMonday.props.style).toMatchObject({
+      backgroundColor: tokens.bgWell,
+      textDecorationColor: tokens.hairlineStrong,
+      textDecorationLine: "underline",
+    });
 
     const monday = button(tree, "Monday");
     const tuesday = button(tree, "Tuesday");
